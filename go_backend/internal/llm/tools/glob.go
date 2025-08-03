@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"mix/internal/config"
 	"mix/internal/fileutil"
 	"mix/internal/logging"
 )
@@ -65,7 +64,11 @@ func (g *globTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		var err error
+		searchPath, err = GetWorkingDirectory(ctx)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+		}
 	}
 
 	files, truncated, err := globFiles(params.Pattern, searchPath, 100)

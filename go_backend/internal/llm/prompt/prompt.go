@@ -1,6 +1,7 @@
 package prompt
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,15 +13,15 @@ import (
 	"mix/internal/logging"
 )
 
-func GetAgentPrompt(agentName config.AgentName, provider models.ModelProvider) string {
+func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string) string {
 	var basePrompt string
 
 	if agentName == config.AgentSub {
 		// Load task agent system prompt
-		basePrompt = LoadPromptWithStandardVars("task_agent", nil)
+		basePrompt = LoadPromptWithStandardVars(ctx, "task_agent", sessionVars)
 	} else {
 		// Load main agent prompt with standard environment variables
-		basePrompt = LoadPromptWithStandardVars("system", nil)
+		basePrompt = LoadPromptWithStandardVars(ctx, "system", sessionVars)
 
 		if agentName == config.AgentMain {
 			// Add context from project-specific instruction files if they exist

@@ -12,7 +12,7 @@ These are python tools for video editing automation using the blender MCP
 
     ```python
     import sys, json
-    tools_path = filepath.Join($<workdir>, "go_backend", "tools")
+    tools_path = filepath.Join($<launchdir>, "go_backend", "tools")
     sys.path.insert(0, tools_path)
     from blender import (
         get_timeline_items

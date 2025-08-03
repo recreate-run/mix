@@ -4,7 +4,7 @@ This tool provides programmatic access to Pixelmator Pro functionality for image
 
 ## Instructions
 
-Use `uv run python -c "import sys; sys.path.append('$<workdir>/tools/pixelmator'); from image_editing import *; operation_name(args)"` to execute Pixelmator Pro operations.
+Use `uv run python -c "import sys; sys.path.append('$<launchdir>/tools/pixelmator'); from image_editing import *; operation_name(args)"` to execute Pixelmator Pro operations.
 
 ## Available Operations
 

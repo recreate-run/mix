@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 )
 
 type ToolInfo struct {
@@ -15,16 +16,18 @@ type ToolInfo struct {
 type toolResponseType string
 
 type (
-	sessionIDContextKey string
-	messageIDContextKey string
+	sessionIDContextKey        string
+	messageIDContextKey        string
+	workingDirectoryContextKey string
 )
 
 const (
 	ToolResponseTypeText  toolResponseType = "text"
 	ToolResponseTypeImage toolResponseType = "image"
 
-	SessionIDContextKey sessionIDContextKey = "session_id"
-	MessageIDContextKey messageIDContextKey = "message_id"
+	SessionIDContextKey        sessionIDContextKey        = "session_id"
+	MessageIDContextKey        messageIDContextKey        = "message_id"
+	WorkingDirectoryContextKey workingDirectoryContextKey = "working_directory"
 )
 
 type ToolResponse struct {
@@ -81,4 +84,20 @@ func GetContextValues(ctx context.Context) (string, string) {
 		return sessionID.(string), ""
 	}
 	return sessionID.(string), messageID.(string)
+}
+
+// GetWorkingDirectory safely extracts the working directory from context
+func GetWorkingDirectory(ctx context.Context) (string, error) {
+	value := ctx.Value(WorkingDirectoryContextKey)
+	if value == nil {
+		return "", fmt.Errorf("working directory not found in context")
+	}
+	workingDir, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("working directory context value is not a string")
+	}
+	if workingDir == "" {
+		return "", fmt.Errorf("working directory context value is empty")
+	}
+	return workingDir, nil
 }

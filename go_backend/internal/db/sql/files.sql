@@ -64,8 +64,3 @@ INNER JOIN (
 WHERE f.session_id = ?
 ORDER BY f.path;
 
--- name: ListNewFiles :many
-SELECT *
-FROM files
-WHERE is_new = 1
-ORDER BY created_at DESC;

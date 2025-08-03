@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"mix/internal/config"
 	"mix/internal/permission"
 	"mix/internal/utils"
 )
@@ -81,10 +80,15 @@ func (n *notesTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for notes operations")
 	}
 
+	workingDir, err := GetWorkingDirectory(ctx)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+	}
+	
 	granted := n.permissions.Request(
 		permission.CreatePermissionRequest{
 			SessionID:   sessionID,
-			Path:        config.WorkingDirectory(),
+			Path:        workingDir,
 			ToolName:    NotesToolName,
 			Action:      params.Operation,
 			Description: fmt.Sprintf("Execute Notes operation: %s", params.Operation),
@@ -96,7 +100,6 @@ func (n *notesTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	}
 
 	var result interface{}
-	var err error
 
 	switch params.Operation {
 	case "get_current_note":

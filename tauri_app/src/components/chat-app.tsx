@@ -108,6 +108,7 @@ const hasExitPlanModeTool = (toolCalls: any[]) => {
   return toolCalls?.some(tc => tc.name === 'exit_plan_mode') || false;
 };
 
+const DEFAULT_WORKING_DIR = "/Users/sarathmenon/Desktop/a16z_demo/new_project";
 
 export function ChatApp() {
   const [text, setText] = useState<string>('');
@@ -119,14 +120,37 @@ export function ChatApp() {
   const [isPlanMode, setIsPlanMode] = useState(false);
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
   const interruptedMessageAddedRef = useRef(false);
+  const previousSessionIdRef = useRef<string>('');
 
-
-
-  const { data: session, isLoading: sessionLoading, error: sessionError } = useSession();
-  const sseStream = usePersistentSSE(session?.id || '');
+  // All attachment store hooks at top to avoid temporal dead zone
   const attachments = useAttachmentStore(state => state.attachments);
   const referenceMap = useAttachmentStore(state => state.referenceMap);
+  const addAttachment = useAttachmentStore(state => state.addAttachment);
+  const removeAttachment = useAttachmentStore(state => state.removeAttachment);
+  const clearAttachments = useAttachmentStore(state => state.clearAttachments);
+  const addReference = useAttachmentStore(state => state.addReference);
+  const removeReference = useAttachmentStore(state => state.removeReference);
+  const syncWithText = useAttachmentStore(state => state.syncWithText);
+
+  const { selectedFolder, selectFolder } = useFolderSelection();
+  const { data: session, isLoading: sessionLoading, error: sessionError } = useSession(selectedFolder || DEFAULT_WORKING_DIR);
+  const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps } = useOpenApps();
+  
+  // Clear UI state when session changes (new working directory selected)
+  useEffect(() => {
+    if (session?.id && session.id !== previousSessionIdRef.current) {
+      // Only clear if we're switching from one session to another (not initial load)
+      if (previousSessionIdRef.current !== '') {
+        setMessages([]);
+        setText('');
+        clearAttachments();
+        setShowPlanOptions(null);
+        interruptedMessageAddedRef.current = false;
+      }
+      previousSessionIdRef.current = session.id;
+    }
+  }, [session?.id]);
   
   // Transform open apps to Attachment format and filter allowed apps
   const allowedApps = ['Notes', 'Obsidian', 'Blender', 'Pixelmator Pro', 'Final Cut Pro'];
@@ -141,29 +165,19 @@ export function ChatApp() {
         isOpen: true
       }));
   }, [openApps]);
-  const addAttachment = useAttachmentStore(state => state.addAttachment);
-  const removeAttachment = useAttachmentStore(state => state.removeAttachment);
-  const clearAttachments = useAttachmentStore(state => state.clearAttachments);
-  const addReference = useAttachmentStore(state => state.addReference);
-  const removeReference = useAttachmentStore(state => state.removeReference);
-  const syncWithText = useAttachmentStore(state => state.syncWithText);
-  const { selectedFolder, selectFolder } = useFolderSelection();
 
   const handleFolderSelect = async () => {
     try {
       const selectedFolderPath = await selectFolder();
       if (selectedFolderPath) {
-        addFolder(selectedFolderPath);
+        console.log('Working directory selected:', selectedFolderPath);
       }
     } catch (error) {
-      console.error('Failed to select and attach folder:', error);
+      console.error('Failed to select working directory:', error);
     }
   };
 
-  // Memoize the folder path to prevent unnecessary re-renders
-  const memoizedFolderPath = useMemo(() => selectedFolder || undefined, [selectedFolder]);
-  
-  const fileRef = useFileReference(text, setText, memoizedFolderPath);
+  const fileRef = useFileReference(text, setText, selectedFolder || DEFAULT_WORKING_DIR);
   
 
   const handleAppSelect = (app: Attachment) => {
@@ -423,7 +437,7 @@ export function ChatApp() {
         <button
           onClick={handleFolderSelect}
           className="flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-100 hover:bg-stone-700/50 rounded-lg p-2 transition-colors"
-          title={selectedFolder ? `Current folder: ${selectedFolder}` : 'Select parent folder'}
+          title={selectedFolder ? `Current folder: ${selectedFolder}` : `Default folder: ${DEFAULT_WORKING_DIR}`}
         >
           <FolderIcon className={`size-5 ${selectedFolder ? 'text-blue-400' : ''}`} />
         </button>

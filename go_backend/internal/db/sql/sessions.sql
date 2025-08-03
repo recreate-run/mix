@@ -8,6 +8,7 @@ INSERT INTO sessions (
     completion_tokens,
     cost,
     summary_message_id,
+    working_directory,
     updated_at,
     created_at
 ) VALUES (
@@ -19,6 +20,7 @@ INSERT INTO sessions (
     ?,
     ?,
     null,
+    ?,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING *;

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"mix/internal/config"
 	"mix/internal/history"
 	"mix/internal/logging"
 	"mix/internal/permission"
@@ -81,8 +80,11 @@ func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	}
 
 	if !filepath.IsAbs(params.FilePath) {
-		wd := config.WorkingDirectory()
-		params.FilePath = filepath.Join(wd, params.FilePath)
+		workingDir, err := GetWorkingDirectory(ctx)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+		}
+		params.FilePath = filepath.Join(workingDir, params.FilePath)
 	}
 
 	var response ToolResponse
@@ -147,7 +149,10 @@ func (e *editTool) createNewFile(ctx context.Context, filePath, content string) 
 	}
 	additions := len(lines)
 	removals := 0
-	rootDir := config.WorkingDirectory()
+	rootDir, err := GetWorkingDirectory(ctx)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+	}
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir
@@ -259,7 +264,10 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 	additions := len(newLines)
 	removals := len(oldLines)
 
-	rootDir := config.WorkingDirectory()
+	rootDir, err := GetWorkingDirectory(ctx)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+	}
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir
@@ -380,7 +388,10 @@ func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newS
 	newLines := strings.Split(newContent, "\n")
 	additions := len(newLines)
 	removals := len(oldLines)
-	rootDir := config.WorkingDirectory()
+	rootDir, err := GetWorkingDirectory(ctx)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+	}
 	permissionPath := filepath.Dir(filePath)
 	if strings.HasPrefix(filePath, rootDir) {
 		permissionPath = rootDir

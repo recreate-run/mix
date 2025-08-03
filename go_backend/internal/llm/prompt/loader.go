@@ -47,27 +47,20 @@ func LoadPromptWithVars(name string, vars map[string]string) string {
 }
 
 // getStandardVars returns standard variables available to all prompts
-func getStandardVars() map[string]string {
-	cwd := config.WorkingDirectory()
-	isGit := isGitRepo(cwd)
-	platform := runtime.GOOS
-	ls := tools.NewLsTool()
-	r, _ := ls.Run(context.Background(), tools.ToolCall{
-		Input: `{"path":"."}`,
-	})
+func getStandardVars(ctx context.Context) map[string]string {
+	workingDir := ctx.Value(tools.WorkingDirectoryContextKey).(string)
 
 	return map[string]string{
-		"workdir":     cwd,
-		"platform":    platform,
-		"is_git_repo": boolToYesNo(isGit),
-		"project_ls":  r.Content,
+		"workdir":   workingDir,
+		"platform":  runtime.GOOS,
+		"launchdir": config.LaunchDirectory(),
 	}
 }
 
 // LoadPromptWithStandardVars loads a prompt with standard environment variables plus custom vars
-func LoadPromptWithStandardVars(name string, customVars map[string]string) string {
+func LoadPromptWithStandardVars(ctx context.Context, name string, customVars map[string]string) string {
 	// Merge standard vars with custom vars
-	allVars := getStandardVars()
+	allVars := getStandardVars(ctx)
 	for k, v := range customVars {
 		allVars[k] = v
 	}
@@ -75,22 +68,10 @@ func LoadPromptWithStandardVars(name string, customVars map[string]string) strin
 	return LoadPromptWithVars(name, allVars)
 }
 
-func isGitRepo(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, ".git"))
-	return err == nil
-}
-
-func boolToYesNo(b bool) string {
-	if b {
-		return "Yes"
-	}
-	return "No"
-}
-
 // resolveMarkdownTemplates resolves {markdown:path} templates in content
 func resolveMarkdownTemplates(content string, vars map[string]string) string {
 	markdownRegex := regexp.MustCompile(`\{markdown:([^}]+)\}`)
-	workspaceRoot := config.WorkingDirectory()
+	workspaceRoot := config.LaunchDirectory()
 
 	return markdownRegex.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract the file path from the match

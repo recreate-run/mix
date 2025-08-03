@@ -42,6 +42,22 @@
 - **Tools**: Comprehensive AI assistant tools (bash, file ops, grep, edit, etc.)
 - **Prompts**: Embedded markdown prompts with templating support
 
+#### Session Isolation Architecture
+
+**Session-Specific Resources (Isolated):**
+- **System Prompts**: Each session gets a unique provider with session-aware system prompts
+- **Session Context**: Variables like `session_id`, `session_workdir` are injected per-session
+- **Request Processing**: Each request creates an isolated provider with session context
+
+**Shared Resources (By Design):**
+- **Tools**: All sessions share the same tool instances (`[]tools.BaseTool`)
+- **Agent State**: `activeRequests` sync.Map tracks cross-session state
+- **Providers**: Title and summarize providers are shared across sessions
+- **Services**: Database (sessions/messages) and event pub/sub are shared
+- **Global Caches**: Project context and model definitions are cached globally
+
+This architecture ensures prompt isolation while sharing tools and services efficiently.
+
 ### 4. Data Query Interface (`internal/api/`)
 - **JSON-RPC query system** for structured data access
 - **CLI interface**: `--query <type> --output-format json`

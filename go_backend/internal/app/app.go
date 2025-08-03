@@ -88,7 +88,7 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	}
 	title := titlePrefix + titleSuffix
 
-	sess, err := a.Sessions.Create(ctx, title)
+	sess, err := a.Sessions.Create(ctx, title, config.LaunchDirectory())
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}
@@ -161,5 +161,8 @@ func (a *App) GetCurrentSessionID() string {
 
 // Shutdown performs a clean shutdown of the application
 func (app *App) Shutdown() {
+	if app.CoderAgent != nil {
+		app.CoderAgent.Shutdown()
+	}
 	logging.Info("Application shutdown completed")
 }

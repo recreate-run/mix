@@ -21,12 +21,13 @@ type Session struct {
 	Cost             float64
 	CreatedAt        int64
 	UpdatedAt        int64
+	WorkingDirectory string
 }
 
 // Simplified Service interface for embedded binary
 type Service interface {
 	pubsub.Suscriber[Session]
-	Create(ctx context.Context, title string) (Session, error)
+	Create(ctx context.Context, title string, workingDirectory string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
 	Save(ctx context.Context, session Session) (Session, error)
@@ -38,10 +39,16 @@ type service struct {
 	q db.Querier
 }
 
-func (s *service) Create(ctx context.Context, title string) (Session, error) {
+func (s *service) Create(ctx context.Context, title string, workingDirectory string) (Session, error) {
+	var workingDirValue sql.NullString
+	if workingDirectory != "" {
+		workingDirValue = sql.NullString{String: workingDirectory, Valid: true}
+	}
+
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
-		ID:    uuid.New().String(),
-		Title: title,
+		ID:               uuid.New().String(),
+		Title:            title,
+		WorkingDirectory: workingDirValue,
 	})
 	if err != nil {
 		return Session{}, err
@@ -120,6 +127,7 @@ func (s service) fromDBItem(item db.Session) Session {
 		Cost:             item.Cost,
 		CreatedAt:        item.CreatedAt,
 		UpdatedAt:        item.UpdatedAt,
+		WorkingDirectory: item.WorkingDirectory.String,
 	}
 }
 

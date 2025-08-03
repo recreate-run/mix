@@ -3,10 +3,12 @@ import { rpcCall } from '@/lib/rpc';
 
 interface CreateSessionParams {
   title: string;
+  workingDirectory?: string;
 }
 
 interface Session {
   id: string;
+  workingDirectory?: string;
 }
 
 const createSession = async (params: CreateSessionParams): Promise<Session> => {
@@ -17,7 +19,10 @@ const createSession = async (params: CreateSessionParams): Promise<Session> => {
     throw new Error('No session ID returned from server');
   }
 
-  return { id: sessionId };
+  return { 
+    id: sessionId,
+    workingDirectory: result?.workingDirectory
+  };
 };
 
 export const useCreateSession = () => {
@@ -31,10 +36,10 @@ export const useCreateSession = () => {
   });
 };
 
-export const useSession = () => {
+export const useSession = (workingDirectory?: string) => {
   return useQuery({
-    queryKey: ['session'],
-    queryFn: () => createSession({ title: "Chat Session" }),
+    queryKey: ['session', workingDirectory],
+    queryFn: () => createSession({ title: "Chat Session", workingDirectory }),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });

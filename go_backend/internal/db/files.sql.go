@@ -241,44 +241,6 @@ func (q *Queries) ListLatestSessionFiles(ctx context.Context, sessionID string) 
 	return items, nil
 }
 
-const listNewFiles = `-- name: ListNewFiles :many
-SELECT id, session_id, path, content, version, created_at, updated_at
-FROM files
-WHERE is_new = 1
-ORDER BY created_at DESC
-`
-
-func (q *Queries) ListNewFiles(ctx context.Context) ([]File, error) {
-	rows, err := q.query(ctx, q.listNewFilesStmt, listNewFiles)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []File{}
-	for rows.Next() {
-		var i File
-		if err := rows.Scan(
-			&i.ID,
-			&i.SessionID,
-			&i.Path,
-			&i.Content,
-			&i.Version,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const updateFile = `-- name: UpdateFile :one
 UPDATE files
 SET
