@@ -114,10 +114,13 @@ Notes:
 {markdown:internal/llm/tools/descriptions/blender.md}
 </video_editing_tool>
 
+<image_editing_tool>
+{markdown:internal/llm/tools/descriptions/pixelmator.md}
+</image_editing_tool>
+
 Here is useful information about the environment you are running in:
 
 <env>
 Working directory: $<workdir>
 Platform: $<platform>
-Today's date: $<date>
 </env>

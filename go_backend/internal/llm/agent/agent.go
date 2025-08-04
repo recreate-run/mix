@@ -49,11 +49,13 @@ type Service interface {
 	pubsub.Suscriber[AgentEvent]
 	Model() models.Model
 	Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error)
+	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	Cancel(sessionID string)
 	IsSessionBusy(sessionID string) bool
 	IsBusy() bool
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
 	Summarize(ctx context.Context, sessionID string) error
+	Shutdown()
 }
 
 type agent struct {
@@ -61,13 +63,18 @@ type agent struct {
 	sessions session.Service
 	messages message.Service
 
-	tools    []tools.BaseTool
-	provider provider.Provider
+	agentName config.AgentName
+	tools     []tools.BaseTool
+	provider  provider.Provider
 
 	titleProvider     provider.Provider
 	summarizeProvider provider.Provider
 
-	activeRequests sync.Map
+	sessionProviders sync.Map // Maps session ID to provider.Provider
+	activeRequests   sync.Map
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewAgent(
@@ -96,16 +103,25 @@ func NewAgent(
 		}
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	agent := &agent{
 		Broker:            pubsub.NewBroker[AgentEvent](),
+		agentName:         agentName,
 		provider:          agentProvider,
 		messages:          messages,
 		sessions:          sessions,
 		tools:             agentTools,
 		titleProvider:     titleProvider,
 		summarizeProvider: summarizeProvider,
+		sessionProviders:  sync.Map{},
 		activeRequests:    sync.Map{},
+		ctx:               ctx,
+		cancel:            cancel,
 	}
+
+	// Start session deletion cleanup goroutine
+	go agent.handleSessionEvents()
 
 	return agent, nil
 }
@@ -163,6 +179,10 @@ func (a *agent) generateTitle(ctx context.Context, sessionID string, content str
 		return err
 	}
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
+	
+	// Add session working directory to context
+	ctx = context.WithValue(ctx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
+	
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	response, err := a.titleProvider.SendMessages(
 		ctx,
@@ -196,6 +216,10 @@ func (a *agent) err(err error) AgentEvent {
 }
 
 func (a *agent) Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error) {
+	return a.RunWithPlanMode(ctx, sessionID, content, false, attachments...)
+}
+
+func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error) {
 	if !a.provider.Model().SupportsAttachments && attachments != nil {
 		attachments = nil
 	}
@@ -205,6 +229,11 @@ func (a *agent) Run(ctx context.Context, sessionID string, content string, attac
 	if _, loaded := a.activeRequests.LoadOrStore(sessionID, cancel); loaded {
 		cancel() // Clean up unused cancel function
 		return nil, ErrSessionBusy
+	}
+
+	// Add plan mode to context
+	if planMode {
+		genCtx = context.WithValue(genCtx, "plan_mode", true)
 	}
 
 	// Subscribe to agent events for real-time streaming
@@ -218,7 +247,7 @@ func (a *agent) Run(ctx context.Context, sessionID string, content string, attac
 			close(events)
 		}()
 
-		logging.Debug("Request started", "sessionID", sessionID)
+		logging.Debug("Request started", "sessionID", sessionID, "planMode", planMode)
 		defer logging.RecoverPanic("agent.Run", func() {
 			events <- a.err(fmt.Errorf("panic while running the agent"))
 		})
@@ -350,7 +379,14 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 }
 
 func (a *agent) createUserMessage(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) (message.Message, error) {
-	parts := []message.ContentPart{message.TextContent{Text: content}}
+	// Check if plan mode is active and append system-reminder
+	messageContent := content
+	if ctx.Value("plan_mode") != nil {
+		planModeContent := prompt.LoadPrompt("plan_mode")
+		messageContent = content + "\n\n<system-reminder>\n" + planModeContent + "\n</system-reminder>"
+	}
+	
+	parts := []message.ContentPart{message.TextContent{Text: messageContent}}
 	parts = append(parts, attachmentParts...)
 	return a.messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role:  message.User,
@@ -360,12 +396,33 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
-	eventChan := a.provider.StreamResponse(ctx, msgHistory, a.tools)
+	
+	// Get session and add working directory to context
+	session, err := a.sessions.Get(ctx, sessionID)
+	if err != nil {
+		return message.Message{}, nil, fmt.Errorf("failed to load session %s: %w", sessionID, err)
+	}
+	// Add session working directory to context
+	ctx = context.WithValue(ctx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
+	
+	// Get cached session-specific provider
+	sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &session)
+	if err != nil {
+		return message.Message{}, nil, fmt.Errorf("failed to get session provider: %w", err)
+	}
+	
+	// Filter tools based on plan mode
+	availableTools := a.tools
+	if ctx.Value("plan_mode") != nil {
+		availableTools = filterToolsForPlanMode(a.tools)
+	}
+	
+	eventChan := sessionProvider.StreamResponse(ctx, msgHistory, availableTools)
 
 	assistantMsg, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role:  message.Assistant,
 		Parts: []message.ContentPart{},
-		Model: a.provider.Model().ID,
+		Model: sessionProvider.Model().ID,
 	})
 	if err != nil {
 		return assistantMsg, nil, fmt.Errorf("failed to create assistant message: %w", err)
@@ -373,6 +430,16 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 	// Add the session and message ID into the context if needed by tools.
 	ctx = context.WithValue(ctx, tools.MessageIDContextKey, assistantMsg.ID)
+
+	// Track reasoning start time and ensure cleanup
+	reasoningStartTime := time.Now()
+	defer func() {
+		// Calculate reasoning duration if we have reasoning content
+		if assistantMsg.ReasoningContent().Thinking != "" {
+			duration := int64(time.Since(reasoningStartTime).Seconds())
+			assistantMsg.SetReasoningDuration(duration)
+		}
+	}()
 
 	// Process each event in the stream.
 	for event := range eventChan {
@@ -417,6 +484,16 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 				toolResults[i] = message.ToolResult{
 					ToolCallID: toolCall.ID,
 					Content:    fmt.Sprintf("Tool not found: %s", toolCall.Name),
+					IsError:    true,
+				}
+				continue
+			}
+			
+			// Check if tool is available in plan mode
+			if ctx.Value("plan_mode") != nil && !isToolAllowedInPlanMode(tool) {
+				toolResults[i] = message.ToolResult{
+					ToolCallID: toolCall.ID,
+					Content:    "Tool not available in plan mode. Use exit_plan_mode to proceed with execution.",
 					IsError:    true,
 				}
 				continue
@@ -511,8 +588,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 	switch event.Type {
 	case provider.EventThinkingDelta:
-
-		assistantMsg.AppendReasoningContent(event.Content)
+		assistantMsg.AppendReasoningContent(event.Thinking)
 		// Publish thinking event for real-time streaming
 		a.Publish(pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
@@ -646,6 +722,12 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 			return
 		}
 		summarizeCtx = context.WithValue(summarizeCtx, tools.SessionIDContextKey, sessionID)
+		
+		// Get session working directory and add to context
+		session, err := a.sessions.Get(summarizeCtx, sessionID)
+		if err == nil {
+			summarizeCtx = context.WithValue(summarizeCtx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
+		}
 
 		if len(msgs) == 0 {
 			event = AgentEvent{
@@ -780,6 +862,35 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 	return nil
 }
 
+// filterToolsForPlanMode returns only read-only and planning tools for plan mode
+func filterToolsForPlanMode(allTools []tools.BaseTool) []tools.BaseTool {
+	var planModeTools []tools.BaseTool
+	for _, tool := range allTools {
+		if isToolAllowedInPlanMode(tool) {
+			planModeTools = append(planModeTools, tool)
+		}
+	}
+	return planModeTools
+}
+
+// isToolAllowedInPlanMode checks if a tool is allowed in plan mode
+func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
+	toolName := tool.Info().Name
+	
+	// Allow read-only and planning tools
+	allowedTools := map[string]bool{
+		"view":           true,
+		"ls":             true,
+		"grep":           true,
+		"glob":           true,
+		"todo_write":     true,
+		"exit_plan_mode": true,
+		"fetch":          true,
+	}
+	
+	return allowedTools[toolName]
+}
+
 func createAgentProvider(agentName config.AgentName) (provider.Provider, error) {
 	cfg := config.Get()
 	agentConfig, ok := cfg.Agents[agentName]
@@ -807,7 +918,6 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	opts := []provider.ProviderClientOption{
 		provider.WithAPIKey(providerCfg.APIKey),
 		provider.WithModel(model),
-		provider.WithSystemMessage(prompt.GetAgentPrompt(agentName, model.Provider)),
 		provider.WithMaxTokens(maxTokens),
 	}
 	if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
@@ -834,4 +944,106 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	}
 
 	return agentProvider, nil
+}
+
+func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session) (provider.Provider, error) {
+	cfg := config.Get()
+	agentConfig, ok := cfg.Agents[agentName]
+	if !ok {
+		return nil, fmt.Errorf("agent %s not found", agentName)
+	}
+	model, ok := models.SupportedModels[agentConfig.Model]
+	if !ok {
+		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
+	}
+
+	providerCfg, ok := cfg.Providers[model.Provider]
+	if !ok {
+		return nil, fmt.Errorf("provider %s not supported", model.Provider)
+	}
+	if providerCfg.Disabled {
+		return nil, fmt.Errorf("provider %s is not enabled", model.Provider)
+	}
+
+	maxTokens := model.DefaultMaxTokens
+	if agentConfig.MaxTokens > 0 {
+		maxTokens = agentConfig.MaxTokens
+	}
+
+	// Create session-specific variables
+	sessionVars := map[string]string{}
+	if sess != nil {
+		sessionVars["session_id"] = sess.ID
+		sessionVars["session_workdir"] = sess.WorkingDirectory
+	}
+
+	// Get system prompt with session variables
+	systemPrompt := prompt.GetAgentPromptWithVars(ctx, agentName, model.Provider, sessionVars)
+
+	opts := []provider.ProviderClientOption{
+		provider.WithAPIKey(providerCfg.APIKey),
+		provider.WithModel(model),
+		provider.WithSystemMessage(systemPrompt),
+		provider.WithMaxTokens(maxTokens),
+	}
+	if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
+		opts = append(
+			opts,
+			provider.WithOpenAIOptions(
+				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
+			),
+		)
+	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentMain {
+		opts = append(
+			opts,
+			provider.WithAnthropicOptions(
+				provider.WithAnthropicShouldThinkFn(provider.DefaultShouldThinkFn),
+			),
+		)
+	}
+	sessionProvider, err := provider.NewProvider(
+		model.Provider,
+		opts...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not create session provider: %v", err)
+	}
+
+	return sessionProvider, nil
+}
+
+func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, session *session.Session) (provider.Provider, error) {
+	// Check if provider already exists in cache
+	if cached, exists := a.sessionProviders.Load(sessionID); exists {
+		return cached.(provider.Provider), nil
+	}
+
+	// Create new session provider using pre-loaded session
+	sessionProvider, err := createSessionProvider(ctx, a.agentName, session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session provider: %w", err)
+	}
+
+	// Cache the provider for future use
+	a.sessionProviders.Store(sessionID, sessionProvider)
+
+	return sessionProvider, nil
+}
+
+func (a *agent) Shutdown() {
+	a.cancel()
+}
+
+func (a *agent) handleSessionEvents() {
+	eventsChan := a.sessions.Subscribe(a.ctx)
+
+	for event := range eventsChan {
+		if event.Type == pubsub.DeletedEvent {
+			sessionID := event.Payload.ID
+			// Remove cached provider for deleted session
+			if _, existed := a.sessionProviders.LoadAndDelete(sessionID); existed {
+				logging.Info("Cleaned up session provider cache", "sessionID", sessionID)
+			}
+		}
+	}
 }

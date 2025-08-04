@@ -1,5 +1,5 @@
 {
-  "$schema": "./recreate-schema.json",
+  "$schema": "./mix-schema.json",
   "agents": {
     "main": {
       "model": "claude-4-sonnet",
@@ -11,12 +11,15 @@
     }
   },
   "mcpServers": {
-    "blender": {
+    "blender": { 
           "type": "stdio",
-          "command": "uvx",
+          "command": "uv",
           "allowedTools": ["execute_blender_code"],
           "args": [
-            "blender-mcp"
+            "--directory",
+            "/Users/sarathmenon/Documents/startup/image_generation/blender-mcp/src/blender_mcp",
+            "run",
+            "server.py"
           ],
           "env": []
         }

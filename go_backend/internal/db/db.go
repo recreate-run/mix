@@ -72,9 +72,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listMessagesBySessionStmt, err = db.PrepareContext(ctx, listMessagesBySession); err != nil {
 		return nil, fmt.Errorf("error preparing query ListMessagesBySession: %w", err)
 	}
-	if q.listNewFilesStmt, err = db.PrepareContext(ctx, listNewFiles); err != nil {
-		return nil, fmt.Errorf("error preparing query ListNewFiles: %w", err)
-	}
 	if q.listPreviousSessionsUserHistoryStmt, err = db.PrepareContext(ctx, listPreviousSessionsUserHistory); err != nil {
 		return nil, fmt.Errorf("error preparing query ListPreviousSessionsUserHistory: %w", err)
 	}
@@ -178,11 +175,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listMessagesBySessionStmt: %w", cerr)
 		}
 	}
-	if q.listNewFilesStmt != nil {
-		if cerr := q.listNewFilesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing listNewFilesStmt: %w", cerr)
-		}
-	}
 	if q.listPreviousSessionsUserHistoryStmt != nil {
 		if cerr := q.listPreviousSessionsUserHistoryStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listPreviousSessionsUserHistoryStmt: %w", cerr)
@@ -268,7 +260,6 @@ type Queries struct {
 	listFilesBySessionStmt              *sql.Stmt
 	listLatestSessionFilesStmt          *sql.Stmt
 	listMessagesBySessionStmt           *sql.Stmt
-	listNewFilesStmt                    *sql.Stmt
 	listPreviousSessionsUserHistoryStmt *sql.Stmt
 	listSessionsStmt                    *sql.Stmt
 	listUserMessageHistoryStmt          *sql.Stmt
@@ -297,7 +288,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listFilesBySessionStmt:              q.listFilesBySessionStmt,
 		listLatestSessionFilesStmt:          q.listLatestSessionFilesStmt,
 		listMessagesBySessionStmt:           q.listMessagesBySessionStmt,
-		listNewFilesStmt:                    q.listNewFilesStmt,
 		listPreviousSessionsUserHistoryStmt: q.listPreviousSessionsUserHistoryStmt,
 		listSessionsStmt:                    q.listSessionsStmt,
 		listUserMessageHistoryStmt:          q.listUserMessageHistoryStmt,

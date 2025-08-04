@@ -15,12 +15,12 @@ go_backend/tmp/
 go_backend/vendor/
 
 # Tauri app
-recreate_tauri_app/node_modules/
-recreate_tauri_app/dist/
-recreate_tauri_app/.next/
-recreate_tauri_app/.turbo/
-recreate_tauri_app/target/
-recreate_tauri_app/src-tauri/target/
+mix_tauri_app/node_modules/
+mix_tauri_app/dist/
+mix_tauri_app/.next/
+mix_tauri_app/.turbo/
+mix_tauri_app/target/
+mix_tauri_app/src-tauri/target/
 
 # Dependencies
 node_modules/

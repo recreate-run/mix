@@ -1,216 +1,200 @@
-Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
-It also helps the user understand the progress of the task and overall progress of
-their requests.
+Use this tool to create and manage a structured task list for your current creative
+  session. This helps you track progress, organize complex tasks, and demonstrate
+  thoroughness to the user.
+  It also helps the user understand the progress of the task and overall progress of
+  their requests.
 
-## When to Use This Tool
-Use this tool proactively in these scenarios:
+  ## When to Use This Tool
+  Use this tool proactively in these scenarios:
 
-1. Complex multi-step tasks - When a task requires 3 or more distinct steps or
-actions
-2. Non-trivial and complex tasks - Tasks that require careful planning or multiple
-operations
-3. User explicitly requests todo list - When the user directly asks you to use the
-todo list
-4. User provides multiple tasks - When users provide a list of things to be done
-(numbered or comma-separated)
-5. After receiving new instructions - Immediately capture user requirements as todos
-6. When you start working on a task - Mark it as in_progress BEFORE beginning work. 
-Ideally you should only have one todo as in_progress at a time
-7. After completing a task - Mark it as completed and add any new follow-up tasks
-discovered during implementation
+  1. Complex multi-step tasks - When a task requires 3 or more distinct steps or
+  actions
+  2. Non-trivial and complex tasks - Tasks that require careful planning or multiple
+  operations
+  3. User explicitly requests todo list - When the user directly asks you to use the
+  todo list
+  4. User provides multiple tasks - When users provide a list of things to be done
+  (numbered or comma-separated)
+  5. After receiving new instructions - Immediately capture user requirements as todos
+  6. When you start working on a task - Mark it as in_progress BEFORE beginning work. 
+  Ideally you should only have one todo as in_progress at a time
+  7. After completing a task - Mark it as completed and add any new follow-up tasks
+  discovered during implementation
 
-## When NOT to Use This Tool
+  ## When NOT to Use This Tool
 
-Skip using this tool when:
-1. There is only a single, straightforward task
-2. The task is trivial and tracking it provides no organizational benefit
-3. The task can be completed in less than 3 trivial steps
-4. The task is purely conversational or informational
+  Skip using this tool when:
+  1. There is only a single, straightforward task
+  2. The task is trivial and tracking it provides no organizational benefit
+  3. The task can be completed in less than 3 trivial steps
+  4. The task is purely conversational or informational
 
-NOTE that you should not use this tool if there is only one trivial task to do. In
-this case you are better off just doing the task directly.
+  NOTE that you should not use this tool if there is only one trivial task to do. In
+  this case you are better off just doing the task directly.
 
-## Examples of When to Use the Todo List
+  ## Examples of When to Use the Todo List
 
-<example>
-User: I want to add a dark mode toggle to the application settings. Make sure you run
-the tests and build when you're done!
-Assistant: I'll help add a dark mode toggle to your application settings. Let me
-create a todo list to track this implementation.
-*Creates todo list with the following items:*
-1. Create dark mode toggle component in Settings page
-2. Add dark mode state management (context/store)
-3. Implement CSS-in-JS styles for dark theme
-4. Update existing components to support theme switching
-5. Run tests and build process, addressing any failures or errors that occur
-*Begins working on the first task*
+  <example>
+  User: Create a product demo video for our SaaS platform with onboarding flow, feature highlights, and call-to-action
+  Assistant: I'll help create a comprehensive product demo video for your SaaS platform. Let me
+  create a todo list to track this production process.
+  *Creates todo list with the following items:*
+  1. Analyze user journey and define key features to showcase
+  2. Create screen recordings of onboarding and core workflows
+  3. Add motion graphics, annotations, and feature callouts
+  4. Record and sync professional voiceover narration
+  5. Integrate brand elements, logo animations, and call-to-action
+  6. Export optimized versions for website, social media, and sales team
+  *Begins working on the first task*
 
-<reasoning>
-The assistant used the todo list because:
-1. Adding dark mode is a multi-step feature requiring UI, state management, and
-styling changes
-2. The user explicitly requested tests and build be run afterward
-3. The assistant inferred that tests and build need to pass by adding "Ensure tests
-and build succeed" as the final task
-</reasoning>
-</example>
+  <reasoning>
+  The assistant used the todo list because:
+  1. Product demo creation is a multi-step process requiring user flow analysis, recording, and post-production
+  2. The user requested multiple components (onboarding, features, CTA) that need systematic integration
+  3. SaaS demos require strategic approach to ensure technical features align with user benefits
+  </reasoning>
+  </example>
 
-<example>
-User: Help me rename the function getCwd to getCurrentWorkingDirectory across my
-project
-Assistant: Let me first search through your codebase to find all occurrences of
-'getCwd'.
-*Uses grep or search tools to locate all instances of getCwd in the codebase*
-Assistant: I've found 15 instances of 'getCwd' across 8 different files. Let me
-create a todo list to track these changes.
-*Creates todo list with specific items for each file that needs updating*
+  <example>
+  User: Create launch videos for our AI tool in 3 formats: Product Hunt video, LinkedIn announcement, and YouTube explainer
+  Assistant: Let me first analyze your AI tool's core features and target audiences to understand the
+  optimal messaging approach for each platform.
+  *Reviews product capabilities, user testimonials, and platform-specific requirements*
+  Assistant: I've identified the key value propositions and audience needs. Let me
+  create a todo list to track the multi-format video creation.
+  *Creates todo list with specific items for each platform's technical demos and messaging*
 
-<reasoning>
-The assistant used the todo list because:
-1. First, the assistant searched to understand the scope of the task
-2. Upon finding multiple occurrences across different files, it determined this was a
-complex task with multiple steps
-3. The todo list helps ensure every instance is tracked and updated systematically
-4. This approach prevents missing any occurrences and maintains code consistency
-</reasoning>
-</example>
+  <reasoning>
+  The assistant used the todo list because:
+  1. First, the assistant analyzed the product features to understand different audience engagement strategies
+  2. Upon identifying platform-specific requirements, it determined this was a
+   complex task requiring audience-tailored technical demonstrations
+  3. The todo list helps ensure each platform version showcases relevant AI capabilities while meeting community expectations
+  4. This systematic approach prevents missing platform-specific technical requirements and ensures optimal user acquisition
+  </reasoning>
+  </example>
 
 
-<example>
-User: I need to implement these features for my e-commerce site: user registration,
-product catalog, shopping cart, and checkout flow.
-Assistant: I'll help implement these features. First, let's add all the features to
-the todo list.
-*Creates a todo list breaking down each feature into specific tasks based on the 
-project architecture*
-Assistant: Let's start with user registration. This will involve creating database
-models, API endpoints, and frontend forms that integrate with your existing
-authentication system.
+  <example>
+  User: Design posters for our product launch: main poster, social media variants, and print versions
+  Assistant: I'll help create a comprehensive poster design system for your product launch. First, let's add all the design variants to
+  the todo list.
+  *Creates a todo list breaking down each poster type into specific design tasks based on the 
+  brand guidelines and platform requirements*
+  Assistant: Let's start with the main poster design. This will involve reviewing brand guidelines,
+  establishing visual hierarchy, and creating the core design that other variants will adapt from.
 
-<reasoning>
-The assistant used the todo list because:
-1. The user provided multiple complex features to implement in a comma separated list
-2. The todo list helps organize these large features into manageable tasks
-3. This approach allows for tracking progress across the entire implementation
-</reasoning>
-</example>
+  <reasoning>
+  The assistant used the todo list because:
+  1. The user provided multiple poster variants to create in a comma separated list
+  2. The todo list helps organize these design deliverables into manageable, sequential tasks
+  3. This approach ensures brand consistency across all variants while tracking progress through the entire campaign
+  </reasoning>
+  </example>
 
-<example>
-User: Can you help optimize my React application? It's rendering slowly and has
-performance issues.</user>
-Assistant: I'll help optimize your React application. First, let me examine your
-codebase to identify potential performance bottlenecks.
-*Reviews component structure, render patterns, state management, and data fetching*
-Assistant: After analyzing your codebase, I've identified several performance issues.
-Let me create a todo list to track our optimization efforts.
-*Creates todo list with items like: 1) Implement memoization for expensive 
-calculations in ProductList, 2) Add virtualization for long lists in Dashboard, 3) 
-Optimize image loading in Gallery component, 4) Fix state update loops in 
-ShoppingCart, 5) Review bundle size and implement code splitting*
-Let's start by implementing memoization for the expensive calculations in your
-ProductList component.</assistant>
+  <example>
+  User: Analyze these 20 user session recordings to identify friction points and create a summary report
+  Assistant: I'll help analyze your user session recordings to identify UX friction points. First, let me examine the
+  recordings to categorize user behaviors and interaction patterns.
+  *Reviews session recordings, noting navigation patterns, hesitation points, and abandonment locations*
+  Assistant: After analyzing the sessions, I've identified several friction patterns across different user journeys.
+   Let me create a todo list to track our analysis and reporting process.
+  *Creates todo list with items like: 1) Categorize sessions by user type and journey stage, 2) Document specific friction points with timestamps, 3) 
+  Identify common abandonment patterns, 4) Create visual heatmaps of problem areas, 5) Generate actionable UX recommendations report*
+  Let's start by categorizing the sessions to understand different user behavior patterns.
 
-<reasoning>
-The assistant used the todo list because:
-1. First, the assistant examined the codebase to identify specific performance issues
-2. Based on this analysis, it identified multiple optimization opportunities
-3. Performance optimization is a non-trivial task requiring multiple steps
-4. The todo list helps methodically track improvements across different components
-5. This systematic approach ensures all performance bottlenecks are addressed
-</reasoning>
-</example>
+  <reasoning>
+  The assistant used the todo list because:
+  1. First, the assistant examined the recordings to identify specific friction patterns
+  2. Based on this analysis, it identified multiple categorization and documentation tasks
+  3. Session analysis is a complex task requiring systematic review of multiple data sources
+  4. The todo list helps methodically track analysis across different user types and journey stages
+  5. This systematic approach ensures all friction points are documented and actionable insights are generated
+  </reasoning>
+  </example>
 
-## Examples of When NOT to Use the Todo List
+  ## Examples of When NOT to Use the Todo List
 
-<example>
-User: How do I print 'Hello World' in Python?
-Assistant: In Python, you can print "Hello World" with this simple code:
+  <example>
+  User: What aspect ratio should I use for Instagram posts?
+  Assistant: For Instagram posts, use 1:1 (square) aspect ratio. This is 1080x1080 pixels for optimal quality.
 
-python
-print("Hello World")
+  <reasoning>
+  The assistant did not use the todo list because this is a single, informational query that
+  can be answered in one step. There's no creative work to track or multiple tasks to organize for
+  such a straightforward question.
+  </reasoning>
+  </example>
 
-This will output the text "Hello World" to the console when executed.</assistant>
+  <example>
+  User: What resolution should I use for 4K video export?
+  Assistant: For 4K video export, use 3840x2160 pixels (UHD). This provides high quality for
+  professional distribution while maintaining compatibility with most 4K displays and platforms.
 
-<reasoning>
-The assistant did not use the todo list because this is a single, trivial task that
-can be completed in one step. There's no need to track multiple tasks or steps for
-such a straightforward request.
-</reasoning>
-</example>
+  <reasoning>
+  The assistant did not use the todo list because this is an informational request with
+   no actual creative task to complete. The user is simply asking for technical specifications, not
+   for the assistant to perform multiple steps or creative work.
+  </reasoning>
+  </example>
 
-<example>
-User: What does the git status command do?
-Assistant: The git status command shows the current state of your working directory
-and staging area. It displays which changes have been staged, which haven't, and
-which files aren't being tracked by Git. This is a fundamental command for
-understanding the current state of your repository before making commits.
+  <example>
+  User: Can you add a watermark to this single image?
+  Assistant: Sure, let me add a watermark to your image.
+  * Uses image editing tools to apply the watermark to the specified image *
 
-<reasoning>
-The assistant did not use the todo list because this is an informational request with
-no actual coding task to complete. The user is simply asking for an explanation, not
-for the assistant to perform multiple steps or tasks.
-</reasoning>
-</example>
+  <reasoning>
+  The assistant did not use the todo list because this is a single, straightforward 
+  task applied to one image. Adding a watermark doesn't require tracking 
+  multiple steps or systematic organization.
+  </reasoning>
+  </example>
 
-<example>
-User: Can you add a comment to the calculateTotal function to explain what it does?
-Assistant: Sure, let me add a comment to the calculateTotal function to explain what
-it does.
-* Uses the Edit tool to add a comment to the calculateTotal function *
+  <example>
+  User: Export frame 120 from this video as a PNG file.
+  Assistant: I'll export frame 120 from your video as a PNG.
 
-<reasoning>
-The assistant did not use the todo list because this is a single, straightforward 
-task confined to one location in the code. Adding a comment doesn't require tracking 
-multiple steps or systematic organization.
-</reasoning>
-</example>
+  *Uses video tools to extract and export the specific frame*
 
-<example>
-User: Run npm install for me and tell me what happens.
-Assistant: I'll run the npm install command for you.
+  Frame 120 has been successfully exported as frame_120.png. The image is 1920x1080 resolution 
+  and saved in your current directory.
 
-*Executes: npm install*
+  <reasoning>
+  The assistant did not use the todo list because this is a single export operation 
+  with immediate results. There are no multiple steps to track or organize, making the 
+  todo list unnecessary for this straightforward task.
+  </reasoning>
+  </example>
 
-The command completed successfully. Here's the output:
-[Output of npm install command]
+  ## Task States and Management
 
-All dependencies have been installed according to your package.json file.
+  1. **Task States**: Use these states to track progress:
+     - pending: Task not yet started
+     - in_progress: Currently working on (limit to ONE task at a time)
+     - completed: Task finished successfully
 
-<reasoning>
-The assistant did not use the todo list because this is a single command execution 
-with immediate results. There are no multiple steps to track or organize, making the 
-todo list unnecessary for this straightforward task.
-</reasoning>
-</example>
+  2. **Task Management**:
+     - Update task status in real-time as you work
+     - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
+     - Only have ONE task in_progress at any time
+     - Complete current tasks before starting new ones
+     - Remove tasks that are no longer relevant from the list entirely
 
-## Task States and Management
+  3. **Task Completion Requirements**:
+     - ONLY mark a task as completed when you have FULLY accomplished it
+     - If you encounter errors, blockers, or cannot finish, keep the task as 
+  in_progress
+     - When blocked, create a new task describing what needs to be resolved
+     - Never mark a task as completed if:
+       - Quality checks are failing
+       - Creative work is partial
+       - You encountered unresolved errors
+       - You couldn't find necessary source materials or assets
 
-1. **Task States**: Use these states to track progress:
-   - pending: Task not yet started
-   - in_progress: Currently working on (limit to ONE task at a time)
-   - completed: Task finished successfully
+  4. **Task Breakdown**:
+     - Create specific, actionable items
+     - Break complex tasks into smaller, manageable steps
+     - Use clear, descriptive task names
 
-2. **Task Management**:
-   - Update task status in real-time as you work
-   - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
-   - Only have ONE task in_progress at any time
-   - Complete current tasks before starting new ones
-   - Remove tasks that are no longer relevant from the list entirely
-
-3. **Task Completion Requirements**:
-   - ONLY mark a task as completed when you have FULLY accomplished it
-   - If you encounter errors, blockers, or cannot finish, keep the task as 
-in_progress
-   - When blocked, create a new task describing what needs to be resolved
-   - Never mark a task as completed if:
-      - Tests are failing
-      - Implementation is partial
-      - You encountered unresolved errors
-      - You couldn't find necessary files or dependencies
-
-4. **Task Breakdown**:
-   - Create specific, actionable items
-   - Break complex tasks into smaller, manageable steps
-   - Use clear, descriptive task names
-
-When in doubt, use this tool. Being proactive with task management demonstrates attentiveness and ensures you complete all requirements successfully.
+  When in doubt, use this tool. Being proactive with task management demonstrates 
+  attentiveness and ensures you complete all requirements successfully.

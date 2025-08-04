@@ -67,7 +67,7 @@ When the user asks you to create a new git commit, follow these steps carefully:
 
 4. Create the commit with a message ending with:
 🤖 Generated with Claude
-Co-Authored-By: recreate <noreply@recreate.ai>
+Co-Authored-By: mix <noreply@mix.ai>
 
 - In order to ensure good formatting, ALWAYS pass the commit message via a HEREDOC, a la this example:
 
@@ -76,7 +76,7 @@ git commit -m "$(cat <<'EOF'
    Commit message here.
 
    🤖 Generated with Claude
-   Co-Authored-By: recreate <noreply@recreate.ai>
+   Co-Authored-By: mix <noreply@mix.ai>
    EOF
    )"
 </example>

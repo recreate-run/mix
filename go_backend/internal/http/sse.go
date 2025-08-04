@@ -159,8 +159,10 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 
 // MessageContent represents the JSON structure sent from frontend
 type MessageContent struct {
-	Text  string   `json:"text"`
-	Media []string `json:"media,omitempty"`
+	Text     string   `json:"text"`
+	Media    []string `json:"media,omitempty"`
+	Apps     []string `json:"apps,omitempty"`
+	PlanMode bool     `json:"plan_mode,omitempty"`
 }
 
 // extractText parses JSON content to extract the actual text value
@@ -217,7 +219,14 @@ func handleShellCommand(ctx context.Context, w http.ResponseWriter, flusher http
 
 // handleRegularMessage processes regular messages through the agent
 func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
-	events, err := handler.GetApp().CoderAgent.Run(ctx, sessionID, content)
+	msgContent, err := parseMessageContent(content)
+	if err != nil {
+		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to parse message: %s", err.Error())})
+		flusher.Flush()
+		return nil
+	}
+	
+	events, err := handler.GetApp().CoderAgent.RunWithPlanMode(ctx, sessionID, content, msgContent.PlanMode)
 	if err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())})
 		flusher.Flush()
@@ -232,15 +241,19 @@ func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http
 
 		case event, ok := <-events:
 			if !ok {
-				var content, messageID string
+				var content, messageID, reasoning string
+				var reasoningDuration int64
 				if messages, err := handler.GetApp().Messages.List(context.Background(), sessionID); err == nil && len(messages) > 0 {
 					lastMessage := messages[len(messages)-1]
 					if lastMessage.Role == "assistant" {
 						content = lastMessage.Content().String()
 						messageID = lastMessage.ID
+						reasoningContent := lastMessage.ReasoningContent()
+						reasoning = reasoningContent.String()
+						reasoningDuration = reasoningContent.Duration
 					}
 				}
-				WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: content, MessageID: messageID, Done: true})
+				WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: content, MessageID: messageID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration})
 				flusher.Flush()
 				return nil
 			}
@@ -395,7 +408,10 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 				}
 			} else {
 				content := event.Message.Content().String()
-				if err := WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: content, MessageID: event.Message.ID, Done: true}); err != nil {
+				reasoningContent := event.Message.ReasoningContent()
+				reasoning := reasoningContent.String()
+				reasoningDuration := reasoningContent.Duration
+				if err := WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: content, MessageID: event.Message.ID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration}); err != nil {
 					return err
 				}
 			}

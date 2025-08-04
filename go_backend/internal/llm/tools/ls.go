@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"mix/internal/config"
 )
 
 type LSParams struct {
@@ -66,13 +65,17 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 		return NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
 
+	workingDir, err := GetWorkingDirectory(ctx)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+	}
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		searchPath = workingDir
 	}
 
 	if !filepath.IsAbs(searchPath) {
-		searchPath = filepath.Join(config.WorkingDirectory(), searchPath)
+		searchPath = filepath.Join(workingDir, searchPath)
 	}
 
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {

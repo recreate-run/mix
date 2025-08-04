@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    recreate_tauri_app_lib::run()
+    mix_tauri_app_lib::run()
 }

@@ -45,6 +45,7 @@ type SessionData struct {
 	CompletionTokens int64     `json:"completionTokens"`
 	Cost             float64   `json:"cost"`
 	CreatedAt        time.Time `json:"createdAt"`
+	WorkingDirectory string    `json:"workingDirectory,omitempty"`
 }
 
 type ToolData struct {
@@ -248,6 +249,7 @@ func (h *QueryHandler) handleSessionsGet(ctx context.Context, req *QueryRequest)
 		CompletionTokens: session.CompletionTokens,
 		Cost:             session.Cost,
 		CreatedAt:        time.Unix(session.CreatedAt, 0),
+		WorkingDirectory: session.WorkingDirectory,
 	}
 
 	return &QueryResponse{
@@ -348,8 +350,9 @@ func (h *QueryHandler) handleSessionsSelect(ctx context.Context, req *QueryReque
 
 func (h *QueryHandler) handleSessionsCreate(ctx context.Context, req *QueryRequest) *QueryResponse {
 	var params struct {
-		Title      string `json:"title"`
-		SetCurrent bool   `json:"setCurrent,omitempty"`
+		Title            string `json:"title"`
+		SetCurrent       bool   `json:"setCurrent,omitempty"`
+		WorkingDirectory string `json:"workingDirectory,omitempty"`
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
@@ -372,8 +375,9 @@ func (h *QueryHandler) handleSessionsCreate(ctx context.Context, req *QueryReque
 		}
 	}
 
+
 	// Create session
-	session, err := h.app.Sessions.Create(ctx, params.Title)
+	session, err := h.app.Sessions.Create(ctx, params.Title, params.WorkingDirectory)
 	if err != nil {
 		return &QueryResponse{
 			Error: &QueryError{
@@ -406,6 +410,7 @@ func (h *QueryHandler) handleSessionsCreate(ctx context.Context, req *QueryReque
 		CompletionTokens: session.CompletionTokens,
 		Cost:             session.Cost,
 		CreatedAt:        time.Unix(session.CreatedAt, 0),
+		WorkingDirectory: session.WorkingDirectory,
 	}
 
 	return &QueryResponse{

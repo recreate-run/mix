@@ -84,9 +84,9 @@ type Config struct {
 
 // Application constants
 const (
-	defaultDataDirectory = ".recreate"
+	defaultDataDirectory = ".mix"
 	defaultLogLevel      = "info"
-	appName              = "recreate"
+	appName              = "mix"
 
 	MaxTokensFallbackDefault = 4096
 )
@@ -567,8 +567,8 @@ func Get() *Config {
 	return cfg
 }
 
-// WorkingDirectory returns the current working directory from the configuration.
-func WorkingDirectory() string {
+// LaunchDirectory returns the current launch directory from the configuration.
+func LaunchDirectory() string {
 	if cfg == nil {
 		panic("config not loaded")
 	}

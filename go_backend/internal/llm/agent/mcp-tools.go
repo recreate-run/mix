@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"mix/internal/config"
 	"mix/internal/llm/tools"
@@ -55,7 +56,9 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 	if c, exists := m.clients[serverName]; exists {
 		// Check if client is healthy
 		if c.IsInitialized() {
-			if err := c.Ping(ctx); err == nil {
+			pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			if err := c.Ping(pingCtx); err == nil {
 				m.mu.RUnlock()
 				return c, nil
 			}
@@ -73,7 +76,9 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 	// Double-check after acquiring write lock
 	if c, exists := m.clients[serverName]; exists {
 		if c.IsInitialized() {
-			if err := c.Ping(ctx); err == nil {
+			pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			if err := c.Ping(pingCtx); err == nil {
 				return c, nil
 			}
 		}
@@ -109,11 +114,13 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 	initRequest.Params.ClientInfo = mcp.Implementation{
-		Name:    "Recreate",
+		Name:    "Mix",
 		Version: version.Version,
 	}
 
-	_, err = newClient.Initialize(ctx, initRequest)
+	initCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err = newClient.Initialize(initCtx, initRequest)
 	if err != nil {
 		newClient.Close()
 		return nil, fmt.Errorf("failed to initialize mcp client: %w", err)
@@ -177,7 +184,9 @@ func runTool(ctx context.Context, c *client.Client, toolName string, input strin
 		return tools.NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
 	toolRequest.Params.Arguments = args
-	result, err := c.CallTool(ctx, toolRequest)
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	result, err := c.CallTool(callCtx, toolRequest)
 	if err != nil {
 		return tools.NewTextErrorResponse(err.Error()), nil
 	}
@@ -203,7 +212,7 @@ func (b *mcpTool) Run(ctx context.Context, params tools.ToolCall) (tools.ToolRes
 	p := b.permissions.Request(
 		permission.CreatePermissionRequest{
 			SessionID:   sessionID,
-			Path:        config.WorkingDirectory(),
+			Path:        ctx.Value(tools.WorkingDirectoryContextKey).(string),
 			ToolName:    b.Info().Name,
 			Action:      "execute",
 			Description: permissionDescription,
@@ -270,7 +279,9 @@ func getTools(ctx context.Context, name string, m config.MCPServer, permissions 
 
 	// List tools from the initialized client
 	toolsRequest := mcp.ListToolsRequest{}
-	tools, err := c.ListTools(ctx, toolsRequest)
+	listCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	tools, err := c.ListTools(listCtx, toolsRequest)
 	if err != nil {
 		logging.Error("error listing tools", "server", name, "error", err)
 		return mcpTools

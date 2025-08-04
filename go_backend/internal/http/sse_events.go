@@ -21,10 +21,12 @@ type HeartbeatEvent struct {
 }
 
 type CompleteEvent struct {
-	Type      string `json:"type"`
-	Content   string `json:"content,omitempty"`
-	MessageID string `json:"messageId,omitempty"`
-	Done      bool   `json:"done"`
+	Type              string `json:"type"`
+	Content           string `json:"content,omitempty"`
+	MessageID         string `json:"messageId,omitempty"`
+	Done              bool   `json:"done"`
+	Reasoning         string `json:"reasoning,omitempty"`
+	ReasoningDuration int64  `json:"reasoningDuration,omitempty"`
 }
 
 type ToolEvent struct {

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "recreate_tauri_app",
+  "productName": "mix_tauri_app",
   "version": "0.1.0",
-  "identifier": "com.recreate-tauri-app.app",
+  "identifier": "com.mix-tauri-app.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",

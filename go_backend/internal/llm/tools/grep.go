@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"mix/internal/config"
 	"mix/internal/fileutil"
 )
 
@@ -103,7 +102,11 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = config.WorkingDirectory()
+		var err error
+		searchPath, err = GetWorkingDirectory(ctx)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+		}
 	}
 
 	matches, truncated, err := searchFiles(searchPattern, searchPath, params.Include, 100)

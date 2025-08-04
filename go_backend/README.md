@@ -1,8 +1,8 @@
-# Recreate Codebase Analysis
+# Mix Codebase Analysis
 
 ## Executive Summary
 
-**Recreate** is a sophisticated AI-powered assistant for general-purpose task automation and AI assistance. It provides CLI-only mode for scripting and structured data queries, along with an HTTP API for web integrations. The system is designed as a standalone tool with a clean, minimal interface that prioritizes simplicity and reliability.
+**Mix** is a sophisticated AI-powered assistant for general-purpose task automation and AI assistance. It provides CLI-only mode for scripting and structured data queries, along with an HTTP API for web integrations. The system is designed as a standalone tool with a clean, minimal interface that prioritizes simplicity and reliability.
 
 ## Project Overview
 
@@ -42,6 +42,22 @@
 - **Tools**: Comprehensive AI assistant tools (bash, file ops, grep, edit, etc.)
 - **Prompts**: Embedded markdown prompts with templating support
 
+#### Session Isolation Architecture
+
+**Session-Specific Resources (Isolated):**
+- **System Prompts**: Each session gets a unique provider with session-aware system prompts
+- **Session Context**: Variables like `session_id`, `session_workdir` are injected per-session
+- **Request Processing**: Each request creates an isolated provider with session context
+
+**Shared Resources (By Design):**
+- **Tools**: All sessions share the same tool instances (`[]tools.BaseTool`)
+- **Agent State**: `activeRequests` sync.Map tracks cross-session state
+- **Providers**: Title and summarize providers are shared across sessions
+- **Services**: Database (sessions/messages) and event pub/sub are shared
+- **Global Caches**: Project context and model definitions are cached globally
+
+This architecture ensures prompt isolation while sharing tools and services efficiently.
+
 ### 4. Data Query Interface (`internal/api/`)
 - **JSON-RPC query system** for structured data access
 - **CLI interface**: `--query <type> --output-format json`
@@ -70,7 +86,7 @@ sessions (conversations)
 
 ## CLI Data Query Interface
 
-Recreate provides a powerful structured data access system through its CLI interface that enables programmatic interaction with sessions, tools, and system state. This command-line API is designed for seamless integration with native applications and scripts.
+Mix provides a powerful structured data access system through its CLI interface that enables programmatic interaction with sessions, tools, and system state. This command-line API is designed for seamless integration with native applications and scripts.
 
 ### CLI Query Interface
 
@@ -92,7 +108,7 @@ Get structured JSON data directly via stdout:
 
 ### HTTP Server Interface
 
-Recreate also provides an HTTP JSON-RPC server for web-based integrations:
+Mix also provides an HTTP JSON-RPC server for web-based integrations:
 
 ```bash
 # Start HTTP server on default port (localhost:8080)
@@ -231,7 +247,7 @@ echo '{"method": "sessions.delete", "params": {"id": "session-uuid"}, "id": 1}' 
 ./build/mix --query json --output-format json
 ```
 
-Both CLI and HTTP interfaces provide full 2-way communication for session management, enabling programmatic control of Recreate from external applications or scripts. The HTTP interface offers better performance for web-based integrations, while the CLI interface is ideal for shell scripts and simple integrations.
+Both CLI and HTTP interfaces provide full 2-way communication for session management, enabling programmatic control of Mix from external applications or scripts. The HTTP interface offers better performance for web-based integrations, while the CLI interface is ideal for shell scripts and simple integrations.
 
 ### Query Response Formats
 

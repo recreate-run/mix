@@ -29,16 +29,16 @@ func (r *Registry) LoadCommands(app *app.App) error {
 		r.commands[name] = cmd
 	}
 
-	// Load project commands from .recreate/commands/
-	projectDir := ".recreate/commands"
+	// Load project commands from .mix/commands/
+	projectDir := ".mix/commands"
 	if err := r.loadCommandsFromDir(projectDir, "project"); err != nil {
 		return fmt.Errorf("failed to load project commands: %w", err)
 	}
 
-	// Load user commands from ~/.recreate/commands/
+	// Load user commands from ~/.mix/commands/
 	homeDir, err := os.UserHomeDir()
 	if err == nil {
-		userDir := filepath.Join(homeDir, ".recreate", "commands")
+		userDir := filepath.Join(homeDir, ".mix", "commands")
 		if err := r.loadCommandsFromDir(userDir, "user"); err != nil {
 			return fmt.Errorf("failed to load user commands: %w", err)
 		}

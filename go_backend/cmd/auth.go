@@ -31,7 +31,7 @@ Supported providers:
   - anthropic-claude-pro-max: Authenticate with Claude using OAuth
 
 Example:
-  recreate auth add anthropic-claude-pro-max`,
+  mix auth add anthropic-claude-pro-max`,
 	Args: cobra.ExactArgs(1),
 	RunE: handleAuthAdd,
 }
@@ -79,7 +79,7 @@ func handleAuthStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("\nTo authenticate with Claude Code OAuth:")
-	fmt.Println("  recreate auth add anthropic-claude-pro-max")
+	fmt.Println("  mix auth add anthropic-claude-pro-max")
 
 	return nil
 }

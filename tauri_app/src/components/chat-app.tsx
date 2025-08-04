@@ -12,7 +12,11 @@ import {
   AIInputTools,
 } from '@/components/ui/kibo-ui/ai/input';
 import { AIMessage, AIMessageContent } from '@/components/ui/kibo-ui/ai/message';
-import { AIResponse } from '@/components/ui/kibo-ui/ai/response';
+import {
+  AIReasoning,
+  AIReasoningContent,
+  AIReasoningTrigger,
+} from '@/components/ui/kibo-ui/ai/reasoning';
 import {
   AITool,
   AIToolContent,
@@ -44,6 +48,9 @@ import { AttachmentPreview } from './attachment-preview';
 import { CommandSlash, shouldShowSlashCommands, handleSlashCommandNavigation, slashCommands } from './command-slash';
 import { ResponseRenderer } from './response-renderer';
 import { MessageAttachmentDisplay } from './message-attachment-display';
+import { TodoList } from './todo-list';
+import { PlanDisplay } from './plan-display';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 type ToolCall = {
@@ -60,7 +67,49 @@ type Message = {
   from: 'user' | 'assistant';
   toolCalls?: ToolCall[];
   attachments?: Attachment[];
+  reasoning?: string;
+  reasoningDuration?: number;
 };
+
+// Helper function to extract todos from todo_write tool calls (works with both ToolCall and SSE formats)
+const extractTodosFromToolCalls = (toolCalls: any[]) => {
+  return toolCalls
+    .filter(tc => tc.name === 'todo_write')
+    .map(tc => {
+      try {
+        const todos = tc.parameters?.todos;
+        return Array.isArray(todos) ? todos : [];
+      } catch {
+        return [];
+      }
+    })
+    .flat();
+};
+
+// Helper function to extract plan content from exit_plan_mode tool calls (works with both ToolCall and SSE formats)
+const extractPlanFromToolCalls = (toolCalls: any[]) => {
+  const planTool = toolCalls.find(tc => tc.name === 'exit_plan_mode');
+  if (!planTool) return '';
+  
+  try {
+    return planTool.parameters?.plan || '';
+  } catch {
+    return '';
+  }
+};
+
+// Helper function to filter out special tools (todo_write, exit_plan_mode) from toolCalls
+const filterNonSpecialTools = (toolCalls: any[]) => {
+  return toolCalls.filter(tc => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode');
+};
+
+
+// Helper function to check if a message contains exit_plan_mode tool call
+const hasExitPlanModeTool = (toolCalls: any[]) => {
+  return toolCalls?.some(tc => tc.name === 'exit_plan_mode') || false;
+};
+
+const DEFAULT_WORKING_DIR = "/Users/sarathmenon/Desktop/a16z_demo/new_project";
 
 export function ChatApp() {
   const [text, setText] = useState<string>('');
@@ -69,15 +118,40 @@ export function ChatApp() {
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(null);
   const [showCommands, setShowCommands] = useState(false);
+  const [isPlanMode, setIsPlanMode] = useState(false);
+  const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
   const interruptedMessageAddedRef = useRef(false);
+  const previousSessionIdRef = useRef<string>('');
 
-
-
-  const { data: session, isLoading: sessionLoading, error: sessionError } = useSession();
-  const sseStream = usePersistentSSE(session?.id || '');
+  // All attachment store hooks at top to avoid temporal dead zone
   const attachments = useAttachmentStore(state => state.attachments);
   const referenceMap = useAttachmentStore(state => state.referenceMap);
+  const addAttachment = useAttachmentStore(state => state.addAttachment);
+  const removeAttachment = useAttachmentStore(state => state.removeAttachment);
+  const clearAttachments = useAttachmentStore(state => state.clearAttachments);
+  const addReference = useAttachmentStore(state => state.addReference);
+  const removeReference = useAttachmentStore(state => state.removeReference);
+  const syncWithText = useAttachmentStore(state => state.syncWithText);
+
+  const { selectedFolder, selectFolder } = useFolderSelection();
+  const { data: session, isLoading: sessionLoading, error: sessionError } = useSession(selectedFolder || DEFAULT_WORKING_DIR);
+  const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps } = useOpenApps();
+  
+  // Clear UI state when session changes (new working directory selected)
+  useEffect(() => {
+    if (session?.id && session.id !== previousSessionIdRef.current) {
+      // Only clear if we're switching from one session to another (not initial load)
+      if (previousSessionIdRef.current !== '') {
+        setMessages([]);
+        setText('');
+        clearAttachments();
+        setShowPlanOptions(null);
+        interruptedMessageAddedRef.current = false;
+      }
+      previousSessionIdRef.current = session.id;
+    }
+  }, [session?.id]);
   
   // Transform open apps to Attachment format and filter allowed apps
   const allowedApps = ['Notes', 'Obsidian', 'Blender', 'Pixelmator Pro', 'Final Cut Pro'];
@@ -92,29 +166,19 @@ export function ChatApp() {
         isOpen: true
       }));
   }, [openApps]);
-  const addAttachment = useAttachmentStore(state => state.addAttachment);
-  const removeAttachment = useAttachmentStore(state => state.removeAttachment);
-  const clearAttachments = useAttachmentStore(state => state.clearAttachments);
-  const addReference = useAttachmentStore(state => state.addReference);
-  const removeReference = useAttachmentStore(state => state.removeReference);
-  const syncWithText = useAttachmentStore(state => state.syncWithText);
-  const { selectedFolder, selectFolder } = useFolderSelection();
 
   const handleFolderSelect = async () => {
     try {
       const selectedFolderPath = await selectFolder();
       if (selectedFolderPath) {
-        addFolder(selectedFolderPath);
+        console.log('Working directory selected:', selectedFolderPath);
       }
     } catch (error) {
-      console.error('Failed to select and attach folder:', error);
+      console.error('Failed to select working directory:', error);
     }
   };
 
-  // Memoize the folder path to prevent unnecessary re-renders
-  const memoizedFolderPath = useMemo(() => selectedFolder || undefined, [selectedFolder]);
-  
-  const fileRef = useFileReference(text, setText, memoizedFolderPath);
+  const fileRef = useFileReference(text, setText, selectedFolder || DEFAULT_WORKING_DIR);
   
 
   const handleAppSelect = (app: Attachment) => {
@@ -228,6 +292,13 @@ export function ChatApp() {
 
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle Shift+Tab for plan mode toggle
+    if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault();
+      setIsPlanMode(prev => !prev);
+      return;
+    }
+
     // Handle Cmd+Enter for form submission (fallback)
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
@@ -275,7 +346,7 @@ export function ChatApp() {
 
   // Handle completion of streaming
   useEffect(() => {
-    if (sseStream.completed && sseStream.finalContent && !sseStream.processing) {
+    if (sseStream.completed && (sseStream.finalContent || sseStream.toolCalls.length > 0) && !sseStream.processing) {
       // Convert SSE tool calls to our Message format
       const convertedToolCalls: ToolCall[] = sseStream.toolCalls.map(tc => ({
         name: tc.name,
@@ -286,11 +357,22 @@ export function ChatApp() {
         error: tc.error,
       }));
       
-      setMessages(prev => [...prev, { 
-        content: sseStream.finalContent!, 
-        from: 'assistant',
-        toolCalls: convertedToolCalls.length > 0 ? convertedToolCalls : undefined
-      }]);
+      setMessages(prev => {
+        const newMessages = [...prev, { 
+          content: sseStream.finalContent!, 
+          from: 'assistant',
+          toolCalls: convertedToolCalls.length > 0 ? convertedToolCalls : undefined,
+          reasoning: sseStream.reasoning,
+          reasoningDuration: sseStream.reasoningDuration
+        }];
+        
+        // Check if this message contains an exit_plan_mode tool and show options
+        if (hasExitPlanModeTool(convertedToolCalls)) {
+          setShowPlanOptions(newMessages.length - 1);
+        }
+        
+        return newMessages;
+      });
       
       // Track tool usage if any - with detailed information
       if (convertedToolCalls.length > 0) {
@@ -353,7 +435,7 @@ export function ChatApp() {
   // Handle pause state changes - simplified since pausing is not implemented
   // (Keeping this for compatibility but it won't trigger since isPaused will always be false)
 
-  const submitMessage = async (messageText: string) => {
+  const submitMessage = async (messageText: string, overridePlanMode?: boolean) => {
     if (!messageText || !session?.id || !sseStream.connected) {
       return;
     }
@@ -369,6 +451,7 @@ export function ChatApp() {
     }]);
     setText('');
     clearAttachments();
+    setShowPlanOptions(null); // Clear any shown plan options
     
     // Reset interrupted message guard for new message
     interruptedMessageAddedRef.current = false;
@@ -392,7 +475,8 @@ export function ChatApp() {
       const messageData = {
         text: expandedText,
         media: attachments.filter(a => a.path).map(a => a.path),
-        apps: attachments.filter(a => a.type === 'app').map(app => app.name)
+        apps: attachments.filter(a => a.type === 'app').map(app => app.name),
+        plan_mode: overridePlanMode !== undefined ? overridePlanMode : isPlanMode
       };
       await sseStream.sendMessage(JSON.stringify(messageData));
     } catch (error) {
@@ -425,6 +509,18 @@ export function ChatApp() {
       previous_messages_count: messages.length,
       client_id: localStorage.getItem('client_id') || 'unknown'
     });
+    setShowPlanOptions(null);
+  };
+
+  // Handle plan option button clicks
+  const handlePlanProceed = (messageIndex: number) => {
+    setIsPlanMode(false);
+    setShowPlanOptions(null);
+    submitMessage("Proceed with implementing the plan you just created. Begin implementation now.", false);
+  };
+
+  const handlePlanKeepPlanning = (messageIndex: number) => {
+    setShowPlanOptions(null);
   };
 
   // Calculate submit button status and disabled state
@@ -444,7 +540,7 @@ export function ChatApp() {
         <button
           onClick={handleFolderSelect}
           className="flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-100 hover:bg-stone-700/50 rounded-lg p-2 transition-colors"
-          title={selectedFolder ? `Current folder: ${selectedFolder}` : 'Select parent folder'}
+          title={selectedFolder ? `Current folder: ${selectedFolder}` : `Default folder: ${DEFAULT_WORKING_DIR}`}
         >
           <FolderIcon className={`size-5 ${selectedFolder ? 'text-blue-400' : ''}`} />
         </button>
@@ -461,73 +557,110 @@ export function ChatApp() {
             >
               <AIMessageContent >
                 {message.from === 'assistant' ? (
-                  <ResponseRenderer content={message.content} />
+                  <>
+                    {message.reasoning && (
+                      <AIReasoning className="w-full mb-4" isStreaming={false} duration={message.reasoningDuration || undefined}>
+                        <AIReasoningTrigger />
+                        <AIReasoningContent>{message.reasoning}</AIReasoningContent>
+                      </AIReasoning>
+                    )}
+                    <ResponseRenderer content={message.content} />
+                  </>
                 ) : (
                   <div>
                     <MessageAttachmentDisplay attachments={message.attachments || []} />
                     {message.content}
                   </div>
                 )}
+                {/* Render todos inline without tool wrapper */}
                 {message.toolCalls && message.toolCalls.length > 0 && (
-                  <AIToolLadder className="mt-4">
-                    {message.toolCalls.map((toolCall, toolIndex) => (
-                      <AIToolStep
-                        key={`${index}-${toolCall.name}-${toolIndex}`}
-                        status={toolCall.status}
-                        stepNumber={toolIndex + 1}
-                        isLast={toolIndex === message.toolCalls!.length - 1}
-                      >
-                        <AIToolHeader
-                          description={toolCall.description}
-                          name={toolCall.name}
-                          status={toolCall.status}
-                        />
-                        <AIToolContent>
-                          <AIToolParameters parameters={toolCall.parameters} />
-                          {(toolCall.result || toolCall.error) && (
-                            <AIToolResult
-                              error={toolCall.error}
-                              result={toolCall.result ? <AIResponse>{toolCall.result}</AIResponse> : undefined}
+                  <>
+                    {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
+                      <div className="mt-4">
+                        <TodoList todos={extractTodosFromToolCalls(message.toolCalls)} />
+                      </div>
+                    )}
+                    {/* Render plan content */}
+                    {extractPlanFromToolCalls(message.toolCalls) && (
+                      <PlanDisplay 
+                        planContent={extractPlanFromToolCalls(message.toolCalls)}
+                        showOptions={showPlanOptions === index}
+                        onProceed={() => handlePlanProceed(index)}
+                        onKeepPlanning={() => handlePlanKeepPlanning(index)}
+                      />
+                    )}
+                    {/* Render non-special tools in ladder */}
+                    {filterNonSpecialTools(message.toolCalls).length > 0 && (
+                      <AIToolLadder className="mt-4">
+                        {filterNonSpecialTools(message.toolCalls).map((toolCall, toolIndex) => (
+                          <AIToolStep
+                            key={`${index}-${toolCall.name}-${toolIndex}`}
+                            status={toolCall.status}
+                            stepNumber={toolIndex + 1}
+                            isLast={toolIndex === filterNonSpecialTools(message.toolCalls).length - 1}
+                          >
+                            <AIToolHeader
+                              description={toolCall.description}
+                              name={toolCall.name}
+                              status={toolCall.status}
                             />
-                          )}
-                        </AIToolContent>
-                      </AIToolStep>
-                    ))}
-                  </AIToolLadder>
+                            <AIToolContent toolCall={toolCall} />
+                          </AIToolStep>
+                        ))}
+                      </AIToolLadder>
+                    )}
+                  </>
                 )}
               </AIMessageContent>
             </AIMessage>
           ))}
           {sseStream.processing && (
-            <AIMessage from="assistant">
+            <AIMessage 
+              from="assistant"
+            >
               <AIMessageContent>
+                {/* Show reasoning during streaming if available */}
+                {sseStream.reasoning && (
+                  <AIReasoning className="w-full mb-4" isStreaming={true} duration={sseStream.reasoningDuration || undefined}>
+                    <AIReasoningTrigger />
+                    <AIReasoningContent>{sseStream.reasoning}</AIReasoningContent>
+                  </AIReasoning>
+                )}
                 {sseStream.toolCalls.length > 0 ? (
                   <>
-                    <AIToolLadder >
-                      {sseStream.toolCalls.map((toolCall, toolIndex) => (
-                        <AIToolStep
-                          key={`streaming-${toolCall.id}-${toolIndex}`}
-                          status={toolCall.status}
-                          stepNumber={toolIndex + 1}
-                          isLast={toolIndex === sseStream.toolCalls.length - 1}
-                        >
-                          <AIToolHeader
-                            description={toolCall.description}
-                            name={toolCall.name}
+                    {/* Render streaming todos inline without tool wrapper */}
+                    {extractTodosFromToolCalls(sseStream.toolCalls).length > 0 && (
+                      <div className="mt-4">
+                        <TodoList todos={extractTodosFromToolCalls(sseStream.toolCalls)} />
+                      </div>
+                    )}
+                    {/* Render streaming plan content */}
+                    {extractPlanFromToolCalls(sseStream.toolCalls) && (
+                      <PlanDisplay 
+                        planContent={extractPlanFromToolCalls(sseStream.toolCalls)}
+                        showOptions={false}
+                      />
+                    )}
+                    {/* Render streaming non-special tools in ladder */}
+                    {filterNonSpecialTools(sseStream.toolCalls).length > 0 && (
+                      <AIToolLadder >
+                        {filterNonSpecialTools(sseStream.toolCalls).map((toolCall, toolIndex) => (
+                          <AIToolStep
+                            key={`streaming-${toolCall.id}-${toolIndex}`}
                             status={toolCall.status}
-                          />
-                          <AIToolContent>
-                            <AIToolParameters parameters={toolCall.parameters} />
-                            {(toolCall.result || toolCall.error) && (
-                              <AIToolResult
-                                error={toolCall.error}
-                                result={toolCall.result ? <AIResponse>{toolCall.result}</AIResponse> : undefined}
-                              />
-                            )}
-                          </AIToolContent>
-                        </AIToolStep>
-                      ))}
-                    </AIToolLadder>
+                            stepNumber={toolIndex + 1}
+                            isLast={toolIndex === filterNonSpecialTools(sseStream.toolCalls).length - 1}
+                          >
+                            <AIToolHeader
+                              description={toolCall.description}
+                              name={toolCall.name}
+                              status={toolCall.status}
+                            />
+                            <AIToolContent toolCall={toolCall} />
+                          </AIToolStep>
+                        ))}
+                      </AIToolLadder>
+                    )}
                     {!sseStream.completed && <LoadingDots />}
                   </>
                 ) : (
@@ -609,6 +742,20 @@ export function ChatApp() {
             />
           </AIInputToolbar>
         </AIInput>
+        
+        {/* Mode Selector */}
+        <div className="absolute bottom-1 left-1">
+          <Select
+          value={isPlanMode ? 'plan' : 'edit'} onValueChange={(value) => setIsPlanMode(value === 'plan')}>
+            <SelectTrigger size="sm" className="text-muted-foreground border-none bg-transparent dark:bg-transparent hover:bg-transparent  hover:dark:bg-transparent focus:ring-0 focus:border-none">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="edit">create</SelectItem>
+              <SelectItem value="plan">plan</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         </div>
         
         {/* Unified Command System */}

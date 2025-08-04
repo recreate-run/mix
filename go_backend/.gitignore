@@ -46,10 +46,10 @@ build-errors.log
 .env
 .env.local
 
-.recreate/
+.mix/
 
-recreate
-recreate.md
+mix
+mix.md
 
 tools/blender/__pycache__
 

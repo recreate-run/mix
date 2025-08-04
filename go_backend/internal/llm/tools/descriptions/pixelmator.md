@@ -1,12 +1,10 @@
-Automates Pixelmator Pro image editing operations via AppleScript integration.
+# Image editing tool
 
 This tool provides programmatic access to Pixelmator Pro functionality for image editing workflows.
 
-## Prerequisites
+## Instructions
 
-- Pixelmator Pro must be installed and running on macOS
-- The tool uses AppleScript automation via the bash tool
-- Requires appropriate system permissions for application automation
+Use `uv run python -c "import sys; sys.path.append('$<launchdir>/tools/pixelmator'); from image_editing import *; operation_name(args)"` to execute Pixelmator Pro operations.
 
 ## Available Operations
 
@@ -68,17 +66,9 @@ This tool provides programmatic access to Pixelmator Pro functionality for image
 
 ### Export Operations
 
-**export_document**
-- Exports the current document to a file
-- Args: `{"output_path": "/path/to/output.png", "format": "PNG", "quality": 100}`
-- Valid formats: PNG, JPEG, TIFF, PSD, WEBP
-- Quality: 1-100 (JPEG only)
-- Returns: Export info with output_path, format, file_size, success
-
-**export_current_view**
-- Exports the current viewport view to a file
-- Args: `{"output_path": "/path/to/view.png", "format": "PNG"}`
-- Valid formats: PNG, JPEG, TIFF
+**get_screenshot**
+- Exports the current document to a JPEG file
+- Args: `{"output_path": "/path/to/output.jpg"}`
 - Returns: Export info with output_path, format, file_size, success
 
 ## Usage Examples
@@ -99,8 +89,8 @@ This tool provides programmatic access to Pixelmator Pro functionality for image
 // Create a text layer
 {"operation": "create_layer", "args": {"layer_type": "text", "name": "title", "text": "Hello World", "font_size": 64}}
 
-// Export as PNG
-{"operation": "export_document", "args": {"output_path": "/Users/user/output.png", "format": "PNG"}}
+// Export as JPEG
+{"operation": "get_screenshot", "args": {"output_path": "/Users/user/output.jpg"}}
 
 // Close document
 {"operation": "close_document", "args": {"save": false}}

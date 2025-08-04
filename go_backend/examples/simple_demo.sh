@@ -16,7 +16,7 @@ echo "🔄 Demo 1: Creating a simple file"
 echo "Task: 'Create a hello.txt file with Hello World message'"
 echo ""
 
-./recreate -p "Create a hello.txt file with the message 'Hello World from the agentic loop!'"
+./mix -p "Create a hello.txt file with the message 'Hello World from the agentic loop!'"
 
 echo ""
 echo "✅ Demo 1 complete. Check if hello.txt was created:"

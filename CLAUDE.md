@@ -33,5 +33,5 @@ make tail-log     # Reads the current log file (last 100 lines of code)
 
 ## Notes
 
-This project uses `.recreate/commands/` for custom slash commands (independent from Claude Code's `.claude/commands/` system).
-Users can add `.md` files to `.recreate/commands/` or `~/.recreate/commands/` to create custom commands.
+This project uses `.mix/commands/` for custom slash commands (independent from Claude Code's `.claude/commands/` system).
+Users can add `.md` files to `.mix/commands/` or `~/.mix/commands/` to create custom commands.

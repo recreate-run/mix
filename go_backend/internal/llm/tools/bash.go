@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"mix/internal/config"
 	"mix/internal/llm/tools/shell"
 	"mix/internal/permission"
 )
@@ -121,11 +120,17 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	if sessionID == "" || messageID == "" {
 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for creating a new file")
 	}
+	startTime := time.Now()
+	workingDir, err := GetWorkingDirectory(ctx)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+	}
+	
 	if !isSafeReadOnly {
 		p := b.permissions.Request(
 			permission.CreatePermissionRequest{
 				SessionID:   sessionID,
-				Path:        config.WorkingDirectory(),
+				Path:        workingDir,
 				ToolName:    BashToolName,
 				Action:      "execute",
 				Description: fmt.Sprintf("Execute command: %s", params.Command),
@@ -138,8 +143,8 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 			return ToolResponse{}, permission.ErrorPermissionDenied
 		}
 	}
-	startTime := time.Now()
-	shell := shell.GetPersistentShell(config.WorkingDirectory())
+	
+	shell := shell.GetPersistentShell(workingDir)
 	stdout, stderr, exitCode, interrupted, err := shell.Exec(ctx, params.Command, params.Timeout)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error executing command: %w", err)

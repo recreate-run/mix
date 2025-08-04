@@ -50,8 +50,8 @@ type SSEEvent struct {
 // Test utilities
 func setupTestServer(t *testing.T) (*httptest.Server, *app.App, string) {
 	// Set up test configuration properly
-	testConfigDir := "/tmp/test-recreate-" + t.Name()
-	testDataDir := "/tmp/test-recreate-data-" + t.Name()
+	testConfigDir := "/tmp/test-mix-" + t.Name()
+	testDataDir := "/tmp/test-mix-data-" + t.Name()
 
 	os.Setenv("_CONFIG_DIR", testConfigDir)
 	os.Setenv("_DATA_DIR", testDataDir)

@@ -37,6 +37,7 @@ type ContentPart interface {
 
 type ReasoningContent struct {
 	Thinking string `json:"thinking"`
+	Duration int64  `json:"duration"` // Duration in seconds
 }
 
 func (tc ReasoningContent) String() string {
@@ -227,12 +228,21 @@ func (m *Message) AppendReasoningContent(delta string) {
 	found := false
 	for i, part := range m.Parts {
 		if c, ok := part.(ReasoningContent); ok {
-			m.Parts[i] = ReasoningContent{Thinking: c.Thinking + delta}
+			m.Parts[i] = ReasoningContent{Thinking: c.Thinking + delta, Duration: c.Duration}
 			found = true
 		}
 	}
 	if !found {
-		m.Parts = append(m.Parts, ReasoningContent{Thinking: delta})
+		m.Parts = append(m.Parts, ReasoningContent{Thinking: delta, Duration: 0})
+	}
+}
+
+func (m *Message) SetReasoningDuration(duration int64) {
+	for i, part := range m.Parts {
+		if c, ok := part.(ReasoningContent); ok {
+			m.Parts[i] = ReasoningContent{Thinking: c.Thinking, Duration: duration}
+			return
+		}
 	}
 }
 

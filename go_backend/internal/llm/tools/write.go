@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"mix/internal/config"
 	"mix/internal/history"
 	"mix/internal/logging"
 	"mix/internal/permission"
@@ -79,9 +78,13 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		return NewTextErrorResponse("content is required"), nil
 	}
 
+	workingDir, err := GetWorkingDirectory(ctx)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+	}
 	filePath := params.FilePath
 	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Join(config.WorkingDirectory(), filePath)
+		filePath = filepath.Join(workingDir, filePath)
 	}
 
 	fileInfo, err := os.Stat(filePath)
@@ -130,10 +133,9 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	additions := len(newLines)
 	removals := len(oldLines)
 
-	rootDir := config.WorkingDirectory()
 	permissionPath := filepath.Dir(filePath)
-	if strings.HasPrefix(filePath, rootDir) {
-		permissionPath = rootDir
+	if strings.HasPrefix(filePath, workingDir) {
+		permissionPath = workingDir
 	}
 	p := w.permissions.Request(
 		permission.CreatePermissionRequest{

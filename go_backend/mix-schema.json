@@ -97,7 +97,7 @@
       "type": "object"
     }
   },
-  "description": "Configuration schema for the Recreate application",
+  "description": "Configuration schema for the Mix application",
   "properties": {
     "agents": {
       "additionalProperties": {
@@ -212,12 +212,12 @@
         ".cursor/rules/",
         "CLAUDE.md",
         "CLAUDE.local.md",
-        "recreate.md",
-        "recreate.local.md",
-        "Recreate.md",
-        "Recreate.local.md",
-        "RECREATE.md",
-        "RECREATE.local.md"
+        "mix.md",
+        "mix.local.md",
+        "Mix.md",
+        "Mix.local.md",
+        "MIX.md",
+        "MIX.local.md"
       ],
       "description": "Context paths for the application",
       "items": {
@@ -229,7 +229,7 @@
       "description": "Storage configuration",
       "properties": {
         "directory": {
-          "default": ".recreate",
+          "default": ".mix",
           "description": "Directory where application data is stored",
           "type": "string"
         }
@@ -347,6 +347,6 @@
       "type": "string"
     }
   },
-  "title": "Recreate Configuration",
+  "title": "Mix Configuration",
   "type": "object"
 }

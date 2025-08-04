@@ -83,7 +83,7 @@ func SkipHidden(path string) bool {
 	}
 
 	commonIgnoredDirs := map[string]bool{
-		".recreate":        true,
+		".mix":             true,
 		"node_modules":     true,
 		"vendor":           true,
 		"dist":             true,

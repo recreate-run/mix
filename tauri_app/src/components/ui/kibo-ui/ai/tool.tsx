@@ -78,20 +78,40 @@ export const AIToolHeader = ({
     {...props}
   >
     <div className="flex items-center gap-2">
-      <WrenchIcon className="size-3 text-muted-foreground" />
       <span className="font-medium text-xs">{name}</span>
     </div>
     <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
   </CollapsibleTrigger>
 );
 
-export type AIToolContentProps = ComponentProps<typeof CollapsibleContent>;
+export type AIToolContentProps = ComponentProps<typeof CollapsibleContent> & {
+  toolCall?: {
+    name: string;
+    parameters: Record<string, unknown>;
+    result?: string;
+    error?: string;
+  };
+};
 
-export const AIToolContent = ({ className, ...props }: AIToolContentProps) => (
+
+export const AIToolContent = ({ className, toolCall, children, ...props }: AIToolContentProps) => (
   <CollapsibleContent
     className={cn('grid gap-4 overflow-x-auto border-t p-4 text-sm', className)}
     {...props}
-  />
+  >
+    {toolCall && (
+      <>
+        <AIToolParameters parameters={toolCall.parameters} />
+        {(toolCall.result || toolCall.error) && (
+          <AIToolResult
+            error={toolCall.error}
+            result={toolCall.result}
+          />
+        )}
+      </>
+    )}
+    {children}
+  </CollapsibleContent>
 );
 
 export type AIToolParametersProps = ComponentProps<'div'> & {
@@ -171,12 +191,7 @@ export const AIToolStep = ({
   ...props
 }: AIToolStepProps) => (
   <div className="relative">
-    {/* Connection line to next step */}
-    {!isLast && (
-      <div className="absolute left-6 top-12 w-px h-4 bg-border" />
-    )}
-    
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 px-4">
       {/* Step indicator */}
 
         <div className={cn(
@@ -196,7 +211,7 @@ export const AIToolStep = ({
       {/* Tool content */}
       <div className="flex-1 min-w-0">
         <Collapsible
-          className={cn('not-prose w-full rounded-md border', className)}
+          className={cn('not-prose w-full hover:bg-muted rounded-md ', className)}
           {...props}
         >
           {children}

@@ -122,7 +122,7 @@ func TestLsTool_Run(t *testing.T) {
 	// TODO: Add test for empty path parameter handling
 	// This test was removed because it requires the config system to be initialized
 	// which is not available in the test environment. Need to either:
-	// 1. Create a safe wrapper for config.WorkingDirectory() that falls back to os.Getwd()
+	// 1. Create a safe wrapper for config.LaunchDirectory() that falls back to os.Getwd()
 	// 2. Or provide a way to inject working directory dependency into the ls tool
 
 	t.Run("handles invalid parameters", func(t *testing.T) {

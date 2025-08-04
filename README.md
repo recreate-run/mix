@@ -24,7 +24,7 @@ make build
 ./mix --http-port 8080
 ```
 
-### recreate_tauri_app
+### mix_tauri_app
 A Tauri-based desktop application with React frontend for chat functionality.
 
 **Key features:**
@@ -35,7 +35,7 @@ A Tauri-based desktop application with React frontend for chat functionality.
 
 **Getting started:**
 ```bash
-cd recreate_tauri_app
+cd mix_tauri_app
 npm install
 npm run tauri dev
 ```
@@ -44,7 +44,7 @@ npm run tauri dev
 
 The system requires explicit model configuration for both main and sub-agents. 
 
-**Step 1:** Create a configuration file (`.recreate.json`) in your home directory or project root:
+**Step 1:** Create a configuration file (`.mix.json`) in your home directory or project root:
 
 ```json
 {
@@ -78,7 +78,7 @@ Each project maintains its own build system and dependencies. Refer to the indiv
 
 ```
 ├── go_backend/          # Go backend service
-├── recreate_tauri_app/  # Tauri desktop application
+├── mix_tauri_app/  # Tauri desktop application
 ├── .gitignore          # Monorepo gitignore
 └── README.md           # This file
 ```

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"mix/internal/config"
 	"mix/internal/llm/tools"
 	"mix/internal/message"
 	"mix/internal/session"
@@ -52,12 +51,13 @@ func (b *agentTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolRes
 		return tools.ToolResponse{}, fmt.Errorf("session_id and message_id are required")
 	}
 
-	agent, err := NewAgent(config.AgentSub, b.sessions, b.messages, TaskAgentTools())
+	agent, err := NewAgent("sub", b.sessions, b.messages, TaskAgentTools())
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}
+	defer agent.Shutdown()
 
-	session, err := b.sessions.Create(ctx, "New Agent Session")
+	session, err := b.sessions.Create(ctx, "New Agent Session", ctx.Value(tools.WorkingDirectoryContextKey).(string))
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}
