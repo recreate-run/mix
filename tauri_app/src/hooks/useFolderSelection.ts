@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { safeTrackEvent } from '@/lib/posthog';
 
 const FOLDER_STORAGE_KEY = 'file-reference-parent-folder';
 
@@ -24,6 +25,13 @@ export const useFolderSelection = () => {
       if (selected && typeof selected === 'string') {
         setSelectedFolder(selected);
         localStorage.setItem(FOLDER_STORAGE_KEY, selected);
+        
+        // Track folder selection event
+        safeTrackEvent('folder_selected', {
+          folder_path: selected,
+          timestamp: new Date().toISOString()
+        });
+        
         return selected;
       }
       return null;
@@ -36,6 +44,11 @@ export const useFolderSelection = () => {
   const clearFolder = useCallback(() => {
     setSelectedFolder(null);
     localStorage.removeItem(FOLDER_STORAGE_KEY);
+    
+    // Track folder cleared event
+    safeTrackEvent('folder_cleared', {
+      timestamp: new Date().toISOString()
+    });
   }, []);
 
   return {

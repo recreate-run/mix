@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { safeTrackEvent } from '@/lib/posthog';
 
 export type SSEToolCall = {
   name: string;
@@ -18,6 +19,7 @@ export type PersistentSSEState = {
   finalContent: string | null;
   completed: boolean;
   processing: boolean; // True when processing a message
+  startTime?: number; // When message processing started
   isPaused: boolean; // True when session is paused
   reasoning: string | null; // Reasoning content from the assistant
   reasoningDuration: number | null; // Reasoning duration in seconds
@@ -46,6 +48,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const eventSourceRef = useRef<EventSource | null>(null);
   const toolCallsRef = useRef<Map<string, SSEToolCall>>(new Map());
   const currentSessionRef = useRef<string>('');
+  const toolStartTimeRef = useRef<Map<string, number>>(new Map());
   const connectedRef = useRef<boolean>(false);
 
   // Establish persistent connection when sessionId changes
@@ -111,6 +114,29 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           result: data.result,
           error: data.error,
         };
+        
+        // If tool is starting, record start time
+        if (data.status === 'running' && !toolStartTimeRef.current.has(toolCall.id)) {
+          toolStartTimeRef.current.set(toolCall.id, Date.now());
+        }
+        
+        // If tool is completing, track execution time
+        if ((data.status === 'completed' || data.status === 'error') && toolStartTimeRef.current.has(toolCall.id)) {
+          const startTime = toolStartTimeRef.current.get(toolCall.id);
+          const executionTime = Date.now() - startTime!;
+          
+          safeTrackEvent('tool_execution_time', {
+            tool_name: toolCall.name,
+            tool_id: toolCall.id,
+            execution_time_ms: executionTime,
+            status: data.status,
+            has_error: !!data.error,
+            session_id: sessionId,
+            timestamp: new Date().toISOString()
+          });
+          
+          toolStartTimeRef.current.delete(toolCall.id);
+        }
 
         toolCallsRef.current.set(toolCall.id, toolCall);
         
@@ -127,6 +153,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     eventSource.addEventListener('complete', (event) => {
       try {
         const data = JSON.parse(event.data);
+        const processingTime = state.startTime ? Date.now() - state.startTime : 0;
+        
         setState(prev => ({
           ...prev,
           finalContent: data.content || '',
@@ -135,6 +163,17 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           completed: true,
           processing: false, // Message processing complete
         }));
+        
+        // Track response latency
+        if (state.startTime) {
+          safeTrackEvent('response_latency', {
+            response_time_ms: processingTime,
+            session_id: sessionId,
+            tool_count: toolCallsRef.current.size,
+            response_length: data.content?.length || 0,
+            timestamp: new Date().toISOString()
+          });
+        }
       } catch (err) {
         console.error('Failed to parse complete event:', err, event.data);
         setState(prev => ({ ...prev, processing: false }));
@@ -221,6 +260,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       ...prev,
       error: null,
       toolCalls: [],
+      startTime: Date.now(),
       finalContent: null,
       completed: false,
       processing: true, // Mark as processing when sending message

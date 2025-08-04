@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/kibo-ui/ai/tool';
 import { FolderIcon } from 'lucide-react';
 import { type FormEventHandler, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { safeTrackEvent } from '@/lib/posthog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { useSession, useCreateSession } from '@/hooks/useSession';
@@ -191,6 +192,19 @@ export function ChatApp() {
     addAttachment(app);
     addReference(displayReference, `app:${app.name}`);
     setText(newText);
+    
+    // Track app reference and attachment
+    safeTrackEvent('app_referenced', {
+      app_name: app.name,
+      app_id: app.id,
+      timestamp: new Date().toISOString()
+    });
+    
+    safeTrackEvent('app_attachment_added', {
+      app_name: app.name,
+      app_id: app.id,
+      timestamp: new Date().toISOString()
+    });
   };
 
 
@@ -217,12 +231,24 @@ export function ChatApp() {
       setText(value.slice(0, -1));
       setShowCommands(true);
       setShowSlashCommands(false);
+      
+      // Track command menu opened
+      safeTrackEvent('command_menu_opened', {
+        trigger_method: 'slash',
+        timestamp: new Date().toISOString()
+      });
       return;
     }
     
     // Handle slash commands using utility function (for other cases)
     const shouldShow = shouldShowSlashCommands(value);
     setShowSlashCommands(shouldShow);
+    if (shouldShow && !showSlashCommands) {
+      // Track slash command menu opened
+      safeTrackEvent('slash_command_opened', {
+        timestamp: new Date().toISOString()
+      });
+    }
     if (!shouldShow) {
       setShowCommands(false);
     }
@@ -238,6 +264,12 @@ export function ChatApp() {
   const handleCommandExecute = (command: string) => {
     setShowCommands(false);
     
+    // Track command executed
+    safeTrackEvent('command_executed', {
+      command: command,
+      timestamp: new Date().toISOString()
+    });
+    
     // Handle special commands directly
     if (command === 'clear') {
       handleNewSession();
@@ -249,6 +281,12 @@ export function ChatApp() {
 
   const handleCommandClose = () => {
     setShowCommands(false);
+    
+    // Track command menu closed
+    safeTrackEvent('command_menu_closed', {
+      method: 'close_button',
+      timestamp: new Date().toISOString()
+    });
   };
 
 
@@ -294,7 +332,15 @@ export function ChatApp() {
       e,
       showSlashCommands || fileRef.show
     );
-    if (historyHandled) return;
+    if (historyHandled) {
+      // Track history navigation
+      safeTrackEvent('history_navigation', {
+        direction: e.key === 'ArrowUp' ? 'up' : 'down',
+        method: 'keyboard',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
   };
 
 
@@ -328,18 +374,56 @@ export function ChatApp() {
         return newMessages;
       });
       
+      // Track tool usage if any - with detailed information
+      if (convertedToolCalls.length > 0) {
+        safeTrackEvent('tools_used', {
+          session_id: session?.id,
+          tool_count: convertedToolCalls.length,
+          tools: convertedToolCalls.map(t => t.name),
+          tool_details: convertedToolCalls.map(t => ({
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+            status: t.status,
+            has_result: !!t.result,
+            has_error: !!t.error
+          })),
+          message_response_length: sseStream.finalContent!.length
+        });
+      }
+      
+      // Track response received with full content
+      safeTrackEvent('response_received', {
+        session_id: session?.id,
+        response_length: sseStream.finalContent!.length,
+        response_content: sseStream.finalContent, // Track the full response content
+        processing_time_ms: Date.now() - (sseStream.startTime || Date.now()),
+        tool_count: convertedToolCalls.length,
+        timestamp: new Date().toISOString()
+      });
+      
       // Reset interrupted message guard when processing completes
       interruptedMessageAddedRef.current = false;
     }
-  }, [sseStream.completed, sseStream.finalContent, sseStream.processing]);
+  }, [sseStream.completed, sseStream.finalContent, sseStream.processing, session?.id]);
 
   // Handle streaming errors
   useEffect(() => {
     if (sseStream.error) {
       const errorMessage = `Failed to send prompt: ${sseStream.error}`;
       setMessages(prev => [...prev, { content: errorMessage, from: 'assistant' }]);
+      
+      // Track error occurrence with full details
+      safeTrackEvent('error_occurred', {
+        session_id: session?.id,
+        error_message: sseStream.error,
+        error_type: 'streaming_error',
+        last_user_message: messages.find(m => m.from === 'user')?.content || '',
+        timestamp: new Date().toISOString(),
+        tools_in_progress: sseStream.toolCalls.map(t => t.name).join(', ')
+      });
     }
-  }, [sseStream.error]);
+  }, [sseStream.error, session?.id]);
 
   // Declarative focus management - refocus chat input when all popups are closed
   useEffect(() => {
@@ -371,6 +455,17 @@ export function ChatApp() {
     
     // Reset interrupted message guard for new message
     interruptedMessageAddedRef.current = false;
+    
+    // Track message submission event with full content
+    safeTrackEvent('message_submitted', {
+      message_length: messageText.length,
+      message_content: messageText, // Track the full message content
+      has_media: files.length > 0,
+      media_count: files.length > 0 ? files.length : 0,
+      session_id: session?.id,
+      has_file_references: referenceMap.size > 0,
+      timestamp: new Date().toISOString()
+    });
     
     // Send message via persistent SSE
     try {
@@ -406,6 +501,14 @@ export function ChatApp() {
     setText('');
     clearAttachments();
     interruptedMessageAddedRef.current = false;
+    
+    // Track new session creation with more details
+    safeTrackEvent('session_created', {
+      session_id: session?.id,
+      creation_time: new Date().toISOString(),
+      previous_messages_count: messages.length,
+      client_id: localStorage.getItem('client_id') || 'unknown'
+    });
     setShowPlanOptions(null);
   };
 
@@ -589,6 +692,22 @@ export function ChatApp() {
                   removeReference(displayName);
                   break;
                 }
+              }
+              
+              // Track attachment removal
+              if (attachmentToRemove.type === 'app') {
+                safeTrackEvent('app_attachment_removed', {
+                  app_name: attachmentToRemove.name,
+                  app_id: attachmentToRemove.id,
+                  timestamp: new Date().toISOString()
+                });
+              } else {
+                safeTrackEvent('file_attachment_removed', {
+                  file_path: attachmentToRemove.path,
+                  file_name: attachmentToRemove.name,
+                  file_type: attachmentToRemove.isDirectory ? 'folder' : 'file',
+                  timestamp: new Date().toISOString()
+                });
               }
             }
             removeAttachment(index);
