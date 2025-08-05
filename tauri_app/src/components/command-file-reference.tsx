@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { FolderIcon, ImageIcon, VideoIcon, AudioLines, Play, Monitor } from 'lucide-react';
+import { FolderIcon, ImageIcon, VideoIcon, AudioLines, Play, Monitor, NotebookPen } from 'lucide-react';
 import { type FileEntry } from '@/hooks/useFileSystem';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { type Attachment } from '@/stores/attachmentStore';
@@ -85,6 +85,10 @@ const MediaThumbnail = ({ file }: { file: FileEntry }) => {
   
   if (fileType === 'audio') {
     return <AudioLines className="size-4 text-green-500" />;
+  }
+  
+  if (fileType === 'text') {
+    return <NotebookPen className="size-4 text-green-500" />;
   }
   
   return <ImageIcon className="size-4 text-green-500" />;
