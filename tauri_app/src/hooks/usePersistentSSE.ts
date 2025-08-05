@@ -47,6 +47,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const toolCallsRef = useRef<Map<string, SSEToolCall>>(new Map());
   const currentSessionRef = useRef<string>('');
   const connectedRef = useRef<boolean>(false);
+  const eventListenersRef = useRef<Array<{ event: string; handler: (event: any) => void }>>([]);
+  
+  // Maximum number of tool calls to keep in memory
+  const MAX_TOOL_CALLS = 1000;
 
   // Establish persistent connection when sessionId changes
   useEffect(() => {
@@ -54,6 +58,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     
     // Clean up previous connection
     if (eventSourceRef.current) {
+      // Remove all event listeners before closing
+      eventListenersRef.current.forEach(({ event, handler }) => {
+        eventSourceRef.current?.removeEventListener(event, handler);
+      });
+      eventListenersRef.current = [];
+      
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
@@ -80,15 +90,21 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
-    eventSource.addEventListener('connected', (event) => {
+    // Helper function to add event listener and track it
+    const addTrackedEventListener = (event: string, handler: (event: any) => void) => {
+      eventSource.addEventListener(event, handler);
+      eventListenersRef.current.push({ event, handler });
+    };
+
+    addTrackedEventListener('connected', (event) => {
       setState(prev => ({ ...prev, connected: true, connecting: false }));
     });
 
-    eventSource.addEventListener('heartbeat', (event) => {
+    addTrackedEventListener('heartbeat', (event) => {
       // Heartbeat events keep connection alive - no UI state changes needed
     });
 
-    eventSource.addEventListener('tool', (event) => {
+    addTrackedEventListener('tool', (event) => {
       try {
         const data = JSON.parse(event.data);
         
@@ -112,6 +128,14 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           error: data.error,
         };
 
+        // Implement LRU eviction if map gets too large
+        if (toolCallsRef.current.size >= MAX_TOOL_CALLS) {
+          const firstKey = toolCallsRef.current.keys().next().value;
+          if (firstKey) {
+            toolCallsRef.current.delete(firstKey);
+          }
+        }
+
         toolCallsRef.current.set(toolCall.id, toolCall);
         
         setState(prev => ({
@@ -124,7 +148,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       }
     });
 
-    eventSource.addEventListener('complete', (event) => {
+    addTrackedEventListener('complete', (event) => {
       try {
         const data = JSON.parse(event.data);
         setState(prev => ({
@@ -141,7 +165,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       }
     });
 
-    eventSource.addEventListener('error', (event) => {
+    addTrackedEventListener('error', (event) => {
       // Backend-sent error events have JSON data
       if (event.data) {
         try {
@@ -186,9 +210,16 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     // Cleanup function
     return () => {
       if (eventSourceRef.current) {
+        // Remove all event listeners before closing
+        eventListenersRef.current.forEach(({ event, handler }) => {
+          eventSourceRef.current?.removeEventListener(event, handler);
+        });
+        eventListenersRef.current = [];
+        
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
+      toolCallsRef.current.clear();
       currentSessionRef.current = '';
     };
   }, [sessionId]);
@@ -197,9 +228,16 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
+        // Remove all event listeners before closing
+        eventListenersRef.current.forEach(({ event, handler }) => {
+          eventSourceRef.current?.removeEventListener(event, handler);
+        });
+        eventListenersRef.current = [];
+        
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
+      toolCallsRef.current.clear();
       currentSessionRef.current = '';
     };
   }, []);

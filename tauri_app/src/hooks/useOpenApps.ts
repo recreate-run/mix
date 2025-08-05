@@ -19,9 +19,11 @@ export function useOpenApps() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['openApps'],
     queryFn: fetchVisibleApps,
-    refetchInterval: 10000, // 10 seconds
-    staleTime: 5000, // Consider data fresh for 5 seconds
+    enabled: false, // Don't auto-fetch on mount - only fetch when explicitly requested
+    staleTime: Infinity, // Never consider data stale - only refetch when explicitly requested
+    refetchInterval: false, // Disable continuous polling - CRITICAL FIX for memory leak
     refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on network reconnect
   });
 
   return {

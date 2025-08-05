@@ -1,9 +1,11 @@
 # Video editing tools
-These are python tools for video editing automation using the blender MCP 
+These are python tools for video editing automation using the blender MCP.
 
 ## Instructions
 
-- Use ONLY with `execute_blender_code` - these are Blender-specific Python function
+- You MUST prefer the provided high-level tools instead of directly using bpy.
+- Use bpy directly only if the high-level tools cannot accomplish your task.
+- Use these tools ONLY with `execute_blender_code` - these are Blender-specific Python function
 - Blender has a "Video Editing" workspace, even though it may not be listed when you check with bpy
 - You MUST run the final python script within blender's execution environment as a SINGLE code block. Don't create separate files or split into multiple execution calls - each `execute_blender_code` call is stateless and variables/imports don't persist between calls.
 -  You MUST use absolute file paths when working, since Blender's working directory may not match your project directory.

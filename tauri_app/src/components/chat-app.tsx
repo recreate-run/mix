@@ -30,6 +30,7 @@ import {
 import { FolderIcon } from 'lucide-react';
 import { type FormEventHandler, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useSession, useCreateSession } from '@/hooks/useSession';
 import { useSendMessage } from '@/hooks/useMessages';
@@ -109,10 +110,18 @@ const hasExitPlanModeTool = (toolCalls: any[]) => {
 };
 
 const DEFAULT_WORKING_DIR = "/Users/sarathmenon/Desktop/a16z_demo/new_project";
+const DEFAULT_ASSISTANT_MESSAGE = "Hello! I'm Mix, you AI agent for multimodal workflows. How can I help you today?";
+
+const createDefaultMessage = (): Message => ({
+  content: DEFAULT_ASSISTANT_MESSAGE,
+  from: 'assistant'
+});
 
 export function ChatApp() {
   const [text, setText] = useState<string>('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    createDefaultMessage()
+  ]);
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(null);
@@ -135,14 +144,17 @@ export function ChatApp() {
   const { selectedFolder, selectFolder } = useFolderSelection();
   const { data: session, isLoading: sessionLoading, error: sessionError } = useSession(selectedFolder || DEFAULT_WORKING_DIR);
   const sseStream = usePersistentSSE(session?.id || '');
-  const { apps: openApps } = useOpenApps();
+  const { apps: openApps, refreshApps } = useOpenApps();
+  const queryClient = useQueryClient();
   
   // Clear UI state when session changes (new working directory selected)
   useEffect(() => {
     if (session?.id && session.id !== previousSessionIdRef.current) {
       // Only clear if we're switching from one session to another (not initial load)
       if (previousSessionIdRef.current !== '') {
-        setMessages([]);
+        setMessages([
+          createDefaultMessage()
+        ]);
         setText('');
         clearAttachments();
         setShowPlanOptions(null);
@@ -179,6 +191,16 @@ export function ChatApp() {
 
   const fileRef = useFileReference(text, setText, selectedFolder || DEFAULT_WORKING_DIR);
   
+  // // Only fetch apps when file reference popup is open - CRITICAL FIX for memory leak
+  // useEffect(() => {
+  //   if (fileRef.show) {
+  //     // Fetch fresh app data when popup opens
+  //     refreshApps();
+  //   } else {
+  //     // Clean up cache when popup closes to free memory
+  //     queryClient.removeQueries(['openApps']);
+  //   }
+  // }, [fileRef.show, refreshApps, queryClient]);
 
   const handleAppSelect = (app: Attachment) => {
     // Update text with app reference (similar to file selection)
@@ -402,7 +424,9 @@ export function ChatApp() {
 
   // Handle new session creation
   const handleNewSession = () => {
-    setMessages([]);
+    setMessages([
+      createDefaultMessage()
+    ]);
     setText('');
     clearAttachments();
     interruptedMessageAddedRef.current = false;
@@ -472,11 +496,6 @@ export function ChatApp() {
                 {/* Render todos inline without tool wrapper */}
                 {message.toolCalls && message.toolCalls.length > 0 && (
                   <>
-                    {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
-                      <div className="mt-4">
-                        <TodoList todos={extractTodosFromToolCalls(message.toolCalls)} />
-                      </div>
-                    )}
                     {/* Render plan content */}
                     {extractPlanFromToolCalls(message.toolCalls) && (
                       <PlanDisplay 

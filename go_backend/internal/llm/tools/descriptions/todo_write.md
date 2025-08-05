@@ -35,23 +35,25 @@ Use this tool to create and manage a structured task list for your current creat
   ## Examples of When to Use the Todo List
 
   <example>
-  User: Create a product demo video for our SaaS platform with onboarding flow, feature highlights, and call-to-action
-  Assistant: I'll help create a comprehensive product demo video for your SaaS platform. Let me
+  User: Create a marketing video for our company using the creative brief, company details, and company logos I'll provide
+  Assistant: I'll help create a comprehensive marketing video following your creative brief and brand materials. Let me
   create a todo list to track this production process.
   *Creates todo list with the following items:*
-  1. Analyze user journey and define key features to showcase
-  2. Create screen recordings of onboarding and core workflows
-  3. Add motion graphics, annotations, and feature callouts
-  4. Record and sync professional voiceover narration
-  5. Integrate brand elements, logo animations, and call-to-action
-  6. Export optimized versions for website, social media, and sales team
+  1. Review creative brief and analyze company brand materials and logos
+  2. Generate multiple storyboard concepts based on brief requirements
+  3. Present storyboard options for user selection
+  4. Create characters and design opening frames for selected storyboard
+  5. Produce individual video clips following storyboard sequence
+  6. Assemble and edit clips into cohesive full marketing video
+  7. Add sound effects and complete audio post-production
+  8. Export final marketing video in required formats
   *Begins working on the first task*
 
   <reasoning>
   The assistant used the todo list because:
-  1. Product demo creation is a multi-step process requiring user flow analysis, recording, and post-production
-  2. The user requested multiple components (onboarding, features, CTA) that need systematic integration
-  3. SaaS demos require strategic approach to ensure technical features align with user benefits
+  1. Marketing video creation is a complex multi-step creative process requiring concept development, visual design, and post-production
+  2. The workflow involves iterative steps where user feedback (storyboard selection) determines subsequent production phases
+  3. Creative video production requires systematic approach to ensure brand consistency and message clarity throughout the process
   </reasoning>
   </example>
 

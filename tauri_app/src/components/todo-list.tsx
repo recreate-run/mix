@@ -32,7 +32,7 @@ export function TodoList({ todos }: TodoListProps) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 border-b border-gray-200 dark:border-gray-700 pb-2">
       {todos.map((todo) => (
         <div
           key={todo.id}
