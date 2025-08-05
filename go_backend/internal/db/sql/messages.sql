@@ -43,13 +43,6 @@ WHERE session_id = ?;
 -- name: ListUserMessageHistory :many
 SELECT *
 FROM messages
-WHERE session_id = ? AND role = 'user'
-ORDER BY created_at DESC
-LIMIT ? OFFSET ?;
-
--- name: ListPreviousSessionsUserHistory :many
-SELECT *
-FROM messages
-WHERE session_id != ? AND role = 'user'
+WHERE role = 'user'
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;

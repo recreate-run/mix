@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useMessageHistory } from '@/hooks/useMessageHistory';
+import { useAttachmentStore, reconstructAttachmentsFromHistory } from '@/stores/attachmentStore';
 
 interface UseMessageHistoryNavigationProps {
-  sessionId: string;
   text: string;
   setText: (text: string) => void;
   batchSize?: number;
 }
 
 export function useMessageHistoryNavigation({ 
-  sessionId, 
   text, 
   setText, 
   batchSize = 50 
@@ -18,11 +17,14 @@ export function useMessageHistoryNavigation({
   const [originalText, setOriginalText] = useState('');
 
   const messageHistory = useMessageHistory({
-    sessionId,
     batchSize,
   });
 
-  const navigateHistory = (direction: 'up' | 'down') => {
+  const clearAttachments = useAttachmentStore(state => state.clearAttachments);
+  const setHistoryState = useAttachmentStore(state => state.setHistoryState);
+  const syncWithText = useAttachmentStore(state => state.syncWithText);
+
+  const navigateHistory = async (direction: 'up' | 'down') => {
     const allHistoryTexts = messageHistory.getAllHistoryTexts();
     
     // Initialize history mode on first use
@@ -38,17 +40,44 @@ export function useMessageHistoryNavigation({
     
     if (newIndex >= 0 && newIndex < allHistoryTexts.length) {
       setHistoryIndex(newIndex);
-      setText(allHistoryTexts[newIndex]);
+      
+      // Get the full history item to access media and apps
+      const historyItem = messageHistory.getHistoryItem(newIndex);
+      if (historyItem) {
+        try {
+          // Reconstruct attachment state from historical message
+          const { contractedText, attachments, referenceMap } = await reconstructAttachmentsFromHistory(
+            historyItem.content,
+            historyItem.media || [],
+            historyItem.apps || []
+          );
+          
+          // Atomically set attachment state from history
+          setHistoryState(attachments, referenceMap);
+          
+          // Set the contracted text (with @filename references)
+          setText(contractedText);
+          syncWithText(contractedText);
+        } catch (error) {
+          console.warn('Failed to reconstruct attachments from history:', error);
+          // Fallback to plain text
+          setText(historyItem.content);
+        }
+      } else {
+        // Fallback to plain text if no history item
+        setText(allHistoryTexts[newIndex]);
+      }
       
       // Prefetch more history when getting close to the end
       if (newIndex > allHistoryTexts.length - 10 && messageHistory.hasMoreHistory) {
         messageHistory.loadMoreHistory();
       }
     } else if (newIndex === -1) {
-      // Return to original text
+      // Return to original text and clear attachments
       setHistoryIndex(-1);
       setText(originalText);
       setOriginalText('');
+      clearAttachments();
     }
   };
 
@@ -57,6 +86,7 @@ export function useMessageHistoryNavigation({
       setHistoryIndex(-1);
       setText(originalText);
       setOriginalText('');
+      clearAttachments();
     }
   };
 
@@ -80,11 +110,15 @@ export function useMessageHistoryNavigation({
     
     if (e.key === 'ArrowUp' && (cursorAtStart || inHistoryMode)) {
       e.preventDefault();
-      navigateHistory('up');
+      navigateHistory('up').catch(error => {
+        console.error('Error navigating history:', error);
+      });
       return true;
     } else if (e.key === 'ArrowDown' && inHistoryMode && cursorAtEnd) {
       e.preventDefault();
-      navigateHistory('down');
+      navigateHistory('down').catch(error => {
+        console.error('Error navigating history:', error);
+      });
       return true;
     } else if (e.key === 'Escape' && inHistoryMode) {
       e.preventDefault();

@@ -128,8 +128,6 @@ func (h *QueryHandler) Handle(ctx context.Context, req *QueryRequest) *QueryResp
 		return h.handleMessagesSend(ctx, req)
 	case "messages.history":
 		return h.handleMessagesHistory(ctx, req)
-	case "messages.cross-session-history":
-		return h.handleMessagesCrossSessionHistory(ctx, req)
 	case "mcp.list":
 		return h.handleMCPList(ctx, req)
 	case "commands.list":
@@ -744,9 +742,8 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 
 func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequest) *QueryResponse {
 	var params struct {
-		SessionID string `json:"sessionId"`
-		Limit     int64  `json:"limit,omitempty"`
-		Offset    int64  `json:"offset,omitempty"`
+		Limit  int64 `json:"limit,omitempty"`
+		Offset int64 `json:"offset,omitempty"`
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
@@ -759,22 +756,12 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 		}
 	}
 
-	if params.SessionID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: sessionId",
-			},
-			ID: req.ID,
-		}
-	}
-
 	// Set default limit if not provided
 	if params.Limit <= 0 {
 		params.Limit = 50
 	}
 
-	messages, err := h.app.Messages.ListUserMessageHistory(ctx, params.SessionID, params.Limit, params.Offset)
+	messages, err := h.app.Messages.ListUserMessageHistory(ctx, params.Limit, params.Offset)
 	if err != nil {
 		return &QueryResponse{
 			Error: &QueryError{
@@ -801,61 +788,3 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 	}
 }
 
-func (h *QueryHandler) handleMessagesCrossSessionHistory(ctx context.Context, req *QueryRequest) *QueryResponse {
-	var params struct {
-		ExcludeSessionID string `json:"excludeSessionId"`
-		Limit            int64  `json:"limit,omitempty"`
-		Offset           int64  `json:"offset,omitempty"`
-	}
-
-	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
-	}
-
-	if params.ExcludeSessionID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: excludeSessionId",
-			},
-			ID: req.ID,
-		}
-	}
-
-	// Set default limit if not provided
-	if params.Limit <= 0 {
-		params.Limit = 50
-	}
-
-	messages, err := h.app.Messages.ListPreviousSessionsUserMessages(ctx, params.ExcludeSessionID, params.Limit, params.Offset)
-	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to get cross-session message history: " + err.Error(),
-			},
-			ID: req.ID,
-		}
-	}
-
-	var result []MessageData
-	for _, msg := range messages {
-		result = append(result, MessageData{
-			ID:        msg.ID,
-			SessionID: msg.SessionID,
-			Role:      string(msg.Role),
-			Content:   msg.Content().String(),
-		})
-	}
-
-	return &QueryResponse{
-		Result: result,
-		ID:     req.ID,
-	}
-}

@@ -136,68 +136,21 @@ func (q *Queries) ListMessagesBySession(ctx context.Context, sessionID string) (
 	return items, nil
 }
 
-const listPreviousSessionsUserHistory = `-- name: ListPreviousSessionsUserHistory :many
-SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at
-FROM messages
-WHERE session_id != ? AND role = 'user'
-ORDER BY created_at DESC
-LIMIT ? OFFSET ?
-`
-
-type ListPreviousSessionsUserHistoryParams struct {
-	SessionID string `json:"session_id"`
-	Limit     int64  `json:"limit"`
-	Offset    int64  `json:"offset"`
-}
-
-func (q *Queries) ListPreviousSessionsUserHistory(ctx context.Context, arg ListPreviousSessionsUserHistoryParams) ([]Message, error) {
-	rows, err := q.query(ctx, q.listPreviousSessionsUserHistoryStmt, listPreviousSessionsUserHistory, arg.SessionID, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Message{}
-	for rows.Next() {
-		var i Message
-		if err := rows.Scan(
-			&i.ID,
-			&i.SessionID,
-			&i.Role,
-			&i.Parts,
-			&i.Model,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.FinishedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listUserMessageHistory = `-- name: ListUserMessageHistory :many
 SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at
 FROM messages
-WHERE session_id = ? AND role = 'user'
+WHERE role = 'user'
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListUserMessageHistoryParams struct {
-	SessionID string `json:"session_id"`
-	Limit     int64  `json:"limit"`
-	Offset    int64  `json:"offset"`
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
 }
 
 func (q *Queries) ListUserMessageHistory(ctx context.Context, arg ListUserMessageHistoryParams) ([]Message, error) {
-	rows, err := q.query(ctx, q.listUserMessageHistoryStmt, listUserMessageHistory, arg.SessionID, arg.Limit, arg.Offset)
+	rows, err := q.query(ctx, q.listUserMessageHistoryStmt, listUserMessageHistory, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

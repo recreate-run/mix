@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { readDir } from '@tauri-apps/plugin-fs';
+import { readDir, stat } from '@tauri-apps/plugin-fs';
 import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, ALL_MEDIA_EXTENSIONS, getFileType, isMediaFile } from '@/utils/fileTypes';
 
 export type Attachment = {
@@ -32,6 +32,7 @@ interface AttachmentState {
   addReference: (displayName: string, path: string) => void;
   removeReference: (displayName: string) => void;
   syncWithText: (text: string) => void;
+  setHistoryState: (attachments: Attachment[], referenceMap: Map<string, string>) => void;
   getMediaFiles: () => Attachment[];
 }
 
@@ -122,6 +123,19 @@ export const useAttachmentStore = create<AttachmentState>((set, get) => ({
     }
   },
 
+  setHistoryState: (attachments: Attachment[], referenceMap: Map<string, string>) => {
+    // Apply 10-attachment limit
+    const limitedAttachments = attachments.length > 10 ? attachments.slice(0, 10) : attachments;
+    if (attachments.length > 10) {
+      console.warn('Maximum 10 attachments allowed, truncating');
+    }
+    
+    // Atomic update of both attachments and referenceMap
+    set({ 
+      attachments: limitedAttachments, 
+      referenceMap: new Map(referenceMap) 
+    });
+  },
 
   getMediaFiles: () => {
     const state = get();
@@ -249,4 +263,74 @@ export const getReferencedAttachments = (text: string, attachments: Attachment[]
   return attachments.filter(attachment => {
     return text.includes(`@${attachment.name}`) || text.includes(`@../${attachment.name}`);
   });
+};
+
+// Reconstruct attachment state from historical message data
+export const reconstructAttachmentsFromHistory = async (
+  text: string, 
+  mediaPaths: string[], 
+  appNames: string[]
+): Promise<{
+  contractedText: string;
+  attachments: Attachment[];
+  referenceMap: Map<string, string>;
+}> => {
+  const attachments: Attachment[] = [];
+  const referenceMap = new Map<string, string>();
+  let contractedText = text;
+
+  // Process media files/folders
+  for (const mediaPath of mediaPaths) {
+    try {
+      // Use stat to determine if path is file or directory
+      let attachment: Attachment | null = null;
+      
+      try {
+        // Use stat to properly determine if path is file or directory
+        const pathStat = await stat(mediaPath);
+        
+        if (pathStat.isDirectory) {
+          attachment = await createFolderAttachment(mediaPath);
+        } else {
+          attachment = createFileAttachment(mediaPath);
+        }
+      } catch (statError) {
+        // If stat fails, try to create as file based on file extension
+        attachment = createFileAttachment(mediaPath);
+      }
+
+      if (attachment) {
+        const displayName = `@${attachment.name}`;
+        attachments.push(attachment);
+        referenceMap.set(displayName, mediaPath);
+        
+        // Replace full path with display name in text
+        contractedText = contractedText.replace(new RegExp(mediaPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), displayName);
+      }
+    } catch (error) {
+      console.warn('Failed to create attachment for media path:', mediaPath, error);
+    }
+  }
+
+  // Process app references
+  for (const appName of appNames) {
+    const attachment: Attachment = {
+      id: `app:${appName}`,
+      name: appName,
+      type: 'app',
+      icon: 'placeholder',
+      isOpen: true,
+    };
+
+    const displayName = `@${appName}`;
+    attachments.push(attachment);
+    referenceMap.set(displayName, `app:${appName}`);
+    
+    // Replace app name with display name in text (only if it's not already in @ format)
+    if (!contractedText.includes(displayName)) {
+      contractedText = contractedText.replace(new RegExp(`\\b${appName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), displayName);
+    }
+  }
+
+  return { contractedText, attachments, referenceMap };
 };

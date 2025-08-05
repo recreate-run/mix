@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { rpcCall } from '@/lib/rpc';
 
@@ -7,10 +7,11 @@ interface MessageHistoryItem {
   role: string;
   content: string;
   sessionId: string;
+  media: string[];
+  apps: string[];
 }
 
 interface UseMessageHistoryOptions {
-  sessionId: string;
   batchSize?: number;
 }
 
@@ -21,94 +22,82 @@ interface UseMessageHistoryReturn {
   loadInitialHistory: () => Promise<void>;
   loadMoreHistory: () => Promise<void>;
   getAllHistoryTexts: () => string[];
+  getHistoryItem: (index: number) => MessageHistoryItem | null;
   hasMoreHistory: boolean;
 }
 
-const fetchMessages = async (method: string, params: any): Promise<MessageHistoryItem[]> => {
-  const result = await rpcCall<any[]>(method, params);
+const extractMessageData = (content: string) => {
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      text: parsed.text || content,
+      media: parsed.media || [],
+      apps: parsed.apps || []
+    };
+  } catch {
+    return {
+      text: content,
+      media: [],
+      apps: []
+    };
+  }
+};
+
+const fetchMessages = async (params: any): Promise<MessageHistoryItem[]> => {
+  const result = await rpcCall<any[]>('messages.history', params);
   
-  return (result || []).map((msg: any) => ({
-    id: msg.id,
-    role: msg.role,
-    content: JSON.parse(msg.content).text,
-    sessionId: msg.sessionId,
-  }));
+  return (result || []).map((msg: any) => {
+    const messageData = extractMessageData(msg.content);
+    return {
+      id: msg.id,
+      role: msg.role,
+      content: messageData.text,
+      sessionId: msg.sessionId,
+      media: messageData.media,
+      apps: messageData.apps,
+    };
+  });
 };
 
 export function useMessageHistory({ 
-  sessionId, 
   batchSize = 50 
 }: UseMessageHistoryOptions): UseMessageHistoryReturn {
   
-  const currentSessionQuery = useInfiniteQuery({
-    queryKey: ['messageHistory', 'current', sessionId],
-    enabled: !!sessionId,
+  const historyQuery = useInfiniteQuery({
+    queryKey: ['messageHistory'],
     queryFn: ({ pageParam = 0 }) => {
-      return fetchMessages('messages.history', {
-        sessionId,
-        limit: Math.ceil(batchSize / 2),
+      return fetchMessages({
+        limit: batchSize,
         offset: pageParam,
       });
     },
     getNextPageParam: (lastPage, pages) => {
       const totalLoaded = pages.flat().length;
-      return lastPage.length === Math.ceil(batchSize / 2) ? totalLoaded : undefined;
+      return lastPage.length === batchSize ? totalLoaded : undefined;
     },
     initialPageParam: 0,
   });
 
-  const crossSessionQuery = useInfiniteQuery({
-    queryKey: ['messageHistory', 'cross', sessionId],
-    enabled: !!sessionId,
-    queryFn: ({ pageParam = 0 }) => {
-      return fetchMessages('messages.cross-session-history', {
-        excludeSessionId: sessionId,
-        limit: Math.ceil(batchSize / 2),
-        offset: pageParam,
-      });
-    },
-    getNextPageParam: (lastPage, pages) => {
-      const totalLoaded = pages.flat().length;
-      return lastPage.length === Math.ceil(batchSize / 2) ? totalLoaded : undefined;
-    },
-    initialPageParam: 0,
-  });
-
-  const allHistory = useMemo(() => {
-    const currentMessages = currentSessionQuery.data?.pages.flat() || [];
-    const crossMessages = crossSessionQuery.data?.pages.flat() || [];
-    return [...currentMessages, ...crossMessages];
-  }, [currentSessionQuery.data, crossSessionQuery.data]);
-
-  const isLoading = currentSessionQuery.isLoading || crossSessionQuery.isLoading;
-  const error = currentSessionQuery.error?.message || crossSessionQuery.error?.message || null;
-  const hasMoreHistory = currentSessionQuery.hasNextPage || crossSessionQuery.hasNextPage;
-
+  const allHistory = historyQuery.data?.pages.flat() || [];
+  const isLoading = historyQuery.isLoading;
+  const error = historyQuery.error?.message || null;
+  const hasMoreHistory = historyQuery.hasNextPage || false;
 
   const loadInitialHistory = useCallback(async () => {
-    if (!sessionId) return;
-    await Promise.all([
-      currentSessionQuery.refetch(),
-      crossSessionQuery.refetch(),
-    ]);
-  }, [sessionId, currentSessionQuery.refetch, crossSessionQuery.refetch]);
+    await historyQuery.refetch();
+  }, [historyQuery.refetch]);
 
   const loadMoreHistory = useCallback(async () => {
-    if (!sessionId || (!currentSessionQuery.hasNextPage && !crossSessionQuery.hasNextPage)) return;
-    
-    const promises: Promise<any>[] = [];
-    if (currentSessionQuery.hasNextPage) {
-      promises.push(currentSessionQuery.fetchNextPage());
-    }
-    if (crossSessionQuery.hasNextPage) {
-      promises.push(crossSessionQuery.fetchNextPage());
-    }
-    
-    await Promise.all(promises);
-  }, [sessionId, currentSessionQuery, crossSessionQuery]);
+    if (!historyQuery.hasNextPage) return;
+    await historyQuery.fetchNextPage();
+  }, [historyQuery]);
 
   const getAllHistoryTexts = useCallback(() => {
     return allHistory.map(msg => msg.content);
+  }, [allHistory]);
+
+  const getHistoryItem = useCallback((index: number): MessageHistoryItem | null => {
+    return allHistory[index] || null;
   }, [allHistory]);
 
   return {
@@ -118,6 +107,7 @@ export function useMessageHistory({
     loadInitialHistory,
     loadMoreHistory,
     getAllHistoryTexts,
+    getHistoryItem,
     hasMoreHistory,
   };
 }

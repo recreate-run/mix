@@ -220,7 +220,6 @@ export function ChatApp() {
   
   // Initialize new hooks
   const historyNavigation = useMessageHistoryNavigation({
-    sessionId: session?.id || '',
     text,
     setText,
     batchSize: 50,
