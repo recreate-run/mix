@@ -19,14 +19,16 @@ export type PersistentSSEState = {
   completed: boolean;
   processing: boolean; // True when processing a message
   isPaused: boolean; // True when session is paused
+  cancelling: boolean; // True when cancellation is in progress
+  cancelled: boolean; // True after cancellation completes, until user starts typing
   reasoning: string | null; // Reasoning content from the assistant
   reasoningDuration: number | null; // Reasoning duration in seconds
 };
 
 export type PersistentSSEHook = PersistentSSEState & {
   sendMessage: (content: string) => Promise<void>;
-  pauseMessage: () => Promise<void>;
-  resumeMessage: () => Promise<void>;
+  cancelMessage: () => Promise<void>;
+  resetCancelledState: () => void;
 };
 
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
@@ -39,6 +41,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     completed: false,
     processing: false,
     isPaused: false,
+    cancelling: false,
+    cancelled: false,
     reasoning: null,
     reasoningDuration: null,
   });
@@ -78,6 +82,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       completed: false,
       processing: false,
       isPaused: false,
+      cancelling: false,
+      cancelled: false,
       reasoning: null,
       reasoningDuration: null,
     });
@@ -262,6 +268,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       finalContent: null,
       completed: false,
       processing: true, // Mark as processing when sending message
+      cancelling: false,
+      cancelled: false,
       reasoning: null,
       reasoningDuration: null,
     }));
@@ -289,25 +297,81 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         ...prev,
         error: error instanceof Error ? error.message : 'Failed to send message',
         processing: false,
+        cancelling: false,
       }));
       throw error;
     }
   }, [sessionId]);
 
-  // Function to pause message processing
-  const pauseMessage = useCallback(async () => {
-    console.log('pausing not implemented');
+  // Function to cancel message processing
+  const cancelMessage = useCallback(async () => {
+    if (!sessionId) {
+      throw new Error('No session ID available');
+    }
+
+    // Set cancelling state to show disabled button
+    setState(prev => ({
+      ...prev,
+      cancelling: true,
+      error: null,
+    }));
+
+    try {
+      const response = await fetch(`http://localhost:8088/rpc`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          method: 'agent.cancel',
+          params: { sessionId },
+          id: Date.now(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to cancel message: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Cancel request failed');
+      }
+
+      // Update state to reflect successful cancellation
+      setState(prev => ({
+        ...prev,
+        processing: false,
+        cancelling: false,
+        cancelled: true, // Mark as cancelled so button shows stop state
+        error: null,
+      }));
+
+    } catch (error) {
+      console.error('Failed to cancel message:', error);
+      setState(prev => ({
+        ...prev,
+        cancelling: false, // Reset cancelling on error
+        error: error instanceof Error ? error.message : 'Failed to cancel message',
+      }));
+      throw error;
+    }
   }, [sessionId]);
 
-  // Function to resume message processing
-  const resumeMessage = useCallback(async () => {
-    console.log('pausing not implemented');
-  }, [sessionId]);
+  // Function to reset cancelled state when user starts typing
+  const resetCancelledState = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      cancelled: false,
+    }));
+  }, []);
 
   return {
     ...state,
     sendMessage,
-    pauseMessage,
-    resumeMessage,
+    cancelMessage,
+    resetCancelledState,
   };
 }

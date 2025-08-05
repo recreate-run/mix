@@ -134,6 +134,8 @@ func (h *QueryHandler) Handle(ctx context.Context, req *QueryRequest) *QueryResp
 		return h.handleCommandsList(ctx, req)
 	case "commands.get":
 		return h.handleCommandsGet(ctx, req)
+	case "agent.cancel":
+		return h.handleAgentCancel(ctx, req)
 	default:
 		return &QueryResponse{
 			Error: &QueryError{
@@ -785,6 +787,43 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 	return &QueryResponse{
 		Result: result,
 		ID:     req.ID,
+	}
+}
+
+func (h *QueryHandler) handleAgentCancel(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		SessionID string `json:"sessionId"`
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.SessionID == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: sessionId",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Cancel the agent processing for this session
+	h.app.CoderAgent.Cancel(params.SessionID)
+
+	return &QueryResponse{
+		Result: map[string]string{
+			"status":    "cancelled",
+			"sessionId": params.SessionID,
+		},
+		ID: req.ID,
 	}
 }
 

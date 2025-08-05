@@ -2,8 +2,11 @@ package pubsub
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
+
+var ErrBrokerClosed = errors.New("pubsub broker is closed")
 
 const bufferSize = 64
 
@@ -90,12 +93,12 @@ func (b *Broker[T]) GetSubscriberCount() int {
 	return b.subCount
 }
 
-func (b *Broker[T]) Publish(t EventType, payload T) {
+func (b *Broker[T]) Publish(ctx context.Context, t EventType, payload T) error {
 	b.mu.RLock()
 	select {
 	case <-b.done:
 		b.mu.RUnlock()
-		return
+		return ErrBrokerClosed
 	default:
 	}
 
@@ -110,7 +113,11 @@ func (b *Broker[T]) Publish(t EventType, payload T) {
 	for _, sub := range subscribers {
 		select {
 		case sub <- event:
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 		}
 	}
+	
+	return nil
 }

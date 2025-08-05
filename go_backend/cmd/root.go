@@ -93,15 +93,17 @@ and content creation workflows.`,
 			return err
 		}
 
-		// Connect DB, this will also run migrations
-		conn, err := db.Connect()
-		if err != nil {
-			return err
-		}
-
 		// Create main context for the application
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		// Connect DB with timeout, this will also run migrations
+		dbCtx, dbCancel := context.WithTimeout(ctx, db.DBConnectionTimeout)
+		defer dbCancel()
+		conn, err := db.Connect(dbCtx)
+		if err != nil {
+			return err
+		}
 
 		app, err := app.New(ctx, conn)
 		if err != nil {

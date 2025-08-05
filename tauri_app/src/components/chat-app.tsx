@@ -11,22 +11,7 @@ import {
   AIInputToolbar,
   AIInputTools,
 } from '@/components/ui/kibo-ui/ai/input';
-import { AIMessage, AIMessageContent } from '@/components/ui/kibo-ui/ai/message';
-import {
-  AIReasoning,
-  AIReasoningContent,
-  AIReasoningTrigger,
-} from '@/components/ui/kibo-ui/ai/reasoning';
-import {
-  AITool,
-  AIToolContent,
-  AIToolHeader,
-  AIToolParameters,
-  AIToolResult,
-  AIToolLadder,
-  AIToolStep,
-  type AIToolStatus,
-} from '@/components/ui/kibo-ui/ai/tool';
+import { type AIToolStatus } from '@/components/ui/kibo-ui/ai/tool';
 import { FolderIcon } from 'lucide-react';
 import { type FormEventHandler, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -43,13 +28,9 @@ import { useAttachmentStore, type Attachment, expandFileReferences, removeFileRe
 import { useFolderSelection } from '@/hooks/useFolderSelection';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 import { useMessageScrolling } from '@/hooks/useMessageScrolling';
-import { LoadingDots } from './loading-dots';
 import { AttachmentPreview } from './attachment-preview';
 import { CommandSlash, shouldShowSlashCommands, handleSlashCommandNavigation, slashCommands } from './command-slash';
-import { ResponseRenderer } from './response-renderer';
-import { MessageAttachmentDisplay } from './message-attachment-display';
-import { TodoList } from './todo-list';
-import { PlanDisplay } from './plan-display';
+import { ConversationDisplay } from './conversation-display';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
@@ -65,44 +46,12 @@ type ToolCall = {
 type Message = {
   content: string;
   from: 'user' | 'assistant';
+  frontend_only?: boolean;
   toolCalls?: ToolCall[];
   attachments?: Attachment[];
   reasoning?: string;
   reasoningDuration?: number;
 };
-
-// Helper function to extract todos from todo_write tool calls (works with both ToolCall and SSE formats)
-const extractTodosFromToolCalls = (toolCalls: any[]) => {
-  return toolCalls
-    .filter(tc => tc.name === 'todo_write')
-    .map(tc => {
-      try {
-        const todos = tc.parameters?.todos;
-        return Array.isArray(todos) ? todos : [];
-      } catch {
-        return [];
-      }
-    })
-    .flat();
-};
-
-// Helper function to extract plan content from exit_plan_mode tool calls (works with both ToolCall and SSE formats)
-const extractPlanFromToolCalls = (toolCalls: any[]) => {
-  const planTool = toolCalls.find(tc => tc.name === 'exit_plan_mode');
-  if (!planTool) return '';
-  
-  try {
-    return planTool.parameters?.plan || '';
-  } catch {
-    return '';
-  }
-};
-
-// Helper function to filter out special tools (todo_write, exit_plan_mode) from toolCalls
-const filterNonSpecialTools = (toolCalls: any[]) => {
-  return toolCalls.filter(tc => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode');
-};
-
 
 // Helper function to check if a message contains exit_plan_mode tool call
 const hasExitPlanModeTool = (toolCalls: any[]) => {
@@ -114,7 +63,8 @@ const DEFAULT_ASSISTANT_MESSAGE = "Hello! I'm Mix, you AI agent for multimodal w
 
 const createDefaultMessage = (): Message => ({
   content: DEFAULT_ASSISTANT_MESSAGE,
-  from: 'assistant'
+  from: 'assistant',
+  frontend_only: true
 });
 
 export function ChatApp() {
@@ -229,6 +179,11 @@ export function ChatApp() {
 
   const handleTextChange = (value: string) => {
     setText(value);
+    
+    // Reset cancelled state when user starts typing after cancellation
+    if (sseStream.cancelled && value.length > 0) {
+      sseStream.resetCancelledState();
+    }
     
     // Sync media store with text changes (bidirectional sync)
     syncWithText(value);
@@ -359,7 +314,11 @@ export function ChatApp() {
   useEffect(() => {
     if (sseStream.error) {
       const errorMessage = `Failed to send prompt: ${sseStream.error}`;
-      setMessages(prev => [...prev, { content: errorMessage, from: 'assistant' }]);
+      setMessages(prev => [...prev, { 
+        content: errorMessage, 
+        from: 'assistant',
+        frontend_only: true
+      }]);
     }
   }, [sseStream.error]);
 
@@ -417,9 +376,19 @@ export function ChatApp() {
     await submitMessage(text);
   };
 
-  // Handle pause/resume button clicks
-  const handlePauseResumeClick = async () => {
-    console.log('pausing not implemented');
+  // Handle stop/cancel button clicks
+  const handleCancelClick = async () => {
+    try {
+      await sseStream.cancelMessage();
+      // Add cancellation message to conversation
+      setMessages(prev => [...prev, {
+        content: "Execution paused",
+        from: 'assistant',
+        frontend_only: true
+      }]);
+    } catch (error) {
+      console.error('Failed to cancel message:', error);
+    }
   };
 
   // Handle new session creation
@@ -445,12 +414,16 @@ export function ChatApp() {
   };
 
   // Calculate submit button status and disabled state
-  const buttonStatus = sseStream.processing ? 'streaming' : 
+  const buttonStatus = sseStream.cancelling ? 'cancelling' :
+                      sseStream.cancelled ? 'streaming' :
+                      sseStream.processing ? 'streaming' : 
                       sseStream.error ? 'error' : 'ready';
   
   // Ready state: need text/attachments and connection. Other states: only need connection for pause/resume
   const isSubmitDisabled = buttonStatus === 'ready' 
     ? ((!text && attachments.length === 0) || !session?.id || sessionLoading || !sseStream.connected)
+    : buttonStatus === 'cancelling'
+    ? true // Disable button completely during cancellation
     : (!session?.id || sessionLoading || !sseStream.connected);
 
   return (
@@ -468,125 +441,15 @@ export function ChatApp() {
       </div>
       
       {/* Conversation Display */}
-      <div ref={conversationRef} className="relative h-full flex-1 overflow-y-auto">
-        <div className="">
-          {messages.map((message, index) => (
-            <AIMessage 
-              from={message.from} 
-              key={index}
-              ref={message.from === 'user' ? setUserMessageRef(index) : undefined}
-            >
-              <AIMessageContent >
-                {message.from === 'assistant' ? (
-                  <>
-                    {message.reasoning && (
-                      <AIReasoning className="w-full mb-4" isStreaming={false} duration={message.reasoningDuration || undefined}>
-                        <AIReasoningTrigger />
-                        <AIReasoningContent>{message.reasoning}</AIReasoningContent>
-                      </AIReasoning>
-                    )}
-                    <ResponseRenderer content={message.content} />
-                  </>
-                ) : (
-                  <div>
-                    <MessageAttachmentDisplay attachments={message.attachments || []} />
-                    {message.content}
-                  </div>
-                )}
-                {/* Render todos inline without tool wrapper */}
-                {message.toolCalls && message.toolCalls.length > 0 && (
-                  <>
-                    {/* Render plan content */}
-                    {extractPlanFromToolCalls(message.toolCalls) && (
-                      <PlanDisplay 
-                        planContent={extractPlanFromToolCalls(message.toolCalls)}
-                        showOptions={showPlanOptions === index}
-                        onProceed={() => handlePlanProceed(index)}
-                        onKeepPlanning={() => handlePlanKeepPlanning(index)}
-                      />
-                    )}
-                    {/* Render non-special tools in ladder */}
-                    {filterNonSpecialTools(message.toolCalls).length > 0 && (
-                      <AIToolLadder className="mt-4">
-                        {filterNonSpecialTools(message.toolCalls).map((toolCall, toolIndex) => (
-                          <AIToolStep
-                            key={`${index}-${toolCall.name}-${toolIndex}`}
-                            status={toolCall.status}
-                            stepNumber={toolIndex + 1}
-                            isLast={toolIndex === filterNonSpecialTools(message.toolCalls).length - 1}
-                          >
-                            <AIToolHeader
-                              description={toolCall.description}
-                              name={toolCall.name}
-                              status={toolCall.status}
-                            />
-                            <AIToolContent toolCall={toolCall} />
-                          </AIToolStep>
-                        ))}
-                      </AIToolLadder>
-                    )}
-                  </>
-                )}
-              </AIMessageContent>
-            </AIMessage>
-          ))}
-          {sseStream.processing && (
-            <AIMessage 
-              from="assistant"
-            >
-              <AIMessageContent>
-                {/* Show reasoning during streaming if available */}
-                {sseStream.reasoning && (
-                  <AIReasoning className="w-full mb-4" isStreaming={true} duration={sseStream.reasoningDuration || undefined}>
-                    <AIReasoningTrigger />
-                    <AIReasoningContent>{sseStream.reasoning}</AIReasoningContent>
-                  </AIReasoning>
-                )}
-                {sseStream.toolCalls.length > 0 ? (
-                  <>
-                    {/* Render streaming todos inline without tool wrapper */}
-                    {extractTodosFromToolCalls(sseStream.toolCalls).length > 0 && (
-                      <div className="mt-4">
-                        <TodoList todos={extractTodosFromToolCalls(sseStream.toolCalls)} />
-                      </div>
-                    )}
-                    {/* Render streaming plan content */}
-                    {extractPlanFromToolCalls(sseStream.toolCalls) && (
-                      <PlanDisplay 
-                        planContent={extractPlanFromToolCalls(sseStream.toolCalls)}
-                        showOptions={false}
-                      />
-                    )}
-                    {/* Render streaming non-special tools in ladder */}
-                    {filterNonSpecialTools(sseStream.toolCalls).length > 0 && (
-                      <AIToolLadder >
-                        {filterNonSpecialTools(sseStream.toolCalls).map((toolCall, toolIndex) => (
-                          <AIToolStep
-                            key={`streaming-${toolCall.id}-${toolIndex}`}
-                            status={toolCall.status}
-                            stepNumber={toolIndex + 1}
-                            isLast={toolIndex === filterNonSpecialTools(sseStream.toolCalls).length - 1}
-                          >
-                            <AIToolHeader
-                              description={toolCall.description}
-                              name={toolCall.name}
-                              status={toolCall.status}
-                            />
-                            <AIToolContent toolCall={toolCall} />
-                          </AIToolStep>
-                        ))}
-                      </AIToolLadder>
-                    )}
-                    {!sseStream.completed && <LoadingDots />}
-                  </>
-                ) : (
-                  <LoadingDots />
-                )}
-              </AIMessageContent>
-            </AIMessage>
-          )}
-        </div>
-      </div>
+      <ConversationDisplay
+        messages={messages}
+        sseStream={sseStream}
+        showPlanOptions={showPlanOptions}
+        conversationRef={conversationRef}
+        setUserMessageRef={setUserMessageRef}
+        onPlanProceed={handlePlanProceed}
+        onPlanKeepPlanning={handlePlanKeepPlanning}
+      />
 
 
       {/* Attachment Preview Section */}
@@ -638,7 +501,7 @@ export function ChatApp() {
             <AIInputSubmit 
               disabled={isSubmitDisabled}
               status={buttonStatus}
-              onPauseClick={handlePauseResumeClick}
+              onPauseClick={handleCancelClick}
             />
           </AIInputToolbar>
         </AIInput>

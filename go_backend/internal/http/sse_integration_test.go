@@ -66,13 +66,13 @@ func setupTestServer(t *testing.T) (*httptest.Server, *app.App, string) {
 	}
 
 	// Use the standard database connection method so everything is consistent
-	conn, err := db.Connect()
+	ctx := context.Background()
+	conn, err := db.Connect(ctx)
 	if err != nil {
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}
 
 	// Create test app
-	ctx := context.Background()
 	testApp, err := app.New(ctx, conn)
 	if err != nil {
 		t.Fatalf("Failed to create test app: %v", err)

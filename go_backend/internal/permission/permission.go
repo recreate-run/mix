@@ -1,6 +1,7 @@
 package permission
 
 import (
+	"context"
 	"errors"
 	"log"
 	"path/filepath"
@@ -107,7 +108,10 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	defer s.pendingRequests.Delete(permission.ID)
 
 	log.Printf("Publishing permission request %s for approval", permission.ID)
-	s.Publish(pubsub.CreatedEvent, permission)
+	if err := s.Publish(context.Background(), pubsub.CreatedEvent, permission); err != nil {
+		log.Printf("Failed to publish permission request %s: %v", permission.ID, err)
+		return false
+	}
 
 	// Wait for the response with a timeout (30 seconds)
 	select {

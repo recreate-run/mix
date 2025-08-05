@@ -52,7 +52,10 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	s.Publish(pubsub.DeletedEvent, message)
+	err = s.Publish(ctx, pubsub.DeletedEvent, message)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -80,7 +83,10 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
 	if err != nil {
 		return Message{}, err
 	}
-	s.Publish(pubsub.CreatedEvent, message)
+	err = s.Publish(ctx, pubsub.CreatedEvent, message)
+	if err != nil {
+		return Message{}, err
+	}
 	return message, nil
 }
 
@@ -119,7 +125,10 @@ func (s *service) Update(ctx context.Context, message Message) error {
 		return err
 	}
 	message.UpdatedAt = time.Now().Unix()
-	s.Publish(pubsub.UpdatedEvent, message)
+	err = s.Publish(ctx, pubsub.UpdatedEvent, message)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

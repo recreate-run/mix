@@ -23,6 +23,6 @@ type (
 	}
 
 	Publisher[T any] interface {
-		Publish(EventType, T)
+		Publish(context.Context, EventType, T) error
 	}
 )

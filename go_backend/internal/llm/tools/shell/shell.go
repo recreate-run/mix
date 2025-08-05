@@ -191,6 +191,9 @@ echo $EXEC_EXIT_CODE > %s
 
 	done := make(chan bool)
 	go func() {
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		
 		for {
 			select {
 			case <-ctx.Done():
@@ -199,7 +202,7 @@ echo $EXEC_EXIT_CODE > %s
 				done <- true
 				return
 
-			case <-time.After(10 * time.Millisecond):
+			case <-ticker.C:
 				if fileExists(statusFile) && fileSize(statusFile) > 0 {
 					done <- true
 					return

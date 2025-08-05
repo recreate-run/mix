@@ -22,11 +22,11 @@ type LogData struct {
 	lock sync.Mutex
 }
 
-func (l *LogData) Add(msg LogMessage) {
+func (l *LogData) Add(ctx context.Context, msg LogMessage) error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 	l.messages = append(l.messages, msg)
-	l.Publish(pubsub.CreatedEvent, msg)
+	return l.Publish(ctx, pubsub.CreatedEvent, msg)
 }
 
 func (l *LogData) List() []LogMessage {
@@ -75,7 +75,10 @@ func (w *writer) Write(p []byte) (int, error) {
 				})
 			}
 		}
-		defaultLogData.Add(msg)
+		if err := defaultLogData.Add(context.Background(), msg); err != nil {
+			// Log publish error but don't fail the write operation
+			fmt.Fprintf(os.Stderr, "failed to publish log message: %v\n", err)
+		}
 	}
 	if d.Err() != nil {
 		return 0, d.Err()

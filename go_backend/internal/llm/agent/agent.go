@@ -373,7 +373,10 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			SessionID: sessionID,
 			Done:      true,
 		}
-		a.Publish(pubsub.CreatedEvent, finalEvent)
+		err = a.Publish(ctx, pubsub.CreatedEvent, finalEvent)
+		if err != nil {
+			return a.err(err)
+		}
 		return finalEvent
 	}
 }
@@ -597,11 +600,14 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 		// Only publish events if everything is still OK
 		if !cancelled && !permissionDenied {
-			a.Publish(pubsub.CreatedEvent, AgentEvent{
+			err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 				Type:      AgentEventTypeResponse,
 				Message:   assistantMsg,
 				SessionID: sessionID,
 			})
+			if err != nil {
+				logging.Error("Failed to publish agent event", "error", err)
+			}
 		}
 	}
 
@@ -662,11 +668,14 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case provider.EventThinkingDelta:
 		assistantMsg.AppendReasoningContent(event.Thinking)
 		// Publish thinking event for real-time streaming
-		a.Publish(pubsub.CreatedEvent, AgentEvent{
+		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
 			Message:   *assistantMsg,
 			SessionID: sessionID,
 		})
+		if err != nil {
+			return err
+		}
 		return a.messages.Update(ctx, *assistantMsg)
 	case provider.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
@@ -675,11 +684,14 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case provider.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
 		// Publish tool start event for real-time streaming
-		a.Publish(pubsub.CreatedEvent, AgentEvent{
+		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
 			Message:   *assistantMsg,
 			SessionID: sessionID,
 		})
+		if err != nil {
+			return err
+		}
 		return a.messages.Update(ctx, *assistantMsg)
 	// TODO: see how to handle this
 	// case provider.EventToolUseDelta:
@@ -693,11 +705,14 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case provider.EventToolUseStop:
 		assistantMsg.FinishToolCall(event.ToolCall.ID)
 		// Publish tool completion event for real-time streaming
-		a.Publish(pubsub.CreatedEvent, AgentEvent{
+		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
 			Message:   *assistantMsg,
 			SessionID: sessionID,
 		})
+		if err != nil {
+			return err
+		}
 		return a.messages.Update(ctx, *assistantMsg)
 	case provider.EventError:
 		if errors.Is(event.Error, context.Canceled) {
@@ -781,7 +796,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 			Progress: "Starting summarization...",
 		}
 
-		a.Publish(pubsub.CreatedEvent, event)
+		err := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+		if err != nil {
+			logging.Error("Failed to publish summarize start event", "error", err)
+		}
 		// Get all messages from the session
 		msgs, err := a.messages.List(summarizeCtx, sessionID)
 		if err != nil {
@@ -790,7 +808,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 				Error: fmt.Errorf("failed to list messages: %w", err),
 				Done:  true,
 			}
-			a.Publish(pubsub.CreatedEvent, event)
+			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+			if publishErr != nil {
+				logging.Error("Failed to publish error event", "error", publishErr)
+			}
 			return
 		}
 		summarizeCtx = context.WithValue(summarizeCtx, tools.SessionIDContextKey, sessionID)
@@ -807,7 +828,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 				Error: fmt.Errorf("no messages to summarize"),
 				Done:  true,
 			}
-			a.Publish(pubsub.CreatedEvent, event)
+			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+			if publishErr != nil {
+				logging.Error("Failed to publish error event", "error", publishErr)
+			}
 			return
 		}
 
@@ -815,7 +839,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 			Type:     AgentEventTypeSummarize,
 			Progress: "Analyzing conversation...",
 		}
-		a.Publish(pubsub.CreatedEvent, event)
+		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+		if err != nil {
+			logging.Error("Failed to publish analyze event", "error", err)
+		}
 
 		// Add a system message to guide the summarization
 		summarizePrompt := "Provide a detailed but concise summary of our conversation above. Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next."
@@ -834,7 +861,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 			Progress: "Generating summary...",
 		}
 
-		a.Publish(pubsub.CreatedEvent, event)
+		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+		if err != nil {
+			logging.Error("Failed to publish generate event", "error", err)
+		}
 
 		// Send the messages to the summarize provider
 		response, err := a.summarizeProvider.SendMessages(
@@ -848,7 +878,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 				Error: fmt.Errorf("failed to summarize: %w", err),
 				Done:  true,
 			}
-			a.Publish(pubsub.CreatedEvent, event)
+			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+			if publishErr != nil {
+				logging.Error("Failed to publish error event", "error", publishErr)
+			}
 			return
 		}
 
@@ -859,7 +892,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 				Error: fmt.Errorf("empty summary returned"),
 				Done:  true,
 			}
-			a.Publish(pubsub.CreatedEvent, event)
+			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+			if publishErr != nil {
+				logging.Error("Failed to publish error event", "error", publishErr)
+			}
 			return
 		}
 		event = AgentEvent{
@@ -867,7 +903,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 			Progress: "Creating new session...",
 		}
 
-		a.Publish(pubsub.CreatedEvent, event)
+		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+		if err != nil {
+			logging.Error("Failed to publish create session event", "error", err)
+		}
 		oldSession, err := a.sessions.Get(summarizeCtx, sessionID)
 		if err != nil {
 			event = AgentEvent{
@@ -876,7 +915,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 				Done:  true,
 			}
 
-			a.Publish(pubsub.CreatedEvent, event)
+			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+			if publishErr != nil {
+				logging.Error("Failed to publish error event", "error", publishErr)
+			}
 			return
 		}
 		// Create a message in the new session with the summary
@@ -898,7 +940,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 				Done:  true,
 			}
 
-			a.Publish(pubsub.CreatedEvent, event)
+			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+			if publishErr != nil {
+				logging.Error("Failed to publish error event", "error", publishErr)
+			}
 			return
 		}
 		oldSession.SummaryMessageID = msg.ID
@@ -918,7 +963,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 				Error: fmt.Errorf("failed to save session: %w", err),
 				Done:  true,
 			}
-			a.Publish(pubsub.CreatedEvent, event)
+			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+			if publishErr != nil {
+				logging.Error("Failed to publish error event", "error", publishErr)
+			}
 		}
 
 		event = AgentEvent{
@@ -927,7 +975,10 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 			Progress:  "Summary complete",
 			Done:      true,
 		}
-		a.Publish(pubsub.CreatedEvent, event)
+		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
+		if err != nil {
+			logging.Error("Failed to publish complete event", "error", err)
+		}
 		// Send final success event with the new session ID
 	}()
 

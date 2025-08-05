@@ -99,7 +99,7 @@ const components: Options['components'] = {
     </h6>
   ),
   pre: ({ node, className, children }) => {
-    let language = 'javascript';
+    let language = 'text';
 
     if (typeof node?.properties?.className === 'string') {
       language = node.properties.className.replace('language-', '');
@@ -118,7 +118,7 @@ const components: Options['components'] = {
     const data: CodeBlockProps['data'] = [
       {
         language,
-        filename: 'index.js',
+        filename: '',
         code: (children.props as { children: string }).children,
       },
     ];

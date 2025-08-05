@@ -1,10 +1,12 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -15,7 +17,15 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func Connect() (*sql.DB, error) {
+const (
+	// Database operation timeouts
+	DBConnectionTimeout = 30 * time.Second
+	DBPingTimeout       = 10 * time.Second
+	DBPragmaTimeout     = 10 * time.Second
+	DBMigrationTimeout  = 5 * time.Minute
+)
+
+func Connect(ctx context.Context) (*sql.DB, error) {
 	dataDir := config.Get().Data.Directory
 	if dataDir == "" {
 		return nil, fmt.Errorf("data.dir is not set")
@@ -30,8 +40,10 @@ func Connect() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Verify connection
-	if err = db.Ping(); err != nil {
+	// Verify connection with timeout
+	pingCtx, cancel := context.WithTimeout(ctx, DBPingTimeout)
+	defer cancel()
+	if err = db.PingContext(pingCtx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -46,11 +58,13 @@ func Connect() (*sql.DB, error) {
 	}
 
 	for _, pragma := range pragmas {
-		if _, err = db.Exec(pragma); err != nil {
+		pragmaCtx, cancel := context.WithTimeout(ctx, DBPragmaTimeout)
+		if _, err = db.ExecContext(pragmaCtx, pragma); err != nil {
 			logging.Error("Failed to set pragma", pragma, err)
 		} else {
 			logging.Debug("Set pragma", "pragma", pragma)
 		}
+		cancel()
 	}
 
 	goose.SetBaseFS(FS)
@@ -60,7 +74,9 @@ func Connect() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to set dialect: %w", err)
 	}
 
-	if err := goose.Up(db, "migrations"); err != nil {
+	migrationCtx, cancel := context.WithTimeout(ctx, DBMigrationTimeout)
+	defer cancel()
+	if err := goose.UpContext(migrationCtx, db, "migrations"); err != nil {
 		logging.Error("Failed to apply migrations", "error", err)
 		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
@@ -68,14 +84,16 @@ func Connect() (*sql.DB, error) {
 }
 
 // SetupTestDatabase applies migrations to a test database connection
-func SetupTestDatabase(db *sql.DB) error {
+func SetupTestDatabase(ctx context.Context, db *sql.DB) error {
 	goose.SetBaseFS(FS)
 
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf("failed to set dialect: %w", err)
 	}
 
-	if err := goose.Up(db, "migrations"); err != nil {
+	migrationCtx, cancel := context.WithTimeout(ctx, DBMigrationTimeout)
+	defer cancel()
+	if err := goose.UpContext(migrationCtx, db, "migrations"); err != nil {
 		return fmt.Errorf("failed to apply migrations: %w", err)
 	}
 

@@ -141,6 +141,11 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 			handler.GetApp().CoderAgent.Cancel(sessionID)
 			return
 
+		case <-ctx.Done():
+			// Handler context cancelled (server shutdown, timeout, etc.)
+			handler.GetApp().CoderAgent.Cancel(sessionID)
+			return
+
 		case <-heartbeat.C:
 			WriteSSE(w, "heartbeat", HeartbeatEvent{Type: "ping"})
 			flusher.Flush()
