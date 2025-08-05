@@ -21,11 +21,12 @@ import (
 )
 
 type anthropicOptions struct {
-	useBedrock   bool
-	disableCache bool
-	shouldThink  func(userMessage string) bool
-	useOAuth     bool
-	oauthCreds   *OAuthCredentials
+	useBedrock             bool
+	disableCache          bool
+	shouldThink           func(userMessage string) bool
+	useOAuth              bool
+	oauthCreds            *OAuthCredentials
+	useInterleavedThinking bool
 }
 
 type AnthropicOption func(*anthropicOptions)
@@ -40,7 +41,9 @@ type anthropicClient struct {
 type AnthropicClient ProviderClient
 
 func newAnthropicClient(opts providerClientOptions) AnthropicClient {
-	anthropicOpts := anthropicOptions{}
+	anthropicOpts := anthropicOptions{
+		useInterleavedThinking: true, // Enable by default
+	}
 	for _, o := range opts.anthropicOptions {
 		o(&anthropicOpts)
 	}
@@ -81,18 +84,13 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 
 	anthropicClientOptions := []option.RequestOption{}
 
-	// Set up OAuth if available using SDK's WithAuthToken
+	// Set up authentication
 	if oauthCreds != nil {
 		anthropicOpts.useOAuth = true
 		anthropicOpts.oauthCreds = oauthCreds
-		// Use WithAuthToken for OAuth (sets Authorization: Bearer header)
-		anthropicClientOptions = append(anthropicClientOptions,
-			option.WithAuthToken(oauthCreds.AccessToken),
-			option.WithHeader("anthropic-beta", "oauth-2025-04-20"),
-		)
+		anthropicClientOptions = append(anthropicClientOptions, option.WithAuthToken(oauthCreds.AccessToken))
 		logging.Info("Initialized Anthropic client with OAuth authentication via SDK")
 	} else if opts.apiKey != "" {
-		// Use WithAPIKey for API key authentication (sets x-api-key header)
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
 		logging.Info("Initialized Anthropic client with API key authentication")
 	} else {
@@ -106,13 +104,19 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	// Add request timeout to prevent indefinite hangs
 	anthropicClientOptions = append(anthropicClientOptions, option.WithRequestTimeout(60*time.Second))
 
-	client := anthropic.NewClient(anthropicClientOptions...)
-	return &anthropicClient{
+	anthropicClient := &anthropicClient{
 		providerOptions:   opts,
 		options:           anthropicOpts,
-		client:            client,
 		credentialStorage: credStorage,
 	}
+
+	// Add beta headers if needed
+	if betaHeader := anthropicClient.buildBetaHeader(); betaHeader != "" {
+		anthropicClientOptions = append(anthropicClientOptions, option.WithHeader("anthropic-beta", betaHeader))
+	}
+
+	anthropicClient.client = anthropic.NewClient(anthropicClientOptions...)
+	return anthropicClient
 }
 
 func (a *anthropicClient) convertMessages(messages []message.Message) (anthropicMessages []anthropic.MessageParam) {
@@ -296,11 +300,7 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 				a.options.oauthCreds = refreshedCreds
 
 				// Update client with new token
-				a.client = anthropic.NewClient(
-					option.WithAuthToken(refreshedCreds.AccessToken),
-					option.WithHeader("anthropic-beta", "oauth-2025-04-20"),
-					option.WithRequestTimeout(60*time.Second),
-				)
+				a.recreateClient()
 				logging.Info("Refreshed OAuth token proactively")
 			}
 		}
@@ -341,11 +341,7 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 					a.options.oauthCreds = refreshedCreds
 
 					// Update client with new token and retry
-					a.client = anthropic.NewClient(
-						option.WithAuthToken(refreshedCreds.AccessToken),
-						option.WithHeader("anthropic-beta", "oauth-2025-04-20"),
-						option.WithRequestTimeout(60*time.Second),
-					)
+					a.recreateClient()
 					logging.Info("Refreshed OAuth token and retrying request")
 					continue
 				}
@@ -402,11 +398,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 				a.options.oauthCreds = refreshedCreds
 
 				// Update client with new token
-				a.client = anthropic.NewClient(
-					option.WithAuthToken(refreshedCreds.AccessToken),
-					option.WithHeader("anthropic-beta", "oauth-2025-04-20"),
-					option.WithRequestTimeout(60*time.Second),
-				)
+				a.recreateClient()
 				logging.Info("Refreshed OAuth token proactively for streaming")
 			}
 		}
@@ -430,7 +422,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 			)
 			accumulatedMessage := anthropic.Message{}
 
-			currentToolCallID := ""
+			activeToolCalls := make(map[int]*message.ToolCall)
 			for anthropicStream.Next() {
 				event := anthropicStream.Current()
 				err := accumulatedMessage.Accumulate(event)
@@ -444,14 +436,15 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 					if event.ContentBlock.Type == "text" {
 						eventChan <- ProviderEvent{Type: EventContentStart}
 					} else if event.ContentBlock.Type == "tool_use" {
-						currentToolCallID = event.ContentBlock.ID
+						toolCall := &message.ToolCall{
+							ID:       event.ContentBlock.ID,
+							Name:     event.ContentBlock.Name,
+							Finished: false,
+						}
+						activeToolCalls[int(event.Index)] = toolCall
 						eventChan <- ProviderEvent{
-							Type: EventToolUseStart,
-							ToolCall: &message.ToolCall{
-								ID:       event.ContentBlock.ID,
-								Name:     event.ContentBlock.Name,
-								Finished: false,
-							},
+							Type:     EventToolUseStart,
+							ToolCall: toolCall,
 						}
 					}
 
@@ -467,11 +460,11 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 							Content: event.Delta.Text,
 						}
 					} else if event.Delta.Type == "input_json_delta" {
-						if currentToolCallID != "" {
+						if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
 							eventChan <- ProviderEvent{
 								Type: EventToolUseDelta,
 								ToolCall: &message.ToolCall{
-									ID:       currentToolCallID,
+									ID:       toolCall.ID,
 									Finished: false,
 									Input:    event.Delta.JSON.PartialJSON.Raw(),
 								},
@@ -479,14 +472,14 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 						}
 					}
 				case anthropic.ContentBlockStopEvent:
-					if currentToolCallID != "" {
+					if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
 						eventChan <- ProviderEvent{
 							Type: EventToolUseStop,
 							ToolCall: &message.ToolCall{
-								ID: currentToolCallID,
+								ID: toolCall.ID,
 							},
 						}
-						currentToolCallID = ""
+						delete(activeToolCalls, int(event.Index))
 					} else {
 						eventChan <- ProviderEvent{Type: EventContentStop}
 					}
@@ -533,11 +526,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 					a.options.oauthCreds = refreshedCreds
 
 					// Update client with new token and retry
-					a.client = anthropic.NewClient(
-						option.WithAuthToken(refreshedCreds.AccessToken),
-						option.WithHeader("anthropic-beta", "oauth-2025-04-20"),
-						option.WithRequestTimeout(60*time.Second),
-					)
+					a.recreateClient()
 					logging.Info("Refreshed OAuth token and retrying streaming request")
 					continue
 				}
@@ -652,4 +641,42 @@ func WithAnthropicShouldThinkFn(fn func(string) bool) AnthropicOption {
 	return func(options *anthropicOptions) {
 		options.shouldThink = fn
 	}
+}
+
+func WithAnthropicInterleavedThinking() AnthropicOption {
+	return func(options *anthropicOptions) {
+		options.useInterleavedThinking = true
+	}
+}
+
+func (a *anthropicClient) buildBetaHeader() string {
+	var features []string
+	if a.options.useOAuth {
+		features = append(features, "oauth-2025-04-20")
+	}
+	if a.options.useInterleavedThinking {
+		features = append(features, "interleaved-thinking-2025-05-14")
+	}
+	return strings.Join(features, ",")
+}
+
+func (a *anthropicClient) recreateClient() {
+	var clientOptions []option.RequestOption
+
+	if a.options.useOAuth && a.options.oauthCreds != nil {
+		clientOptions = append(clientOptions, option.WithAuthToken(a.options.oauthCreds.AccessToken))
+	} else if a.providerOptions.apiKey != "" {
+		clientOptions = append(clientOptions, option.WithAPIKey(a.providerOptions.apiKey))
+	}
+
+	if betaHeader := a.buildBetaHeader(); betaHeader != "" {
+		clientOptions = append(clientOptions, option.WithHeader("anthropic-beta", betaHeader))
+	}
+
+	if a.options.useBedrock {
+		clientOptions = append(clientOptions, bedrock.WithLoadDefaultConfig(context.Background()))
+	}
+
+	clientOptions = append(clientOptions, option.WithRequestTimeout(60*time.Second))
+	a.client = anthropic.NewClient(clientOptions...)
 }

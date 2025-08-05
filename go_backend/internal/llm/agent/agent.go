@@ -394,6 +394,12 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 	})
 }
 
+type toolExecResult struct {
+	index            int
+	result           message.ToolResult
+	permissionDenied bool
+}
+
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 	
@@ -456,24 +462,35 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	toolResults := make([]message.ToolResult, len(assistantMsg.ToolCalls()))
 	toolCalls := assistantMsg.ToolCalls()
 
+	// Create channel for collecting results from parallel tool execution
+	resultChan := make(chan toolExecResult, len(toolCalls))
+
+	// Launch goroutines for parallel tool execution
+	var wg sync.WaitGroup
 	for i, toolCall := range toolCalls {
-		select {
-		case <-ctx.Done():
-			a.finishMessage(context.Background(), &assistantMsg, message.FinishReasonCanceled)
-			// Make all future tool calls cancelled
-			for j := i; j < len(toolCalls); j++ {
-				toolResults[j] = message.ToolResult{
-					ToolCallID: toolCalls[j].ID,
-					Content:    "Tool execution canceled by user",
-					IsError:    true,
+		wg.Add(1)
+		go func(index int, tc message.ToolCall) {
+			defer wg.Done()
+
+			// Check for context cancellation first
+			select {
+			case <-ctx.Done():
+				resultChan <- toolExecResult{
+					index: index,
+					result: message.ToolResult{
+						ToolCallID: tc.ID,
+						Content:    "Tool execution canceled by user",
+						IsError:    true,
+					},
 				}
+				return
+			default:
 			}
-			goto out
-		default:
-			// Continue processing
+
+			// Find tool
 			var tool tools.BaseTool
 			for _, availableTool := range a.tools {
-				if availableTool.Info().Name == toolCall.Name {
+				if availableTool.Info().Name == tc.Name {
 					tool = availableTool
 					break
 				}
@@ -481,72 +498,105 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 			// Tool not found
 			if tool == nil {
-				toolResults[i] = message.ToolResult{
-					ToolCallID: toolCall.ID,
-					Content:    fmt.Sprintf("Tool not found: %s", toolCall.Name),
-					IsError:    true,
+				resultChan <- toolExecResult{
+					index: index,
+					result: message.ToolResult{
+						ToolCallID: tc.ID,
+						Content:    fmt.Sprintf("Tool not found: %s", tc.Name),
+						IsError:    true,
+					},
 				}
-				continue
+				return
 			}
-			
+
 			// Check if tool is available in plan mode
 			if ctx.Value("plan_mode") != nil && !isToolAllowedInPlanMode(tool) {
-				toolResults[i] = message.ToolResult{
-					ToolCallID: toolCall.ID,
-					Content:    "Tool not available in plan mode. Use exit_plan_mode to proceed with execution.",
-					IsError:    true,
+				resultChan <- toolExecResult{
+					index: index,
+					result: message.ToolResult{
+						ToolCallID: tc.ID,
+						Content:    "Tool not available in plan mode. Use exit_plan_mode to proceed with execution.",
+						IsError:    true,
+					},
 				}
-				continue
+				return
 			}
-			logging.Info("[Agent] Executing tool", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "inputSize", len(toolCall.Input), "inputContent", toolCall.Input)
+
+			logging.Info("[Agent] Executing tool", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "inputSize", len(tc.Input), "inputContent", tc.Input)
 
 			toolStartTime := time.Now()
 			toolResult, toolErr := tool.Run(ctx, tools.ToolCall{
-				ID:    toolCall.ID,
-				Name:  toolCall.Name,
-				Input: toolCall.Input,
+				ID:    tc.ID,
+				Name:  tc.Name,
+				Input: tc.Input,
 			})
 			toolDuration := time.Since(toolStartTime)
 
-			logging.Info("[Agent] Tool execution result", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "duration", toolDuration, "error", toolErr, "resultLength", len(toolResult.Content), "resultContent", toolResult.Content, "resultIsError", toolResult.IsError)
+			logging.Info("[Agent] Tool execution result", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "duration", toolDuration, "error", toolErr, "resultLength", len(toolResult.Content), "resultContent", toolResult.Content, "resultIsError", toolResult.IsError)
 
+			permissionDenied := false
 			if toolErr != nil {
-				logging.Info("[Agent] TOOL EXECUTION ERROR", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "error", toolErr)
+				logging.Info("[Agent] TOOL EXECUTION ERROR", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "error", toolErr)
 
 				if errors.Is(toolErr, permission.ErrorPermissionDenied) {
-					logging.Info("[Agent] TOOL PERMISSION DENIED", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID)
-
-					toolResults[i] = message.ToolResult{
-						ToolCallID: toolCall.ID,
-						Content:    "Permission denied",
-						IsError:    true,
-					}
-					for j := i + 1; j < len(toolCalls); j++ {
-						toolResults[j] = message.ToolResult{
-							ToolCallID: toolCalls[j].ID,
-							Content:    "Tool execution canceled by user",
-							IsError:    true,
-						}
-					}
-					a.finishMessage(ctx, &assistantMsg, message.FinishReasonPermissionDenied)
-					break
+					logging.Info("[Agent] TOOL PERMISSION DENIED", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID)
+					permissionDenied = true
 				}
 			}
+
 			// Log tool execution result
 			isError := toolErr != nil
 			if isError {
-				logging.Error("[Agent] Tool execution failed", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "hasError", isError)
+				logging.Error("[Agent] Tool execution failed", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "hasError", isError)
 			}
-			_ = len(toolResult.Content)
 
-			toolResults[i] = message.ToolResult{
-				ToolCallID: toolCall.ID,
+			result := message.ToolResult{
+				ToolCallID: tc.ID,
 				Content:    toolResult.Content,
 				Metadata:   toolResult.Metadata,
 				IsError:    toolResult.IsError,
 			}
 
-			// Publish tool result event for real-time streaming
+			if permissionDenied {
+				result.Content = "Permission denied"
+				result.IsError = true
+			}
+
+			resultChan <- toolExecResult{
+				index:            index,
+				result:           result,
+				permissionDenied: permissionDenied,
+			}
+		}(i, toolCall)
+	}
+
+	// Close channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Collect results with simple state tracking
+	cancelled := false
+	permissionDenied := false
+
+	// Always drain the entire channel - no early exits
+	for result := range resultChan {
+		// Check for cancellation on each result
+		if ctx.Err() != nil {
+			cancelled = true
+		}
+
+		// Check for permission denied
+		if result.permissionDenied {
+			permissionDenied = true
+		}
+
+		// Always store the result at correct index
+		toolResults[result.index] = result.result
+
+		// Only publish events if everything is still OK
+		if !cancelled && !permissionDenied {
 			a.Publish(pubsub.CreatedEvent, AgentEvent{
 				Type:      AgentEventTypeResponse,
 				Message:   assistantMsg,
@@ -554,7 +604,29 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 			})
 		}
 	}
-out:
+
+	// Handle finish messages after all goroutines complete
+	if cancelled {
+		a.finishMessage(context.Background(), &assistantMsg, message.FinishReasonCanceled)
+	} else if permissionDenied {
+		a.finishMessage(ctx, &assistantMsg, message.FinishReasonPermissionDenied)
+	}
+
+	// Fill any missing results with appropriate error messages
+	for i := range toolResults {
+		if toolResults[i].ToolCallID == "" {
+			content := "Tool execution canceled by user"
+			if permissionDenied {
+				content = "Tool execution canceled due to permission denied"
+			}
+			toolResults[i] = message.ToolResult{
+				ToolCallID: toolCalls[i].ID,
+				Content:    content,
+				IsError:    true,
+			}
+		}
+	}
+
 	if len(toolResults) == 0 {
 		return assistantMsg, nil, nil
 	}

@@ -42,7 +42,7 @@ export const AIReasoning = memo(
     className,
     isStreaming = false,
     open,
-    defaultOpen = false,
+    defaultOpen = true,
     onOpenChange,
     duration: durationProp,
     children,
