@@ -36,7 +36,7 @@ import { useSession, useCreateSession } from '@/hooks/useSession';
 import { useSendMessage } from '@/hooks/useMessages';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
 import { type FileEntry } from '@/hooks/useFileSystem';
-import { useOpenApps } from '@/hooks/useOpenApps';
+import { useAppList } from '@/hooks/useOpenApps';
 import { useFileReference } from '@/hooks/useFileReference';
 import { CommandFileReference } from './command-file-reference';
 import { useAttachmentStore, type Attachment, expandFileReferences, removeFileReferences, createFileAttachment, createFolderAttachment } from '@/stores/attachmentStore';
@@ -144,7 +144,7 @@ export function ChatApp() {
   const { selectedFolder, selectFolder } = useFolderSelection();
   const { data: session, isLoading: sessionLoading, error: sessionError } = useSession(selectedFolder || DEFAULT_WORKING_DIR);
   const sseStream = usePersistentSSE(session?.id || '');
-  const { apps: openApps, refreshApps } = useOpenApps();
+  const { apps: openApps, refreshApps } = useAppList();
   const queryClient = useQueryClient();
   
   // Clear UI state when session changes (new working directory selected)
@@ -170,11 +170,12 @@ export function ChatApp() {
     return openApps
       .filter(app => allowedApps.some(allowed => app.name.toLowerCase().includes(allowed.toLowerCase())))
       .map(app => ({
-        id: `app:${app.name}`,
+        id: `app:${app.bundle_id}`,
         name: app.name,
         type: 'app' as const,
-        icon: app.icon_png_base64,
-        isOpen: true
+        icon: 'placeholder', // Icons loaded on-demand for performance
+        isOpen: true,
+        bundleId: app.bundle_id
       }));
   }, [openApps]);
 

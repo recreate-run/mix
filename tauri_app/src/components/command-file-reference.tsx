@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import { FolderIcon, ImageIcon, VideoIcon, AudioLines, Play } from 'lucide-react';
+import { FolderIcon, ImageIcon, VideoIcon, AudioLines, Play, Monitor } from 'lucide-react';
 import { type FileEntry } from '@/hooks/useFileSystem';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { type Attachment } from '@/stores/attachmentStore';
 import { getFileType } from '@/utils/fileTypes';
+import { AppIcon } from './app-icon';
 import {
   Command,
   CommandEmpty,
@@ -228,10 +229,10 @@ export function CommandFileReference({
                       onSelect={() => handleSelect(`app:${app.name}`)}
                     >
                       <div className="flex-shrink-0 p-1 rounded-md bg-white dark:bg-gray-700 shadow-sm">
-                        <img 
-                          src={`data:image/png;base64,${app.icon}`} 
-                          alt={`${app.name} icon`}
-                          className="size-4 rounded-sm"
+                        <AppIcon 
+                          bundleId={app.bundleId || app.id.replace('app:', '')} 
+                          name={app.name}
+                          className="size-4"
                         />
                       </div>
                       <div className="flex-1">

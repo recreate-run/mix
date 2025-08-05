@@ -20,6 +20,7 @@ export type Attachment = {
   // App specific
   icon?: string; // base64
   isOpen?: boolean;
+  bundleId?: string;
 };
 
 interface AttachmentState {

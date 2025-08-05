@@ -8,8 +8,15 @@ use objc2::runtime::AnyObject;
 #[cfg(target_os = "macos")]
 use objc2_app_kit::{NSWorkspace, NSBitmapImageRep};
 #[cfg(target_os = "macos")]
-#[cfg(target_os = "macos")]
 use objc2::{msg_send, ClassType};
+#[cfg(target_os = "macos")]
+use objc2::rc::autoreleasepool;
+#[cfg(target_os = "macos")]
+use objc2_foundation::ns_string;
+#[cfg(target_os = "macos")]
+use block2::StackBlock;
+#[cfg(target_os = "macos")]
+use std::ptr::NonNull;
 #[cfg(target_os = "macos")]
 use std::ffi::CStr;
 #[cfg(target_os = "macos")]
@@ -19,7 +26,7 @@ use base64::Engine;
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(desktop)]
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -27,28 +34,27 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 #[cfg(target_os = "macos")]
-#[derive(serde::Serialize)]
-struct AppInfo {
+#[derive(serde::Serialize, Clone)]
+struct AppMetadata {
     name: String,
-    icon_png_base64: String,
+    bundle_id: String,
+    path: String,
 }
 
 #[cfg(target_os = "macos")]
 #[tauri::command]
-async fn list_apps_with_icons() -> Result<Vec<AppInfo>, String> {
+async fn get_app_list() -> Result<Vec<AppMetadata>, String> {
     unsafe {
         let workspace = NSWorkspace::sharedWorkspace();
         let apps = workspace.runningApplications();
         let mut result = Vec::with_capacity(apps.len());
 
         for app in apps.iter() {
-            
             // Check if app is visible (not background-only)
             let is_hidden: bool = msg_send![&*app, isHidden];
             let activation_policy: i64 = msg_send![&*app, activationPolicy];
             
-            // Only include regular GUI apps (activation policy 0 = NSApplicationActivationPolicyRegular)
-            // Skip accessory apps (1) like browser plugins and prohibited apps (2) like background processes
+            // Only include regular GUI apps
             if is_hidden || activation_policy != 0 {
                 continue;
             }
@@ -59,39 +65,94 @@ async fn list_apps_with_icons() -> Result<Vec<AppInfo>, String> {
                 continue;
             }
             let utf8_ptr: *const std::os::raw::c_char = msg_send![name_ns, UTF8String];
-            let cname = CStr::from_ptr(utf8_ptr)
-                .to_string_lossy()
-                .into_owned();
+            let name = CStr::from_ptr(utf8_ptr).to_string_lossy().into_owned();
 
-            // Skip empty names
-            if cname.is_empty() {
+            if name.is_empty() {
+                continue;
+            }
+
+            // Get bundle identifier
+            let bundle_id_ns: *mut AnyObject = msg_send![&*app, bundleIdentifier];
+            let bundle_id = if bundle_id_ns != nil {
+                let utf8_ptr: *const std::os::raw::c_char = msg_send![bundle_id_ns, UTF8String];
+                CStr::from_ptr(utf8_ptr).to_string_lossy().into_owned()
+            } else {
+                // Fallback to process identifier if no bundle ID
+                let pid: i32 = msg_send![&*app, processIdentifier];
+                format!("pid_{}", pid)
+            };
+
+            // Get app path
+            let bundle_url: *mut AnyObject = msg_send![&*app, bundleURL];
+            let path = if bundle_url != nil {
+                let path_ns: *mut AnyObject = msg_send![bundle_url, path];
+                if path_ns != nil {
+                    let utf8_ptr: *const std::os::raw::c_char = msg_send![path_ns, UTF8String];
+                    CStr::from_ptr(utf8_ptr).to_string_lossy().into_owned()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
+            result.push(AppMetadata {
+                name,
+                bundle_id,
+                path,
+            });
+        }
+
+        Ok(result)
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+async fn get_app_icon(bundle_id: String) -> Result<String, String> {
+    unsafe {
+        let workspace = NSWorkspace::sharedWorkspace();
+        let apps = workspace.runningApplications();
+
+        for app in apps.iter() {
+            // Get bundle identifier for comparison
+            let app_bundle_id_ns: *mut AnyObject = msg_send![&*app, bundleIdentifier];
+            let app_bundle_id = if app_bundle_id_ns != nil {
+                let utf8_ptr: *const std::os::raw::c_char = msg_send![app_bundle_id_ns, UTF8String];
+                CStr::from_ptr(utf8_ptr).to_string_lossy().into_owned()
+            } else {
+                // Fallback to process identifier
+                let pid: i32 = msg_send![&*app, processIdentifier];
+                format!("pid_{}", pid)
+            };
+
+            if app_bundle_id != bundle_id {
                 continue;
             }
 
             // Get app icon
             let icon: *mut AnyObject = msg_send![&*app, icon];
             if icon == nil {
-                // Skip apps without icons
-                continue;
+                return Err("No icon available".to_string());
             }
 
             // Convert icon to PNG data
             let tiff_data: *mut AnyObject = msg_send![icon, TIFFRepresentation];
             if tiff_data == nil {
-                continue;
+                return Err("Failed to get TIFF representation".to_string());
             }
 
             // Create bitmap representation from TIFF data
             let bitmap_rep: *mut AnyObject = msg_send![NSBitmapImageRep::class(), alloc];
             let bitmap_rep: *mut AnyObject = msg_send![bitmap_rep, initWithData: tiff_data];
             if bitmap_rep == nil {
-                continue;
+                return Err("Failed to create bitmap representation".to_string());
             }
 
             // Convert to PNG data (NSBitmapImageFileTypePNG = 4)
             let png_data: *mut AnyObject = msg_send![bitmap_rep, representationUsingType: 4u64, properties: nil];
             if png_data == nil {
-                continue;
+                return Err("Failed to convert to PNG".to_string());
             }
 
             // Extract bytes and base64-encode
@@ -100,28 +161,31 @@ async fn list_apps_with_icons() -> Result<Vec<AppInfo>, String> {
             let slice = std::slice::from_raw_parts(bytes, len);
             let b64 = general_purpose::STANDARD.encode(slice);
 
-            result.push(AppInfo {
-                name: cname,
-                icon_png_base64: b64,
-            });
+            return Ok(b64);
         }
 
-        Ok(result)
+        Err("App not found".to_string())
     }
 }
 
 #[cfg(not(target_os = "macos"))]
-#[derive(serde::Serialize)]
-struct AppInfo {
+#[derive(serde::Serialize, Clone)]
+struct AppMetadata {
     name: String,
-    icon_png_base64: String,
+    bundle_id: String,
+    path: String,
 }
 
 #[cfg(not(target_os = "macos"))]
 #[tauri::command]
-async fn list_apps_with_icons() -> Result<Vec<AppInfo>, String> {
-    // Return empty result on non-macOS platforms 
+async fn get_app_list() -> Result<Vec<AppMetadata>, String> {
     Ok(vec![])
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+async fn get_app_icon(_bundle_id: String) -> Result<String, String> {
+    Err("Not supported on this platform".to_string())
 }
 
 // #[tauri::command]
@@ -175,7 +239,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            list_apps_with_icons,
+            get_app_list,
+            get_app_icon,
             // start_sidecar,
             // stop_sidecar,
             // sidecar_status,
@@ -342,6 +407,61 @@ pub fn run() {
 
                 app.global_shortcut().register(toggle_shortcut)?;
                 println!("Global shortcut registered: Cmd+Shift+T (macOS) / Ctrl+Shift+T (Windows/Linux)");
+            }
+
+            // Set up NSWorkspace notifications for real-time app changes
+            #[cfg(target_os = "macos")]
+            {
+                let app_handle = app.handle().clone();
+                
+                // Set up proper NSWorkspace notification observers
+                std::thread::spawn(move || {
+                    autoreleasepool(|_| {
+                        unsafe {
+                            // Get the shared workspace and its notification center
+                            let workspace = NSWorkspace::sharedWorkspace();
+                            let nc = workspace.notificationCenter();
+                            
+                            // Define notification names as NSString constants
+                            let launch_notification = ns_string!("NSWorkspaceDidLaunchApplicationNotification");
+                            let terminate_notification = ns_string!("NSWorkspaceDidTerminateApplicationNotification");
+                            
+                            // Create observer for app launches
+                            let launch_app_handle = app_handle.clone();
+                            let launch_block = StackBlock::new(move |_notif: NonNull<objc2_foundation::NSNotification>| {
+                                let _ = launch_app_handle.emit("app-list-changed", ());
+                            });
+                            
+                            // Create observer for app terminations
+                            let term_app_handle = app_handle.clone();
+                            let term_block = StackBlock::new(move |_notif: NonNull<objc2_foundation::NSNotification>| {
+                                let _ = term_app_handle.emit("app-list-changed", ());
+                            });
+                            
+                            // Register observers
+                            let _launch_token = nc.addObserverForName_object_queue_usingBlock(
+                                Some(launch_notification),
+                                None,  // any sender
+                                None,  // current thread queue
+                                &launch_block,
+                            );
+                            
+                            let _term_token = nc.addObserverForName_object_queue_usingBlock(
+                                Some(terminate_notification),
+                                None,  // any sender
+                                None,  // current thread queue
+                                &term_block,
+                            );
+                            
+                            println!("NSWorkspace notification observers registered for real-time app changes");
+                            
+                            // Keep the thread alive to process notifications
+                            loop {
+                                std::thread::park();
+                            }
+                        }
+                    });
+                });
             }
 
             Ok(())
