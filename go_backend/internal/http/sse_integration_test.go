@@ -60,8 +60,28 @@ func setupTestServer(t *testing.T) (*httptest.Server, *app.App, string) {
 	os.MkdirAll(testConfigDir, 0755)
 	os.MkdirAll(testDataDir, 0755)
 
-	// Initialize config for testing - this loads default config values
-	if _, err := config.Load(".", false); err != nil {
+	// Create minimal config file for testing
+	configContent := `{
+  "$schema": "./mix-schema.json",
+  "agents": {
+    "main": {
+      "model": "claude-4-sonnet",
+      "maxTokens": 4096
+    },
+    "sub": {
+      "model": "claude-4-sonnet", 
+      "maxTokens": 2048
+    }
+  },
+  "mcpServers": {}
+}`
+	configPath := testConfigDir + "/.mix.json"
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to create test config: %v", err)
+	}
+
+	// Initialize config for testing
+	if _, err := config.Load(testConfigDir, false, false); err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
@@ -82,7 +102,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *app.App, string) {
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test SSE Session")
+	session, err := testApp.Sessions.Create(ctx, "Test SSE Session", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}

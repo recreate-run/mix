@@ -324,12 +324,14 @@ func mergeLocalConfig(workingDir string) {
 // applyDefaultValues sets default values for configuration fields that need processing.
 func applyDefaultValues() {
 	// Set default MCP type if not specified
+	cfgMutex.Lock()
 	for k, v := range cfg.MCPServers {
 		if v.Type == "" {
 			v.Type = MCPStdio
 			cfg.MCPServers[k] = v
 		}
 	}
+	cfgMutex.Unlock()
 }
 
 // It validates model IDs and providers, ensuring they are supported.
@@ -342,7 +344,9 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 
 	// Check if provider for the model is configured
 	provider := model.Provider
+	cfgMutex.RLock()
 	providerCfg, providerExists := cfg.Providers[provider]
+	cfgMutex.RUnlock()
 
 	if !providerExists {
 		// Provider not configured, check if we have environment variables
@@ -351,9 +355,11 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 			return fmt.Errorf("provider %s not configured for agent %s (model %s) and no API key found in environment", provider, name, agent.Model)
 		}
 		// Add provider - with API key from environment or empty for OAuth-supported providers
+		cfgMutex.Lock()
 		cfg.Providers[provider] = Provider{
 			APIKey: apiKey,
 		}
+		cfgMutex.Unlock()
 		if apiKey != "" {
 			logging.Info("added provider from environment", "provider", provider)
 		} else {
@@ -375,15 +381,13 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 			"max_tokens", agent.MaxTokens)
 
 		// Update the agent with default max tokens
-		cfgMutex.RLock()
+		cfgMutex.Lock()
 		updatedAgent := cfg.Agents[name]
-		cfgMutex.RUnlock()
 		if model.DefaultMaxTokens > 0 {
 			updatedAgent.MaxTokens = model.DefaultMaxTokens
 		} else {
 			updatedAgent.MaxTokens = MaxTokensFallbackDefault
 		}
-		cfgMutex.Lock()
 		cfg.Agents[name] = updatedAgent
 		cfgMutex.Unlock()
 	} else if model.ContextWindow > 0 && agent.MaxTokens > model.ContextWindow/2 {
@@ -395,11 +399,9 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 			"context_window", model.ContextWindow)
 
 		// Update the agent with adjusted max tokens
-		cfgMutex.RLock()
-		updatedAgent := cfg.Agents[name]
-		cfgMutex.RUnlock()
-		updatedAgent.MaxTokens = model.ContextWindow / 2
 		cfgMutex.Lock()
+		updatedAgent := cfg.Agents[name]
+		updatedAgent.MaxTokens = model.ContextWindow / 2
 		cfg.Agents[name] = updatedAgent
 		cfgMutex.Unlock()
 	}
@@ -413,11 +415,9 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 				"model", agent.Model)
 
 			// Update the agent with default reasoning effort
-			cfgMutex.RLock()
-			updatedAgent := cfg.Agents[name]
-			cfgMutex.RUnlock()
-			updatedAgent.ReasoningEffort = "medium"
 			cfgMutex.Lock()
+			updatedAgent := cfg.Agents[name]
+			updatedAgent.ReasoningEffort = "medium"
 			cfg.Agents[name] = updatedAgent
 			cfgMutex.Unlock()
 		} else {
@@ -430,11 +430,9 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 					"reasoning_effort", agent.ReasoningEffort)
 
 				// Update the agent with valid reasoning effort
-				cfgMutex.RLock()
-				updatedAgent := cfg.Agents[name]
-				cfgMutex.RUnlock()
-				updatedAgent.ReasoningEffort = "medium"
 				cfgMutex.Lock()
+				updatedAgent := cfg.Agents[name]
+				updatedAgent.ReasoningEffort = "medium"
 				cfg.Agents[name] = updatedAgent
 				cfgMutex.Unlock()
 			}
@@ -447,11 +445,9 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 			"reasoning_effort", agent.ReasoningEffort)
 
 		// Update the agent to remove reasoning effort
-		cfgMutex.RLock()
-		updatedAgent := cfg.Agents[name]
-		cfgMutex.RUnlock()
-		updatedAgent.ReasoningEffort = ""
 		cfgMutex.Lock()
+		updatedAgent := cfg.Agents[name]
+		updatedAgent.ReasoningEffort = ""
 		cfg.Agents[name] = updatedAgent
 		cfgMutex.Unlock()
 	}
@@ -473,6 +469,7 @@ func Validate() error {
 	}
 
 	// Validate providers
+	cfgMutex.Lock()
 	for provider, providerCfg := range cfg.Providers {
 		// Skip API key validation for Anthropic (supports OAuth authentication)
 		if providerCfg.APIKey == "" && !providerCfg.Disabled && provider != "anthropic" {
@@ -482,6 +479,7 @@ func Validate() error {
 			cfg.Providers[provider] = providerCfg
 		}
 	}
+	cfgMutex.Unlock()
 
 	// Removed LSP validation for embedded binary
 
@@ -568,27 +566,26 @@ func Get() *Config {
 }
 
 // LaunchDirectory returns the current launch directory from the configuration.
-func LaunchDirectory() string {
+func LaunchDirectory() (string, error) {
 	if cfg == nil {
-		panic("config not loaded")
+		return "", fmt.Errorf("config not loaded")
 	}
-	return cfg.WorkingDir
+	return cfg.WorkingDir, nil
 }
 
 func UpdateAgentModel(agentName AgentName, modelID models.ModelID) error {
 	if cfg == nil {
-		panic("config not loaded")
+		return fmt.Errorf("config not loaded")
 	}
-
-	cfgMutex.RLock()
-	existingAgentCfg := cfg.Agents[agentName]
-	cfgMutex.RUnlock()
 
 	model, ok := models.SupportedModels[modelID]
 	if !ok {
 		return fmt.Errorf("model %s not supported", modelID)
 	}
 
+	cfgMutex.Lock()
+	existingAgentCfg := cfg.Agents[agentName]
+	
 	maxTokens := existingAgentCfg.MaxTokens
 	if model.DefaultMaxTokens > 0 {
 		maxTokens = model.DefaultMaxTokens
@@ -599,7 +596,6 @@ func UpdateAgentModel(agentName AgentName, modelID models.ModelID) error {
 		MaxTokens:       maxTokens,
 		ReasoningEffort: existingAgentCfg.ReasoningEffort,
 	}
-	cfgMutex.Lock()
 	cfg.Agents[agentName] = newAgentCfg
 	cfgMutex.Unlock()
 

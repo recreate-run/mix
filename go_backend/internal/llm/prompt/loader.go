@@ -3,6 +3,7 @@ package prompt
 import (
 	"context"
 	"embed"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -47,20 +48,28 @@ func LoadPromptWithVars(name string, vars map[string]string) string {
 }
 
 // getStandardVars returns standard variables available to all prompts
-func getStandardVars(ctx context.Context) map[string]string {
+func getStandardVars(ctx context.Context) (map[string]string, error) {
 	workingDir := ctx.Value(tools.WorkingDirectoryContextKey).(string)
+
+	launchDir, err := config.LaunchDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get launch directory: %w", err)
+	}
 
 	return map[string]string{
 		"workdir":   workingDir,
 		"platform":  runtime.GOOS,
-		"launchdir": config.LaunchDirectory(),
-	}
+		"launchdir": launchDir,
+	}, nil
 }
 
 // LoadPromptWithStandardVars loads a prompt with standard environment variables plus custom vars
 func LoadPromptWithStandardVars(ctx context.Context, name string, customVars map[string]string) string {
 	// Merge standard vars with custom vars
-	allVars := getStandardVars(ctx)
+	allVars, err := getStandardVars(ctx)
+	if err != nil {
+		panic(fmt.Sprintf("failed to get standard vars for prompt '%s': %v", name, err))
+	}
 	for k, v := range customVars {
 		allVars[k] = v
 	}
@@ -71,7 +80,10 @@ func LoadPromptWithStandardVars(ctx context.Context, name string, customVars map
 // resolveMarkdownTemplates resolves {markdown:path} templates in content
 func resolveMarkdownTemplates(content string, vars map[string]string) string {
 	markdownRegex := regexp.MustCompile(`\{markdown:([^}]+)\}`)
-	workspaceRoot := config.LaunchDirectory()
+	workspaceRoot, err := config.LaunchDirectory()
+	if err != nil {
+		panic(fmt.Sprintf("failed to get launch directory for markdown templates: %v", err))
+	}
 
 	return markdownRegex.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract the file path from the match

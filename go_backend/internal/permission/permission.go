@@ -3,6 +3,7 @@ package permission
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
 	"sync"
@@ -83,7 +84,11 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 
 	dir := filepath.Dir(opts.Path)
 	if dir == "." {
-		dir = config.LaunchDirectory()
+		var err error
+		dir, err = config.LaunchDirectory()
+		if err != nil {
+			panic(fmt.Sprintf("failed to get launch directory for permission check: %v", err))
+		}
 	}
 	permission := PermissionRequest{
 		ID:          uuid.New().String(),

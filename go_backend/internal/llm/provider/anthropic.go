@@ -422,6 +422,15 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 			)
 			accumulatedMessage := anthropic.Message{}
 
+			// Check if context is already cancelled before starting the streaming loop
+			select {
+			case <-ctx.Done():
+				eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+				close(eventChan)
+				return
+			default:
+			}
+
 			activeToolCalls := make(map[int]*message.ToolCall)
 			for anthropicStream.Next() {
 				event := anthropicStream.Current()
@@ -501,6 +510,15 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 							FinishReason: a.finishReason(string(accumulatedMessage.StopReason)),
 						},
 					}
+				}
+
+				// Check if context is cancelled after processing each event
+				select {
+				case <-ctx.Done():
+					eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+					close(eventChan)
+					return
+				default:
 				}
 			}
 

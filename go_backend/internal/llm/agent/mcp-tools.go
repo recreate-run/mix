@@ -184,7 +184,15 @@ func runTool(ctx context.Context, c *client.Client, toolName string, input strin
 		return tools.NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
 	toolRequest.Params.Arguments = args
-	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// Calculate timeout duration that respects parent context deadline
+	timeout := 30 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		if remaining < timeout {
+			timeout = remaining
+		}
+	}
+	callCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	result, err := c.CallTool(callCtx, toolRequest)
 	if err != nil {

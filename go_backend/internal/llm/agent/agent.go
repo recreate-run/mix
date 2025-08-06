@@ -595,8 +595,10 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 			permissionDenied = true
 		}
 
-		// Always store the result at correct index
-		toolResults[result.index] = result.result
+		// Only store result if not cancelled and no permission denied
+		if !cancelled && !permissionDenied {
+			toolResults[result.index] = result.result
+		}
 
 		// Only publish events if everything is still OK
 		if !cancelled && !permissionDenied {
@@ -1136,20 +1138,20 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 }
 
 func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, session *session.Session) (provider.Provider, error) {
-	// Check if provider already exists in cache
-	if cached, exists := a.sessionProviders.Load(sessionID); exists {
-		return cached.(provider.Provider), nil
-	}
-
-	// Create new session provider using pre-loaded session
+	// Create new session provider
 	sessionProvider, err := createSessionProvider(ctx, a.agentName, session)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session provider: %w", err)
 	}
 
-	// Cache the provider for future use
-	a.sessionProviders.Store(sessionID, sessionProvider)
+	// Atomically store if not exists, or load existing
+	actual, loaded := a.sessionProviders.LoadOrStore(sessionID, sessionProvider)
+	if loaded {
+		// Another goroutine already created one, use theirs
+		return actual.(provider.Provider), nil
+	}
 
+	// We successfully stored our provider
 	return sessionProvider, nil
 }
 

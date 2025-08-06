@@ -42,19 +42,21 @@ type commandResult struct {
 }
 
 var (
-	shellInstance     *PersistentShell
-	shellInstanceOnce sync.Once
+	shellInstance *PersistentShell
+	shellMutex    sync.Mutex
 )
 
 func GetPersistentShell(workingDir string) *PersistentShell {
-	shellInstanceOnce.Do(func() {
-		shellInstance = newPersistentShell(workingDir)
-	})
+	shellMutex.Lock()
+	defer shellMutex.Unlock()
 
-	if shellInstance == nil {
+	// Check if we need a new shell
+	if shellInstance == nil || !shellInstance.IsAlive() {
+		// Clean up old shell if it exists
+		if shellInstance != nil {
+			shellInstance.Close()
+		}
 		shellInstance = newPersistentShell(workingDir)
-	} else if !shellInstance.isAlive {
-		shellInstance = newPersistentShell(shellInstance.cwd)
 	}
 
 	return shellInstance
@@ -274,7 +276,7 @@ func (s *PersistentShell) killChildren() {
 }
 
 func (s *PersistentShell) Exec(ctx context.Context, command string, timeoutMs int) (string, string, int, bool, error) {
-	if !s.isAlive {
+	if !s.IsAlive() {
 		return "", "Shell is not alive", 1, false, errors.New("shell is not alive")
 	}
 
@@ -304,6 +306,12 @@ func (s *PersistentShell) Close() {
 
 	s.cmd.Process.Kill()
 	s.isAlive = false
+}
+
+func (s *PersistentShell) IsAlive() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.isAlive
 }
 
 func shellQuote(s string) string {

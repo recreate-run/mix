@@ -88,7 +88,12 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	}
 	title := titlePrefix + titleSuffix
 
-	sess, err := a.Sessions.Create(ctx, title, config.LaunchDirectory())
+	launchDir, err := config.LaunchDirectory()
+	if err != nil {
+		return fmt.Errorf("failed to get launch directory: %w", err)
+	}
+	
+	sess, err := a.Sessions.Create(ctx, title, launchDir)
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}

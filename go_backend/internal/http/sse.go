@@ -22,24 +22,28 @@ type Connection struct {
 	SessionID string
 	Messages  chan string
 	Done      chan struct{}
+	closeOnce sync.Once
 }
 
 // ConnectionRegistry manages active SSE connections
 type ConnectionRegistry struct {
 	mu          sync.RWMutex
-	connections map[string][]*Connection
+	connections map[string]map[*Connection]struct{}
 }
 
 // Global connection registry
 var registry = &ConnectionRegistry{
-	connections: make(map[string][]*Connection),
+	connections: make(map[string]map[*Connection]struct{}),
 }
 
 // Register adds a connection to the registry
 func (r *ConnectionRegistry) Register(sessionID string, conn *Connection) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.connections[sessionID] = append(r.connections[sessionID], conn)
+	if r.connections[sessionID] == nil {
+		r.connections[sessionID] = make(map[*Connection]struct{})
+	}
+	r.connections[sessionID][conn] = struct{}{}
 }
 
 // Unregister removes a connection from the registry
@@ -47,18 +51,12 @@ func (r *ConnectionRegistry) Unregister(sessionID string, conn *Connection) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	connections := r.connections[sessionID]
-	for i, c := range connections {
-		if c == conn {
-			// Remove connection from slice
-			r.connections[sessionID] = append(connections[:i], connections[i+1:]...)
-			break
+	if connections, exists := r.connections[sessionID]; exists {
+		delete(connections, conn)
+		// Clean up empty session entries
+		if len(connections) == 0 {
+			delete(r.connections, sessionID)
 		}
-	}
-
-	// Clean up empty session entries
-	if len(r.connections[sessionID]) == 0 {
-		delete(r.connections, sessionID)
 	}
 }
 
@@ -68,7 +66,7 @@ func (r *ConnectionRegistry) Broadcast(sessionID, message string) {
 	defer r.mu.RUnlock()
 
 	connections := r.connections[sessionID]
-	for _, conn := range connections {
+	for conn := range connections {
 		select {
 		case conn.Messages <- message:
 		case <-conn.Done:
@@ -120,9 +118,11 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 	// Register connection and ensure cleanup
 	registry.Register(sessionID, conn)
 	defer func() {
-		close(conn.Done)
-		close(conn.Messages)
 		registry.Unregister(sessionID, conn)
+		conn.closeOnce.Do(func() {
+			close(conn.Done)
+			close(conn.Messages)
+		})
 	}()
 
 	// Send connection confirmation
