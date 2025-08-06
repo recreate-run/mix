@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import {ChatApp} from '@/components/chat-app';
-import { fetchVisibleApps } from '@/hooks/useOpenApps';
+import { fetchAppList} from '@/hooks/useOpenApps';
 import { safeTrackEvent } from '@/lib/posthog';
 
 

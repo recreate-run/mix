@@ -441,8 +441,8 @@ export function ChatApp() {
     safeTrackEvent('message_submitted', {
       message_length: messageText.length,
       message_content: messageText, // Track the full message content
-      has_media: files.length > 0,
-      media_count: files.length > 0 ? files.length : 0,
+      has_media: attachments.length > 0,
+      media_count: attachments.length > 0 ? attachments.length : 0,
       session_id: session?.id,
       has_file_references: referenceMap.size > 0,
       timestamp: new Date().toISOString()
