@@ -18,14 +18,16 @@ import { safeTrackEvent } from '@/lib/posthog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useSession, useCreateSession } from '@/hooks/useSession';
+import { useCreateSession, useActiveSession } from '@/hooks/useSession';
+import { useForkSession } from '@/hooks/useForkSession';
 import { useSendMessage } from '@/hooks/useMessages';
+import { useSessionMessages } from '@/hooks/useSessionMessages';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
 import { type FileEntry } from '@/hooks/useFileSystem';
 import { useAppList } from '@/hooks/useOpenApps';
 import { useFileReference } from '@/hooks/useFileReference';
 import { CommandFileReference } from './command-file-reference';
-import { useAttachmentStore, type Attachment, expandFileReferences, removeFileReferences, createFileAttachment, createFolderAttachment } from '@/stores/attachmentStore';
+import { useAttachmentStore, type Attachment, expandFileReferences, removeFileReferences, createFileAttachment, createFolderAttachment, reconstructAttachmentsFromHistory } from '@/stores/attachmentStore';
 import { useFolderSelection } from '@/hooks/useFolderSelection';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 import { useMessageScrolling } from '@/hooks/useMessageScrolling';
@@ -69,18 +71,35 @@ const createDefaultMessage = (): Message => ({
 });
 
 export function ChatApp() {
+  // Core conversation state
   const [text, setText] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([
     createDefaultMessage()
   ]);
+  
+  // UI Interaction Mode 1: Slash Commands (dropdown when typing "/help", "/clear" etc.)
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
-  const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(null);
+  
+  // UI Interaction Mode 2: Command Palette (full modal triggered by "/" alone)
   const [showCommands, setShowCommands] = useState(false);
-  const [isPlanMode, setIsPlanMode] = useState(false);
+  
+  // UI Interaction Mode 3: Plan Options (action buttons after exit_plan_mode)
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
+  
+  // Input management and focus handling
+  const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(null);
+  
+  // Mode toggles and session management
+  const [isPlanMode, setIsPlanMode] = useState(false);
+  const [pendingForkText, setPendingForkText] = useState<{text: string, attachments: Attachment[], referenceMap: Map<string, string>} | null>(null);
+  
+  // Component lifecycle refs
   const interruptedMessageAddedRef = useRef(false);
   const previousSessionIdRef = useRef<string>('');
+  
+  // UI Mode 4: File Reference (managed in useFileReference hook)  
+  // UI Mode 5: Normal Input (default when all others are false)
 
   // All attachment store hooks at top to avoid temporal dead zone
   const attachments = useAttachmentStore(state => state.attachments);
@@ -93,19 +112,18 @@ export function ChatApp() {
   const syncWithText = useAttachmentStore(state => state.syncWithText);
 
   const { selectedFolder, selectFolder } = useFolderSelection();
-  const { data: session, isLoading: sessionLoading, error: sessionError } = useSession(selectedFolder || DEFAULT_WORKING_DIR);
+  const { data: session, isLoading: sessionLoading, error: sessionError, switchToSession } = useActiveSession(selectedFolder || DEFAULT_WORKING_DIR);
+  const sessionMessages = useSessionMessages(session?.id || null);
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps, refreshApps } = useAppList();
   const queryClient = useQueryClient();
+  const forkSession = useForkSession();
   
   // Clear UI state when session changes (new working directory selected)
   useEffect(() => {
     if (session?.id && session.id !== previousSessionIdRef.current) {
       // Only clear if we're switching from one session to another (not initial load)
       if (previousSessionIdRef.current !== '') {
-        setMessages([
-          createDefaultMessage()
-        ]);
         setText('');
         clearAttachments();
         setShowPlanOptions(null);
@@ -114,6 +132,24 @@ export function ChatApp() {
       previousSessionIdRef.current = session.id;
     }
   }, [session?.id]);
+
+  // Load messages when session messages data changes
+  useEffect(() => {
+    if (sessionMessages.data && session?.id) {
+      setMessages([createDefaultMessage(), ...sessionMessages.data]);
+    } else {
+      setMessages([createDefaultMessage()]);
+    }
+  }, [sessionMessages.data, session?.id]);
+
+  // Set fork text after session switching completes
+  useEffect(() => {
+    if (pendingForkText && session?.id) {
+      setText(pendingForkText.text);
+      useAttachmentStore.getState().setHistoryState(pendingForkText.attachments, pendingForkText.referenceMap);
+      setPendingForkText(null);
+    }
+  }, [pendingForkText, session?.id]);
   
   // Transform open apps to Attachment format and filter allowed apps
   const allowedApps = ['Notes', 'Obsidian', 'Blender', 'Pixelmator Pro', 'Final Cut Pro'];
@@ -142,6 +178,7 @@ export function ChatApp() {
   };
 
   const fileRef = useFileReference(text, setText, selectedFolder || DEFAULT_WORKING_DIR);
+
   
   // // Only fetch apps when file reference popup is open - CRITICAL FIX for memory leak
   // useEffect(() => {
@@ -217,53 +254,66 @@ export function ChatApp() {
       return;
     }
     
-    // Handle slash commands using utility function (for other cases)
-    const shouldShow = shouldShowSlashCommands(value);
-    setShowSlashCommands(shouldShow);
-    if (shouldShow && !showSlashCommands) {
-      // Track slash command menu opened
-      safeTrackEvent('slash_command_opened', {
-        timestamp: new Date().toISOString()
-      });
+    // Show slash commands dropdown when conditions are met
+    const shouldShowDropdown = shouldShowSlashCommands(value) && !showCommands && !fileRef.show;
+    
+    if (shouldShowDropdown !== showSlashCommands) {
+      setShowSlashCommands(shouldShowDropdown);
+      if (shouldShowDropdown) {
+        setSelectedCommandIndex(0);
+        safeTrackEvent('slash_command_opened', {
+          timestamp: new Date().toISOString()
+        });
+      }
     }
-    if (!shouldShow) {
+    
+    // Close command palette if no slash commands
+    if (!shouldShowSlashCommands(value)) {
       setShowCommands(false);
     }
   };
 
-  const handleSlashCommandSelect = async (command: typeof slashCommands[0]) => {
-    setShowSlashCommands(false);
-    // Remove the slash from the text and open Command-K menu
-    setText(text.slice(0, -1)); // Remove the trailing slash
-    setShowCommands(true);
-  };
-
-  const handleCommandExecute = (command: string) => {
-    setShowCommands(false);
-    
-    // Track command executed
-    safeTrackEvent('command_executed', {
-      command: command,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Handle special commands directly
-    if (command === 'clear') {
-      handleNewSession();
-      return;
+  // Unified command handler
+  const handleCommand = (action: 'select' | 'execute' | 'close', data?: any) => {
+    switch (action) {
+      case 'select': {
+        setShowSlashCommands(false);
+        setSelectedCommandIndex(0);
+        setText(text.slice(0, -1));
+        setShowCommands(true);
+        break;
+      }
+      case 'execute': {
+        const command = data as string;
+        setShowSlashCommands(false);
+        setShowCommands(false);
+        setShowPlanOptions(null);
+        
+        safeTrackEvent('command_executed', {
+          command: command,
+          timestamp: new Date().toISOString()
+        });
+        
+        if (command === 'clear') {
+          handleNewSession();
+          return;
+        }
+        
+        submitMessage(`/${command}`);
+        break;
+      }
+      case 'close': {
+        setShowSlashCommands(false);
+        setShowCommands(false);
+        setShowPlanOptions(null);
+        
+        safeTrackEvent('command_menu_closed', {
+          method: 'close_button',
+          timestamp: new Date().toISOString()
+        });
+        break;
+      }
     }
-    
-    submitMessage(`/${command}`);
-  };
-
-  const handleCommandClose = () => {
-    setShowCommands(false);
-    
-    // Track command menu closed
-    safeTrackEvent('command_menu_closed', {
-      method: 'close_button',
-      timestamp: new Date().toISOString()
-    });
   };
 
 
@@ -292,25 +342,28 @@ export function ChatApp() {
       showSlashCommands,
       selectedCommandIndex,
       setSelectedCommandIndex,
-      handleSlashCommandSelect,
+      (command) => handleCommand('select', command),
       () => setShowSlashCommands(false)
     );
     if (slashHandled) return;
 
-    // Handle Escape key to close file reference popup
-    if (fileRef.show && e.key === 'Escape') {
+    // Handle Escape key to close popups
+    if (e.key === 'Escape') {
       e.preventDefault();
-      fileRef.close();
-      return;
+      if (fileRef.show) {
+        fileRef.close();
+        return;
+      }
+      if (showCommands) {
+        handleCommand('close');
+        return;
+      }
     }
 
-    // Handle history navigation when not in other modes
-    const historyHandled = historyNavigation.handleHistoryNavigation(
-      e,
-      showSlashCommands || fileRef.show
-    );
+    // Handle history navigation when not in UI modes
+    const isInUIMode = showSlashCommands || fileRef.show || showCommands;
+    const historyHandled = historyNavigation.handleHistoryNavigation(e, isInUIMode);
     if (historyHandled) {
-      // Track history navigation
       safeTrackEvent('history_navigation', {
         direction: e.key === 'ArrowUp' ? 'up' : 'down',
         method: 'keyboard',
@@ -516,6 +569,66 @@ export function ChatApp() {
     setShowPlanOptions(null);
   };
 
+  // Handle forking conversation at a specific message
+  const handleForkMessage = async (messageIndex: number) => {
+    const messageToFork = messages[messageIndex];
+    if (!messageToFork || messageToFork.from !== 'user' || !session?.id) {
+      return;
+    }
+
+    // Prevent forking the first message (no history to copy)
+    if (messageIndex <= 1) {
+      console.log('Cannot fork the first message - no conversation history to copy');
+      return;
+    }
+
+    try {
+      // Call backend to fork session and copy messages
+      const newSession = await forkSession.mutateAsync({
+        sourceSessionId: session.id,
+        messageIndex: messageIndex - 1, // Account for default message offset
+        title: `Forked: ${session.title || 'Chat Session'}`
+      });
+
+      // Extract media paths and app names from the message attachments  
+      const mediaPaths = messageToFork.attachments?.filter(a => a.path).map(a => a.path!) || [];
+      const appNames = messageToFork.attachments?.filter(a => a.type === 'app').map(a => a.name) || [];
+      
+      // Reconstruct attachment state from the historical message
+      const { contractedText, attachments, referenceMap } = await reconstructAttachmentsFromHistory(
+        messageToFork.content,
+        mediaPaths,
+        appNames
+      );
+      
+      // Switch to the forked session
+      switchToSession(newSession);
+      
+      // Queue fork text to be set after session switching completes
+      setPendingForkText({ text: contractedText, attachments, referenceMap });
+      setShowPlanOptions(null);
+      
+      // Track fork event
+      safeTrackEvent('conversation_forked', {
+        session_id: session?.id,
+        forked_session_id: newSession.id,
+        forked_at_index: messageIndex,
+        message_content: messageToFork.content,
+        had_attachments: (messageToFork.attachments?.length || 0) > 0,
+        attachment_count: messageToFork.attachments?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Failed to fork conversation:', error);
+      setMessages(prev => [...prev, {
+        content: `Failed to fork conversation: ${error}`,
+        from: 'assistant',
+        frontend_only: true
+      }]);
+    }
+  };
+
   // Calculate submit button status and disabled state
   const buttonStatus = sseStream.cancelling ? 'cancelling' :
                       sseStream.cancelled ? 'streaming' :
@@ -532,8 +645,11 @@ export function ChatApp() {
   return (
     <TooltipProvider>
       <div className="flex flex-col h-screen px-4 pb-4">
-      {/* Header with Folder Select Button */}
-      <div className="flex justify-end mb-2">
+      {/* Header with Session ID and Folder Select Button */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-xs font-mono text-stone-400 px-2 py-1 bg-stone-800/50 rounded">
+          Session: {session?.id?.slice(0, 8) || 'Loading...'}
+        </div>
         <button
           onClick={handleFolderSelect}
           className="flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-100 hover:bg-stone-700/50 rounded-lg p-2 transition-colors"
@@ -552,6 +668,7 @@ export function ChatApp() {
         setUserMessageRef={setUserMessageRef}
         onPlanProceed={handlePlanProceed}
         onPlanKeepPlanning={handlePlanKeepPlanning}
+        onForkMessage={handleForkMessage}
       />
 
 
@@ -643,8 +760,8 @@ export function ChatApp() {
         {/* Unified Command System */}
         {showCommands && (
           <CommandSlash
-            onExecuteCommand={handleCommandExecute}
-            onClose={handleCommandClose}
+            onExecuteCommand={(command) => handleCommand('execute', command)}
+            onClose={() => handleCommand('close')}
           />
         )}
 

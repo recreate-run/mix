@@ -28,6 +28,7 @@ type Session struct {
 type Service interface {
 	pubsub.Suscriber[Session]
 	Create(ctx context.Context, title string, workingDirectory string) (Session, error)
+	Fork(ctx context.Context, sourceSessionID string, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
 	Save(ctx context.Context, session Session) (Session, error)
@@ -47,6 +48,38 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:               uuid.New().String(),
+		Title:            title,
+		WorkingDirectory: workingDirValue,
+	})
+	if err != nil {
+		return Session{}, err
+	}
+	session := s.fromDBItem(dbSession)
+	err = s.Publish(ctx, pubsub.CreatedEvent, session)
+	if err != nil {
+		return Session{}, err
+	}
+	return session, nil
+}
+
+func (s *service) Fork(ctx context.Context, sourceSessionID string, title string) (Session, error) {
+	// Get source session to copy its working directory
+	sourceSession, err := s.Get(ctx, sourceSessionID)
+	if err != nil {
+		return Session{}, err
+	}
+
+	var workingDirValue sql.NullString
+	if sourceSession.WorkingDirectory != "" {
+		workingDirValue = sql.NullString{String: sourceSession.WorkingDirectory, Valid: true}
+	}
+
+	var parentSessionID sql.NullString
+	parentSessionID = sql.NullString{String: sourceSessionID, Valid: true}
+
+	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
+		ID:               uuid.New().String(),
+		ParentSessionID:  parentSessionID,
 		Title:            title,
 		WorkingDirectory: workingDirValue,
 	})

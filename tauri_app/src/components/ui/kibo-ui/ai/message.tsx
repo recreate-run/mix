@@ -4,6 +4,7 @@ import {
   AvatarImage,
 } from '@/components/ui/avatar';
 import type { ComponentProps, HTMLAttributes } from 'react';
+import React from 'react';
 import { cn } from '@/lib/utils';
 
 export type AIMessageProps = HTMLAttributes<HTMLDivElement> & {
@@ -13,7 +14,7 @@ export type AIMessageProps = HTMLAttributes<HTMLDivElement> & {
 export const AIMessage = ({ className, from, ...props }: AIMessageProps) => (
   <div
     className={cn(
-      'group flex w-full items-end justify-end gap-2 py-4',
+      'group flex w-full items-end justify-end',
       from === 'user' ? 'is-user' : 'is-assistant flex-row-reverse justify-end',
       '[&>div]:max-w-[100%]',
       className
@@ -24,23 +25,55 @@ export const AIMessage = ({ className, from, ...props }: AIMessageProps) => (
 
 export type AIMessageContentProps = HTMLAttributes<HTMLDivElement>;
 
-export const AIMessageContent = ({
-  children,
+export function AIMessageContent({
   className,
+  children,
   ...props
-}: AIMessageContentProps) => (
-  <div
-    className={cn(
-      'flex flex-col gap-2 rounded-xl px-4 py-2 text-xl',
-      'text-foreground',
-      'group-[.is-user]:bg-secondary/50',
-      className
-    )}
-    {...props}
-  >
-    <div className="is-user:dark">{children}</div>
-  </div>
-);
+}: AIMessageContentProps) {
+  return (
+    <div
+      className={cn(
+        ' px-4 ',
+        'text-foreground',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export type AIMessageContentInnerProps = HTMLAttributes<HTMLDivElement>;
+
+function AIMessageContentInner({
+  className,
+  children,
+  ...props
+}: AIMessageContentInnerProps) {
+  return (
+    <div className={cn(" rounded-xl px-4 py-2 text-xl is-user:dark group-[.is-user]:bg-secondary/80", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export type AIMessageContentToolbarProps = HTMLAttributes<HTMLDivElement>;
+
+function AIMessageContentToolbar({
+  className,
+  children,
+  ...props
+}: AIMessageContentToolbarProps) {
+  return (
+    <div className={cn("mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+AIMessageContent.Content = AIMessageContentInner;
+AIMessageContent.Toolbar = AIMessageContentToolbar;
 
 export type AIMessageAvatarProps = ComponentProps<typeof Avatar> & {
   src: string;

@@ -19,6 +19,9 @@ import { TodoList } from './todo-list';
 import { PlanDisplay } from './plan-display';
 import { LoadingDots } from './loading-dots';
 import { type Attachment } from '@/stores/attachmentStore';
+import { Button } from '@/components/ui/button';
+import { Pencil, Copy, Check } from 'lucide-react';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 
 type ToolCall = {
   name: string;
@@ -54,6 +57,7 @@ interface ConversationDisplayProps {
   setUserMessageRef: (index: number) => RefCallback<HTMLDivElement>;
   onPlanProceed: (index: number) => void;
   onPlanKeepPlanning: (index: number) => void;
+  onForkMessage?: (index: number) => void;
 }
 
 // Helper function to extract todos from todo_write tool calls (works with both ToolCall and SSE formats)
@@ -98,6 +102,20 @@ const isPreviousUserMessageCommand = (messages: Message[], currentIndex: number)
   return false;
 };
 
+const MessageCopyButton = ({ content }: { content: string }) => {
+  const { isCopied, copyToClipboard } = useCopyToClipboard();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => copyToClipboard(content)}
+      className="text-muted-foreground hover:text-foreground"
+    >
+      {isCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+    </Button>
+  );
+};
+
 export function ConversationDisplay({
   messages,
   sseStream,
@@ -105,7 +123,8 @@ export function ConversationDisplay({
   conversationRef,
   setUserMessageRef,
   onPlanProceed,
-  onPlanKeepPlanning
+  onPlanKeepPlanning,
+  onForkMessage
 }: ConversationDisplayProps) {
   return (
     <div ref={conversationRef} className="relative h-full flex-1 overflow-y-auto">
@@ -119,23 +138,44 @@ export function ConversationDisplay({
             <AIMessageContent>
               {message.from === 'assistant' ? (
                 <>
-                  {message.reasoning && (
-                    <AIReasoning className="w-full mb-4" isStreaming={false} duration={message.reasoningDuration || undefined}>
-                      <AIReasoningTrigger />
-                      <AIReasoningContent>{message.reasoning}</AIReasoningContent>
-                    </AIReasoning>
-                  )}
-                  {isPreviousUserMessageCommand(messages, index) ? (
-                    <AIResponse>{`\`\`\`bash\n${message.content}\n\`\`\``}</AIResponse>
-                  ) : (
-                    <ResponseRenderer content={message.content} />
-                  )}
+                  <AIMessageContent.Content>
+                    {message.reasoning && (
+                      <AIReasoning className="w-full mb-4" isStreaming={false} duration={message.reasoningDuration || undefined}>
+                        <AIReasoningTrigger />
+                        <AIReasoningContent>{message.reasoning}</AIReasoningContent>
+                      </AIReasoning>
+                    )}
+                    {isPreviousUserMessageCommand(messages, index) ? (
+                      <AIResponse>{`\`\`\`bash\n${message.content}\n\`\`\``}</AIResponse>
+                    ) : (
+                      <ResponseRenderer content={message.content} />
+                    )}
+                  </AIMessageContent.Content>
+                  <AIMessageContent.Toolbar>
+                    <MessageCopyButton content={message.content} />
+                  </AIMessageContent.Toolbar>
                 </>
               ) : (
-                <div>
-                  <MessageAttachmentDisplay attachments={message.attachments || []} />
-                  {message.content}
-                </div>
+                <>
+                  <AIMessageContent.Content>
+                    <MessageAttachmentDisplay attachments={message.attachments || []} />
+                    {message.content}
+                  </AIMessageContent.Content>
+                  <AIMessageContent.Toolbar>
+                    <MessageCopyButton content={message.content} />
+                    {onForkMessage && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={sseStream.processing}
+                        onClick={() => onForkMessage(index)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    )}
+                  </AIMessageContent.Toolbar>
+                </>
               )}
               {/* Render todos inline without tool wrapper */}
               {message.toolCalls && message.toolCalls.length > 0 && (

@@ -46,3 +46,10 @@ FROM messages
 WHERE role = 'user'
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?;
+
+-- name: ListMessagesForFork :many
+SELECT *
+FROM messages
+WHERE session_id = ?
+ORDER BY created_at ASC
+LIMIT ?;

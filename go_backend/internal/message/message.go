@@ -29,6 +29,7 @@ type Service interface {
 	Delete(ctx context.Context, id string) error
 	DeleteSessionMessages(ctx context.Context, sessionID string) error
 	ListUserMessageHistory(ctx context.Context, limit, offset int64) ([]Message, error)
+	CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error
 }
 
 type service struct {
@@ -171,6 +172,34 @@ func (s *service) ListUserMessageHistory(ctx context.Context, limit, offset int6
 		}
 	}
 	return messages, nil
+}
+
+func (s *service) CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error {
+	// Get messages to copy using the new ListMessagesForFork query
+	dbMessages, err := s.q.ListMessagesForFork(ctx, db.ListMessagesForForkParams{
+		SessionID: sourceSessionID,
+		Limit:     messageIndex,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Copy each message to the target session
+	for _, dbMessage := range dbMessages {
+		// Create new message with same content but new ID and target session
+		_, err := s.q.CreateMessage(ctx, db.CreateMessageParams{
+			ID:        uuid.New().String(),
+			SessionID: targetSessionID,
+			Role:      dbMessage.Role,
+			Parts:     dbMessage.Parts,
+			Model:     dbMessage.Model,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *service) fromDBItem(item db.Message) (Message, error) {

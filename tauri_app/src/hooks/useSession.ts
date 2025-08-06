@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rpcCall } from '@/lib/rpc';
+import { useState, useEffect } from 'react';
 
 interface CreateSessionParams {
   title: string;
@@ -8,6 +9,7 @@ interface CreateSessionParams {
 
 interface Session {
   id: string;
+  title?: string;
   workingDirectory?: string;
 }
 
@@ -21,6 +23,7 @@ const createSession = async (params: CreateSessionParams): Promise<Session> => {
 
   return { 
     id: sessionId,
+    title: result?.title,
     workingDirectory: result?.workingDirectory
   };
 };
@@ -36,6 +39,7 @@ export const useCreateSession = () => {
   });
 };
 
+// Original useSession hook - unchanged for backward compatibility
 export const useSession = (workingDirectory?: string) => {
   return useQuery({
     queryKey: ['session', workingDirectory],
@@ -43,4 +47,32 @@ export const useSession = (workingDirectory?: string) => {
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
+};
+
+// New hook for managing active session (can be overridden by forked sessions)
+export const useActiveSession = (workingDirectory?: string) => {
+  const [overrideSession, setOverrideSession] = useState<Session | null>(null);
+  const defaultSessionQuery = useSession(workingDirectory);
+  
+  // Use override session if available, otherwise fall back to default
+  const activeSession = overrideSession || defaultSessionQuery.data;
+  const isLoading = !overrideSession && defaultSessionQuery.isLoading;
+  const error = !overrideSession && defaultSessionQuery.error;
+  
+  const switchToSession = (session: Session) => {
+    setOverrideSession(session);
+  };
+  
+  const resetToDefault = () => {
+    setOverrideSession(null);
+  };
+  
+  return {
+    data: activeSession,
+    isLoading,
+    error,
+    switchToSession,
+    resetToDefault,
+    isOverride: !!overrideSession
+  };
 };

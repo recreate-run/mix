@@ -25,6 +25,7 @@ type Querier interface {
 	ListFilesBySession(ctx context.Context, sessionID string) ([]File, error)
 	ListLatestSessionFiles(ctx context.Context, sessionID string) ([]File, error)
 	ListMessagesBySession(ctx context.Context, sessionID string) ([]Message, error)
+	ListMessagesForFork(ctx context.Context, arg ListMessagesForForkParams) ([]Message, error)
 	ListSessions(ctx context.Context) ([]Session, error)
 	ListUserMessageHistory(ctx context.Context, arg ListUserMessageHistoryParams) ([]Message, error)
 	UpdateFile(ctx context.Context, arg UpdateFileParams) (File, error)

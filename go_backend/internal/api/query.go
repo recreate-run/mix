@@ -124,10 +124,14 @@ func (h *QueryHandler) Handle(ctx context.Context, req *QueryRequest) *QueryResp
 		return h.handleSessionsSelect(ctx, req)
 	case "sessions.create":
 		return h.handleSessionsCreate(ctx, req)
+	case "sessions.fork":
+		return h.handleSessionsFork(ctx, req)
 	case "messages.send":
 		return h.handleMessagesSend(ctx, req)
 	case "messages.history":
 		return h.handleMessagesHistory(ctx, req)
+	case "messages.list":
+		return h.handleMessagesList(ctx, req)
 	case "mcp.list":
 		return h.handleMCPList(ctx, req)
 	case "commands.list":
@@ -411,6 +415,90 @@ func (h *QueryHandler) handleSessionsCreate(ctx context.Context, req *QueryReque
 		Cost:             session.Cost,
 		CreatedAt:        time.Unix(session.CreatedAt, 0),
 		WorkingDirectory: session.WorkingDirectory,
+	}
+
+	return &QueryResponse{
+		Result: result,
+		ID:     req.ID,
+	}
+}
+
+func (h *QueryHandler) handleSessionsFork(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		SourceSessionID string `json:"sourceSessionId"`
+		MessageIndex    int64  `json:"messageIndex"`
+		Title           string `json:"title,omitempty"`
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.SourceSessionID == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: sourceSessionId",
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.MessageIndex <= 0 {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: messageIndex must be > 0",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Use a default title if not provided
+	title := params.Title
+	if title == "" {
+		title = "Forked Session"
+	}
+
+	// Create the forked session
+	newSession, err := h.app.Sessions.Fork(ctx, params.SourceSessionID, title)
+	if err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32000,
+				Message: "Failed to fork session: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Copy messages to the new session
+	err = h.app.Messages.CopyMessagesToSession(ctx, params.SourceSessionID, newSession.ID, params.MessageIndex)
+	if err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32000,
+				Message: "Failed to copy messages: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	result := SessionData{
+		ID:               newSession.ID,
+		Title:            newSession.Title,
+		MessageCount:     newSession.MessageCount,
+		PromptTokens:     newSession.PromptTokens,
+		CompletionTokens: newSession.CompletionTokens,
+		Cost:             newSession.Cost,
+		CreatedAt:        time.Unix(newSession.CreatedAt, 0),
+		WorkingDirectory: newSession.WorkingDirectory,
 	}
 
 	return &QueryResponse{
@@ -769,6 +857,58 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 			Error: &QueryError{
 				Code:    -32000,
 				Message: "Failed to get message history: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	var result []MessageData
+	for _, msg := range messages {
+		result = append(result, MessageData{
+			ID:        msg.ID,
+			SessionID: msg.SessionID,
+			Role:      string(msg.Role),
+			Content:   msg.Content().String(),
+		})
+	}
+
+	return &QueryResponse{
+		Result: result,
+		ID:     req.ID,
+	}
+}
+
+func (h *QueryHandler) handleMessagesList(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		SessionID string `json:"sessionId"`
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.SessionID == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: sessionId",
+			},
+			ID: req.ID,
+		}
+	}
+
+	messages, err := h.app.Messages.List(ctx, params.SessionID)
+	if err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32000,
+				Message: "Failed to get messages: " + err.Error(),
 			},
 			ID: req.ID,
 		}
