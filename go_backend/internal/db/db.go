@@ -78,6 +78,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listSessionsStmt, err = db.PrepareContext(ctx, listSessions); err != nil {
 		return nil, fmt.Errorf("error preparing query ListSessions: %w", err)
 	}
+	if q.listSessionsWithFirstMessageStmt, err = db.PrepareContext(ctx, listSessionsWithFirstMessage); err != nil {
+		return nil, fmt.Errorf("error preparing query ListSessionsWithFirstMessage: %w", err)
+	}
 	if q.listUserMessageHistoryStmt, err = db.PrepareContext(ctx, listUserMessageHistory); err != nil {
 		return nil, fmt.Errorf("error preparing query ListUserMessageHistory: %w", err)
 	}
@@ -185,6 +188,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listSessionsStmt: %w", cerr)
 		}
 	}
+	if q.listSessionsWithFirstMessageStmt != nil {
+		if cerr := q.listSessionsWithFirstMessageStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listSessionsWithFirstMessageStmt: %w", cerr)
+		}
+	}
 	if q.listUserMessageHistoryStmt != nil {
 		if cerr := q.listUserMessageHistoryStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listUserMessageHistoryStmt: %w", cerr)
@@ -242,57 +250,59 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                          DBTX
-	tx                          *sql.Tx
-	createFileStmt              *sql.Stmt
-	createMessageStmt           *sql.Stmt
-	createSessionStmt           *sql.Stmt
-	deleteFileStmt              *sql.Stmt
-	deleteMessageStmt           *sql.Stmt
-	deleteSessionStmt           *sql.Stmt
-	deleteSessionFilesStmt      *sql.Stmt
-	deleteSessionMessagesStmt   *sql.Stmt
-	getFileStmt                 *sql.Stmt
-	getFileByPathAndSessionStmt *sql.Stmt
-	getMessageStmt              *sql.Stmt
-	getSessionByIDStmt          *sql.Stmt
-	listFilesByPathStmt         *sql.Stmt
-	listFilesBySessionStmt      *sql.Stmt
-	listLatestSessionFilesStmt  *sql.Stmt
-	listMessagesBySessionStmt   *sql.Stmt
-	listMessagesForForkStmt     *sql.Stmt
-	listSessionsStmt            *sql.Stmt
-	listUserMessageHistoryStmt  *sql.Stmt
-	updateFileStmt              *sql.Stmt
-	updateMessageStmt           *sql.Stmt
-	updateSessionStmt           *sql.Stmt
+	db                               DBTX
+	tx                               *sql.Tx
+	createFileStmt                   *sql.Stmt
+	createMessageStmt                *sql.Stmt
+	createSessionStmt                *sql.Stmt
+	deleteFileStmt                   *sql.Stmt
+	deleteMessageStmt                *sql.Stmt
+	deleteSessionStmt                *sql.Stmt
+	deleteSessionFilesStmt           *sql.Stmt
+	deleteSessionMessagesStmt        *sql.Stmt
+	getFileStmt                      *sql.Stmt
+	getFileByPathAndSessionStmt      *sql.Stmt
+	getMessageStmt                   *sql.Stmt
+	getSessionByIDStmt               *sql.Stmt
+	listFilesByPathStmt              *sql.Stmt
+	listFilesBySessionStmt           *sql.Stmt
+	listLatestSessionFilesStmt       *sql.Stmt
+	listMessagesBySessionStmt        *sql.Stmt
+	listMessagesForForkStmt          *sql.Stmt
+	listSessionsStmt                 *sql.Stmt
+	listSessionsWithFirstMessageStmt *sql.Stmt
+	listUserMessageHistoryStmt       *sql.Stmt
+	updateFileStmt                   *sql.Stmt
+	updateMessageStmt                *sql.Stmt
+	updateSessionStmt                *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                          tx,
-		tx:                          tx,
-		createFileStmt:              q.createFileStmt,
-		createMessageStmt:           q.createMessageStmt,
-		createSessionStmt:           q.createSessionStmt,
-		deleteFileStmt:              q.deleteFileStmt,
-		deleteMessageStmt:           q.deleteMessageStmt,
-		deleteSessionStmt:           q.deleteSessionStmt,
-		deleteSessionFilesStmt:      q.deleteSessionFilesStmt,
-		deleteSessionMessagesStmt:   q.deleteSessionMessagesStmt,
-		getFileStmt:                 q.getFileStmt,
-		getFileByPathAndSessionStmt: q.getFileByPathAndSessionStmt,
-		getMessageStmt:              q.getMessageStmt,
-		getSessionByIDStmt:          q.getSessionByIDStmt,
-		listFilesByPathStmt:         q.listFilesByPathStmt,
-		listFilesBySessionStmt:      q.listFilesBySessionStmt,
-		listLatestSessionFilesStmt:  q.listLatestSessionFilesStmt,
-		listMessagesBySessionStmt:   q.listMessagesBySessionStmt,
-		listMessagesForForkStmt:     q.listMessagesForForkStmt,
-		listSessionsStmt:            q.listSessionsStmt,
-		listUserMessageHistoryStmt:  q.listUserMessageHistoryStmt,
-		updateFileStmt:              q.updateFileStmt,
-		updateMessageStmt:           q.updateMessageStmt,
-		updateSessionStmt:           q.updateSessionStmt,
+		db:                               tx,
+		tx:                               tx,
+		createFileStmt:                   q.createFileStmt,
+		createMessageStmt:                q.createMessageStmt,
+		createSessionStmt:                q.createSessionStmt,
+		deleteFileStmt:                   q.deleteFileStmt,
+		deleteMessageStmt:                q.deleteMessageStmt,
+		deleteSessionStmt:                q.deleteSessionStmt,
+		deleteSessionFilesStmt:           q.deleteSessionFilesStmt,
+		deleteSessionMessagesStmt:        q.deleteSessionMessagesStmt,
+		getFileStmt:                      q.getFileStmt,
+		getFileByPathAndSessionStmt:      q.getFileByPathAndSessionStmt,
+		getMessageStmt:                   q.getMessageStmt,
+		getSessionByIDStmt:               q.getSessionByIDStmt,
+		listFilesByPathStmt:              q.listFilesByPathStmt,
+		listFilesBySessionStmt:           q.listFilesBySessionStmt,
+		listLatestSessionFilesStmt:       q.listLatestSessionFilesStmt,
+		listMessagesBySessionStmt:        q.listMessagesBySessionStmt,
+		listMessagesForForkStmt:          q.listMessagesForForkStmt,
+		listSessionsStmt:                 q.listSessionsStmt,
+		listSessionsWithFirstMessageStmt: q.listSessionsWithFirstMessageStmt,
+		listUserMessageHistoryStmt:       q.listUserMessageHistoryStmt,
+		updateFileStmt:                   q.updateFileStmt,
+		updateMessageStmt:                q.updateMessageStmt,
+		updateSessionStmt:                q.updateSessionStmt,
 	}
 }

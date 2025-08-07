@@ -154,6 +154,84 @@ func (q *Queries) ListSessions(ctx context.Context) ([]Session, error) {
 	return items, nil
 }
 
+const listSessionsWithFirstMessage = `-- name: ListSessionsWithFirstMessage :many
+SELECT 
+    s.id, 
+    s.parent_session_id,
+    s.title, 
+    s.message_count, 
+    s.prompt_tokens, 
+    s.completion_tokens, 
+    s.cost, 
+    s.created_at, 
+    s.updated_at,
+    s.summary_message_id,
+    s.working_directory,
+    COALESCE(m.parts, '') as first_user_message
+FROM sessions s
+LEFT JOIN (
+    SELECT 
+        session_id,
+        parts,
+        ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY created_at ASC) as rn
+    FROM messages 
+    WHERE role = 'user'
+) m ON s.id = m.session_id AND m.rn = 1
+WHERE s.parent_session_id IS NULL
+ORDER BY s.created_at DESC
+`
+
+type ListSessionsWithFirstMessageRow struct {
+	ID               string         `json:"id"`
+	ParentSessionID  sql.NullString `json:"parent_session_id"`
+	Title            string         `json:"title"`
+	MessageCount     int64          `json:"message_count"`
+	PromptTokens     int64          `json:"prompt_tokens"`
+	CompletionTokens int64          `json:"completion_tokens"`
+	Cost             float64        `json:"cost"`
+	CreatedAt        int64          `json:"created_at"`
+	UpdatedAt        int64          `json:"updated_at"`
+	SummaryMessageID sql.NullString `json:"summary_message_id"`
+	WorkingDirectory sql.NullString `json:"working_directory"`
+	FirstUserMessage string         `json:"first_user_message"`
+}
+
+func (q *Queries) ListSessionsWithFirstMessage(ctx context.Context) ([]ListSessionsWithFirstMessageRow, error) {
+	rows, err := q.query(ctx, q.listSessionsWithFirstMessageStmt, listSessionsWithFirstMessage)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSessionsWithFirstMessageRow{}
+	for rows.Next() {
+		var i ListSessionsWithFirstMessageRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ParentSessionID,
+			&i.Title,
+			&i.MessageCount,
+			&i.PromptTokens,
+			&i.CompletionTokens,
+			&i.Cost,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SummaryMessageID,
+			&i.WorkingDirectory,
+			&i.FirstUserMessage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateSession = `-- name: UpdateSession :one
 UPDATE sessions
 SET

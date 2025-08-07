@@ -66,7 +66,7 @@ function AIMessageContentToolbar({
   ...props
 }: AIMessageContentToolbarProps) {
   return (
-    <div className={cn("mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200", className)} {...props}>
+    <div className={cn("opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-4", className)} {...props}>
       {children}
     </div>
   );

@@ -46,6 +46,7 @@ type SessionData struct {
 	Cost             float64   `json:"cost"`
 	CreatedAt        time.Time `json:"createdAt"`
 	WorkingDirectory string    `json:"workingDirectory,omitempty"`
+	FirstUserMessage string    `json:"firstUserMessage,omitempty"`
 }
 
 type ToolData struct {
@@ -179,7 +180,7 @@ func (h *QueryHandler) GetSupportedQueryTypes() []string {
 }
 
 func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest) *QueryResponse {
-	sessions, err := h.app.Sessions.List(ctx)
+	sessions, err := h.app.Sessions.ListWithFirstMessage(ctx)
 	if err != nil {
 		return &QueryResponse{
 			Error: &QueryError{
@@ -192,6 +193,11 @@ func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest
 
 	var result []SessionData
 	for _, s := range sessions {
+		workingDir := ""
+		if s.WorkingDirectory.Valid {
+			workingDir = s.WorkingDirectory.String
+		}
+		
 		result = append(result, SessionData{
 			ID:               s.ID,
 			Title:            s.Title,
@@ -200,6 +206,8 @@ func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest
 			CompletionTokens: s.CompletionTokens,
 			Cost:             s.Cost,
 			CreatedAt:        time.Unix(s.CreatedAt, 0),
+			WorkingDirectory: workingDir,
+			FirstUserMessage: s.FirstUserMessage,
 		})
 	}
 

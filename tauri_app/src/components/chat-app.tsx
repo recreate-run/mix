@@ -29,7 +29,8 @@ import { useFolderSelection } from '@/hooks/useFolderSelection';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 import { useMessageScrolling } from '@/hooks/useMessageScrolling';
 import { AttachmentPreview } from './attachment-preview';
-import { CommandSlash, shouldShowSlashCommands, handleSlashCommandNavigation, slashCommands } from './command-slash';
+import { CommandSlash } from './command-slash';
+import { shouldShowSlashCommands, handleSlashCommandNavigation, slashCommands } from '@/utils/slash-commands';
 import { ConversationDisplay } from './conversation-display';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -41,6 +42,13 @@ type ToolCall = {
   parameters: Record<string, unknown>;
   result?: string;
   error?: string;
+};
+
+export type MessageData = {
+  text: string;
+  media: string[];
+  apps: string[];
+  plan_mode: boolean;
 };
 
 type Message = {
@@ -420,7 +428,7 @@ export function ChatApp() {
       // Expand file references from display format to full paths
       const expandedText = expandFileReferences(messageText, referenceMap);
       
-      const messageData = {
+      const messageData: MessageData = {
         text: expandedText,
         media: attachments.filter(a => a.path).map(a => a.path),
         apps: attachments.filter(a => a.type === 'app').map(app => app.name),
@@ -597,7 +605,7 @@ export function ChatApp() {
       </div>
 
       {/* AI Input Section */}
-      <div className="max-w-4xl mx-auto w-full relative">
+      <div className="max-w-4xl mx-auto w-full relative z-10 shadow-[0_-40px_80px_rgba(0,0,0,0.7)] before:content-[''] before:absolute before:top-[-60px] before:left-0 before:right-0 before:h-16 before:bg-gradient-to-b before:from-transparent before:to-black/50 before:pointer-events-none">
         <div className="relative">
           <AIInput onSubmit={handleSubmit} className='border-neutral-600 border-[0.5px]'>
             <AIInputTextarea

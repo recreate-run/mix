@@ -31,6 +31,7 @@ type Service interface {
 	Fork(ctx context.Context, sourceSessionID string, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
+	ListWithFirstMessage(ctx context.Context) ([]db.ListSessionsWithFirstMessageRow, error)
 	Save(ctx context.Context, session Session) (Session, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -130,6 +131,10 @@ func (s *service) List(ctx context.Context) ([]Session, error) {
 		sessions[i] = s.fromDBItem(dbSession)
 	}
 	return sessions, nil
+}
+
+func (s *service) ListWithFirstMessage(ctx context.Context) ([]db.ListSessionsWithFirstMessageRow, error) {
+	return s.q.ListSessionsWithFirstMessage(ctx)
 }
 
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {

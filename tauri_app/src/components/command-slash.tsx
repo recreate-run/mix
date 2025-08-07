@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
-import { Shield, HelpCircle, Command, ArrowLeft, Accessibility, Folder, Monitor, Mic, RefreshCw } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ArrowLeft, Accessibility, Folder, Monitor, Mic, Clock } from 'lucide-react';
+import { slashCommands } from '@/utils/slash-commands';
 import {
   Command as CommandPrimitive,
   CommandEmpty,
@@ -15,65 +16,37 @@ import {
   useScreenRecordingPermission,
   useMicrophonePermission
 } from '@/hooks/usePermissions';
-
-interface SlashCommand {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
+import { useSessionsList, useSelectSession, TITLE_TRUNCATE_LENGTH } from '@/hooks/useSessionsList';
+import { useActiveSession } from '@/hooks/useSession';
+import { type MessageData } from '@/components/chat-app';
 
 interface CommandSlashProps {
   onExecuteCommand: (command: string) => void;
   onClose: () => void;
 }
 
-const slashCommands: SlashCommand[] = [
-  {
-    id: 'clear',
-    name: 'clear',
-    description: 'Start a new session',
-    icon: RefreshCw,
-  },
- 
-  {
-    id: 'context',
-    name: 'context',
-    description: 'Show context usage breakdown',
-    icon: Command,
-  },
-   {
-    id: 'help',
-    name: 'help',
-    description: 'Get assistance and guidance',
-    icon: HelpCircle,
-  },
-  {
-    id: 'mcp',
-    name: 'mcp',
-    description: 'Model Context Protocol',
-    icon: Command,
-  },
-
-  {
-    id: 'permissions',
-    name: 'permissions',
-    description: 'System permissions and access',
-    icon: Shield,
-  },
-];
-
 export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showingPermissions, setShowingPermissions] = useState(false);
+  const [showingSessions, setShowingSessions] = useState(false);
   const commandRef = useRef<HTMLDivElement>(null);
+  
+  // Reset selection when search query changes to prevent jumping
+  useEffect(() => {
+    setSelectedValue('');
+  }, [searchQuery]);
   
   // Permission hooks - always initialized for simplicity
   const accessibility = useAccessibilityPermission(showingPermissions);
   const fullDiskAccess = useFullDiskAccessPermission(showingPermissions);
   const screenRecording = useScreenRecordingPermission(showingPermissions);
   const microphone = useMicrophonePermission(showingPermissions);
+
+  // Session hooks
+  const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
+  const selectSessionMutation = useSelectSession();
+  const activeSession = useActiveSession();
   
   const permissions = [
     {
@@ -116,6 +89,44 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
         permission.label.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : permissions;
+
+  // Sort sessions chronologically (most recent first) and filter by search
+  const sortedAndFilteredSessions = sessions
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter(session => 
+      !searchQuery.trim() || 
+      session.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+  // Helper function to get display title (first user message or fallback to title)
+  const getDisplayTitle = (session: typeof sessions[0]) => {
+    if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
+      return session.title; // fallback to original title
+    }
+    
+    // Try to parse JSON and extract text from data.text field
+    let displayText = session.firstUserMessage;
+    try {
+      const parsed = JSON.parse(session.firstUserMessage);
+      if (parsed[0]?.data?.text) {
+        // First parse the outer structure, then parse the inner JSON string
+        const innerMessageData = JSON.parse(parsed[0].data.text) as MessageData;
+        if (innerMessageData.text) {
+          displayText = innerMessageData.text;
+        }
+      }
+    } catch {
+      // If parsing fails, use the raw message as fallback
+      displayText = session.firstUserMessage;
+      console.log('Failed to parse user message:', session.firstUserMessage);
+    }
+
+    const truncated = displayText.length > TITLE_TRUNCATE_LENGTH 
+      ? `${displayText.substring(0, TITLE_TRUNCATE_LENGTH)}...`
+      : displayText;
+      
+    return truncated;
+  };
   
   const handleSelect = (value: string) => {
     setSearchQuery('');
@@ -123,16 +134,37 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     
     if (value === 'back-to-commands') {
       setShowingPermissions(false);
+      setShowingSessions(false);
       
       return;
     }
     
     if (value === 'permissions') {
       setShowingPermissions(true);
+      setShowingSessions(false);
+      
+      return;
+    }
+
+    if (value === 'sessions') {
+      setShowingSessions(true);
+      setShowingPermissions(false);
       
       return;
     }
     
+    // Handle session selection
+    const session = sessions.find(s => s.id === value);
+    if (session) {
+      selectSessionMutation.mutate(session.id, {
+        onSuccess: () => {
+          onClose(); // Close the command palette
+        }
+      });
+      
+      return;
+    }
+
     // Handle permission toggles
     const permission = permissions.find(p => p.id === value);
     if (permission && !permission.hook.isGranted) {
@@ -155,6 +187,9 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
       if (showingPermissions) {
         setShowingPermissions(false);
         
+      } else if (showingSessions) {
+        setShowingSessions(false);
+        
       } else {
         onClose();
         
@@ -172,14 +207,86 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
         onValueChange={setSelectedValue}
       >
         <CommandInput 
-          placeholder={showingPermissions ? "Search permissions..." : "Search commands..."} 
+          placeholder={
+            showingPermissions ? "Search permissions..." : 
+            showingSessions ? "Search sessions..." :
+            "Search commands..."
+          } 
           value={searchQuery}
           onValueChange={setSearchQuery}
           autoFocus
         />
         
         <CommandList>
-          {showingPermissions ? (
+          {showingSessions ? (
+            // Sessions View
+            <>
+              {sessionsLoading ? (
+                <CommandEmpty>Loading sessions...</CommandEmpty>
+              ) : !sortedAndFilteredSessions.length && searchQuery ? (
+                <CommandEmpty>No sessions match your search</CommandEmpty>
+              ) : !sortedAndFilteredSessions.length ? (
+                <CommandEmpty>No sessions found</CommandEmpty>
+              ) : (
+                <CommandGroup heading={`Sessions (${sortedAndFilteredSessions.length})`}>
+                  {/* Back to Commands */}
+                  <CommandItem
+                    value="back-to-commands"
+                    onSelect={() => handleSelect('back-to-commands')}
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Back to Commands</div>
+                    </div>
+                  </CommandItem>
+                  
+                  {/* Session Items */}
+                  {sortedAndFilteredSessions.map((session) => {
+                    const isActive = activeSession.data?.id === session.id;
+                    const createdDate = new Date(session.createdAt);
+                    const formatDate = (date: Date) => {
+                      const now = new Date();
+                      const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      if (diffDays === 0) return 'Today';
+                      if (diffDays === 1) return 'Yesterday';
+                      if (diffDays < 7) return `${diffDays} days ago`;
+                      return date.toLocaleDateString();
+                    };
+
+                    return (
+                      <CommandItem
+                        key={session.id}
+                        value={session.id}
+                        onSelect={() => handleSelect(session.id)}
+                        className={isActive ? 'bg-accent' : ''}
+                      >
+                        <Clock className="size-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="font-medium text-sm flex items-center gap-2">
+                            {getDisplayTitle(session)}
+                            {isActive && (
+                              <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                                current
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            <span>{formatDate(createdDate)}</span>
+                            <span>•</span>
+                            <span>{session.messageCount} messages</span>
+                          </div>
+                        </div>
+                        <div className="text-xs font-mono text-muted-foreground ml-2">
+                          {session.id.slice(0, 8)}
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              )}
+            </>
+          ) : showingPermissions ? (
             // Permissions View
             <>
               {!filteredPermissions.length && searchQuery ? (
@@ -280,7 +387,7 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
                 esc
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">
-                {showingPermissions ? 'back' : 'close'}
+                {showingPermissions || showingSessions ? 'back' : 'close'}
               </span>
             </div>
           </div>
@@ -290,42 +397,3 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   );
 }
 
-// Export commands for external use
-export { slashCommands };
-
-// Utility functions
-export const shouldShowSlashCommands = (text: string): boolean => {
-  return text === '/' || (text.startsWith('/') && !text.includes(' '));
-};
-
-export const handleSlashCommandNavigation = (
-  e: React.KeyboardEvent,
-  isVisible: boolean,
-  selectedIndex: number,
-  onIndexChange: (index: number) => void,
-  onCommandSelect: (command: typeof slashCommands[0]) => void,
-  onClose: () => void
-): boolean => {
-  if (!isVisible) return false;
-
-  switch (e.key) {
-    case 'ArrowDown':
-      e.preventDefault();
-      onIndexChange(selectedIndex < slashCommands.length - 1 ? selectedIndex + 1 : 0);
-      return true;
-    case 'ArrowUp':
-      e.preventDefault();
-      onIndexChange(selectedIndex > 0 ? selectedIndex - 1 : slashCommands.length - 1);
-      return true;
-    case 'Enter':
-      e.preventDefault();
-      onCommandSelect(slashCommands[selectedIndex]);
-      return true;
-    case 'Escape':
-      e.preventDefault();
-      onClose();
-      return true;
-  }
-  
-  return false;
-};
