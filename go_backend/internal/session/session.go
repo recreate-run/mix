@@ -3,6 +3,9 @@ package session
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"mix/internal/db"
 	"mix/internal/pubsub"
@@ -56,6 +59,23 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 		return Session{}, err
 	}
 	session := s.fromDBItem(dbSession)
+
+	// Create input directory structure in session's working directory
+	if workingDirectory != "" {
+		inputDir := filepath.Join(workingDirectory, "input")
+		if err := os.MkdirAll(inputDir, 0o755); err != nil {
+			return Session{}, fmt.Errorf("failed to create input directory: %w", err)
+		}
+
+		inputSubdirs := []string{"images", "videos", "audios", "text"}
+		for _, subdir := range inputSubdirs {
+			subdirPath := filepath.Join(inputDir, subdir)
+			if err := os.MkdirAll(subdirPath, 0o755); err != nil {
+				return Session{}, fmt.Errorf("failed to create input subdirectory %s: %w", subdir, err)
+			}
+		}
+	}
+
 	err = s.Publish(ctx, pubsub.CreatedEvent, session)
 	if err != nil {
 		return Session{}, err
@@ -64,25 +84,13 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 }
 
 func (s *service) Fork(ctx context.Context, sourceSessionID string, title string) (Session, error) {
-	// Get source session to copy its working directory
-	sourceSession, err := s.Get(ctx, sourceSessionID)
-	if err != nil {
-		return Session{}, err
-	}
-
-	var workingDirValue sql.NullString
-	if sourceSession.WorkingDirectory != "" {
-		workingDirValue = sql.NullString{String: sourceSession.WorkingDirectory, Valid: true}
-	}
-
 	var parentSessionID sql.NullString
 	parentSessionID = sql.NullString{String: sourceSessionID, Valid: true}
 
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
-		ID:               uuid.New().String(),
-		ParentSessionID:  parentSessionID,
-		Title:            title,
-		WorkingDirectory: workingDirValue,
+		ID:              uuid.New().String(),
+		ParentSessionID: parentSessionID,
+		Title:           title,
 	})
 	if err != nil {
 		return Session{}, err

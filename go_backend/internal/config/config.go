@@ -80,6 +80,7 @@ type Config struct {
 	Debug           bool                              `json:"debug,omitempty"`
 	Shell           ShellConfig                       `json:"shell,omitempty"`
 	SkipPermissions bool                              `json:"skipPermissions,omitempty"`
+	ReadOnlyDirs    []string                          `json:"readOnlyDirs,omitempty"`
 }
 
 // Application constants

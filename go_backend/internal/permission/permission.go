@@ -73,6 +73,40 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 	}
 }
 
+// isPathReadOnly checks if the given path is within any read-only directory
+func (s *permissionService) isPathReadOnly(path string) bool {
+	cfg := config.Get()
+	if cfg == nil || len(cfg.ReadOnlyDirs) == 0 {
+		return false
+	}
+
+	// Clean and make absolute paths for comparison
+	absPath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		log.Printf("Failed to get absolute path for %s: %v", path, err)
+		return false
+	}
+
+	for _, readOnlyDir := range cfg.ReadOnlyDirs {
+		absReadOnlyDir, err := filepath.Abs(filepath.Clean(readOnlyDir))
+		if err != nil {
+			log.Printf("Failed to get absolute path for read-only dir %s: %v", readOnlyDir, err)
+			continue
+		}
+
+		// Check if path is within read-only directory
+		rel, err := filepath.Rel(absReadOnlyDir, absPath)
+		if err != nil {
+			continue
+		}
+		// If relative path doesn't start with "..", then absPath is within absReadOnlyDir
+		if !filepath.IsAbs(rel) && rel != ".." && !filepath.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	log.Printf("Permission request: SessionID=%s, ToolName=%s, Action=%s, Path=%s",
 		opts.SessionID, opts.ToolName, opts.Action, opts.Path)
@@ -89,6 +123,12 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 		if err != nil {
 			panic(fmt.Sprintf("failed to get launch directory for permission check: %v", err))
 		}
+	}
+
+	// Check if path is in read-only directory before requesting permission
+	if s.isPathReadOnly(dir) {
+		log.Printf("Permission denied: path %s is in read-only directory", dir)
+		return false
 	}
 	permission := PermissionRequest{
 		ID:          uuid.New().String(),
