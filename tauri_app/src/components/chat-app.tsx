@@ -283,8 +283,8 @@ export function ChatApp() {
       return;
     }
 
-    // Handle Cmd+Enter for form submission (fallback)
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    // Handle Enter for form submission (without shift for new line)
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const form = e.currentTarget.form;
       if (form) {
@@ -304,9 +304,17 @@ export function ChatApp() {
     );
     if (slashHandled) return;
 
-    // Handle Escape key to close popups
+    // Handle Escape key to stop processing or close popups
     if (e.key === 'Escape') {
       e.preventDefault();
+      
+      // First priority: Stop message processing if active
+      if (sseStream.processing) {
+        handleCancelClick();
+        return;
+      }
+      
+      // Second priority: Close popups
       if (fileRef.show) {
         fileRef.close();
         return;
