@@ -36,7 +36,7 @@ import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation
 import { useMessageScrolling } from '@/hooks/useMessageScrolling';
 import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
-import { useActiveSession } from '@/hooks/useSession';
+import { useActiveSession, useCreateSession } from '@/hooks/useSession';
 import { useSessionMessages } from '@/hooks/useSessionMessages';
 import {
   type Attachment,
@@ -156,6 +156,7 @@ export function ChatApp() {
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps, refreshApps } = useAppList();
   const forkSession = useForkSession();
+  const createSession = useCreateSession();
 
   // Clear UI state when session changes (new working directory selected)
   useEffect(() => {
@@ -323,6 +324,7 @@ export function ChatApp() {
         setShowPlanOptions(null);
 
         if (command === 'clear') {
+          // Create a new session instead of just clearing UI
           handleNewSession();
           return;
         }
@@ -546,13 +548,31 @@ export function ChatApp() {
   };
 
   // Handle new session creation
-  const handleNewSession = () => {
-    setMessages([createDefaultMessage()]);
-    setText('');
-    clearAttachments();
-    interruptedMessageAddedRef.current = false;
-
-    setShowPlanOptions(null);
+  const handleNewSession = async () => {
+    try {
+      // Create a new session with the current working directory
+      const newSession = await createSession.mutateAsync({
+        title: 'New Session',
+        workingDirectory: selectedFolder || DEFAULT_WORKING_DIR,
+      });
+      
+      // Switch to the new session - this will automatically trigger UI updates
+      switchToSession(newSession);
+      
+      // Clear current UI state
+      setText('');
+      clearAttachments();
+      setShowPlanOptions(null);
+      interruptedMessageAddedRef.current = false;
+    } catch (error) {
+      console.error('Failed to create new session:', error);
+      // Fallback to old behavior if session creation fails
+      setMessages([createDefaultMessage()]);
+      setText('');
+      clearAttachments();
+      interruptedMessageAddedRef.current = false;
+      setShowPlanOptions(null);
+    }
   };
 
   // Handle plan option button clicks

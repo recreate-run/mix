@@ -168,8 +168,8 @@ func GetBuiltinCommands(registry *Registry, app *app.App) map[string]Command {
 		},
 		"clear": &BuiltinCommand{
 			name:        "clear",
-			description: "Clear chat history",
-			handler:     createClearHandler(),
+			description: "Start new session",
+			handler:     createClearHandler(app),
 		},
 		"session": &BuiltinCommand{
 			name:        "session",
@@ -230,9 +230,30 @@ func createHelpHandler(registry *Registry) func(ctx context.Context, args string
 	}
 }
 
-func createClearHandler() func(ctx context.Context, args string) (string, error) {
+func createClearHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
 	return func(ctx context.Context, args string) (string, error) {
-		return "", nil
+		// Create a new session with a default title
+		title := "New Session"
+		workingDirectory := ""
+		
+		// Get current session for working directory context
+		if currentSession, err := app.GetCurrentSession(ctx); err == nil && currentSession != nil {
+			workingDirectory = currentSession.WorkingDirectory
+		}
+		
+		// Create the new session
+		session, err := app.Sessions.Create(ctx, title, workingDirectory)
+		if err != nil {
+			return returnError("clear", fmt.Sprintf("Failed to create new session: %v", err))
+		}
+		
+		// Set the new session as current
+		if err := app.SetCurrentSession(session.ID); err != nil {
+			return returnError("clear", fmt.Sprintf("Failed to set new session as current: %v", err))
+		}
+		
+		// Return success message with session info
+		return returnMessage("clear", fmt.Sprintf("Started new session: %s (ID: %s)", session.Title, session.ID[:8]))
 	}
 }
 
