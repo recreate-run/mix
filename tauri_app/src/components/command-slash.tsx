@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
 import { Shield, HelpCircle, Command, ArrowLeft, Accessibility, Folder, Monitor, Mic, RefreshCw } from 'lucide-react';
-import { safeTrackEvent } from '@/lib/posthog';
 import {
   Command as CommandPrimitive,
   CommandEmpty,
@@ -125,23 +124,12 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     if (value === 'back-to-commands') {
       setShowingPermissions(false);
       
-      // Track navigation back to commands
-      safeTrackEvent('command_menu_navigation', {
-        action: 'back_to_commands',
-        from: 'permissions',
-        timestamp: new Date().toISOString()
-      });
       return;
     }
     
     if (value === 'permissions') {
       setShowingPermissions(true);
       
-      // Track navigation to permissions
-      safeTrackEvent('command_menu_navigation', {
-        action: 'view_permissions',
-        timestamp: new Date().toISOString()
-      });
       return;
     }
     
@@ -150,12 +138,6 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     if (permission && !permission.hook.isGranted) {
       permission.hook.request();
       
-      // Track permission request
-      safeTrackEvent('permission_requested', {
-        permission_type: permission.id,
-        permission_label: permission.label,
-        timestamp: new Date().toISOString()
-      });
       return;
     }
     
@@ -164,12 +146,6 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     if (command) {
       onExecuteCommand(command.name);
       
-      // Track command execution
-      safeTrackEvent('slash_command_executed', {
-        command_id: command.id,
-        command_name: command.name,
-        timestamp: new Date().toISOString()
-      });
     }
   };
 
@@ -179,21 +155,9 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
       if (showingPermissions) {
         setShowingPermissions(false);
         
-        // Track navigation back to commands with escape key
-        safeTrackEvent('command_menu_navigation', {
-          action: 'back_to_commands',
-          from: 'permissions',
-          method: 'escape_key',
-          timestamp: new Date().toISOString()
-        });
       } else {
         onClose();
         
-        // Track command menu closed with escape key
-        safeTrackEvent('command_menu_closed', {
-          method: 'escape_key',
-          timestamp: new Date().toISOString()
-        });
       }
     }
   };

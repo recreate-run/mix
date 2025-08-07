@@ -2,7 +2,6 @@ import { useReducer, useEffect, useRef } from 'react';
 import { useFileSystem, type MediaItem } from './useFileSystem';
 import { useAttachmentStore, getParentPath } from '@/stores/attachmentStore';
 import { ALL_MEDIA_EXTENSIONS } from '@/utils/fileTypes';
-import { safeTrackEvent } from '@/lib/posthog';
 
 type State = {
   selected: number;
@@ -141,39 +140,17 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
       const folderAttachment = await createFolderAttachment(file.path);
       addAttachment(folderAttachment);
       
-      // Track folder attachment event
-      safeTrackEvent('file_attachment_added', {
-        file_type: 'folder',
-        file_path: file.path,
-        file_name: file.name,
-        timestamp: new Date().toISOString()
-      });
     } else {
       const { createFileAttachment } = await import('@/stores/attachmentStore');
       const fileAttachment = createFileAttachment(file.path);
       if (fileAttachment) {
         addAttachment(fileAttachment);
         
-        // Track file attachment event
-        safeTrackEvent('file_attachment_added', {
-          file_type: 'file',
-          file_path: file.path,
-          file_name: file.name,
-          file_extension: file.extension,
-          timestamp: new Date().toISOString()
-        });
       }
     }
     addReference(displayReference, file.path);
     setText(newText);
     
-    // Track file referenced event
-    safeTrackEvent('file_referenced', {
-      file_path: file.path,
-      file_name: file.name,
-      is_directory: file.isDirectory,
-      timestamp: new Date().toISOString()
-    });
   };
 
   const handleEscape = () => {
@@ -195,14 +172,6 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
       clearLoadingTimeout(); // Clear timeout since operation completed
       dispatch({ type: 'ENTER_FOLDER', payload: { contents, folder: folder.path } });
       
-      // Track folder navigation event
-      safeTrackEvent('file_navigation', {
-        action: 'enter_folder',
-        folder_path: folder.path,
-        folder_name: folder.name,
-        items_count: contents.length,
-        timestamp: new Date().toISOString()
-      });
     } catch (error) {
       console.error('Failed to load folder contents:', error);
       clearLoadingTimeout(); // Clear timeout on error
@@ -222,14 +191,6 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
         clearLoadingTimeout(); // Clear timeout since operation completed
         dispatch({ type: 'ENTER_FOLDER', payload: { contents, folder: parentPath } });
         
-        // Track folder navigation back event
-        safeTrackEvent('file_navigation', {
-          action: 'navigate_back',
-          from_folder: state.currentFolder,
-          to_folder: parentPath,
-          items_count: contents.length,
-          timestamp: new Date().toISOString()
-        });
       } else {
         clearLoadingTimeout(); // Clear timeout for immediate operation
         dispatch({ type: 'SET_CURRENT_FOLDER', payload: null });
@@ -237,12 +198,6 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
         dispatch({ type: 'RESET_SELECTION' });
         dispatch({ type: 'SET_LOADING', payload: false });
         
-        // Track navigation to root event
-        safeTrackEvent('file_navigation', {
-          action: 'navigate_to_root',
-          from_folder: state.currentFolder,
-          timestamp: new Date().toISOString()
-        });
       }
     } catch (error) {
       console.error('Failed to load parent folder contents:', error);

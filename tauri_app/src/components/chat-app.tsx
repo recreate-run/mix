@@ -13,21 +13,18 @@ import {
 } from '@/components/ui/kibo-ui/ai/input';
 import { type AIToolStatus } from '@/components/ui/kibo-ui/ai/tool';
 import { FolderIcon } from 'lucide-react';
-import { type FormEventHandler, useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { safeTrackEvent } from '@/lib/posthog';
+import { type FormEventHandler, useState, useEffect, useRef, useMemo } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useCreateSession, useActiveSession } from '@/hooks/useSession';
+import {  useActiveSession } from '@/hooks/useSession';
 import { useForkSession } from '@/hooks/useForkSession';
-import { useSendMessage } from '@/hooks/useMessages';
 import { useSessionMessages } from '@/hooks/useSessionMessages';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
-import { type FileEntry } from '@/hooks/useFileSystem';
 import { useAppList } from '@/hooks/useOpenApps';
 import { useFileReference } from '@/hooks/useFileReference';
 import { CommandFileReference } from './command-file-reference';
-import { useAttachmentStore, type Attachment, expandFileReferences, removeFileReferences, createFileAttachment, createFolderAttachment, reconstructAttachmentsFromHistory } from '@/stores/attachmentStore';
+import { useAttachmentStore, type Attachment, expandFileReferences, removeFileReferences, reconstructAttachmentsFromHistory } from '@/stores/attachmentStore';
 import { useFolderSelection } from '@/hooks/useFolderSelection';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 import { useMessageScrolling } from '@/hooks/useMessageScrolling';
@@ -116,7 +113,6 @@ export function ChatApp() {
   const sessionMessages = useSessionMessages(session?.id || null);
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps, refreshApps } = useAppList();
-  const queryClient = useQueryClient();
   const forkSession = useForkSession();
   
   // Clear UI state when session changes (new working directory selected)
@@ -179,17 +175,6 @@ export function ChatApp() {
 
   const fileRef = useFileReference(text, setText, selectedFolder || DEFAULT_WORKING_DIR);
 
-  
-  // // Only fetch apps when file reference popup is open - CRITICAL FIX for memory leak
-  // useEffect(() => {
-  //   if (fileRef.show) {
-  //     // Fetch fresh app data when popup opens
-  //     refreshApps();
-  //   } else {
-  //     // Clean up cache when popup closes to free memory
-  //     queryClient.removeQueries(['openApps']);
-  //   }
-  // }, [fileRef.show, refreshApps, queryClient]);
 
   const handleAppSelect = (app: Attachment) => {
     // Update text with app reference (similar to file selection)
@@ -203,18 +188,6 @@ export function ChatApp() {
     addReference(displayReference, `app:${app.name}`);
     setText(newText);
     
-    // Track app reference and attachment
-    safeTrackEvent('app_referenced', {
-      app_name: app.name,
-      app_id: app.id,
-      timestamp: new Date().toISOString()
-    });
-    
-    safeTrackEvent('app_attachment_added', {
-      app_name: app.name,
-      app_id: app.id,
-      timestamp: new Date().toISOString()
-    });
   };
 
 
@@ -246,11 +219,6 @@ export function ChatApp() {
       setShowCommands(true);
       setShowSlashCommands(false);
       
-      // Track command menu opened
-      safeTrackEvent('command_menu_opened', {
-        trigger_method: 'slash',
-        timestamp: new Date().toISOString()
-      });
       return;
     }
     
@@ -261,9 +229,6 @@ export function ChatApp() {
       setShowSlashCommands(shouldShowDropdown);
       if (shouldShowDropdown) {
         setSelectedCommandIndex(0);
-        safeTrackEvent('slash_command_opened', {
-          timestamp: new Date().toISOString()
-        });
       }
     }
     
@@ -289,10 +254,6 @@ export function ChatApp() {
         setShowCommands(false);
         setShowPlanOptions(null);
         
-        safeTrackEvent('command_executed', {
-          command: command,
-          timestamp: new Date().toISOString()
-        });
         
         if (command === 'clear') {
           handleNewSession();
@@ -307,10 +268,6 @@ export function ChatApp() {
         setShowCommands(false);
         setShowPlanOptions(null);
         
-        safeTrackEvent('command_menu_closed', {
-          method: 'close_button',
-          timestamp: new Date().toISOString()
-        });
         break;
       }
     }
@@ -364,11 +321,6 @@ export function ChatApp() {
     const isInUIMode = showSlashCommands || fileRef.show || showCommands;
     const historyHandled = historyNavigation.handleHistoryNavigation(e, isInUIMode);
     if (historyHandled) {
-      safeTrackEvent('history_navigation', {
-        direction: e.key === 'ArrowUp' ? 'up' : 'down',
-        method: 'keyboard',
-        timestamp: new Date().toISOString()
-      });
       return;
     }
   };
@@ -404,33 +356,6 @@ export function ChatApp() {
         return newMessages;
       });
       
-      // Track tool usage if any - with detailed information
-      if (convertedToolCalls.length > 0) {
-        safeTrackEvent('tools_used', {
-          session_id: session?.id,
-          tool_count: convertedToolCalls.length,
-          tools: convertedToolCalls.map(t => t.name),
-          tool_details: convertedToolCalls.map(t => ({
-            name: t.name,
-            description: t.description,
-            parameters: t.parameters,
-            status: t.status,
-            has_result: !!t.result,
-            has_error: !!t.error
-          })),
-          message_response_length: sseStream.finalContent!.length
-        });
-      }
-      
-      // Track response received with full content
-      safeTrackEvent('response_received', {
-        session_id: session?.id,
-        response_length: sseStream.finalContent!.length,
-        response_content: sseStream.finalContent, // Track the full response content
-        processing_time_ms: Date.now() - (sseStream.startTime || Date.now()),
-        tool_count: convertedToolCalls.length,
-        timestamp: new Date().toISOString()
-      });
       
       // Reset interrupted message guard when processing completes
       interruptedMessageAddedRef.current = false;
@@ -447,15 +372,6 @@ export function ChatApp() {
         frontend_only: true
       }]);
       
-      // Track error occurrence with full details
-      safeTrackEvent('error_occurred', {
-        session_id: session?.id,
-        error_message: sseStream.error,
-        error_type: 'streaming_error',
-        last_user_message: messages.find(m => m.from === 'user')?.content || '',
-        timestamp: new Date().toISOString(),
-        tools_in_progress: sseStream.toolCalls.map(t => t.name).join(', ')
-      });
     }
   }, [sseStream.error, session?.id]);
 
@@ -490,16 +406,6 @@ export function ChatApp() {
     // Reset interrupted message guard for new message
     interruptedMessageAddedRef.current = false;
     
-    // Track message submission event with full content
-    safeTrackEvent('message_submitted', {
-      message_length: messageText.length,
-      message_content: messageText, // Track the full message content
-      has_media: attachments.length > 0,
-      media_count: attachments.length > 0 ? attachments.length : 0,
-      session_id: session?.id,
-      has_file_references: referenceMap.size > 0,
-      timestamp: new Date().toISOString()
-    });
     
     // Send message via persistent SSE
     try {
@@ -548,13 +454,6 @@ export function ChatApp() {
     clearAttachments();
     interruptedMessageAddedRef.current = false;
     
-    // Track new session creation with more details
-    safeTrackEvent('session_created', {
-      session_id: session?.id,
-      creation_time: new Date().toISOString(),
-      previous_messages_count: messages.length,
-      client_id: localStorage.getItem('client_id') || 'unknown'
-    });
     setShowPlanOptions(null);
   };
 
@@ -608,16 +507,6 @@ export function ChatApp() {
       setPendingForkText({ text: contractedText, attachments, referenceMap });
       setShowPlanOptions(null);
       
-      // Track fork event
-      safeTrackEvent('conversation_forked', {
-        session_id: session?.id,
-        forked_session_id: newSession.id,
-        forked_at_index: messageIndex,
-        message_content: messageToFork.content,
-        had_attachments: (messageToFork.attachments?.length || 0) > 0,
-        attachment_count: messageToFork.attachments?.length || 0,
-        timestamp: new Date().toISOString()
-      });
       
     } catch (error) {
       console.error('Failed to fork conversation:', error);
@@ -693,21 +582,6 @@ export function ChatApp() {
                 }
               }
               
-              // Track attachment removal
-              if (attachmentToRemove.type === 'app') {
-                safeTrackEvent('app_attachment_removed', {
-                  app_name: attachmentToRemove.name,
-                  app_id: attachmentToRemove.id,
-                  timestamp: new Date().toISOString()
-                });
-              } else {
-                safeTrackEvent('file_attachment_removed', {
-                  file_path: attachmentToRemove.path,
-                  file_name: attachmentToRemove.name,
-                  file_type: attachmentToRemove.isDirectory ? 'folder' : 'file',
-                  timestamp: new Date().toISOString()
-                });
-              }
             }
             removeAttachment(index);
           }} 
