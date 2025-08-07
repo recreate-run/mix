@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { useCallback } from 'react';
-import { readDir, BaseDirectory } from '@tauri-apps/plugin-fs';
 import * as path from '@tauri-apps/api/path';
-import { filterAndSortEntries, type Attachment } from '@/stores/attachmentStore';
+import { BaseDirectory, readDir } from '@tauri-apps/plugin-fs';
+import { useCallback } from 'react';
+import {
+  type Attachment,
+  filterAndSortEntries,
+} from '@/stores/attachmentStore';
 
 export type MediaItem = Attachment;
 
@@ -11,50 +14,53 @@ interface FileSystemData {
   currentDirectory: string;
 }
 
-const fetchFileSystemData = async (customBasePath?: string): Promise<FileSystemData> => {
+const fetchFileSystemData = async (
+  customBasePath?: string
+): Promise<FileSystemData> => {
   try {
     if (customBasePath) {
       // Use custom path directly
       const entries = await readDir(customBasePath);
       const fileEntries = filterAndSortEntries(entries, customBasePath);
-      
-      return {
-        files: fileEntries,
-        currentDirectory: customBasePath
-      };
-    } else {
-      // Fallback to Desktop
-      const homeDir = await path.homeDir();
-      const entries = await readDir('.', { 
-        baseDir: BaseDirectory.Desktop,
-      });
 
-      const fileEntries = filterAndSortEntries(entries);
-      
       return {
         files: fileEntries,
-        currentDirectory: homeDir
+        currentDirectory: customBasePath,
       };
     }
+    // Fallback to Desktop
+    const homeDir = await path.homeDir();
+    const entries = await readDir('.', {
+      baseDir: BaseDirectory.Desktop,
+    });
+
+    const fileEntries = filterAndSortEntries(entries);
+
+    return {
+      files: fileEntries,
+      currentDirectory: homeDir,
+    };
   } catch (error) {
     console.error('Failed to load directory:', error);
     throw error;
   }
 };
 
-const fetchDirectoryContents = async (dirPath: string, customBasePath?: string): Promise<Attachment[]> => {
+const fetchDirectoryContents = async (
+  dirPath: string,
+  customBasePath?: string
+): Promise<Attachment[]> => {
   try {
     if (customBasePath) {
       // Use absolute path when we have a custom base
       const entries = await readDir(dirPath);
       return filterAndSortEntries(entries, dirPath);
-    } else {
-      // Fallback to Desktop base directory
-      const entries = await readDir(dirPath, { 
-        baseDir: BaseDirectory.Desktop,
-      });
-      return filterAndSortEntries(entries, dirPath);
     }
+    // Fallback to Desktop base directory
+    const entries = await readDir(dirPath, {
+      baseDir: BaseDirectory.Desktop,
+    });
+    return filterAndSortEntries(entries, dirPath);
   } catch (error) {
     console.error('Failed to load directory contents:', error);
     throw error;
@@ -74,9 +80,12 @@ export const useFileSystem = (customBasePath?: string) => {
     return refetch();
   }, [refetch]);
 
-  const fetchDirectoryContentsWrapper = useCallback(async (dirPath: string) => {
-    return await fetchDirectoryContents(dirPath, customBasePath);
-  }, [customBasePath]);
+  const fetchDirectoryContentsWrapper = useCallback(
+    async (dirPath: string) => {
+      return await fetchDirectoryContents(dirPath, customBasePath);
+    },
+    [customBasePath]
+  );
 
   return {
     currentFiles: data?.files ?? [],
@@ -85,6 +94,6 @@ export const useFileSystem = (customBasePath?: string) => {
     currentDirectory: data?.currentDirectory ?? '',
     refresh: refetch,
     fetchFiles, // New method to trigger on-demand fetch
-    fetchDirectoryContents: fetchDirectoryContentsWrapper // Expose directory contents function
+    fetchDirectoryContents: fetchDirectoryContentsWrapper, // Expose directory contents function
   };
 };

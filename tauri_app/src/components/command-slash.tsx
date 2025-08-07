@@ -1,24 +1,35 @@
-import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Accessibility, Folder, Monitor, Mic, Clock } from 'lucide-react';
-import { slashCommands } from '@/utils/slash-commands';
 import {
-  Command as CommandPrimitive,
+  Accessibility,
+  ArrowLeft,
+  Clock,
+  Folder,
+  Mic,
+  Monitor,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { MessageData } from '@/components/chat-app';
+import {
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
+  Command as CommandPrimitive,
 } from '@/components/ui/command';
 import { Switch } from '@/components/ui/switch';
-import { 
+import {
   useAccessibilityPermission,
   useFullDiskAccessPermission,
+  useMicrophonePermission,
   useScreenRecordingPermission,
-  useMicrophonePermission
 } from '@/hooks/usePermissions';
-import { useSessionsList, useSelectSession, TITLE_TRUNCATE_LENGTH } from '@/hooks/useSessionsList';
 import { useActiveSession } from '@/hooks/useSession';
-import { type MessageData } from '@/components/chat-app';
+import {
+  TITLE_TRUNCATE_LENGTH,
+  useSelectSession,
+  useSessionsList,
+} from '@/hooks/useSessionsList';
+import { slashCommands } from '@/utils/slash-commands';
 
 interface CommandSlashProps {
   onExecuteCommand: (command: string) => void;
@@ -31,12 +42,12 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   const [showingPermissions, setShowingPermissions] = useState(false);
   const [showingSessions, setShowingSessions] = useState(false);
   const commandRef = useRef<HTMLDivElement>(null);
-  
+
   // Reset selection when search query changes to prevent jumping
   useEffect(() => {
     setSelectedValue('');
   }, [searchQuery]);
-  
+
   // Permission hooks - always initialized for simplicity
   const accessibility = useAccessibilityPermission(showingPermissions);
   const fullDiskAccess = useFullDiskAccessPermission(showingPermissions);
@@ -47,63 +58,68 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
   const selectSessionMutation = useSelectSession();
   const activeSession = useActiveSession();
-  
+
   const permissions = [
     {
       id: 'accessibility',
       label: 'Accessibility',
       icon: Accessibility,
-      hook: accessibility
+      hook: accessibility,
     },
     {
       id: 'fullDiskAccess',
-      label: 'Full Disk Access', 
+      label: 'Full Disk Access',
       icon: Folder,
-      hook: fullDiskAccess
+      hook: fullDiskAccess,
     },
     {
       id: 'screenRecording',
       label: 'Screen Recording',
       icon: Monitor,
-      hook: screenRecording
+      hook: screenRecording,
     },
     {
       id: 'microphone',
       label: 'Microphone',
       icon: Mic,
-      hook: microphone
-    }
+      hook: microphone,
+    },
   ];
 
   // Filter commands based on search query
-  const filteredCommands = searchQuery.trim() 
-    ? slashCommands.filter(command => 
-        command.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        command.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCommands = searchQuery.trim()
+    ? slashCommands.filter(
+        (command) =>
+          command.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          command.description.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : slashCommands;
 
   // Filter permissions based on search query
   const filteredPermissions = searchQuery.trim()
-    ? permissions.filter(permission =>
+    ? permissions.filter((permission) =>
         permission.label.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : permissions;
 
   // Sort sessions chronologically (most recent first) and filter by search
   const sortedAndFilteredSessions = sessions
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .filter(session => 
-      !searchQuery.trim() || 
-      session.title.toLowerCase().includes(searchQuery.toLowerCase())
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    .filter(
+      (session) =>
+        !searchQuery.trim() ||
+        session.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
   // Helper function to get display title (first user message or fallback to title)
-  const getDisplayTitle = (session: typeof sessions[0]) => {
+  const getDisplayTitle = (session: (typeof sessions)[0]) => {
     if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
       return session.title; // fallback to original title
     }
-    
+
     // Try to parse JSON and extract text from data.text field
     let displayText = session.firstUserMessage;
     try {
@@ -121,63 +137,63 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
       console.log('Failed to parse user message:', session.firstUserMessage);
     }
 
-    const truncated = displayText.length > TITLE_TRUNCATE_LENGTH 
-      ? `${displayText.substring(0, TITLE_TRUNCATE_LENGTH)}...`
-      : displayText;
-      
+    const truncated =
+      displayText.length > TITLE_TRUNCATE_LENGTH
+        ? `${displayText.substring(0, TITLE_TRUNCATE_LENGTH)}...`
+        : displayText;
+
     return truncated;
   };
-  
+
   const handleSelect = (value: string) => {
     setSearchQuery('');
     setSelectedValue('');
-    
+
     if (value === 'back-to-commands') {
       setShowingPermissions(false);
       setShowingSessions(false);
-      
+
       return;
     }
-    
+
     if (value === 'permissions') {
       setShowingPermissions(true);
       setShowingSessions(false);
-      
+
       return;
     }
 
     if (value === 'sessions') {
       setShowingSessions(true);
       setShowingPermissions(false);
-      
+
       return;
     }
-    
+
     // Handle session selection
-    const session = sessions.find(s => s.id === value);
+    const session = sessions.find((s) => s.id === value);
     if (session) {
       selectSessionMutation.mutate(session.id, {
         onSuccess: () => {
           onClose(); // Close the command palette
-        }
+        },
       });
-      
+
       return;
     }
 
     // Handle permission toggles
-    const permission = permissions.find(p => p.id === value);
+    const permission = permissions.find((p) => p.id === value);
     if (permission && !permission.hook.isGranted) {
       permission.hook.request();
-      
+
       return;
     }
-    
+
     // Handle regular commands
-    const command = slashCommands.find(c => c.id === value);
+    const command = slashCommands.find((c) => c.id === value);
     if (command) {
       onExecuteCommand(command.name);
-      
     }
   };
 
@@ -186,37 +202,36 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
       e.preventDefault();
       if (showingPermissions) {
         setShowingPermissions(false);
-        
       } else if (showingSessions) {
         setShowingSessions(false);
-        
       } else {
         onClose();
-        
       }
     }
   };
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 bg-popover border border-border rounded-xl shadow-lg z-50 overflow-hidden">
-      <CommandPrimitive 
-        ref={commandRef}
-        onKeyDown={handleKeyDown} 
+    <div className="absolute right-0 bottom-full left-0 z-50 mb-2 overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
+      <CommandPrimitive
         className="max-h-64"
-        value={selectedValue}
+        onKeyDown={handleKeyDown}
         onValueChange={setSelectedValue}
+        ref={commandRef}
+        value={selectedValue}
       >
-        <CommandInput 
-          placeholder={
-            showingPermissions ? "Search permissions..." : 
-            showingSessions ? "Search sessions..." :
-            "Search commands..."
-          } 
-          value={searchQuery}
-          onValueChange={setSearchQuery}
+        <CommandInput
           autoFocus
+          onValueChange={setSearchQuery}
+          placeholder={
+            showingPermissions
+              ? 'Search permissions...'
+              : showingSessions
+                ? 'Search sessions...'
+                : 'Search commands...'
+          }
+          value={searchQuery}
         />
-        
+
         <CommandList>
           {showingSessions ? (
             // Sessions View
@@ -225,29 +240,33 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
                 <CommandEmpty>Loading sessions...</CommandEmpty>
               ) : !sortedAndFilteredSessions.length && searchQuery ? (
                 <CommandEmpty>No sessions match your search</CommandEmpty>
-              ) : !sortedAndFilteredSessions.length ? (
-                <CommandEmpty>No sessions found</CommandEmpty>
-              ) : (
-                <CommandGroup heading={`Sessions (${sortedAndFilteredSessions.length})`}>
+              ) : sortedAndFilteredSessions.length ? (
+                <CommandGroup
+                  heading={`Sessions (${sortedAndFilteredSessions.length})`}
+                >
                   {/* Back to Commands */}
                   <CommandItem
-                    value="back-to-commands"
                     onSelect={() => handleSelect('back-to-commands')}
+                    value="back-to-commands"
                   >
                     <ArrowLeft className="size-4 text-muted-foreground" />
                     <div className="flex-1">
-                      <div className="font-medium text-sm">Back to Commands</div>
+                      <div className="font-medium text-sm">
+                        Back to Commands
+                      </div>
                     </div>
                   </CommandItem>
-                  
+
                   {/* Session Items */}
                   {sortedAndFilteredSessions.map((session) => {
                     const isActive = activeSession.data?.id === session.id;
                     const createdDate = new Date(session.createdAt);
                     const formatDate = (date: Date) => {
                       const now = new Date();
-                      const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-                      
+                      const diffDays = Math.floor(
+                        (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+                      );
+
                       if (diffDays === 0) return 'Today';
                       if (diffDays === 1) return 'Yesterday';
                       if (diffDays < 7) return `${diffDays} days ago`;
@@ -256,34 +275,36 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
 
                     return (
                       <CommandItem
-                        key={session.id}
-                        value={session.id}
-                        onSelect={() => handleSelect(session.id)}
                         className={isActive ? 'bg-accent' : ''}
+                        key={session.id}
+                        onSelect={() => handleSelect(session.id)}
+                        value={session.id}
                       >
                         <Clock className="size-4 text-muted-foreground" />
                         <div className="flex-1">
-                          <div className="font-medium text-sm flex items-center gap-2">
+                          <div className="flex items-center gap-2 font-medium text-sm">
                             {getDisplayTitle(session)}
                             {isActive && (
-                              <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                              <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
                                 current
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
                             <span>{formatDate(createdDate)}</span>
                             <span>•</span>
                             <span>{session.messageCount} messages</span>
                           </div>
                         </div>
-                        <div className="text-xs font-mono text-muted-foreground ml-2">
+                        <div className="ml-2 font-mono text-muted-foreground text-xs">
                           {session.id.slice(0, 8)}
                         </div>
                       </CommandItem>
                     );
                   })}
                 </CommandGroup>
+              ) : (
+                <CommandEmpty>No sessions found</CommandEmpty>
               )}
             </>
           ) : showingPermissions ? (
@@ -295,43 +316,52 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
                 <CommandGroup heading="System Permissions">
                   {/* Back to Commands */}
                   <CommandItem
-                    value="back-to-commands"
                     onSelect={() => handleSelect('back-to-commands')}
+                    value="back-to-commands"
                   >
                     <ArrowLeft className="size-4 text-muted-foreground" />
                     <div className="flex-1">
-                      <div className="font-medium text-sm">Back to Commands</div>
+                      <div className="font-medium text-sm">
+                        Back to Commands
+                      </div>
                     </div>
                   </CommandItem>
-                  
+
                   {/* Permission Items */}
                   {filteredPermissions.map((permission) => {
                     const Icon = permission.icon;
                     return (
                       <CommandItem
-                        key={permission.id}
-                        value={permission.id}
-                        onSelect={() => handleSelect(permission.id)}
                         className="flex items-center justify-between"
+                        key={permission.id}
+                        onSelect={() => handleSelect(permission.id)}
+                        value={permission.id}
                       >
-                        <div className="flex items-center gap-3 flex-1">
+                        <div className="flex flex-1 items-center gap-3">
                           <Icon className="size-4 text-muted-foreground" />
                           <div className="flex-1">
-                            <div className="font-medium text-sm">{permission.label}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {permission.hook.isGranted ? 'Granted' : 'Not granted'}
+                            <div className="font-medium text-sm">
+                              {permission.label}
+                            </div>
+                            <div className="text-muted-foreground text-xs">
+                              {permission.hook.isGranted
+                                ? 'Granted'
+                                : 'Not granted'}
                             </div>
                           </div>
                         </div>
-                        <Switch 
-                          checked={permission.hook.isGranted} 
+                        <Switch
+                          checked={permission.hook.isGranted}
+                          disabled={
+                            permission.hook.isLoading ||
+                            permission.hook.isRequesting
+                          }
                           onCheckedChange={(checked) => {
                             if (!checked) return; // Only allow requesting, not revoking
                             if (!permission.hook.isGranted) {
                               permission.hook.request();
                             }
                           }}
-                          disabled={permission.hook.isLoading || permission.hook.isRequesting}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </CommandItem>
@@ -343,47 +373,52 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
           ) : (
             // Commands View
             <>
-              {!filteredCommands.length ? (
-                <CommandEmpty>
-                  {searchQuery ? 'No commands match your search' : 'No commands found'}
-                </CommandEmpty>
-              ) : (
+              {filteredCommands.length ? (
                 <CommandGroup heading="Commands">
                   {filteredCommands.map((command) => {
                     const Icon = command.icon;
                     return (
                       <CommandItem
                         key={command.id}
-                        value={command.id}
                         onSelect={() => handleSelect(command.id)}
+                        value={command.id}
                       >
                         <Icon className="size-4 text-muted-foreground" />
                         <div className="flex-1">
-                          <div className="font-medium text-sm">{command.name}</div>
-                          <div className="text-xs text-muted-foreground">{command.description}</div>
+                          <div className="font-medium text-sm">
+                            {command.name}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {command.description}
+                          </div>
                         </div>
                       </CommandItem>
                     );
                   })}
                 </CommandGroup>
+              ) : (
+                <CommandEmpty>
+                  {searchQuery
+                    ? 'No commands match your search'
+                    : 'No commands found'}
+                </CommandEmpty>
               )}
             </>
           )}
         </CommandList>
-        
+
         {/* Bottom Toolbar */}
-        <div className="h-6 px-3 py-1 bg-gray-50/80 dark:bg-gray-800/80 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center justify-end text-xs">
-          
+        <div className="flex h-6 items-center justify-end border-gray-200/50 border-t bg-gray-50/80 px-3 py-1 text-xs dark:border-gray-700/50 dark:bg-gray-800/80">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-0.5">
-              <kbd className="px-1 py-0 bg-white dark:bg-gray-700  rounded text-muted-foreground font-mono text-[10px]">
+              <kbd className="rounded bg-white px-1 py-0 font-mono text-[10px] text-muted-foreground dark:bg-gray-700">
                 ↵
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">select</span>
             </div>
-            
+
             <div className="flex items-center gap-0.5">
-              <kbd className="px-1 py-0 bg-white dark:bg-gray-700  rounded text-muted-foreground font-mono text-[10px]">
+              <kbd className="rounded bg-white px-1 py-0 font-mono text-[10px] text-muted-foreground dark:bg-gray-700">
                 esc
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">
@@ -396,4 +431,3 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     </div>
   );
 }
-

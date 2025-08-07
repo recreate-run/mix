@@ -1,12 +1,25 @@
 'use client';
 
-import { ArrowUpIcon, Loader2Icon, SquareIcon, XIcon, PlayIcon } from 'lucide-react';
+import {
+  ArrowUpIcon,
+  Loader2Icon,
+  PlayIcon,
+  SquareIcon,
+  XIcon,
+} from 'lucide-react';
 import type {
   ComponentProps,
   HTMLAttributes,
   KeyboardEventHandler,
 } from 'react';
-import { Children, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import {
+  Children,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -16,8 +29,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import { TextParser, Token, TokenType } from '@/lib/textParser';
+import { cn } from '@/lib/utils';
 
 type UseAutoResizeTextareaProps = {
   minHeight: number;
@@ -79,7 +92,7 @@ export type AIInputProps = HTMLAttributes<HTMLFormElement>;
 export const AIInput = ({ className, ...props }: AIInputProps) => (
   <form
     className={cn(
-      'w-full overflow-hidden rounded-3xl border bg-stone-100 dark:bg-stone-800 shadow-sm',
+      'w-full overflow-hidden rounded-3xl border bg-stone-100 shadow-sm dark:bg-stone-800',
       className
     )}
     {...props}
@@ -114,10 +127,13 @@ export const AIInputTextarea = ({
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const previousValueRef = useRef<string>(value || '');
-  
-  const parser = useMemo(() => new TextParser(availableFiles, availableCommands, availableApps), [availableFiles, availableCommands, availableApps]);
+
+  const parser = useMemo(
+    () => new TextParser(availableFiles, availableCommands, availableApps),
+    [availableFiles, availableCommands, availableApps]
+  );
   const tokens = useMemo(() => parser.parse(value || ''), [parser, value]);
-  
+
   // Update ref when value changes from outside
   useEffect(() => {
     previousValueRef.current = value || '';
@@ -138,8 +154,16 @@ export const AIInputTextarea = ({
     }
 
     const textarea = textareaRef.current;
-    if (textarea && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && textarea.selectionStart === textarea.selectionEnd) {
-      const newCursor = parser.handleArrowKey(e.key, textarea.selectionStart, tokens);
+    if (
+      textarea &&
+      (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+      textarea.selectionStart === textarea.selectionEnd
+    ) {
+      const newCursor = parser.handleArrowKey(
+        e.key,
+        textarea.selectionStart,
+        tokens
+      );
       if (newCursor !== null) {
         e.preventDefault();
         textarea.setSelectionRange(newCursor, newCursor);
@@ -151,13 +175,13 @@ export const AIInputTextarea = ({
   };
 
   const renderTokenOverlay = () => {
-    const hasSpecialTokens = tokens.some(token => token.type !== 'text');
+    const hasSpecialTokens = tokens.some((token) => token.type !== 'text');
     if (!hasSpecialTokens) return null;
 
     return (
       <div
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words"
         ref={overlayRef}
-        className="absolute inset-0 pointer-events-none overflow-hidden whitespace-pre-wrap break-words z-0"
         style={{
           font: 'inherit',
           lineHeight: 'inherit',
@@ -167,8 +191,10 @@ export const AIInputTextarea = ({
       >
         {tokens.map((token, index) => (
           <span
+            className={
+              token.type !== 'text' ? parser.getTokenStyle(token.type) : ''
+            }
             key={`${token.start}-${token.end}-${index}`}
-            className={token.type !== 'text' ? parser.getTokenStyle(token.type) : ''}
             style={{ color: 'transparent' }}
           >
             {token.content}
@@ -184,40 +210,46 @@ export const AIInputTextarea = ({
       <Textarea
         className={cn(
           'w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0',
-          'bg-transparent dark:bg-transparent relative z-10',
-          'focus-visible:ring-0 text-foreground',
+          'relative z-10 bg-transparent dark:bg-transparent',
+          'text-foreground focus-visible:ring-0',
           className
         )}
         name="message"
         onChange={(e) => {
           adjustHeight();
-          
+
           const newValue = e.target.value;
           const previousValue = previousValueRef.current;
           const textarea = textareaRef.current;
-          
+
           // Only check for token deletion if text got shorter (actual deletion)
           if (textarea && newValue.length < previousValue.length) {
-            const deletion = parser.handleDeletion(newValue, textarea.selectionStart);
+            const deletion = parser.handleDeletion(
+              newValue,
+              textarea.selectionStart
+            );
             if (deletion) {
               // Update ref with the cleaned value first
               previousValueRef.current = deletion.newText;
-              
+
               // Set cursor position immediately
-              textarea.setSelectionRange(deletion.newCursor, deletion.newCursor);
-              
+              textarea.setSelectionRange(
+                deletion.newCursor,
+                deletion.newCursor
+              );
+
               // Create cleaned event and call onChange
               const cleanedEvent = {
                 ...e,
                 target: { ...e.target, value: deletion.newText },
-                currentTarget: { ...e.currentTarget, value: deletion.newText }
+                currentTarget: { ...e.currentTarget, value: deletion.newText },
               } as React.ChangeEvent<HTMLTextAreaElement>;
-              
+
               onChange?.(cleanedEvent);
               return;
             }
           }
-          
+
           // Update ref with new value for normal changes
           previousValueRef.current = newValue;
           onChange?.(e);
@@ -299,21 +331,21 @@ export const AIInputSubmit = ({
   onPauseClick,
   ...props
 }: AIInputSubmitProps) => {
-  let Icon = <ArrowUpIcon className='size-6' />;
-  let buttonType: "submit" | "button" = "submit";
+  let Icon = <ArrowUpIcon className="size-6" />;
+  let buttonType: 'submit' | 'button' = 'submit';
   let onClick = props.onClick;
 
   if (status === 'submitted') {
     Icon = <Loader2Icon className="animate-spin" />;
-    buttonType = "button"; // Prevent form submission
+    buttonType = 'button'; // Prevent form submission
     onClick = undefined; // Disable click handling
   } else if (status === 'streaming') {
     Icon = <SquareIcon />;
-    buttonType = "button"; // Don't submit when streaming
+    buttonType = 'button'; // Don't submit when streaming
     onClick = onPauseClick; // Use pause click handler
   } else if (status === 'paused') {
-    Icon = <PlayIcon className='size-5' />;
-    buttonType = "button"; // Don't submit when paused
+    Icon = <PlayIcon className="size-5" />;
+    buttonType = 'button'; // Don't submit when paused
     onClick = onPauseClick; // Use resume click handler
   } else if (status === 'error') {
     Icon = <XIcon />;
@@ -322,10 +354,10 @@ export const AIInputSubmit = ({
   return (
     <Button
       className={cn('m-1 rounded-full ', className)}
+      onClick={onClick}
       size={size}
       type={buttonType}
       variant={variant}
-      onClick={onClick}
       {...props}
     >
       {children ?? Icon}

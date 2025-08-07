@@ -1,27 +1,30 @@
-import { type RefObject, type RefCallback } from 'react';
-import { AIMessage, AIMessageContent } from '@/components/ui/kibo-ui/ai/message';
-import { AIResponse } from '@/components/ui/kibo-ui/ai/response';
+import { Check, Copy, Pencil } from 'lucide-react';
+import type { RefCallback, RefObject } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  AIMessage,
+  AIMessageContent,
+} from '@/components/ui/kibo-ui/ai/message';
 import {
   AIReasoning,
   AIReasoningContent,
   AIReasoningTrigger,
 } from '@/components/ui/kibo-ui/ai/reasoning';
+import { AIResponse } from '@/components/ui/kibo-ui/ai/response';
 import {
   AIToolContent,
   AIToolHeader,
   AIToolLadder,
-  AIToolStep,
   type AIToolStatus,
+  AIToolStep,
 } from '@/components/ui/kibo-ui/ai/tool';
-import { ResponseRenderer } from './response-renderer';
-import { MessageAttachmentDisplay } from './message-attachment-display';
-import { TodoList } from './todo-list';
-import { PlanDisplay } from './plan-display';
-import { LoadingDots } from './loading-dots';
-import { type Attachment } from '@/stores/attachmentStore';
-import { Button } from '@/components/ui/button';
-import { Pencil, Copy, Check } from 'lucide-react';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
+import type { Attachment } from '@/stores/attachmentStore';
+import { LoadingDots } from './loading-dots';
+import { MessageAttachmentDisplay } from './message-attachment-display';
+import { PlanDisplay } from './plan-display';
+import { ResponseRenderer } from './response-renderer';
+import { TodoList } from './todo-list';
 
 type ToolCall = {
   name: string;
@@ -63,23 +66,22 @@ interface ConversationDisplayProps {
 // Helper function to extract todos from todo_write tool calls (works with both ToolCall and SSE formats)
 const extractTodosFromToolCalls = (toolCalls: any[]) => {
   return toolCalls
-    .filter(tc => tc.name === 'todo_write')
-    .map(tc => {
+    .filter((tc) => tc.name === 'todo_write')
+    .flatMap((tc) => {
       try {
         const todos = tc.parameters?.todos;
         return Array.isArray(todos) ? todos : [];
       } catch {
         return [];
       }
-    })
-    .flat();
+    });
 };
 
 // Helper function to extract plan content from exit_plan_mode tool calls (works with both ToolCall and SSE formats)
 const extractPlanFromToolCalls = (toolCalls: any[]) => {
-  const planTool = toolCalls.find(tc => tc.name === 'exit_plan_mode');
+  const planTool = toolCalls.find((tc) => tc.name === 'exit_plan_mode');
   if (!planTool) return '';
-  
+
   try {
     return planTool.parameters?.plan || '';
   } catch {
@@ -89,11 +91,16 @@ const extractPlanFromToolCalls = (toolCalls: any[]) => {
 
 // Helper function to filter out special tools (todo_write, exit_plan_mode) from toolCalls
 const filterNonSpecialTools = (toolCalls: any[]) => {
-  return toolCalls.filter(tc => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode');
+  return toolCalls.filter(
+    (tc) => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode'
+  );
 };
 
 // Helper function to check if previous user message started with "!"
-const isPreviousUserMessageCommand = (messages: Message[], currentIndex: number) => {
+const isPreviousUserMessageCommand = (
+  messages: Message[],
+  currentIndex: number
+) => {
   for (let i = currentIndex - 1; i >= 0; i--) {
     if (messages[i].from === 'user') {
       return messages[i].content.trim().startsWith('!');
@@ -106,10 +113,10 @@ const MessageCopyButton = ({ content }: { content: string }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
   return (
     <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => copyToClipboard(content)}
       className="text-muted-foreground hover:text-foreground"
+      onClick={() => copyToClipboard(content)}
+      size="sm"
+      variant="ghost"
     >
       {isCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
     </Button>
@@ -124,14 +131,17 @@ export function ConversationDisplay({
   setUserMessageRef,
   onPlanProceed,
   onPlanKeepPlanning,
-  onForkMessage
+  onForkMessage,
 }: ConversationDisplayProps) {
   return (
-    <div ref={conversationRef} className="relative h-full flex-1 overflow-y-auto">
+    <div
+      className="relative h-full flex-1 overflow-y-auto"
+      ref={conversationRef}
+    >
       <div className="">
         {messages.map((message, index) => (
-          <AIMessage 
-            from={message.from} 
+          <AIMessage
+            from={message.from}
             key={index}
             ref={message.from === 'user' ? setUserMessageRef(index) : undefined}
           >
@@ -140,9 +150,15 @@ export function ConversationDisplay({
                 <>
                   <AIMessageContent.Content>
                     {message.reasoning && (
-                      <AIReasoning className="w-full mb-4" isStreaming={false} duration={message.reasoningDuration || undefined}>
+                      <AIReasoning
+                        className="mb-4 w-full"
+                        duration={message.reasoningDuration || undefined}
+                        isStreaming={false}
+                      >
                         <AIReasoningTrigger />
-                        <AIReasoningContent>{message.reasoning}</AIReasoningContent>
+                        <AIReasoningContent>
+                          {message.reasoning}
+                        </AIReasoningContent>
                       </AIReasoning>
                     )}
                     {isPreviousUserMessageCommand(messages, index) ? (
@@ -158,18 +174,20 @@ export function ConversationDisplay({
               ) : (
                 <>
                   <AIMessageContent.Content>
-                    <MessageAttachmentDisplay attachments={message.attachments || []} />
+                    <MessageAttachmentDisplay
+                      attachments={message.attachments || []}
+                    />
                     {message.content}
                   </AIMessageContent.Content>
                   <AIMessageContent.Toolbar>
                     <MessageCopyButton content={message.content} />
                     {onForkMessage && (
                       <Button
-                        variant="ghost"
-                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
                         disabled={sseStream.processing}
                         onClick={() => onForkMessage(index)}
-                        className="text-muted-foreground hover:text-foreground"
+                        size="sm"
+                        variant="ghost"
                       >
                         <Pencil className="size-4" />
                       </Button>
@@ -182,31 +200,37 @@ export function ConversationDisplay({
                 <>
                   {/* Render plan content */}
                   {extractPlanFromToolCalls(message.toolCalls) && (
-                    <PlanDisplay 
+                    <PlanDisplay
+                      onKeepPlanning={() => onPlanKeepPlanning(index)}
+                      onProceed={() => onPlanProceed(index)}
                       planContent={extractPlanFromToolCalls(message.toolCalls)}
                       showOptions={showPlanOptions === index}
-                      onProceed={() => onPlanProceed(index)}
-                      onKeepPlanning={() => onPlanKeepPlanning(index)}
                     />
                   )}
                   {/* Render non-special tools in ladder */}
                   {filterNonSpecialTools(message.toolCalls).length > 0 && (
                     <AIToolLadder className="mt-4">
-                      {filterNonSpecialTools(message.toolCalls).map((toolCall, toolIndex) => (
-                        <AIToolStep
-                          key={`${index}-${toolCall.name}-${toolIndex}`}
-                          status={toolCall.status}
-                          stepNumber={toolIndex + 1}
-                          isLast={toolIndex === filterNonSpecialTools(message.toolCalls).length - 1}
-                        >
-                          <AIToolHeader
-                            description={toolCall.description}
-                            name={toolCall.name}
+                      {filterNonSpecialTools(message.toolCalls).map(
+                        (toolCall, toolIndex) => (
+                          <AIToolStep
+                            isLast={
+                              toolIndex ===
+                              filterNonSpecialTools(message.toolCalls).length -
+                                1
+                            }
+                            key={`${index}-${toolCall.name}-${toolIndex}`}
                             status={toolCall.status}
-                          />
-                          <AIToolContent toolCall={toolCall} />
-                        </AIToolStep>
-                      ))}
+                            stepNumber={toolIndex + 1}
+                          >
+                            <AIToolHeader
+                              description={toolCall.description}
+                              name={toolCall.name}
+                              status={toolCall.status}
+                            />
+                            <AIToolContent toolCall={toolCall} />
+                          </AIToolStep>
+                        )
+                      )}
                     </AIToolLadder>
                   )}
                 </>
@@ -215,13 +239,15 @@ export function ConversationDisplay({
           </AIMessage>
         ))}
         {sseStream.processing && (
-          <AIMessage 
-            from="assistant"
-          >
+          <AIMessage from="assistant">
             <AIMessageContent>
               {/* Show reasoning during streaming if available */}
               {sseStream.reasoning && (
-                <AIReasoning className="w-full mb-4" isStreaming={true} duration={sseStream.reasoningDuration || undefined}>
+                <AIReasoning
+                  className="mb-4 w-full"
+                  duration={sseStream.reasoningDuration || undefined}
+                  isStreaming={true}
+                >
                   <AIReasoningTrigger />
                   <AIReasoningContent>{sseStream.reasoning}</AIReasoningContent>
                 </AIReasoning>
@@ -229,36 +255,48 @@ export function ConversationDisplay({
               {sseStream.toolCalls.length > 0 ? (
                 <>
                   {/* Render streaming todos inline without tool wrapper */}
-                  {extractTodosFromToolCalls(sseStream.toolCalls).length > 0 && (
+                  {extractTodosFromToolCalls(sseStream.toolCalls).length >
+                    0 && (
                     <div className="mt-4">
-                      <TodoList todos={extractTodosFromToolCalls(sseStream.toolCalls)} />
+                      <TodoList
+                        todos={extractTodosFromToolCalls(sseStream.toolCalls)}
+                      />
                     </div>
                   )}
                   {/* Render streaming plan content */}
                   {extractPlanFromToolCalls(sseStream.toolCalls) && (
-                    <PlanDisplay 
-                      planContent={extractPlanFromToolCalls(sseStream.toolCalls)}
+                    <PlanDisplay
+                      planContent={extractPlanFromToolCalls(
+                        sseStream.toolCalls
+                      )}
                       showOptions={false}
                     />
                   )}
                   {/* Render streaming non-special tools in ladder */}
                   {filterNonSpecialTools(sseStream.toolCalls).length > 0 && (
                     <AIToolLadder>
-                      {filterNonSpecialTools(sseStream.toolCalls).map((toolCall, toolIndex) => (
-                        <AIToolStep
-                          key={`streaming-${toolCall.id}-${toolIndex}`}
-                          status={toolCall.status}
-                          stepNumber={toolIndex + 1}
-                          isLast={toolIndex === filterNonSpecialTools(sseStream.toolCalls).length - 1}
-                        >
-                          <AIToolHeader
-                            description={toolCall.description}
-                            name={toolCall.name}
+                      {filterNonSpecialTools(sseStream.toolCalls).map(
+                        (toolCall, toolIndex) => (
+                          <AIToolStep
+                            isLast={
+                              toolIndex ===
+                              filterNonSpecialTools(sseStream.toolCalls)
+                                .length -
+                                1
+                            }
+                            key={`streaming-${toolCall.id}-${toolIndex}`}
                             status={toolCall.status}
-                          />
-                          <AIToolContent toolCall={toolCall} />
-                        </AIToolStep>
-                      ))}
+                            stepNumber={toolIndex + 1}
+                          >
+                            <AIToolHeader
+                              description={toolCall.description}
+                              name={toolCall.name}
+                              status={toolCall.status}
+                            />
+                            <AIToolContent toolCall={toolCall} />
+                          </AIToolStep>
+                        )
+                      )}
                     </AIToolLadder>
                   )}
                   {!sseStream.completed && <LoadingDots />}

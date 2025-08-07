@@ -1,13 +1,17 @@
 import { X } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { type Attachment } from '@/stores/attachmentStore';
-import { 
-  ImagePreview, 
-  VideoPreview, 
-  AudioPreview, 
-  FolderPreview, 
-  AppPreview, 
-  DefaultPreview 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import type { Attachment } from '@/stores/attachmentStore';
+import {
+  AppPreview,
+  AudioPreview,
+  DefaultPreview,
+  FolderPreview,
+  ImagePreview,
+  VideoPreview,
 } from './attachment-item-preview';
 
 interface AttachmentPreviewProps {
@@ -15,23 +19,25 @@ interface AttachmentPreviewProps {
   onRemoveItem: (index: number) => void;
 }
 
-
-export const AttachmentPreview = ({ attachments, onRemoveItem }: AttachmentPreviewProps) => {
+export const AttachmentPreview = ({
+  attachments,
+  onRemoveItem,
+}: AttachmentPreviewProps) => {
   if (attachments.length === 0) {
     return null;
   }
 
   return (
-    <div className="flex flex-wrap gap-2 p-2 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+    <div className="flex flex-wrap gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-800/30">
       {attachments.map((attachment, index) => (
-        <div key={attachment.id} className="relative group flex-shrink-0">
+        <div className="group relative flex-shrink-0" key={attachment.id}>
           {attachment.type === 'app' ? (
             // App attachments have different styling - no tooltip, inline layout
             <div className="relative">
               <AppPreview attachment={attachment} />
               <button
+                className="absolute top-1 right-1 z-10 flex items-center justify-center rounded-full bg-red-500/80 p-[2px] transition-colors hover:bg-red-600"
                 onClick={() => onRemoveItem(index)}
-                className="absolute top-1 right-1 p-[2px] bg-red-500/80 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors z-10"
                 title="Remove app"
               >
                 <X className="size-3 text-white" />
@@ -57,27 +63,26 @@ export const AttachmentPreview = ({ attachments, onRemoveItem }: AttachmentPrevi
               </TooltipTrigger>
               <TooltipContent>
                 <p>
-                  {attachment.type === 'folder' && attachment.mediaCount ? (
-                    (() => {
-                      const { images, videos, audios } = attachment.mediaCount;
-                      const total = images + videos + audios;
-                      if (total === 0) {
-                        return `${attachment.name} - no media files`;
-                      }
-                      const parts = [];
-                      if (images > 0) parts.push(`${images}i`);
-                      if (videos > 0) parts.push(`${videos}v`);
-                      if (audios > 0) parts.push(`${audios}a`);
-                      return `${attachment.name} ${parts.join('/')}`;
-                    })()
-                  ) : (
-                    attachment.name
-                  )}
+                  {attachment.type === 'folder' && attachment.mediaCount
+                    ? (() => {
+                        const { images, videos, audios } =
+                          attachment.mediaCount;
+                        const total = images + videos + audios;
+                        if (total === 0) {
+                          return `${attachment.name} - no media files`;
+                        }
+                        const parts = [];
+                        if (images > 0) parts.push(`${images}i`);
+                        if (videos > 0) parts.push(`${videos}v`);
+                        if (audios > 0) parts.push(`${audios}a`);
+                        return `${attachment.name} ${parts.join('/')}`;
+                      })()
+                    : attachment.name}
                 </p>
               </TooltipContent>
               <button
+                className="absolute top-1 right-1 z-10 flex items-center justify-center rounded-full bg-red-500/80 p-[2px] transition-colors hover:bg-red-600"
                 onClick={() => onRemoveItem(index)}
-                className="absolute top-1 right-1 p-[2px] bg-red-500/80 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors z-10"
               >
                 <X className="size-3 text-white" />
               </button>

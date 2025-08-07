@@ -39,34 +39,37 @@ export function SessionsDisplay({ data }: SessionsDisplayProps) {
 
   // Generate markdown string
   let markdown = '# Available Sessions\n\n';
-  
+
   if (data.sessions.length === 0) {
     markdown += 'No sessions found.\n';
     return <AIResponse>{markdown}</AIResponse>;
   }
 
   // Sort sessions by updated date (most recent first)
-  const sortedSessions = [...data.sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+  const sortedSessions = [...data.sessions].sort(
+    (a, b) => b.updatedAt - a.updatedAt
+  );
 
-  sortedSessions.forEach(session => {
+  sortedSessions.forEach((session) => {
     const currentIndicator = session.isCurrent ? ' **(current)**' : '';
-    const tokensDisplay = session.totalTokens > 0 ? formatTokens(session.totalTokens) : '0';
-    
+    const tokensDisplay =
+      session.totalTokens > 0 ? formatTokens(session.totalTokens) : '0';
+
     markdown += `## ${session.title}${currentIndicator}\n`;
     markdown += `- **ID:** ${session.id}\n`;
     markdown += `- **Messages:** ${session.messageCount}\n`;
     markdown += `- **Tokens:** ${tokensDisplay}\n`;
     markdown += `- **Cost:** $${session.cost.toFixed(4)}\n`;
     markdown += `- **Created:** ${formatTimestamp(session.createdAt)}\n`;
-    
+
     if (session.updatedAt > 0) {
       markdown += `- **Last Updated:** ${formatTimestamp(session.updatedAt)}\n`;
     }
-    
+
     if (session.parentSessionId) {
       markdown += `- **Parent Session:** ${session.parentSessionId}\n`;
     }
-    
+
     markdown += '\n';
   });
 

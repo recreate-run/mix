@@ -347,10 +347,7 @@ export const CodeBlockHeader = ({
   ...props
 }: CodeBlockHeaderProps) => (
   <div
-    className={cn(
-      'flex flex-row items-center border-b',
-      className
-    )}
+    className={cn('flex flex-row items-center border-b', className)}
     {...props}
   />
 );
@@ -431,7 +428,7 @@ export const CodeBlockSelectTrigger = ({
 }: CodeBlockSelectTriggerProps) => (
   <SelectTrigger
     className={cn(
-      'w-fit border-none text-muted-foreground text-xs shadow-none bg-transparent',
+      'w-fit border-none bg-transparent text-muted-foreground text-xs shadow-none',
       className
     )}
     {...props}

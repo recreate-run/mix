@@ -38,7 +38,7 @@ export function SessionDisplay({ data }: SessionDisplayProps) {
   markdown += `- **ID:** ${data.id}\n`;
   markdown += `- **Title:** ${data.title}\n`;
   markdown += `- **Messages:** ${data.messageCount}\n`;
-  
+
   if (data.totalTokens > 0) {
     const totalK = formatTokens(data.totalTokens);
     const inputK = formatTokens(data.promptTokens);
@@ -47,17 +47,17 @@ export function SessionDisplay({ data }: SessionDisplayProps) {
   } else {
     markdown += '- **Tokens:** 0\n';
   }
-  
+
   markdown += `- **Cost:** $${data.cost.toFixed(4)}\n`;
-  
+
   if (data.createdAt > 0) {
     markdown += `- **Created:** ${formatTimestamp(data.createdAt)}\n`;
   }
-  
+
   if (data.updatedAt > 0) {
     markdown += `- **Last Updated:** ${formatTimestamp(data.updatedAt)}\n`;
   }
-  
+
   if (data.parentSessionId) {
     markdown += `- **Parent Session:** ${data.parentSessionId}\n`;
   }

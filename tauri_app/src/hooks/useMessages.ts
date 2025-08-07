@@ -10,7 +10,9 @@ interface MessageResponse {
   response: string;
 }
 
-const sendMessage = async (params: SendMessageParams): Promise<MessageResponse> => {
+const sendMessage = async (
+  params: SendMessageParams
+): Promise<MessageResponse> => {
   const result = await rpcCall<any>('messages.send', params);
   const assistantResponse = result?.response || 'No response from server';
   return { response: assistantResponse };

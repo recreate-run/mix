@@ -1,23 +1,23 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
   checkAccessibilityPermission,
-  requestAccessibilityPermission,
   checkFullDiskAccessPermission,
-  requestFullDiskAccessPermission,
-  checkScreenRecordingPermission,
-  requestScreenRecordingPermission,
   checkMicrophonePermission,
-  requestMicrophonePermission
+  checkScreenRecordingPermission,
+  requestAccessibilityPermission,
+  requestFullDiskAccessPermission,
+  requestMicrophonePermission,
+  requestScreenRecordingPermission,
 } from 'tauri-plugin-macos-permissions-api';
 
 // Accessibility Permission Hook
-export function useAccessibilityPermission(enabled: boolean = true) {
+export function useAccessibilityPermission(enabled = true) {
   const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: ['permission', 'accessibility'],
     queryFn: checkAccessibilityPermission,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
     enabled,
   });
@@ -25,7 +25,9 @@ export function useAccessibilityPermission(enabled: boolean = true) {
   const mutation = useMutation({
     mutationFn: requestAccessibilityPermission,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permission', 'accessibility'] });
+      queryClient.invalidateQueries({
+        queryKey: ['permission', 'accessibility'],
+      });
     },
   });
 
@@ -39,13 +41,13 @@ export function useAccessibilityPermission(enabled: boolean = true) {
 }
 
 // Full Disk Access Permission Hook
-export function useFullDiskAccessPermission(enabled: boolean = true) {
+export function useFullDiskAccessPermission(enabled = true) {
   const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: ['permission', 'fullDiskAccess'],
     queryFn: checkFullDiskAccessPermission,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
     enabled,
   });
@@ -53,7 +55,9 @@ export function useFullDiskAccessPermission(enabled: boolean = true) {
   const mutation = useMutation({
     mutationFn: requestFullDiskAccessPermission,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permission', 'fullDiskAccess'] });
+      queryClient.invalidateQueries({
+        queryKey: ['permission', 'fullDiskAccess'],
+      });
     },
   });
 
@@ -67,13 +71,13 @@ export function useFullDiskAccessPermission(enabled: boolean = true) {
 }
 
 // Screen Recording Permission Hook
-export function useScreenRecordingPermission(enabled: boolean = true) {
+export function useScreenRecordingPermission(enabled = true) {
   const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: ['permission', 'screenRecording'],
     queryFn: checkScreenRecordingPermission,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
     enabled,
   });
@@ -81,7 +85,9 @@ export function useScreenRecordingPermission(enabled: boolean = true) {
   const mutation = useMutation({
     mutationFn: requestScreenRecordingPermission,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['permission', 'screenRecording'] });
+      queryClient.invalidateQueries({
+        queryKey: ['permission', 'screenRecording'],
+      });
     },
   });
 
@@ -95,13 +101,13 @@ export function useScreenRecordingPermission(enabled: boolean = true) {
 }
 
 // Microphone Permission Hook
-export function useMicrophonePermission(enabled: boolean = true) {
+export function useMicrophonePermission(enabled = true) {
   const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: ['permission', 'microphone'],
     queryFn: checkMicrophonePermission,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
     enabled,
   });

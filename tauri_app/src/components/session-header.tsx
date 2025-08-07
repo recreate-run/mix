@@ -10,7 +10,7 @@ export function SessionHeader({ onNewSession }: SessionHeaderProps) {
 
   const handleNewSession = async () => {
     try {
-      await createSession.mutateAsync({ title: "Chat Session" });
+      await createSession.mutateAsync({ title: 'Chat Session' });
       onNewSession?.();
     } catch (error) {
       console.error('Failed to create new session:', error);
@@ -20,9 +20,9 @@ export function SessionHeader({ onNewSession }: SessionHeaderProps) {
   return (
     <div className="flex justify-end">
       <button
-        onClick={handleNewSession}
+        className="flex items-center gap-2 rounded-lg font-medium text-sm text-stone-500 transition-colors hover:bg-stone-700/50 hover:text-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={createSession.isPending}
-        className="flex items-center gap-2 text-sm font-medium text-stone-500 hover:text-stone-100 hover:bg-stone-700/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={handleNewSession}
         title="Start New Session"
       >
         <IconEdit className="size-5" />

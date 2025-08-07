@@ -1,4 +1,4 @@
-import { Shield, HelpCircle, Command, RefreshCw, Clock } from 'lucide-react';
+import { Clock, Command, HelpCircle, RefreshCw, Shield } from 'lucide-react';
 
 interface SlashCommand {
   id: string;
@@ -26,7 +26,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Show context usage breakdown',
     icon: Command,
   },
-   {
+  {
     id: 'help',
     name: 'help',
     description: 'Get assistance and guidance',
@@ -44,7 +44,7 @@ export const slashCommands: SlashCommand[] = [
     name: 'permissions',
     description: 'System permissions and access',
     icon: Shield,
-  }
+  },
 ];
 
 export const shouldShowSlashCommands = (text: string): boolean => {
@@ -56,7 +56,7 @@ export const handleSlashCommandNavigation = (
   isVisible: boolean,
   selectedIndex: number,
   onIndexChange: (index: number) => void,
-  onCommandSelect: (command: typeof slashCommands[0]) => void,
+  onCommandSelect: (command: (typeof slashCommands)[0]) => void,
   onClose: () => void
 ): boolean => {
   if (!isVisible) return false;
@@ -64,11 +64,15 @@ export const handleSlashCommandNavigation = (
   switch (e.key) {
     case 'ArrowDown':
       e.preventDefault();
-      onIndexChange(selectedIndex < slashCommands.length - 1 ? selectedIndex + 1 : 0);
+      onIndexChange(
+        selectedIndex < slashCommands.length - 1 ? selectedIndex + 1 : 0
+      );
       return true;
     case 'ArrowUp':
       e.preventDefault();
-      onIndexChange(selectedIndex > 0 ? selectedIndex - 1 : slashCommands.length - 1);
+      onIndexChange(
+        selectedIndex > 0 ? selectedIndex - 1 : slashCommands.length - 1
+      );
       return true;
     case 'Enter':
       e.preventDefault();
@@ -79,6 +83,6 @@ export const handleSlashCommandNavigation = (
       onClose();
       return true;
   }
-  
+
   return false;
 };

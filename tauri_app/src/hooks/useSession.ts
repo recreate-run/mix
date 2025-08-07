@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { rpcCall } from '@/lib/rpc';
-import { useState, useEffect } from 'react';
 
 interface CreateSessionParams {
   title: string;
@@ -21,10 +21,10 @@ const createSession = async (params: CreateSessionParams): Promise<Session> => {
     throw new Error('No session ID returned from server');
   }
 
-  return { 
+  return {
     id: sessionId,
     title: result?.title,
-    workingDirectory: result?.workingDirectory
+    workingDirectory: result?.workingDirectory,
   };
 };
 
@@ -43,8 +43,8 @@ export const useCreateSession = () => {
 export const useSession = (workingDirectory?: string) => {
   return useQuery({
     queryKey: ['session', workingDirectory],
-    queryFn: () => createSession({ title: "Chat Session", workingDirectory }),
-    staleTime: Infinity,
+    queryFn: () => createSession({ title: 'Chat Session', workingDirectory }),
+    staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
   });
 };
@@ -53,26 +53,26 @@ export const useSession = (workingDirectory?: string) => {
 export const useActiveSession = (workingDirectory?: string) => {
   const [overrideSession, setOverrideSession] = useState<Session | null>(null);
   const defaultSessionQuery = useSession(workingDirectory);
-  
+
   // Use override session if available, otherwise fall back to default
   const activeSession = overrideSession || defaultSessionQuery.data;
   const isLoading = !overrideSession && defaultSessionQuery.isLoading;
   const error = !overrideSession && defaultSessionQuery.error;
-  
+
   const switchToSession = (session: Session) => {
     setOverrideSession(session);
   };
-  
+
   const resetToDefault = () => {
     setOverrideSession(null);
   };
-  
+
   return {
     data: activeSession,
     isLoading,
     error,
     switchToSession,
     resetToDefault,
-    isOverride: !!overrideSession
+    isOverride: !!overrideSession,
   };
 };

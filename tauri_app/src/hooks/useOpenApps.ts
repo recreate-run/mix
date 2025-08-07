@@ -52,7 +52,7 @@ export function useAppList() {
     apps: data ?? [],
     isLoading,
     error: error?.message ?? null,
-    refreshApps: refetch
+    refreshApps: refetch,
   };
 }
 
@@ -64,7 +64,7 @@ export function useAppIcon(bundleId: string | null) {
       return await invoke<string>('get_app_icon', { bundleId });
     },
     enabled: !!bundleId,
-    staleTime: Infinity, // Icons don't change
+    staleTime: Number.POSITIVE_INFINITY, // Icons don't change
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
@@ -72,7 +72,7 @@ export function useAppIcon(bundleId: string | null) {
   return {
     iconBase64: data ?? null,
     isLoading: isLoading && !!bundleId,
-    error: error?.message ?? null
+    error: error?.message ?? null,
   };
 }
 

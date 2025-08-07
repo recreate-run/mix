@@ -1,10 +1,6 @@
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from '@/components/ui/avatar';
 import type { ComponentProps, HTMLAttributes } from 'react';
 import React from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 export type AIMessageProps = HTMLAttributes<HTMLDivElement> & {
@@ -31,14 +27,7 @@ export function AIMessageContent({
   ...props
 }: AIMessageContentProps) {
   return (
-    <div
-      className={cn(
-        ' px-4 ',
-        'text-foreground',
-        className
-      )}
-      {...props}
-    >
+    <div className={cn(' px-4 ', 'text-foreground', className)} {...props}>
       {children}
     </div>
   );
@@ -52,7 +41,13 @@ function AIMessageContentInner({
   ...props
 }: AIMessageContentInnerProps) {
   return (
-    <div className={cn(" rounded-xl px-4 py-2 text-xl is-user:dark group-[.is-user]:bg-secondary/80", className)} {...props}>
+    <div
+      className={cn(
+        ' is-user:dark rounded-xl px-4 py-2 text-xl group-[.is-user]:bg-secondary/80',
+        className
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -66,7 +61,13 @@ function AIMessageContentToolbar({
   ...props
 }: AIMessageContentToolbarProps) {
   return (
-    <div className={cn("opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-4", className)} {...props}>
+    <div
+      className={cn(
+        'px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100',
+        className
+      )}
+      {...props}
+    >
       {children}
     </div>
   );

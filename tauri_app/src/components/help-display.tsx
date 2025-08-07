@@ -18,8 +18,8 @@ interface HelpDisplayProps {
 export function HelpDisplay({ data }: HelpDisplayProps) {
   // Generate markdown string
   let markdown = '# Available Commands\n\n';
-  
-  data.commands.forEach(command => {
+
+  data.commands.forEach((command) => {
     markdown += `- \`${command.usage}\` - ${command.description}\n`;
   });
 

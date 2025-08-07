@@ -1,7 +1,7 @@
-import { useReducer, useEffect, useRef } from 'react';
-import { useFileSystem, type MediaItem } from './useFileSystem';
-import { useAttachmentStore, getParentPath } from '@/stores/attachmentStore';
+import { useEffect, useReducer, useRef } from 'react';
+import { getParentPath, useAttachmentStore } from '@/stores/attachmentStore';
 import { ALL_MEDIA_EXTENSIONS } from '@/utils/fileTypes';
+import { type MediaItem, useFileSystem } from './useFileSystem';
 
 type State = {
   selected: number;
@@ -10,14 +10,17 @@ type State = {
   isLoadingFolder: boolean;
 };
 
-type Action = 
+type Action =
   | { type: 'SET_SELECTED'; payload: number }
   | { type: 'RESET_SELECTION' }
   | { type: 'SET_FOLDER_CONTENTS'; payload: MediaItem[] }
   | { type: 'SET_CURRENT_FOLDER'; payload: string | null }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'RESET_STATE' }
-  | { type: 'ENTER_FOLDER'; payload: { contents: MediaItem[]; folder: string } };
+  | {
+      type: 'ENTER_FOLDER';
+      payload: { contents: MediaItem[]; folder: string };
+    };
 
 const initialState: State = {
   selected: 0,
@@ -53,50 +56,56 @@ const reducer = (state: State, action: Action): State => {
   }
 };
 
-export const useFileReference = (text: string, setText: (text: string) => void, customBasePath?: string) => {
+export const useFileReference = (
+  text: string,
+  setText: (text: string) => void,
+  customBasePath?: string
+) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { currentFiles, fetchFiles, fetchDirectoryContents } = useFileSystem(customBasePath);
+  const { currentFiles, fetchFiles, fetchDirectoryContents } =
+    useFileSystem(customBasePath);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const addAttachment = useAttachmentStore(state => state.addAttachment);
-  const addReference = useAttachmentStore(state => state.addReference);
-  
+
+  const addAttachment = useAttachmentStore((state) => state.addAttachment);
+  const addReference = useAttachmentStore((state) => state.addReference);
+
   const startDebouncedLoading = () => {
     // Clear any existing timeout
     if (loadingTimeoutRef.current) {
       clearTimeout(loadingTimeoutRef.current);
     }
-    
+
     // Set loading after 150ms delay
     loadingTimeoutRef.current = setTimeout(() => {
       dispatch({ type: 'SET_LOADING', payload: true });
       loadingTimeoutRef.current = null;
     }, 150);
   };
-  
+
   const clearLoadingTimeout = () => {
     if (loadingTimeoutRef.current) {
       clearTimeout(loadingTimeoutRef.current);
       loadingTimeoutRef.current = null;
     }
   };
-  
+
   const baseFiles = state.currentFolder ? state.folderContents : currentFiles;
-  const files = baseFiles.filter(f => 
-    f.isDirectory || 
-    (f.extension && ALL_MEDIA_EXTENSIONS.includes(f.extension as any))
+  const files = baseFiles.filter(
+    (f) =>
+      f.isDirectory ||
+      (f.extension && ALL_MEDIA_EXTENSIONS.includes(f.extension as any))
   );
-  
+
   const words = text.split(' ');
   const lastWord = words[words.length - 1];
   const show = lastWord.startsWith('@') && !lastWord.includes('/');
-  
+
   useEffect(() => {
     if (show) {
       fetchFiles();
     }
   }, [show, fetchFiles]);
-  
+
   useEffect(() => {
     dispatch({ type: 'RESET_SELECTION' });
   }, [files.length]);
@@ -120,12 +129,11 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [show]);
-  
 
   const handleSelection = async (selectedFile?: MediaItem) => {
     const file = selectedFile || files[state.selected];
     if (!file) return;
-    
+
     const words = text.split(' ');
     // Only add "../" if file path contains subdirectories
     const hasSubdirectory = file.path.includes('/');
@@ -133,24 +141,23 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
     const displayReference = `@${prefix}${file.name}`;
     words[words.length - 1] = `${displayReference} `;
     const newText = words.join(' ');
-    
+
     // Add file or folder to attachment store based on type
     if (file.isDirectory) {
-      const { createFolderAttachment } = await import('@/stores/attachmentStore');
+      const { createFolderAttachment } = await import(
+        '@/stores/attachmentStore'
+      );
       const folderAttachment = await createFolderAttachment(file.path);
       addAttachment(folderAttachment);
-      
     } else {
       const { createFileAttachment } = await import('@/stores/attachmentStore');
       const fileAttachment = createFileAttachment(file.path);
       if (fileAttachment) {
         addAttachment(fileAttachment);
-        
       }
     }
     addReference(displayReference, file.path);
     setText(newText);
-    
   };
 
   const handleEscape = () => {
@@ -170,8 +177,10 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
     try {
       const contents = await fetchDirectoryContents(folder.path);
       clearLoadingTimeout(); // Clear timeout since operation completed
-      dispatch({ type: 'ENTER_FOLDER', payload: { contents, folder: folder.path } });
-      
+      dispatch({
+        type: 'ENTER_FOLDER',
+        payload: { contents, folder: folder.path },
+      });
     } catch (error) {
       console.error('Failed to load folder contents:', error);
       clearLoadingTimeout(); // Clear timeout on error
@@ -181,23 +190,24 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
 
   const goBack = async () => {
     if (!state.currentFolder) return;
-    
+
     const parentPath = getParentPath(state.currentFolder);
     startDebouncedLoading();
-    
+
     try {
       if (parentPath) {
         const contents = await fetchDirectoryContents(parentPath);
         clearLoadingTimeout(); // Clear timeout since operation completed
-        dispatch({ type: 'ENTER_FOLDER', payload: { contents, folder: parentPath } });
-        
+        dispatch({
+          type: 'ENTER_FOLDER',
+          payload: { contents, folder: parentPath },
+        });
       } else {
         clearLoadingTimeout(); // Clear timeout for immediate operation
         dispatch({ type: 'SET_CURRENT_FOLDER', payload: null });
         dispatch({ type: 'SET_FOLDER_CONTENTS', payload: [] });
         dispatch({ type: 'RESET_SELECTION' });
         dispatch({ type: 'SET_LOADING', payload: false });
-        
       }
     } catch (error) {
       console.error('Failed to load parent folder contents:', error);
@@ -205,8 +215,7 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
-  
-  
+
   const enterSelectedFolder = (file?: MediaItem) => {
     const selectedFile = file || files[state.selected];
     if (selectedFile?.isDirectory) {
@@ -219,17 +228,16 @@ export const useFileReference = (text: string, setText: (text: string) => void, 
     }
   };
 
-
-  return { 
-    show, 
-    files, 
-    selected: state.selected, 
-    selectFile: handleSelection, 
+  return {
+    show,
+    files,
+    selected: state.selected,
+    selectFile: handleSelection,
     currentFolder: state.currentFolder,
     isLoadingFolder: state.isLoadingFolder,
     goBack,
     enterSelectedFolder,
     close: handleEscape,
-    closeDropdown
+    closeDropdown,
   };
 };

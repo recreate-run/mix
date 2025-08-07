@@ -93,8 +93,12 @@ export type AIToolContentProps = ComponentProps<typeof CollapsibleContent> & {
   };
 };
 
-
-export const AIToolContent = ({ className, toolCall, children, ...props }: AIToolContentProps) => (
+export const AIToolContent = ({
+  className,
+  toolCall,
+  children,
+  ...props
+}: AIToolContentProps) => (
   <CollapsibleContent
     className={cn('grid gap-4 overflow-x-auto border-t p-4 text-sm', className)}
     {...props}
@@ -103,10 +107,7 @@ export const AIToolContent = ({ className, toolCall, children, ...props }: AIToo
       <>
         <AIToolParameters parameters={toolCall.parameters} />
         {(toolCall.result || toolCall.error) && (
-          <AIToolResult
-            error={toolCall.error}
-            result={toolCall.result}
-          />
+          <AIToolResult error={toolCall.error} result={toolCall.result} />
         )}
       </>
     )}
@@ -124,7 +125,6 @@ export const AIToolParameters = ({
   ...props
 }: AIToolParametersProps) => (
   <div className={cn('space-y-2', className)} {...props}>
-
     <div className="rounded-md bg-muted/50">
       <pre className="overflow-x-scroll whitespace-pre text-muted-foreground text-xs">
         {JSON.stringify(parameters, null, 2)}
@@ -170,7 +170,11 @@ export const AIToolResult = ({
 // Ladder View Components
 export type AIToolLadderProps = ComponentProps<'div'>;
 
-export const AIToolLadder = ({ className, children, ...props }: AIToolLadderProps) => (
+export const AIToolLadder = ({
+  className,
+  children,
+  ...props
+}: AIToolLadderProps) => (
   <div className={cn('relative space-y-2', className)} {...props}>
     {children}
   </div>
@@ -194,24 +198,28 @@ export const AIToolStep = ({
     <div className="flex items-center gap-2 px-4">
       {/* Step indicator */}
 
-        <div className={cn(
-          "size-4 rounded-full  flex items-center justify-center text-xs font-medium",
-          status === 'completed' && "text-green-700",
-          status === 'running' && "text-blue-700 animate-pulse",
-          status === 'error' && " text-red-700",
-          status === 'pending' && " text-muted-foreground"
-        )}>
-          {status === 'completed' && <CheckCircleIcon className="" />}
-          {status === 'error' && <XCircleIcon className="" />}
-          {status === 'running' && <ClockIcon className="" />}
-          {status === 'pending' && stepNumber}
-        </div>
+      <div
+        className={cn(
+          'flex size-4 items-center justify-center rounded-full font-medium text-xs',
+          status === 'completed' && 'text-green-700',
+          status === 'running' && 'animate-pulse text-blue-700',
+          status === 'error' && ' text-red-700',
+          status === 'pending' && ' text-muted-foreground'
+        )}
+      >
+        {status === 'completed' && <CheckCircleIcon className="" />}
+        {status === 'error' && <XCircleIcon className="" />}
+        {status === 'running' && <ClockIcon className="" />}
+        {status === 'pending' && stepNumber}
+      </div>
 
-      
       {/* Tool content */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <Collapsible
-          className={cn('not-prose w-full hover:bg-muted rounded-md ', className)}
+          className={cn(
+            'not-prose w-full rounded-md hover:bg-muted ',
+            className
+          )}
           {...props}
         >
           {children}

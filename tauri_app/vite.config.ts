@@ -2,23 +2,27 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
-import { consoleForwardPlugin } from "./src/vite-console-forward-plugin";
+import { consoleForwardPlugin } from './src/vite-console-forward-plugin';
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss(), consoleForwardPlugin({
+  plugins: [
+    react(),
+    tailwindcss(),
+    consoleForwardPlugin({
       // Enable console forwarding (default: true in dev mode)
       enabled: true,
 
       // Custom API endpoint (default: '/api/debug/client-logs')
-      endpoint: "/api/debug/client-logs",
+      endpoint: '/api/debug/client-logs',
 
       // Which console levels to forward (default: all)
-      levels: ["log", "warn", "error", "info", "debug"],
-    })],
+      levels: ['log', 'warn', 'error', 'info', 'debug'],
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

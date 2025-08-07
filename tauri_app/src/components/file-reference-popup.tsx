@@ -1,5 +1,11 @@
-import { FolderIcon, ImageIcon, ArrowLeftIcon, ArrowRightIcon, KeyIcon } from 'lucide-react';
-import { type FileEntry } from '@/hooks/useFileSystem';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  FolderIcon,
+  ImageIcon,
+  KeyIcon,
+} from 'lucide-react';
+import type { FileEntry } from '@/hooks/useFileSystem';
 import { isImageFile } from '@/lib/fileUtils';
 
 interface Props {
@@ -23,11 +29,11 @@ const FileItem = ({ file, isSelected, onSelect }: FileItemProps) => {
   const Icon = file.isDirectory ? FolderIcon : ImageIcon;
   const iconColor = file.isDirectory ? 'text-blue-500' : 'text-green-500';
   const isImage = file.extension && isImageFile(file.name);
-  
+
   return (
     <div
-      className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
-        isSelected ? 'bg-muted/80 rounded-md' : 'hover:bg-muted/30'
+      className={`flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors ${
+        isSelected ? 'rounded-md bg-muted/80' : 'hover:bg-muted/30'
       }`}
       onClick={() => onSelect(file)}
     >
@@ -35,7 +41,7 @@ const FileItem = ({ file, isSelected, onSelect }: FileItemProps) => {
       <div className="flex-1">
         <div className="font-medium text-sm">{file.name}</div>
         {file.extension && !file.isDirectory && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-muted-foreground text-xs">
             {isImage ? 'Image' : 'Video'} • .{file.extension}
           </div>
         )}
@@ -44,31 +50,47 @@ const FileItem = ({ file, isSelected, onSelect }: FileItemProps) => {
   );
 };
 
-
-const KeyShortcut = ({ children, onClick, title }: { children: React.ReactNode; onClick?: () => void; title?: string }) => (
+const KeyShortcut = ({
+  children,
+  onClick,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  title?: string;
+}) => (
   <button
+    className="flex items-center gap-1 rounded-md bg-muted/40 px-3 font-medium font-mono text-sm transition-colors hover:bg-muted/70 hover:text-foreground"
     onClick={onClick}
-    className="flex items-center gap-1 px-3 rounded-md bg-muted/40 hover:bg-muted/70 hover:text-foreground transition-colors text-sm font-mono font-medium"
     title={title}
   >
     {children}
   </button>
 );
 
-const Header = ({ currentFolder, filesCount, onGoBack, canNavigateForward, onEnterFolder, onClose }: { 
-  currentFolder?: string | null; 
-  filesCount: number; 
+const Header = ({
+  currentFolder,
+  filesCount,
+  onGoBack,
+  canNavigateForward,
+  onEnterFolder,
+  onClose,
+}: {
+  currentFolder?: string | null;
+  filesCount: number;
   onGoBack?: () => void;
   canNavigateForward?: boolean;
   onEnterFolder?: () => void;
   onClose?: () => void;
 }) => (
-  <div className="text-xs text-muted-foreground px-3 py-1 border-b mb-2 flex items-center justify-between">
+  <div className="mb-2 flex items-center justify-between border-b px-3 py-1 text-muted-foreground text-xs">
     <span className="font-medium">
-      {currentFolder ? `${currentFolder} (${filesCount})` : `Folders & Media (${filesCount})`}
+      {currentFolder
+        ? `${currentFolder} (${filesCount})`
+        : `Folders & Media (${filesCount})`}
     </span>
     <div className="flex items-center gap-2">
-       {onClose && (
+      {onClose && (
         <KeyShortcut onClick={onClose} title="Close">
           ⌫
         </KeyShortcut>
@@ -83,12 +105,20 @@ const Header = ({ currentFolder, filesCount, onGoBack, canNavigateForward, onEnt
           →
         </KeyShortcut>
       )}
-     
     </div>
   </div>
 );
 
-export function FileReferencePopup({ files, selected, onSelect, currentFolder, isLoadingFolder, onGoBack, onEnterFolder, onClose }: Props) {
+export function FileReferencePopup({
+  files,
+  selected,
+  onSelect,
+  currentFolder,
+  isLoadingFolder,
+  onGoBack,
+  onEnterFolder,
+  onClose,
+}: Props) {
   const selectedFile = files[selected];
   const canNavigateForward = selectedFile?.isDirectory;
 
@@ -99,33 +129,35 @@ export function FileReferencePopup({ files, selected, onSelect, currentFolder, i
   };
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 bg-popover border border-border rounded-xl shadow-lg z-50 overflow-hidden p-2 max-h-64 overflow-y-auto">
-      <Header 
-        currentFolder={currentFolder} 
-        filesCount={files.length} 
-        onGoBack={onGoBack}
+    <div className="absolute right-0 bottom-full left-0 z-50 mb-2 max-h-64 overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-lg">
+      <Header
         canNavigateForward={canNavigateForward}
-        onEnterFolder={handleEnterFolder}
+        currentFolder={currentFolder}
+        filesCount={files.length}
         onClose={onClose}
+        onEnterFolder={handleEnterFolder}
+        onGoBack={onGoBack}
       />
-      
+
       {isLoadingFolder ? (
-        <div className="text-xs text-muted-foreground px-3 py-2">
+        <div className="px-3 py-2 text-muted-foreground text-xs">
           Loading folder contents...
         </div>
-      ) : !files.length ? (
-        <div className="text-xs text-muted-foreground px-3 py-2">
-          {currentFolder ? 'No files found in folder' : 'No folders or media files found'}
-        </div>
-      ) : (
+      ) : files.length ? (
         files.map((file, index) => (
           <FileItem
-            key={file.path}
             file={file}
             isSelected={index === selected}
+            key={file.path}
             onSelect={onSelect}
           />
         ))
+      ) : (
+        <div className="px-3 py-2 text-muted-foreground text-xs">
+          {currentFolder
+            ? 'No files found in folder'
+            : 'No folders or media files found'}
+        </div>
       )}
     </div>
   );

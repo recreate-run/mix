@@ -1,5 +1,9 @@
 'use client';
 
+import type { HTMLAttributes } from 'react';
+import { memo } from 'react';
+import ReactMarkdown, { type Options } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   type BundledLanguage,
   CodeBlock,
@@ -17,10 +21,6 @@ import {
   CodeBlockSelectTrigger,
   CodeBlockSelectValue,
 } from '@/components/ui/kibo-ui/code-block';
-import type { HTMLAttributes } from 'react';
-import { memo } from 'react';
-import ReactMarkdown, { type Options } from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 
 export type AIResponseProps = HTMLAttributes<HTMLDivElement> & {
@@ -129,8 +129,7 @@ const components: Options['components'] = {
         data={data}
         defaultValue={data[0].language}
       >
-        <CodeBlockHeader className='justify-end h-8  border-none'>
-
+        <CodeBlockHeader className="h-8 justify-end border-none">
           {/* <CodeBlockSelect>
             <CodeBlockSelectTrigger>
               <CodeBlockSelectValue />
@@ -143,13 +142,12 @@ const components: Options['components'] = {
               )}
             </CodeBlockSelectContent>
           </CodeBlockSelect> */}
-          <CodeBlockCopyButton 
+          <CodeBlockCopyButton
             onCopy={() => console.log('Copied code to clipboard')}
             onError={() => console.error('Failed to copy code to clipboard')}
           />
         </CodeBlockHeader>
         <CodeBlockBody>
-          
           {(item) => (
             <CodeBlockItem key={item.language} value={item.language}>
               <CodeBlockContent language={item.language as BundledLanguage}>

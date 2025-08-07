@@ -1,4 +1,4 @@
-import { Check, Clock, Circle } from 'lucide-react';
+import { Check, Circle, Clock } from 'lucide-react';
 
 type TodoStatus = 'pending' | 'in_progress' | 'completed';
 type TodoPriority = 'low' | 'medium' | 'high';
@@ -19,12 +19,11 @@ const StatusIcon = ({ status }: { status: TodoStatus }) => {
     case 'completed':
       return <Check className="size-4 text-green-500" />;
     case 'in_progress':
-      return <Clock className="size-4 text-blue-500 animate-pulse" />;
+      return <Clock className="size-4 animate-pulse text-blue-500" />;
     case 'pending':
       return <Circle className="size-4 text-gray-400" />;
   }
 };
-
 
 export function TodoList({ todos }: TodoListProps) {
   if (!todos.length) {
@@ -32,15 +31,14 @@ export function TodoList({ todos }: TodoListProps) {
   }
 
   return (
-    <div className="space-y-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+    <div className="space-y-2 border-gray-200 border-b pb-2 dark:border-gray-700">
       {todos.map((todo) => (
-        <div
-          key={todo.id}
-          className="flex items-center gap-3 p-1"
-        >
+        <div className="flex items-center gap-3 p-1" key={todo.id}>
           <StatusIcon status={todo.status} />
           <div className="flex-1">
-            <p className={`text-sm ${todo.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900 dark:text-gray-100'}`}>
+            <p
+              className={`text-sm ${todo.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-900 dark:text-gray-100'}`}
+            >
               {todo.content}
             </p>
           </div>

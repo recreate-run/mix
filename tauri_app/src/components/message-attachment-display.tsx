@@ -1,22 +1,24 @@
-import { type Attachment } from '@/stores/attachmentStore';
-import { 
-  ImagePreview, 
-  VideoPreview, 
-  AudioPreview, 
-  FolderPreview, 
-  AppPreview, 
-  DefaultPreview 
+import type { Attachment } from '@/stores/attachmentStore';
+import {
+  AppPreview,
+  AudioPreview,
+  DefaultPreview,
+  FolderPreview,
+  ImagePreview,
+  VideoPreview,
 } from './attachment-item-preview';
 
 interface MessageAttachmentDisplayProps {
   attachments: Attachment[];
 }
 
-export function MessageAttachmentDisplay({ attachments }: MessageAttachmentDisplayProps) {
+export function MessageAttachmentDisplay({
+  attachments,
+}: MessageAttachmentDisplayProps) {
   if (!attachments || attachments.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 mb-2">
+    <div className="mb-2 flex flex-wrap gap-2">
       {attachments.map((attachment, index) => {
         const renderPreview = () => {
           switch (attachment.type) {
@@ -36,7 +38,7 @@ export function MessageAttachmentDisplay({ attachments }: MessageAttachmentDispl
         };
 
         return (
-          <div key={`${attachment.id}-${index}`} className="flex-shrink-0">
+          <div className="flex-shrink-0" key={`${attachment.id}-${index}`}>
             {renderPreview()}
           </div>
         );

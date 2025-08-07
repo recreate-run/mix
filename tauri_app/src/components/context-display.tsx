@@ -1,3 +1,5 @@
+import { AlertTriangle, Info } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableBody,
@@ -6,8 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Info } from 'lucide-react';
 
 interface ComponentBreakdown {
   name: string;
@@ -40,9 +40,10 @@ export function ContextDisplay({ data }: ContextDisplayProps) {
 
   const getWarningIcon = () => {
     if (data.warningLevel === 'high') {
-      return <AlertTriangle className="w-4 h-4 text-red-500" />;
-    } else if (data.warningLevel === 'medium') {
-      return <Info className="w-4 h-4 text-yellow-500" />;
+      return <AlertTriangle className="h-4 w-4 text-red-500" />;
+    }
+    if (data.warningLevel === 'medium') {
+      return <Info className="h-4 w-4 text-yellow-500" />;
     }
     return null;
   };
@@ -57,9 +58,10 @@ export function ContextDisplay({ data }: ContextDisplayProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold">Context Usage Breakdown</h3>
-        <p className="text-sm text-muted-foreground">
-          {formatTokens(data.totalTokens)} / {formatTokens(data.maxTokens)} ({Math.round(data.usagePercent)}%) • {data.model}
+        <h3 className="font-semibold text-lg">Context Usage Breakdown</h3>
+        <p className="text-muted-foreground text-sm">
+          {formatTokens(data.totalTokens)} / {formatTokens(data.maxTokens)} (
+          {Math.round(data.usagePercent)}%) • {data.model}
         </p>
       </div>
 
@@ -70,11 +72,8 @@ export function ContextDisplay({ data }: ContextDisplayProps) {
           <span>{data.usagePercent.toFixed(1)}%</span>
         </div>
         <div className="relative">
-          <Progress 
-            value={data.usagePercent} 
-            className="h-3"
-          />
-          <div 
+          <Progress className="h-3" value={data.usagePercent} />
+          <div
             className={`absolute top-0 left-0 h-3 rounded-l-full transition-all ${getProgressColor()}`}
             style={{ width: `${Math.min(data.usagePercent, 100)}%` }}
           />
@@ -92,13 +91,17 @@ export function ContextDisplay({ data }: ContextDisplayProps) {
         </TableHeader>
         <TableBody>
           {data.components.map((component, index) => (
-            <TableRow 
-              key={index} 
-              className={component.isTotal ? 'font-semibold border-t-2' : ''}
+            <TableRow
+              className={component.isTotal ? 'border-t-2 font-semibold' : ''}
+              key={index}
             >
               <TableCell>{component.name}</TableCell>
               <TableCell className="text-right">
-                {(component.name === 'System Prompt' || component.name === 'Tool Descriptions') ? '~' : ''}{formatTokens(component.tokens)}
+                {component.name === 'System Prompt' ||
+                component.name === 'Tool Descriptions'
+                  ? '~'
+                  : ''}
+                {formatTokens(component.tokens)}
               </TableCell>
               <TableCell className="text-right">
                 {component.percentage.toFixed(1)}%
@@ -110,7 +113,7 @@ export function ContextDisplay({ data }: ContextDisplayProps) {
 
       {/* Warning Message */}
       {data.warningMessage && (
-        <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50">
+        <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3">
           {getWarningIcon()}
           <span className="text-sm">{data.warningMessage}</span>
         </div>

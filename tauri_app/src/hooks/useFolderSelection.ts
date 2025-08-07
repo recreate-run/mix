@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useCallback, useEffect, useState } from 'react';
 
 const FOLDER_STORAGE_KEY = 'file-reference-parent-folder';
 
@@ -24,8 +24,7 @@ export const useFolderSelection = () => {
       if (selected && typeof selected === 'string') {
         setSelectedFolder(selected);
         localStorage.setItem(FOLDER_STORAGE_KEY, selected);
-        
-        
+
         return selected;
       }
       return null;
@@ -38,7 +37,6 @@ export const useFolderSelection = () => {
   const clearFolder = useCallback(() => {
     setSelectedFolder(null);
     localStorage.removeItem(FOLDER_STORAGE_KEY);
-    
   }, []);
 
   return {

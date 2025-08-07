@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { rpcCall } from '@/lib/rpc';
 
 interface MessageHistoryItem {
@@ -32,20 +32,20 @@ const extractMessageData = (content: string) => {
     return {
       text: parsed.text || content,
       media: parsed.media || [],
-      apps: parsed.apps || []
+      apps: parsed.apps || [],
     };
   } catch {
     return {
       text: content,
       media: [],
-      apps: []
+      apps: [],
     };
   }
 };
 
 const fetchMessages = async (params: any): Promise<MessageHistoryItem[]> => {
   const result = await rpcCall<any[]>('messages.history', params);
-  
+
   return (result || []).map((msg: any) => {
     const messageData = extractMessageData(msg.content);
     return {
@@ -59,10 +59,9 @@ const fetchMessages = async (params: any): Promise<MessageHistoryItem[]> => {
   });
 };
 
-export function useMessageHistory({ 
-  batchSize = 50 
+export function useMessageHistory({
+  batchSize = 50,
 }: UseMessageHistoryOptions): UseMessageHistoryReturn {
-  
   const historyQuery = useInfiniteQuery({
     queryKey: ['messageHistory'],
     queryFn: ({ pageParam = 0 }) => {
@@ -81,7 +80,7 @@ export function useMessageHistory({
   const allHistory = historyQuery.data?.pages.flat() || [];
   const isLoading = historyQuery.isLoading;
   const error = historyQuery.error?.message || null;
-  const hasMoreHistory = historyQuery.hasNextPage || false;
+  const hasMoreHistory = historyQuery.hasNextPage;
 
   const loadInitialHistory = useCallback(async () => {
     await historyQuery.refetch();
@@ -93,12 +92,15 @@ export function useMessageHistory({
   }, [historyQuery]);
 
   const getAllHistoryTexts = useCallback(() => {
-    return allHistory.map(msg => msg.content);
+    return allHistory.map((msg) => msg.content);
   }, [allHistory]);
 
-  const getHistoryItem = useCallback((index: number): MessageHistoryItem | null => {
-    return allHistory[index] || null;
-  }, [allHistory]);
+  const getHistoryItem = useCallback(
+    (index: number): MessageHistoryItem | null => {
+      return allHistory[index] || null;
+    },
+    [allHistory]
+  );
 
   return {
     allHistory,

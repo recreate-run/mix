@@ -7,7 +7,11 @@ interface AppIconProps {
   className?: string;
 }
 
-export function AppIcon({ bundleId, name, className = "size-4" }: AppIconProps) {
+export function AppIcon({
+  bundleId,
+  name,
+  className = 'size-4',
+}: AppIconProps) {
   const { iconBase64, isLoading, error } = useAppIcon(bundleId);
 
   if (error || !iconBase64) {
@@ -15,14 +19,14 @@ export function AppIcon({ bundleId, name, className = "size-4" }: AppIconProps) 
   }
 
   if (isLoading) {
-    return <Monitor className={`${className} text-gray-400 animate-pulse`} />;
+    return <Monitor className={`${className} animate-pulse text-gray-400`} />;
   }
 
   return (
-    <img 
-      src={`data:image/png;base64,${iconBase64}`} 
+    <img
       alt={`${name} icon`}
       className={`${className} rounded-sm`}
+      src={`data:image/png;base64,${iconBase64}`}
     />
   );
 }

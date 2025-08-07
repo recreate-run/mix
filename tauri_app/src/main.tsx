@@ -9,7 +9,6 @@ const appStartTime = performance.now();
 // Initialize PostHog
 initPostHog();
 
-
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <App />
