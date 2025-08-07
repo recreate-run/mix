@@ -87,19 +87,11 @@ const hasExitPlanModeTool = (toolCalls: any[]) => {
 };
 
 const DEFAULT_WORKING_DIR = '/Users/sarathmenon/Desktop/a16z_demo/new_project';
-const DEFAULT_ASSISTANT_MESSAGE =
-  "Hello! I'm Mix, you AI agent for multimodal workflows. How can I help you today?";
-
-const createDefaultMessage = (): Message => ({
-  content: DEFAULT_ASSISTANT_MESSAGE,
-  from: 'assistant',
-  frontend_only: true,
-});
 
 export function ChatApp() {
   // Core conversation state
   const [text, setText] = useState<string>('');
-  const [messages, setMessages] = useState<Message[]>([createDefaultMessage()]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // UI Interaction Mode 1: Slash Commands (dropdown when typing "/help", "/clear" etc.)
   const [showSlashCommands, setShowSlashCommands] = useState(false);
@@ -175,9 +167,9 @@ export function ChatApp() {
   // Load messages when session messages data changes
   useEffect(() => {
     if (sessionMessages.data && session?.id) {
-      setMessages([createDefaultMessage(), ...sessionMessages.data]);
+      setMessages(sessionMessages.data);
     } else {
-      setMessages([createDefaultMessage()]);
+      setMessages([]);
     }
   }, [sessionMessages.data, session?.id]);
 
@@ -596,19 +588,12 @@ export function ChatApp() {
       return;
     }
 
-    // Prevent forking the first message (no history to copy)
-    if (messageIndex <= 1) {
-      console.log(
-        'Cannot fork the first message - no conversation history to copy'
-      );
-      return;
-    }
 
     try {
       // Call backend to fork session and copy messages
       const newSession = await forkSession.mutateAsync({
         sourceSessionId: session.id,
-        messageIndex: messageIndex - 1, // Account for default message offset
+        messageIndex: messageIndex,
         title: `Forked: ${session.title || 'Chat Session'}`,
       });
 

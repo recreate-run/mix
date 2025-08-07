@@ -135,10 +135,19 @@ export function ConversationDisplay({
 }: ConversationDisplayProps) {
   return (
     <div
-      className="relative h-full flex-1 overflow-y-auto"
+      className="relative h-full flex-1 overflow-y-auto pb-16"
       ref={conversationRef}
     >
       <div className="">
+        {messages.length === 0 && (
+          <AIMessage from="assistant">
+            <AIMessageContent>
+              <AIMessageContent.Content>
+                Hello! I'm Mix, you AI agent for multimodal workflows. How can I help you today?
+              </AIMessageContent.Content>
+            </AIMessageContent>
+          </AIMessage>
+        )}
         {messages.map((message, index) => (
           <AIMessage
             from={message.from}
