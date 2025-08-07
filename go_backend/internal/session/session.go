@@ -74,6 +74,15 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 				return Session{}, fmt.Errorf("failed to create input subdirectory %s: %w", subdir, err)
 			}
 		}
+
+		// Create MIX.md file if it doesn't exist
+		mixFilePath := filepath.Join(workingDirectory, "MIX.md")
+		if _, err := os.Stat(mixFilePath); os.IsNotExist(err) {
+			mixContent := "Sample MIX.md"
+			if err := os.WriteFile(mixFilePath, []byte(mixContent), 0o644); err != nil {
+				return Session{}, fmt.Errorf("failed to create MIX.md file: %w", err)
+			}
+		}
 	}
 
 	err = s.Publish(ctx, pubsub.CreatedEvent, session)
@@ -84,13 +93,24 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 }
 
 func (s *service) Fork(ctx context.Context, sourceSessionID string, title string) (Session, error) {
+	sourceSession, err := s.Get(ctx, sourceSessionID)
+	if err != nil {
+		return Session{}, err
+	}
+
 	var parentSessionID sql.NullString
 	parentSessionID = sql.NullString{String: sourceSessionID, Valid: true}
 
+	var workingDirValue sql.NullString
+	if sourceSession.WorkingDirectory != "" {
+		workingDirValue = sql.NullString{String: sourceSession.WorkingDirectory, Valid: true}
+	}
+
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
-		ID:              uuid.New().String(),
-		ParentSessionID: parentSessionID,
-		Title:           title,
+		ID:               uuid.New().String(),
+		ParentSessionID:  parentSessionID,
+		Title:            title,
+		WorkingDirectory: workingDirValue,
 	})
 	if err != nil {
 		return Session{}, err

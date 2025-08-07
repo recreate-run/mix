@@ -208,16 +208,8 @@
     },
     "contextPaths": {
       "default": [
-        ".cursorrules",
-        ".cursor/rules/",
-        "CLAUDE.md",
-        "CLAUDE.local.md",
-        "mix.md",
-        "mix.local.md",
-        "Mix.md",
-        "Mix.local.md",
-        "MIX.md",
-        "MIX.local.md"
+        "MIX.md"
+
       ],
       "description": "Context paths for the application",
       "items": {

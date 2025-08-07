@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { safeTrackEvent } from '@/lib/posthog';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type SSEToolCall = {
   name: string;
@@ -18,13 +17,13 @@ export type PersistentSSEState = {
   toolCalls: SSEToolCall[];
   finalContent: string | null;
   completed: boolean;
-  processing: boolean; // True when processing a message
-  startTime?: number; // When message processing started
-  isPaused: boolean; // True when session is paused
-  cancelling: boolean; // True when cancellation is in progress
-  cancelled: boolean; // True after cancellation completes, until user starts typing
-  reasoning: string | null; // Reasoning content from the assistant
-  reasoningDuration: number | null; // Reasoning duration in seconds
+  processing: boolean;
+  isPaused: boolean;
+  cancelling: boolean;
+  cancelled: boolean;
+  reasoning: string | null;
+  reasoningDuration: number | null;
+  startTime?: number;
 };
 
 export type PersistentSSEHook = PersistentSSEState & {
@@ -32,6 +31,8 @@ export type PersistentSSEHook = PersistentSSEState & {
   cancelMessage: () => Promise<void>;
   resetCancelledState: () => void;
 };
+
+const BACKEND_URL = 'http://localhost:8088';
 
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const [state, setState] = useState<PersistentSSEState>({
@@ -48,34 +49,39 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     reasoning: null,
     reasoningDuration: null,
   });
-  
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const toolCallsRef = useRef<Map<string, SSEToolCall>>(new Map());
-  const currentSessionRef = useRef<string>('');
-  const toolStartTimeRef = useRef<Map<string, number>>(new Map());
-  const connectedRef = useRef<boolean>(false);
-  const eventListenersRef = useRef<Array<{ event: string; handler: (event: any) => void }>>([]);
-  
-  // Maximum number of tool calls to keep in memory
-  const MAX_TOOL_CALLS = 1000;
 
-  // Establish persistent connection when sessionId changes
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const toolCallsMap = useRef<Map<string, SSEToolCall>>(new Map());
+  const toolStartTimes = useRef<Map<string, number>>(new Map());
+  const connectedRef = useRef<boolean>(false);
+  const currentSessionRef = useRef<string>('');
+  const eventListenersRef = useRef<
+    Array<{ event: string; handler: (event: any) => void }>
+  >([]);
+
   useEffect(() => {
-    if (!sessionId || sessionId === currentSessionRef.current) return;
-    
-    // Clean up previous connection
+    connectedRef.current = state.connected;
+  }, [state.connected]);
+
+  useEffect(() => {
+    if (!sessionId || sessionId === currentSessionRef.current) {
+      return;
+    }
+
     if (eventSourceRef.current) {
       // Remove all event listeners before closing
       eventListenersRef.current.forEach(({ event, handler }) => {
         eventSourceRef.current?.removeEventListener(event, handler);
       });
       eventListenersRef.current = [];
-      
+
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+    toolCallsMap.current.clear();
+    toolStartTimes.current.clear();
+    currentSessionRef.current = sessionId;
 
-    // Reset state for new session
     setState({
       connected: false,
       connecting: true,
@@ -90,169 +96,128 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       reasoning: null,
       reasoningDuration: null,
     });
-    
-    toolCallsRef.current.clear();
-    currentSessionRef.current = sessionId;
 
-    const url = `http://localhost:8088/stream?sessionId=${encodeURIComponent(sessionId)}`;
-    
-    const eventSource = new EventSource(url);
+    const eventSource = new EventSource(
+      `${BACKEND_URL}/stream?sessionId=${encodeURIComponent(sessionId)}`
+    );
     eventSourceRef.current = eventSource;
 
     // Helper function to add event listener and track it
-    const addTrackedEventListener = (event: string, handler: (event: any) => void) => {
+    const addTrackedEventListener = (
+      event: string,
+      handler: (event: any) => void
+    ) => {
       eventSource.addEventListener(event, handler);
       eventListenersRef.current.push({ event, handler });
     };
 
-    addTrackedEventListener('connected', (event) => {
-      setState(prev => ({ ...prev, connected: true, connecting: false }));
+    addTrackedEventListener('connected', () => {
+      setState((prev) => ({ ...prev, connected: true, connecting: false }));
     });
 
-    addTrackedEventListener('heartbeat', (event) => {
+    addTrackedEventListener('heartbeat', (_event) => {
       // Heartbeat events keep connection alive - no UI state changes needed
     });
 
     addTrackedEventListener('tool', (event) => {
       try {
         const data = JSON.parse(event.data);
-        
-        // Parse tool input if it's a JSON string
-        let parameters = {};
-        if (data.input) {
-          try {
-            parameters = JSON.parse(data.input);
-          } catch {
-            parameters = { input: data.input };
-          }
-        }
-        
         const toolCall: SSEToolCall = {
           id: data.id || `${data.name}-${Date.now()}`,
           name: data.name || 'unknown',
           description: data.description || data.name || 'Tool execution',
           status: data.status || 'pending',
-          parameters,
+          parameters: data.input
+            ? typeof data.input === 'string'
+              ? (() => {
+                  try {
+                    return JSON.parse(data.input);
+                  } catch {
+                    return { input: data.input };
+                  }
+                })()
+              : data.input
+            : {},
           result: data.result,
           error: data.error,
         };
-        
-        // If tool is starting, record start time
-        if (data.status === 'running' && !toolStartTimeRef.current.has(toolCall.id)) {
-          toolStartTimeRef.current.set(toolCall.id, Date.now());
-        }
-        
-        // If tool is completing, track execution time
-        if ((data.status === 'completed' || data.status === 'error') && toolStartTimeRef.current.has(toolCall.id)) {
-          const startTime = toolStartTimeRef.current.get(toolCall.id);
-          const executionTime = Date.now() - startTime!;
-          
-          safeTrackEvent('tool_execution_time', {
-            tool_name: toolCall.name,
-            tool_id: toolCall.id,
-            execution_time_ms: executionTime,
-            status: data.status,
-            has_error: !!data.error,
-            session_id: sessionId,
-            timestamp: new Date().toISOString()
-          });
-          
-          toolStartTimeRef.current.delete(toolCall.id);
+
+        if (
+          data.status === 'running' &&
+          !toolStartTimes.current.has(toolCall.id)
+        ) {
+          toolStartTimes.current.set(toolCall.id, Date.now());
         }
 
-        // Implement LRU eviction if map gets too large
-        if (toolCallsRef.current.size >= MAX_TOOL_CALLS) {
-          const firstKey = toolCallsRef.current.keys().next().value;
-          if (firstKey) {
-            toolCallsRef.current.delete(firstKey);
-          }
+        if (
+          (data.status === 'completed' || data.status === 'error') &&
+          toolStartTimes.current.has(toolCall.id)
+        ) {
+          toolStartTimes.current.delete(toolCall.id);
         }
 
-        toolCallsRef.current.set(toolCall.id, toolCall);
-        
-        setState(prev => ({
+        toolCallsMap.current.set(toolCall.id, toolCall);
+
+        setState((prev) => ({
           ...prev,
-          toolCalls: Array.from(toolCallsRef.current.values()),
-          processing: true, // Mark as processing when tools are running
+          toolCalls: Array.from(toolCallsMap.current.values()),
+          processing: true,
         }));
-      } catch (err) {
-        console.error('Failed to parse tool event:', err, event.data);
-      }
+      } catch (_err) {}
     });
 
     addTrackedEventListener('complete', (event) => {
       try {
         const data = JSON.parse(event.data);
-        const processingTime = state.startTime ? Date.now() - state.startTime : 0;
-        
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           finalContent: data.content || '',
           reasoning: data.reasoning || null,
           reasoningDuration: data.reasoningDuration || null,
           completed: true,
-          processing: false, // Message processing complete
+          processing: false,
         }));
-        
-        // Track response latency
-        if (state.startTime) {
-          safeTrackEvent('response_latency', {
-            response_time_ms: processingTime,
-            session_id: sessionId,
-            tool_count: toolCallsRef.current.size,
-            response_length: data.content?.length || 0,
-            timestamp: new Date().toISOString()
-          });
-        }
-      } catch (err) {
-        console.error('Failed to parse complete event:', err, event.data);
-        setState(prev => ({ ...prev, processing: false }));
+      } catch (_err) {
+        setState((prev) => ({ ...prev, processing: false }));
       }
     });
 
     addTrackedEventListener('error', (event) => {
-      // Backend-sent error events have JSON data
       if (event.data) {
         try {
           const data = JSON.parse(event.data);
-          const errorMsg = data.error || 'Stream error';
-          setState(prev => ({ 
-            ...prev, 
-            error: errorMsg, 
+          setState((prev) => ({
+            ...prev,
+            error: data.error || 'Stream error',
             connecting: false,
-            processing: false 
+            processing: false,
           }));
-        } catch (err) {
-          console.error('Failed to parse backend error event:', err, event.data);
-          setState(prev => ({ 
-            ...prev, 
-            error: 'Stream error', 
+        } catch {
+          setState((prev) => ({
+            ...prev,
+            error: 'Stream error',
             connecting: false,
-            processing: false 
+            processing: false,
           }));
         }
       }
     });
 
-    eventSource.onerror = (event) => {
-      // For persistent connections, we want to be more resilient to temporary drops
-      if (eventSource.readyState === EventSource.CLOSED) {
-        setState(prev => ({ 
-          ...prev, 
+    eventSource.onerror = () => {
+      const readyState = eventSource.readyState;
+      if (
+        readyState === EventSource.CLOSED ||
+        readyState === EventSource.CONNECTING
+      ) {
+        setState((prev) => ({
+          ...prev,
           connected: false,
-          connecting: true // Try to reconnect
-        }));
-      } else if (eventSource.readyState === EventSource.CONNECTING) {
-        setState(prev => ({ 
-          ...prev, 
-          connected: false,
-          connecting: true,
-          error: null // Clear any previous errors
+          connecting: readyState === EventSource.CONNECTING,
+          error: readyState === EventSource.CONNECTING ? null : prev.error,
         }));
       }
     };
 
-    // Cleanup function
     return () => {
       if (eventSourceRef.current) {
         // Remove all event listeners before closing
@@ -260,11 +225,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           eventSourceRef.current?.removeEventListener(event, handler);
         });
         eventListenersRef.current = [];
-        
+
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
-      toolCallsRef.current.clear();
+      toolCallsMap.current.clear();
+      toolStartTimes.current.clear();
       currentSessionRef.current = '';
     };
   }, [sessionId]);
@@ -278,90 +244,79 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           eventSourceRef.current?.removeEventListener(event, handler);
         });
         eventListenersRef.current = [];
-        
+
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
-      toolCallsRef.current.clear();
+      toolCallsMap.current.clear();
+      toolStartTimes.current.clear();
       currentSessionRef.current = '';
     };
   }, []);
 
-  // Update connectedRef when state.connected changes
-  useEffect(() => {
-    connectedRef.current = state.connected;
-  }, [state.connected]);
-
-  // Function to send messages via POST to message queue
-  const sendMessage = useCallback(async (content: string) => {
-    if (!sessionId || !connectedRef.current) {
-      throw new Error('No active SSE connection');
-    }
-
-
-    // Reset state for new message
-    setState(prev => ({
-      ...prev,
-      error: null,
-      toolCalls: [],
-      startTime: Date.now(),
-      finalContent: null,
-      completed: false,
-      processing: true, // Mark as processing when sending message
-      cancelling: false,
-      cancelled: false,
-      reasoning: null,
-      reasoningDuration: null,
-    }));
-    
-    toolCallsRef.current.clear();
-
-    try {
-      const response = await fetch(`http://localhost:8088/stream/${encodeURIComponent(sessionId)}/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to queue message: ${response.status} ${errorText}`);
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!(sessionId && connectedRef.current)) {
+        throw new Error('No active SSE connection');
       }
 
-      const result = await response.json();
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : 'Failed to send message',
-        processing: false,
+        error: null,
+        toolCalls: [],
+        startTime: Date.now(),
+        finalContent: null,
+        completed: false,
+        processing: true,
         cancelling: false,
+        cancelled: false,
+        reasoning: null,
+        reasoningDuration: null,
       }));
-      throw error;
-    }
-  }, [sessionId]);
 
-  // Function to cancel message processing
+      toolCallsMap.current.clear();
+
+      try {
+        const response = await fetch(
+          `${BACKEND_URL}/stream/${encodeURIComponent(sessionId)}/message`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `Failed to queue message: ${response.status} ${errorText}`
+          );
+        }
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          error:
+            error instanceof Error ? error.message : 'Failed to send message',
+          processing: false,
+          cancelling: false,
+        }));
+        throw error;
+      }
+    },
+    [sessionId]
+  );
+
   const cancelMessage = useCallback(async () => {
     if (!sessionId) {
       throw new Error('No session ID available');
     }
 
-    // Set cancelling state to show disabled button
-    setState(prev => ({
-      ...prev,
-      cancelling: true,
-      error: null,
-    }));
+    setState((prev) => ({ ...prev, cancelling: true, error: null }));
 
     try {
-      const response = await fetch(`http://localhost:8088/rpc`, {
+      const response = await fetch(`${BACKEND_URL}/rpc`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           method: 'agent.cancel',
           params: { sessionId },
@@ -371,41 +326,36 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to cancel message: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to cancel message: ${response.status} ${errorText}`
+        );
       }
 
       const result = await response.json();
-      
       if (result.error) {
         throw new Error(result.error.message || 'Cancel request failed');
       }
 
-      // Update state to reflect successful cancellation
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         processing: false,
         cancelling: false,
-        cancelled: true, // Mark as cancelled so button shows stop state
+        cancelled: true,
         error: null,
       }));
-
     } catch (error) {
-      console.error('Failed to cancel message:', error);
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        cancelling: false, // Reset cancelling on error
-        error: error instanceof Error ? error.message : 'Failed to cancel message',
+        cancelling: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to cancel message',
       }));
       throw error;
     }
   }, [sessionId]);
 
-  // Function to reset cancelled state when user starts typing
   const resetCancelledState = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      cancelled: false,
-    }));
+    setState((prev) => ({ ...prev, cancelled: false }));
   }, []);
 
   return {

@@ -75,19 +75,23 @@ and content creation workflows.`,
 			return fmt.Errorf("invalid format option: %s\n%s", outputFormat, format.GetHelpText())
 		}
 
-		if cwd != "" {
+		// Determine working directory: use --cwd if provided, otherwise current directory
+		if cwd == "" {
+			var err error
+			cwd, err = os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current working directory: %v", err)
+			}
+		}
+		
+		// Only change directory if --cwd was explicitly provided
+		if cmd.Flag("cwd").Changed {
 			err := os.Chdir(cwd)
 			if err != nil {
 				return fmt.Errorf("failed to change directory: %v", err)
 			}
 		}
-		if cwd == "" {
-			c, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("failed to get current working directory: %v", err)
-			}
-			cwd = c
-		}
+		
 		_, err := config.Load(cwd, debug, skipPermissions)
 		if err != nil {
 			return err

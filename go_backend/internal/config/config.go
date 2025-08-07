@@ -78,6 +78,7 @@ type Config struct {
 	Providers       map[models.ModelProvider]Provider `json:"providers,omitempty"`
 	Agents          map[AgentName]Agent               `json:"agents,omitempty"`
 	Debug           bool                              `json:"debug,omitempty"`
+	ContextPaths    []string                          `json:"contextPaths,omitempty"`
 	Shell           ShellConfig                       `json:"shell,omitempty"`
 	SkipPermissions bool                              `json:"skipPermissions,omitempty"`
 	ReadOnlyDirs    []string                          `json:"readOnlyDirs,omitempty"`
@@ -92,7 +93,9 @@ const (
 	MaxTokensFallbackDefault = 4096
 )
 
-// Removed default context paths for embedded binary
+var defaultContextPaths = []string{
+	"MIX.md",
+}
 
 // Global configuration instance
 var cfg *Config
@@ -229,6 +232,7 @@ func configureViper() {
 // setDefaults configures default values for embedded binary configuration.
 func setDefaults(debug bool) {
 	viper.SetDefault("data.directory", defaultDataDirectory)
+	viper.SetDefault("contextPaths", defaultContextPaths)
 
 	// Set default shell from environment or fallback to /bin/bash
 	shellPath := os.Getenv("SHELL")
@@ -586,7 +590,7 @@ func UpdateAgentModel(agentName AgentName, modelID models.ModelID) error {
 
 	cfgMutex.Lock()
 	existingAgentCfg := cfg.Agents[agentName]
-	
+
 	maxTokens := existingAgentCfg.MaxTokens
 	if model.DefaultMaxTokens > 0 {
 		maxTokens = model.DefaultMaxTokens

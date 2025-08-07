@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"mix/internal/config"
 	"mix/internal/llm/models"
+	"mix/internal/llm/tools"
 	"mix/internal/logging"
 )
 
@@ -25,7 +25,11 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 
 		if agentName == config.AgentMain {
 			// Add context from project-specific instruction files if they exist
-			contextContent := getContextFromPaths()
+			contextContent, err := getContextFromPaths(ctx)
+			if err != nil {
+				logging.Error("Failed to load context files", "error", err)
+				return fmt.Sprintf("%s\n\n# Context Loading Error\nError loading project context files: %s", basePrompt, err.Error())
+			}
 			logging.Debug("Context content", "Context", contextContent)
 			if contextContent != "" {
 				return fmt.Sprintf("%s\n\n# Project-Specific Context\n Make sure to follow the instructions in the context below\n%s", basePrompt, contextContent)
@@ -36,100 +40,101 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 	return basePrompt
 }
 
-var (
-	onceContext    sync.Once
-	contextContent string
-)
 
-func getContextFromPaths() string {
-	onceContext.Do(func() {
-		var (
-			cfg          = config.Get()
-			workDir      = cfg.WorkingDir
-			contextPaths = []string{} // Context paths removed for embedded binary
-		)
+func getContextFromPaths(ctx context.Context) (string, error) {
+	workingDir, ok := ctx.Value(tools.WorkingDirectoryContextKey).(string)
+	if !ok {
+		return "", fmt.Errorf("no working directory found in context")
+	}
 
-		contextContent = processContextPaths(workDir, contextPaths)
-	})
+	cfg := config.Get()
+	contextPaths := cfg.ContextPaths
 
-	return contextContent
+	return processContextPaths(workingDir, contextPaths)
 }
 
-func processContextPaths(workDir string, paths []string) string {
-	var (
-		wg       sync.WaitGroup
-		resultCh = make(chan string)
-	)
-
-	// Track processed files to avoid duplicates
+func processContextPaths(workDir string, paths []string) (string, error) {
 	processedFiles := make(map[string]bool)
-	var processedMutex sync.Mutex
+	results := make([]string, 0)
+	var foundCount, loadedCount int
 
 	for _, path := range paths {
-		wg.Add(1)
-		go func(p string) {
-			defer wg.Done()
+		if strings.HasSuffix(path, "/") {
+			err := filepath.WalkDir(filepath.Join(workDir, path), func(filePath string, d os.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				if !d.IsDir() {
+					lowerPath := strings.ToLower(filePath)
+					if processedFiles[lowerPath] {
+						return nil
+					}
+					processedFiles[lowerPath] = true
 
-			if strings.HasSuffix(p, "/") {
-				filepath.WalkDir(filepath.Join(workDir, p), func(path string, d os.DirEntry, err error) error {
+					result, found, err := processFile(filePath)
 					if err != nil {
 						return err
 					}
-					if !d.IsDir() {
-						// Check if we've already processed this file (case-insensitive)
-						processedMutex.Lock()
-						lowerPath := strings.ToLower(path)
-						if !processedFiles[lowerPath] {
-							processedFiles[lowerPath] = true
-							processedMutex.Unlock()
-
-							if result := processFile(path); result != "" {
-								resultCh <- result
-							}
-						} else {
-							processedMutex.Unlock()
+					if found {
+						foundCount++
+						if result != "" {
+							loadedCount++
+							results = append(results, result)
 						}
 					}
-					return nil
-				})
-			} else {
-				fullPath := filepath.Join(workDir, p)
+				}
+				return nil
+			})
+			if err != nil {
+				return "", err
+			}
+		} else {
+			fullPath := filepath.Join(workDir, path)
+			lowerPath := strings.ToLower(fullPath)
+			if processedFiles[lowerPath] {
+				continue
+			}
+			processedFiles[lowerPath] = true
 
-				// Check if we've already processed this file (case-insensitive)
-				processedMutex.Lock()
-				lowerPath := strings.ToLower(fullPath)
-				if !processedFiles[lowerPath] {
-					processedFiles[lowerPath] = true
-					processedMutex.Unlock()
-
-					result := processFile(fullPath)
-					if result != "" {
-						resultCh <- result
-					}
-				} else {
-					processedMutex.Unlock()
+			result, found, err := processFile(fullPath)
+			if err != nil {
+				return "", err
+			}
+			if found {
+				foundCount++
+				if result != "" {
+					loadedCount++
+					results = append(results, result)
 				}
 			}
-		}(path)
+		}
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
+	content := strings.Join(results, "\n")
+	logging.Info("Context file loading completed",
+		"files_found", foundCount,
+		"files_loaded", loadedCount,
+		"content_length", len(content))
 
-	results := make([]string, 0)
-	for result := range resultCh {
-		results = append(results, result)
-	}
-
-	return strings.Join(results, "\n")
+	return content, nil
 }
 
-func processFile(filePath string) string {
+func processFile(filePath string) (string, bool, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return ""
+		if os.IsNotExist(err) {
+			logging.Info("Context file not found", "path", filePath)
+			return "", false, nil // Not found, not an error
+		}
+		logging.Error("Failed to read context file", "path", filePath, "error", err)
+		return "", false, fmt.Errorf("failed to read context file %s: %w", filePath, err)
 	}
-	return "# From:" + filePath + "\n" + string(content)
+	
+	if len(content) == 0 {
+		logging.Info("Context file is empty", "path", filePath)
+		return "", true, nil // Found but empty
+	}
+	
+	logging.Info("Successfully loaded context file", "path", filePath, "size", len(content))
+	return "# From:" + filePath + "\n" + string(content), true, nil
 }
