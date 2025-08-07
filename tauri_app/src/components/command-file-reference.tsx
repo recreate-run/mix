@@ -1,9 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { FolderIcon, ImageIcon, VideoIcon, AudioLines, Play, Monitor, NotebookPen } from 'lucide-react';
 import { type FileEntry } from '@/hooks/useFileSystem';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { readDir } from '@tauri-apps/plugin-fs';
 import { type Attachment } from '@/stores/attachmentStore';
 import { getFileType } from '@/utils/fileTypes';
+import { filterAndSortEntries } from '@/stores/attachmentStore';
 import { AppIcon } from './app-icon';
 import {
   Command,
@@ -13,6 +15,8 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+
+const RECURSIVE_SEARCH_DEPTH = 3;
 
 interface Props {
   files: FileEntry[];
@@ -107,13 +111,73 @@ export function CommandFileReference({
 }: Props) {
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [allFiles, setAllFiles] = useState<FileEntry[]>([]);
+  const [isLoadingAllFiles, setIsLoadingAllFiles] = useState(false);
   const commandRef = useRef<HTMLDivElement>(null);
   
-  // Filter files based on search query
+  // Recursive fetch function - loads all files upfront
+  const recursiveFetch = useCallback(async (
+    basePath: string,
+    depth: number = 0
+  ): Promise<FileEntry[]> => {
+    if (depth >= RECURSIVE_SEARCH_DEPTH) {
+      return [];
+    }
+
+    try {
+      const entries = await readDir(basePath);
+      const fileEntries = filterAndSortEntries(entries, basePath);
+      const results: FileEntry[] = [];
+
+      // Add all files/folders from current directory
+      results.push(...fileEntries);
+
+      // Recursively fetch subdirectories
+      const directoryEntries = fileEntries.filter(file => file.isDirectory);
+      const recursivePromises = directoryEntries.map(async (dir) => {
+        try {
+          return await recursiveFetch(dir.path || '', depth + 1);
+        } catch (error) {
+          // Skip directories we can't access
+          return [];
+        }
+      });
+
+      const recursiveResults = await Promise.all(recursivePromises);
+      recursiveResults.forEach(result => results.push(...result));
+
+      return results;
+    } catch (error) {
+      console.error('Error in recursive fetch:', error);
+      return [];
+    }
+  }, []);
+
+  // Load all files recursively on component mount
+  useEffect(() => {
+    const loadAllFiles = async () => {
+      const basePath = currentFolder || (files.length > 0 ? files[0].path?.split('/').slice(0, -1).join('/') : '');
+      if (!basePath) {
+        return;
+      }
+
+      setIsLoadingAllFiles(true);
+      try {
+        const allFileResults = await recursiveFetch(basePath);
+        setAllFiles(allFileResults);
+      } catch (error) {
+        console.error('Failed to load all files:', error);
+      } finally {
+        setIsLoadingAllFiles(false);
+      }
+    };
+
+    loadAllFiles();
+  }, [currentFolder, files, recursiveFetch]);
+  
+  // Filter files based on search query - client-side filtering of preloaded files
   const filteredFiles = searchQuery.trim() 
-    ? files.filter(file => 
-        file.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? allFiles.filter(file => file.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : files;
 
   // Filter apps based on search query
@@ -131,7 +195,8 @@ export function CommandFileReference({
     
     if (value.startsWith('file:')) {
       const fileName = value.substring(5);
-      const file = files.find(f => f.name === fileName);
+      // Look in both current files and all files for the selection
+      const file = filteredFiles.find(f => f.name === fileName) || files.find(f => f.name === fileName);
       if (file) {
         onSelect(file);
       }
@@ -181,9 +246,9 @@ export function CommandFileReference({
         />
         
         <CommandList>
-          {isLoadingFolder ? (
+          {isLoadingFolder || isLoadingAllFiles ? (
             <div className="text-xs text-muted-foreground px-3 py-2">
-              Loading folder contents...
+              {isLoadingAllFiles ? 'Loading all files...' : 'Loading folder contents...'}
             </div>
           ) : !filteredFiles.length && !filteredApps.length ? (
             <CommandEmpty>

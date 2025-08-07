@@ -578,7 +578,7 @@ export function ChatApp() {
 
 
       {/* Attachment Preview Section */}
-      <div className="max-w-4xl mx-auto w-full mb-0">
+      <div className="max-w-4xl mx-auto w-full mb-0 z-20">
         <AttachmentPreview 
           attachments={attachments} 
           onRemoveItem={(index) => {

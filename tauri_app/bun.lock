@@ -18,7 +18,7 @@
         "@shikijs/transformers": "^3.9.1",
         "@tabler/icons-react": "^3.34.1",
         "@tailwindcss/vite": "^4.1.11",
-        "@tanstack/react-pacer": "^0.11.0",
+        "@tanstack/react-pacer": "^0.15.0",
         "@tanstack/react-query": "^5.83.0",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-dialog": "~2",
@@ -29,9 +29,9 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
-        "posthog-js": "^1.258.3",
         "katex": "^0.16.22",
         "lucide-react": "^0.536.0",
+        "posthog-js": "^1.258.3",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "react-markdown": "^10.1.0",
@@ -356,11 +356,11 @@
 
     "@tailwindcss/vite": ["@tailwindcss/vite@4.1.11", "", { "dependencies": { "@tailwindcss/node": "4.1.11", "@tailwindcss/oxide": "4.1.11", "tailwindcss": "4.1.11" }, "peerDependencies": { "vite": "^5.2.0 || ^6 || ^7" } }, "sha512-RHYhrR3hku0MJFRV+fN2gNbDNEh3dwKvY8XJvTxCSXeMOsCRSr+uKvDWQcbizrHgjML6ZmTE5OwMrl5wKcujCw=="],
 
-    "@tanstack/pacer": ["@tanstack/pacer@0.11.0", "", { "dependencies": { "@tanstack/store": "^0.7.2" } }, "sha512-Za09oQqXJizOAkaYbY1J1/PjHW6ZLzC73cPN95wyDk8mvkfP8Q2Q7GHlRLQKbKMoIIszzw5L8wQALcjdv7bR8A=="],
+    "@tanstack/pacer": ["@tanstack/pacer@0.14.0", "", { "dependencies": { "@tanstack/store": "^0.7.2" } }, "sha512-DCwgDvJoDmApnUIK5/SVeBVtlCn8iDa6hEj81SjxEsYML2Yirv7LCC8AQirHsFCJs9GuiJl6gvX7fDjDuoPduA=="],
 
     "@tanstack/query-core": ["@tanstack/query-core@5.83.0", "", {}, "sha512-0M8dA+amXUkyz5cVUm/B+zSk3xkQAcuXuz5/Q/LveT4ots2rBpPTZOzd7yJa2Utsf8D2Upl5KyjhHRY+9lB/XA=="],
 
-    "@tanstack/react-pacer": ["@tanstack/react-pacer@0.11.0", "", { "dependencies": { "@tanstack/pacer": "0.11.0", "@tanstack/react-store": "^0.7.3" }, "peerDependencies": { "react": ">=16.8", "react-dom": ">=16.8" } }, "sha512-ZIDdpympRFBdKD7nYG+RCpMetIymP1OFoiswNfYMvfxbD6PtWTwfgcwH/duwfdOULv0pFwnBI74KKxQ55Qh7jA=="],
+    "@tanstack/react-pacer": ["@tanstack/react-pacer@0.15.0", "", { "dependencies": { "@tanstack/pacer": "0.14.0", "@tanstack/react-store": "^0.7.3" }, "peerDependencies": { "react": ">=16.8", "react-dom": ">=16.8" } }, "sha512-6ycBIh5Hd0WW3/iv1vwiNDewQuzrkULhAM80/zlIMLLIaSWsfxtSj5eo7vO5dCtvwZCD8oWnF3V1eCmx658Z3w=="],
 
     "@tanstack/react-query": ["@tanstack/react-query@5.83.0", "", { "dependencies": { "@tanstack/query-core": "5.83.0" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-/XGYhZ3foc5H0VM2jLSD/NyBRIOK4q9kfeml4+0x2DlL6xVuAcVEW+hTlTapAmejObg0i3eNqhkr2dT+eciwoQ=="],
 
@@ -894,8 +894,9 @@
 
     "vitest": ["vitest@3.2.4", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/expect": "3.2.4", "@vitest/mocker": "3.2.4", "@vitest/pretty-format": "^3.2.4", "@vitest/runner": "3.2.4", "@vitest/snapshot": "3.2.4", "@vitest/spy": "3.2.4", "@vitest/utils": "3.2.4", "chai": "^5.2.0", "debug": "^4.4.1", "expect-type": "^1.2.1", "magic-string": "^0.30.17", "pathe": "^2.0.3", "picomatch": "^4.0.2", "std-env": "^3.9.0", "tinybench": "^2.9.0", "tinyexec": "^0.3.2", "tinyglobby": "^0.2.14", "tinypool": "^1.1.1", "tinyrainbow": "^2.0.0", "vite": "^5.0.0 || ^6.0.0 || ^7.0.0-0", "vite-node": "3.2.4", "why-is-node-running": "^2.3.0" }, "peerDependencies": { "@edge-runtime/vm": "*", "@types/debug": "^4.1.12", "@types/node": "^18.0.0 || ^20.0.0 || >=22.0.0", "@vitest/browser": "3.2.4", "@vitest/ui": "3.2.4", "happy-dom": "*", "jsdom": "*" }, "optionalPeers": ["@edge-runtime/vm", "@types/debug", "@types/node", "@vitest/browser", "@vitest/ui", "happy-dom", "jsdom"], "bin": { "vitest": "vitest.mjs" } }, "sha512-LUCP5ev3GURDysTWiP47wRRUpLKMOfPh+yKTx3kVIEiu5KOMeqzpnYNsKyOoVrULivR8tLcks4+lga33Whn90A=="],
 
-    "web-vitals": ["web-vitals@4.2.4", "", {}, "sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw=="],
     "web-namespaces": ["web-namespaces@2.0.1", "", {}, "sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ=="],
+
+    "web-vitals": ["web-vitals@4.2.4", "", {}, "sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw=="],
 
     "why-is-node-running": ["why-is-node-running@2.3.0", "", { "dependencies": { "siginfo": "^2.0.0", "stackback": "0.0.2" }, "bin": { "why-is-node-running": "cli.js" } }, "sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w=="],
 

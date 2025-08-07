@@ -321,7 +321,7 @@ export const AIInputSubmit = ({
 
   return (
     <Button
-      className={cn('gap-1.5 rounded-full ', className)}
+      className={cn('m-1 rounded-full ', className)}
       size={size}
       type={buttonType}
       variant={variant}

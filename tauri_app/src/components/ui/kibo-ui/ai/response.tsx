@@ -125,19 +125,13 @@ const components: Options['components'] = {
 
     return (
       <CodeBlock
-        className={cn('my-4 h-auto', className)}
+        className={cn('my-2 h-auto', className)}
         data={data}
         defaultValue={data[0].language}
       >
-        <CodeBlockHeader>
-          <CodeBlockFiles>
-            {(item) => (
-              <CodeBlockFilename key={item.language} value={item.language}>
-                {item.filename}
-              </CodeBlockFilename>
-            )}
-          </CodeBlockFiles>
-          <CodeBlockSelect>
+        <CodeBlockHeader className='justify-end h-8  border-none'>
+
+          {/* <CodeBlockSelect>
             <CodeBlockSelectTrigger>
               <CodeBlockSelectValue />
             </CodeBlockSelectTrigger>
@@ -148,13 +142,14 @@ const components: Options['components'] = {
                 </CodeBlockSelectItem>
               )}
             </CodeBlockSelectContent>
-          </CodeBlockSelect>
-          <CodeBlockCopyButton
+          </CodeBlockSelect> */}
+          <CodeBlockCopyButton 
             onCopy={() => console.log('Copied code to clipboard')}
             onError={() => console.error('Failed to copy code to clipboard')}
           />
         </CodeBlockHeader>
         <CodeBlockBody>
+          
           {(item) => (
             <CodeBlockItem key={item.language} value={item.language}>
               <CodeBlockContent language={item.language as BundledLanguage}>
