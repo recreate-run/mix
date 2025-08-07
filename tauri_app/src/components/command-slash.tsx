@@ -5,6 +5,8 @@ import {
   Folder,
   Mic,
   Monitor,
+  Plug,
+  Settings,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { MessageData } from '@/components/chat-app';
@@ -29,6 +31,7 @@ import {
   useSelectSession,
   useSessionsList,
 } from '@/hooks/useSessionsList';
+import { useMCPList } from '@/hooks/useMCPList';
 import { slashCommands } from '@/utils/slash-commands';
 
 interface CommandSlashProps {
@@ -41,6 +44,8 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showingPermissions, setShowingPermissions] = useState(false);
   const [showingSessions, setShowingSessions] = useState(false);
+  const [showingMCP, setShowingMCP] = useState(false);
+  const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(null);
   const commandRef = useRef<HTMLDivElement>(null);
 
   // Reset selection when search query changes to prevent jumping
@@ -58,6 +63,9 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
   const selectSessionMutation = useSelectSession();
   const activeSession = useActiveSession();
+
+  // MCP hooks
+  const { data: mcpServers = [], isLoading: mcpLoading } = useMCPList();
 
   const permissions = [
     {
@@ -114,6 +122,26 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
         session.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+  // Filter MCP servers based on search query
+  const filteredMCPServers = searchQuery.trim()
+    ? mcpServers.filter((server) =>
+        server.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : mcpServers;
+
+  // Get tools for selected MCP server
+  const selectedServerTools = selectedMCPServer
+    ? mcpServers.find((s) => s.name === selectedMCPServer)?.tools || []
+    : [];
+
+  // Filter tools based on search query
+  const filteredMCPTools = searchQuery.trim()
+    ? selectedServerTools.filter((tool) =>
+        tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tool.description.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : selectedServerTools;
+
   // Helper function to get display title (first user message or fallback to title)
   const getDisplayTitle = (session: (typeof sessions)[0]) => {
     if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
@@ -152,6 +180,8 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     if (value === 'back-to-commands') {
       setShowingPermissions(false);
       setShowingSessions(false);
+      setShowingMCP(false);
+      setSelectedMCPServer(null);
 
       return;
     }
@@ -159,6 +189,8 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     if (value === 'permissions') {
       setShowingPermissions(true);
       setShowingSessions(false);
+      setShowingMCP(false);
+      setSelectedMCPServer(null);
 
       return;
     }
@@ -166,6 +198,17 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     if (value === 'sessions') {
       setShowingSessions(true);
       setShowingPermissions(false);
+      setShowingMCP(false);
+      setSelectedMCPServer(null);
+
+      return;
+    }
+
+    if (value === 'mcp') {
+      setShowingMCP(true);
+      setShowingPermissions(false);
+      setShowingSessions(false);
+      setSelectedMCPServer(null);
 
       return;
     }
@@ -178,6 +221,14 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
           onClose(); // Close the command palette
         },
       });
+
+      return;
+    }
+
+    // Handle MCP server selection
+    const mcpServer = mcpServers.find((s) => s.name === value);
+    if (mcpServer) {
+      setSelectedMCPServer(mcpServer.name);
 
       return;
     }
@@ -200,7 +251,11 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (showingPermissions) {
+      if (selectedMCPServer) {
+        setSelectedMCPServer(null);
+      } else if (showingMCP) {
+        setShowingMCP(false);
+      } else if (showingPermissions) {
         setShowingPermissions(false);
       } else if (showingSessions) {
         setShowingSessions(false);
@@ -223,11 +278,15 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
           autoFocus
           onValueChange={setSearchQuery}
           placeholder={
-            showingPermissions
-              ? 'Search permissions...'
-              : showingSessions
-                ? 'Search sessions...'
-                : 'Search commands...'
+            selectedMCPServer
+              ? 'Search tools...'
+              : showingMCP
+                ? 'Search MCP servers...'
+                : showingPermissions
+                  ? 'Search permissions...'
+                  : showingSessions
+                    ? 'Search sessions...'
+                    : 'Search commands...'
           }
           value={searchQuery}
         />
@@ -370,6 +429,101 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
                 </CommandGroup>
               )}
             </>
+          ) : selectedMCPServer ? (
+            // MCP Tools View
+            <>
+              {!filteredMCPTools.length && searchQuery ? (
+                <CommandEmpty>No tools match your search</CommandEmpty>
+              ) : filteredMCPTools.length ? (
+                <CommandGroup heading={`${selectedMCPServer} Tools (${filteredMCPTools.length})`}>
+                  {/* Back to MCP Servers */}
+                  <CommandItem
+                    onSelect={() => setSelectedMCPServer(null)}
+                    value="back-to-mcp"
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        Back to MCP Servers
+                      </div>
+                    </div>
+                  </CommandItem>
+
+                  {/* Tool Items */}
+                  {filteredMCPTools.map((tool) => {
+                    const serverInfo = mcpServers.find(s => s.name === selectedMCPServer);
+                    return (
+                      <CommandItem
+                        key={tool.name}
+                        value={tool.name}
+                        className="cursor-default"
+                      >
+                        <Settings className="size-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{tool.name}</div>
+                          <div className="text-muted-foreground text-xs">
+                            {tool.description}
+                          </div>
+                        </div>
+                        <div className={`text-xs px-2 py-0.5 rounded-full ${serverInfo?.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}>
+                          {serverInfo?.connected ? 'connected' : 'disconnected'}
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              ) : (
+                <CommandEmpty>No tools found</CommandEmpty>
+              )}
+            </>
+          ) : showingMCP ? (
+            // MCP Servers View
+            <>
+              {mcpLoading ? (
+                <CommandEmpty>Loading MCP servers...</CommandEmpty>
+              ) : !filteredMCPServers.length && searchQuery ? (
+                <CommandEmpty>No servers match your search</CommandEmpty>
+              ) : filteredMCPServers.length ? (
+                <CommandGroup heading={`MCP Servers (${filteredMCPServers.length})`}>
+                  {/* Back to Commands */}
+                  <CommandItem
+                    onSelect={() => handleSelect('back-to-commands')}
+                    value="back-to-commands"
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        Back to Commands
+                      </div>
+                    </div>
+                  </CommandItem>
+
+                  {/* MCP Server Items */}
+                  {filteredMCPServers.map((server) => (
+                    <CommandItem
+                      key={server.name}
+                      onSelect={() => handleSelect(server.name)}
+                      value={server.name}
+                    >
+                      <Plug className="size-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 font-medium text-sm">
+                          {server.name}
+                          <div className={`text-xs px-2 py-0.5 rounded-full ${server.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}>
+                            {server.status}
+                          </div>
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {server.tools.length} tools available
+                        </div>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : (
+                <CommandEmpty>No MCP servers found</CommandEmpty>
+              )}
+            </>
           ) : (
             // Commands View
             <>
@@ -422,7 +576,7 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
                 esc
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">
-                {showingPermissions || showingSessions ? 'back' : 'close'}
+                {selectedMCPServer || showingMCP || showingPermissions || showingSessions ? 'back' : 'close'}
               </span>
             </div>
           </div>
