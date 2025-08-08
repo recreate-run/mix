@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"mix/internal/config"
@@ -24,14 +25,17 @@ type openaiOptions struct {
 	disableCache    bool
 	reasoningEffort string
 	extraHeaders    map[string]string
+	useOAuth        bool
+	oauthCreds      *OpenAICredentials
 }
 
 type OpenAIOption func(*openaiOptions)
 
 type openaiClient struct {
-	providerOptions providerClientOptions
-	options         openaiOptions
-	client          openai.Client
+	providerOptions   providerClientOptions
+	options           openaiOptions
+	client            openai.Client
+	credentialStorage *CredentialStorage
 }
 
 type OpenAIClient ProviderClient
@@ -44,10 +48,49 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 		o(&openaiOpts)
 	}
 
-	openaiClientOptions := []option.RequestOption{}
-	if opts.apiKey != "" {
-		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
+	// Initialize credential storage
+	credStorage, err := NewCredentialStorage()
+	if err != nil {
+		logging.Warn("Failed to initialize OAuth credential storage: %v", err)
 	}
+
+	// Check for OAuth credentials first
+	var oauthCreds *OpenAICredentials
+	if credStorage != nil {
+		if creds, err := credStorage.GetOpenAICredentials("openai"); err == nil && creds != nil {
+			// Check if token needs refresh
+			if creds.IsTokenExpired() && creds.RefreshToken != "" {
+				logging.Info("OpenAI OAuth token expired, attempting refresh...")
+				if refreshedCreds, err := RefreshOpenAIAccessToken(creds); err == nil {
+					// Store refreshed credentials
+					credStorage.StoreOpenAICredentials("openai", refreshedCreds)
+					oauthCreds = refreshedCreds
+					logging.Info("OpenAI OAuth token refreshed successfully")
+				} else {
+					logging.Warn("Failed to refresh OpenAI OAuth token: %v", err)
+				}
+			} else if !creds.IsTokenExpired() {
+				oauthCreds = creds
+				logging.Info("Using valid OpenAI OAuth credentials")
+			}
+		}
+	}
+
+	openaiClientOptions := []option.RequestOption{}
+
+	// Set up authentication - prioritize OAuth over API key
+	if oauthCreds != nil && oauthCreds.APIKey != "" {
+		openaiOpts.useOAuth = true
+		openaiOpts.oauthCreds = oauthCreds
+		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(oauthCreds.APIKey))
+		logging.Info("Initialized OpenAI client with OAuth authentication")
+	} else if opts.apiKey != "" {
+		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
+		logging.Info("Initialized OpenAI client with API key authentication")
+	} else {
+		logging.Warn("No authentication method available - neither OAuth nor API key")
+	}
+
 	if openaiOpts.baseURL != "" {
 		openaiClientOptions = append(openaiClientOptions, option.WithBaseURL(openaiOpts.baseURL))
 	}
@@ -58,11 +101,15 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 		}
 	}
 
+	// Add request timeout to prevent indefinite hangs
+	openaiClientOptions = append(openaiClientOptions, option.WithRequestTimeout(60*time.Second))
+
 	client := openai.NewClient(openaiClientOptions...)
 	return &openaiClient{
-		providerOptions: opts,
-		options:         openaiOpts,
-		client:          client,
+		providerOptions:   opts,
+		options:           openaiOpts,
+		client:            client,
+		credentialStorage: credStorage,
 	}
 }
 
@@ -187,6 +234,23 @@ func (o *openaiClient) preparedParams(messages []openai.ChatCompletionMessagePar
 }
 
 func (o *openaiClient) send(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (response *ProviderResponse, err error) {
+	// Handle proactive token refresh for OAuth
+	if o.options.useOAuth && o.options.oauthCreds != nil {
+		if o.options.oauthCreds.IsTokenExpired() && o.options.oauthCreds.RefreshToken != "" {
+			if refreshedCreds, err := RefreshOpenAIAccessToken(o.options.oauthCreds); err == nil {
+				// Update stored credentials
+				if o.credentialStorage != nil {
+					o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+				}
+				o.options.oauthCreds = refreshedCreds
+
+				// Update client with new token
+				o.recreateClient()
+				logging.Info("Refreshed OpenAI OAuth token proactively")
+			}
+		}
+	}
+
 	params := o.preparedParams(o.convertMessages(messages), o.convertTools(tools))
 	cfg := config.Get()
 	if cfg.Debug {
@@ -202,6 +266,22 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 		)
 		// If there is an error we are going to see if we can retry the call
 		if err != nil {
+			// Check for 401 and try OAuth token refresh
+			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
+				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
+					// Update stored credentials
+					if o.credentialStorage != nil {
+						o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+					}
+					o.options.oauthCreds = refreshedCreds
+
+					// Update client with new token and retry
+					o.recreateClient()
+					logging.Info("Refreshed OpenAI OAuth token and retrying request")
+					continue
+				}
+			}
+
 			retry, after, retryErr := o.shouldRetry(attempts, err)
 			if retryErr != nil {
 				return nil, retryErr
@@ -240,6 +320,25 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 }
 
 func (o *openaiClient) stream(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent {
+	eventChan := make(chan ProviderEvent)
+
+	// Handle proactive token refresh for OAuth
+	if o.options.useOAuth && o.options.oauthCreds != nil {
+		if o.options.oauthCreds.IsTokenExpired() && o.options.oauthCreds.RefreshToken != "" {
+			if refreshedCreds, err := RefreshOpenAIAccessToken(o.options.oauthCreds); err == nil {
+				// Update stored credentials
+				if o.credentialStorage != nil {
+					o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+				}
+				o.options.oauthCreds = refreshedCreds
+
+				// Update client with new token
+				o.recreateClient()
+				logging.Info("Refreshed OpenAI OAuth token proactively for streaming")
+			}
+		}
+	}
+
 	params := o.preparedParams(o.convertMessages(messages), o.convertTools(tools))
 	params.StreamOptions = openai.ChatCompletionStreamOptionsParam{
 		IncludeUsage: openai.Bool(true),
@@ -252,7 +351,6 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 	}
 
 	attempts := 0
-	eventChan := make(chan ProviderEvent)
 
 	go func() {
 		for {
@@ -303,6 +401,22 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 				}
 				close(eventChan)
 				return
+			}
+
+			// Check for 401 and try OAuth token refresh
+			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
+				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
+					// Update stored credentials
+					if o.credentialStorage != nil {
+						o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+					}
+					o.options.oauthCreds = refreshedCreds
+
+					// Update client with new token and retry
+					o.recreateClient()
+					logging.Info("Refreshed OpenAI OAuth token and retrying streaming request")
+					continue
+				}
 			}
 
 			// If there is an error we are going to see if we can retry the call
@@ -422,5 +536,36 @@ func WithReasoningEffort(effort string) OpenAIOption {
 			logging.Warn("Invalid reasoning effort, using default: medium")
 		}
 		options.reasoningEffort = defaultReasoningEffort
+	}
+}
+
+func (o *openaiClient) recreateClient() {
+	var clientOptions []option.RequestOption
+
+	if o.options.useOAuth && o.options.oauthCreds != nil && o.options.oauthCreds.APIKey != "" {
+		clientOptions = append(clientOptions, option.WithAPIKey(o.options.oauthCreds.APIKey))
+	} else if o.providerOptions.apiKey != "" {
+		clientOptions = append(clientOptions, option.WithAPIKey(o.providerOptions.apiKey))
+	}
+
+	if o.options.baseURL != "" {
+		clientOptions = append(clientOptions, option.WithBaseURL(o.options.baseURL))
+	}
+
+	if o.options.extraHeaders != nil {
+		for key, value := range o.options.extraHeaders {
+			clientOptions = append(clientOptions, option.WithHeader(key, value))
+		}
+	}
+
+	clientOptions = append(clientOptions, option.WithRequestTimeout(60*time.Second))
+	o.client = openai.NewClient(clientOptions...)
+}
+
+// WithOpenAIOAuth configures the OpenAI client to use OAuth authentication
+func WithOpenAIOAuth(credentials *OpenAICredentials) OpenAIOption {
+	return func(options *openaiOptions) {
+		options.useOAuth = true
+		options.oauthCreds = credentials
 	}
 }

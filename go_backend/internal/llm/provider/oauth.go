@@ -24,6 +24,27 @@ import (
 	"mix/internal/logging"
 )
 
+// OpenAICredentials holds OpenAI OAuth token information
+type OpenAICredentials struct {
+	IDToken      string `json:"id_token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	APIKey       string `json:"api_key"` // The generated API key from token exchange
+	AccountID    string `json:"account_id,omitempty"`
+	ExpiresAt    int64  `json:"expires_at"`
+	ClientID     string `json:"client_id"`
+	Provider     string `json:"provider"`
+	LastRefresh  string `json:"last_refresh,omitempty"`
+}
+
+// IsTokenExpired checks if the OpenAI OAuth token is expired or will expire soon (5 minutes buffer)
+func (cred *OpenAICredentials) IsTokenExpired() bool {
+	if cred.ExpiresAt == 0 {
+		return false // No expiry time set
+	}
+	return time.Now().Unix() >= (cred.ExpiresAt - 300) // 5 minute buffer
+}
+
 // OAuthCredentials holds OAuth token information
 type OAuthCredentials struct {
 	AccessToken  string `json:"access_token"`
@@ -156,22 +177,18 @@ func (cs *CredentialStorage) decrypt(data []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// StoreOAuthCredentials stores OAuth credentials securely
+// StoreOAuthCredentials stores OAuth credentials securely (for Anthropic)
 func (cs *CredentialStorage) StoreOAuthCredentials(provider string, accessToken, refreshToken string, expiresAt int64, clientID string) error {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
-	credentials := map[string]OAuthCredentials{}
-
-	// Load existing credentials if they exist
-	if data, err := os.ReadFile(cs.credFile); err == nil {
-		if decrypted, err := cs.decrypt(data); err == nil {
-			json.Unmarshal(decrypted, &credentials)
-		}
+	store, err := cs.loadCredentialStore()
+	if err != nil {
+		return fmt.Errorf("failed to load credential store: %w", err)
 	}
 
 	// Add/update credentials for this provider
-	credentials[provider] = OAuthCredentials{
+	store.AnthropicCredentials[provider] = OAuthCredentials{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresAt:    expiresAt,
@@ -179,46 +196,25 @@ func (cs *CredentialStorage) StoreOAuthCredentials(provider string, accessToken,
 		Provider:     provider,
 	}
 
-	// Encrypt and save
-	jsonData, err := json.Marshal(credentials)
-	if err != nil {
-		return fmt.Errorf("failed to marshal credentials: %w", err)
-	}
-
-	encrypted, err := cs.encrypt(jsonData)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt credentials: %w", err)
-	}
-
-	if err := os.WriteFile(cs.credFile, encrypted, 0600); err != nil {
-		return fmt.Errorf("failed to save credentials: %w", err)
+	if err := cs.saveCredentialStore(store); err != nil {
+		return fmt.Errorf("failed to save credential store: %w", err)
 	}
 
 	logging.Info("OAuth credentials stored for provider", "provider", provider)
 	return nil
 }
 
-// GetOAuthCredentials retrieves OAuth credentials for a provider
+// GetOAuthCredentials retrieves OAuth credentials for a provider (for Anthropic)
 func (cs *CredentialStorage) GetOAuthCredentials(provider string) (*OAuthCredentials, error) {
 	cs.mu.RLock()
 	defer cs.mu.RUnlock()
 
-	data, err := os.ReadFile(cs.credFile)
+	store, err := cs.loadCredentialStore()
 	if err != nil {
-		return nil, nil // No credentials file exists
+		return nil, fmt.Errorf("failed to load credential store: %w", err)
 	}
 
-	decrypted, err := cs.decrypt(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
-	}
-
-	var credentials map[string]OAuthCredentials
-	if err := json.Unmarshal(decrypted, &credentials); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal credentials: %w", err)
-	}
-
-	cred, exists := credentials[provider]
+	cred, exists := store.AnthropicCredentials[provider]
 	if !exists {
 		return nil, nil
 	}
@@ -450,6 +446,111 @@ func (flow *OAuthFlow) fallbackToBrowserInstructions(authCode string) (*OAuthCre
 	}
 
 	return nil, fmt.Errorf("manual token extraction required - automatic exchange blocked by Cloudflare")
+}
+
+// CredentialStore holds all credential types with proper type safety
+type CredentialStore struct {
+	AnthropicCredentials map[string]OAuthCredentials  `json:"anthropic,omitempty"`
+	OpenAICredentials    map[string]OpenAICredentials `json:"openai,omitempty"`
+}
+
+// loadCredentialStore loads the credential store from encrypted storage
+func (cs *CredentialStorage) loadCredentialStore() (*CredentialStore, error) {
+	data, err := os.ReadFile(cs.credFile)
+	if err != nil {
+		// Return empty store if file doesn't exist
+		return &CredentialStore{
+			AnthropicCredentials: make(map[string]OAuthCredentials),
+			OpenAICredentials:    make(map[string]OpenAICredentials),
+		}, nil
+	}
+
+	decrypted, err := cs.decrypt(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
+	}
+
+	var store CredentialStore
+	if err := json.Unmarshal(decrypted, &store); err != nil {
+		// Handle legacy format - try to migrate old data
+		var legacyCredentials map[string]OAuthCredentials
+		if legacyErr := json.Unmarshal(decrypted, &legacyCredentials); legacyErr == nil {
+			// Migrate legacy format
+			store = CredentialStore{
+				AnthropicCredentials: legacyCredentials,
+				OpenAICredentials:    make(map[string]OpenAICredentials),
+			}
+		} else {
+			return nil, fmt.Errorf("failed to unmarshal credential store: %w", err)
+		}
+	}
+
+	// Initialize maps if nil
+	if store.AnthropicCredentials == nil {
+		store.AnthropicCredentials = make(map[string]OAuthCredentials)
+	}
+	if store.OpenAICredentials == nil {
+		store.OpenAICredentials = make(map[string]OpenAICredentials)
+	}
+
+	return &store, nil
+}
+
+// saveCredentialStore saves the credential store to encrypted storage
+func (cs *CredentialStorage) saveCredentialStore(store *CredentialStore) error {
+	jsonData, err := json.Marshal(store)
+	if err != nil {
+		return fmt.Errorf("failed to marshal credential store: %w", err)
+	}
+
+	encrypted, err := cs.encrypt(jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt credentials: %w", err)
+	}
+
+	if err := os.WriteFile(cs.credFile, encrypted, 0600); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+
+	return nil
+}
+
+// StoreOpenAICredentials stores OpenAI OAuth credentials securely
+func (cs *CredentialStorage) StoreOpenAICredentials(provider string, credentials *OpenAICredentials) error {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
+	store, err := cs.loadCredentialStore()
+	if err != nil {
+		return fmt.Errorf("failed to load credential store: %w", err)
+	}
+
+	store.OpenAICredentials[provider] = *credentials
+
+	if err := cs.saveCredentialStore(store); err != nil {
+		return fmt.Errorf("failed to save credential store: %w", err)
+	}
+
+	logging.Info("OpenAI OAuth credentials stored for provider", "provider", provider)
+	return nil
+}
+
+// GetOpenAICredentials retrieves OpenAI OAuth credentials for a provider
+func (cs *CredentialStorage) GetOpenAICredentials(provider string) (*OpenAICredentials, error) {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+
+	store, err := cs.loadCredentialStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load credential store: %w", err)
+	}
+
+	cred, exists := store.OpenAICredentials[provider]
+	if !exists {
+		return nil, nil
+	}
+
+	return &cred, nil
 }
 
 // RefreshAccessToken refreshes an expired access token

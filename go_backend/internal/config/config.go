@@ -356,7 +356,7 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 	if !providerExists {
 		// Provider not configured, check if we have environment variables
 		apiKey := getProviderAPIKey(provider)
-		if apiKey == "" && provider != "anthropic" {
+		if apiKey == "" && provider != "anthropic" && provider != "openai" {
 			return fmt.Errorf("provider %s not configured for agent %s (model %s) and no API key found in environment", provider, name, agent.Model)
 		}
 		// Add provider - with API key from environment or empty for OAuth-supported providers
@@ -372,7 +372,7 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 		}
 	} else if providerCfg.Disabled {
 		return fmt.Errorf("provider %s is disabled for agent %s (model %s)", provider, name, agent.Model)
-	} else if providerCfg.APIKey == "" && provider != "anthropic" {
+	} else if providerCfg.APIKey == "" && provider != "anthropic" && provider != "openai" {
 		return fmt.Errorf("provider %s has no API key configured for agent %s (model %s)", provider, name, agent.Model)
 	}
 
@@ -476,8 +476,8 @@ func Validate() error {
 	// Validate providers
 	cfgMutex.Lock()
 	for provider, providerCfg := range cfg.Providers {
-		// Skip API key validation for Anthropic (supports OAuth authentication)
-		if providerCfg.APIKey == "" && !providerCfg.Disabled && provider != "anthropic" {
+		// Skip API key validation for providers that support OAuth authentication
+		if providerCfg.APIKey == "" && !providerCfg.Disabled && provider != "anthropic" && provider != "openai" {
 			fmt.Printf("provider has no API key, marking as disabled %s", provider)
 			logging.Warn("provider has no API key, marking as disabled", "provider", provider)
 			providerCfg.Disabled = true

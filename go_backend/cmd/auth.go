@@ -19,7 +19,8 @@ var authCmd = &cobra.Command{
 	Long: `Manage authentication credentials for various AI providers.
 	
 Currently supports:
-  - anthropic-claude-pro-max: Claude Code OAuth authentication`,
+  - anthropic-claude-pro-max: Claude Code OAuth authentication
+  - openai: OpenAI ChatGPT OAuth authentication`,
 }
 
 var authAddCmd = &cobra.Command{
@@ -29,9 +30,11 @@ var authAddCmd = &cobra.Command{
 
 Supported providers:
   - anthropic-claude-pro-max: Authenticate with Claude using OAuth
+  - openai: Authenticate with OpenAI using OAuth
 
-Example:
-  mix auth add anthropic-claude-pro-max`,
+Examples:
+  mix auth add anthropic-claude-pro-max
+  mix auth add openai`,
 	Args: cobra.ExactArgs(1),
 	RunE: handleAuthAdd,
 }
@@ -49,8 +52,10 @@ func handleAuthAdd(cmd *cobra.Command, args []string) error {
 	switch providerName {
 	case "anthropic-claude-pro-max", "anthropic":
 		return handleAnthropicOAuth()
+	case "openai":
+		return handleOpenAIOAuth()
 	default:
-		return fmt.Errorf("unsupported provider: %s\n\nSupported providers:\n  - anthropic-claude-pro-max", providerName)
+		return fmt.Errorf("unsupported provider: %s\n\nSupported providers:\n  - anthropic-claude-pro-max\n  - openai", providerName)
 	}
 }
 
@@ -78,8 +83,24 @@ func handleAuthStatus(cmd *cobra.Command, args []string) error {
 		fmt.Printf("❌ Anthropic Claude Pro Max: Not authenticated\n")
 	}
 
-	fmt.Println("\nTo authenticate with Claude Code OAuth:")
-	fmt.Println("  mix auth add anthropic-claude-pro-max")
+	// Check OpenAI OAuth
+	openaiCreds, err := storage.GetOpenAICredentials("openai")
+	if err != nil {
+		fmt.Printf("❌ OpenAI: Error checking credentials (%v)\n", err)
+	} else if openaiCreds != nil {
+		if openaiCreds.IsTokenExpired() {
+			fmt.Printf("⚠️  OpenAI: Token expired, refresh needed\n")
+		} else {
+			fmt.Printf("✅ OpenAI: Authenticated (expires in ~%.0f minutes)\n",
+				float64(openaiCreds.ExpiresAt-time.Now().Unix())/60)
+		}
+	} else {
+		fmt.Printf("❌ OpenAI: Not authenticated\n")
+	}
+
+	fmt.Println("\nTo authenticate:")
+	fmt.Println("  mix auth add anthropic-claude-pro-max  # Claude Code OAuth")
+	fmt.Println("  mix auth add openai                   # OpenAI OAuth")
 
 	return nil
 }
@@ -205,6 +226,95 @@ func handleAnthropicOAuth() error {
 	fmt.Printf("   🔄 Automatic refresh enabled\n")
 	fmt.Println()
 	fmt.Println("You can now use Claude Code OAuth authentication in your requests!")
+	fmt.Println("The system will automatically use OAuth when available and fall back to API keys if needed.")
+
+	return nil
+}
+
+func handleOpenAIOAuth() error {
+	fmt.Println("🔐 Authenticating with OpenAI OAuth...")
+	fmt.Println()
+
+	// Initialize credential storage
+	storage, err := provider.NewCredentialStorage()
+	if err != nil {
+		return fmt.Errorf("failed to initialize credential storage: %w", err)
+	}
+
+	// Check if already authenticated
+	existingCreds, err := storage.GetOpenAICredentials("openai")
+	if err != nil {
+		logging.Warn("Error checking existing OpenAI credentials: %v", err)
+	} else if existingCreds != nil && !existingCreds.IsTokenExpired() {
+		fmt.Printf("✅ Already authenticated with OpenAI OAuth!\n")
+		fmt.Printf("   Token expires in ~%.0f minutes\n",
+			float64(existingCreds.ExpiresAt-time.Now().Unix())/60)
+		fmt.Println()
+
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Do you want to re-authenticate? (y/N): ")
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+
+		if response != "y" && response != "yes" {
+			fmt.Println("Authentication cancelled.")
+			return nil
+		}
+		fmt.Println()
+	}
+
+	// Create OAuth flow
+	oauthFlow, err := provider.NewOpenAIOAuthFlow()
+	if err != nil {
+		return fmt.Errorf("failed to create OAuth flow: %w", err)
+	}
+
+	// Important: Prerequisites for OAuth authentication
+	fmt.Printf("⚠️  PREREQUISITES - You must complete these steps first:\n")
+	fmt.Printf("   1. Log into https://chat.openai.com (ChatGPT Plus/Pro required)\n")
+	fmt.Printf("   2. Create an organization at https://platform.openai.com\n")
+	fmt.Printf("   3. Create a project within that organization\n")
+	fmt.Printf("   \n")
+	fmt.Printf("   Without these, authentication will fail with 'missing organization or project ID' error.\n")
+	fmt.Println()
+
+	// Start OAuth flow
+	fmt.Printf("🌐 Starting OAuth flow...\n")
+	fmt.Printf("   A browser window will open for authentication\n")
+	fmt.Printf("   The system will automatically handle the callback\n")
+	fmt.Println()
+
+	// Start the authentication flow
+	credentials, err := oauthFlow.StartAuthFlow()
+	if err != nil {
+		fmt.Printf("❌ Authentication failed: %v\n", err)
+		fmt.Println()
+		fmt.Println("💡 Troubleshooting:")
+		fmt.Println("   - Make sure you're logged into chat.openai.com")
+		fmt.Println("   - Check that you have a ChatGPT Plus or Pro subscription")
+		fmt.Println("   - Try refreshing your browser and logging in again")
+		fmt.Println()
+		fmt.Println("   If the problem persists, you can use an API key instead:")
+		fmt.Println("   - Set OPENAI_API_KEY environment variable")
+		return err
+	}
+
+	// Store credentials
+	err = storage.StoreOpenAICredentials("openai", credentials)
+	if err != nil {
+		return fmt.Errorf("failed to store credentials: %w", err)
+	}
+
+	// Success message
+	fmt.Println()
+	fmt.Println("🎉 Authentication successful!")
+	fmt.Printf("   ✅ OAuth tokens stored securely\n")
+	fmt.Printf("   🔑 OpenAI API key generated and stored\n")
+	fmt.Printf("   ⏰ Token expires in ~%.0f minutes\n",
+		float64(credentials.ExpiresAt-time.Now().Unix())/60)
+	fmt.Printf("   🔄 Automatic refresh enabled\n")
+	fmt.Println()
+	fmt.Println("You can now use OpenAI OAuth authentication in your requests!")
 	fmt.Println("The system will automatically use OAuth when available and fall back to API keys if needed.")
 
 	return nil
