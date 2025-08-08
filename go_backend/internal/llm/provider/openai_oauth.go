@@ -164,15 +164,10 @@ func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 
 	// Open browser to authorization URL
 	authURL := flow.GetAuthorizationURL()
-	logging.Info("=== OAUTH FLOW DEBUG ===")
-	logging.Info(fmt.Sprintf("Authorization URL: %s", authURL))
-	logging.Info("========================")
 	
 	if err := openBrowser(authURL); err != nil {
 		logging.Warn("Failed to open browser automatically", "error", err)
 		fmt.Printf("Please manually open this URL in your browser:\n%s\n", authURL)
-	} else {
-		logging.Info("Opening browser for OpenAI OAuth authentication")
 	}
 
 	// Wait for authentication result with timeout
@@ -282,19 +277,11 @@ func (flow *OpenAIOAuthFlow) exchangeCodeForCredentials(code string) (*OpenAICre
 		return nil, "", fmt.Errorf("failed to parse ID token: %w", err)
 	}
 
-	// DEBUG: Log full ID token contents
-	logging.Info("=== ID TOKEN CLAIMS RECEIVED ===")
-	debugTokenClaims("id_token", tokenClaims)
-
 	// Parse access token claims
 	accessClaims, err := parseOpenAIJWTClaims(tokenData.AccessToken)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse access token: %w", err)
 	}
-
-	// DEBUG: Log access token contents  
-	logging.Info("=== ACCESS TOKEN CLAIMS RECEIVED ===")
-	debugTokenClaims("access_token", accessClaims)
 
 	// PROCEED WITH API KEY GENERATION - reference implementation works with organizations array
 	
@@ -371,30 +358,11 @@ func (flow *OpenAIOAuthFlow) exchangeAuthCode(code string) (*OpenAICredentials, 
 	}, nil
 }
 
-// debugTokenClaims logs token claims for debugging OAuth issues
-func debugTokenClaims(tokenType string, claims map[string]interface{}) {
-	logging.Info(fmt.Sprintf("=== %s TOKEN CLAIMS DEBUG ===", strings.ToUpper(tokenType)))
-	for key, value := range claims {
-		if key == "https://api.openai.com/auth" {
-			if authClaims, ok := value.(map[string]interface{}); ok {
-				logging.Info("OpenAI auth claims found:")
-				for authKey, authValue := range authClaims {
-					logging.Info(fmt.Sprintf("  %s: %v", authKey, authValue))
-				}
-			}
-		} else {
-			logging.Info(fmt.Sprintf("%s: %v", key, value))
-		}
-	}
-	logging.Info(fmt.Sprintf("=== END %s CLAIMS ===", strings.ToUpper(tokenType)))
-}
 
 // obtainAPIKey exchanges OAuth tokens for OpenAI API key
 func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]interface{}, tokenData *OpenAICredentials) (string, string, error) {
 	authClaims, ok := tokenClaims["https://api.openai.com/auth"].(map[string]interface{})
 	if !ok {
-		// Debug: log what claims we actually received
-		debugTokenClaims("id_token", tokenClaims)
 		return "", "", fmt.Errorf("missing auth claims in ID token - you may need to create an organization and project at https://platform.openai.com first")
 	}
 
@@ -405,14 +373,12 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 	// If no direct organization_id, extract from organizations array like reference implementation
 	if !hasOrgID || orgID == "" {
 		if orgs, ok := authClaims["organizations"].([]interface{}); ok && len(orgs) > 0 {
-			logging.Info(fmt.Sprintf("✅ REFERENCE MATCH: Extracting organization from array (%d orgs found)", len(orgs)))
-			// Find the default organization first, otherwise use the first one (like logs show)
+			// Find the default organization first, otherwise use the first one
 			for _, org := range orgs {
 				if orgMap, ok := org.(map[string]interface{}); ok {
 					if isDefault, _ := orgMap["is_default"].(bool); isDefault {
 						if id, ok := orgMap["id"].(string); ok {
 							orgID = id
-							logging.Info(fmt.Sprintf("✅ Using default organization: %s (%s)", id, orgMap["title"]))
 							break
 						}
 					}
@@ -423,25 +389,15 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 				if orgMap, ok := orgs[0].(map[string]interface{}); ok {
 					if id, ok := orgMap["id"].(string); ok {
 						orgID = id
-						logging.Info(fmt.Sprintf("✅ Using first organization: %s (%s)", id, orgMap["title"]))
 					}
 				}
 			}
 		}
-	} else {
-		logging.Info(fmt.Sprintf("✅ Found direct organization_id: %s", orgID))
 	}
 
 	// Require organization but project_id is optional
 	if orgID == "" {
-		logging.Info("❌ NO ORGANIZATION: Neither direct organization_id nor organizations array found")
 		return "", "", fmt.Errorf("no organization found in token - please ensure you have an organization at https://platform.openai.com")
-	}
-
-	if projectID != "" {
-		logging.Info(fmt.Sprintf("✅ Found project_id: %s", projectID))
-	} else {
-		logging.Info("ℹ️  No project_id - proceeding with token exchange anyway")
 	}
 
 	// Generate API key name with random ID
@@ -452,31 +408,6 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 	today := time.Now().UTC().Format("2006-01-02")
 	keyName := fmt.Sprintf("Codex CLI [auto-generated] (%s) [%s]", today, randomID)
 
-	// DEBUG: Check if we need to transform the ID token for OpenAI's expectations
-	logging.Info("=== RAW ID TOKEN FOR TOKEN EXCHANGE ===")
-	tokenPreview := tokenData.IDToken
-	if len(tokenPreview) > 100 {
-		tokenPreview = tokenPreview[:100] + "..."
-	}
-	logging.Info(fmt.Sprintf("Raw ID token preview: %s", tokenPreview))
-	
-	// Check if the ID token has organization_id as a direct field vs organizations array
-	if authClaims, ok := tokenClaims["https://api.openai.com/auth"].(map[string]interface{}); ok {
-		if _, hasDirectOrgID := authClaims["organization_id"].(string); hasDirectOrgID {
-			logging.Info("ID token has direct organization_id field - should work with OpenAI")
-		} else if orgs, hasOrgsArray := authClaims["organizations"].([]interface{}); hasOrgsArray {
-			logging.Info(fmt.Sprintf("ID token has organizations array with %d orgs - OpenAI may reject this", len(orgs)))
-			// This might be the issue - OpenAI expects organization_id as direct field
-		} else {
-			logging.Info("ID token has neither organization_id nor organizations - this will fail")
-		}
-	}
-	logging.Info("==========================================")
-
-	// FINAL SOLUTION: Use ID token but provide organization via header
-	// The access token attempt confirmed headers work, but we need ID token
-	// This combines the correct token with the correct organization context
-	logging.Info("FINAL SOLUTION: Using ID token with OpenAI-Organization header - best of both approaches")
 	
 	exchangeData := url.Values{
 		"grant_type":         {"urn:ietf:params:oauth:grant-type:token-exchange"},
@@ -487,24 +418,13 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 		"name":               {keyName},
 	}
 
-	logging.Info("=== TOKEN EXCHANGE REQUEST DEBUG ===")
-	logging.Info(fmt.Sprintf("Exchange URL: %s/oauth/token", openaiIssuer))
-	logging.Info(fmt.Sprintf("Client ID: %s", flow.ClientID))
-	logging.Info(fmt.Sprintf("Organization ID: %s", orgID))
-	logging.Info(fmt.Sprintf("Key name: %s", keyName))
-	logging.Info(fmt.Sprintf("ID token (first 50 chars): %s...", tokenData.IDToken[:50]))
-	logging.Info("=====================================")
-
-	// CRITICAL FIX: Use same approach as working Python implementation - NO EXTRA HEADERS
+	// Use same approach as working Python implementation - NO EXTRA HEADERS
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/oauth/token", openaiIssuer), strings.NewReader(exchangeData.Encode()))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create request: %w", err)
 	}
 	
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	// REMOVED: OpenAI-Organization header (not used by working implementation)
-	
-	logging.Info("FIXED: Using same request format as working Python implementation")
 	
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -515,8 +435,6 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		logging.Info(fmt.Sprintf("❌ TOKEN EXCHANGE FAILED (status %d): %s", resp.StatusCode, string(body)))
-		logging.Info("🔄 REFERENCE IMPLEMENTATION FALLBACK: Using OAuth access token directly as API key")
 		
 		// Fallback to access token like the reference implementation does
 		successURL := fmt.Sprintf("http://localhost:%d/success", openaiRequiredPort)
