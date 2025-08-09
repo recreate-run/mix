@@ -10,10 +10,32 @@ AI-powered media analysis tool (CLI interface) using multiple LLM providers thro
 - **Multiple Output Formats**: JSON, Markdown, and Text export
 - **Custom Prompts**: Flexible analysis with custom or predefined prompts
 
-## Instructions
+## Usage notes
 - You MUST ALWAYS use Multimodal Analyzer to analyze media files, NEVER read images directly
 - ALWAYS Use with the `bash` tool - this is a standalone CLI command
 - ALWAYS use batch processing for analyzing multiple files
+
+## When to Use This Tool
+
+Use this tool for ANALYZING/UNDERSTANDING media content:
+
+1. Content Analysis Requests:
+   - "What's in this image?", "Describe this media", "Analyze this file"
+   - "Explain what you see", "What does this show?"
+
+2. Information Extraction:
+   - Transcribing audio, describing video content
+   - Understanding visual elements, text recognition
+   - Any AI-powered content interpretation
+
+## Trigger Phrases for Analysis
+- "What's in...", "Describe...", "Analyze...", "Explain..."
+- "What does this show?", "What can you see?"
+- "Extract from...", "Understand...", "Interpret..."
+
+## When NOT to Use This Tool
+- When users just want to VIEW the media, not analyze its content
+- Simple Display Requests: "Show me the file", "Display this image", "Let me see .."
 
 ## Hybrid File Input Support
 
@@ -157,7 +179,6 @@ multimodal-analyzer --type video  \
   --word-count 300 --output json --output-file video_summaries.json
 ```
 
-
 ## Output Schema
 
 ### JSON Output Format (Batch Mode)
@@ -165,4 +186,4 @@ multimodal-analyzer --type video  \
 Results are returned as an array of objects, one per analyzed file:
 
 ### Error Handling
-Failed analyses include error details:
+Failed analyses include error details

@@ -164,7 +164,7 @@ func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 
 	// Open browser to authorization URL
 	authURL := flow.GetAuthorizationURL()
-	
+
 	if err := openBrowser(authURL); err != nil {
 		logging.Warn("Failed to open browser automatically", "error", err)
 		fmt.Printf("Please manually open this URL in your browser:\n%s\n", authURL)
@@ -182,14 +182,14 @@ func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 			return nil, authResult.Error
 		}
 		// Success case - don't shutdown yet, wait for success page to be served
-		
+
 	case <-time.After(10 * time.Minute): // 10 minute timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		flow.server.Shutdown(ctx)
 		return nil, fmt.Errorf("authentication timeout after 10 minutes")
 	}
-	
+
 	// Wait for shutdown signal from success page handler
 	select {
 	case <-flow.shutdownChan:
@@ -198,7 +198,7 @@ func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 		defer cancel()
 		flow.server.Shutdown(ctx)
 		return authResult.Credentials, nil
-		
+
 	case <-time.After(30 * time.Second): // Additional timeout for success page
 		// Force shutdown if success page takes too long
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -245,12 +245,12 @@ func (flow *OpenAIOAuthFlow) handleSuccess(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(openaiLoginSuccessHTML))
-	
+
 	// Ensure response is fully sent before signaling shutdown
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
-	
+
 	// Signal that success page has been served - safe to shutdown server
 	go func() {
 		time.Sleep(100 * time.Millisecond) // Give response time to complete
@@ -284,7 +284,7 @@ func (flow *OpenAIOAuthFlow) exchangeCodeForCredentials(code string) (*OpenAICre
 	}
 
 	// PROCEED WITH API KEY GENERATION - reference implementation works with organizations array
-	
+
 	// Step 3: Fallback - try token exchange with current structure
 	apiKey, successURL, err := flow.obtainAPIKey(tokenClaims, accessClaims, tokenData)
 	if err != nil {
@@ -358,7 +358,6 @@ func (flow *OpenAIOAuthFlow) exchangeAuthCode(code string) (*OpenAICredentials, 
 	}, nil
 }
 
-
 // obtainAPIKey exchanges OAuth tokens for OpenAI API key
 func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]interface{}, tokenData *OpenAICredentials) (string, string, error) {
 	authClaims, ok := tokenClaims["https://api.openai.com/auth"].(map[string]interface{})
@@ -368,7 +367,6 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 
 	// CRITICAL FIX: Extract organization from either direct field OR organizations array (reference implementation works with array)
 	orgID, hasOrgID := authClaims["organization_id"].(string)
-	projectID, _ := authClaims["project_id"].(string)
 
 	// If no direct organization_id, extract from organizations array like reference implementation
 	if !hasOrgID || orgID == "" {
@@ -408,12 +406,11 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 	today := time.Now().UTC().Format("2006-01-02")
 	keyName := fmt.Sprintf("Codex CLI [auto-generated] (%s) [%s]", today, randomID)
 
-	
 	exchangeData := url.Values{
 		"grant_type":         {"urn:ietf:params:oauth:grant-type:token-exchange"},
 		"client_id":          {flow.ClientID},
 		"requested_token":    {"openai-api-key"},
-		"subject_token":      {tokenData.IDToken}, // Back to ID token
+		"subject_token":      {tokenData.IDToken},                           // Back to ID token
 		"subject_token_type": {"urn:ietf:params:oauth:token-type:id_token"}, // ID token type
 		"name":               {keyName},
 	}
@@ -423,9 +420,9 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -434,8 +431,7 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		
+
 		// Fallback to access token like the reference implementation does
 		successURL := fmt.Sprintf("http://localhost:%d/success", openaiRequiredPort)
 		return tokenData.AccessToken, successURL, nil

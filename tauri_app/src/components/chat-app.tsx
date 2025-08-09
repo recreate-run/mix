@@ -71,6 +71,13 @@ export type MessageData = {
   plan_mode: boolean;
 };
 
+type MediaOutput = {
+  path: string;
+  type: 'image' | 'video' | 'audio';
+  title: string;
+  description?: string;
+};
+
 type Message = {
   content: string;
   from: 'user' | 'assistant';
@@ -79,11 +86,29 @@ type Message = {
   attachments?: Attachment[];
   reasoning?: string;
   reasoningDuration?: number;
+  mediaOutputs?: MediaOutput[];
 };
 
 // Helper function to check if a message contains exit_plan_mode tool call
 const hasExitPlanModeTool = (toolCalls: any[]) => {
   return toolCalls?.some((tc) => tc.name === 'exit_plan_mode');
+};
+
+// Helper function to check if a message contains media_showcase tool call
+const hasMediaShowcaseTool = (toolCalls: any[]) => {
+  return toolCalls?.some((tc) => tc.name === 'media_showcase');
+};
+
+// Helper function to extract media outputs from media_showcase tool call
+const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
+  const mediaShowcaseTool = toolCalls?.find((tc) => tc.name === 'media_showcase');
+  if (!mediaShowcaseTool?.parameters?.outputs) return [];
+  
+  try {
+    return mediaShowcaseTool.parameters.outputs as MediaOutput[];
+  } catch {
+    return [];
+  }
 };
 
 const DEFAULT_WORKING_DIR = '/Users/sarathmenon/Desktop/a16z_demo/new_project';
@@ -413,6 +438,10 @@ export function ChatApp() {
       }));
 
       setMessages((prev) => {
+        const mediaOutputs = hasMediaShowcaseTool(convertedToolCalls) 
+          ? getMediaShowcaseOutputs(convertedToolCalls) 
+          : undefined;
+
         const newMessages = [
           ...prev,
           {
@@ -422,6 +451,7 @@ export function ChatApp() {
               convertedToolCalls.length > 0 ? convertedToolCalls : undefined,
             reasoning: sseStream.reasoning,
             reasoningDuration: sseStream.reasoningDuration,
+            mediaOutputs,
           },
         ];
 

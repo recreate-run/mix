@@ -1,4 +1,5 @@
-import { Check, Copy, Pencil } from 'lucide-react';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { Check, Copy, Pencil, Play } from 'lucide-react';
 import type { RefCallback, RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import type { Attachment } from '@/stores/attachmentStore';
+import { AudioWaveform } from './audio-waveform';
 import { LoadingDots } from './loading-dots';
 import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
@@ -35,6 +37,13 @@ type ToolCall = {
   error?: string;
 };
 
+type MediaOutput = {
+  path: string;
+  type: 'image' | 'video' | 'audio';
+  title: string;
+  description?: string;
+};
+
 type Message = {
   content: string;
   from: 'user' | 'assistant';
@@ -42,6 +51,7 @@ type Message = {
   attachments?: Attachment[];
   reasoning?: string;
   reasoningDuration?: number;
+  mediaOutputs?: MediaOutput[];
 };
 
 type StreamingState = {
@@ -50,6 +60,95 @@ type StreamingState = {
   reasoningDuration?: number;
   toolCalls: any[];
   completed: boolean;
+};
+
+// Media Showcase Component
+const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
+  if (!mediaOutputs || mediaOutputs.length === 0) return null;
+
+  return (
+    <div className=" space-y-4">
+      {mediaOutputs.map((output, index) => (
+        <div key={index} className="rounded-lg p-2">
+          <div className="mb-3">
+            <h3 className="font-semibold">{output.title}</h3>
+            {output.description && (
+              <p className="text-sm text-muted-foreground mt-1">{output.description}</p>
+            )}
+          </div>
+          
+          {output.type === 'image' && (
+            <div className="rounded-md overflow-hidden">
+              <img
+                src={convertFileSrc(output.path)}
+                alt={output.title}
+                className="w-full h-auto max-h-96 object-contain bg-black"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
+                }}
+              />
+              <div 
+                className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
+                style={{ display: 'none' }}
+              >
+                Failed to load image: {output.path}
+              </div>
+            </div>
+          )}
+          
+          {output.type === 'video' && (
+            <div className="rounded-md overflow-hidden">
+              <video
+                src={convertFileSrc(output.path)}
+                controls
+                className="w-full h-auto max-h-96 bg-black"
+                preload="metadata"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
+                }}
+              >
+                Your browser does not support the video tag.
+              </video>
+              <div 
+                className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
+                style={{ display: 'none' }}
+              >
+                Failed to load video: {output.path}
+              </div>
+            </div>
+          )}
+          
+          {output.type === 'audio' && (
+            <div className="rounded-md bg-stone-700/30 p-4">
+              <audio
+                src={convertFileSrc(output.path)}
+                controls
+                className="w-full"
+                preload="metadata"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
+                }}
+              >
+                Your browser does not support the audio tag.
+              </audio>
+              <div 
+                className="text-center text-stone-400 mt-2"
+                style={{ display: 'none' }}
+              >
+                Failed to load audio: {output.path}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 };
 
 interface ConversationDisplayProps {
@@ -89,10 +188,10 @@ const extractPlanFromToolCalls = (toolCalls: any[]) => {
   }
 };
 
-// Helper function to filter out special tools (todo_write, exit_plan_mode) from toolCalls
+// Helper function to filter out special tools (todo_write, exit_plan_mode, media_showcase) from toolCalls
 const filterNonSpecialTools = (toolCalls: any[]) => {
   return toolCalls.filter(
-    (tc) => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode'
+    (tc) => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode' && tc.name !== 'media_showcase'
   );
 };
 
@@ -215,6 +314,10 @@ export function ConversationDisplay({
                       planContent={extractPlanFromToolCalls(message.toolCalls)}
                       showOptions={showPlanOptions === index}
                     />
+                  )}
+                  {/* Render media showcase */}
+                  {message.mediaOutputs && (
+                    <MediaShowcase mediaOutputs={message.mediaOutputs} />
                   )}
                   {/* Render non-special tools in ladder */}
                   {filterNonSpecialTools(message.toolCalls).length > 0 && (

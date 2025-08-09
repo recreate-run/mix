@@ -1,5 +1,5 @@
-# Video editing tools
-These are python tools for video editing automation using the blender MCP.
+# GUI Video editor tools
+These are python tools for GUI base video editing automation using the blender MCP.
 
 ## Instructions
 
