@@ -1056,7 +1056,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 		opts = append(
 			opts,
 			provider.WithAnthropicOptions(
-				provider.WithAnthropicShouldThinkFn(provider.DefaultShouldThinkFn),
+				provider.WithAnthropicThinkingBudgetFn(provider.DefaultThinkingBudgetFn),
 			),
 		)
 	}
@@ -1122,7 +1122,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		opts = append(
 			opts,
 			provider.WithAnthropicOptions(
-				provider.WithAnthropicShouldThinkFn(provider.DefaultShouldThinkFn),
+				provider.WithAnthropicThinkingBudgetFn(provider.DefaultThinkingBudgetFn),
 			),
 		)
 	}

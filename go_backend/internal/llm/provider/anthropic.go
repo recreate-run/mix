@@ -23,7 +23,7 @@ import (
 type anthropicOptions struct {
 	useBedrock             bool
 	disableCache          bool
-	shouldThink           func(userMessage string) bool
+	thinkingBudget        func(userMessage string) int
 	useOAuth              bool
 	oauthCreds            *OAuthCredentials
 	useInterleavedThinking bool
@@ -232,9 +232,11 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 				messageContent = m.OfText.Text
 			}
 		}
-		if messageContent != "" && a.options.shouldThink != nil && a.options.shouldThink(messageContent) {
-			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(float64(a.providerOptions.maxTokens) * 0.8))
-			temperature = anthropic.Float(1)
+		if messageContent != "" && a.options.thinkingBudget != nil {
+			if tokenBudget := a.options.thinkingBudget(messageContent); tokenBudget > 0 {
+				thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(tokenBudget))
+				temperature = anthropic.Float(1)
+			}
 		}
 	}
 
@@ -651,13 +653,42 @@ func WithAnthropicDisableCache() AnthropicOption {
 	}
 }
 
-func DefaultShouldThinkFn(s string) bool {
-	return strings.Contains(strings.ToLower(s), "think")
+func DefaultThinkingBudgetFn(s string) int {
+	content := strings.ToLower(s)
+	
+	// Level 1: 31999 tokens - Check longest phrases first
+	if strings.Contains(content, "think harder") ||
+		strings.Contains(content, "think intensely") ||
+		strings.Contains(content, "think longer") ||
+		strings.Contains(content, "think really hard") ||
+		strings.Contains(content, "think super hard") ||
+		strings.Contains(content, "think very hard") ||
+		strings.Contains(content, "ultrathink") {
+		return 31999
+	}
+	
+	// Level 2: 10000 tokens
+	if strings.Contains(content, "think about it") ||
+		strings.Contains(content, "think a lot") ||
+		strings.Contains(content, "think deeply") ||
+		strings.Contains(content, "think hard") ||
+		strings.Contains(content, "think more") ||
+		strings.Contains(content, "megathink") {
+		return 10000
+	}
+	
+	// Level 3: 4000 tokens
+	if strings.Contains(content, "think") {
+		return 4000
+	}
+	
+	// No thinking
+	return 0
 }
 
-func WithAnthropicShouldThinkFn(fn func(string) bool) AnthropicOption {
+func WithAnthropicThinkingBudgetFn(fn func(string) int) AnthropicOption {
 	return func(options *anthropicOptions) {
-		options.shouldThink = fn
+		options.thinkingBudget = fn
 	}
 }
 
