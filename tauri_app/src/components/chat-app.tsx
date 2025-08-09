@@ -111,6 +111,7 @@ const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
   }
 };
 
+
 const DEFAULT_WORKING_DIR = '/Users/sarathmenon/Desktop/a16z_demo/new_project';
 
 export function ChatApp() {

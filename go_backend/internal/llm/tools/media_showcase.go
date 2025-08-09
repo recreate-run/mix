@@ -16,10 +16,11 @@ type MediaShowcaseParams struct {
 }
 
 type MediaOutput struct {
-	Path        string `json:"path"`
-	Type        string `json:"type"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	Path        string      `json:"path"`
+	Type        string      `json:"type"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	Config      interface{} `json:"config,omitempty"` // For remotion configuration data
 }
 
 func NewMediaShowcaseTool() BaseTool {
@@ -39,12 +40,12 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 					"properties": map[string]any{
 						"path": map[string]any{
 							"type":        "string",
-							"description": "Absolute path to the media file",
+							"description": "Absolute path to the media file (required for image/video/audio, optional for remotion_title)",
 						},
 						"type": map[string]any{
 							"type":        "string",
 							"description": "Media type",
-							"enum":        []string{"image", "video", "audio"},
+							"enum":        []string{"image", "video", "audio", "remotion_title"},
 						},
 						"title": map[string]any{
 							"type":        "string",
@@ -54,8 +55,12 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 							"type":        "string",
 							"description": "Optional description or context",
 						},
+						"config": map[string]any{
+							"type":        "object",
+							"description": "Configuration data for remotion_title type (JSON object with composition settings and elements)",
+						},
 					},
-					"required": []string{"path", "type", "title"},
+					"required": []string{"type", "title"},
 				},
 			},
 		},
@@ -75,49 +80,61 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 
 	// Validate each media output
 	for i, output := range params.Outputs {
-		if output.Path == "" {
-			return NewTextErrorResponse(fmt.Sprintf("Output %d missing path", i)), nil
-		}
 		if output.Type == "" {
 			return NewTextErrorResponse(fmt.Sprintf("Output %d missing type", i)), nil
 		}
 		if output.Title == "" {
 			return NewTextErrorResponse(fmt.Sprintf("Output %d missing title", i)), nil
 		}
+		
+		// Path is only required for non-remotion types
+		if output.Type != "remotion_title" && output.Path == "" {
+			return NewTextErrorResponse(fmt.Sprintf("Output %d missing path", i)), nil
+		}
 
 		// Validate media type
 		validTypes := map[string]bool{
-			"image": true,
-			"video": true,
-			"audio": true,
+			"image":         true,
+			"video":         true,
+			"audio":         true,
+			"remotion_title": true,
 		}
 		if !validTypes[output.Type] {
 			return NewTextErrorResponse(fmt.Sprintf("Invalid media type '%s' for output %d", output.Type, i)), nil
 		}
 
-		// Check if file exists
-		if !filepath.IsAbs(output.Path) {
-			return NewTextErrorResponse(fmt.Sprintf("Path must be absolute for output %d: %s", i, output.Path)), nil
-		}
-		
-		if _, err := os.Stat(output.Path); err != nil {
-			return NewTextErrorResponse(fmt.Sprintf("Media file not found for output %d: %s", i, output.Path)), nil
+		// Check if file exists (skip for remotion_title which doesn't require physical files)
+		if output.Type != "remotion_title" {
+			if !filepath.IsAbs(output.Path) {
+				return NewTextErrorResponse(fmt.Sprintf("Path must be absolute for output %d: %s", i, output.Path)), nil
+			}
+			
+			if _, err := os.Stat(output.Path); err != nil {
+				return NewTextErrorResponse(fmt.Sprintf("Media file not found for output %d: %s", i, output.Path)), nil
+			}
 		}
 
-		// Validate file extension matches type
-		ext := strings.ToLower(filepath.Ext(output.Path))
-		switch output.Type {
-		case "image":
-			if !isImageExtension(ext) {
-				return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match image type for output %d", ext, i)), nil
+		// Validate file extension matches type (skip for remotion_title which doesn't require physical files)
+		if output.Type != "remotion_title" {
+			ext := strings.ToLower(filepath.Ext(output.Path))
+			switch output.Type {
+			case "image":
+				if !isImageExtension(ext) {
+					return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match image type for output %d", ext, i)), nil
+				}
+			case "video":
+				if !isVideoExtension(ext) {
+					return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match video type for output %d", ext, i)), nil
+				}
+			case "audio":
+				if !isAudioExtension(ext) {
+					return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match audio type for output %d", ext, i)), nil
+				}
 			}
-		case "video":
-			if !isVideoExtension(ext) {
-				return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match video type for output %d", ext, i)), nil
-			}
-		case "audio":
-			if !isAudioExtension(ext) {
-				return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match audio type for output %d", ext, i)), nil
+		} else {
+			// For remotion_title, validate that config is provided
+			if output.Config == nil {
+				return NewTextErrorResponse(fmt.Sprintf("remotion_title type requires config parameter for output %d", i)), nil
 			}
 		}
 	}

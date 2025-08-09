@@ -83,7 +83,7 @@ and content creation workflows.`,
 				return fmt.Errorf("failed to get current working directory: %v", err)
 			}
 		}
-		
+
 		// Only change directory if --cwd was explicitly provided
 		if cmd.Flag("cwd").Changed {
 			err := os.Chdir(cwd)
@@ -91,7 +91,7 @@ and content creation workflows.`,
 				return fmt.Errorf("failed to change directory: %v", err)
 			}
 		}
-		
+
 		_, err := config.Load(cwd, debug, skipPermissions)
 		if err != nil {
 			return err
@@ -153,7 +153,6 @@ func initMCPTools(ctx context.Context, app *app.App) {
 		tempManager := agent.NewMCPClientManager()
 		defer tempManager.Close()
 		agent.GetMcpTools(ctxWithTimeout, app.Permissions, tempManager)
-		logging.Info("MCP message handling goroutine exiting")
 	}()
 }
 

@@ -40,29 +40,6 @@ export type AIToolHeaderProps = ComponentProps<typeof CollapsibleTrigger> & {
   description?: string;
 };
 
-const getStatusBadge = (status: AIToolStatus) => {
-  const labels = {
-    pending: 'Pending',
-    running: 'Running',
-    completed: 'Completed',
-    error: 'Error',
-  } as const;
-
-  const icons = {
-    pending: <CircleIcon className="size-4" />,
-    running: <ClockIcon className="size-4 animate-pulse" />,
-    completed: <CheckCircleIcon className="size-4 text-green-600" />,
-    error: <XCircleIcon className="size-4 text-red-600" />,
-  } as const;
-
-  return (
-    <Badge className="rounded-full text-xs" variant="secondary">
-      {icons[status]}
-      {labels[status]}
-    </Badge>
-  );
-};
-
 export const AIToolHeader = ({
   className,
   status = 'pending',

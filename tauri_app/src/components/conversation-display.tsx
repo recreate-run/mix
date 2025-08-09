@@ -27,6 +27,7 @@ import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
+import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
 
 type ToolCall = {
   name: string;
@@ -39,10 +40,12 @@ type ToolCall = {
 
 type MediaOutput = {
   path: string;
-  type: 'image' | 'video' | 'audio';
+  type: 'image' | 'video' | 'audio' | 'remotion_title';
   title: string;
   description?: string;
+  config?: any; // For remotion configuration data
 };
+
 
 type Message = {
   content: string;
@@ -144,6 +147,10 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
                 Failed to load audio: {output.path}
               </div>
             </div>
+          )}
+          
+          {output.type === 'remotion_title' && output.config && (
+            <RemotionVideoPreview config={output.config as any} />
           )}
         </div>
       ))}

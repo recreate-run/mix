@@ -67,13 +67,28 @@ Assistant: I'll display the reference audio file so you can review it.
 - Description: Original audio file for editing reference
 </example>
 
+<example>
+User: Create a simple animated title saying "Welcome"
+Assistant: [After generating the title configuration]
+
+I've created an animated title for you.
+
+*Uses media_showcase tool with:*
+- Path: "" (not required for remotion_title)
+- Type: remotion_title
+- Title: Welcome Title Animation
+- Description: Animated welcome title with fade-in effect
+- Config: {"composition": {"durationInFrames": 90, "fps": 30, "width": 1920, "height": 1080}, "elements": [{"type": "text", "content": "Welcome", "from": 0, "durationInFrames": 90, "position": {"x": 0, "y": 0}, "style": {"fontSize": 72, "color": "#ffffff"}, "animation": {"type": "fadeIn", "duration": 30}}]}
+</example>
+
 ## Parameters
 
 outputs (required): Array of media outputs to showcase
-- path (required): Absolute file path to the media file
-- type (required): Media type - "image", "video", or "audio"
+- path (required): Absolute file path to the media file (not required for remotion_title type)
+- type (required): Media type - "image", "video", "audio", or "remotion_title"
 - title (required): Display title for the media
 - description (optional): Human-provided project context or metadata (NOT content analysis)
+- config (optional): For remotion_title type, provide JSON configuration with composition settings and animated elements
 
 **Description Field Notes:**
 - Use for WHY you're showing the media, not WHAT'S IN it
