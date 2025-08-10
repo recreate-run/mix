@@ -252,9 +252,8 @@ pub fn run() {
             // Create the main window programmatically
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("")
-                .inner_size(600.0, 700.0)
-                .max_inner_size(600.0, 700.0)
-                .min_inner_size(500.0, 600.0);
+                .inner_size(700.0, 800.0)
+                .min_inner_size(600.0, 600.0);
 
             // set transparent title bar only when building for macOS
             #[cfg(target_os = "macos")]

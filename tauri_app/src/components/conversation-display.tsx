@@ -1,6 +1,7 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { Check, Copy, Pencil, Play } from 'lucide-react';
+import { Check, Copy, Pencil } from 'lucide-react';
 import type { RefCallback, RefObject } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   AIMessage,
@@ -28,6 +29,7 @@ import { PlanDisplay } from './plan-display';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
+import { PlaylistSidebar } from './playlist-sidebar';
 
 type ToolCall = {
   name: string;
@@ -65,95 +67,121 @@ type StreamingState = {
   completed: boolean;
 };
 
+// Main Media Player Component
+const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
+  return (
+    <div className="">
+      <div className="mb-3">
+        <h3 className="font-semibold">{media.title}</h3>
+        {media.description && (
+          <p className="text-sm text-muted-foreground mt-1">{media.description}</p>
+        )}
+      </div>
+
+      {media.type === 'image' && (
+        <div className="rounded-md overflow-hidden">
+          <img
+            src={convertFileSrc(media.path)}
+            alt={media.title}
+            className="w-full h-auto max-h-96 object-contain bg-black"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <div
+            className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
+            style={{ display: 'none' }}
+          >
+            Failed to load image: {media.path}
+          </div>
+        </div>
+      )}
+
+      {media.type === 'video' && (
+        <div className="rounded-md overflow-hidden">
+          <video
+            src={convertFileSrc(media.path)}
+            controls
+            className="w-full h-auto max-h-96 bg-black"
+            preload="metadata"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+              if (fallback) fallback.style.display = 'block';
+            }}
+          >
+            Your browser does not support the video tag.
+          </video>
+          <div
+            className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
+            style={{ display: 'none' }}
+          >
+            Failed to load video: {media.path}
+          </div>
+        </div>
+      )}
+
+      {media.type === 'audio' && (
+        <div className="rounded-md bg-stone-700/30 p-4">
+          <audio
+            src={convertFileSrc(media.path)}
+            controls
+            className="w-full"
+            preload="metadata"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+              if (fallback) fallback.style.display = 'block';
+            }}
+          >
+            Your browser does not support the audio tag.
+          </audio>
+          <div
+            className="text-center text-stone-400 mt-2"
+            style={{ display: 'none' }}
+          >
+            Failed to load audio: {media.path}
+          </div>
+        </div>
+      )}
+
+      {media.type === 'remotion_title' && media.config && (
+        <RemotionVideoPreview config={media.config as any} />
+      )}
+    </div>
+  );
+};
+
+
 // Media Showcase Component
 const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
   if (!mediaOutputs || mediaOutputs.length === 0) return null;
 
+  // Single media file - show directly
+  if (mediaOutputs.length === 1) {
+    return <MainMediaPlayer media={mediaOutputs[0]} />;
+  }
+
+  // Multiple media files - show player + playlist
   return (
-    <div className=" space-y-4">
-      {mediaOutputs.map((output, index) => (
-        <div key={index} className="rounded-lg p-2">
-          <div className="mb-3">
-            <h3 className="font-semibold">{output.title}</h3>
-            {output.description && (
-              <p className="text-sm text-muted-foreground mt-1">{output.description}</p>
-            )}
-          </div>
-          
-          {output.type === 'image' && (
-            <div className="rounded-md overflow-hidden">
-              <img
-                src={convertFileSrc(output.path)}
-                alt={output.title}
-                className="w-full h-auto max-h-96 object-contain bg-black"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'block';
-                }}
-              />
-              <div 
-                className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
-                style={{ display: 'none' }}
-              >
-                Failed to load image: {output.path}
-              </div>
-            </div>
-          )}
-          
-          {output.type === 'video' && (
-            <div className="rounded-md overflow-hidden">
-              <video
-                src={convertFileSrc(output.path)}
-                controls
-                className="w-full h-auto max-h-96 bg-black"
-                preload="metadata"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'block';
-                }}
-              >
-                Your browser does not support the video tag.
-              </video>
-              <div 
-                className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
-                style={{ display: 'none' }}
-              >
-                Failed to load video: {output.path}
-              </div>
-            </div>
-          )}
-          
-          {output.type === 'audio' && (
-            <div className="rounded-md bg-stone-700/30 p-4">
-              <audio
-                src={convertFileSrc(output.path)}
-                controls
-                className="w-full"
-                preload="metadata"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'block';
-                }}
-              >
-                Your browser does not support the audio tag.
-              </audio>
-              <div 
-                className="text-center text-stone-400 mt-2"
-                style={{ display: 'none' }}
-              >
-                Failed to load audio: {output.path}
-              </div>
-            </div>
-          )}
-          
-          {output.type === 'remotion_title' && output.config && (
-            <RemotionVideoPreview config={output.config as any} />
-          )}
-        </div>
-      ))}
+    <div className="grid gap-4" style={{ gridTemplateColumns: '3fr 1fr' }}>
+
+      <div>
+        <MainMediaPlayer media={mediaOutputs[selectedIndex]} />
+      </div>
+
+
+      <div>
+        <PlaylistSidebar
+          mediaOutputs={mediaOutputs}
+          selectedIndex={selectedIndex}
+          onSelect={setSelectedIndex}
+        />
+      </div>
     </div>
   );
 };
@@ -282,9 +310,11 @@ export function ConversationDisplay({
                       <ResponseRenderer content={message.content} />
                     )}
                   </AIMessageContent.Content>
-                  <AIMessageContent.Toolbar>
-                    <MessageCopyButton content={message.content} />
-                  </AIMessageContent.Toolbar>
+                  {!message.mediaOutputs && (
+                    <AIMessageContent.Toolbar>
+                      <MessageCopyButton content={message.content} />
+                    </AIMessageContent.Toolbar>
+                  )}
                 </>
               ) : (
                 <>
@@ -335,7 +365,7 @@ export function ConversationDisplay({
                             isLast={
                               toolIndex ===
                               filterNonSpecialTools(message.toolCalls).length -
-                                1
+                              1
                             }
                             key={`${index}-${toolCall.name}-${toolIndex}`}
                             status={toolCall.status}
@@ -376,12 +406,12 @@ export function ConversationDisplay({
                   {/* Render streaming todos inline without tool wrapper */}
                   {extractTodosFromToolCalls(sseStream.toolCalls).length >
                     0 && (
-                    <div className="mt-4">
-                      <TodoList
-                        todos={extractTodosFromToolCalls(sseStream.toolCalls)}
-                      />
-                    </div>
-                  )}
+                      <div className="mt-4">
+                        <TodoList
+                          todos={extractTodosFromToolCalls(sseStream.toolCalls)}
+                        />
+                      </div>
+                    )}
                   {/* Render streaming plan content */}
                   {extractPlanFromToolCalls(sseStream.toolCalls) && (
                     <PlanDisplay
@@ -401,7 +431,7 @@ export function ConversationDisplay({
                               toolIndex ===
                               filterNonSpecialTools(sseStream.toolCalls)
                                 .length -
-                                1
+                              1
                             }
                             key={`streaming-${toolCall.id}-${toolIndex}`}
                             status={toolCall.status}

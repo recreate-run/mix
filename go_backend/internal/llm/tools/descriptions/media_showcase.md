@@ -14,11 +14,14 @@ Use this tool for DISPLAYING/VIEWING media files visually:
    - Presenting finished work or creative deliverables
    - Showing examples and reference materials for visual context
 
-3. After Creative Tasks - Display media outputs from:
+3. After Media Processing Tasks - Display media outputs from:
+   - Video editing (trimming, effects, filters, color correction, edited clips)
+   - Image processing (enhancement, filters, transformations, processed images)
+   - Audio processing (mixing, effects, mastering, processed audio)
    - Video creation/editing (marketing videos, montages, edited clips)
    - Image generation/processing (posters, logos, processed images)
    - Audio production (soundtracks, voice-overs, audio effects)
-   - Multi-media projects and complete creative deliverables
+   - Multi-media projects and complete deliverables
 
 ## When NOT to Use This Tool
 

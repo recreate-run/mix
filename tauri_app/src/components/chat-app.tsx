@@ -753,7 +753,7 @@ export function ChatApp() {
         </div>
 
         {/* AI Input Section */}
-        <div className="relative z-10 mx-auto w-full max-w-4xl shadow-[0_-40px_80px_rgba(0,0,0,0.7)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:bg-gradient-to-b before:from-transparent before:to-black/50 before:content-['']">
+        <div className="relative z-10 mx-auto w-full max-w-4xl shadow-[0_-20px_80px_rgba(0,0,0,0.7)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16  before:from-transparent before:to-black/50 before:content-['']">
           <div className="relative">
             <AIInput
               className="border-[0.5px] border-neutral-600"
