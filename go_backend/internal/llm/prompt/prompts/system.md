@@ -123,6 +123,9 @@ Notes:
 {markdown:internal/llm/tools/descriptions/pixelmator.md}
 </image_editing_tool>
 
+<remotion_tool>
+{markdown:internal/llm/tools/descriptions/remotion.md}
+</remotion_tool>
 
 Here is useful information about the environment you are running in:
 
