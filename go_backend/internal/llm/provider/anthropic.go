@@ -22,10 +22,10 @@ import (
 
 type anthropicOptions struct {
 	useBedrock             bool
-	disableCache          bool
-	thinkingBudget        func(userMessage string) int
-	useOAuth              bool
-	oauthCreds            *OAuthCredentials
+	disableCache           bool
+	thinkingBudget         func(userMessage string) int
+	useOAuth               bool
+	oauthCreds             *OAuthCredentials
 	useInterleavedThinking bool
 }
 
@@ -77,7 +77,6 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 				}
 			} else if !creds.IsTokenExpired() {
 				oauthCreds = creds
-				logging.Info("Using valid OAuth credentials")
 			}
 		}
 	}
@@ -655,7 +654,7 @@ func WithAnthropicDisableCache() AnthropicOption {
 
 func DefaultThinkingBudgetFn(s string) int {
 	content := strings.ToLower(s)
-	
+
 	// Level 1: 31999 tokens - Check longest phrases first
 	if strings.Contains(content, "think harder") ||
 		strings.Contains(content, "think intensely") ||
@@ -666,7 +665,7 @@ func DefaultThinkingBudgetFn(s string) int {
 		strings.Contains(content, "ultrathink") {
 		return 31999
 	}
-	
+
 	// Level 2: 10000 tokens
 	if strings.Contains(content, "think about it") ||
 		strings.Contains(content, "think a lot") ||
@@ -676,12 +675,12 @@ func DefaultThinkingBudgetFn(s string) int {
 		strings.Contains(content, "megathink") {
 		return 10000
 	}
-	
+
 	// Level 3: 4000 tokens
 	if strings.Contains(content, "think") {
 		return 4000
 	}
-	
+
 	// No thinking
 	return 0
 }

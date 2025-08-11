@@ -191,9 +191,6 @@ export const AIInputTextarea = ({
       >
         {tokens.map((token, index) => (
           <span
-            className={
-              token.type !== 'text' ? parser.getTokenStyle(token.type) : ''
-            }
             key={`${token.start}-${token.end}-${index}`}
             style={{ color: 'transparent' }}
           >

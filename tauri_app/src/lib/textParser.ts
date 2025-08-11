@@ -150,18 +150,6 @@ export class TextParser {
     return null;
   }
 
-  getTokenStyle(type: TokenType): string {
-    switch (type) {
-      case 'file-ref':
-        return 'bg-green-400/20 rounded';
-      case 'app-ref':
-        return 'bg-purple-400/20 text-purple-300 rounded';
-      case 'slash-command':
-        return 'bg-blue-400/20 text-blue-300 rounded';
-      default:
-        return '';
-    }
-  }
 
   private isSpecialToken(type: TokenType): boolean {
     return (
@@ -196,10 +184,6 @@ export function findTokenAtPosition(
   );
 }
 
-export function getTokenStyle(type: TokenType): string {
-  const parser = new TextParser([], []);
-  return parser.getTokenStyle(type);
-}
 
 export function isWholeTokenDeletion(type: TokenType): boolean {
   return type === 'file-ref' || type === 'app-ref' || type === 'slash-command';

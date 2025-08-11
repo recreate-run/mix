@@ -1,5 +1,5 @@
 import { Image, Video, Music, Play } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 type MediaOutput = {
@@ -103,26 +103,26 @@ export const PlaylistSidebar = ({
   };
 
   return (
-    <div className="py-4">
+    <div>
       <h4 className="text-sm font-medium mb-3 text-muted-foreground">
         Playlist ({mediaOutputs.length})
       </h4>
-      <ScrollArea className="h-96">
-        <div className="space-y-2 pr-2">
+      <ScrollArea className="w-full">
+        <div className="flex gap-3 pb-2">
           {mediaOutputs.map((media, index) => (
             <button
               key={index}
               onClick={() => onSelect(index)}
-              className={`w-full p-3 rounded-md text-left transition-colors ${
+              className={`min-w-32  p-2 rounded-md text-left transition-colors bg-stone-700/30 ${
                 selectedIndex === index 
-                  ? 'bg-stone-700/50 border border-stone-600' 
-                  : 'bg-stone-800/30 hover:bg-stone-700/30'
+                  ? ' border border-primary/30' 
+                  : 'hover:bg-stone-700/30'
               }`}
             >
               <div className="flex items-center gap-3">
                 {renderThumbnail(media)}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium  mb-1">
+                  <div className="text-sm font-medium mb-1">
                     {media.title}
                   </div>
                   {media.description && (
@@ -135,6 +135,7 @@ export const PlaylistSidebar = ({
             </button>
           ))}
         </div>
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
     </div>
   );

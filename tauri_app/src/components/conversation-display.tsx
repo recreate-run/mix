@@ -1,8 +1,9 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Check, Copy, Pencil } from 'lucide-react';
 import type { RefCallback, RefObject } from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AIMessage,
   AIMessageContent,
@@ -22,7 +23,6 @@ import {
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import type { Attachment } from '@/stores/attachmentStore';
-import { AudioWaveform } from './audio-waveform';
 import { LoadingDots } from './loading-dots';
 import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
@@ -30,6 +30,7 @@ import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
 import { PlaylistSidebar } from './playlist-sidebar';
+import { c } from 'node_modules/vite/dist/node/moduleRunnerTransport.d-DJ_mE5sf';
 
 type ToolCall = {
   name: string;
@@ -69,6 +70,14 @@ type StreamingState = {
 
 // Main Media Player Component
 const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+  }, [media.path]);
+
+  console.log("file src:", convertFileSrc(media.path));
+
   return (
     <div className="">
       <div className="mb-3">
@@ -83,7 +92,7 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
           <img
             src={convertFileSrc(media.path)}
             alt={media.title}
-            className="w-full h-auto max-h-96 object-contain bg-black"
+            className="w-full object-contain aspect-video   bg-black"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const fallback = e.currentTarget.nextElementSibling as HTMLElement;
@@ -100,12 +109,16 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
       )}
 
       {media.type === 'video' && (
-        <div className="rounded-md overflow-hidden">
+        <div className="rounded-md ">
+          {isLoading && (
+            <Skeleton className="w-xl  aspect-video " />
+          )}
           <video
             src={convertFileSrc(media.path)}
             controls
-            className="w-full h-auto max-h-96 bg-black"
-            preload="metadata"
+            className={`w-xl aspect-video bg-black ${isLoading ? 'hidden' : ''}`}
+            preload="auto"
+            onLoadedData={() => setIsLoading(false)}
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const fallback = e.currentTarget.nextElementSibling as HTMLElement;
@@ -168,20 +181,13 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
 
   // Multiple media files - show player + playlist
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: '3fr 1fr' }}>
-
-      <div>
-        <MainMediaPlayer media={mediaOutputs[selectedIndex]} />
-      </div>
-
-
-      <div>
-        <PlaylistSidebar
-          mediaOutputs={mediaOutputs}
-          selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
-        />
-      </div>
+    <div className="space-y-4">
+      <MainMediaPlayer media={mediaOutputs[selectedIndex]} />
+      <PlaylistSidebar
+        mediaOutputs={mediaOutputs}
+        selectedIndex={selectedIndex}
+        onSelect={setSelectedIndex}
+      />
     </div>
   );
 };
