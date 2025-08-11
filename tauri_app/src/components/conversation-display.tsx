@@ -80,8 +80,6 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
     setIsLoading(true);
   }, [media.path]);
 
-  console.log("file src:", convertFileSrc(media.path));
-
   return (
     <div className="">
       <div className="mb-3">
