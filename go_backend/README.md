@@ -278,3 +278,18 @@ Both CLI and HTTP interfaces provide full 2-way communication for session manage
 ```json
 [{"name": "bash", "description": "Execute shell commands"}]
 ```
+
+## Augthentication
+
+```
+./build/mix auth list 
+```
+
+
+```
+./build/mix add anthropic-claude-pro-max 
+```
+
+```
+./build/mix add openai
+```

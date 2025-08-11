@@ -4,6 +4,7 @@ import type { RefCallback, RefObject } from 'react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VideoPlayer } from './video-player';
 import {
   AIMessage,
   AIMessageContent,
@@ -30,7 +31,7 @@ import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
 import { PlaylistSidebar } from './playlist-sidebar';
-import { c } from 'node_modules/vite/dist/node/moduleRunnerTransport.d-DJ_mE5sf';
+
 
 type ToolCall = {
   name: string;
@@ -47,6 +48,9 @@ type MediaOutput = {
   title: string;
   description?: string;
   config?: any; // For remotion configuration data
+  sourceVideo?: string; // Original video path for highlights
+  startTime?: number; // Highlight start time in seconds
+  duration?: number; // Highlight duration in seconds
 };
 
 
@@ -109,31 +113,13 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
       )}
 
       {media.type === 'video' && (
-        <div className="rounded-md ">
-          {isLoading && (
-            <Skeleton className="w-xl  aspect-video " />
-          )}
-          <video
-            src={convertFileSrc(media.path)}
-            controls
-            className={`w-xl aspect-video bg-black ${isLoading ? 'hidden' : ''}`}
-            preload="auto"
-            onLoadedData={() => setIsLoading(false)}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-              if (fallback) fallback.style.display = 'block';
-            }}
-          >
-            Your browser does not support the video tag.
-          </video>
-          <div
-            className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
-            style={{ display: 'none' }}
-          >
-            Failed to load video: {media.path}
-          </div>
-        </div>
+        <VideoPlayer 
+          path={media.path}
+          title=""
+          sourceVideo={media.sourceVideo}
+          startTime={media.startTime}
+          duration={media.duration}
+        />
       )}
 
       {media.type === 'audio' && (

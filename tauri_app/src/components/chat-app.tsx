@@ -76,6 +76,9 @@ type MediaOutput = {
   type: 'image' | 'video' | 'audio';
   title: string;
   description?: string;
+  sourceVideo?: string; // Original video path for highlights
+  startTime?: number; // Highlight start time in seconds
+  duration?: number; // Highlight duration in seconds
 };
 
 type Message = {
@@ -113,6 +116,7 @@ const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
 
 
 const DEFAULT_WORKING_DIR = '/Users/sarathmenon/Desktop/a16z_demo/new_project';
+
 
 export function ChatApp() {
   // Core conversation state
@@ -828,6 +832,7 @@ export function ChatApp() {
             />
           )}
         </div>
+
       </div>
     </TooltipProvider>
   );

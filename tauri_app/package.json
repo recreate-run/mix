@@ -22,6 +22,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
+    "@remotion/player": "4.0.332",
     "@shikijs/transformers": "^3.9.1",
     "@tabler/icons-react": "^3.34.1",
     "@tailwindcss/vite": "^4.1.11",

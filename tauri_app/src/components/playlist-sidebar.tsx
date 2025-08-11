@@ -2,12 +2,21 @@ import { Image, Video, Music, Play } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
+const formatTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
 type MediaOutput = {
   path: string;
   type: 'image' | 'video' | 'audio' | 'remotion_title';
   title: string;
   description?: string;
   config?: any;
+  sourceVideo?: string; // Original video path for highlights
+  startTime?: number; // Highlight start time in seconds
+  duration?: number; // Highlight duration in seconds
 };
 
 interface PlaylistSidebarProps {
@@ -60,7 +69,10 @@ export const PlaylistSidebar = ({
     }
     
     if (media.type === 'video') {
-      const videoSrc = convertFileSrc(media.path);
+      // Use sourceVideo for highlights, fallback to path for regular videos
+      const videoSrc = convertFileSrc(media.sourceVideo || media.path);
+      // Use startTime for highlights, fallback to 1 second for regular videos
+      const thumbnailTime = media.startTime !== undefined ? media.startTime : 1;
       
       return (
         <div className="w-16 h-12 rounded overflow-hidden bg-stone-800 flex-shrink-0 relative">
@@ -70,15 +82,15 @@ export const PlaylistSidebar = ({
             preload="metadata"
             poster=""
             onLoadedMetadata={(e) => {
-              // Seek to 1 second to get a better thumbnail frame
+              // Seek to startTime for highlights or 1 second for regular videos
               try {
-                e.currentTarget.currentTime = 1;
+                e.currentTarget.currentTime = thumbnailTime;
               } catch (err) {
                 console.error('Error seeking video:', err);
               }
             }}
             onError={(e) => {
-              console.error('Video failed to load:', media.path, e);
+              console.error('Video failed to load:', media.sourceVideo || media.path, e);
               e.currentTarget.style.display = 'none';
               const parent = e.currentTarget.parentElement;
               if (parent) {
@@ -125,6 +137,11 @@ export const PlaylistSidebar = ({
                   <div className="text-sm font-medium mb-1">
                     {media.title}
                   </div>
+                  {media.sourceVideo && media.startTime !== undefined && media.duration !== undefined && (
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {formatTime(media.startTime)} - {formatTime(media.startTime + media.duration)}
+                    </div>
+                  )}
                   {media.description && (
                     <div className="text-xs text-muted-foreground line-clamp-2">
                       {media.description}

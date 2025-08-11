@@ -1,8 +1,8 @@
-Use this tool to display media files prominently in the conversation interface. This shows images, videos, and audio with large previews in the conversation.
+Display media files prominently in the conversation with large previews.
 
 ## When to Use This Tool
 
-Use this tool for DISPLAYING/VIEWING media files visually:
+Use for displaying/viewing media files:
 
 1. Visual Display Requests:
    - "Show me the image", "Display this video", "Let me see the file"
@@ -22,6 +22,8 @@ Use this tool for DISPLAYING/VIEWING media files visually:
    - Image generation/processing (posters, logos, processed images)
    - Audio production (soundtracks, voice-overs, audio effects)
    - Multi-media projects and complete deliverables
+
+4. Video Highlights - Display video segments with timestamps instead of creating separate files
 
 ## When NOT to Use This Tool
 
@@ -84,14 +86,27 @@ I've created an animated title for you.
 - Config: {"composition": {"durationInFrames": 90, "fps": 30, "width": 1920, "height": 1080}, "elements": [{"type": "text", "content": "Welcome", "from": 0, "durationInFrames": 90, "position": {"x": 0, "y": 0}, "style": {"fontSize": 72, "color": "#ffffff"}, "animation": {"type": "fadeIn", "duration": 30}}]}
 </example>
 
+<example>
+User: Give me three 5-second highlights from this demo video
+Assistant: I've identified key segments from your demo video.
+
+*Uses media_showcase tool with:*
+- Type: video, Title: "Product Overview", SourceVideo: /Users/project/demo.mp4, StartTime: 15, Duration: 5
+- Type: video, Title: "UI Walkthrough", SourceVideo: /Users/project/demo.mp4, StartTime: 85, Duration: 5  
+- Type: video, Title: "Results", SourceVideo: /Users/project/demo.mp4, StartTime: 130, Duration: 5
+</example>
+
 ## Parameters
 
 outputs (required): Array of media outputs to showcase
-- path (required): Absolute file path to the media file (not required for remotion_title type)
-- type (required): Media type - "image", "video", "audio", or "remotion_title"
-- title (required): Display title for the media
-- description (optional): Human-provided project context or metadata (NOT content analysis)
-- config (optional): For remotion_title type, provide JSON configuration with composition settings and animated elements
+- path: Absolute file path (not required for remotion_title or video highlights)
+- type: "image", "video", "audio", or "remotion_title"
+- title: Display title
+- description: Project context (optional)
+- config: Remotion configuration JSON (optional)
+- sourceVideo: Original video path for highlights (optional)
+- startTime: Highlight start time in seconds (optional)
+- duration: Highlight duration in seconds (optional)
 
 **Description Field Notes:**
 - Use for WHY you're showing the media, not WHAT'S IN it
@@ -102,7 +117,8 @@ outputs (required): Array of media outputs to showcase
 
 1. Validates all file paths - Ensures files exist and are accessible
 2. Checks file extensions - Verifies extensions match the specified media type
-3. Frontend Integration - Media outputs are displayed prominently with large previews
+3. Groups video highlights from same source into unified playback with timestamp navigation
+4. Frontend Integration - Media outputs are displayed prominently with large previews
 
 ## Usage Notes
 
