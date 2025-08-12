@@ -4,11 +4,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { Attachment } from '@/stores/attachmentStore';
-import {
-  removeFileReferences,
-  useAttachmentStore,
-} from '@/stores/attachmentStore';
+import type { Attachment } from '@/stores/attachmentSlice';
+import { removeFileReferences } from '@/stores/attachmentSlice';
+import { useBoundStore } from '@/stores';
 import {
   AppPreview,
   AudioPreview,
@@ -32,8 +30,8 @@ export const AttachmentPreview = ({
   referenceMap,
   onTextChange,
 }: AttachmentPreviewProps) => {
-  const removeAttachment = useAttachmentStore((state) => state.removeAttachment);
-  const removeReference = useAttachmentStore((state) => state.removeReference);
+  const removeAttachment = useBoundStore((state) => state.removeAttachment);
+  const removeReference = useBoundStore((state) => state.removeReference);
 
   const handleRemoveItem = (index: number) => {
     const attachmentToRemove = attachments[index];

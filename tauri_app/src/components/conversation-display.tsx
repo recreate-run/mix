@@ -23,7 +23,7 @@ import {
   AIToolStep,
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import type { Attachment } from '@/stores/attachmentStore';
+import type { Attachment } from '@/stores';
 import { LoadingDots } from './loading-dots';
 import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';

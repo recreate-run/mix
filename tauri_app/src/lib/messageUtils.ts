@@ -3,7 +3,7 @@ import {
   type Attachment,
   createFileAttachment,
   createFolderAttachment,
-} from '@/stores/attachmentStore';
+} from '@/stores/attachmentSlice';
 
 export interface BackendMessage {
   id: string;

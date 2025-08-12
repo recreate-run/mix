@@ -1,51 +1,15 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { readDir, stat } from '@tauri-apps/plugin-fs';
-import { create } from 'zustand';
 import {
   ALL_MEDIA_EXTENSIONS,
   AUDIO_EXTENSIONS,
   getFileType,
   IMAGE_EXTENSIONS,
-  isMediaFile,
   VIDEO_EXTENSIONS,
 } from '@/utils/fileTypes';
+import type { Attachment } from '@/stores/attachmentSlice';
 
-export type Attachment = {
-  id: string;
-  name: string;
-  type: 'image' | 'video' | 'audio' | 'text' | 'folder' | 'app';
-  // File/folder specific
-  path?: string;
-  preview?: string;
-  extension?: string;
-  mediaCount?: {
-    images: number;
-    videos: number;
-    audios: number;
-  };
-  isDirectory?: boolean;
-  // App specific
-  icon?: string; // base64
-  isOpen?: boolean;
-  bundleId?: string;
-};
-
-interface AttachmentState {
-  attachments: Attachment[];
-  referenceMap: Map<string, string>;
-  addAttachment: (attachment: Attachment) => void;
-  removeAttachment: (index: number) => void;
-  clearAttachments: () => void;
-  addReference: (displayName: string, path: string) => void;
-  removeReference: (displayName: string) => void;
-  syncWithText: (text: string) => void;
-  setHistoryState: (
-    attachments: Attachment[],
-    referenceMap: Map<string, string>
-  ) => void;
-  getMediaFiles: () => Attachment[];
-}
-
+// Helper function for folder attachment creation
 const countMediaFilesInFolder = async (
   folderPath: string
 ): Promise<{ images: number; videos: number; audios: number }> => {
@@ -73,103 +37,7 @@ const countMediaFilesInFolder = async (
   }
 };
 
-export const useAttachmentStore = create<AttachmentState>((set, get) => ({
-  attachments: [],
-  referenceMap: new Map(),
-
-  addAttachment: (attachment: Attachment) => {
-    const state = get();
-
-    // Skip if attachment already exists
-    if (state.attachments.some((existing) => existing.id === attachment.id)) {
-      return;
-    }
-
-    set((state) => {
-      const newAttachments = [...state.attachments, attachment];
-      if (newAttachments.length > 10) {
-        console.warn('Maximum 10 attachments allowed');
-        return { attachments: newAttachments.slice(0, 10) };
-      }
-      return { attachments: newAttachments };
-    });
-  },
-
-  removeAttachment: (index: number) => {
-    set((state) => ({
-      attachments: state.attachments.filter((_, i) => i !== index),
-    }));
-  },
-
-  clearAttachments: () => {
-    set({ attachments: [], referenceMap: new Map() });
-  },
-
-  addReference: (displayName: string, path: string) => {
-    set((state) => {
-      const newMap = new Map(state.referenceMap);
-      newMap.set(displayName, path);
-      return { referenceMap: newMap };
-    });
-  },
-
-  removeReference: (displayName: string) => {
-    set((state) => {
-      const newMap = new Map(state.referenceMap);
-      newMap.delete(displayName);
-      return { referenceMap: newMap };
-    });
-  },
-
-  syncWithText: (text: string) => {
-    const state = get();
-    const referencedAttachments = getReferencedAttachments(
-      text,
-      state.attachments
-    );
-
-    // Deep comparison to prevent unnecessary updates
-    const hasChanged =
-      referencedAttachments.length !== state.attachments.length ||
-      referencedAttachments.some(
-        (attachment, index) => attachment.id !== state.attachments[index]?.id
-      );
-
-    if (hasChanged) {
-      set({ attachments: referencedAttachments });
-    }
-  },
-
-  setHistoryState: (
-    attachments: Attachment[],
-    referenceMap: Map<string, string>
-  ) => {
-    // Apply 10-attachment limit
-    const limitedAttachments =
-      attachments.length > 10 ? attachments.slice(0, 10) : attachments;
-    if (attachments.length > 10) {
-      console.warn('Maximum 10 attachments allowed, truncating');
-    }
-
-    // Atomic update of both attachments and referenceMap
-    set({
-      attachments: limitedAttachments,
-      referenceMap: new Map(referenceMap),
-    });
-  },
-
-  getMediaFiles: () => {
-    const state = get();
-    return state.attachments.filter(
-      (attachment) =>
-        attachment.type === 'folder' ||
-        (attachment.extension &&
-          ALL_MEDIA_EXTENSIONS.includes(attachment.extension as any))
-    );
-  },
-}));
-
-// Utility functions
+// Attachment creation utilities
 export const createFileAttachment = (filePath: string): Attachment | null => {
   const fileName = filePath.split('/').pop() || filePath;
   const fileType = getFileType(fileName);
@@ -205,11 +73,7 @@ export const createFolderAttachment = async (
   };
 };
 
-export const isImageFile = (filename: string): boolean => {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  return ext ? IMAGE_EXTENSIONS.includes(ext as any) : false;
-};
-
+// File system utilities
 export const filterAndSortEntries = (
   entries: any[],
   basePath = ''
@@ -301,19 +165,6 @@ export const removeFileReferences = (
   }
 
   return updatedText;
-};
-
-// Get attachments that are still referenced in text
-export const getReferencedAttachments = (
-  text: string,
-  attachments: Attachment[]
-): Attachment[] => {
-  return attachments.filter((attachment) => {
-    return (
-      text.includes(`@${attachment.name}`) ||
-      text.includes(`@../${attachment.name}`)
-    );
-  });
 };
 
 // Reconstruct attachment state from historical message data

@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useMessageHistory } from '@/hooks/useMessageHistory';
-import {
-  reconstructAttachmentsFromHistory,
-  useAttachmentStore,
-} from '@/stores/attachmentStore';
+import { reconstructAttachmentsFromHistory } from '@/stores/attachmentSlice';
+import { useBoundStore } from '@/stores';
 
 interface UseMessageHistoryNavigationProps {
   text: string;
@@ -23,11 +21,11 @@ export function useMessageHistoryNavigation({
     batchSize,
   });
 
-  const clearAttachments = useAttachmentStore(
+  const clearAttachments = useBoundStore(
     (state) => state.clearAttachments
   );
-  const setHistoryState = useAttachmentStore((state) => state.setHistoryState);
-  const syncWithText = useAttachmentStore((state) => state.syncWithText);
+  const setHistoryState = useBoundStore((state) => state.setHistoryState);
+  const syncWithText = useBoundStore((state) => state.syncWithText);
 
   const navigateHistory = async (direction: 'up' | 'down') => {
     const allHistoryTexts = messageHistory.getAllHistoryTexts();

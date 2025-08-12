@@ -42,8 +42,8 @@ import {
   type Attachment,
   expandFileReferences,
   reconstructAttachmentsFromHistory,
-  useAttachmentStore,
-} from '@/stores/attachmentStore';
+} from '@/stores/attachmentSlice';
+import { useBoundStore } from '@/stores';
 import {
   handleSlashCommandNavigation,
   shouldShowSlashCommands,
@@ -147,12 +147,12 @@ export function ChatApp() {
   // UI Mode 5: Normal Input (default when all others are false)
 
   // All attachment store hooks at top to avoid temporal dead zone
-  const attachments = useAttachmentStore((state) => state.attachments);
-  const referenceMap = useAttachmentStore((state) => state.referenceMap);
-  const clearAttachments = useAttachmentStore(
+  const attachments = useBoundStore((state) => state.attachments);
+  const referenceMap = useBoundStore((state) => state.referenceMap);
+  const clearAttachments = useBoundStore(
     (state) => state.clearAttachments
   );
-  const syncWithText = useAttachmentStore((state) => state.syncWithText);
+  const syncWithText = useBoundStore((state) => state.syncWithText);
 
   const { selectedFolder, selectFolder } = useFolderSelection();
   const {
@@ -193,7 +193,7 @@ export function ChatApp() {
   useEffect(() => {
     if (pendingForkText && session?.id) {
       setText(pendingForkText.text);
-      useAttachmentStore
+      useBoundStore
         .getState()
         .setHistoryState(
           pendingForkText.attachments,
@@ -757,14 +757,9 @@ export function ChatApp() {
           {fileRef.show && (
             <CommandFileReference
               apps={availableApps}
-              currentFolder={fileRef.currentFolder}
-              files={fileRef.files}
-              isLoadingFolder={fileRef.isLoadingFolder}
+              fileRef={fileRef}
               text={text}
               onClose={fileRef.close}
-              onEnterFolder={fileRef.enterSelectedFolder}
-              onGoBack={fileRef.goBack}
-              onSelect={fileRef.selectFile}
               onTextUpdate={setText}
             />
           )}

@@ -1,4 +1,4 @@
-import type { Attachment } from '@/stores/attachmentStore';
+import type { Attachment } from '@/stores';
 import {
   AppPreview,
   AudioPreview,

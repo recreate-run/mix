@@ -1,5 +1,5 @@
 import { FolderIcon, ImageIcon, NotebookPen, Play, VideoIcon } from 'lucide-react';
-import type { Attachment } from '@/stores/attachmentStore';
+import type { Attachment } from '@/stores';
 import { AudioWaveform } from './audio-waveform';
 
 export interface AttachmentItemPreviewProps {

@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 import {
   type Attachment,
   filterAndSortEntries,
-} from '@/stores/attachmentStore';
+} from '@/stores/attachmentSlice';
 
 export type MediaItem = Attachment;
 

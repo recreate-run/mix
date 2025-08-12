@@ -19,26 +19,22 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import type { FileEntry } from '@/hooks/useFileSystem';
+import type { useFileReference } from '@/hooks/useFileReference';
 import {
   type Attachment,
   filterAndSortEntries,
-  useAttachmentStore,
-} from '@/stores/attachmentStore';
+} from '@/stores/attachmentSlice';
+import { useBoundStore } from '@/stores';
 import { getFileType } from '@/utils/fileTypes';
 import { AppIcon } from './app-icon';
 
 const RECURSIVE_SEARCH_DEPTH = 3;
 
 interface Props {
-  files: FileEntry[];
+  fileRef: ReturnType<typeof useFileReference>;
   apps?: Attachment[];
   text: string;
-  onSelect: (file: FileEntry) => void;
   onTextUpdate?: (newText: string) => void;
-  currentFolder?: string | null;
-  isLoadingFolder?: boolean;
-  onGoBack?: () => void;
-  onEnterFolder?: (file: FileEntry) => void;
   onClose?: () => void;
 }
 
@@ -110,19 +106,14 @@ const MediaThumbnail = ({ file }: { file: FileEntry }) => {
 };
 
 export function CommandFileReference({
-  files,
+  fileRef,
   apps = [],
   text,
-  onSelect,
   onTextUpdate,
-  currentFolder,
-  isLoadingFolder,
-  onGoBack,
-  onEnterFolder,
   onClose,
 }: Props) {
-  const addAttachment = useAttachmentStore((state) => state.addAttachment);
-  const addReference = useAttachmentStore((state) => state.addReference);
+  const addAttachment = useBoundStore((state) => state.addAttachment);
+  const addReference = useBoundStore((state) => state.addReference);
 
   const handleAppSelect = (app: Attachment) => {
     const words = text.split(' ');
@@ -182,9 +173,9 @@ export function CommandFileReference({
   useEffect(() => {
     const loadAllFiles = async () => {
       const basePath =
-        currentFolder ||
-        (files.length > 0
-          ? files[0].path?.split('/').slice(0, -1).join('/')
+        fileRef.currentFolder ||
+        (fileRef.files.length > 0
+          ? fileRef.files[0].path?.split('/').slice(0, -1).join('/')
           : '');
       if (!basePath) {
         return;
@@ -202,14 +193,14 @@ export function CommandFileReference({
     };
 
     loadAllFiles();
-  }, [currentFolder, files, recursiveFetch]);
+  }, [fileRef.currentFolder, fileRef.files, recursiveFetch]);
 
   // Filter files based on search query - client-side filtering of preloaded files
   const filteredFiles = searchQuery.trim()
     ? allFiles.filter((file) =>
         file.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : files;
+    : fileRef.files;
 
   // Filter apps based on search query
   const filteredApps = searchQuery.trim()
@@ -228,9 +219,9 @@ export function CommandFileReference({
       // Look in both current files and all files for the selection
       const file =
         filteredFiles.find((f) => f.name === fileName) ||
-        files.find((f) => f.name === fileName);
+        fileRef.files.find((f) => f.name === fileName);
       if (file) {
-        onSelect(file);
+        fileRef.selectFile(file);
       }
     } else if (value.startsWith('app:')) {
       const appName = value.substring(4);
@@ -242,16 +233,16 @@ export function CommandFileReference({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft' && currentFolder && onGoBack) {
+    if (e.key === 'ArrowLeft' && fileRef.currentFolder && fileRef.goBack) {
       e.preventDefault();
-      onGoBack();
+      fileRef.goBack();
     } else if (e.key === 'ArrowRight') {
       if (selectedValue.startsWith('file:')) {
         const fileName = selectedValue.substring(5);
         const selectedFile = filteredFiles.find((f) => f.name === fileName);
-        if (selectedFile?.isDirectory && onEnterFolder) {
+        if (selectedFile?.isDirectory && fileRef.enterSelectedFolder) {
           e.preventDefault();
-          onEnterFolder(selectedFile);
+          fileRef.enterSelectedFolder(selectedFile);
         }
       }
     } else if (e.key === 'Escape' && onClose) {
@@ -277,7 +268,7 @@ export function CommandFileReference({
         />
 
         <CommandList>
-          {isLoadingFolder || isLoadingAllFiles ? (
+          {fileRef.isLoadingFolder || isLoadingAllFiles ? (
             <div className="px-3 py-2 text-muted-foreground text-xs">
               {isLoadingAllFiles
                 ? 'Loading all files...'
@@ -289,7 +280,7 @@ export function CommandFileReference({
               {filteredFiles.length > 0 && (
                 <CommandGroup
                   heading={
-                    currentFolder ? 'Files & Folders' : 'Media & Folders'
+                    fileRef.currentFolder ? 'Files & Folders' : 'Media & Folders'
                   }
                 >
                   {filteredFiles.map((file) => {
@@ -355,7 +346,7 @@ export function CommandFileReference({
             <CommandEmpty>
               {searchQuery
                 ? 'No files or apps match your search'
-                : currentFolder
+                : fileRef.currentFolder
                   ? 'No files found in folder'
                   : 'No files or apps found'}
             </CommandEmpty>
@@ -366,8 +357,8 @@ export function CommandFileReference({
         <div className="flex h-6 items-center justify-between border-gray-200/50 border-t bg-gray-50/80 px-3 py-1 text-xs dark:border-gray-700/50 dark:bg-gray-800/80">
           {/* Left side - Selection context */}
           <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-            {currentFolder && (
-              <span className="font-medium">{currentFolder}</span>
+            {fileRef.currentFolder && (
+              <span className="font-medium">{fileRef.currentFolder}</span>
             )}
           </div>
 
@@ -388,7 +379,7 @@ export function CommandFileReference({
                 );
                 return (
                   selectedFile?.isDirectory &&
-                  onEnterFolder && (
+                  fileRef.enterSelectedFolder && (
                     <div className="flex items-center gap-0.5">
                       <kbd className="rounded border border-gray-300 bg-white px-1 py-0 font-mono text-gray-600 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
                         →
@@ -401,7 +392,7 @@ export function CommandFileReference({
                 );
               })()}
 
-            {currentFolder && onGoBack && (
+            {fileRef.currentFolder && fileRef.goBack && (
               <div className="flex items-center gap-0.5">
                 <kbd className="rounded border border-gray-300 bg-white px-1 py-0 font-mono text-gray-600 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
                   ←

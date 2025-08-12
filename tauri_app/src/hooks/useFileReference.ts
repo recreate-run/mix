@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
-import { getParentPath, useAttachmentStore } from '@/stores/attachmentStore';
+import { getParentPath } from '@/stores/attachmentSlice';
+import { useBoundStore } from '@/stores';
 import { ALL_MEDIA_EXTENSIONS } from '@/utils/fileTypes';
 import { type MediaItem, useFileSystem } from './useFileSystem';
 
@@ -66,8 +67,8 @@ export const useFileReference = (
     useFileSystem(customBasePath);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const addAttachment = useAttachmentStore((state) => state.addAttachment);
-  const addReference = useAttachmentStore((state) => state.addReference);
+  const addAttachment = useBoundStore((state) => state.addAttachment);
+  const addReference = useBoundStore((state) => state.addReference);
 
   const startDebouncedLoading = () => {
     // Clear any existing timeout
@@ -144,13 +145,11 @@ export const useFileReference = (
 
     // Add file or folder to attachment store based on type
     if (file.isDirectory) {
-      const { createFolderAttachment } = await import(
-        '@/stores/attachmentStore'
-      );
+      const { createFolderAttachment } = await import('@/stores/attachmentSlice');
       const folderAttachment = await createFolderAttachment(file.path);
       addAttachment(folderAttachment);
     } else {
-      const { createFileAttachment } = await import('@/stores/attachmentStore');
+      const { createFileAttachment } = await import('@/stores/attachmentSlice');
       const fileAttachment = createFileAttachment(file.path);
       if (fileAttachment) {
         addAttachment(fileAttachment);
