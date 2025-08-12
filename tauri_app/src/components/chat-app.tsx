@@ -42,7 +42,6 @@ import {
   type Attachment,
   expandFileReferences,
   reconstructAttachmentsFromHistory,
-  removeFileReferences,
   useAttachmentStore,
 } from '@/stores/attachmentStore';
 import {
@@ -92,10 +91,6 @@ type Message = {
   mediaOutputs?: MediaOutput[];
 };
 
-// Helper function to check if a message contains exit_plan_mode tool call
-const hasExitPlanModeTool = (toolCalls: any[]) => {
-  return toolCalls?.some((tc) => tc.name === 'exit_plan_mode');
-};
 
 // Helper function to check if a message contains media_showcase tool call
 const hasMediaShowcaseTool = (toolCalls: any[]) => {
@@ -130,8 +125,6 @@ export function ChatApp() {
   // UI Interaction Mode 2: Command Palette (full modal triggered by "/" alone)
   const [showCommands, setShowCommands] = useState(false);
 
-  // UI Interaction Mode 3: Plan Options (action buttons after exit_plan_mode)
-  const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
 
   // Input management and focus handling
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(
@@ -156,15 +149,9 @@ export function ChatApp() {
   // All attachment store hooks at top to avoid temporal dead zone
   const attachments = useAttachmentStore((state) => state.attachments);
   const referenceMap = useAttachmentStore((state) => state.referenceMap);
-  const addAttachment = useAttachmentStore((state) => state.addAttachment);
-  const removeAttachment = useAttachmentStore(
-    (state) => state.removeAttachment
-  );
   const clearAttachments = useAttachmentStore(
     (state) => state.clearAttachments
   );
-  const addReference = useAttachmentStore((state) => state.addReference);
-  const removeReference = useAttachmentStore((state) => state.removeReference);
   const syncWithText = useAttachmentStore((state) => state.syncWithText);
 
   const { selectedFolder, selectFolder } = useFolderSelection();
@@ -187,7 +174,6 @@ export function ChatApp() {
       if (previousSessionIdRef.current !== '') {
         setText('');
         clearAttachments();
-        setShowPlanOptions(null);
         interruptedMessageAddedRef.current = false;
       }
       previousSessionIdRef.current = session.id;
@@ -259,18 +245,6 @@ export function ChatApp() {
     selectedFolder || DEFAULT_WORKING_DIR
   );
 
-  const handleAppSelect = (app: Attachment) => {
-    // Update text with app reference (similar to file selection)
-    const words = text.split(' ');
-    const displayReference = `@${app.name}`;
-    words[words.length - 1] = `${displayReference} `;
-    const newText = words.join(' ');
-
-    // Add app to attachment store and create reference mapping
-    addAttachment(app);
-    addReference(displayReference, `app:${app.name}`);
-    setText(newText);
-  };
 
   // Initialize new hooks
   const historyNavigation = useMessageHistoryNavigation({
@@ -343,7 +317,6 @@ export function ChatApp() {
         const command = data as string;
         setShowSlashCommands(false);
         setShowCommands(false);
-        setShowPlanOptions(null);
 
         if (command === 'clear') {
           // Create a new session instead of just clearing UI
@@ -357,7 +330,6 @@ export function ChatApp() {
       case 'close': {
         setShowSlashCommands(false);
         setShowCommands(false);
-        setShowPlanOptions(null);
 
         break;
       }
@@ -447,7 +419,7 @@ export function ChatApp() {
           ? getMediaShowcaseOutputs(convertedToolCalls) 
           : undefined;
 
-        const newMessages = [
+        return [
           ...prev,
           {
             content: sseStream.finalContent!,
@@ -459,13 +431,6 @@ export function ChatApp() {
             mediaOutputs,
           },
         ];
-
-        // Check if this message contains an exit_plan_mode tool and show options
-        if (hasExitPlanModeTool(convertedToolCalls)) {
-          setShowPlanOptions(newMessages.length - 1);
-        }
-
-        return newMessages;
       });
 
       // Reset interrupted message guard when processing completes
@@ -525,7 +490,6 @@ export function ChatApp() {
     ]);
     setText('');
     clearAttachments();
-    setShowPlanOptions(null); // Clear any shown plan options
 
     // Reset interrupted message guard for new message
     interruptedMessageAddedRef.current = false;
@@ -589,31 +553,27 @@ export function ChatApp() {
       // Clear current UI state
       setText('');
       clearAttachments();
-      setShowPlanOptions(null);
       interruptedMessageAddedRef.current = false;
     } catch (error) {
       console.error('Failed to create new session:', error);
       // Fallback to old behavior if session creation fails
-      setMessages([createDefaultMessage()]);
+      setMessages([]);
       setText('');
       clearAttachments();
       interruptedMessageAddedRef.current = false;
-      setShowPlanOptions(null);
     }
   };
 
-  // Handle plan option button clicks
-  const handlePlanProceed = (messageIndex: number) => {
-    setIsPlanMode(false);
-    setShowPlanOptions(null);
-    submitMessage(
-      'Proceed with implementing the plan you just created. Begin implementation now.',
-      false
-    );
-  };
-
-  const handlePlanKeepPlanning = (messageIndex: number) => {
-    setShowPlanOptions(null);
+  // Handle plan actions from ConversationDisplay
+  const handlePlanAction = (action: 'proceed' | 'keep-planning', messageIndex: number) => {
+    if (action === 'proceed') {
+      setIsPlanMode(false);
+      submitMessage(
+        'Proceed with implementing the plan you just created. Begin implementation now.',
+        false
+      );
+    }
+    // For 'keep-planning', no additional action needed
   };
 
   // Handle forking conversation at a specific message
@@ -654,7 +614,6 @@ export function ChatApp() {
 
       // Queue fork text to be set after session switching completes
       setPendingForkText({ text: contractedText, attachments, referenceMap });
-      setShowPlanOptions(null);
     } catch (error) {
       console.error('Failed to fork conversation:', error);
       setMessages((prev) => [
@@ -718,10 +677,8 @@ export function ChatApp() {
           conversationRef={conversationRef}
           messages={messages}
           onForkMessage={handleForkMessage}
-          onPlanKeepPlanning={handlePlanKeepPlanning}
-          onPlanProceed={handlePlanProceed}
+          onPlanAction={handlePlanAction}
           setUserMessageRef={setUserMessageRef}
-          showPlanOptions={showPlanOptions}
           sseStream={sseStream}
         />
 
@@ -729,30 +686,9 @@ export function ChatApp() {
         <div className="z-20 mx-auto mb-0 w-full max-w-4xl">
           <AttachmentPreview
             attachments={attachments}
-            onRemoveItem={(index) => {
-              const attachmentToRemove = attachments[index];
-              if (attachmentToRemove) {
-                const fullPath =
-                  attachmentToRemove.type === 'app'
-                    ? `app:${attachmentToRemove.name}`
-                    : attachmentToRemove.path!;
-                const updatedText = removeFileReferences(
-                  text,
-                  referenceMap,
-                  fullPath
-                );
-                setText(updatedText);
-
-                // Remove the reference from the map
-                for (const [displayName, mappedPath] of referenceMap) {
-                  if (mappedPath === fullPath) {
-                    removeReference(displayName);
-                    break;
-                  }
-                }
-              }
-              removeAttachment(index);
-            }}
+            text={text}
+            referenceMap={referenceMap}
+            onTextChange={setText}
           />
         </div>
 
@@ -824,11 +760,12 @@ export function ChatApp() {
               currentFolder={fileRef.currentFolder}
               files={fileRef.files}
               isLoadingFolder={fileRef.isLoadingFolder}
+              text={text}
               onClose={fileRef.close}
               onEnterFolder={fileRef.enterSelectedFolder}
               onGoBack={fileRef.goBack}
               onSelect={fileRef.selectFile}
-              onSelectApp={handleAppSelect}
+              onTextUpdate={setText}
             />
           )}
         </div>

@@ -179,26 +179,33 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
 interface ConversationDisplayProps {
   messages: Message[];
   sseStream: StreamingState;
-  showPlanOptions: number | null;
   conversationRef: RefObject<HTMLDivElement>;
   setUserMessageRef: (index: number) => RefCallback<HTMLDivElement>;
-  onPlanProceed: (index: number) => void;
-  onPlanKeepPlanning: (index: number) => void;
+  onPlanAction?: (action: 'proceed' | 'keep-planning', messageIndex: number) => void;
   onForkMessage?: (index: number) => void;
 }
 
 // Helper function to extract todos from todo_write tool calls (works with both ToolCall and SSE formats)
 const extractTodosFromToolCalls = (toolCalls: any[]) => {
-  return toolCalls
-    .filter((tc) => tc.name === 'todo_write')
-    .flatMap((tc) => {
-      try {
-        const todos = tc.parameters?.todos;
-        return Array.isArray(todos) ? todos : [];
-      } catch {
-        return [];
+  const todoWriteCalls = toolCalls.filter((tc) => tc.name === 'todo_write');
+  if (todoWriteCalls.length === 0) return [];
+  
+  // Find the latest todo_write call with complete parameters to avoid flicker
+  // When a new call starts streaming, it may not have parameters yet
+  for (let i = todoWriteCalls.length - 1; i >= 0; i--) {
+    const call = todoWriteCalls[i];
+    try {
+      const todos = call.parameters?.todos;
+      if (Array.isArray(todos) && todos.length > 0) {
+        return todos;
       }
-    });
+    } catch {
+      continue;
+    }
+  }
+  
+  // Fallback: if no calls have parameters yet, return empty array
+  return [];
 };
 
 // Helper function to extract plan content from exit_plan_mode tool calls (works with both ToolCall and SSE formats)
@@ -211,6 +218,11 @@ const extractPlanFromToolCalls = (toolCalls: any[]) => {
   } catch {
     return '';
   }
+};
+
+// Helper function to check if a message contains exit_plan_mode tool call
+const hasExitPlanModeTool = (toolCalls: any[]) => {
+  return toolCalls?.some((tc) => tc.name === 'exit_plan_mode');
 };
 
 // Helper function to filter out special tools (todo_write, exit_plan_mode, media_showcase) from toolCalls
@@ -250,13 +262,32 @@ const MessageCopyButton = ({ content }: { content: string }) => {
 export function ConversationDisplay({
   messages,
   sseStream,
-  showPlanOptions,
   conversationRef,
   setUserMessageRef,
-  onPlanProceed,
-  onPlanKeepPlanning,
+  onPlanAction,
   onForkMessage,
 }: ConversationDisplayProps) {
+  const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
+
+  // Detect when a new message with exit_plan_mode is added and show plan options
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.from === 'assistant' && lastMessage.toolCalls && hasExitPlanModeTool(lastMessage.toolCalls)) {
+        setShowPlanOptions(messages.length - 1);
+      }
+    }
+  }, [messages]);
+
+  const handlePlanProceed = (messageIndex: number) => {
+    setShowPlanOptions(null);
+    onPlanAction?.('proceed', messageIndex);
+  };
+
+  const handlePlanKeepPlanning = (messageIndex: number) => {
+    setShowPlanOptions(null);
+    onPlanAction?.('keep-planning', messageIndex);
+  };
   return (
     <div
       className="relative h-full flex-1 overflow-y-auto pb-16"
@@ -336,8 +367,8 @@ export function ConversationDisplay({
                   {/* Render plan content */}
                   {extractPlanFromToolCalls(message.toolCalls) && (
                     <PlanDisplay
-                      onKeepPlanning={() => onPlanKeepPlanning(index)}
-                      onProceed={() => onPlanProceed(index)}
+                      onKeepPlanning={() => handlePlanKeepPlanning(index)}
+                      onProceed={() => handlePlanProceed(index)}
                       planContent={extractPlanFromToolCalls(message.toolCalls)}
                       showOptions={showPlanOptions === index}
                     />

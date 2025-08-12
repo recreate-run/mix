@@ -128,7 +128,7 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
         <video
           ref={videoRef}
           src={getVideoSrc()}
-          className={`w-xl aspect-video bg-black ${isLoading ? 'hidden' : ''}`}
+          className={`w-xl aspect-video bg-black rounded-md ${isLoading ? 'hidden' : ''}`}
           preload="auto"
           onLoadedData={(e) => {
             setIsLoading(false);

@@ -6,23 +6,59 @@ import {
 } from '@/components/ui/tooltip';
 import type { Attachment } from '@/stores/attachmentStore';
 import {
+  removeFileReferences,
+  useAttachmentStore,
+} from '@/stores/attachmentStore';
+import {
   AppPreview,
   AudioPreview,
   DefaultPreview,
   FolderPreview,
   ImagePreview,
+  TextPreview,
   VideoPreview,
 } from './attachment-item-preview';
 
 interface AttachmentPreviewProps {
   attachments: Attachment[];
-  onRemoveItem: (index: number) => void;
+  text: string;
+  referenceMap: Map<string, string>;
+  onTextChange?: (newText: string) => void;
 }
 
 export const AttachmentPreview = ({
   attachments,
-  onRemoveItem,
+  text,
+  referenceMap,
+  onTextChange,
 }: AttachmentPreviewProps) => {
+  const removeAttachment = useAttachmentStore((state) => state.removeAttachment);
+  const removeReference = useAttachmentStore((state) => state.removeReference);
+
+  const handleRemoveItem = (index: number) => {
+    const attachmentToRemove = attachments[index];
+    if (attachmentToRemove) {
+      const fullPath =
+        attachmentToRemove.type === 'app'
+          ? `app:${attachmentToRemove.name}`
+          : attachmentToRemove.path!;
+      const updatedText = removeFileReferences(
+        text,
+        referenceMap,
+        fullPath
+      );
+      onTextChange?.(updatedText);
+
+      // Remove the reference from the map
+      for (const [displayName, mappedPath] of referenceMap) {
+        if (mappedPath === fullPath) {
+          removeReference(displayName);
+          break;
+        }
+      }
+    }
+    removeAttachment(index);
+  };
   if (attachments.length === 0) {
     return null;
   }
@@ -37,7 +73,7 @@ export const AttachmentPreview = ({
               <AppPreview attachment={attachment} />
               <button
                 className="absolute top-1 right-1 z-10 flex items-center justify-center rounded-full bg-red-500/80 p-[2px] transition-colors hover:bg-red-600"
-                onClick={() => onRemoveItem(index)}
+                onClick={() => handleRemoveItem(index)}
                 title="Remove app"
               >
                 <X className="size-3 text-white" />
@@ -54,6 +90,8 @@ export const AttachmentPreview = ({
                     <VideoPreview attachment={attachment} />
                   ) : attachment.type === 'audio' ? (
                     <AudioPreview attachment={attachment} />
+                  ) : attachment.type === 'text' ? (
+                    <TextPreview attachment={attachment} />
                   ) : attachment.type === 'folder' ? (
                     <FolderPreview attachment={attachment} />
                   ) : (
@@ -82,7 +120,7 @@ export const AttachmentPreview = ({
               </TooltipContent>
               <button
                 className="absolute top-1 right-1 z-10 flex items-center justify-center rounded-full bg-red-500/80 p-[2px] transition-colors hover:bg-red-600"
-                onClick={() => onRemoveItem(index)}
+                onClick={() => handleRemoveItem(index)}
               >
                 <X className="size-3 text-white" />
               </button>

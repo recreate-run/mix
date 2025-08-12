@@ -5,6 +5,7 @@ import {
   DefaultPreview,
   FolderPreview,
   ImagePreview,
+  TextPreview,
   VideoPreview,
 } from './attachment-item-preview';
 
@@ -28,6 +29,8 @@ export function MessageAttachmentDisplay({
               return <VideoPreview attachment={attachment} />;
             case 'audio':
               return <AudioPreview attachment={attachment} />;
+            case 'text':
+              return <TextPreview attachment={attachment} />;
             case 'folder':
               return <FolderPreview attachment={attachment} />;
             case 'app':

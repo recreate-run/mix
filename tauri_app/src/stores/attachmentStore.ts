@@ -13,7 +13,7 @@ import {
 export type Attachment = {
   id: string;
   name: string;
-  type: 'image' | 'video' | 'audio' | 'folder' | 'app';
+  type: 'image' | 'video' | 'audio' | 'text' | 'folder' | 'app';
   // File/folder specific
   path?: string;
   preview?: string;

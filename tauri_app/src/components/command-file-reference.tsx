@@ -22,6 +22,7 @@ import type { FileEntry } from '@/hooks/useFileSystem';
 import {
   type Attachment,
   filterAndSortEntries,
+  useAttachmentStore,
 } from '@/stores/attachmentStore';
 import { getFileType } from '@/utils/fileTypes';
 import { AppIcon } from './app-icon';
@@ -31,8 +32,9 @@ const RECURSIVE_SEARCH_DEPTH = 3;
 interface Props {
   files: FileEntry[];
   apps?: Attachment[];
+  text: string;
   onSelect: (file: FileEntry) => void;
-  onSelectApp?: (app: Attachment) => void;
+  onTextUpdate?: (newText: string) => void;
   currentFolder?: string | null;
   isLoadingFolder?: boolean;
   onGoBack?: () => void;
@@ -110,14 +112,28 @@ const MediaThumbnail = ({ file }: { file: FileEntry }) => {
 export function CommandFileReference({
   files,
   apps = [],
+  text,
   onSelect,
-  onSelectApp,
+  onTextUpdate,
   currentFolder,
   isLoadingFolder,
   onGoBack,
   onEnterFolder,
   onClose,
 }: Props) {
+  const addAttachment = useAttachmentStore((state) => state.addAttachment);
+  const addReference = useAttachmentStore((state) => state.addReference);
+
+  const handleAppSelect = (app: Attachment) => {
+    const words = text.split(' ');
+    const displayReference = `@${app.name}`;
+    words[words.length - 1] = `${displayReference} `;
+    const newText = words.join(' ');
+    
+    addAttachment(app);
+    addReference(displayReference, `app:${app.name}`);
+    onTextUpdate?.(newText);
+  };
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [allFiles, setAllFiles] = useState<FileEntry[]>([]);
@@ -219,8 +235,8 @@ export function CommandFileReference({
     } else if (value.startsWith('app:')) {
       const appName = value.substring(4);
       const app = apps.find((a) => a.name === appName);
-      if (app && onSelectApp) {
-        onSelectApp(app);
+      if (app) {
+        handleAppSelect(app);
       }
     }
   };
