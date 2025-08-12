@@ -387,16 +387,10 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 		// Stream tool calls - detect new tool calls by checking completion status
 		toolCalls := event.Message.ToolCalls()
 		for _, toolCall := range toolCalls {
-			// Determine tool status
-			status := "pending"
-			if toolCall.Input != "" {
-				if len(toolCall.Input) > 0 {
-					status = "running"
-				}
-				// Check if tool call is complete (has been finished)
-				if event.Message.FinishReason() != "" && !event.Done {
-					status = "completed"
-				}
+			// Determine tool status - tools start with complete parameters
+			status := "running"
+			if toolCall.Finished {
+				status = "completed"
 			}
 
 			if err := WriteSSE(w, "tool", ToolEvent{Type: "tool", Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status}); err != nil {
