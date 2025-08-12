@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { getDefaultWorkingDir } from '@/utils/defaultWorkingDir';
 import {
   AIInput,
   AIInputButton,
@@ -110,13 +111,15 @@ const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
 };
 
 
-const DEFAULT_WORKING_DIR = '/Users/sarathmenon/Desktop/a16z_demo/new_project';
 
 
 export function ChatApp() {
   // Core conversation state
   const [text, setText] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  // Default working directory (initialized asynchronously)
+  const [defaultWorkingDir, setDefaultWorkingDir] = useState<string>('~/CreativeAgentProjects');
 
   // UI Interaction Mode 1: Slash Commands (dropdown when typing "/help", "/clear" etc.)
   const [showSlashCommands, setShowSlashCommands] = useState(false);
@@ -130,6 +133,11 @@ export function ChatApp() {
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(
     null
   );
+
+  // Initialize default working directory
+  useEffect(() => {
+    getDefaultWorkingDir().then(setDefaultWorkingDir);
+  }, []);
 
   // Mode toggles and session management
   const [isPlanMode, setIsPlanMode] = useState(false);
@@ -160,7 +168,7 @@ export function ChatApp() {
     isLoading: sessionLoading,
     error: sessionError,
     switchToSession,
-  } = useActiveSession(selectedFolder || DEFAULT_WORKING_DIR);
+  } = useActiveSession(selectedFolder || defaultWorkingDir);
   const sessionMessages = useSessionMessages(session?.id || null);
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps, refreshApps } = useAppList();
@@ -242,7 +250,7 @@ export function ChatApp() {
   const fileRef = useFileReference(
     text,
     setText,
-    selectedFolder || DEFAULT_WORKING_DIR
+    selectedFolder || defaultWorkingDir
   );
 
 
@@ -544,7 +552,7 @@ export function ChatApp() {
       // Create a new session with the current working directory
       const newSession = await createSession.mutateAsync({
         title: 'New Session',
-        workingDirectory: selectedFolder || DEFAULT_WORKING_DIR,
+        workingDirectory: selectedFolder || defaultWorkingDir,
       });
       
       // Switch to the new session - this will automatically trigger UI updates
@@ -663,7 +671,7 @@ export function ChatApp() {
             title={
               selectedFolder
                 ? `Current folder: ${selectedFolder}`
-                : `Default folder: ${DEFAULT_WORKING_DIR}`
+                : `Default folder: ${defaultWorkingDir}`
             }
           >
             <FolderIcon
