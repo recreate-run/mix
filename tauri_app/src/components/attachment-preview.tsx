@@ -62,7 +62,7 @@ export const AttachmentPreview = ({
   }
 
   return (
-    <div className="flex flex-wrap gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-800/30">
+    <div className="flex flex-wrap gap-2 rounded-lg p-2">
       {attachments.map((attachment, index) => (
         <div className="group relative flex-shrink-0" key={attachment.id}>
           {attachment.type === 'app' ? (
