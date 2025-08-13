@@ -26,7 +26,7 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@remotion-shared': path.resolve(__dirname, '../../remotion_starter_template/src'),
+      '@remotion-shared': path.resolve(__dirname, '../packages/remotion_starter_template/src'),
     },
   },
 
