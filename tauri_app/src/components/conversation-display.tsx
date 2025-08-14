@@ -52,7 +52,7 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
 
   return (
     <div className="">
-      <div className="mb-3">
+      <div className="my-4">
         <h3 className="font-semibold">{media.title}</h3>
         {media.description && (
           <p className="text-sm text-muted-foreground mt-1">{media.description}</p>
@@ -346,6 +346,12 @@ export function ConversationDisplay({
                   {/* Render media showcase */}
                   {message.mediaOutputs && (
                     <MediaShowcase mediaOutputs={message.mediaOutputs} />
+                  )}
+                  {/* Render todos inline without tool wrapper */}
+                  {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
+                    <div className="mt-4">
+                      <TodoList todos={extractTodosFromToolCalls(message.toolCalls)} />
+                    </div>
                   )}
                   {/* Render non-special tools in ladder */}
                   {filterNonSpecialTools(message.toolCalls).length > 0 && (
