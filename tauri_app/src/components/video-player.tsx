@@ -77,12 +77,22 @@ export const VideoPlayer = ({ path, title, description, startTime, duration }: V
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current || !isSegment) return;
+    if (!videoRef.current) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const progress = (clickX / rect.width) * 100;
-    const newTime = segmentProgressToVideoTime(progress);
+    
+    let newTime: number;
+    
+    if (isSegment) {
+      // For segments, use existing logic
+      newTime = segmentProgressToVideoTime(progress);
+    } else {
+      // For non-segments, calculate based on total video duration
+      const videoDuration = videoRef.current.duration || 0;
+      newTime = (progress / 100) * videoDuration;
+    }
     
     videoRef.current.currentTime = newTime;
   };
@@ -120,14 +130,14 @@ export const VideoPlayer = ({ path, title, description, startTime, duration }: V
         </div>
       )}
 
-      <div className="rounded-md relative">
+      <div className="rounded-md relative max-w-xl">
         {isLoading && (
-          <Skeleton className="w-xl aspect-video" />
+          <Skeleton className="aspect-video" />
         )}
         <video
           ref={videoRef}
           src={getVideoSrc()}
-          className={`w-xl aspect-video bg-black rounded-md ${isLoading ? 'hidden' : ''}`}
+          className={`aspect-video bg-black rounded-md ${isLoading ? 'hidden' : ''}`}
           preload="auto"
           onLoadedData={(e) => {
             setIsLoading(false);
@@ -171,7 +181,7 @@ export const VideoPlayer = ({ path, title, description, startTime, duration }: V
         
         {/* Custom Controls */}
         {!isLoading && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+          <div className="absolute bottom-0 left-0 right-0 p-2">
             <div className="flex items-center gap-3">
               {/* Play/Pause Button */}
 
@@ -196,37 +206,26 @@ export const VideoPlayer = ({ path, title, description, startTime, duration }: V
 
               </div>
 
-              {/* Progress Bar - only show for segments */}
-              {isSegment && (
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-white text-xs font-mono">
-                    {formatTime(getSegmentTime(currentTime))}
-                  </span>
-                  
+              {/* Progress Bar - show for all videos */}
+              <div className="flex-1 flex items-center gap-2">
+                <span className="text-white text-xs font-mono">
+                  {formatTime(isSegment ? getSegmentTime(currentTime) : currentTime)}
+                </span>
+                
+                <div 
+                  className="flex-1 h-1 bg-white/30 rounded cursor-pointer relative"
+                  onClick={handleProgressClick}
+                >
                   <div 
-                    className="flex-1 h-1 bg-white/30 rounded cursor-pointer relative"
-                    onClick={handleProgressClick}
-                  >
-                    <div 
-                      className="h-full bg-white rounded"
-                      style={{ width: `${getSegmentProgress()}%` }}
-                    />
-                  </div>
-                  
-                  <span className="text-white text-xs font-mono">
-                    {formatTime(segmentDuration)}
-                  </span>
+                    className="h-full bg-white rounded"
+                    style={{ width: `${isSegment ? getSegmentProgress() : (videoRef.current?.duration ? (currentTime / videoRef.current.duration) * 100 : 0)}%` }}
+                  />
                 </div>
-              )}
-              
-              {/* For non-segments, show simpler time display */}
-              {!isSegment && (
-                <div className="flex-1 flex items-center justify-end">
-                  <span className="text-white text-xs font-mono">
-                    {formatTime(currentTime)}
-                  </span>
-                </div>
-              )}
+                
+                <span className="text-white text-xs font-mono">
+                  {formatTime(isSegment ? segmentDuration : (videoRef.current?.duration || 0))}
+                </span>
+              </div>
               
               {/* Picture-in-Picture Button */}
               <Button

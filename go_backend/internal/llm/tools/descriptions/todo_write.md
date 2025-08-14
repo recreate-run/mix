@@ -152,22 +152,6 @@ multiple steps or systematic organization.
 </reasoning>
 </example>
 
-<example>
-User: Export frame 120 from this video as a PNG file.
-Assistant: I'll export frame 120 from your video as a PNG.
-
-*Uses video tools to extract and export the specific frame*
-
-Frame 120 has been successfully exported as frame_120.png. The image is 1920x1080 resolution 
-and saved in your current directory.
-
-<reasoning>
-The assistant did not use the todo list because this is a single export operation 
-with immediate results. There are no multiple steps to track or organize, making the 
-todo list unnecessary for this straightforward task.
-</reasoning>
-</example>
-
 ## Task States and Management
 
 1. **Task States**: Use these states to track progress:
