@@ -230,7 +230,7 @@ func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http
 		flusher.Flush()
 		return nil
 	}
-	
+
 	events, err := handler.GetApp().CoderAgent.RunWithPlanMode(ctx, sessionID, content, msgContent.PlanMode)
 	if err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())})
@@ -417,8 +417,21 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 		}
 
 	case agent.AgentEventTypeError:
-		if err := WriteSSE(w, "error", ErrorEvent{Error: event.Error.Error()}); err != nil {
-			return err
+		errMsg := event.Error.Error()
+		// Special handling for authentication errors
+		if strings.Contains(errMsg, "authentication_error") ||
+			strings.Contains(errMsg, "x-api-key header is required") ||
+			strings.Contains(errMsg, "401 Unauthorized") {
+			// Create a more helpful error message
+			helpfulMsg := "Authentication failed: Not logged in or token expired. Please use /login to authenticate with Claude Code."
+			if err := WriteSSE(w, "error", ErrorEvent{Error: helpfulMsg}); err != nil {
+				return err
+			}
+		} else {
+			// Normal error handling
+			if err := WriteSSE(w, "error", ErrorEvent{Error: errMsg}); err != nil {
+				return err
+			}
 		}
 
 	case agent.AgentEventTypeSummarize:

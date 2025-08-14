@@ -222,6 +222,27 @@ func (cs *CredentialStorage) GetOAuthCredentials(provider string) (*OAuthCredent
 	return &cred, nil
 }
 
+// ClearOAuthCredentials removes OAuth credentials for a provider (logout functionality)
+func (cs *CredentialStorage) ClearOAuthCredentials(provider string) error {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
+	store, err := cs.loadCredentialStore()
+	if err != nil {
+		return fmt.Errorf("failed to load credential store: %w", err)
+	}
+
+	// Remove credentials for this provider
+	delete(store.AnthropicCredentials, provider)
+
+	if err := cs.saveCredentialStore(store); err != nil {
+		return fmt.Errorf("failed to save credential store: %w", err)
+	}
+
+	logging.Info("OAuth credentials cleared for provider", "provider", provider)
+	return nil
+}
+
 // IsTokenExpired checks if a token is expired or will expire soon (5 minutes buffer)
 func (cred *OAuthCredentials) IsTokenExpired() bool {
 	if cred.ExpiresAt == 0 {
@@ -307,29 +328,73 @@ func (flow *OAuthFlow) OpenBrowser() error {
 
 // ExchangeCodeForTokens exchanges the authorization code for tokens
 func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials, error) {
+	// Log original auth code info for debugging
+	logging.Info("Starting token exchange with auth code", "length", len(authCode), "has_hash", strings.Contains(authCode, "#"))
+
 	// Parse authorization code in format "code#state"
 	authCode = strings.TrimSpace(authCode)
-
-	// Split on # to get code and state parts
+	logging.Info("Processing authorization code", "raw_length", len(authCode), "trimmed_length", len(strings.TrimSpace(authCode)))
+	
+	// Try to extract code and state using different methods
+	var codePart, statePart string
+	
+	// Method 1: Simple split on #
 	splits := strings.Split(authCode, "#")
-	if len(splits) != 2 {
-		return nil, fmt.Errorf("invalid authorization code format. Expected 'code#state', got: %s", authCode)
+	logging.Info("Authorization code parts", "parts_count", len(splits), "contains_hash", strings.Contains(authCode, "#"))
+	
+	if len(splits) == 2 {
+		// Standard format: code#state
+		codePart = strings.TrimSpace(splits[0])
+		statePart = strings.TrimSpace(splits[1])
+		logging.Info("Using standard format code#state")
+	} else if len(splits) > 2 {
+		// Multiple # characters - take first part as code, rest as state
+		codePart = strings.TrimSpace(splits[0])
+		statePart = strings.TrimSpace(strings.Join(splits[1:], "#"))
+		logging.Info("Found multiple # characters in auth code")
+	} else {
+		// Try to parse as URL parameters (backup)
+		if strings.Contains(authCode, "code=") && strings.Contains(authCode, "state=") {
+			logging.Info("Trying to parse auth code as URL parameters")
+			// Extract code parameter
+			codeParts := strings.Split(authCode, "code=")
+			if len(codeParts) >= 2 {
+				codePart = strings.Split(codeParts[1], "&")[0]
+			}
+			
+			// Extract state parameter
+			stateParts := strings.Split(authCode, "state=")
+			if len(stateParts) >= 2 {
+				statePart = strings.Split(stateParts[1], "&")[0]
+			}
+		} else {
+			return nil, fmt.Errorf("invalid authorization code format. Expected 'code#state', got: %s", authCode)
+		}
 	}
-
-	codePart := strings.TrimSpace(splits[0])
-	statePart := strings.TrimSpace(splits[1])
-
+	
+	// Final validation
 	if codePart == "" {
-		return nil, fmt.Errorf("authorization code part is empty")
+		return nil, fmt.Errorf("failed to extract code part from authorization code")
 	}
-
+	
 	if statePart == "" {
 		return nil, fmt.Errorf("state part is empty")
 	}
+	
+	logging.Info("Extracted code and state", "code_length", len(codePart), "state_length", len(statePart))
 
-	// Verify state matches (optional - Python implementation shows warning but continues)
+	// Verify state matches (we'll proceed with a warning)
 	if statePart != flow.State {
 		logging.Warn("State mismatch: expected %s, got %s - proceeding anyway", flow.State, statePart)
+		// Log more details about the state mismatch
+		if len(flow.State) >= 10 && len(statePart) >= 10 {
+			logging.Info("State details", "expected_length", len(flow.State), "received_length", len(statePart), 
+				"expected_prefix", flow.State[:10], "received_prefix", statePart[:10])
+		}
+		// Update the flow's state to match the callback state for the token exchange
+		flow.State = statePart
+	} else {
+		logging.Info("State matches correctly")
 	}
 
 	data := map[string]string{

@@ -49,13 +49,37 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
   const handleAuthCodeSubmit = async () => {
     if (!authCode.trim()) return;
     
+    // Ensure the code has the correct format: code#state
+    const trimmedCode = authCode.trim();
+    const isAPIKey = trimmedCode.startsWith('sk-ant-');
+    const isValidFormat = isAPIKey || trimmedCode.includes('#');
+    
+    if (!isValidFormat) {
+      alert('Invalid format. Enter either:\n- Full authorization code (format: code#state)\n- Or Anthropic API key (starts with sk-ant-)');
+      return;
+    }
+    
+    // Log the code format details for debugging
+    if (!isAPIKey) {
+      const parts = trimmedCode.split('#');
+      console.log('Auth code format details:', {
+        fullLength: trimmedCode.length,
+        codePartLength: parts[0].length,
+        statePartLength: parts[1] ? parts[1].length : 0,
+        hasHashSymbol: trimmedCode.includes('#'),
+        partsCount: parts.length
+      });
+    } else {
+      console.log('Submitting API key (redacted):', '*'.repeat(10));
+    }
+    
     setIsExchanging(true);
     try {
-      console.log('Submitting login with auth code via RPC:', authCode.trim());
-      
       // Use the direct auth.login RPC method
+      // If it's an API key, we'll mark it as manual to treat it differently
       const result = await rpcCall('auth.login', {
-        authCode: authCode.trim()
+        authCode: trimmedCode,
+        manual: isAPIKey
       });
       
       console.log('Authentication successful:', result);
@@ -104,12 +128,18 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
   const handleApiKeySubmit = async () => {
     if (!apiKey.trim()) return;
     
+    // Validate API key format
+    if (!apiKey.trim().startsWith('sk-ant-')) {
+      alert('Invalid API key format. Anthropic API keys must start with "sk-ant-"');
+      return;
+    }
+    
     setIsExchanging(true);
     try {
       console.log('Setting API key...');
       
-      // Use the api key endpoint
-      const result = await rpcCall('auth.apikey', {
+      // Use the auth.login endpoint with apiKey parameter for unified handling
+      const result = await rpcCall('auth.login', {
         apiKey: apiKey.trim()
       });
       
@@ -281,7 +311,9 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
                   
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      After completing authentication, paste the authorization code here:
+                      After completing authentication, paste either:
+                      <br/>- FULL authorization code (format: code#state)
+                      <br/>- OR your Anthropic API key (starts with sk-ant-)
                     </label>
                     <div className="flex gap-2">
                       <Input
@@ -316,8 +348,10 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
                     <p className="text-yellow-700 dark:text-yellow-300">1. Click "Open Authentication Page" above</p>
                     <p className="text-yellow-700 dark:text-yellow-300">2. Make sure you're already logged into claude.ai</p>
                     <p className="text-yellow-700 dark:text-yellow-300">3. After authentication, you'll be redirected to a URL containing a code</p>
-                    <p className="text-yellow-700 dark:text-yellow-300">4. Copy the FULL code from the URL (format: code#state)</p>
-                    <p className="text-yellow-700 dark:text-yellow-300">5. Paste the entire code above and click "Submit Code"</p>
+                    <p className="text-yellow-700 dark:text-yellow-300">4. <strong>Important:</strong> Copy the FULL code from the URL</p>
+                    <p className="text-yellow-700 dark:text-yellow-300">5. Format must be: code#state (include everything after "code=" up to "&" + "#" + everything after "state=")</p>
+                    <p className="text-yellow-700 dark:text-yellow-300">6. Paste the entire code above and click "Submit Code"</p>
+                    <p className="text-yellow-700 dark:text-yellow-300">7. If you get a state mismatch error, make sure you're copying the complete code and state</p>
                   </div>
                   
                   <details className="text-xs text-muted-foreground">
