@@ -67,12 +67,21 @@ type CommandData struct {
 	Type        string `json:"type"` // "builtin" or "file"
 }
 
+type ToolCallData struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Input    string `json:"input"`
+	Type     string `json:"type"`
+	Finished bool   `json:"finished"`
+}
+
 type MessageData struct {
-	ID        string `json:"id"`
-	SessionID string `json:"sessionId"`
-	Role      string `json:"role"`
-	Content   string `json:"content"`
-	Response  string `json:"response,omitempty"`
+	ID        string         `json:"id"`
+	SessionID string         `json:"sessionId"`
+	Role      string         `json:"role"`
+	Content   string         `json:"content"`
+	Response  string         `json:"response,omitempty"`
+	ToolCalls []ToolCallData `json:"toolCalls,omitempty"`
 }
 
 // Query handler
@@ -872,11 +881,25 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 
 	var result []MessageData
 	for _, msg := range messages {
+		// Extract tool calls
+		toolCalls := msg.ToolCalls()
+		toolCallsData := make([]ToolCallData, len(toolCalls))
+		for i, tc := range toolCalls {
+			toolCallsData[i] = ToolCallData{
+				ID:       tc.ID,
+				Name:     tc.Name,
+				Input:    tc.Input,
+				Type:     tc.Type,
+				Finished: tc.Finished,
+			}
+		}
+		
 		result = append(result, MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
 			Content:   msg.Content().String(),
+			ToolCalls: toolCallsData,
 		})
 	}
 
@@ -924,11 +947,25 @@ func (h *QueryHandler) handleMessagesList(ctx context.Context, req *QueryRequest
 
 	var result []MessageData
 	for _, msg := range messages {
+		// Extract tool calls
+		toolCalls := msg.ToolCalls()
+		toolCallsData := make([]ToolCallData, len(toolCalls))
+		for i, tc := range toolCalls {
+			toolCallsData[i] = ToolCallData{
+				ID:       tc.ID,
+				Name:     tc.Name,
+				Input:    tc.Input,
+				Type:     tc.Type,
+				Finished: tc.Finished,
+			}
+		}
+		
 		result = append(result, MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
 			Content:   msg.Content().String(),
+			ToolCalls: toolCallsData,
 		})
 	}
 

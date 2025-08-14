@@ -19,11 +19,13 @@ import {
   AIToolContent,
   AIToolHeader,
   AIToolLadder,
-  type AIToolStatus,
   AIToolStep,
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import type { Attachment } from '@/stores';
+import type { Attachment } from '@/stores/attachmentSlice';
+import type { ToolCall } from '@/types/common';
+import type { MediaOutput } from '@/types/media';
+import type { UIMessage } from '@/types/message';
 import { LoadingDots } from './loading-dots';
 import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
@@ -31,37 +33,6 @@ import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
 import { PlaylistSidebar } from './playlist-sidebar';
-
-
-type ToolCall = {
-  name: string;
-  description: string;
-  status: AIToolStatus;
-  parameters: Record<string, unknown>;
-  result?: string;
-  error?: string;
-};
-
-type MediaOutput = {
-  path: string;
-  type: 'image' | 'video' | 'audio' | 'remotion_title';
-  title: string;
-  description?: string;
-  config?: any; // For remotion configuration data
-  startTime?: number; // Segment start time in seconds
-  duration?: number; // Segment duration in seconds
-};
-
-
-type Message = {
-  content: string;
-  from: 'user' | 'assistant';
-  toolCalls?: ToolCall[];
-  attachments?: Attachment[];
-  reasoning?: string;
-  reasoningDuration?: number;
-  mediaOutputs?: MediaOutput[];
-};
 
 type StreamingState = {
   processing: boolean;
@@ -176,7 +147,7 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
 };
 
 interface ConversationDisplayProps {
-  messages: Message[];
+  messages: UIMessage[];
   sseStream: StreamingState;
   conversationRef: RefObject<HTMLDivElement>;
   setUserMessageRef: (index: number) => RefCallback<HTMLDivElement>;
@@ -233,7 +204,7 @@ const filterNonSpecialTools = (toolCalls: any[]) => {
 
 // Helper function to check if previous user message started with "!"
 const isPreviousUserMessageCommand = (
-  messages: Message[],
+  messages: UIMessage[],
   currentIndex: number
 ) => {
   for (let i = currentIndex - 1; i >= 0; i--) {

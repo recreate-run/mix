@@ -3,14 +3,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Play, Pause, PictureInPicture, RotateCcw } from 'lucide-react';
-
-type VideoPlayerProps = {
-  path: string;
-  title: string;
-  description?: string;
-  startTime?: number; // Segment start time in seconds
-  duration?: number; // Segment duration in seconds
-};
+import type { VideoPlayerProps } from '@/types/media';
 
 export const VideoPlayer = ({ path, title, description, startTime, duration }: VideoPlayerProps) => {
   const [isLoading, setIsLoading] = useState(true);

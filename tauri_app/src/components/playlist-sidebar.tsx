@@ -1,22 +1,12 @@
 import { Image, Video, Music, Play } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import type { MediaOutput } from '@/types/media';
 
 const formatTime = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
-
-type MediaOutput = {
-  path: string;
-  type: 'image' | 'video' | 'audio' | 'remotion_title';
-  title: string;
-  description?: string;
-  config?: any;
-  sourceVideo?: string; // Original video path for highlights
-  startTime?: number; // Highlight start time in seconds
-  duration?: number; // Highlight duration in seconds
 };
 
 interface PlaylistSidebarProps {

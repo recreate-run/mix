@@ -1,12 +1,8 @@
 import { useEffect, useRef } from 'react';
-
-interface Message {
-  from: 'user' | 'assistant';
-  content: string;
-}
+import type { UIMessage } from '@/types/message';
 
 export function useMessageScrolling(
-  messages: Message[],
+  messages: UIMessage[],
   isProcessing: boolean
 ) {
   const conversationRef = useRef<HTMLDivElement>(null);

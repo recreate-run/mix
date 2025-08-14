@@ -51,46 +51,13 @@ import {
   shouldShowSlashCommands,
   slashCommands,
 } from '@/utils/slash-commands';
+import type { ToolCall } from '@/types/common';
+import type { MediaOutput } from '@/types/media';
+import type { UIMessage, MessageData } from '@/types/message';
 import { AttachmentPreview } from './attachment-preview';
 import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
-
-type ToolCall = {
-  name: string;
-  description: string;
-  status: AIToolStatus;
-  parameters: Record<string, unknown>;
-  result?: string;
-  error?: string;
-};
-
-export type MessageData = {
-  text: string;
-  media: string[];
-  apps: string[];
-  plan_mode: boolean;
-};
-
-type MediaOutput = {
-  path: string;
-  type: 'image' | 'video' | 'audio';
-  title: string;
-  description?: string;
-  startTime?: number; // Segment start time in seconds
-  duration?: number; // Segment duration in seconds
-};
-
-type Message = {
-  content: string;
-  from: 'user' | 'assistant';
-  frontend_only?: boolean;
-  toolCalls?: ToolCall[];
-  attachments?: Attachment[];
-  reasoning?: string;
-  reasoningDuration?: number;
-  mediaOutputs?: MediaOutput[];
-};
 
 
 // Helper function to check if a message contains media_showcase tool call
@@ -120,7 +87,7 @@ interface ChatAppProps {
 export function ChatApp({ sessionId }: ChatAppProps) {
   // Core conversation state
   const [text, setText] = useState<string>('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   
   // Default working directory (initialized asynchronously)
   const [defaultWorkingDir, setDefaultWorkingDir] = useState<string>('~/CreativeAgentProjects');

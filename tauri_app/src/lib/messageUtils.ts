@@ -4,23 +4,9 @@ import {
   createFileAttachment,
   createFolderAttachment,
 } from '@/stores/attachmentSlice';
-
-export interface BackendMessage {
-  id: string;
-  sessionId: string;
-  role: string;
-  content: string;
-}
-
-export interface UIMessage {
-  content: string;
-  from: 'user' | 'assistant';
-  frontend_only?: boolean;
-  toolCalls?: any[];
-  attachments?: Attachment[];
-  reasoning?: string;
-  reasoningDuration?: number;
-}
+import type { ToolCall, ToolCallData } from '@/types/common';
+import type { MediaOutput } from '@/types/media';
+import type { UIMessage, BackendMessage } from '@/types/message';
 
 interface ParsedContent {
   text: string;
@@ -87,6 +73,27 @@ const convertMediaToAttachments = async (
   return attachments;
 };
 
+const convertToolCallsToUI = (toolCalls: ToolCallData[]): ToolCall[] => {
+  return toolCalls.map((tc) => {
+    let parameters: Record<string, unknown> = {};
+    try {
+      parameters = JSON.parse(tc.input || '{}');
+    } catch {
+      // If input is not valid JSON, treat as empty parameters
+      parameters = {};
+    }
+    
+    return {
+      name: tc.name,
+      description: tc.name, // Use name as description since we don't have a separate description
+      status: tc.finished ? 'completed' : 'pending',
+      parameters,
+      result: undefined, // Backend doesn't provide result for persisted tool calls
+      error: undefined,  // Backend doesn't provide error for persisted tool calls
+    };
+  });
+};
+
 export const convertBackendMessageToUI = async (
   backendMessage: BackendMessage
 ): Promise<UIMessage> => {
@@ -101,10 +108,18 @@ export const convertBackendMessageToUI = async (
   // Combine all attachments
   const attachments = [...mediaAttachments, ...appAttachments];
 
+  // Convert tool calls if present
+  const toolCalls = backendMessage.toolCalls ? convertToolCallsToUI(backendMessage.toolCalls) : undefined;
+
+  // Extract media outputs from media_showcase tool calls
+  const mediaOutputs = toolCalls?.find(tc => tc.name === 'media_showcase')?.parameters?.outputs as MediaOutput[] | undefined;
+
   return {
     content: text,
     from: backendMessage.role === 'user' ? 'user' : 'assistant',
+    toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
     attachments: attachments.length > 0 ? attachments : undefined,
+    mediaOutputs: mediaOutputs && mediaOutputs.length > 0 ? mediaOutputs : undefined,
   };
 };
 

@@ -30,7 +30,7 @@ import { AppIcon } from './app-icon';
 
 const RECURSIVE_SEARCH_DEPTH = 3;
 
-interface Props {
+interface CommandFileReferenceProps {
   fileRef: ReturnType<typeof useFileReference>;
   apps?: Attachment[];
   text: string;
@@ -111,7 +111,7 @@ export function CommandFileReference({
   text,
   onTextUpdate,
   onClose,
-}: Props) {
+}: CommandFileReferenceProps) {
   const addAttachment = useBoundStore((state) => state.addAttachment);
   const addReference = useBoundStore((state) => state.addReference);
 

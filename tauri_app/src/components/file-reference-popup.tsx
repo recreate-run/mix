@@ -8,7 +8,7 @@ import {
 import type { FileEntry } from '@/hooks/useFileSystem';
 import { isImageFile } from '@/lib/fileUtils';
 
-interface Props {
+interface FileReferencePopupProps {
   files: FileEntry[];
   selected: number;
   onSelect: (file: FileEntry) => void;
@@ -118,7 +118,7 @@ export function FileReferencePopup({
   onGoBack,
   onEnterFolder,
   onClose,
-}: Props) {
+}: FileReferencePopupProps) {
   const selectedFile = files[selected];
   const canNavigateForward = selectedFile?.isDirectory;
 

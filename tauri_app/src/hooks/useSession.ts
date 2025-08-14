@@ -1,14 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rpcCall } from '@/lib/rpc';
+import type { Session } from '@/types/common';
 
 interface CreateSessionParams {
   title: string;
-  workingDirectory?: string;
-}
-
-interface Session {
-  id: string;
-  title?: string;
   workingDirectory?: string;
 }
 
@@ -22,7 +17,7 @@ const createSession = async (params: CreateSessionParams): Promise<Session> => {
 
   return {
     id: sessionId,
-    title: result?.title,
+    title: result?.title || 'Chat Session',
     workingDirectory: result?.workingDirectory,
   };
 };
