@@ -1,12 +1,27 @@
 # Claude Code Integration
 
+## Quick Setup (Fresh Machine)
+
+### System Requirements
+Install these first:
+- **Go**: https://golang.org/
+- **Rust/Cargo**: https://rustup.rs/
+- **Bun**: https://bun.sh/
+
+### One-Command Setup
+```bash
+make dev          # Installs ALL dependencies and starts development servers
+```
+
 ## Development Commands
 
 ```bash
-make dev          # Development (starts both frontend and backend.  This autoreloads and auto compiles.  Don't ever stop the server)
+make dev          # Install dependencies + start both frontend and backend (autoreloads and auto compiles)
+make install-deps # Install all project dependencies only
 make build        # Production build (we rarely need this)
 make clean        # Clean build artifacts (we rarely need this)
 make tail-log     # Reads the current log file (last 100 lines of code)
+make help         # Show all available commands
 ```
 
 * **Do NOT build the program yourself to check for errors—ever.** All output is written to `dev.log`. Run `make tail-log` to view it.
