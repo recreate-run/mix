@@ -9,7 +9,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { MessageData } from '@/components/chat-app';
+import { useNavigate } from '@tanstack/react-router';
 import {
   CommandEmpty,
   CommandGroup,
@@ -47,6 +47,7 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   const [showingMCP, setShowingMCP] = useState(false);
   const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(null);
   const commandRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   // Reset selection when search query changes to prevent jumping
   useEffect(() => {
@@ -145,19 +146,18 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   // Helper function to get display title (first user message or fallback to title)
   const getDisplayTitle = (session: (typeof sessions)[0]) => {
     if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
+      console.log('Text key unavailable: No firstUserMessage for session', session.id);
       return session.title; // fallback to original title
     }
 
-    // Try to parse JSON and extract text from data.text field
+    // Try to parse JSON and extract text from the parts structure
     let displayText = session.firstUserMessage;
     try {
       const parsed = JSON.parse(session.firstUserMessage);
-      if (parsed[0]?.data?.text) {
-        // First parse the outer structure, then parse the inner JSON string
-        const innerMessageData = JSON.parse(parsed[0].data.text) as MessageData;
-        if (innerMessageData.text) {
-          displayText = innerMessageData.text;
-        }
+      // Find the first text part in the parts array
+      const textPart = parsed.find((part: any) => part.type === 'text');
+      if (textPart?.data?.text) {
+        displayText = textPart.data.text;
       }
     } catch {
       // If parsing fails, use the raw message as fallback
@@ -218,6 +218,12 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
     if (session) {
       selectSessionMutation.mutate(session.id, {
         onSuccess: () => {
+          // Navigate to the selected session
+          navigate({ 
+            to: '/$sessionId', 
+            params: { sessionId: session.id },
+            replace: true 
+          });
           onClose(); // Close the command palette
         },
       });

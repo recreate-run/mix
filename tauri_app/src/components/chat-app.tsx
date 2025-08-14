@@ -628,7 +628,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen flex-col px-4 pb-4">
+      <div className="flex h-screen flex-col px-16 pb-4">
         {/* Header with Session ID and Folder Select Button */}
         <div className="mb-2 flex items-center justify-between">
           <div className="rounded bg-stone-800/50 px-2 py-1 font-mono text-stone-400 text-xs">

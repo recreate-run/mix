@@ -15,12 +15,12 @@ const queryClient = new QueryClient();
 function SessionApp() {
   const { sessionId } = Route.useParams();
   
-  useEffect(() => {
-    queryClient.prefetchQuery({
-      queryKey: ['appList'],
-      queryFn: fetchAppList,
-    });
-  }, []);
+  // useEffect(() => {
+  //   queryClient.prefetchQuery({
+  //     queryKey: ['appList'],
+  //     queryFn: fetchAppList,
+  //   });
+  // }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
