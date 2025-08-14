@@ -1,4 +1,5 @@
 import { AIResponse } from '@/components/ui/kibo-ui/ai/response';
+import { AuthDisplay } from './auth-display';
 import { ContextDisplay } from './context-display';
 import { HelpDisplay } from './help-display';
 import { McpDisplay } from './mcp-display';
@@ -58,6 +59,16 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
       Array.isArray(parsedData.servers)
     ) {
       return <McpDisplay data={parsedData} />;
+    }
+
+    // Check if it's an authentication response
+    if (
+      parsedData.type === 'auth_status' ||
+      parsedData.type === 'auth_login' ||
+      parsedData.type === 'error' ||
+      parsedData.type === 'message'
+    ) {
+      return <AuthDisplay data={parsedData} />;
     }
 
     // If we reach here, it's an unknown JSON structure - log and render as text

@@ -1,4 +1,4 @@
-import { Clock, Command, HelpCircle, RefreshCw, Shield } from 'lucide-react';
+import { Clock, Command, HelpCircle, RefreshCw, Shield, LogIn, LogOut, UserCheck } from 'lucide-react';
 
 interface SlashCommand {
   id: string;
@@ -38,7 +38,24 @@ export const slashCommands: SlashCommand[] = [
     description: 'Model Context Protocol',
     icon: Command,
   },
-
+  {
+    id: 'login',
+    name: 'login',
+    description: 'Authenticate with Claude Code OAuth',
+    icon: LogIn,
+  },
+  {
+    id: 'logout',
+    name: 'logout',
+    description: 'Sign out from Claude Code',
+    icon: LogOut,
+  },
+  {
+    id: 'status',
+    name: 'status',
+    description: 'Check Claude Code authentication status',
+    icon: UserCheck,
+  },
   {
     id: 'permissions',
     name: 'permissions',
