@@ -24,6 +24,11 @@ export type PersistentSSEState = {
   reasoning: string | null;
   reasoningDuration: number | null;
   startTime?: number;
+  rateLimit?: {
+    retryAfter: number;
+    attempt: number;
+    maxAttempts: number;
+  };
 };
 
 export type PersistentSSEHook = PersistentSSEState & {
@@ -48,6 +53,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     cancelled: false,
     reasoning: null,
     reasoningDuration: null,
+    rateLimit: undefined,
   });
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -182,6 +188,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       }
     });
 
+    // Handle standard error events
     addTrackedEventListener('error', (event) => {
       if (event.data) {
         try {
@@ -191,6 +198,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             error: data.error || 'Stream error',
             connecting: false,
             processing: false,
+            rateLimit: undefined,
           }));
         } catch {
           setState((prev) => ({
@@ -198,6 +206,41 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             error: 'Stream error',
             connecting: false,
             processing: false,
+            rateLimit: undefined,
+          }));
+        }
+      }
+    });
+    
+    // Handle rate limit error events
+    addTrackedEventListener('rate_limit_error', (event) => {
+      if (event.data) {
+        try {
+          console.log('Rate limit error received:', event.data);
+          const data = JSON.parse(event.data);
+          setState((prev) => ({
+            ...prev,
+            error: data.error || 'Rate limit exceeded',
+            connecting: false,
+            processing: true, // Keep processing true to show we're still working
+            rateLimit: {
+              retryAfter: data.retryAfter || 60,
+              attempt: data.attempt || 1,
+              maxAttempts: data.maxAttempts || 8
+            }
+          }));
+        } catch (err) {
+          console.error('Failed to parse rate limit error:', err);
+          setState((prev) => ({
+            ...prev,
+            error: 'Rate limit exceeded',
+            connecting: false,
+            processing: true,
+            rateLimit: {
+              retryAfter: 60,
+              attempt: 1,
+              maxAttempts: 8
+            }
           }));
         }
       }
@@ -272,6 +315,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         cancelled: false,
         reasoning: null,
         reasoningDuration: null,
+        rateLimit: undefined,
       }));
 
       toolCallsMap.current.clear();

@@ -9,7 +9,11 @@ import (
 // SSE Event Types - Keep structs for type safety but remove interface overhead
 
 type ErrorEvent struct {
-	Error string `json:"error"`
+	Error       string `json:"error"`
+	Type        string `json:"type,omitempty"`
+	RetryAfter  int    `json:"retryAfter,omitempty"`
+	Attempt     int    `json:"attempt,omitempty"`
+	MaxAttempts int    `json:"maxAttempts,omitempty"`
 }
 
 type ConnectedEvent struct {

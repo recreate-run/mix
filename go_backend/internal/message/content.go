@@ -2,7 +2,9 @@ package message
 
 import (
 	"encoding/base64"
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"mix/internal/llm/models"
@@ -202,6 +204,44 @@ func (m *Message) FinishReason() FinishReason {
 		}
 	}
 	return ""
+}
+
+// RateLimitInfo contains information about rate limits and retry attempts
+type RateLimitInfo struct {
+	RetryAfter  int
+	Attempt     int
+	MaxAttempts int
+}
+
+// RateLimitInfo parses error messages for rate limit information
+func (m *Message) RateLimitInfo() *RateLimitInfo {
+	// Check if this is a rate limit error first
+	if m.FinishReason() != "error" {
+		return nil
+	}
+	
+	errMsg := m.Content().Text
+	if !strings.Contains(errMsg, "rate_limit_error") && !strings.Contains(errMsg, "rate limit") {
+		return nil
+	}
+	
+	// Default values
+	retryInfo := &RateLimitInfo{
+		RetryAfter: 60,   // Default retry after 60 seconds
+		Attempt: 1,       // Default current attempt
+		MaxAttempts: 8,   // Default max attempts
+	}
+	
+	// Try to extract retry attempt information from the message
+	if strings.Contains(errMsg, "Retrying due to rate limit") {
+		// Try to parse attempt numbers like "attempt 1 of 8"
+		_, err := fmt.Sscanf(errMsg, "Retrying due to rate limit... attempt %d of %d", &retryInfo.Attempt, &retryInfo.MaxAttempts)
+		if err != nil {
+			// If we couldn't parse the format, just use defaults
+		}
+	}
+	
+	return retryInfo
 }
 
 func (m *Message) IsThinking() bool {

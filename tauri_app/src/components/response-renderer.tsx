@@ -3,6 +3,7 @@ import { AuthDisplay } from './auth-display';
 import { ContextDisplay } from './context-display';
 import { HelpDisplay } from './help-display';
 import { McpDisplay } from './mcp-display';
+import { RateLimitDisplay } from './rate-limit-display';
 import { SessionDisplay } from './session-display';
 import { SessionsDisplay } from './sessions-display';
 
@@ -19,6 +20,7 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
   // All slash commands return JSON, parse and route to appropriate component
   try {
     const parsedData = JSON.parse(content);
+    console.log('Parsed data in response renderer:', parsedData);
 
     // Check if it's a context response by looking for expected fields
     if (
@@ -61,6 +63,16 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
       return <McpDisplay data={parsedData} />;
     }
 
+    // Check if it's a rate limit error response
+    if (parsedData.type === 'rate_limit_error') {
+      return <RateLimitDisplay 
+        retryAfter={parsedData.retryAfter}
+        attempt={parsedData.attempt}
+        maxAttempts={parsedData.maxAttempts}
+        error={parsedData.error}
+      />;
+    }
+    
     // Check if it's an authentication response
     if (
       parsedData.type === 'auth_status' ||
