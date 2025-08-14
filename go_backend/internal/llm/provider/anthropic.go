@@ -93,7 +93,11 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
 		logging.Info("Initialized Anthropic client with API key authentication")
 	} else {
+		// Allow client creation even without auth for command handling
 		logging.Warn("No authentication method available - neither OAuth nor API key")
+		// Using a placeholder API key to allow the client to initialize
+		// This will allow /login and other non-API commands to work
+		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey("placeholder-for-initialization-only"))
 	}
 
 	if anthropicOpts.useBedrock {
@@ -326,30 +330,57 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 		if err != nil {
 			logging.Error("Error in Anthropic API call", "error", err)
 
-			// Check for 401 and try OAuth token refresh
-			if a.options.useOAuth && a.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && a.options.oauthCreds.RefreshToken != "" {
-				if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
-					// Update stored credentials
-					if a.credentialStorage != nil {
-						a.credentialStorage.StoreOAuthCredentials(
-							"anthropic",
-							refreshedCreds.AccessToken,
-							refreshedCreds.RefreshToken,
-							refreshedCreds.ExpiresAt,
-							refreshedCreds.ClientID,
-						)
-					}
-					a.options.oauthCreds = refreshedCreds
+			// Check for authentication errors (401)
+			if strings.Contains(err.Error(), "401") {
+				// Check if using placeholder auth (indicating no real auth provided)
+				if !a.options.useOAuth && a.providerOptions.apiKey == "" {
+					// Return a special error message instructing the user to authenticate
+					return &ProviderResponse{
+						Content: "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
+							"To login:\n" +
+							"1. Visit https://console.anthropic.com/settings/keys\n" +
+							"2. Create an API key\n" +
+							"3. Use the /login command to authenticate",
+						Usage: TokenUsage{},
+					}, nil
+				}
 
-					// Update client with new token and retry
-					a.recreateClient()
-					logging.Info("Refreshed OAuth token and retrying request")
-					continue
+				// Try OAuth token refresh if available
+				if a.options.useOAuth && a.options.oauthCreds != nil && a.options.oauthCreds.RefreshToken != "" {
+					if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
+						// Update stored credentials
+						if a.credentialStorage != nil {
+							a.credentialStorage.StoreOAuthCredentials(
+								"anthropic",
+								refreshedCreds.AccessToken,
+								refreshedCreds.RefreshToken,
+								refreshedCreds.ExpiresAt,
+								refreshedCreds.ClientID,
+							)
+						}
+						a.options.oauthCreds = refreshedCreds
+
+						// Update client with new token and retry
+						a.recreateClient()
+						logging.Info("Refreshed OAuth token and retrying request")
+						continue
+					}
 				}
 			}
 
 			retry, after, retryErr := a.shouldRetry(attempts, err)
 			if retryErr != nil {
+				// For authentication errors, provide a friendly message
+				if strings.Contains(retryErr.Error(), "401") {
+					return &ProviderResponse{
+						Content: "⚠️ Authentication failed. Please use /login command to authenticate with Claude using an API key.\n\n" +
+							"To login:\n" +
+							"1. Visit https://console.anthropic.com/settings/keys\n" +
+							"2. Create an API key\n" +
+							"3. Use the /login command to authenticate",
+						Usage: TokenUsage{},
+					}, nil
+				}
 				return nil, retryErr
 			}
 			if retry {
@@ -414,6 +445,47 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 		logging.Debug("Prepared messages", "messages", string(jsonData))
 	}
 	attempts := 0
+	
+	// Handle the case where no authentication is provided
+	if !a.options.useOAuth && a.providerOptions.apiKey == "" {
+		// Send authentication instructions
+		go func() {
+			// Send content start
+			eventChan <- ProviderEvent{Type: EventContentStart}
+			
+			// Send authentication message
+			authMessage := "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
+				"To login:\n" +
+				"1. Visit https://console.anthropic.com/settings/keys\n" +
+				"2. Create an API key\n" +
+				"3. Use the /login command to authenticate"
+			
+			// Send content delta in chunks to simulate streaming
+			for _, chunk := range strings.Split(authMessage, " ") {
+				eventChan <- ProviderEvent{
+					Type:    EventContentDelta,
+					Content: chunk + " ",
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+			
+			// Send content stop
+			eventChan <- ProviderEvent{Type: EventContentStop}
+			
+			// Send complete event
+			eventChan <- ProviderEvent{
+				Type: EventComplete,
+				Response: &ProviderResponse{
+					Content: authMessage,
+					Usage:   TokenUsage{},
+				},
+			}
+			
+			close(eventChan)
+		}()
+		return eventChan
+	}
+	
 	go func() {
 		for {
 			attempts++

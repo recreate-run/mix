@@ -981,10 +981,26 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 
 	// Check for processing errors
 	if result.Error != nil {
+		// Convert error to user-friendly message
+		errorMessage := result.Error.Error()
+		
+		// Special handling for auth errors
+		if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
+			return &QueryResponse{
+				Result: map[string]interface{}{
+					"id":       "system-auth-prompt",
+					"role":     "assistant",
+					"content":  params.Content,
+					"response": "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+				},
+				ID: req.ID,
+			}
+		}
+		
 		return &QueryResponse{
 			Error: &QueryError{
 				Code:    -32000,
-				Message: "Agent processing failed: " + result.Error.Error(),
+				Message: "Agent processing failed: " + errorMessage,
 			},
 			ID: req.ID,
 		}
