@@ -145,8 +145,6 @@ multimodal-analyzer --type audio --model whisper-1 \
 
 ## Video Analysis Usage
 
-**Note**: Video analysis is currently restricted to Gemini models only due to native multimodal video support.
-
 ### Basic Video Commands
 
 ```bash

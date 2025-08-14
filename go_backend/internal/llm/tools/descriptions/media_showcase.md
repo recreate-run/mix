@@ -91,22 +91,21 @@ User: Give me three 5-second highlights from this demo video
 Assistant: I've identified key segments from your demo video.
 
 *Uses media_showcase tool with:*
-- Type: video, Title: "Product Overview", SourceVideo: /Users/project/demo.mp4, StartTime: 15, Duration: 5
-- Type: video, Title: "UI Walkthrough", SourceVideo: /Users/project/demo.mp4, StartTime: 85, Duration: 5  
-- Type: video, Title: "Results", SourceVideo: /Users/project/demo.mp4, StartTime: 130, Duration: 5
+- Type: video, Title: "Product Overview", Path: /Users/project/demo.mp4, StartTime: 15, Duration: 5
+- Type: video, Title: "UI Walkthrough", Path: /Users/project/demo.mp4, StartTime: 85, Duration: 5  
+- Type: video, Title: "Results", Path: /Users/project/demo.mp4, StartTime: 130, Duration: 5
 </example>
 
 ## Parameters
 
 outputs (required): Array of media outputs to showcase
-- path: Absolute file path (not required for remotion_title or video highlights)
+- path: Absolute file path (required except for remotion_title). For video/audio segments, this is the source media file
 - type: "image", "video", "audio", or "remotion_title"
 - title: Display title
 - description: Project context (optional)
-- config: Remotion configuration JSON (optional)
-- sourceVideo: Original video path for highlights (optional)
-- startTime: Highlight start time in seconds (optional)
-- duration: Highlight duration in seconds (optional)
+- config: Remotion configuration JSON (required for remotion_title)
+- startTime: Start time in seconds for video/audio segments (optional)
+- duration: Duration in seconds for video/audio segments (optional)
 
 **Description Field Notes:**
 - Use for WHY you're showing the media, not WHAT'S IN it

@@ -77,9 +77,8 @@ type MediaOutput = {
   type: 'image' | 'video' | 'audio';
   title: string;
   description?: string;
-  sourceVideo?: string; // Original video path for highlights
-  startTime?: number; // Highlight start time in seconds
-  duration?: number; // Highlight duration in seconds
+  startTime?: number; // Segment start time in seconds
+  duration?: number; // Segment duration in seconds
 };
 
 type Message = {

@@ -48,9 +48,8 @@ type MediaOutput = {
   title: string;
   description?: string;
   config?: any; // For remotion configuration data
-  sourceVideo?: string; // Original video path for highlights
-  startTime?: number; // Highlight start time in seconds
-  duration?: number; // Highlight duration in seconds
+  startTime?: number; // Segment start time in seconds
+  duration?: number; // Segment duration in seconds
 };
 
 
@@ -112,9 +111,9 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
 
       {media.type === 'video' && (
         <VideoPlayer 
+          key={`${media.path}-${media.startTime || 0}-${media.duration || 0}`}
           path={media.path}
           title=""
-          sourceVideo={media.sourceVideo}
           startTime={media.startTime}
           duration={media.duration}
         />

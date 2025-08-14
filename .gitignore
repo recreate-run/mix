@@ -70,3 +70,5 @@ temp/
 *.temp
 
 fumadocs_reference/
+
+**/*.db

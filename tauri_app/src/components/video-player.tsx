@@ -8,12 +8,11 @@ type VideoPlayerProps = {
   path: string;
   title: string;
   description?: string;
-  sourceVideo?: string; // Original video path for highlights
-  startTime?: number; // Highlight start time in seconds
-  duration?: number; // Highlight duration in seconds
+  startTime?: number; // Segment start time in seconds
+  duration?: number; // Segment duration in seconds
 };
 
-export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, duration }: VideoPlayerProps) => {
+export const VideoPlayer = ({ path, title, description, startTime, duration }: VideoPlayerProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -21,14 +20,21 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
 
   useEffect(() => {
     setIsLoading(true);
-  }, [sourceVideo || path]);
+  }, [path, startTime, duration]);
 
-  // Create URL with media fragment for highlights
+  // Reset video position when segment changes
+  useEffect(() => {
+    if (videoRef.current && startTime !== undefined) {
+      videoRef.current.currentTime = startTime;
+    }
+  }, [startTime, duration]);
+
+  // Create URL with media fragment for segments
   const getVideoSrc = () => {
-    const baseSrc = convertFileSrc(sourceVideo || path);
+    const baseSrc = convertFileSrc(path);
     
-    // For video highlights, add media fragment to constrain playback
-    if (sourceVideo && startTime !== undefined && duration !== undefined) {
+    // For video segments, add media fragment to constrain playback
+    if (startTime !== undefined && duration !== undefined) {
       const endTime = startTime + duration;
       return `${baseSrc}#t=${startTime},${endTime}`;
     }
@@ -39,7 +45,7 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
   // Get segment info
   const segmentStartTime = startTime || 0;
   const segmentDuration = duration || 0;
-  const isHighlight = sourceVideo && startTime !== undefined && duration !== undefined;
+  const isSegment = startTime !== undefined && duration !== undefined;
 
   // Format time for display (segment time, not absolute time)
   const formatTime = (seconds: number) => {
@@ -48,21 +54,21 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Get segment time (0-based from start of highlight)
+  // Get segment time (0-based from start of segment)
   const getSegmentTime = (videoCurrentTime: number) => {
-    if (!isHighlight) return videoCurrentTime;
+    if (!isSegment) return videoCurrentTime;
     return Math.max(0, videoCurrentTime - segmentStartTime);
   };
 
   // Convert segment progress (0-100%) to actual video time
   const segmentProgressToVideoTime = (progress: number) => {
-    if (!isHighlight) return 0;
+    if (!isSegment) return 0;
     return segmentStartTime + (progress / 100) * segmentDuration;
   };
 
   // Get current segment progress (0-100%)
   const getSegmentProgress = () => {
-    if (!isHighlight || segmentDuration === 0) return 0;
+    if (!isSegment || segmentDuration === 0) return 0;
     const segmentTime = getSegmentTime(currentTime);
     return Math.min(100, (segmentTime / segmentDuration) * 100);
   };
@@ -78,7 +84,7 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current || !isHighlight) return;
+    if (!videoRef.current || !isSegment) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -91,8 +97,8 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
   const handleReplay = () => {
     if (!videoRef.current) return;
     
-    // Reset to start (or highlight start for segments)
-    const startTime = isHighlight ? segmentStartTime : 0;
+    // Reset to start (or segment start for segments)
+    const startTime = isSegment ? segmentStartTime : 0;
     videoRef.current.currentTime = startTime;
   };
 
@@ -140,7 +146,7 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
             setCurrentTime(video.currentTime);
             
             // Additional safeguard to keep playback within bounds
-            if (isHighlight) {
+            if (isSegment) {
               const endTime = segmentStartTime + segmentDuration;
               if (video.currentTime >= endTime) {
                 video.pause();
@@ -149,8 +155,8 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
             }
           }}
           onSeeking={(e) => {
-            // Prevent seeking outside the highlight range
-            if (isHighlight) {
+            // Prevent seeking outside the segment range
+            if (isSegment) {
               const video = e.currentTarget;
               const endTime = segmentStartTime + segmentDuration;
               
@@ -197,8 +203,8 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
 
               </div>
 
-              {/* Progress Bar - only show for highlights */}
-              {isHighlight && (
+              {/* Progress Bar - only show for segments */}
+              {isSegment && (
                 <div className="flex-1 flex items-center gap-2">
                   <span className="text-white text-xs font-mono">
                     {formatTime(getSegmentTime(currentTime))}
@@ -220,8 +226,8 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
                 </div>
               )}
               
-              {/* For non-highlights, show simpler time display */}
-              {!isHighlight && (
+              {/* For non-segments, show simpler time display */}
+              {!isSegment && (
                 <div className="flex-1 flex items-center justify-end">
                   <span className="text-white text-xs font-mono">
                     {formatTime(currentTime)}
@@ -246,7 +252,7 @@ export const VideoPlayer = ({ path, title, description, sourceVideo, startTime, 
           className="flex items-center justify-center h-48 bg-stone-700 text-stone-400"
           style={{ display: 'none' }}
         >
-          Failed to load video: {sourceVideo || path}
+          Failed to load video: {path}
         </div>
       </div>
     </div>
