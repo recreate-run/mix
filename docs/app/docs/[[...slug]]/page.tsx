@@ -1,10 +1,15 @@
 import { source } from '@/lib/source';
 import {
-  DocsPage,
-  DocsBody,
-  DocsDescription,
-  DocsTitle,
-} from 'fumadocs-ui/page';
+  PageRoot,
+  PageArticle,
+  PageTOC,
+  PageTOCItems,
+  PageTOCPopover,
+  PageTOCPopoverContent,
+  PageTOCPopoverItems,
+  PageTOCPopoverTrigger,
+  PageTOCTitle,
+} from 'fumadocs-ui/layouts/docs/page';
 import { notFound } from 'next/navigation';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { getMDXComponents } from '@/mdx-components';
@@ -17,20 +22,44 @@ export default async function Page(props: {
   if (!page) notFound();
 
   const MDXContent = page.data.body;
+  const toc = page.data.toc;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
-      <DocsBody>
-        <MDXContent
-          components={getMDXComponents({
-            // this allows you to link to other pages with relative file paths
-            a: createRelativeLink(source, page),
-          })}
-        />
-      </DocsBody>
-    </DocsPage>
+    <PageRoot
+      toc={{
+        toc,
+        single: false,
+      }}
+    >
+      {toc.length > 0 && (
+        <PageTOCPopover>
+          <PageTOCPopoverTrigger />
+          <PageTOCPopoverContent>
+            <PageTOCPopoverItems />
+          </PageTOCPopoverContent>
+        </PageTOCPopover>
+      )}
+      <PageArticle>
+        <h1 className="text-3xl font-semibold">{page.data.title}</h1>
+        <p className="text-lg text-fd-muted-foreground">
+          {page.data.description}
+        </p>
+        <div className="prose flex-1 text-fd-foreground/80">
+          <MDXContent
+            components={getMDXComponents({
+              // this allows you to link to other pages with relative file paths
+              a: createRelativeLink(source, page),
+            })}
+          />
+        </div>
+      </PageArticle>
+      {toc.length > 0 && (
+        <PageTOC>
+          <PageTOCTitle />
+          <PageTOCItems />
+        </PageTOC>
+      )}
+    </PageRoot>
   );
 }
 
