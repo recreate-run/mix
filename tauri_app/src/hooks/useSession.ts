@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
 import { rpcCall } from '@/lib/rpc';
 
 interface CreateSessionParams {
@@ -49,30 +48,19 @@ export const useSession = (workingDirectory?: string) => {
   });
 };
 
-// New hook for managing active session (can be overridden by forked sessions)
-export const useActiveSession = (workingDirectory?: string) => {
-  const [overrideSession, setOverrideSession] = useState<Session | null>(null);
-  const defaultSessionQuery = useSession(workingDirectory);
-
-  // Use override session if available, otherwise fall back to default
-  const activeSession = overrideSession || defaultSessionQuery.data;
-  const isLoading = !overrideSession && defaultSessionQuery.isLoading;
-  const error = !overrideSession && defaultSessionQuery.error;
-
-  const switchToSession = (session: Session) => {
-    setOverrideSession(session);
-  };
-
-  const resetToDefault = () => {
-    setOverrideSession(null);
-  };
-
-  return {
-    data: activeSession,
-    isLoading,
-    error,
-    switchToSession,
-    resetToDefault,
-    isOverride: !!overrideSession,
-  };
+// Simplified hook for URL-based session management  
+export const useActiveSession = (sessionId: string, workingDirectory?: string) => {
+  return useQuery({
+    queryKey: ['session', sessionId],
+    queryFn: async (): Promise<Session> => {
+      // Return session info based on sessionId
+      return {
+        id: sessionId,
+        title: 'Chat Session',
+        workingDirectory,
+      };
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+  });
 };

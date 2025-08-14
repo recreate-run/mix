@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { FolderIcon } from 'lucide-react';
 import {
   type FormEventHandler,
@@ -113,7 +114,11 @@ const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
 
 
 
-export function ChatApp() {
+interface ChatAppProps {
+  sessionId: string;
+}
+
+export function ChatApp({ sessionId }: ChatAppProps) {
   // Core conversation state
   const [text, setText] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -167,13 +172,13 @@ export function ChatApp() {
     data: session,
     isLoading: sessionLoading,
     error: sessionError,
-    switchToSession,
-  } = useActiveSession(selectedFolder || defaultWorkingDir);
+  } = useActiveSession(sessionId, selectedFolder || defaultWorkingDir);
   const sessionMessages = useSessionMessages(session?.id || null);
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps, refreshApps } = useAppList();
   const forkSession = useForkSession();
   const createSession = useCreateSession();
+  const navigate = useNavigate();
 
   // Clear UI state when session changes (new working directory selected)
   useEffect(() => {
@@ -555,20 +560,14 @@ export function ChatApp() {
         workingDirectory: selectedFolder || defaultWorkingDir,
       });
       
-      // Switch to the new session - this will automatically trigger UI updates
-      switchToSession(newSession);
-      
-      // Clear current UI state
-      setText('');
-      clearAttachments();
-      interruptedMessageAddedRef.current = false;
+      // Navigate to the new session - this will automatically trigger UI updates
+      navigate({ 
+        to: '/$sessionId', 
+        params: { sessionId: newSession.id },
+        replace: true 
+      });
     } catch (error) {
       console.error('Failed to create new session:', error);
-      // Fallback to old behavior if session creation fails
-      setMessages([]);
-      setText('');
-      clearAttachments();
-      interruptedMessageAddedRef.current = false;
     }
   };
 
@@ -617,8 +616,12 @@ export function ChatApp() {
           appNames
         );
 
-      // Switch to the forked session
-      switchToSession(newSession);
+      // Navigate to the forked session
+      navigate({ 
+        to: '/$sessionId', 
+        params: { sessionId: newSession.id },
+        replace: true 
+      });
 
       // Queue fork text to be set after session switching completes
       setPendingForkText({ text: contractedText, attachments, referenceMap });
@@ -701,7 +704,7 @@ export function ChatApp() {
         </div>
 
         {/* AI Input Section */}
-        <div className="relative z-10 mx-auto w-full max-w-4xl shadow-[0_-20px_80px_rgba(0,0,0,0.7)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16  before:from-transparent before:to-black/50 before:content-['']">
+        <div className="relative z-10 mx-auto w-full max-w-3xl shadow-[0_-20px_80px_rgba(0,0,0,0.7)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16  before:from-transparent before:to-black/50 before:content-['']">
           <div className="relative">
             <AIInput
               className="border-[0.5px] border-neutral-600"

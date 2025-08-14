@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Player } from '@remotion/player';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TemplateAdapter } from './TemplateAdapter';
 import type { RemotionVideoConfig } from '@/types/remotion';
@@ -16,7 +18,6 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
   sessionId 
 }) => {
   const [editableConfig, setEditableConfig] = useState<RemotionVideoConfig>(config);
-  const [showControls, setShowControls] = useState(false);
 
   // Get the first text element for editing (keep it simple)
   const firstTextElement = editableConfig.elements.find(el => el.type === 'text');
@@ -55,8 +56,8 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
   };
 
   return (
-    <div className="remotion-video-preview space-y-4">
-      <div className="rounded-lg overflow-hidden bg-black">
+    <div className="flex gap-4 remotion-video-preview mb-4">
+      <div className="rounded-lg overflow-hidden">
         <Player
           component={TemplateAdapter}
           inputProps={{ config: editableConfig }}
@@ -68,7 +69,6 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
           style={{ 
             width: '100%', 
             maxWidth: '600px',
-            height: '300px',
             minHeight: '300px'
           }}
           acknowledgeRemotionLicense
@@ -76,22 +76,15 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
       </div>
       
       {/* Simple Animation Controls */}
-      <div className="space-y-3 border rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium">Animation Controls</h3>
-          <Button
-            variant="ghost" 
-            size="sm"
-            onClick={() => setShowControls(!showControls)}
-          >
-            {showControls ? 'Hide' : 'Show'}
-          </Button>
-        </div>
+      <Card className='border-none'>
+        <CardHeader>
+          <CardTitle className="text-base">Animation Controls</CardTitle>
+        </CardHeader>
         
-        {showControls && firstTextElement && (
-          <div className="space-y-4">
+        {firstTextElement && (
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Text Content</label>
+              <Label className="text-sm font-medium">Text Content</Label>
               <Input
                 value={firstTextElement.content}
                 onChange={(e) => updateTextContent(e.target.value)}
@@ -100,7 +93,7 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
             </div>
             
             <div className="space-y-2">
-              <label className="text-sm font-medium">Animation Type</label>
+              <Label className="text-sm font-medium">Animation Type</Label>
               <Select
                 value={firstTextElement.animation?.type || 'fadeIn'}
                 onValueChange={updateAnimationType}
@@ -119,9 +112,9 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
             </div>
             
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <Label className="text-sm font-medium">
                 Duration: {firstTextElement.animation?.duration || 30} frames
-              </label>
+              </Label>
               <Input
                 type="range"
                 min="5"
@@ -131,9 +124,9 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
                 className="w-full"
               />
             </div>
-          </div>
+          </CardContent>
         )}
-      </div>
+      </Card>
     </div>
   );
 };
