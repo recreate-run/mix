@@ -1,0 +1,42 @@
+{
+  "config": {
+    "composition": {
+      "durationInFrames": 150,
+      "fps": 30,
+      "width": 1920,
+      "height": 1080
+    },
+    "elements": [
+      {
+        "type": "text",
+        "content": "Test Video Export",
+        "position": { "x": 960, "y": 400 },
+        "style": {
+          "fontSize": 72,
+          "color": "#ffffff",
+          "fontWeight": "bold"
+        },
+        "animation": {
+          "type": "fadeIn",
+          "startFrame": 0,
+          "durationFrames": 30
+        }
+      },
+      {
+        "type": "text", 
+        "content": "Created with Remotion",
+        "position": { "x": 960, "y": 500 },
+        "style": {
+          "fontSize": 36,
+          "color": "#cccccc"
+        },
+        "animation": {
+          "type": "slideIn",
+          "startFrame": 30,
+          "durationFrames": 30,
+          "direction": "left"
+        }
+      }
+    ]
+  }
+}
