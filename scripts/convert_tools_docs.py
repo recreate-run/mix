@@ -61,23 +61,16 @@ def extract_description(content):
 
 def determine_category(filename, content):
     """Determine the category based on filename and content."""
-    system_tools = ['bash', 'bash_output', 'kill_bash', 'ls', 'grep', 'glob', 'edit', 'write', 'view']
-    ai_tools = ['todo_write', 'todo_write_cc', 'exit_plan_mode', 'multimodal_analyzer', 'web_search', 'fetch']
-    creative_tools = ['blender', 'remotion', 'pixelmator', 'media_showcase']
-    dev_tools = ['python_execution', 'notes']
+    # Only blender, pixelmator, and notes are App Tools
+    app_tools = ['blender', 'pixelmator', 'notes']
     
     base_name = filename.replace('.md', '')
     
-    if base_name in system_tools:
-        return "System"
-    elif base_name in ai_tools:
-        return "AI & Automation"
-    elif base_name in creative_tools:
-        return "Creative"
-    elif base_name in dev_tools:
-        return "Development"
+    if base_name in app_tools:
+        return "App Tools"
     else:
-        return "Tools"
+        # Everything else is a System Tool
+        return "System Tools"
 
 def convert_md_to_mdx(source_dir, dest_dir):
     """Convert all MD files in source_dir to MDX files in dest_dir."""

@@ -13,7 +13,7 @@ pnpm dev
 yarn dev
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+Open <http://localhost:3000> with your browser to see the result.
 
 ## Explore
 
@@ -43,3 +43,43 @@ resources:
   features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 - [Fumadocs](https://fumadocs.vercel.app) - learn about Fumadocs
+
+## Tool Documentation
+
+Auto-generates tool documentation from Go backend descriptions.
+
+```bash
+uv run --with jinja2 scripts/convert_tools_docs.py
+```
+
+## Creating Sidebar Subgroups with Popover Behavior
+
+To create expandable sidebar subgroups (like "System Tools" under "Tools"):
+
+1. **Create a root folder** with `meta.json` containing `"root": true`:
+   ```json
+   {
+     "title": "System Tools",
+     "description": "Core system tools for file management",
+     "icon": "Terminal",
+     "root": true,
+     "pages": ["bash", "ls", "grep", "edit"]
+   }
+   ```
+
+2. **Move related pages** into the subfolder (e.g., `tools/system-tools/`)
+
+3. **Update parent meta.json** to reference the folder:
+   ```json
+   {
+     "pages": ["tools/system-tools"]
+   }
+   ```
+
+4. **Add icon to source.ts** if needed:
+   ```ts
+   import { Terminal } from 'lucide-react';
+   const icons = { Terminal };
+   ```
+
+The fumadocs DocsLayout will automatically detect root folders and create popover navigation.

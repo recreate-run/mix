@@ -1,13 +1,15 @@
 import { docs } from '@/.source';
 import { loader } from 'fumadocs-core/source';
 import { createElement } from 'react';
-import { BookOpen, Rocket, Settings, FileText } from 'lucide-react';
+import { BookOpen, Rocket, Settings, FileText, Terminal, Smartphone } from 'lucide-react';
 
 const icons = {
   BookOpen,
   Rocket,
   Settings,
   FileText,
+  Terminal,
+  Smartphone,
 };
 
 // See https://fumadocs.vercel.app/docs/headless/source-api for more info
