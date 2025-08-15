@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/llm/agent"
 	"mix/internal/llm/tools"
+	"mix/internal/llm/provider"
 )
 
 // ContextResponse represents the JSON response for the /context command
@@ -115,6 +118,24 @@ type MessageResponse struct {
 	Command string `json:"command,omitempty"`
 }
 
+// AuthStatusResponse represents authentication status
+type AuthStatusResponse struct {
+	Type      string `json:"type"`
+	Status    string `json:"status"`    // "authenticated" | "not_authenticated"
+	Provider  string `json:"provider"`  // "anthropic"
+	ExpiresIn int64  `json:"expiresIn"` // minutes until expiry
+	Message   string `json:"message"`
+}
+
+// AuthLoginResponse represents login flow responses
+type AuthLoginResponse struct {
+	Type    string `json:"type"`
+	Status  string `json:"status"`               // "success" | "pending" | "error"
+	Message string `json:"message"`
+	AuthURL string `json:"authUrl,omitempty"`    // for OAuth flow
+	Step    string `json:"step,omitempty"`       // current step in flow
+}
+
 // BuiltinCommand represents a built-in command
 type BuiltinCommand struct {
 	name        string
@@ -190,6 +211,26 @@ func GetBuiltinCommands(registry *Registry, app *app.App) map[string]Command {
 			name:        "context",
 			description: "Show context usage breakdown with percentages",
 			handler:     createContextHandler(app),
+		},
+		"login": &BuiltinCommand{
+			name:        "login",
+			description: "Authenticate with Claude Code OAuth",
+			handler:     createLoginHandler(),
+		},
+		"logout": &BuiltinCommand{
+			name:        "logout",
+			description: "Sign out from Claude Code",
+			handler:     createLogoutHandler(),
+		},
+		"status": &BuiltinCommand{
+			name:        "status",
+			description: "Check Claude Code authentication status",
+			handler:     createAuthStatusHandler(),
+		},
+		"auth-code": &BuiltinCommand{
+			name:        "auth-code",
+			description: "Exchange authorization code for OAuth tokens",
+			handler:     createAuthCodeHandler(),
 		},
 	}
 }
@@ -529,6 +570,276 @@ func createContextHandler(app *app.App) func(ctx context.Context, args string) (
 		jsonData, err := json.Marshal(response)
 		if err != nil {
 			return returnError("context", fmt.Sprintf("Error marshaling context data: %v", err))
+		}
+
+		return string(jsonData), nil
+	}
+}
+
+// Authentication command handlers
+
+func createAuthStatusHandler() func(ctx context.Context, args string) (string, error) {
+	return func(ctx context.Context, args string) (string, error) {
+		storage, err := provider.NewCredentialStorage()
+		if err != nil {
+			return returnError("status", fmt.Sprintf("Failed to initialize credential storage: %v", err))
+		}
+
+		// Check Anthropic OAuth credentials
+		creds, err := storage.GetOAuthCredentials("anthropic")
+		if err != nil {
+			return returnError("status", fmt.Sprintf("Error checking credentials: %v", err))
+		}
+
+		response := AuthStatusResponse{
+			Type:     "auth_status",
+			Provider: "anthropic",
+		}
+
+		if creds != nil && !creds.IsTokenExpired() {
+			response.Status = "authenticated"
+			response.ExpiresIn = (creds.ExpiresAt - time.Now().Unix()) / 60 // minutes
+			response.Message = fmt.Sprintf("✅ Authenticated with Claude Code (expires in %d minutes)", response.ExpiresIn)
+		} else {
+			response.Status = "not_authenticated"
+			response.ExpiresIn = 0
+			if creds != nil && creds.IsTokenExpired() {
+				response.Message = "❌ Token expired. Please login again."
+			} else {
+				response.Message = "❌ Not authenticated. Use /login to authenticate."
+			}
+		}
+
+		jsonData, err := json.Marshal(response)
+		if err != nil {
+			return returnError("status", fmt.Sprintf("Error marshaling status data: %v", err))
+		}
+
+		return string(jsonData), nil
+	}
+}
+
+func createLoginHandler() func(ctx context.Context, args string) (string, error) {
+	return func(ctx context.Context, args string) (string, error) {
+		// Check if already authenticated
+		storage, err := provider.NewCredentialStorage()
+		if err != nil {
+			return returnError("login", fmt.Sprintf("Failed to initialize credential storage: %v", err))
+		}
+
+		existingCreds, err := storage.GetOAuthCredentials("anthropic")
+		if err == nil && existingCreds != nil && !existingCreds.IsTokenExpired() {
+			response := AuthLoginResponse{
+				Type:    "auth_login",
+				Status:  "success",
+				Message: "✅ Already authenticated with Claude Code OAuth!",
+			}
+			jsonData, _ := json.Marshal(response)
+			return string(jsonData), nil
+		}
+
+		// Check if API key is set in environment
+		if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
+			response := AuthLoginResponse{
+				Type:    "auth_login",
+				Status:  "success",
+				Step:    "api_key",
+				Message: "✅ Using Anthropic API key from environment variables. OAuth not needed.",
+			}
+			jsonData, _ := json.Marshal(response)
+			return string(jsonData), nil
+		}
+
+		// Check if user provided authorization code as argument
+		args = strings.TrimSpace(args)
+		if args != "" {
+			// Handle authorization code exchange
+			return handleAuthCodeExchange(args, storage)
+		}
+
+		// Create OAuth flow and initiate login
+		oauthFlow, err := provider.NewOAuthFlow("")
+		if err != nil {
+			return returnError("login", fmt.Sprintf("Failed to create OAuth flow: %v", err))
+		}
+
+		authURL := oauthFlow.GetAuthorizationURL()
+
+		// Include API key alternative in the message
+		apiKeyMessage := "\n\n**Note:** Due to Cloudflare protection, OAuth may fail. As an alternative:\n\n" +
+			"1. Visit https://console.anthropic.com/settings/keys\n" +
+			"2. Create an API key\n" +
+			"3. Set ANTHROPIC_API_KEY environment variable\n" +
+			"4. Restart the application"
+
+		// Try to open browser automatically
+		if err := oauthFlow.OpenBrowser(); err != nil {
+			// If browser opening fails, just provide the URL
+			response := AuthLoginResponse{
+				Type:    "auth_login",
+				Status:  "pending",
+				AuthURL: authURL,
+				Step:    "authorization",
+				Message: "🔐 Failed to open browser automatically. Please manually visit the URL above and complete OAuth authentication. Then run: /login <authorization_code>" + apiKeyMessage,
+			}
+			jsonData, _ := json.Marshal(response)
+			return string(jsonData), nil
+		}
+
+		response := AuthLoginResponse{
+			Type:    "auth_login",
+			Status:  "pending",
+			AuthURL: authURL,
+			Step:    "authorization",
+			Message: "🔐 Browser opened for authentication. Complete OAuth in your browser, then copy the authorization code from the callback URL and run: /login <authorization_code>" + apiKeyMessage,
+		}
+
+		jsonData, err := json.Marshal(response)
+		if err != nil {
+			return returnError("login", fmt.Sprintf("Error marshaling login data: %v", err))
+		}
+
+		return string(jsonData), nil
+	}
+}
+
+// handleAuthCodeExchange handles the authorization code exchange for tokens
+func handleAuthCodeExchange(authCode string, storage *provider.CredentialStorage) (string, error) {
+	// Create new OAuth flow for token exchange
+	oauthFlow, err := provider.NewOAuthFlow("")
+	if err != nil {
+		return returnError("login", fmt.Sprintf("Failed to create OAuth flow: %v", err))
+	}
+
+	// Exchange authorization code for tokens
+	creds, err := oauthFlow.ExchangeCodeForTokens(authCode)
+	if err != nil {
+		// Check for errors, but suggest API key as an alternative for all OAuth exchange failures
+		response := AuthLoginResponse{
+			Type:    "auth_login",
+			Status:  "error",
+			Step:    "manual_api_key",
+			Message: "OAuth flow could not be completed automatically due to Cloudflare protection. \n\nPlease use an API key instead:\n\n1. Visit: https://console.anthropic.com/settings/keys\n2. Create a new API key\n3. Set the environment variable: export ANTHROPIC_API_KEY=your_api_key\n4. Restart the application\n\nThis will be fixed in a future update.",
+		}
+		jsonData, _ := json.Marshal(response)
+		return string(jsonData), nil
+	}
+
+	// Store the credentials
+	err = storage.StoreOAuthCredentials("anthropic", creds.AccessToken, creds.RefreshToken, creds.ExpiresAt, creds.ClientID)
+	if err != nil {
+		return returnError("login", fmt.Sprintf("Failed to store credentials: %v", err))
+	}
+
+	response := AuthLoginResponse{
+		Type:    "auth_login",
+		Status:  "success",
+		Step:    "completed",
+		Message: "✅ Successfully authenticated with Claude Code OAuth!",
+	}
+
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		return returnError("login", fmt.Sprintf("Error marshaling success response: %v", err))
+	}
+
+	return string(jsonData), nil
+}
+
+func createLogoutHandler() func(ctx context.Context, args string) (string, error) {
+	return func(ctx context.Context, args string) (string, error) {
+		storage, err := provider.NewCredentialStorage()
+		if err != nil {
+			return returnError("logout", fmt.Sprintf("Failed to initialize credential storage: %v", err))
+		}
+
+		// Check if authenticated
+		creds, err := storage.GetOAuthCredentials("anthropic")
+		if err != nil || creds == nil {
+			response := AuthStatusResponse{
+				Type:     "auth_status",
+				Status:   "not_authenticated",
+				Provider: "anthropic",
+				Message:  "❌ Already logged out",
+			}
+			jsonData, _ := json.Marshal(response)
+			return string(jsonData), nil
+		}
+
+		// Clear credentials (logout)
+		err = storage.ClearOAuthCredentials("anthropic")
+		if err != nil {
+			return returnError("logout", fmt.Sprintf("Failed to clear credentials: %v", err))
+		}
+
+		response := AuthStatusResponse{
+			Type:     "auth_status",
+			Status:   "not_authenticated",
+			Provider: "anthropic",
+			Message:  "✅ Successfully logged out from Claude Code",
+		}
+
+		jsonData, err := json.Marshal(response)
+		if err != nil {
+			return returnError("logout", fmt.Sprintf("Error marshaling logout data: %v", err))
+		}
+
+		return string(jsonData), nil
+	}
+}
+
+func createAuthCodeHandler() func(ctx context.Context, args string) (string, error) {
+	return func(ctx context.Context, args string) (string, error) {
+		authCode := strings.TrimSpace(args)
+		if authCode == "" {
+			return returnError("auth-code", "Authorization code is required. Usage: /auth-code <code#state>")
+		}
+
+		// Check if there's a '/login ' prefix and remove it - this happens when users copy the whole command
+		if strings.HasPrefix(strings.ToLower(authCode), "/login ") {
+			authCode = strings.TrimSpace(authCode[7:])
+		}
+
+		storage, err := provider.NewCredentialStorage()
+		if err != nil {
+			return returnError("auth-code", fmt.Sprintf("Failed to initialize credential storage: %v", err))
+		}
+
+		// Create OAuth flow (we need this to exchange the code)
+		oauthFlow, err := provider.NewOAuthFlow("")
+		if err != nil {
+			return returnError("auth-code", fmt.Sprintf("Failed to create OAuth flow: %v", err))
+		}
+
+		// Exchange the authorization code for tokens
+		credentials, err := oauthFlow.ExchangeCodeForTokens(authCode)
+		if err != nil {
+			// For Cloudflare protection or other errors, guide the user to use API key
+			response := AuthLoginResponse{
+				Type:    "auth_login",
+				Status:  "error",
+				Step:    "manual_api_key",
+				Message: "OAuth flow could not be completed automatically due to Cloudflare protection. \n\nPlease use an API key instead:\n\n1. Visit: https://console.anthropic.com/settings/keys\n2. Create a new API key\n3. Set the environment variable: export ANTHROPIC_API_KEY=your_api_key\n4. Restart the application\n\nThis will be fixed in a future update.",
+			}
+			jsonData, _ := json.Marshal(response)
+			return string(jsonData), nil
+		}
+
+		// Store the credentials
+		err = storage.StoreOAuthCredentials("anthropic", credentials.AccessToken, credentials.RefreshToken, credentials.ExpiresAt, credentials.ClientID)
+		if err != nil {
+			return returnError("auth-code", fmt.Sprintf("Failed to store credentials: %v", err))
+		}
+
+		response := AuthLoginResponse{
+			Type:    "auth_login",
+			Status:  "success",
+			Message: "✅ Successfully authenticated with Claude Code OAuth! You can now use the application.",
+		}
+
+		jsonData, err := json.Marshal(response)
+		if err != nil {
+			return returnError("auth-code", fmt.Sprintf("Error marshaling success response: %v", err))
 		}
 
 		return string(jsonData), nil

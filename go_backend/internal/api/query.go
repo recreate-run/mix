@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"mix/internal/commands"
 	"mix/internal/config"
 	"mix/internal/llm/agent"
+	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
 )
 
@@ -150,6 +152,10 @@ func (h *QueryHandler) Handle(ctx context.Context, req *QueryRequest) *QueryResp
 		return h.handleCommandsGet(ctx, req)
 	case "agent.cancel":
 		return h.handleAgentCancel(ctx, req)
+	case "auth.login":
+		return h.handleAuthLogin(ctx, req)
+	case "auth.apikey":
+		return h.handleSetAPIKey(ctx, req)
 	default:
 		return &QueryResponse{
 			Error: &QueryError{
@@ -186,6 +192,197 @@ func (h *QueryHandler) HandleQueryType(ctx context.Context, queryType string) *Q
 // GetSupportedQueryTypes returns all supported query types
 func (h *QueryHandler) GetSupportedQueryTypes() []string {
 	return []string{"sessions", "tools", "mcp", "commands"}
+}
+
+func (h *QueryHandler) handleSetAPIKey(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		APIKey string `json:"apiKey"`
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.APIKey == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: apiKey",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Set environment variable
+	os.Setenv("ANTHROPIC_API_KEY", params.APIKey)
+
+	// No need to reload providers, they'll pick up the new API key from env automatically
+	// on the next request
+
+	return &QueryResponse{
+		Result: map[string]interface{}{
+			"status":  "success",
+			"message": "API key set successfully. You can now use the application.",
+		},
+		ID: req.ID,
+	}
+}
+
+func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		AuthCode string `json:"authCode"`
+		APIKey   string `json:"apiKey"`   // Allow direct API key submission
+		Manual   bool   `json:"manual"` // Flag for manual token input
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+	
+	// Check if this is a manual API key submission
+	if params.APIKey != "" {
+		// Set environment variable
+		os.Setenv("ANTHROPIC_API_KEY", params.APIKey)
+		
+		return &QueryResponse{
+			Result: map[string]interface{}{
+				"status":  "success",
+				"message": "API key set successfully. You can now use the application.",
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.AuthCode == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: authCode or apiKey",
+			},
+			ID: req.ID,
+		}
+	}
+
+	storage, err := provider.NewCredentialStorage()
+	if err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32603,
+				Message: "Failed to initialize credential storage: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Extract state from auth code to retrieve the correct OAuth flow
+	authCodeParts := strings.Split(params.AuthCode, "#")
+	var oauthFlow *provider.OAuthFlow
+	
+	if len(authCodeParts) == 2 {
+		// Auth code format: code#state
+		state := authCodeParts[1]
+		oauthFlow = provider.GetOAuthFlow(state)
+		
+		if oauthFlow == nil {
+			return &QueryResponse{
+				Error: &QueryError{
+					Code:    -32603,
+					Message: "OAuth flow not found for this session. Please restart the authentication process.",
+				},
+				ID: req.ID,
+			}
+		}
+	} else {
+		// Fallback: create new OAuth flow (for backwards compatibility)
+		var err error
+		oauthFlow, err = provider.NewOAuthFlow("")
+		if err != nil {
+			return &QueryResponse{
+				Error: &QueryError{
+					Code:    -32603,
+					Message: "Failed to create OAuth flow: " + err.Error(),
+				},
+				ID: req.ID,
+			}
+		}
+	}
+
+	// For manual token entry (from UI), check if this is an API key (starts with sk-ant-)
+	if params.Manual && strings.HasPrefix(params.AuthCode, "sk-ant-") {
+		// This is a direct API key, not an auth code
+		os.Setenv("ANTHROPIC_API_KEY", params.AuthCode)
+		
+		return &QueryResponse{
+			Result: map[string]interface{}{
+				"status":  "success",
+				"message": "API key set successfully. You can now use the application.",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Exchange the authorization code for tokens
+	credentials, err := oauthFlow.ExchangeCodeForTokens(params.AuthCode)
+	if err != nil {
+		// Check if this is the Cloudflare protection error
+		if strings.Contains(err.Error(), "Cloudflare") || strings.Contains(err.Error(), "manual token extraction") {
+			return &QueryResponse{
+				Result: map[string]interface{}{
+					"status":  "error",
+					"step":    "manual_fallback",
+					"message": "OAuth flow completed but token exchange was blocked by Cloudflare protection. Please try one of these methods:\n\n1. Try again with the exact code format: code#state\n\n2. Or create an API key manually:\n   - Visit: https://console.anthropic.com/settings/keys\n   - Create a new API key\n   - Enter the API key in the form below\n\nNote: Terminal authentication may still work via `mix auth add anthropic-claude-pro-max`",
+				},
+				ID: req.ID,
+			}
+		}
+		
+		// For other OAuth exchange failures, guide user to manual API key approach
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32603,
+				Message: "Failed to exchange authorization code: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Store the credentials
+	err = storage.StoreOAuthCredentials("anthropic", credentials.AccessToken, credentials.RefreshToken, credentials.ExpiresAt, credentials.ClientID)
+	if err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32603,
+				Message: "Failed to store credentials: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Clean up the OAuth flow from memory after successful authentication
+	if len(authCodeParts) == 2 {
+		provider.CleanupOAuthFlow(authCodeParts[1])
+	}
+
+	return &QueryResponse{
+		Result: map[string]interface{}{
+			"status":     "success",
+			"message":    "Successfully authenticated with Claude Code OAuth! You can now use the application.",
+			"expiresIn": (credentials.ExpiresAt - time.Now().Unix()) / 60, // minutes
+		},
+		ID: req.ID,
+	}
 }
 
 func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest) *QueryResponse {
@@ -819,10 +1016,26 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 
 	// Check for processing errors
 	if result.Error != nil {
+		// Convert error to user-friendly message
+		errorMessage := result.Error.Error()
+		
+		// Special handling for auth errors
+		if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
+			return &QueryResponse{
+				Result: map[string]interface{}{
+					"id":       "system-auth-prompt",
+					"role":     "assistant",
+					"content":  params.Content,
+					"response": "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+				},
+				ID: req.ID,
+			}
+		}
+		
 		return &QueryResponse{
 			Error: &QueryError{
 				Code:    -32000,
-				Message: "Agent processing failed: " + result.Error.Error(),
+				Message: "Agent processing failed: " + errorMessage,
 			},
 			ID: req.ID,
 		}

@@ -29,6 +29,7 @@ import type { UIMessage } from '@/types/message';
 import { LoadingDots } from './loading-dots';
 import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
+import { RateLimitDisplay } from './rate-limit-display';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
@@ -398,7 +399,17 @@ export function ConversationDisplay({
                   <AIReasoningContent>{sseStream.reasoning}</AIReasoningContent>
                 </AIReasoning>
               )}
-              {sseStream.toolCalls.length > 0 ? (
+              {/* Show rate limit message when rate limiting is detected */}
+              {sseStream.rateLimit ? (
+                <div className="mt-4">
+                  <RateLimitDisplay 
+                    retryAfter={sseStream.rateLimit.retryAfter}
+                    attempt={sseStream.rateLimit.attempt}
+                    maxAttempts={sseStream.rateLimit.maxAttempts}
+                    error={sseStream.error || undefined}
+                  />
+                </div>
+              ) : sseStream.toolCalls.length > 0 ? (
                 <>
                   {/* Render streaming todos inline without tool wrapper */}
                   {extractTodosFromToolCalls(sseStream.toolCalls).length >

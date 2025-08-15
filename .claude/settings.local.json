@@ -4,10 +4,19 @@
       "Bash(make tail-log:*)",
       "Bash(cp:*)",
       "Bash(npm install)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(./build/mix:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(grep:*)",
+      "Bash(go build:*)",
+      "Bash(curl:*)",
+      "Bash(env)",
+      "Bash(brew install ripgrep fzf)",
+      "Bash(grep:*)"
     ],
     "deny": [],
-    "ask": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "ask": []
   }
 }

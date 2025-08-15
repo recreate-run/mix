@@ -410,8 +410,53 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 		}
 
 	case agent.AgentEventTypeError:
-		if err := WriteSSE(w, "error", ErrorEvent{Error: event.Error.Error()}); err != nil {
-			return err
+		errMsg := event.Error.Error()
+		
+		// Special handling for rate limit errors
+		if strings.Contains(errMsg, "rate_limit_error") {
+			// Extract retry information if available
+			retryAfter := 60 // Default retry after 60 seconds
+			attempt := 1
+			maxAttempts := 8
+			
+			// Try to extract retry info from error message
+			// Check if this contains retry attempt information
+			if strings.Contains(errMsg, "Retrying due to rate limit") {
+				// Try to parse attempt numbers like "attempt 1 of 8"
+				var currentAttempt, totalAttempts int
+				_, err := fmt.Sscanf(errMsg, "Retrying due to rate limit... attempt %d of %d", &currentAttempt, &totalAttempts)
+				if err == nil && currentAttempt > 0 && totalAttempts > 0 {
+					attempt = currentAttempt
+					maxAttempts = totalAttempts
+				}
+			}
+			
+			errorEvent := ErrorEvent{
+				Error: "This request would exceed your account's rate limit. The application will automatically retry.",
+				Type: "rate_limit_error",
+				RetryAfter: retryAfter,
+				Attempt: attempt,
+				MaxAttempts: maxAttempts,
+			}
+			
+			if err := WriteSSE(w, "rate_limit_error", errorEvent); err != nil {
+				return err
+			}
+			
+		// Special handling for authentication errors
+		} else if strings.Contains(errMsg, "authentication_error") ||
+			strings.Contains(errMsg, "x-api-key header is required") ||
+			strings.Contains(errMsg, "401 Unauthorized") {
+			// Create a more helpful error message
+			helpfulMsg := "Authentication failed: Not logged in or token expired. Please use /login to authenticate with Claude Code."
+			if err := WriteSSE(w, "error", ErrorEvent{Error: helpfulMsg}); err != nil {
+				return err
+			}
+		} else {
+			// Normal error handling
+			if err := WriteSSE(w, "error", ErrorEvent{Error: errMsg}); err != nil {
+				return err
+			}
 		}
 
 	case agent.AgentEventTypeSummarize:
