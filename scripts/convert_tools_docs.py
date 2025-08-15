@@ -116,15 +116,20 @@ def convert_md_to_mdx(source_dir, dest_dir):
             content=content
         )
         
-        # Write to destination as .mdx file
+        # Create category subfolder
+        category_folder = category.lower().replace(' ', '-')  # "app-tools" or "system-tools"
+        category_path = dest_path / category_folder
+        category_path.mkdir(parents=True, exist_ok=True)
+        
+        # Write to destination as .mdx file in appropriate subfolder
         mdx_filename = md_file.stem + '.mdx'
-        mdx_file = dest_path / mdx_filename
+        mdx_file = category_path / mdx_filename
         
         with open(mdx_file, 'w', encoding='utf-8') as f:
             f.write(mdx_content)
         
-        converted_files.append(mdx_filename)
-        print(f"  → Created {mdx_filename}")
+        converted_files.append(f"{category_folder}/{mdx_filename}")
+        print(f"  → Created {category_folder}/{mdx_filename}")
     
     return converted_files
 
@@ -132,7 +137,7 @@ def main():
     """Main execution function."""
     # Define paths
     source_dir = "/Users/sarathmenon/Documents/startup/image_generation/mix/go_backend/internal/llm/tools/descriptions"
-    dest_dir = "/Users/sarathmenon/Documents/startup/image_generation/mix/docs/content/docs/tools"
+    dest_dir = "/Users/sarathmenon/Documents/startup/image_generation/mix/docs/content/docs/backend/tools"
     
     print("Converting MD files to MDX with Jinja2 templating...")
     print(f"Source: {source_dir}")

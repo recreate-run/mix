@@ -9,12 +9,11 @@
     "quickstart",
     "---Usage---",
     "common-workflows",
-    "interactive-mode",
+    "desktop-app",
     "---Tools---",
     "tools/system-tools",
     "tools/app-tools",
     "---Reference---",
-    "examples",
-    "test"
+    "examples"
   ]
 }

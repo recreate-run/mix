@@ -1,0 +1,57 @@
+---
+title: Desktop app
+description: Learn about Mix's interactive mode for real-time workflow automation and debugging.
+---
+
+## Desktop App Slash Commands
+
+| Command        | Purpose                                                                        |
+| :------------- | :----------------------------------------------------------------------------- |
+| `/clear`       | Start a new session                                                            |
+| `/sessions`    | Browse and switch sessions                                                     |
+| `/context`     | Show context usage breakdown                                                   |
+| `/help`        | Get assistance and guidance                                                    |
+| `/mcp`         | Model Context Protocol                                                         |
+| `/permissions` | System permissions and access                                                  |
+
+## Custom slash commands
+
+Custom slash commands allow you to define frequently-used prompts as Markdown files that Claude Code can execute. Commands are organized by scope (project-specific or personal) and support namespacing through directory structures.
+
+
+#### File references
+
+Include file contents in commands using the `@` prefix to [reference files](/en/docs/claude-code/common-workflows#reference-files-and-directories).
+
+For example:
+
+```markdown
+# Reference a specific file
+
+Review the implementation in @src/utils/helpers.js
+
+# Reference multiple files
+
+Compare @src/old-version.js with @src/new-version.js
+```
+
+#### Thinking mode
+
+Slash commands can trigger extended thinking by including [extended thinking keywords](/en/docs/claude-code/common-workflows#use-extended-thinking).
+
+### Managing MCP connections
+
+Use the `/mcp` command to:
+
+* View all configured MCP servers
+* Check connection status
+* Authenticate with OAuth-enabled servers
+* Clear authentication tokens
+* View available tools and prompts from each server
+
+## See also
+
+* [Interactive mode](/en/docs/claude-code/interactive-mode) - Shortcuts, input modes, and interactive features
+* [CLI reference](/en/docs/claude-code/cli-reference) - Command-line flags and options
+* [Settings](/en/docs/claude-code/settings) - Configuration options
+* [Memory management](/en/docs/claude-code/memory) - Managing Claude's memory across sessions
