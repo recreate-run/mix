@@ -79,6 +79,33 @@ const (
 	requiredScopes   = "org:create_api_key user:profile user:inference"
 )
 
+// Global OAuth flow store to maintain state across different API calls
+var (
+	oauthFlowStore = make(map[string]*OAuthFlow)
+	flowStoreMutex sync.RWMutex
+)
+
+// StoreOAuthFlow stores an OAuth flow by its state for later retrieval
+func StoreOAuthFlow(flow *OAuthFlow) {
+	flowStoreMutex.Lock()
+	defer flowStoreMutex.Unlock()
+	oauthFlowStore[flow.State] = flow
+}
+
+// GetOAuthFlow retrieves an OAuth flow by its state
+func GetOAuthFlow(state string) *OAuthFlow {
+	flowStoreMutex.RLock()
+	defer flowStoreMutex.RUnlock()
+	return oauthFlowStore[state]
+}
+
+// CleanupOAuthFlow removes an OAuth flow from the store
+func CleanupOAuthFlow(state string) {
+	flowStoreMutex.Lock()
+	defer flowStoreMutex.Unlock()
+	delete(oauthFlowStore, state)
+}
+
 // NewCredentialStorage creates a new credential storage instance
 func NewCredentialStorage() (*CredentialStorage, error) {
 	homeDir, err := os.UserHomeDir()
@@ -263,13 +290,18 @@ func NewOAuthFlow(clientID string) (*OAuthFlow, error) {
 	// Use code verifier as state (matches Python implementation)
 	state := codeVerifier
 
-	return &OAuthFlow{
+	flow := &OAuthFlow{
 		ClientID:      clientID,
 		CodeVerifier:  codeVerifier,
 		CodeChallenge: codeChallenge,
 		State:         state,
 		RedirectURI:   redirectURI,
-	}, nil
+	}
+	
+	// Store the flow for later retrieval during token exchange
+	StoreOAuthFlow(flow)
+	
+	return flow, nil
 }
 
 // generateCodeVerifier creates a cryptographically random code verifier
@@ -416,8 +448,18 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Set browser-like headers to avoid Cloudflare bot detection
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "python-requests/2.31.0")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	// Remove gzip encoding to avoid decompression issues
+	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Pragma", "no-cache")
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
@@ -431,8 +473,21 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
+	logging.Info("Token exchange response: status=%d, body_length=%d, content_type=%s", resp.StatusCode, len(body), resp.Header.Get("Content-Type"))
+	
 	if resp.StatusCode != http.StatusOK {
-		logging.Warn("Token exchange failed with status %d (expected due to Cloudflare protection): %s", resp.StatusCode, string(body))
+		logging.Warn("Token exchange failed with status %d: %s", resp.StatusCode, string(body))
+		return flow.fallbackToBrowserInstructions(authCode)
+	}
+
+	// Check if response looks like JSON
+	bodyStr := string(body)
+	if !strings.HasPrefix(strings.TrimSpace(bodyStr), "{") {
+		previewLen := 200
+		if len(bodyStr) < previewLen {
+			previewLen = len(bodyStr)
+		}
+		logging.Warn("Token exchange returned non-JSON response (likely Cloudflare protection): %s", bodyStr[:previewLen])
 		return flow.fallbackToBrowserInstructions(authCode)
 	}
 
@@ -444,7 +499,12 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 	}
 
 	if err := json.Unmarshal(body, &tokenResponse); err != nil {
-		return nil, fmt.Errorf("failed to parse token response: %w", err)
+		previewLen := 200
+		if len(bodyStr) < previewLen {
+			previewLen = len(bodyStr)
+		}
+		logging.Warn("Failed to parse token response (likely Cloudflare protection): %s", bodyStr[:previewLen])
+		return flow.fallbackToBrowserInstructions(authCode)
 	}
 
 	expiresAt := time.Now().Unix() + tokenResponse.ExpiresIn
@@ -640,8 +700,18 @@ func RefreshAccessToken(credentials *OAuthCredentials) (*OAuthCredentials, error
 		return nil, fmt.Errorf("failed to create refresh request: %w", err)
 	}
 
+	// Set browser-like headers to avoid Cloudflare bot detection
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "python-requests/2.31.0")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	// Remove gzip encoding to avoid decompression issues
+	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Pragma", "no-cache")
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)

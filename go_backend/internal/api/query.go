@@ -286,15 +286,36 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 		}
 	}
 
-	// Create OAuth flow (we need this to exchange the code)
-	oauthFlow, err := provider.NewOAuthFlow("")
-	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32603,
-				Message: "Failed to create OAuth flow: " + err.Error(),
-			},
-			ID: req.ID,
+	// Extract state from auth code to retrieve the correct OAuth flow
+	authCodeParts := strings.Split(params.AuthCode, "#")
+	var oauthFlow *provider.OAuthFlow
+	
+	if len(authCodeParts) == 2 {
+		// Auth code format: code#state
+		state := authCodeParts[1]
+		oauthFlow = provider.GetOAuthFlow(state)
+		
+		if oauthFlow == nil {
+			return &QueryResponse{
+				Error: &QueryError{
+					Code:    -32603,
+					Message: "OAuth flow not found for this session. Please restart the authentication process.",
+				},
+				ID: req.ID,
+			}
+		}
+	} else {
+		// Fallback: create new OAuth flow (for backwards compatibility)
+		var err error
+		oauthFlow, err = provider.NewOAuthFlow("")
+		if err != nil {
+			return &QueryResponse{
+				Error: &QueryError{
+					Code:    -32603,
+					Message: "Failed to create OAuth flow: " + err.Error(),
+				},
+				ID: req.ID,
+			}
 		}
 	}
 
@@ -347,6 +368,11 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 			},
 			ID: req.ID,
 		}
+	}
+
+	// Clean up the OAuth flow from memory after successful authentication
+	if len(authCodeParts) == 2 {
+		provider.CleanupOAuthFlow(authCodeParts[1])
 	}
 
 	return &QueryResponse{
