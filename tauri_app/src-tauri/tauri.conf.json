@@ -10,12 +10,20 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [],
+    "windows": [
+      {
+        "transparent": true
+      }
+    ],
+    "macOSPrivateApi": true,
     "security": {
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$HOME", "$HOME/**"]
+        "scope": [
+          "$HOME",
+          "$HOME/**"
+        ]
       }
     }
   },

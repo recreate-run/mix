@@ -2242,6 +2242,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-shell",
  "tokio",
+ "window-vibrancy",
 ]
 
 [[package]]

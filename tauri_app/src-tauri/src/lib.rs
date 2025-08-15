@@ -4,6 +4,7 @@
 use objc2_app_kit::{NSColor, NSWindow};
 use objc2::ffi::nil;
 use objc2::runtime::AnyObject;
+use window_vibrancy::{apply_blur, apply_vibrancy, NSVisualEffectMaterial};
 
 #[cfg(target_os = "macos")]
 use objc2_app_kit::{NSWorkspace, NSBitmapImageRep};
@@ -249,17 +250,13 @@ pub fn run() {
             // send_prompt
         ])
         .setup(move |app| {
-            // Create the main window programmatically
-            let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                .title("")
-                .inner_size(700.0, 800.0)
-                .min_inner_size(600.0, 600.0);
+            let window = app.get_webview_window("main").unwrap();
 
-            // set transparent title bar only when building for macOS
             #[cfg(target_os = "macos")]
-            let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
+            apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None).expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
-            let window = win_builder.build().unwrap();
+            #[cfg(target_os = "windows")]
+            apply_blur(&window, Some((18, 18, 18, 125))).expect("Unsupported platform! 'apply_blur' is only supported on Windows");
 
             // set background color only when building for macOS
             #[cfg(target_os = "macos")]
