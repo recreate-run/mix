@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { FolderIcon } from 'lucide-react';
 import {
   type FormEventHandler,
   useEffect,
@@ -8,15 +7,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import { getDefaultWorkingDir } from '@/utils/defaultWorkingDir';
 import {
   AIInput,
   AIInputButton,
+  AIInputCommands,
   AIInputModelSelect,
   AIInputModelSelectContent,
   AIInputModelSelectItem,
   AIInputModelSelectTrigger,
   AIInputModelSelectValue,
+  AIInputModeSelect,
   AIInputSubmit,
   AIInputTextarea,
   AIInputToolbar,
@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useFileReference } from '@/hooks/useFileReference';
-import { useFolderSelection } from '@/hooks/useFolderSelection';
 import { useForkSession } from '@/hooks/useForkSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 import { useMessageScrolling } from '@/hooks/useMessageScrolling';
@@ -69,7 +68,7 @@ const hasMediaShowcaseTool = (toolCalls: any[]) => {
 const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
   const mediaShowcaseTool = toolCalls?.find((tc) => tc.name === 'media_showcase');
   if (!mediaShowcaseTool?.parameters?.outputs) return [];
-  
+
   try {
     return mediaShowcaseTool.parameters.outputs as MediaOutput[];
   } catch {
@@ -82,15 +81,14 @@ const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
 
 interface ChatAppProps {
   sessionId: string;
+  selectedFolder?: string;
+  defaultWorkingDir: string;
 }
 
-export function ChatApp({ sessionId }: ChatAppProps) {
+export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAppProps) {
   // Core conversation state
   const [text, setText] = useState<string>('');
   const [messages, setMessages] = useState<UIMessage[]>([]);
-  
-  // Default working directory (initialized asynchronously)
-  const [defaultWorkingDir, setDefaultWorkingDir] = useState<string>('~/CreativeAgentProjects');
 
   // UI Interaction Mode 1: Slash Commands (dropdown when typing "/help", "/clear" etc.)
   const [showSlashCommands, setShowSlashCommands] = useState(false);
@@ -105,10 +103,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     null
   );
 
-  // Initialize default working directory
-  useEffect(() => {
-    getDefaultWorkingDir().then(setDefaultWorkingDir);
-  }, []);
 
   // Mode toggles and session management
   const [isPlanMode, setIsPlanMode] = useState(false);
@@ -133,7 +127,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   );
   const syncWithText = useBoundStore((state) => state.syncWithText);
 
-  const { selectedFolder, selectFolder } = useFolderSelection();
   const {
     data: session,
     isLoading: sessionLoading,
@@ -207,16 +200,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       }));
   }, [openApps]);
 
-  const handleFolderSelect = async () => {
-    try {
-      const selectedFolderPath = await selectFolder();
-      if (selectedFolderPath) {
-        console.log('Working directory selected:', selectedFolderPath);
-      }
-    } catch (error) {
-      console.error('Failed to select working directory:', error);
-    }
-  };
 
   const fileRef = useFileReference(
     text,
@@ -394,8 +377,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       }));
 
       setMessages((prev) => {
-        const mediaOutputs = hasMediaShowcaseTool(convertedToolCalls) 
-          ? getMediaShowcaseOutputs(convertedToolCalls) 
+        const mediaOutputs = hasMediaShowcaseTool(convertedToolCalls)
+          ? getMediaShowcaseOutputs(convertedToolCalls)
           : undefined;
 
         return [
@@ -525,12 +508,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         title: 'New Session',
         workingDirectory: selectedFolder || defaultWorkingDir,
       });
-      
+
       // Navigate to the new session - this will automatically trigger UI updates
-      navigate({ 
-        to: '/$sessionId', 
+      navigate({
+        to: '/$sessionId',
         params: { sessionId: newSession.id },
-        replace: true 
+        replace: true
       });
     } catch (error) {
       console.error('Failed to create new session:', error);
@@ -583,10 +566,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         );
 
       // Navigate to the forked session
-      navigate({ 
-        to: '/$sessionId', 
+      navigate({
+        to: '/$sessionId',
         params: { sessionId: newSession.id },
-        replace: true 
+        replace: true
       });
 
       // Queue fork text to be set after session switching completes
@@ -619,108 +602,93 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const isSubmitDisabled =
     buttonStatus === 'ready'
       ? (!text && attachments.length === 0) ||
-        !session?.id ||
-        sessionLoading ||
-        !sseStream.connected
+      !session?.id ||
+      sessionLoading ||
+      !sseStream.connected
       : buttonStatus === 'cancelling'
         ? true // Disable button completely during cancellation
         : !session?.id || sessionLoading || !sseStream.connected;
 
   return (
-    <TooltipProvider>
-      <div className="flex h-screen flex-col px-16 pb-4">
-        {/* Header with Session ID and Folder Select Button */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="rounded bg-stone-800/50 px-2 py-1 font-mono text-stone-400 text-xs">
-            Session: {session?.id?.slice(0, 8) || 'Loading...'}
-          </div>
-          <button
-            className="flex items-center gap-2 rounded-lg p-2 font-medium text-sm text-stone-500 transition-colors hover:bg-stone-700/50 hover:text-stone-100"
-            onClick={handleFolderSelect}
-            title={
-              selectedFolder
-                ? `Current folder: ${selectedFolder}`
-                : `Default folder: ${defaultWorkingDir}`
-            }
-          >
-            <FolderIcon
-              className={`size-5 ${selectedFolder ? 'text-blue-400' : ''}`}
-            />
-          </button>
-        </div>
+    <>
+      <div className="flex flex-1 flex-col">
+        <div className="@container/main flex flex-1 flex-col gap-2 px-8 pb-32">
 
-        {/* Conversation Display */}
-        <ConversationDisplay
-          conversationRef={conversationRef}
-          messages={messages}
-          onForkMessage={handleForkMessage}
-          onPlanAction={handlePlanAction}
-          setUserMessageRef={setUserMessageRef}
-          sseStream={sseStream}
-        />
 
-        {/* Attachment Preview Section */}
-        <div className="z-20 mx-auto mb-0 w-full max-w-4xl">
-          <AttachmentPreview
-            attachments={attachments}
-            text={text}
-            referenceMap={referenceMap}
-            onTextChange={setText}
+          {/* Conversation Display */}
+          <ConversationDisplay
+            conversationRef={conversationRef}
+            messages={messages}
+            onForkMessage={handleForkMessage}
+            onPlanAction={handlePlanAction}
+            setUserMessageRef={setUserMessageRef}
+            sseStream={sseStream}
           />
-        </div>
 
-        {/* AI Input Section */}
-        <div className="relative z-10 mx-auto w-full max-w-3xl shadow-[0_-20px_80px_rgba(0,0,0,0.7)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16  before:from-transparent before:to-black/50 before:content-['']">
-          <div className="relative">
-            <AIInput
-              className="border-[0.5px] border-neutral-600"
-              onSubmit={handleSubmit}
-            >
-              <AIInputTextarea
-                autoFocus
-                availableApps={attachments
-                  .filter((a) => a.type === 'app')
-                  .map((app) => app.name)}
-                availableCommands={slashCommands.map((cmd) => cmd.name)}
-                availableFiles={fileRef.files.map((file) => file.name)}
-                onChange={(e) => {
-                  handleTextChange(e.target.value);
-                  if (!inputElement) {
-                    setInputElement(e.target);
-                  }
-                }}
-                onKeyDown={handleKeyDown}
-                value={text}
-              />
-              <AIInputToolbar>
-                <AIInputTools></AIInputTools>
-                <AIInputSubmit
-                  disabled={isSubmitDisabled}
-                  onPauseClick={handleCancelClick}
-                  status={buttonStatus}
-                />
-              </AIInputToolbar>
-            </AIInput>
-
-            {/* Mode Selector */}
-            <div className="absolute bottom-1 left-1">
-              <Select
-                onValueChange={(value) => setIsPlanMode(value === 'plan')}
-                value={isPlanMode ? 'plan' : 'edit'}
-              >
-                <SelectTrigger
-                  className="border-none bg-transparent text-muted-foreground hover:bg-transparent focus:border-none focus:ring-0 dark:bg-transparent hover:dark:bg-transparent"
-                  size="sm"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="edit">create</SelectItem>
-                  <SelectItem value="plan">plan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Attachment Preview Section */}
+          <div className="z-20 mx-auto mb-0 w-full max-w-4xl">
+            <AttachmentPreview
+              attachments={attachments}
+              text={text}
+              referenceMap={referenceMap}
+              onTextChange={setText}
+            />
           </div>
+
+        </div>
+      </div>
+
+      {/* AI Input Section - Fixed at viewport bottom, accounting for sidebar */}
+      <div className="fixed bottom-8 left-[var(--sidebar-width)] right-0 z-50 mx-auto w-full max-w-4xl before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-['']">
+        <div className="relative  border-none">
+          <AIInput
+            className="border-[0.5px] border-neutral-600 backdrop-blur"
+            onSubmit={handleSubmit}
+          >
+            <AIInputTextarea
+              autoFocus
+              availableApps={attachments
+                .filter((a) => a.type === 'app')
+                .map((app) => app.name)}
+              availableCommands={slashCommands.map((cmd) => cmd.name)}
+              availableFiles={fileRef.files.map((file) => file.name)}
+              onChange={(e) => {
+                handleTextChange(e.target.value);
+                if (!inputElement) {
+                  setInputElement(e.target);
+                }
+              }}
+              onKeyDown={handleKeyDown}
+              value={text}
+            />
+            <AIInputToolbar>
+              <AIInputTools>
+                <div className="absolute bottom-1 left-1">
+                  <Select
+                    onValueChange={(value) => setIsPlanMode(value === 'plan')}
+                    value={isPlanMode ? 'plan' : 'edit'}
+                  >
+                    <SelectTrigger
+                      className="border-none bg-transparent text-muted-foreground hover:bg-transparent focus:border-none focus:ring-0 dark:bg-transparent hover:dark:bg-transparent"
+                      size="sm"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="edit">create</SelectItem>
+                      <SelectItem value="plan">plan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+              </AIInputTools>
+              <AIInputSubmit
+                disabled={isSubmitDisabled}
+                onPauseClick={handleCancelClick}
+                status={buttonStatus}
+              />
+            </AIInputToolbar>
+          </AIInput>
 
           {/* Unified Command System */}
           {showCommands && (
@@ -740,9 +708,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               onTextUpdate={setText}
             />
           )}
-        </div>
 
+        </div>
       </div>
-    </TooltipProvider>
+    </>
   );
 }

@@ -92,7 +92,7 @@ export type AIInputProps = HTMLAttributes<HTMLFormElement>;
 export const AIInput = ({ className, ...props }: AIInputProps) => (
   <form
     className={cn(
-      'w-full overflow-hidden rounded-3xl border bg-stone-100 shadow-sm dark:bg-stone-800',
+      'relative w-full overflow-hidden rounded-2xl border',
       className
     )}
     {...props}
@@ -413,4 +413,44 @@ export const AIInputModelSelectValue = ({
   ...props
 }: AIInputModelSelectValueProps) => (
   <SelectValue className={cn(className)} {...props} />
+);
+
+export type AIInputModeSelectProps = ComponentProps<typeof Select>;
+
+export const AIInputModeSelect = ({
+  className,
+  ...props
+}: AIInputModeSelectProps) => (
+  <div className="absolute bottom-1 left-1">
+    <Select {...props}>
+      <SelectTrigger
+        className={cn(
+          'border-none bg-transparent text-muted-foreground hover:bg-transparent focus:border-none focus:ring-0 dark:bg-transparent hover:dark:bg-transparent',
+          className
+        )}
+        size="sm"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="edit">create</SelectItem>
+        <SelectItem value="plan">plan</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+);
+
+export type AIInputCommandsProps = HTMLAttributes<HTMLDivElement>;
+
+export const AIInputCommands = ({
+  className,
+  children,
+  ...props
+}: AIInputCommandsProps) => (
+  <div
+    className={cn('absolute bottom-full left-0 right-0 z-50', className)}
+    {...props}
+  >
+    {children}
+  </div>
 );

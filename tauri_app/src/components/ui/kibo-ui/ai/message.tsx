@@ -1,5 +1,4 @@
 import type { ComponentProps, HTMLAttributes } from 'react';
-import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +42,7 @@ function AIMessageContentInner({
   return (
     <div
       className={cn(
-        ' is-user:dark rounded-xl px-4 py-2 text-xl group-[.is-user]:bg-secondary/80',
+        ' is-user:dark rounded-xl px-4 py-2 text group-[.is-user]:bg-secondary/80',
         className
       )}
       {...props}
