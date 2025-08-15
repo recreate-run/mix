@@ -68,3 +68,7 @@ tmp/
 temp/
 *.tmp
 *.temp
+
+fumadocs_reference/
+
+**/*.db

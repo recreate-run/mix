@@ -10,40 +10,56 @@ import (
 	"mix/internal/session"
 )
 
-type agentTool struct {
+type taskTool struct {
 	sessions session.Service
 	messages message.Service
 }
 
 const (
-	AgentToolName = "agent"
+	TaskToolName = "task"
 )
 
-type AgentParams struct {
-	Prompt string `json:"prompt"`
+type TaskParams struct {
+	Description  string `json:"description"`
+	Prompt       string `json:"prompt"`
+	SubagentType string `json:"subagent_type"`
 }
 
-func (b *agentTool) Info() tools.ToolInfo {
+func (b *taskTool) Info() tools.ToolInfo {
 	return tools.ToolInfo{
-		Name:        AgentToolName,
-		Description: tools.LoadToolDescription("agent_tool"),
+		Name:        TaskToolName,
+		Description: tools.LoadToolDescription("task_tool"),
 		Parameters: map[string]any{
-			"prompt": map[string]any{
+			"description": map[string]any{
+				"description": "A short (3-5 word) description of the task",
 				"type":        "string",
+			},
+			"prompt": map[string]any{
 				"description": "The task for the agent to perform",
+				"type":        "string",
+			},
+			"subagent_type": map[string]any{
+				"description": "The type of specialized agent to use for this task",
+				"type":        "string",
 			},
 		},
-		Required: []string{"prompt"},
+		Required: []string{"description", "prompt", "subagent_type"},
 	}
 }
 
-func (b *agentTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResponse, error) {
-	var params AgentParams
+func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResponse, error) {
+	var params TaskParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
 		return tools.NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
+	if params.Description == "" {
+		return tools.NewTextErrorResponse("description is required"), nil
+	}
 	if params.Prompt == "" {
 		return tools.NewTextErrorResponse("prompt is required"), nil
+	}
+	if params.SubagentType == "" {
+		return tools.NewTextErrorResponse("subagent_type is required"), nil
 	}
 
 	sessionID, messageID := tools.GetContextValues(ctx)
@@ -105,7 +121,7 @@ func (b *agentTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolRes
 	if len(content) > previewLen {
 		preview = content[:previewLen] + "..."
 	}
-	fmt.Printf("[AGENT TOOL] Sub-agent returned %d characters: %q\n", len(content), preview)
+	fmt.Printf("[TASK TOOL] Sub-agent returned %d characters: %q\n", len(content), preview)
 
 	updatedSession, err := b.sessions.Get(ctx, session.ID)
 	if err != nil {
@@ -125,11 +141,11 @@ func (b *agentTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolRes
 	return tools.NewTextResponse(content), nil
 }
 
-func NewAgentTool(
+func NewTaskTool(
 	Sessions session.Service,
 	Messages message.Service,
 ) tools.BaseTool {
-	return &agentTool{
+	return &taskTool{
 		sessions: Sessions,
 		messages: Messages,
 	}

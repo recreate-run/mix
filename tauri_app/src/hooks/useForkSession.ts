@@ -1,16 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { rpcCall } from '@/lib/rpc';
+import type { Session } from '@/types/common';
 
 interface ForkSessionParams {
   sourceSessionId: string;
   messageIndex: number;
   title?: string;
-}
-
-interface Session {
-  id: string;
-  title: string;
-  workingDirectory?: string;
 }
 
 const forkSession = async (params: ForkSessionParams): Promise<Session> => {

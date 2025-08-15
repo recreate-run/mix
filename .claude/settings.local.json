@@ -15,6 +15,7 @@
       "Bash(brew install ripgrep fzf)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "defaultMode": "acceptEdits"
   }
 }

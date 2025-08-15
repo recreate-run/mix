@@ -31,9 +31,9 @@ export function TodoList({ todos }: TodoListProps) {
   }
 
   return (
-    <div className="space-y-2 border-gray-200 border-b pb-2 dark:border-gray-700">
+    <div className="space-y-2 pb-4">
       {todos.map((todo) => (
-        <div className="flex items-center gap-3 p-1" key={todo.id}>
+        <div className="flex items-center gap-3" key={todo.id}>
           <StatusIcon status={todo.status} />
           <div className="flex-1">
             <p

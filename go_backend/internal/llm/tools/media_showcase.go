@@ -21,6 +21,8 @@ type MediaOutput struct {
 	Title       string      `json:"title"`
 	Description string      `json:"description"`
 	Config      interface{} `json:"config,omitempty"` // For remotion configuration data
+	StartTime   *int        `json:"startTime,omitempty"` // Optional: start time in seconds for video/audio segments
+	Duration    *int        `json:"duration,omitempty"` // Optional: duration in seconds for video/audio segments
 }
 
 func NewMediaShowcaseTool() BaseTool {
@@ -58,6 +60,16 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 						"config": map[string]any{
 							"type":        "object",
 							"description": "Configuration data for remotion_title type (JSON object with composition settings and elements)",
+						},
+						"startTime": map[string]any{
+							"type":        "integer",
+							"description": "Optional: start time in seconds for video/audio segments",
+							"minimum":     0,
+						},
+						"duration": map[string]any{
+							"type":        "integer",
+							"description": "Optional: duration in seconds for video/audio segments",
+							"minimum":     1,
 						},
 					},
 					"required": []string{"type", "title"},
@@ -135,6 +147,18 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 			// For remotion_title, validate that config is provided
 			if output.Config == nil {
 				return NewTextErrorResponse(fmt.Sprintf("remotion_title type requires config parameter for output %d", i)), nil
+			}
+		}
+
+		// Validate timing fields if provided
+		if output.StartTime != nil {
+			if *output.StartTime < 0 {
+				return NewTextErrorResponse(fmt.Sprintf("startTime must be >= 0 for output %d", i)), nil
+			}
+		}
+		if output.Duration != nil {
+			if *output.Duration <= 0 {
+				return NewTextErrorResponse(fmt.Sprintf("duration must be > 0 for output %d", i)), nil
 			}
 		}
 	}

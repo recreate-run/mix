@@ -1,0 +1,126 @@
+---
+title: Mix Overview
+description: Learn about Mix, the multimodal AI workflow automation platform that integrates with professional tools like Blender, Figma, and Logic Pro.
+---
+
+# Mix Platform Overview
+
+> Mix is "Claude Code" for complex multimodal workflows. A desktop app that integrates with professional tools like Blender, Figma, and Logic Pro to automate creative and analytical workflows.
+
+## Quick Start
+
+```bash
+# Clone and start development environment
+git clone <repository-url> && cd mix && make dev
+```
+
+[Complete quickstart guide (5 minutes) →](/docs/quickstart)
+
+## What Mix does for you
+
+* **Automate creative workflows**: Generate and edit videos in Blender, create sound effects in Logic Pro, post-process in After Effects - all from natural language descriptions.
+* **Analyze multimedia content**: Extract insights from session recordings, analyze video content, and process multimodal data automatically.
+* **Integrate professional tools**: Works with existing creative and analytical software you already use - no need to change your workflow.
+* **Flexible deployment**: Use as a desktop app or embed the backend into your products via our upcoming SDK with stdio interface (similar to Claude Code SDK).
+
+## Why teams choose Mix
+
+* **No vendor lock-in**: All project data is stored as plain text and native media files. Your data stays yours.
+* **Professional tool integration**: Works with Blender, Figma, Logic Pro, After Effects, and other industry-standard software.
+* **Powerful AI backbone**: Uses Claude Sonnet 4 for reasoning and Gemini 2.5 Flash for multimodal analysis.
+* **HTTP API architecture**: Backend is an HTTP server, meaning the desktop app is just one client. Perfect for integration.
+
+## Architecture Overview
+
+Mix consists of two main components:
+
+- **Go Backend**: HTTP server that orchestrates AI agents and tool integrations
+- **Tauri Frontend**: Cross-platform desktop application built with React
+- **AI Integration**: Claude Sonnet 4 for main reasoning, Gemini 2.5 Flash for multimodal analysis
+
+## Key Features
+
+### Creative Automation
+- **Video Generation & Editing**: Automated Blender workflows for video creation
+- **Audio Processing**: Integration with Logic Pro for sound design
+- **Visual Design**: Figma integration for design workflows
+- **Post-Production**: After Effects automation for final processing
+
+### Analysis & Intelligence  
+- **Session Recording Analysis**: Extract insights and highlights from user sessions
+- **Multimodal Content Analysis**: Process images, videos, and audio automatically
+- **Content Summarization**: Generate summaries and key insights from multimedia content
+
+### Developer Experience
+- **Plain Text Storage**: No proprietary formats, complete data portability
+- **HTTP API**: RESTful backend ready for custom integrations
+- **Unified Development**: Single `make dev` command starts everything
+- **Flexible Authentication**: Claude Code account or API keys
+
+## Quick Commands
+
+```bash
+# Development (starts both frontend and backend)
+make dev
+
+# Production build
+make build
+
+# View logs
+make tail-log
+
+# CLI mode
+./mix -p "Your prompt here"
+
+# HTTP server mode
+./mix --http-port 8080
+```
+
+## Next Steps
+
+<Cards>
+  <Card title="Quickstart Guide" href="/docs/quickstart">
+    Get up and running in 5 minutes
+  </Card>
+  
+  <Card title="Configuration" href="/docs/configuration">
+    Configure AI models and authentication
+  </Card>
+  
+  <Card title="Tool Integrations" href="/docs/tools">
+    Learn about Blender, Figma, and other tool integrations
+  </Card>
+  
+  <Card title="API Reference" href="/docs/api">
+    HTTP API documentation for custom integrations
+  </Card>
+</Cards>
+
+## Examples & Use Cases
+
+<Cards>
+  <Card title="View Examples" href="/docs/examples">
+    Explore real-world use cases and implementation examples
+  </Card>
+</Cards>
+
+
+## Additional Resources
+
+<Cards>
+  <Card title="Development Guide" href="/docs/development">
+    Architecture details and contribution guidelines
+  </Card>
+  
+  <Card title="Authentication Setup" href="/docs/authentication">
+    Configure Claude Code and Gemini authentication
+  </Card>
+  
+  <Card title="Troubleshooting" href="/docs/troubleshooting">
+    Common issues and solutions
+  </Card>
+  
+  <Card title="SDK Documentation" href="/docs/sdk">
+    Embed Mix backend into your applications (Coming Soon)
+  </Card>
+</Cards>

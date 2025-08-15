@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { FolderIcon } from 'lucide-react';
 import {
   type FormEventHandler,
@@ -50,47 +51,13 @@ import {
   shouldShowSlashCommands,
   slashCommands,
 } from '@/utils/slash-commands';
+import type { ToolCall } from '@/types/common';
+import type { MediaOutput } from '@/types/media';
+import type { UIMessage, MessageData } from '@/types/message';
 import { AttachmentPreview } from './attachment-preview';
 import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
-
-type ToolCall = {
-  name: string;
-  description: string;
-  status: AIToolStatus;
-  parameters: Record<string, unknown>;
-  result?: string;
-  error?: string;
-};
-
-export type MessageData = {
-  text: string;
-  media: string[];
-  apps: string[];
-  plan_mode: boolean;
-};
-
-type MediaOutput = {
-  path: string;
-  type: 'image' | 'video' | 'audio';
-  title: string;
-  description?: string;
-  sourceVideo?: string; // Original video path for highlights
-  startTime?: number; // Highlight start time in seconds
-  duration?: number; // Highlight duration in seconds
-};
-
-type Message = {
-  content: string;
-  from: 'user' | 'assistant';
-  frontend_only?: boolean;
-  toolCalls?: ToolCall[];
-  attachments?: Attachment[];
-  reasoning?: string;
-  reasoningDuration?: number;
-  mediaOutputs?: MediaOutput[];
-};
 
 
 // Helper function to check if a message contains media_showcase tool call
@@ -113,10 +80,14 @@ const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
 
 
 
-export function ChatApp() {
+interface ChatAppProps {
+  sessionId: string;
+}
+
+export function ChatApp({ sessionId }: ChatAppProps) {
   // Core conversation state
   const [text, setText] = useState<string>('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   
   // Default working directory (initialized asynchronously)
   const [defaultWorkingDir, setDefaultWorkingDir] = useState<string>('~/CreativeAgentProjects');
@@ -167,13 +138,13 @@ export function ChatApp() {
     data: session,
     isLoading: sessionLoading,
     error: sessionError,
-    switchToSession,
-  } = useActiveSession(selectedFolder || defaultWorkingDir);
+  } = useActiveSession(sessionId, selectedFolder || defaultWorkingDir);
   const sessionMessages = useSessionMessages(session?.id || null);
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps, refreshApps } = useAppList();
   const forkSession = useForkSession();
   const createSession = useCreateSession();
+  const navigate = useNavigate();
 
   // Clear UI state when session changes (new working directory selected)
   useEffect(() => {
@@ -555,20 +526,14 @@ export function ChatApp() {
         workingDirectory: selectedFolder || defaultWorkingDir,
       });
       
-      // Switch to the new session - this will automatically trigger UI updates
-      switchToSession(newSession);
-      
-      // Clear current UI state
-      setText('');
-      clearAttachments();
-      interruptedMessageAddedRef.current = false;
+      // Navigate to the new session - this will automatically trigger UI updates
+      navigate({ 
+        to: '/$sessionId', 
+        params: { sessionId: newSession.id },
+        replace: true 
+      });
     } catch (error) {
       console.error('Failed to create new session:', error);
-      // Fallback to old behavior if session creation fails
-      setMessages([]);
-      setText('');
-      clearAttachments();
-      interruptedMessageAddedRef.current = false;
     }
   };
 
@@ -617,8 +582,12 @@ export function ChatApp() {
           appNames
         );
 
-      // Switch to the forked session
-      switchToSession(newSession);
+      // Navigate to the forked session
+      navigate({ 
+        to: '/$sessionId', 
+        params: { sessionId: newSession.id },
+        replace: true 
+      });
 
       // Queue fork text to be set after session switching completes
       setPendingForkText({ text: contractedText, attachments, referenceMap });
@@ -659,7 +628,7 @@ export function ChatApp() {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen flex-col px-4 pb-4">
+      <div className="flex h-screen flex-col px-16 pb-4">
         {/* Header with Session ID and Folder Select Button */}
         <div className="mb-2 flex items-center justify-between">
           <div className="rounded bg-stone-800/50 px-2 py-1 font-mono text-stone-400 text-xs">
@@ -701,7 +670,7 @@ export function ChatApp() {
         </div>
 
         {/* AI Input Section */}
-        <div className="relative z-10 mx-auto w-full max-w-4xl shadow-[0_-20px_80px_rgba(0,0,0,0.7)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16  before:from-transparent before:to-black/50 before:content-['']">
+        <div className="relative z-10 mx-auto w-full max-w-3xl shadow-[0_-20px_80px_rgba(0,0,0,0.7)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16  before:from-transparent before:to-black/50 before:content-['']">
           <div className="relative">
             <AIInput
               className="border-[0.5px] border-neutral-600"

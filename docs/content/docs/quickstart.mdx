@@ -1,0 +1,182 @@
+---
+title: Quickstart Guide
+description: Get up and running with Mix in 5 minutes - complete setup guide for the multimodal AI workflow automation platform.
+---
+
+# Quickstart Guide
+
+Get Mix up and running in 5 minutes with this step-by-step guide.
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- **[Go 1.19+](https://golang.org/dl/)** - For the backend service
+- **[Node.js 18+](https://nodejs.org/en/download/)** - For the frontend application
+- **Git** - To clone the repository
+
+## Step 1: Clone and Setup
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd mix
+
+# Start development environment (this starts both frontend and backend)
+make dev
+```
+
+The `make dev` command will:
+- Start the Go backend HTTP server
+- Launch the Tauri desktop application 
+- Enable auto-reload for development
+- Provide unified logging in `dev.log`
+
+## Step 2: Configure Authentication
+
+Mix requires AI model configuration for both main and sub-agents.
+
+### Option A: Claude Code Account (Recommended)
+If you have a Claude Code account ($20 plan works):
+
+```bash
+# The system will automatically detect your Claude Code authentication
+# No additional setup required
+```
+
+### Option B: API Keys
+Create a `.mix.json` file in your home directory or project root:
+
+```json
+{
+  "agents": {
+    "main": {
+      "model": "claude-4-sonnet",
+      "maxTokens": 4096
+    },
+    "sub": {
+      "model": "claude-4-sonnet", 
+      "maxTokens": 2048
+    }
+  }
+}
+```
+
+Set your API keys as environment variables:
+
+```bash
+# For Claude
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# For Gemini (used for multimodal analysis)
+export GEMINI_API_KEY="your-gemini-api-key"
+```
+
+**Important**: Never store API keys in configuration files - always use environment variables.
+
+## Step 3: Verify Installation
+
+Once everything is running, you should see:
+
+1. **Backend logs** indicating the HTTP server is running (typically on port 8080)
+2. **Frontend application** launches automatically 
+3. **Unified logging** in the terminal showing both frontend and backend activity
+
+Check the logs:
+```bash
+# View recent logs (last 100 lines)
+make tail-log
+```
+
+## Step 4: Test Your First Workflow
+
+### Desktop App Mode
+1. Open the Mix desktop application (should launch automatically)
+2. Try a simple prompt: "Analyze this image and describe what you see"
+3. Upload an image and see the multimodal analysis in action
+
+### CLI Mode (Alternative)
+```bash
+# Test CLI mode
+./mix -p "Create a simple video title animation"
+
+# Test HTTP server mode
+./mix --http-port 8080
+```
+
+## Common Commands
+
+```bash
+# Development (starts both frontend and backend with auto-reload)
+make dev
+
+# Production build
+make build
+
+# Clean build artifacts
+make clean
+
+# View current logs
+make tail-log
+
+# CLI usage
+./mix -p "Your prompt here"
+
+# HTTP server mode (for integrations)
+./mix --http-port 8080
+```
+
+## Troubleshooting
+
+### Build Issues
+- Ensure Go 1.19+ and Node.js 18+ are installed
+- Run `make clean` and try again
+- Check that you're in the project root directory
+
+### Authentication Issues
+- Verify your Claude Code account is active
+- Check environment variables are set correctly
+- Ensure API keys have sufficient credits/permissions
+
+### Connection Issues
+- Check if ports 8080 (backend) are available
+- Verify firewall settings allow local connections
+- Review logs with `make tail-log`
+
+## Next Steps
+
+Now that Mix is running, explore these areas:
+
+<Cards>
+  <Card title="Configuration" href="/docs/configuration">
+    Detailed configuration options and AI model setup
+  </Card>
+  
+  <Card title="Tool Integrations" href="/docs/tools">
+    Set up Blender, Figma, and other professional tools
+  </Card>
+  
+  <Card title="Examples" href="/docs/examples">
+    Try real-world workflows and use cases
+  </Card>
+  
+  <Card title="API Reference" href="/docs/api">
+    Build custom integrations with the HTTP API
+  </Card>
+</Cards>
+
+## Development Notes
+
+- **Auto-reload**: The dev server automatically recompiles and reloads changes
+- **Logging**: All output goes to `dev.log` - never manually stop the dev server
+- **File storage**: All project data is stored as plain text and native media files
+- **No lock-in**: Your data remains portable and accessible outside of Mix
+
+## Get Help
+
+If you encounter issues:
+
+1. Check the [troubleshooting guide](/docs/troubleshooting)
+2. Review logs with `make tail-log`
+3. Verify your configuration matches this guide
+4. Check that all prerequisites are installed correctly

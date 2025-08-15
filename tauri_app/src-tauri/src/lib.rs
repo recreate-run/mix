@@ -24,8 +24,8 @@ use base64::engine::general_purpose;
 #[cfg(target_os = "macos")]
 use base64::Engine;
 
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+// use tauri::menu::{Menu, MenuItem};
+// use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(desktop)]
@@ -299,76 +299,76 @@ pub fn run() {
             // });
 
             // Create system tray
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
-            // let sidecar_status_item =
-            //     MenuItem::with_id(app, "sidecar_status", "Sidecar Status", true, None::<&str>)?;
+            // let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            // let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+            // let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
+            // // let sidecar_status_item =
+            // //     MenuItem::with_id(app, "sidecar_status", "Sidecar Status", true, None::<&str>)?;
 
-            let tray_menu = Menu::with_items(
-                app,
-                &[&show_item, &hide_item, &quit_item],
-            )?;
+            // let tray_menu = Menu::with_items(
+            //     app,
+            //     &[&show_item, &hide_item, &quit_item],
+            // )?;
 
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
-                .menu(&tray_menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => {
-                        println!("Quit menu item clicked");
-                        app.exit(0);
-                    }
-                    "show" => {
-                        println!("Show menu item clicked");
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    "hide" => {
-                        println!("Hide menu item clicked");
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.hide();
-                        }
-                    }
-                    _ => {
-                        println!("Unhandled menu item: {:?}", event.id);
-                    }
-                })
-                .on_tray_icon_event(|tray, event| match event {
-                    TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } => {
-                        println!("Left click on tray icon");
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                    }
-                    TrayIconEvent::DoubleClick {
-                        button: MouseButton::Left,
-                        ..
-                    } => {
-                        println!("Double click on tray icon");
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    _ => {
-                        println!("Unhandled tray event: {:?}", event);
-                    }
-                })
-                .build(app)?;
+            // let _tray = TrayIconBuilder::new()
+            //     .icon(app.default_window_icon().unwrap().clone())
+            //     .menu(&tray_menu)
+            //     .show_menu_on_left_click(false)
+            //     .on_menu_event(|app, event| match event.id.as_ref() {
+            //         "quit" => {
+            //             println!("Quit menu item clicked");
+            //             app.exit(0);
+            //         }
+            //         "show" => {
+            //             println!("Show menu item clicked");
+            //             if let Some(window) = app.get_webview_window("main") {
+            //                 let _ = window.show();
+            //                 let _ = window.set_focus();
+            //             }
+            //         }
+            //         "hide" => {
+            //             println!("Hide menu item clicked");
+            //             if let Some(window) = app.get_webview_window("main") {
+            //                 let _ = window.hide();
+            //             }
+            //         }
+            //         _ => {
+            //             println!("Unhandled menu item: {:?}", event.id);
+            //         }
+            //     })
+            //     .on_tray_icon_event(|tray, event| match event {
+            //         TrayIconEvent::Click {
+            //             button: MouseButton::Left,
+            //             button_state: MouseButtonState::Up,
+            //             ..
+            //         } => {
+            //             println!("Left click on tray icon");
+            //             let app = tray.app_handle();
+            //             if let Some(window) = app.get_webview_window("main") {
+            //                 if window.is_visible().unwrap_or(false) {
+            //                     let _ = window.hide();
+            //                 } else {
+            //                     let _ = window.show();
+            //                     let _ = window.set_focus();
+            //                 }
+            //             }
+            //         }
+            //         TrayIconEvent::DoubleClick {
+            //             button: MouseButton::Left,
+            //             ..
+            //         } => {
+            //             println!("Double click on tray icon");
+            //             let app = tray.app_handle();
+            //             if let Some(window) = app.get_webview_window("main") {
+            //                 let _ = window.show();
+            //                 let _ = window.set_focus();
+            //             }
+            //         }
+            //         _ => {
+            //             println!("Unhandled tray event: {:?}", event);
+            //         }
+            //     })
+            //     .build(app)?;
 
             // Register global shortcut for window toggle
             #[cfg(desktop)]

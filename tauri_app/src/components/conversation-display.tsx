@@ -19,11 +19,13 @@ import {
   AIToolContent,
   AIToolHeader,
   AIToolLadder,
-  type AIToolStatus,
   AIToolStep,
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import type { Attachment } from '@/stores';
+import type { Attachment } from '@/stores/attachmentSlice';
+import type { ToolCall } from '@/types/common';
+import type { MediaOutput } from '@/types/media';
+import type { UIMessage } from '@/types/message';
 import { LoadingDots } from './loading-dots';
 import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
@@ -32,38 +34,6 @@ import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
 import { PlaylistSidebar } from './playlist-sidebar';
-
-
-type ToolCall = {
-  name: string;
-  description: string;
-  status: AIToolStatus;
-  parameters: Record<string, unknown>;
-  result?: string;
-  error?: string;
-};
-
-type MediaOutput = {
-  path: string;
-  type: 'image' | 'video' | 'audio' | 'remotion_title';
-  title: string;
-  description?: string;
-  config?: any; // For remotion configuration data
-  sourceVideo?: string; // Original video path for highlights
-  startTime?: number; // Highlight start time in seconds
-  duration?: number; // Highlight duration in seconds
-};
-
-
-type Message = {
-  content: string;
-  from: 'user' | 'assistant';
-  toolCalls?: ToolCall[];
-  attachments?: Attachment[];
-  reasoning?: string;
-  reasoningDuration?: number;
-  mediaOutputs?: MediaOutput[];
-};
 
 type StreamingState = {
   processing: boolean;
@@ -83,7 +53,7 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
 
   return (
     <div className="">
-      <div className="mb-3">
+      <div className="my-4">
         <h3 className="font-semibold">{media.title}</h3>
         {media.description && (
           <p className="text-sm text-muted-foreground mt-1">{media.description}</p>
@@ -113,9 +83,9 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
 
       {media.type === 'video' && (
         <VideoPlayer 
+          key={`${media.path}-${media.startTime || 0}-${media.duration || 0}`}
           path={media.path}
           title=""
-          sourceVideo={media.sourceVideo}
           startTime={media.startTime}
           duration={media.duration}
         />
@@ -178,7 +148,7 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
 };
 
 interface ConversationDisplayProps {
-  messages: Message[];
+  messages: UIMessage[];
   sseStream: StreamingState;
   conversationRef: RefObject<HTMLDivElement>;
   setUserMessageRef: (index: number) => RefCallback<HTMLDivElement>;
@@ -235,7 +205,7 @@ const filterNonSpecialTools = (toolCalls: any[]) => {
 
 // Helper function to check if previous user message started with "!"
 const isPreviousUserMessageCommand = (
-  messages: Message[],
+  messages: UIMessage[],
   currentIndex: number
 ) => {
   for (let i = currentIndex - 1; i >= 0; i--) {
@@ -377,6 +347,12 @@ export function ConversationDisplay({
                   {/* Render media showcase */}
                   {message.mediaOutputs && (
                     <MediaShowcase mediaOutputs={message.mediaOutputs} />
+                  )}
+                  {/* Render todos inline without tool wrapper */}
+                  {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
+                    <div className="mt-4">
+                      <TodoList todos={extractTodosFromToolCalls(message.toolCalls)} />
+                    </div>
                   )}
                   {/* Render non-special tools in ladder */}
                   {filterNonSpecialTools(message.toolCalls).length > 0 && (

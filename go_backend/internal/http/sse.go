@@ -223,15 +223,8 @@ func handleShellCommand(ctx context.Context, w http.ResponseWriter, flusher http
 }
 
 // handleRegularMessage processes regular messages through the agent
-func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
-	msgContent, err := parseMessageContent(content)
-	if err != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to parse message: %s", err.Error())})
-		flusher.Flush()
-		return nil
-	}
-
-	events, err := handler.GetApp().CoderAgent.RunWithPlanMode(ctx, sessionID, content, msgContent.PlanMode)
+func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, flusher http.Flusher, sessionID, text string, planMode bool) error {
+	events, err := handler.GetApp().CoderAgent.RunWithPlanMode(ctx, sessionID, text, planMode)
 	if err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())})
 		flusher.Flush()
@@ -294,7 +287,7 @@ func processMessage(ctx context.Context, handler *api.QueryHandler, w http.Respo
 		quotedText := quotePaths(text, msgContent.Media)
 		return handleShellCommand(ctx, w, flusher, quotedText)
 	default:
-		return handleRegularMessage(ctx, handler, w, flusher, sessionID, content)
+		return handleRegularMessage(ctx, handler, w, flusher, sessionID, text, msgContent.PlanMode)
 	}
 }
 

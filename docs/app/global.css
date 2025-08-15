@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+@source './components/**/*.{ts,tsx}';
+@source './app/**/*.{ts,tsx}';
+@source './content/**/*.{md,mdx}';
+@source './mdx-components.tsx';
+@source '../node_modules/fumadocs-ui/dist/**/*.js';
+
+:root {
+  --color-mix-primary: hsl(220, 91%, 54%);
+}
+
+.dark {
+  --color-mix-primary: hsl(220, 91%, 64%);
+}
+
+.mix {
+  --color-fd-primary: var(--color-mix-primary);
+}

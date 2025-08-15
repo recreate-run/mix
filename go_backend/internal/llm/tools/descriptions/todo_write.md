@@ -35,62 +35,22 @@ this case you are better off just doing the task directly.
 ## Examples of When to Use the Todo List
 
 <example>
-User: Create a marketing video for our company using the creative brief, company details, and company logos I'll provide
-Assistant: I'll help create a comprehensive marketing video following your creative brief and brand materials. Let me
-create a todo list to track this production process.
+User: Create a typing animation for the text "Apple" and load it in Blender
+Assistant: I'll help you create a typing animation for "Apple" and load it into Blender for further editing. Let me break down this workflow into manageable steps.
 *Creates todo list with the following items:*
-1. Review creative brief and analyze company brand materials and logos
-2. Generate multiple storyboard concepts based on brief requirements
-3. Present storyboard options for user selection
-4. Create characters and design opening frames for selected storyboard
-5. Produce individual video clips following storyboard sequence
-6. Assemble and edit clips into cohesive full marketing video
-7. Add sound effects and complete audio post-production
-8. Export final marketing video in required formats
+1. Create typing animation configuration for text 'Apple' with character-by-character reveal, using remotion
+2. Show animated title using media_showcase with remotion_title type
+3. Export the typing animation as video file using remotion export
+4. Load exported video into Blender video editor workspace and Position video on timeline
 *Begins working on the first task*
 
 <reasoning>
 The assistant used the todo list because:
-1. Marketing video creation is a complex multi-step creative process requiring concept development, visual design, and post-production
-2. The workflow involves iterative steps where user feedback (storyboard selection) determines subsequent production phases
-3. Creative video production requires systematic approach to ensure brand consistency and message clarity throughout the process
-</reasoning>
-</example>
-
-<example>
-User: Create launch videos for our AI tool in 3 formats: Product Hunt video, LinkedIn announcement, and YouTube explainer
-Assistant: Let me first analyze your AI tool's core features and target audiences to understand the
-optimal messaging approach for each platform.
-*Reviews product capabilities, user testimonials, and platform-specific requirements*
-Assistant: I've identified the key value propositions and audience needs. Let me
-create a todo list to track the multi-format video creation.
-*Creates todo list with specific items for each platform's technical demos and messaging*
-
-<reasoning>
-The assistant used the todo list because:
-1. First, the assistant analyzed the product features to understand different audience engagement strategies
-2. Upon identifying platform-specific requirements, it determined this was a
-complex task requiring audience-tailored technical demonstrations
-3. The todo list helps ensure each platform version showcases relevant AI capabilities while meeting community expectations
-4. This systematic approach prevents missing platform-specific technical requirements and ensures optimal user acquisition
-</reasoning>
-</example>
-
-
-<example>
-User: Design posters for our product launch: main poster, social media variants, and print versions
-Assistant: I'll help create a comprehensive poster design system for your product launch. First, let's add all the design variants to
-the todo list.
-*Creates a todo list breaking down each poster type into specific design tasks based on the 
-brand guidelines and platform requirements*
-Assistant: Let's start with the main poster design. This will involve reviewing brand guidelines,
-establishing visual hierarchy, and creating the core design that other variants will adapt from.
-
-<reasoning>
-The assistant used the todo list because:
-1. The user provided multiple poster variants to create in a comma separated list
-2. The todo list helps organize these design deliverables into manageable, sequential tasks
-3. This approach ensures brand consistency across all variants while tracking progress through the entire campaign
+1. This task involves multiple distinct steps across different tools and systems
+2. Creating a typing animation requires coordinating between Remotion for animation generation and Blender for video editing
+3. Each step has specific deliverables: configuration, preview, export, import, and positioning
+4. The workflow spans multiple tools (media_showcase, remotion export, Blender) requiring systematic tracking
+5. This ensures the complete pipeline is followed from animation creation to final Blender integration
 </reasoning>
 </example>
 
@@ -114,6 +74,8 @@ The assistant used the todo list because:
 5. This systematic approach ensures all friction points are documented and actionable insights are generated
 </reasoning>
 </example>
+
+
 
 ## Examples of When NOT to Use the Todo List
 
@@ -149,22 +111,6 @@ Assistant: Sure, let me add a watermark to your image.
 The assistant did not use the todo list because this is a single, straightforward 
 task applied to one image. Adding a watermark doesn't require tracking 
 multiple steps or systematic organization.
-</reasoning>
-</example>
-
-<example>
-User: Export frame 120 from this video as a PNG file.
-Assistant: I'll export frame 120 from your video as a PNG.
-
-*Uses video tools to extract and export the specific frame*
-
-Frame 120 has been successfully exported as frame_120.png. The image is 1920x1080 resolution 
-and saved in your current directory.
-
-<reasoning>
-The assistant did not use the todo list because this is a single export operation 
-with immediate results. There are no multiple steps to track or organize, making the 
-todo list unnecessary for this straightforward task.
 </reasoning>
 </example>
 
