@@ -1,19 +1,5 @@
 {
-  "title": "Mix Documentation",
-  "description": "Creative AI platform documentation",
-  "icon": "BookOpen",
   "pages": [
-    "---Getting Started---",
-    "index",
-    "quickstart",
-    "---Usage---",
-    "common-workflows",
-    "interactive-mode",
-    "---Tools---",
-    "tools/system-tools",
-    "tools/app-tools",
-    "---Reference---",
-    "examples",
-    "test"
+    "backend"
   ]
 }

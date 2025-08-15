@@ -12,6 +12,9 @@ from jinja2 import Template
 # Files to ignore during conversion
 IGNORE_FILES = ['kill_bash.md', 'remotion.md']
 
+# Tools to exclude from documentation (backend-only tools)
+EXCLUDED_TOOLS = ['todo_write_cc.md', 'web_search.md', 'bash_output.md']
+
 # Jinja2 template for MDX files
 MDX_TEMPLATE = Template("""---
 title: {{ title }}
@@ -87,6 +90,11 @@ def convert_md_to_mdx(source_dir, dest_dir):
         # Skip ignored files
         if md_file.name in IGNORE_FILES:
             print(f"Skipping {md_file.name} (ignored)")
+            continue
+            
+        # Skip excluded tools
+        if md_file.name in EXCLUDED_TOOLS:
+            print(f"Skipping {md_file.name} (excluded)")
             continue
             
         print(f"Processing {md_file.name}...")

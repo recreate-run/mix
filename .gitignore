@@ -72,3 +72,5 @@ temp/
 fumadocs_reference/
 
 **/*.db
+fumadocs-dev/
+.claude/settings.local.json

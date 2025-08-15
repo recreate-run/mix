@@ -13,6 +13,8 @@ import {
 import { notFound } from 'next/navigation';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { getMDXComponents } from '@/mdx-components';
+import { getPageTreePeers } from 'fumadocs-core/server';
+import { Cards, Card } from 'fumadocs-ui/components/card';
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -44,6 +46,7 @@ export default async function Page(props: {
         <p className="text-lg text-fd-muted-foreground">
           {page.data.description}
         </p>
+        {page.data.index ? <DocsCategory url={page.url} /> : null}
         <div className="prose flex-1 text-fd-foreground/80">
           <MDXContent
             components={getMDXComponents({
@@ -60,6 +63,18 @@ export default async function Page(props: {
         </PageTOC>
       )}
     </PageRoot>
+  );
+}
+
+function DocsCategory({ url }: { url: string }) {
+  return (
+    <Cards>
+      {getPageTreePeers(source.pageTree, url).map((peer) => (
+        <Card key={peer.url} title={peer.name} href={peer.url}>
+          {peer.description}
+        </Card>
+      ))}
+    </Cards>
   );
 }
 
