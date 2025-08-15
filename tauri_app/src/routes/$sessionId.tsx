@@ -51,6 +51,7 @@ function SessionApp() {
 
   return (
     <SidebarProvider
+      className='h-screen overflow-hidden '
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
@@ -58,7 +59,7 @@ function SessionApp() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" sessionId={sessionId} />
       <SidebarInset>
         <PageHeader
           sessionId={sessionId}

@@ -9,7 +9,7 @@ export const Route = createRootRoute({
 })
 
 const queryClient = new QueryClient();
-  
+
 function RootComponent() {
   return (
     <React.Fragment>

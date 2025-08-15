@@ -611,7 +611,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
 
   return (
     <>
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="@container/main flex flex-1 flex-col gap-2 px-8 pb-32">
 
 
@@ -642,7 +642,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
       <div className="fixed bottom-8 left-[var(--sidebar-width)] right-0 z-50 mx-auto w-full max-w-4xl before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-['']">
         <div className="relative  border-none">
           <AIInput
-            className="border-[0.5px] border-neutral-600 backdrop-blur"
+            className="border-[0.5px] border-neutral-600 backdrop-blur-xl"
             onSubmit={handleSubmit}
           >
             <AIInputTextarea

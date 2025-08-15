@@ -102,11 +102,11 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.2673 0.0067 34.3);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-primary: oklch(0.9708 0.0014 106.42);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(1 0 0 / 5%);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(0.3521 0.0076 59.99);
   --sidebar-ring: oklch(0.556 0 0);
 }
 
