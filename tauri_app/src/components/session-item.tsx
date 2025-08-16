@@ -1,14 +1,8 @@
-import { IconClock } from "@tabler/icons-react"
+import { IconClock, IconTrash } from "@tabler/icons-react"
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
-import { TITLE_TRUNCATE_LENGTH } from '@/hooks/useSessionsList'
-
-interface SessionData {
-    id: string
-    title: string
-    createdAt: string
-    messageCount: number
-    firstUserMessage: string
-}
+import { TITLE_TRUNCATE_LENGTH, SessionData, useDeleteSession } from '@/hooks/useSessionsList'
+import { useState } from 'react'
+import { Button } from "@/components/ui/button"
 
 interface SessionItemProps {
     session: SessionData
@@ -17,6 +11,16 @@ interface SessionItemProps {
 }
 
 export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
+    const [isHovered, setIsHovered] = useState(false)
+    const deleteSessionMutation = useDeleteSession()
+
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (confirm(`Are you sure you want to delete the session "${getDisplayTitle(session)}"? This action cannot be undone.`)) {
+            deleteSessionMutation.mutate(session.id)
+        }
+    }
+
     // Helper function to get display title (copied from command-slash.tsx)
     const getDisplayTitle = (session: SessionData) => {
         if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
@@ -58,23 +62,40 @@ export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
 
     return (
         <SidebarMenuItem>
-            <SidebarMenuButton
-                onClick={() => onClick(session.id)}
-                isActive={isActive}
-                className="flex flex-col items-start gap-1 h-auto py-2"
+            <div 
+                className="relative group"
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
             >
-                <div className="flex items-center gap-2 w-full">
-                    <IconClock className="size-4 flex-shrink-0" />
-                    <span className="text-sm font-medium truncate flex-1">
-                        {getDisplayTitle(session)}
-                    </span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground text-xs ml-6">
-                    <span>{formatDate(createdDate)}</span>
-                    <span>•</span>
-                    <span>{session.messageCount} messages</span>
-                </div>
-            </SidebarMenuButton>
+                <SidebarMenuButton
+                    onClick={() => onClick(session.id)}
+                    isActive={isActive}
+                    className="flex flex-col items-start gap-1 h-auto py-2 pr-8"
+                >
+                    <div className="flex items-center gap-2 w-full">
+                        <IconClock className="size-4 flex-shrink-0" />
+                        <span className="text-sm font-medium truncate flex-1">
+                            {getDisplayTitle(session)}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs ml-6">
+                        <span>{formatDate(createdDate)}</span>
+                        <span>•</span>
+                        <span>{session.messageCount} messages</span>
+                    </div>
+                </SidebarMenuButton>
+                {isHovered && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDelete}
+                        disabled={deleteSessionMutation.isPending}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100"
+                    >
+                        <IconTrash className="size-4" />
+                    </Button>
+                )}
+            </div>
         </SidebarMenuItem>
     )
 }

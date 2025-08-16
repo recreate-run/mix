@@ -138,6 +138,8 @@ func (h *QueryHandler) Handle(ctx context.Context, req *QueryRequest) *QueryResp
 		return h.handleSessionsCreate(ctx, req)
 	case "sessions.fork":
 		return h.handleSessionsFork(ctx, req)
+	case "sessions.delete":
+		return h.handleSessionsDelete(ctx, req)
 	case "messages.send":
 		return h.handleMessagesSend(ctx, req)
 	case "messages.history":
@@ -1222,6 +1224,61 @@ func (h *QueryHandler) handleAgentCancel(ctx context.Context, req *QueryRequest)
 			"sessionId": params.SessionID,
 		},
 		ID: req.ID,
+	}
+}
+
+func (h *QueryHandler) handleSessionsDelete(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		ID string `json:"id"`
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.ID == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: id",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Check if this is the current session
+	currentSessionID := h.app.GetCurrentSessionID()
+	if params.ID == currentSessionID {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32000,
+				Message: "Cannot delete the currently active session",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Delete the session
+	err := h.app.Sessions.Delete(ctx, params.ID)
+	if err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32000,
+				Message: "Failed to delete session: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	return &QueryResponse{
+		Result: map[string]string{"message": "Session deleted: " + params.ID},
+		ID:     req.ID,
 	}
 }
 

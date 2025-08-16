@@ -44,3 +44,20 @@ export const useSelectSession = () => {
     },
   });
 };
+
+const deleteSession = async (sessionId: string): Promise<void> => {
+  await rpcCall('sessions.delete', { id: sessionId });
+};
+
+export const useDeleteSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteSession,
+    onSuccess: () => {
+      // Invalidate session-related queries to refresh UI
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+    },
+  });
+};
