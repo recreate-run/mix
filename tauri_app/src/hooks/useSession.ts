@@ -28,32 +28,24 @@ export const useCreateSession = () => {
   return useMutation({
     mutationFn: createSession,
     onSuccess: (data) => {
-      queryClient.setQueryData(['session'], data);
+      queryClient.setQueryData(['session', data.id], data);
     },
   });
 };
 
-// Original useSession hook - unchanged for backward compatibility
-export const useSession = (workingDirectory?: string) => {
-  return useQuery({
-    queryKey: ['session', workingDirectory],
-    queryFn: () => createSession({ title: 'Chat Session', workingDirectory }),
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnWindowFocus: false,
-  });
-};
 
-// Simplified hook for URL-based session management  
-export const useActiveSession = (sessionId: string, workingDirectory?: string) => {
+// Fetch actual session data from backend
+export const useActiveSession = (sessionId: string) => {
   return useQuery({
     queryKey: ['session', sessionId],
-    queryFn: async (): Promise<Session> => {
-      // Return session info based on sessionId
-      return {
-        id: sessionId,
-        title: 'Chat Session',
-        workingDirectory,
-      };
+    queryFn: async (): Promise<Session | null> => {
+      try {
+        const sessionData = await rpcCall<Session>('sessions.get', { id: sessionId });
+        return sessionData;
+      } catch (error) {
+        console.log('Session not found:', sessionId);
+        return null;
+      }
     },
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,

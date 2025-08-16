@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import '@/styles/App.css';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { ChatApp } from '@/components/chat-app';
 import {
@@ -8,8 +8,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { getDefaultWorkingDir } from '@/utils/defaultWorkingDir';
-import { useFolderSelection } from '@/hooks/useFolderSelection';
+import { useActiveSession } from '@/hooks/useSession';
 
 export const Route = createFileRoute('/$sessionId')({
   component: SessionApp,
@@ -19,15 +18,20 @@ export const Route = createFileRoute('/$sessionId')({
 
 function SessionApp() {
   const { sessionId } = Route.useParams();
+  const navigate = useNavigate();
+  const { data: session, isLoading } = useActiveSession(sessionId);
 
-  // Folder selection state management
-  const [defaultWorkingDir, setDefaultWorkingDir] = useState<string>('~/CreativeAgentProjects');
-  const { selectedFolder } = useFolderSelection();
-
-  // Initialize default working directory
+  // Redirect to home if session doesn't exist
   useEffect(() => {
-    getDefaultWorkingDir().then(setDefaultWorkingDir);
-  }, []);
+    if (!isLoading && session === null) {
+      navigate({ to: '/', replace: true });
+    }
+  }, [session, isLoading, navigate]);
+
+  // Show loading or nothing while checking session
+  if (isLoading || session === null) {
+    return null;
+  }
 
 
   return (
@@ -42,11 +46,7 @@ function SessionApp() {
     >
       <AppSidebar variant="inset" sessionId={sessionId} />
       <SidebarInset>
-        <ChatApp
-          sessionId={sessionId}
-          selectedFolder={selectedFolder || undefined}
-          defaultWorkingDir={defaultWorkingDir}
-        />
+        <ChatApp sessionId={sessionId} />
 
       </SidebarInset>
     </SidebarProvider>

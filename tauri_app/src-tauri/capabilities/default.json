@@ -9,6 +9,8 @@
     "shell:default",
     "macos-permissions:default",
     "shell:allow-spawn",
+    "dialog:allow-confirm",
+    "dialog:default",
     {
       "identifier": "shell:allow-execute",
       "allow": []

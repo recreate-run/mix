@@ -71,11 +71,9 @@ const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
 
 interface ChatAppProps {
   sessionId: string;
-  selectedFolder?: string;
-  defaultWorkingDir: string;
 }
 
-export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAppProps) {
+export function ChatApp({ sessionId }: ChatAppProps) {
   // Core conversation state
   const [text, setText] = useState<string>('');
   const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -120,7 +118,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
   const {
     data: session,
     isLoading: sessionLoading,
-  } = useActiveSession(sessionId, selectedFolder || defaultWorkingDir);
+  } = useActiveSession(sessionId);
   const sessionMessages = useSessionMessages(session?.id || null);
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps } = useAppList();
@@ -193,7 +191,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
   const fileRef = useFileReference(
     text,
     setText,
-    selectedFolder || defaultWorkingDir
+    session?.workingDirectory
   );
 
 
@@ -495,7 +493,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
       // Create a new session with the current working directory
       const newSession = await createSession.mutateAsync({
         title: 'New Session',
-        workingDirectory: selectedFolder || defaultWorkingDir,
+        workingDirectory: session?.workingDirectory,
       });
 
       // Navigate to the new session - this will automatically trigger UI updates
