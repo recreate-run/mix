@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import {
   type FormEventHandler,
@@ -9,14 +8,6 @@ import {
 } from 'react';
 import {
   AIInput,
-  AIInputButton,
-  AIInputCommands,
-  AIInputModelSelect,
-  AIInputModelSelectContent,
-  AIInputModelSelectItem,
-  AIInputModelSelectTrigger,
-  AIInputModelSelectValue,
-  AIInputModeSelect,
   AIInputSubmit,
   AIInputTextarea,
   AIInputToolbar,
@@ -30,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { useFileReference } from '@/hooks/useFileReference';
 import { useForkSession } from '@/hooks/useForkSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
@@ -130,11 +120,10 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
   const {
     data: session,
     isLoading: sessionLoading,
-    error: sessionError,
   } = useActiveSession(sessionId, selectedFolder || defaultWorkingDir);
   const sessionMessages = useSessionMessages(session?.id || null);
   const sseStream = usePersistentSSE(session?.id || '');
-  const { apps: openApps, refreshApps } = useAppList();
+  const { apps: openApps } = useAppList();
   const forkSession = useForkSession();
   const createSession = useCreateSession();
   const navigate = useNavigate();
@@ -215,7 +204,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
     batchSize: 50,
   });
 
-  const { conversationRef, setUserMessageRef } = useMessageScrolling(
+  const { conversationRef } = useMessageScrolling(
     messages,
     sseStream.processing
   );
@@ -388,8 +377,8 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
             from: 'assistant',
             toolCalls:
               convertedToolCalls.length > 0 ? convertedToolCalls : undefined,
-            reasoning: sseStream.reasoning,
-            reasoningDuration: sseStream.reasoningDuration,
+            reasoning: sseStream.reasoning || undefined,
+            reasoningDuration: sseStream.reasoningDuration || undefined,
             mediaOutputs,
           },
         ];
@@ -463,7 +452,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
 
       const messageData: MessageData = {
         text: expandedText,
-        media: attachments.filter((a) => a.path).map((a) => a.path),
+        media: attachments.filter((a) => a.path).map((a) => a.path!),
         apps: attachments
           .filter((a) => a.type === 'app')
           .map((app) => app.name),
@@ -521,7 +510,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
   };
 
   // Handle plan actions from ConversationDisplay
-  const handlePlanAction = (action: 'proceed' | 'keep-planning', messageIndex: number) => {
+  const handlePlanAction = (action: 'proceed' | 'keep-planning') => {
     if (action === 'proceed') {
       setIsPlanMode(false);
       submitMessage(
@@ -589,7 +578,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
 
   // Calculate submit button status and disabled state
   const buttonStatus = sseStream.cancelling
-    ? 'cancelling'
+    ? 'paused'
     : sseStream.cancelled
       ? 'streaming'
       : sseStream.processing
@@ -605,7 +594,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
       !session?.id ||
       sessionLoading ||
       !sseStream.connected
-      : buttonStatus === 'cancelling'
+      : buttonStatus === 'paused'
         ? true // Disable button completely during cancellation
         : !session?.id || sessionLoading || !sseStream.connected;
 
@@ -621,7 +610,6 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
             messages={messages}
             onForkMessage={handleForkMessage}
             onPlanAction={handlePlanAction}
-            setUserMessageRef={setUserMessageRef}
             sseStream={sseStream}
           />
 
@@ -695,6 +683,7 @@ export function ChatApp({ sessionId, selectedFolder, defaultWorkingDir }: ChatAp
             <CommandSlash
               onClose={() => handleCommand('close')}
               onExecuteCommand={(command) => handleCommand('execute', command)}
+              sessionId={sessionId}
             />
           )}
 

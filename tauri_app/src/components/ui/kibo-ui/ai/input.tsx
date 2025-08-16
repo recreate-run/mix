@@ -18,7 +18,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { TextParser, Token, TokenType } from '@/lib/textParser';
+import { TextParser } from '@/lib/textParser';
 import { cn } from '@/lib/utils';
 
 type UseAutoResizeTextareaProps = {
@@ -126,17 +125,17 @@ export const AIInputTextarea = ({
   });
 
   const overlayRef = useRef<HTMLDivElement>(null);
-  const previousValueRef = useRef<string>(value || '');
+  const previousValueRef = useRef<string>(String(value || ''));
 
   const parser = useMemo(
     () => new TextParser(availableFiles, availableCommands, availableApps),
     [availableFiles, availableCommands, availableApps]
   );
-  const tokens = useMemo(() => parser.parse(value || ''), [parser, value]);
+  const tokens = useMemo(() => parser.parse(String(value || '')), [parser, value]);
 
   // Update ref when value changes from outside
   useEffect(() => {
-    previousValueRef.current = value || '';
+    previousValueRef.current = String(value || '');
   }, [value]);
 
   const syncScroll = () => {
@@ -418,16 +417,12 @@ export const AIInputModelSelectValue = ({
 export type AIInputModeSelectProps = ComponentProps<typeof Select>;
 
 export const AIInputModeSelect = ({
-  className,
   ...props
 }: AIInputModeSelectProps) => (
   <div className="absolute bottom-1 left-1">
     <Select {...props}>
       <SelectTrigger
-        className={cn(
-          'border-none bg-transparent text-muted-foreground hover:bg-transparent focus:border-none focus:ring-0 dark:bg-transparent hover:dark:bg-transparent',
-          className
-        )}
+        className="border-none bg-transparent text-muted-foreground hover:bg-transparent focus:border-none focus:ring-0 dark:bg-transparent hover:dark:bg-transparent"
         size="sm"
       >
         <SelectValue />

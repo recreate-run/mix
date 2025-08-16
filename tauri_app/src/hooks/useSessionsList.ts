@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { MessageData } from '@/components/chat-app';
 import { rpcCall } from '@/lib/rpc';
 
 export const TITLE_TRUNCATE_LENGTH = 100;

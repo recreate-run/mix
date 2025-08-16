@@ -5,13 +5,11 @@ import {
 } from '@/components/ui/tooltip';
 
 interface FileReferenceProps {
-  filename: string;
   fullPath: string;
   children: React.ReactNode;
 }
 
 export function FileReference({
-  filename,
   fullPath,
   children,
 }: FileReferenceProps) {

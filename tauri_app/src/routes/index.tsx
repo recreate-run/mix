@@ -5,11 +5,11 @@ import { rpcCall } from '@/lib/rpc';
 export const Route = createFileRoute('/')({
   beforeLoad: async () => {
     const defaultWorkingDir = await getDefaultWorkingDir();
-    const result = await rpcCall('sessions.create', {
+    const result = await rpcCall<{ id: string }>('sessions.create', {
       title: 'New Session',
       workingDirectory: defaultWorkingDir,
     });
-    const sessionId = result?.id || result;
+    const sessionId = typeof result === 'string' ? result : result?.id;
     
     throw redirect({
       to: '/$sessionId',

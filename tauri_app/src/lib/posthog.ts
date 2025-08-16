@@ -19,17 +19,15 @@ export function initPostHog() {
       bootstrap: {
         distinctID: clientId,
       },
-      // Properties to identify the Tauri app
-      properties: {
-        app_type: 'tauri_desktop',
-        app_platform: 'desktop',
-        app_version: '0.1.0',
-      },
       debug: false, // Set to false in production
     });
 
-    // Identify the user with the client ID
-    posthog.identify(clientId);
+    // Identify the user with the client ID and set app properties
+    posthog.identify(clientId, {
+      app_type: 'tauri_desktop',
+      app_platform: 'desktop',
+      app_version: '0.1.0',
+    });
 
     // Send initialization event
     posthog.capture('tauri_app_initialized', {

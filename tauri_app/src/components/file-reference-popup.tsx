@@ -1,17 +1,13 @@
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
   FolderIcon,
   ImageIcon,
-  KeyIcon,
 } from 'lucide-react';
-import type { FileEntry } from '@/hooks/useFileSystem';
-import { isImageFile } from '@/lib/fileUtils';
+import type { Attachment } from '@/stores/attachmentSlice';
 
 interface FileReferencePopupProps {
-  files: FileEntry[];
+  files: Attachment[];
   selected: number;
-  onSelect: (file: FileEntry) => void;
+  onSelect: (file: Attachment) => void;
   currentFolder?: string | null;
   isLoadingFolder?: boolean;
   onGoBack?: () => void;
@@ -20,15 +16,15 @@ interface FileReferencePopupProps {
 }
 
 interface FileItemProps {
-  file: FileEntry;
+  file: Attachment;
   isSelected: boolean;
-  onSelect: (file: FileEntry) => void;
+  onSelect: (file: Attachment) => void;
 }
 
 const FileItem = ({ file, isSelected, onSelect }: FileItemProps) => {
   const Icon = file.isDirectory ? FolderIcon : ImageIcon;
   const iconColor = file.isDirectory ? 'text-blue-500' : 'text-green-500';
-  const isImage = file.extension && isImageFile(file.name);
+  const isImage = file.type === 'image';
 
   return (
     <div

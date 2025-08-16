@@ -133,7 +133,7 @@ export const useFileReference = (
 
   const handleSelection = async (selectedFile?: MediaItem) => {
     const file = selectedFile || files[state.selected];
-    if (!file) return;
+    if (!file || !file.path) return;
 
     const words = text.split(' ');
     // Only add "../" if file path contains subdirectories
@@ -172,6 +172,8 @@ export const useFileReference = (
   };
 
   const enterFolder = async (folder: MediaItem) => {
+    if (!folder.path) return;
+    
     startDebouncedLoading();
     try {
       const contents = await fetchDirectoryContents(folder.path);

@@ -19,7 +19,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <ChatApp />
+        <ChatApp sessionId="default" defaultWorkingDir="~/" />
       </ThemeProvider>
     </QueryClientProvider>
   );

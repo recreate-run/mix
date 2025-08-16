@@ -52,7 +52,7 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 
     setIsLoading(true);
     try {
-      const result = await rpcCall('auth.login', 
+      const result = await rpcCall<{ status: string; step?: string }>('auth.login', 
         authMode === 'code' 
           ? { authCode: input, manual: input.startsWith('sk-ant-') }
           : { apiKey: input }

@@ -37,9 +37,10 @@ import { slashCommands } from '@/utils/slash-commands';
 interface CommandSlashProps {
   onExecuteCommand: (command: string) => void;
   onClose: () => void;
+  sessionId: string;
 }
 
-export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
+export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSlashProps) {
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showingPermissions, setShowingPermissions] = useState(false);
@@ -63,7 +64,7 @@ export function CommandSlash({ onExecuteCommand, onClose }: CommandSlashProps) {
   // Session hooks
   const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
   const selectSessionMutation = useSelectSession();
-  const activeSession = useActiveSession();
+  const activeSession = useActiveSession(sessionId);
 
   // MCP hooks
   const { data: mcpServers = [], isLoading: mcpLoading } = useMCPList();

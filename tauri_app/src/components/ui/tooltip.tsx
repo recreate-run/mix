@@ -51,14 +51,14 @@ const Tooltip: React.FC<TooltipProps> = ({ children }) => {
 
 const TooltipTrigger: React.FC<
   TooltipTriggerProps & { isVisible?: boolean }
-> = ({ asChild, children, isVisible }) => {
+> = ({ asChild: _, children, isVisible: __ }) => {
   return <>{children}</>;
 };
 
 const TooltipContent: React.FC<
   TooltipContentProps & { isVisible?: boolean }
 > = ({ className, children, isVisible }) => {
-  if (!isVisible) return null;
+  if (isVisible === false) return null;
 
   return (
     <div

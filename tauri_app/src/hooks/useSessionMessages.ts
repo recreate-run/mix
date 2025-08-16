@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  type BackendMessage,
-  convertBackendMessagesToUI,
-  type UIMessage,
-} from '@/lib/messageUtils';
+import { convertBackendMessagesToUI } from '@/lib/messageUtils';
+import type { BackendMessage, UIMessage } from '@/types/message';
 import { rpcCall } from '@/lib/rpc';
 
 const loadSessionMessages = async (

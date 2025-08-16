@@ -139,7 +139,7 @@ export const VideoPlayer = ({ path, title, description, startTime, duration }: V
           src={getVideoSrc()}
           className={`aspect-video bg-black rounded-md ${isLoading ? 'hidden' : ''}`}
           preload="auto"
-          onLoadedData={(e) => {
+          onLoadedData={() => {
             setIsLoading(false);
           }}
           onPlay={() => setIsPlaying(true)}

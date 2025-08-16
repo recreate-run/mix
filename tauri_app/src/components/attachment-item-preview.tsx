@@ -62,7 +62,7 @@ export const VideoPreview = ({ attachment }: AttachmentItemPreviewProps) => {
   );
 };
 
-export const AudioPreview = ({ attachment }: AttachmentItemPreviewProps) => {
+export const AudioPreview = ({ attachment: _ }: AttachmentItemPreviewProps) => {
   return (
     <div className="flex size-14 items-center justify-center rounded-lg ">
       <AudioWaveform className="h-8 w-10" small />
@@ -70,7 +70,7 @@ export const AudioPreview = ({ attachment }: AttachmentItemPreviewProps) => {
   );
 };
 
-export const TextPreview = ({ attachment }: AttachmentItemPreviewProps) => {
+export const TextPreview = ({ attachment: _ }: AttachmentItemPreviewProps) => {
   return (
     <div className="flex size-14 items-center justify-center rounded-lg ">
       <NotebookPen className="h-6 w-6 text-muted-foreground" />
@@ -114,7 +114,7 @@ export const AppPreview = ({ attachment }: AttachmentItemPreviewProps) => {
   );
 };
 
-export const DefaultPreview = ({ attachment }: AttachmentItemPreviewProps) => {
+export const DefaultPreview = ({ attachment: _ }: AttachmentItemPreviewProps) => {
   return (
     <div className="flex size-14 items-center justify-center rounded-lg ">
       <ImageIcon className="h-6 w-6 text-muted-foreground" />

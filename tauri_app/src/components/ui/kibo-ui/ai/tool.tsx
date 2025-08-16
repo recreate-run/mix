@@ -3,13 +3,10 @@
 import {
   CheckCircleIcon,
   ChevronDownIcon,
-  CircleIcon,
   ClockIcon,
-  WrenchIcon,
   XCircleIcon,
 } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
 import {
   Collapsible,
   CollapsibleContent,

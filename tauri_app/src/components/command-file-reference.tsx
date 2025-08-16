@@ -4,7 +4,6 @@ import {
   AudioLines,
   FolderIcon,
   ImageIcon,
-  Monitor,
   NotebookPen,
   Play,
   VideoIcon,
@@ -18,7 +17,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import type { FileEntry } from '@/hooks/useFileSystem';
 import type { useFileReference } from '@/hooks/useFileReference';
 import {
   type Attachment,
@@ -39,13 +37,17 @@ interface CommandFileReferenceProps {
 }
 
 // Media thumbnail component
-const MediaThumbnail = ({ file }: { file: FileEntry }) => {
+const MediaThumbnail = ({ file }: { file: Attachment }) => {
   const fileType = getFileType(file.name);
 
   if (!fileType) {
     return <ImageIcon className="size-4 text-green-500" />;
   }
 
+  if (!file.path) {
+    return <ImageIcon className="size-4 text-green-500" />;
+  }
+  
   const previewUrl = convertFileSrc(file.path);
 
   if (fileType === 'image') {
@@ -127,13 +129,13 @@ export function CommandFileReference({
   };
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [allFiles, setAllFiles] = useState<FileEntry[]>([]);
+  const [allFiles, setAllFiles] = useState<Attachment[]>([]);
   const [isLoadingAllFiles, setIsLoadingAllFiles] = useState(false);
   const commandRef = useRef<HTMLDivElement>(null);
 
   // Recursive fetch function - loads all files upfront
   const recursiveFetch = useCallback(
-    async (basePath: string, depth = 0): Promise<FileEntry[]> => {
+    async (basePath: string, depth = 0): Promise<Attachment[]> => {
       if (depth >= RECURSIVE_SEARCH_DEPTH) {
         return [];
       }
@@ -141,7 +143,7 @@ export function CommandFileReference({
       try {
         const entries = await readDir(basePath);
         const fileEntries = filterAndSortEntries(entries, basePath);
-        const results: FileEntry[] = [];
+        const results: Attachment[] = [];
 
         // Add all files/folders from current directory
         results.push(...fileEntries);
@@ -378,8 +380,7 @@ export function CommandFileReference({
                   (f) => f.name === fileName
                 );
                 return (
-                  selectedFile?.isDirectory &&
-                  fileRef.enterSelectedFolder && (
+                  selectedFile?.isDirectory && (
                     <div className="flex items-center gap-0.5">
                       <kbd className="rounded border border-gray-300 bg-white px-1 py-0 font-mono text-gray-600 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
                         →
@@ -392,7 +393,7 @@ export function CommandFileReference({
                 );
               })()}
 
-            {fileRef.currentFolder && fileRef.goBack && (
+            {fileRef.currentFolder && (
               <div className="flex items-center gap-0.5">
                 <kbd className="rounded border border-gray-300 bg-white px-1 py-0 font-mono text-gray-600 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
                   ←

@@ -23,9 +23,9 @@ const countMediaFilesInFolder = async (
       if (entry.isFile) {
         const extension = entry.name.split('.').pop()?.toLowerCase();
         if (extension) {
-          if (IMAGE_EXTENSIONS.includes(extension)) images++;
-          else if (VIDEO_EXTENSIONS.includes(extension)) videos++;
-          else if (AUDIO_EXTENSIONS.includes(extension)) audios++;
+          if (IMAGE_EXTENSIONS.includes(extension as any)) images++;
+          else if (VIDEO_EXTENSIONS.includes(extension as any)) videos++;
+          else if (AUDIO_EXTENSIONS.includes(extension as any)) audios++;
         }
       }
     }

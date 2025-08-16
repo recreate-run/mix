@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Player } from '@remotion/player';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,8 +13,7 @@ interface RemotionVideoPreviewProps {
 }
 
 export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({ 
-  config, 
-  sessionId 
+  config 
 }) => {
   const [editableConfig, setEditableConfig] = useState<RemotionVideoConfig>(config);
 

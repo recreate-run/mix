@@ -5,7 +5,6 @@ import {
   AUDIO_EXTENSIONS,
   getFileType,
   IMAGE_EXTENSIONS,
-  isMediaFile,
   VIDEO_EXTENSIONS,
 } from '@/utils/fileTypes';
 
@@ -58,9 +57,9 @@ const countMediaFilesInFolder = async (
       if (entry.isFile) {
         const extension = entry.name.split('.').pop()?.toLowerCase();
         if (extension) {
-          if (IMAGE_EXTENSIONS.includes(extension)) images++;
-          else if (VIDEO_EXTENSIONS.includes(extension)) videos++;
-          else if (AUDIO_EXTENSIONS.includes(extension)) audios++;
+          if (IMAGE_EXTENSIONS.includes(extension as any)) images++;
+          else if (VIDEO_EXTENSIONS.includes(extension as any)) videos++;
+          else if (AUDIO_EXTENSIONS.includes(extension as any)) audios++;
         }
       }
     }
@@ -104,7 +103,7 @@ export const createAttachmentSlice = (
   },
 
   clearAttachments: () => {
-    set({ attachments: [], referenceMap: new Map() });
+    set(() => ({ attachments: [], referenceMap: new Map() }));
   },
 
   addReference: (displayName: string, path: string) => {
@@ -138,7 +137,7 @@ export const createAttachmentSlice = (
       );
 
     if (hasChanged) {
-      set({ attachments: referencedAttachments });
+      set(() => ({ attachments: referencedAttachments }));
     }
   },
 
@@ -154,10 +153,10 @@ export const createAttachmentSlice = (
     }
 
     // Atomic update of both attachments and referenceMap
-    set({
+    set(() => ({
       attachments: limitedAttachments,
       referenceMap: new Map(referenceMap),
-    });
+    }));
   },
 
   getMediaFiles: () => {

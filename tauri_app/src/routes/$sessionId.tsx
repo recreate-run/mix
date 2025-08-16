@@ -3,7 +3,6 @@ import '@/styles/App.css';
 import { useEffect, useState } from 'react';
 
 import { ChatApp } from '@/components/chat-app';
-import { PageHeader } from '@/components/page-header';
 import {
   SidebarInset,
   SidebarProvider,
@@ -23,30 +22,13 @@ function SessionApp() {
 
   // Folder selection state management
   const [defaultWorkingDir, setDefaultWorkingDir] = useState<string>('~/CreativeAgentProjects');
-  const { selectedFolder, selectFolder } = useFolderSelection();
+  const { selectedFolder } = useFolderSelection();
 
   // Initialize default working directory
   useEffect(() => {
     getDefaultWorkingDir().then(setDefaultWorkingDir);
   }, []);
 
-  const handleFolderSelect = async () => {
-    try {
-      const selectedFolderPath = await selectFolder();
-      if (selectedFolderPath) {
-        console.log('Working directory selected:', selectedFolderPath);
-      }
-    } catch (error) {
-      console.error('Failed to select working directory:', error);
-    }
-  };
-
-  // useEffect(() => {
-  //   queryClient.prefetchQuery({
-  //     queryKey: ['appList'],
-  //     queryFn: fetchAppList,
-  //   });
-  // }, []);
 
   return (
     <SidebarProvider
@@ -60,15 +42,9 @@ function SessionApp() {
     >
       <AppSidebar variant="inset" sessionId={sessionId} />
       <SidebarInset>
-        <PageHeader
-          sessionId={sessionId}
-          selectedFolder={selectedFolder}
-          defaultWorkingDir={defaultWorkingDir}
-          onFolderSelect={handleFolderSelect}
-        />
         <ChatApp
           sessionId={sessionId}
-          selectedFolder={selectedFolder}
+          selectedFolder={selectedFolder || undefined}
           defaultWorkingDir={defaultWorkingDir}
         />
 

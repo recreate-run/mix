@@ -10,16 +10,9 @@ import {
   CodeBlockBody,
   CodeBlockContent,
   CodeBlockCopyButton,
-  CodeBlockFilename,
-  CodeBlockFiles,
   CodeBlockHeader,
   CodeBlockItem,
   type CodeBlockProps,
-  CodeBlockSelect,
-  CodeBlockSelectContent,
-  CodeBlockSelectItem,
-  CodeBlockSelectTrigger,
-  CodeBlockSelectValue,
 } from '@/components/ui/kibo-ui/code-block';
 import { cn } from '@/lib/utils';
 

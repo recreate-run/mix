@@ -1,25 +1,34 @@
 import React from 'react';
 import { AbsoluteFill, Sequence } from 'remotion';
-import { VideoElement, ElementRenderer } from '@remotion-shared/DynamicVideoComposition';
-import type { RemotionVideoConfig } from '@/types/remotion';
+import type { RemotionVideoConfig, VideoElement } from '@/types/remotion';
 
 interface TemplateAdapterProps {
   config: RemotionVideoConfig;
 }
 
-/**
- * Adapter component that reuses the ElementRenderer from template
- * but accepts config as props instead of getInputProps()
- */
+// Simple element renderer
+const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }) => {
+  if (element.type === 'text') {
+    return (
+      <div style={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}>
+        {element.content || 'Sample Text'}
+      </div>
+    );
+  }
+  return null;
+};
 
+/**
+ * Adapter component that renders video elements
+ */
 export const TemplateAdapter: React.FC<TemplateAdapterProps> = ({ config }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       {config.elements.map((element, index) => (
         <Sequence
           key={index}
-          from={element.from}
-          durationInFrames={element.durationInFrames}
+          from={0}
+          durationInFrames={config.composition.durationInFrames}
         >
           <ElementRenderer element={element} />
         </Sequence>

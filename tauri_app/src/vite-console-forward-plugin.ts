@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage } from 'http';
 import type { Plugin } from 'vite';
 import { createLogger } from 'vite';
 

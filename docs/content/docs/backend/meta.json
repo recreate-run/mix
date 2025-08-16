@@ -12,8 +12,6 @@
     "desktop-app",
     "---Tools---",
     "tools/system-tools",
-    "tools/app-tools",
-    "---Reference---",
-    "examples"
+    "tools/app-tools"
   ]
 }

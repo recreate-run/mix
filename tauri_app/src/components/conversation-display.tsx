@@ -1,9 +1,8 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Check, Copy, Pencil } from 'lucide-react';
-import type { RefCallback, RefObject } from 'react';
+import type { RefObject } from 'react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { VideoPlayer } from './video-player';
 import {
   AIMessage,
@@ -22,8 +21,6 @@ import {
   AIToolStep,
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import type { Attachment } from '@/stores/attachmentSlice';
-import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
 import type { UIMessage } from '@/types/message';
 import { LoadingDots } from './loading-dots';
@@ -37,19 +34,21 @@ import { PlaylistSidebar } from './playlist-sidebar';
 
 type StreamingState = {
   processing: boolean;
-  reasoning?: string;
-  reasoningDuration?: number;
+  reasoning: string | null;
+  reasoningDuration: number | null;
   toolCalls: any[];
   completed: boolean;
+  error?: string | null;
+  rateLimit?: {
+    retryAfter: number;
+    attempt: number;
+    maxAttempts: number;
+  };
 };
 
 // Main Media Player Component
 const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    setIsLoading(true);
-  }, [media.path]);
 
   return (
     <div className="">
@@ -150,8 +149,7 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
 interface ConversationDisplayProps {
   messages: UIMessage[];
   sseStream: StreamingState;
-  conversationRef: RefObject<HTMLDivElement>;
-  setUserMessageRef: (index: number) => RefCallback<HTMLDivElement>;
+  conversationRef: RefObject<HTMLDivElement | null>;
   onPlanAction?: (action: 'proceed' | 'keep-planning', messageIndex: number) => void;
   onForkMessage?: (index: number) => void;
 }
@@ -234,7 +232,6 @@ export function ConversationDisplay({
   messages,
   sseStream,
   conversationRef,
-  setUserMessageRef,
   onPlanAction,
   onForkMessage,
 }: ConversationDisplayProps) {
@@ -278,7 +275,6 @@ export function ConversationDisplay({
           <AIMessage
             from={message.from}
             key={index}
-            ref={message.from === 'user' ? setUserMessageRef(index) : undefined}
           >
             <AIMessageContent>
               {message.from === 'assistant' ? (
@@ -355,14 +351,14 @@ export function ConversationDisplay({
                     </div>
                   )}
                   {/* Render non-special tools in ladder */}
-                  {filterNonSpecialTools(message.toolCalls).length > 0 && (
+                  {message.toolCalls && filterNonSpecialTools(message.toolCalls).length > 0 && (
                     <AIToolLadder className="mt-4">
                       {filterNonSpecialTools(message.toolCalls).map(
                         (toolCall, toolIndex) => (
                           <AIToolStep
                             isLast={
                               toolIndex ===
-                              filterNonSpecialTools(message.toolCalls).length -
+                              filterNonSpecialTools(message.toolCalls!).length -
                               1
                             }
                             key={`${index}-${toolCall.name}-${toolIndex}`}

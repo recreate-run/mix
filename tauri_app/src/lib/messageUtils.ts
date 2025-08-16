@@ -52,7 +52,7 @@ const convertMediaToAttachments = async (
 
       try {
         const fileStat = await stat(mediaPath);
-        if (fileStat.isDir) {
+        if (fileStat.isDirectory) {
           attachment = await createFolderAttachment(mediaPath);
         } else {
           attachment = createFileAttachment(mediaPath);
