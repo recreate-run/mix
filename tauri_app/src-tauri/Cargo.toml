@@ -1,8 +1,11 @@
 [package]
 name = "mix_tauri_app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Mix - AI-Powered Content Generation and Management"
+authors = ["Mix Team"]
+license = "MIT"
+repository = "https://github.com/sarath-menon/mix"
+homepage = "https://mix.app"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

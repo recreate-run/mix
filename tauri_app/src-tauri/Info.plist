@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSCameraUsageDescription</key>
+    <string>This app needs access to the camera for content creation features.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs access to the microphone for audio recording features.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app needs access to your photo library to manage and edit images.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>This app needs access to your Documents folder to save and manage your content files.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>This app needs access to your Downloads folder to import and manage files.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>This app needs access to your Desktop folder to save and manage files.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>This app uses AppleEvents to integrate with other applications for enhanced workflow.</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSUIElement</key>
+    <false/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+</dict>
+</plist>
