@@ -1,0 +1,58 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './tauri_app/src-tauri -> target'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install frontend dependencies
+        working-directory: ./tauri_app
+        run: bun install
+
+      - name: Build the app
+        working-directory: ./tauri_app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        uses: tauri-apps/tauri-action@v0
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Mix v__VERSION__'
+          releaseBody: 'See the assets to download and install this version.'
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          includeUpdaterJson: true
