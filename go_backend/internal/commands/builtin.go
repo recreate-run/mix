@@ -12,8 +12,8 @@ import (
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/llm/agent"
-	"mix/internal/llm/tools"
 	"mix/internal/llm/provider"
+	"mix/internal/llm/tools"
 )
 
 // ContextResponse represents the JSON response for the /context command
@@ -130,10 +130,10 @@ type AuthStatusResponse struct {
 // AuthLoginResponse represents login flow responses
 type AuthLoginResponse struct {
 	Type    string `json:"type"`
-	Status  string `json:"status"`               // "success" | "pending" | "error"
+	Status  string `json:"status"` // "success" | "pending" | "error"
 	Message string `json:"message"`
-	AuthURL string `json:"authUrl,omitempty"`    // for OAuth flow
-	Step    string `json:"step,omitempty"`       // current step in flow
+	AuthURL string `json:"authUrl,omitempty"` // for OAuth flow
+	Step    string `json:"step,omitempty"`    // current step in flow
 }
 
 // BuiltinCommand represents a built-in command
@@ -276,23 +276,23 @@ func createClearHandler(app *app.App) func(ctx context.Context, args string) (st
 		// Create a new session with a default title
 		title := "New Session"
 		workingDirectory := ""
-		
+
 		// Get current session for working directory context
 		if currentSession, err := app.GetCurrentSession(ctx); err == nil && currentSession != nil {
 			workingDirectory = currentSession.WorkingDirectory
 		}
-		
+
 		// Create the new session
 		session, err := app.Sessions.Create(ctx, title, workingDirectory)
 		if err != nil {
 			return returnError("clear", fmt.Sprintf("Failed to create new session: %v", err))
 		}
-		
+
 		// Set the new session as current
 		if err := app.SetCurrentSession(session.ID); err != nil {
 			return returnError("clear", fmt.Sprintf("Failed to set new session as current: %v", err))
 		}
-		
+
 		// Return success message with session info
 		return returnMessage("clear", fmt.Sprintf("Started new session: %s (ID: %s)", session.Title, session.ID[:8]))
 	}
@@ -599,7 +599,7 @@ func createAuthStatusHandler() func(ctx context.Context, args string) (string, e
 		if creds != nil && !creds.IsTokenExpired() {
 			response.Status = "authenticated"
 			response.ExpiresIn = (creds.ExpiresAt - time.Now().Unix()) / 60 // minutes
-			response.Message = fmt.Sprintf("✅ Authenticated with Claude Code (expires in %d minutes)", response.ExpiresIn)
+			response.Message = "✅ Authenticated with Claude Code"
 		} else {
 			response.Status = "not_authenticated"
 			response.ExpiresIn = 0
@@ -665,13 +665,6 @@ func createLoginHandler() func(ctx context.Context, args string) (string, error)
 
 		authURL := oauthFlow.GetAuthorizationURL()
 
-		// Include API key alternative in the message
-		apiKeyMessage := "\n\n**Note:** Due to Cloudflare protection, OAuth may fail. As an alternative:\n\n" +
-			"1. Visit https://console.anthropic.com/settings/keys\n" +
-			"2. Create an API key\n" +
-			"3. Set ANTHROPIC_API_KEY environment variable\n" +
-			"4. Restart the application"
-
 		// Try to open browser automatically
 		if err := oauthFlow.OpenBrowser(); err != nil {
 			// If browser opening fails, just provide the URL
@@ -680,7 +673,7 @@ func createLoginHandler() func(ctx context.Context, args string) (string, error)
 				Status:  "pending",
 				AuthURL: authURL,
 				Step:    "authorization",
-				Message: "🔐 Failed to open browser automatically. Please manually visit the URL above and complete OAuth authentication. Then run: /login <authorization_code>" + apiKeyMessage,
+				Message: "🔐 Failed to open browser automatically. Please manually visit the URL above and complete OAuth authentication. Then run: /login <authorization_code>",
 			}
 			jsonData, _ := json.Marshal(response)
 			return string(jsonData), nil
@@ -691,7 +684,7 @@ func createLoginHandler() func(ctx context.Context, args string) (string, error)
 			Status:  "pending",
 			AuthURL: authURL,
 			Step:    "authorization",
-			Message: "🔐 Browser opened for authentication. Complete OAuth in your browser, then copy the authorization code from the callback URL and run: /login <authorization_code>" + apiKeyMessage,
+			Message: "🔐 Browser opened for authentication. Complete OAuth in your browser, then copy the authorization code and paste it.",
 		}
 
 		jsonData, err := json.Marshal(response)

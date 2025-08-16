@@ -3,17 +3,11 @@ import '@/styles/App.css';
 import { useEffect, useState } from 'react';
 
 import { ChatApp } from '@/components/chat-app';
-import { fetchAppList } from '@/hooks/useOpenApps';
 import { PageHeader } from '@/components/page-header';
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable"
 import { AppSidebar } from "@/components/app-sidebar"
 import { getDefaultWorkingDir } from '@/utils/defaultWorkingDir';
 import { useFolderSelection } from '@/hooks/useFolderSelection';
@@ -66,24 +60,18 @@ function SessionApp() {
     >
       <AppSidebar variant="inset" sessionId={sessionId} />
       <SidebarInset>
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={70} minSize={50}>
-            <ChatApp
-              sessionId={sessionId}
-              selectedFolder={selectedFolder}
-              defaultWorkingDir={defaultWorkingDir}
-            />
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={30} minSize={20}>
-            <PageHeader
-              sessionId={sessionId}
-              selectedFolder={selectedFolder}
-              defaultWorkingDir={defaultWorkingDir}
-              onFolderSelect={handleFolderSelect}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        <PageHeader
+          sessionId={sessionId}
+          selectedFolder={selectedFolder}
+          defaultWorkingDir={defaultWorkingDir}
+          onFolderSelect={handleFolderSelect}
+        />
+        <ChatApp
+          sessionId={sessionId}
+          selectedFolder={selectedFolder}
+          defaultWorkingDir={defaultWorkingDir}
+        />
+
       </SidebarInset>
     </SidebarProvider>
   );

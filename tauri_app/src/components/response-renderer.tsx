@@ -20,7 +20,6 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
   // All slash commands return JSON, parse and route to appropriate component
   try {
     const parsedData = JSON.parse(content);
-    console.log('Parsed data in response renderer:', parsedData);
 
     // Check if it's a context response by looking for expected fields
     if (
@@ -65,14 +64,14 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
 
     // Check if it's a rate limit error response
     if (parsedData.type === 'rate_limit_error') {
-      return <RateLimitDisplay 
+      return <RateLimitDisplay
         retryAfter={parsedData.retryAfter}
         attempt={parsedData.attempt}
         maxAttempts={parsedData.maxAttempts}
         error={parsedData.error}
       />;
     }
-    
+
     // Check if it's an authentication response
     if (
       parsedData.type === 'auth_status' ||
