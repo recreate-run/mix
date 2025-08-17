@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -73,10 +72,7 @@ export function PermissionDialog({
 				</pre>
 
 				<AlertDialogFooter className="gap-2">
-					<AlertDialogCancel
-						onClick={handleDeny}
-						disabled={isProcessing}
-					>
+					<AlertDialogCancel onClick={handleDeny} disabled={isProcessing}>
 						Deny
 					</AlertDialogCancel>
 					<AlertDialogAction onClick={handleGrant} disabled={isProcessing}>
