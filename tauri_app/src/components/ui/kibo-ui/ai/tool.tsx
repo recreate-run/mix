@@ -1,11 +1,4 @@
-"use client";
-
-import {
-	CheckCircleIcon,
-	ChevronDownIcon,
-	ClockIcon,
-	XCircleIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ClockIcon, XCircleIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import {
 	Collapsible,
@@ -45,7 +38,10 @@ export const AIToolHeader = ({
 	...props
 }: AIToolHeaderProps) => (
 	<CollapsibleTrigger
-		className={cn("flex w-full items-center justify-between gap-4 ", className)}
+		className={cn(
+			"flex w-full items-center justify-between gap-4 hover:cursor-pointer",
+			className,
+		)}
 		{...props}
 	>
 		<div className="flex items-center gap-2">
@@ -96,7 +92,7 @@ export const AIToolParameters = ({
 	...props
 }: AIToolParametersProps) => (
 	<div className={cn("space-y-2", className)} {...props}>
-		<div className="rounded-md bg-muted/50">
+		<div className="rounded-md">
 			<pre className="overflow-x-scroll whitespace-pre text-muted-foreground text-xs">
 				{JSON.stringify(parameters, null, 2)}
 			</pre>
@@ -166,7 +162,7 @@ export const AIToolStep = ({
 	...props
 }: AIToolStepProps) => (
 	<div className="relative">
-		<div className="flex items-center gap-2 px-4">
+		<div className="flex items-center gap-2">
 			{/* Step indicator */}
 
 			<div
@@ -178,7 +174,7 @@ export const AIToolStep = ({
 					status === "pending" && " text-muted-foreground",
 				)}
 			>
-				{status === "completed" && <CheckCircleIcon className="" />}
+				{status === "completed"}
 				{status === "error" && <XCircleIcon className="" />}
 				{status === "running" && <ClockIcon className="" />}
 				{status === "pending" && stepNumber}
@@ -187,10 +183,7 @@ export const AIToolStep = ({
 			{/* Tool content */}
 			<div className="min-w-0 flex-1">
 				<Collapsible
-					className={cn(
-						"not-prose w-full rounded-md hover:bg-muted ",
-						className,
-					)}
+					className={cn("not-prose w-full rounded-md ", className)}
 					{...props}
 				>
 					{children}

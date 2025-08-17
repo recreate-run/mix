@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -75,45 +76,63 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 	}
 }
 
-// isPathOutsideSessionWorkingDirectory checks if the given path is outside the session working directory
-func (s *permissionService) isPathOutsideSessionWorkingDirectory(sessionID, requestedPath string) bool {
+// isPathWithinSessionRoot checks if the given path is accessible within the session working directory using os.Root
+func (s *permissionService) isPathWithinSessionRoot(sessionID, requestedPath string) bool {
 	// Get session working directory
 	sess, err := s.sessions.Get(context.Background(), sessionID)
 	if err != nil {
 		logging.Error("Failed to get session", "sessionID", sessionID, "error", err)
-		return true // Deny if we can't get session info
+		return false
 	}
 
 	if sess.WorkingDirectory == "" {
 		logging.Info("Session has no working directory", "sessionID", sessionID)
-		return true // Deny if no working directory set
+		return false
 	}
 
 	// Clean and make absolute paths for comparison
 	absSessionDir, err := filepath.Abs(filepath.Clean(sess.WorkingDirectory))
 	if err != nil {
 		logging.Error("Failed to get absolute path for session working dir", "workingDirectory", sess.WorkingDirectory, "error", err)
-		return true // Deny on error
+		return false
 	}
 
 	absRequestedPath, err := filepath.Abs(filepath.Clean(requestedPath))
 	if err != nil {
 		logging.Error("Failed to get absolute path for requested path", "requestedPath", requestedPath, "error", err)
-		return true // Deny on error
+		return false
 	}
 
-	// Check if requested path is within session working directory
-	rel, err := filepath.Rel(absSessionDir, absRequestedPath)
+	// Calculate relative path from session directory to requested path
+	relPath, err := filepath.Rel(absSessionDir, absRequestedPath)
 	if err != nil {
-		return true // Deny on error
+		logging.Debug("Failed to calculate relative path", "sessionDir", absSessionDir, "requestedPath", absRequestedPath, "error", err)
+		return false
 	}
 
 	// If relative path starts with "..", then absRequestedPath is outside absSessionDir
-	if filepath.IsAbs(rel) || rel == ".." || filepath.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return true // Path is outside session working directory
+	if filepath.IsAbs(relPath) || relPath == ".." || filepath.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+		logging.Debug("Path is outside session working directory", "relPath", relPath)
+		return false
 	}
 
-	return false // Path is within session working directory
+	// Create root filesystem view for session working directory
+	rootFS, err := os.OpenRoot(sess.WorkingDirectory)
+	if err != nil {
+		logging.Error("Failed to create root filesystem for session directory", "workingDirectory", sess.WorkingDirectory, "error", err)
+		return false
+	}
+	defer rootFS.Close()
+
+	// Try to access the requested path through the root using relative path
+	// This will fail if the path involves path traversal or doesn't exist
+	_, err = rootFS.Stat(relPath)
+	if err != nil {
+		logging.Debug("Path not accessible within session root", "relPath", relPath, "error", err)
+		return false
+	}
+
+	return true // Path is accessible within session working directory
 }
 
 
@@ -135,11 +154,8 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 		dir = sess.WorkingDirectory
 	}
 
-	// Check if path is outside session working directory - always require permission
-	if s.isPathOutsideSessionWorkingDirectory(opts.SessionID, dir) {
-		logging.Info("Path is outside session working directory, requiring permission", "path", dir)
-		// Continue to permission request flow below
-	} else {
+	// Check if path is within session working directory using os.Root
+	if s.isPathWithinSessionRoot(opts.SessionID, dir) {
 		// Path is within session working directory
 		if config.Get().SkipPermissions {
 			logging.Info("Path is within session working directory, permissions skipped", "path", dir)
@@ -147,6 +163,10 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 		}
 		// Still require permission even within session directory if not skipped
 		logging.Info("Path is within session working directory, requesting permission", "path", dir)
+	} else {
+		// Path is outside session working directory - always require permission
+		logging.Info("Path is outside session working directory, requiring permission", "path", dir)
+		// Continue to permission request flow below
 	}
 	permission := PermissionRequest{
 		ID:          uuid.New().String(),
