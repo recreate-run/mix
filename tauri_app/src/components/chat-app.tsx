@@ -600,9 +600,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 				: !session?.id || sessionLoading || !sseStream.connected;
 
 	return (
-		<div className="relative grid mx-auto h-full w-full max-w-5xl mt-4">
+		<div className="flex fl h-full w-full">
 			<div className="flex-1 overflow-y-auto">
-				<div className="@container/main flex flex-1 flex-col gap-2 pb-32">
+				<div className="@container/main flex flex-1 flex-col gap-2 px mx-auto max-w-5xl mt-4 pb-24">
 					{/* Conversation Display */}
 					<ConversationDisplay
 						messages={messages}
@@ -624,9 +624,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 				</div>
 			</div>
 
-			{/* AI Input Section - Positioned at container bottom, constrained to panel */}
-			<div className="absolute bottom-2 left-0 right-0 z-50 px-2 before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-['']">
-				<div className="relative  border-none">
+			{/* AI Input Section - Fixed at bottom with sidebar awareness */}
+			<div className="fixed bottom-0 left-0 right-0 z-50 px-2 pl-[calc(var(--sidebar-width,0px)+0.5rem)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-[''] bg-gradient-to-t from-background/95 to-transparent ">
+				<div className="relative border-none max-w-5xl mx-auto pb-4">
 					<AIInput
 						className="border bg-stone-200/60 dark:bg-stone-700/60 backdrop-blur-xl"
 						onSubmit={handleSubmit}

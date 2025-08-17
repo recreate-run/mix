@@ -31,7 +31,7 @@ function SessionApp() {
 
 	return (
 		<SidebarProvider
-			className="h-screen overflow-hidden "
+			className="min-h-screen overflow-hidden overscroll-none"
 			style={
 				{
 					"--sidebar-width": "calc(var(--spacing) * 64)",
@@ -40,7 +40,7 @@ function SessionApp() {
 			}
 		>
 			<AppSidebar variant="inset" sessionId={sessionId} />
-			<SidebarInset>
+			<SidebarInset className="flex flex-col h-screen">
 				<PageHeader sessionId={sessionId} />
 
 				<ChatApp sessionId={sessionId} />

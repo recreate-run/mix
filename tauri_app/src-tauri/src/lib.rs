@@ -4,7 +4,7 @@ use sidecar::SidecarManager;
 use objc2_app_kit::{NSColor, NSWindow};
 use objc2::ffi::nil;
 use objc2::runtime::AnyObject;
-use window_vibrancy::{apply_blur, apply_vibrancy, NSVisualEffectMaterial};
+use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
 #[cfg(target_os = "macos")]
 use objc2_app_kit::{NSWorkspace, NSBitmapImageRep};

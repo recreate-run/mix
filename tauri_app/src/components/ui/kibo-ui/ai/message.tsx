@@ -42,7 +42,7 @@ function AIMessageContentInner({
 	return (
 		<div
 			className={cn(
-				" is-user:dark rounded-xl px-4 py-2 text group-[.is-user]:bg-secondary/80",
+				" is-user:dark rounded-xl p-2 text group-[.is-user]:bg-secondary/80",
 				className,
 			)}
 			{...props}

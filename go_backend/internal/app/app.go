@@ -39,7 +39,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		Sessions:    sessions,
 		Messages:    messages,
 		History:     files,
-		Permissions: permission.NewPermissionService(),
+		Permissions: permission.NewPermissionService(sessions),
 	}
 
 	// Create MCP manager for this agent

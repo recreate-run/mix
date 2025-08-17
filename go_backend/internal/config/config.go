@@ -83,7 +83,6 @@ type Config struct {
 	ContextPaths    []string                          `json:"contextPaths,omitempty"`
 	Shell           ShellConfig                       `json:"shell,omitempty"`
 	SkipPermissions bool                              `json:"skipPermissions,omitempty"`
-	ReadOnlyDirs    []string                          `json:"readOnlyDirs,omitempty"`
 }
 
 // Application constants

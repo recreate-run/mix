@@ -92,7 +92,7 @@ release-macos:
 	@cat $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64.sha256
 
 # Run development server with hot reloading (installs deps first)
-dev: install-deps build-sidecar
+dev: install-deps 
 	@ENV=development ./scripts/shoreman.sh
 	
 # Clean build artifacts

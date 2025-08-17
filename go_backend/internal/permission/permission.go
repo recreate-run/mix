@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"mix/internal/config"
+	"mix/internal/logging"
 	"mix/internal/pubsub"
+	"mix/internal/session"
 
 	"github.com/google/uuid"
 )
@@ -49,6 +50,7 @@ type permissionService struct {
 
 	sessionPermissions []PermissionRequest
 	pendingRequests    sync.Map
+	sessions          session.Service
 }
 
 func (s *permissionService) GrantPersistant(permission PermissionRequest) {
@@ -73,62 +75,78 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 	}
 }
 
-// isPathReadOnly checks if the given path is within any read-only directory
-func (s *permissionService) isPathReadOnly(path string) bool {
-	cfg := config.Get()
-	if cfg == nil || len(cfg.ReadOnlyDirs) == 0 {
-		return false
+// isPathOutsideSessionWorkingDirectory checks if the given path is outside the session working directory
+func (s *permissionService) isPathOutsideSessionWorkingDirectory(sessionID, requestedPath string) bool {
+	// Get session working directory
+	sess, err := s.sessions.Get(context.Background(), sessionID)
+	if err != nil {
+		logging.Error("Failed to get session", "sessionID", sessionID, "error", err)
+		return true // Deny if we can't get session info
+	}
+
+	if sess.WorkingDirectory == "" {
+		logging.Info("Session has no working directory", "sessionID", sessionID)
+		return true // Deny if no working directory set
 	}
 
 	// Clean and make absolute paths for comparison
-	absPath, err := filepath.Abs(filepath.Clean(path))
+	absSessionDir, err := filepath.Abs(filepath.Clean(sess.WorkingDirectory))
 	if err != nil {
-		log.Printf("Failed to get absolute path for %s: %v", path, err)
-		return false
+		logging.Error("Failed to get absolute path for session working dir", "workingDirectory", sess.WorkingDirectory, "error", err)
+		return true // Deny on error
 	}
 
-	for _, readOnlyDir := range cfg.ReadOnlyDirs {
-		absReadOnlyDir, err := filepath.Abs(filepath.Clean(readOnlyDir))
-		if err != nil {
-			log.Printf("Failed to get absolute path for read-only dir %s: %v", readOnlyDir, err)
-			continue
-		}
-
-		// Check if path is within read-only directory
-		rel, err := filepath.Rel(absReadOnlyDir, absPath)
-		if err != nil {
-			continue
-		}
-		// If relative path doesn't start with "..", then absPath is within absReadOnlyDir
-		if !filepath.IsAbs(rel) && rel != ".." && !filepath.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return true
-		}
+	absRequestedPath, err := filepath.Abs(filepath.Clean(requestedPath))
+	if err != nil {
+		logging.Error("Failed to get absolute path for requested path", "requestedPath", requestedPath, "error", err)
+		return true // Deny on error
 	}
-	return false
+
+	// Check if requested path is within session working directory
+	rel, err := filepath.Rel(absSessionDir, absRequestedPath)
+	if err != nil {
+		return true // Deny on error
+	}
+
+	// If relative path starts with "..", then absRequestedPath is outside absSessionDir
+	if filepath.IsAbs(rel) || rel == ".." || filepath.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return true // Path is outside session working directory
+	}
+
+	return false // Path is within session working directory
 }
 
-func (s *permissionService) Request(opts CreatePermissionRequest) bool {
-	log.Printf("Permission request: SessionID=%s, ToolName=%s, Action=%s, Path=%s",
-		opts.SessionID, opts.ToolName, opts.Action, opts.Path)
 
-	if config.Get().SkipPermissions {
-		log.Printf("Permissions globally skipped via --dangerously-skip-permissions flag")
-		return true
-	}
+func (s *permissionService) Request(opts CreatePermissionRequest) bool {
+	logging.Info("Permission request", "sessionID", opts.SessionID, "toolName", opts.ToolName, "action", opts.Action, "path", opts.Path)
 
 	dir := filepath.Dir(opts.Path)
 	if dir == "." {
-		var err error
-		dir, err = config.LaunchDirectory()
+		// Get session working directory for relative paths
+		sess, err := s.sessions.Get(context.Background(), opts.SessionID)
 		if err != nil {
-			panic(fmt.Sprintf("failed to get launch directory for permission check: %v", err))
+			log.Printf("Failed to get session %s for relative path resolution: %v", opts.SessionID, err)
+			return false // Deny if we can't get session info
 		}
+		if sess.WorkingDirectory == "" {
+			log.Printf("Session %s has no working directory for relative path resolution", opts.SessionID)
+			return false // Deny if no working directory set
+		}
+		dir = sess.WorkingDirectory
 	}
 
-	// Check if path is in read-only directory before requesting permission
-	if s.isPathReadOnly(dir) {
-		log.Printf("Permission denied: path %s is in read-only directory", dir)
-		return false
+	// Check if path is outside session working directory - always require permission
+	if s.isPathOutsideSessionWorkingDirectory(opts.SessionID, dir) {
+		logging.Info("Path is outside session working directory, requiring permission", "path", dir)
+		// Continue to permission request flow below
+	} else {
+		// Path is within session working directory
+		if config.Get().SkipPermissions {
+			logging.Info("Path is within session working directory, permissions skipped", "path", dir)
+			return true
+		}
+		// Still require permission even within session directory if not skipped
+		logging.Info("Path is within session working directory, requesting permission", "path", dir)
 	}
 	permission := PermissionRequest{
 		ID:          uuid.New().String(),
@@ -142,7 +160,7 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 
 	for _, p := range s.sessionPermissions {
 		if p.ToolName == permission.ToolName && p.Action == permission.Action && p.SessionID == permission.SessionID && p.Path == permission.Path {
-			log.Printf("Found existing permission for %s:%s in session %s", permission.ToolName, permission.Action, permission.SessionID)
+			logging.Info("Found existing permission", "toolName", permission.ToolName, "action", permission.Action, "sessionID", permission.SessionID)
 			return true
 		}
 	}
@@ -152,26 +170,27 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	s.pendingRequests.Store(permission.ID, respCh)
 	defer s.pendingRequests.Delete(permission.ID)
 
-	log.Printf("Publishing permission request %s for approval", permission.ID)
+	logging.Info("Publishing permission request for approval", "permissionID", permission.ID)
 	if err := s.Publish(context.Background(), pubsub.CreatedEvent, permission); err != nil {
-		log.Printf("Failed to publish permission request %s: %v", permission.ID, err)
+		logging.Error("Failed to publish permission request", "permissionID", permission.ID, "error", err)
 		return false
 	}
 
 	// Wait for the response with a timeout (30 seconds)
 	select {
 	case resp := <-respCh:
-		log.Printf("Permission %s responded: %t", permission.ID, resp)
+		logging.Info("Permission responded", "permissionID", permission.ID, "approved", resp)
 		return resp
 	case <-time.After(30 * time.Second):
-		log.Printf("Permission request %s timed out after 30 seconds, denying", permission.ID)
+		logging.Info("Permission request timed out after 30 seconds, denying", "permissionID", permission.ID)
 		return false
 	}
 }
 
-func NewPermissionService() Service {
+func NewPermissionService(sessions session.Service) Service {
 	return &permissionService{
 		Broker:             pubsub.NewBroker[PermissionRequest](),
 		sessionPermissions: make([]PermissionRequest, 0),
+		sessions:          sessions,
 	}
 }

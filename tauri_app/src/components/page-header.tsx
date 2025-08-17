@@ -7,7 +7,7 @@ interface PageHeaderProps {
 export function PageHeader({ sessionId }: PageHeaderProps) {
 	return (
 		<header
-			className="sticky top-0 z-50 flex justify-between items-center px-8 h-11 bg-sidebar border-b border-sidebar-border"
+			className="sticky top-0 z-50 flex justify-between items-center px-8  h-11 bg-sidebar border-b border-sidebar-border"
 			data-tauri-drag-region="true"
 		>
 			<div className="flex items-center gap-4">

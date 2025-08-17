@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"mix/internal/llm/agent"
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
+	"mix/internal/logging"
 )
 
 // JSON-RPC Request
@@ -96,12 +96,12 @@ func NewQueryHandler(app *app.App) *QueryHandler {
 	// Create command registry
 	registry := commands.NewRegistry()
 	if err := registry.LoadCommands(app); err != nil {
-		log.Printf("ERROR: Failed to load commands: %v", err)
+		logging.Error("Failed to load commands", "error", err)
 		// Continue with empty registry - API will return proper errors
 	} else {
 		// Log successful command loading
 		allCommands := registry.GetAllCommands()
-		log.Printf("Successfully loaded %d commands: %v", len(allCommands), getCommandNames(allCommands))
+		logging.Info("Successfully loaded commands", "count", len(allCommands), "names", getCommandNames(allCommands))
 	}
 
 	return &QueryHandler{
@@ -956,18 +956,18 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 			}
 		}
 
-		log.Printf("Executing command: '%s' with args: '%s'", parsed.Name, parsed.Arguments)
+		logging.Info("Executing command", "name", parsed.Name, "args", parsed.Arguments)
 
 		commandResult, execErr := h.commandRegistry.ExecuteCommand(ctx, parsed.Name, parsed.Arguments)
 		if execErr != nil {
-			log.Printf("Command execution failed for '%s': %v", parsed.Name, execErr)
+			logging.Error("Command execution failed", "name", parsed.Name, "error", execErr)
 
 			// Check if it's a "command not found" error
 			if strings.Contains(execErr.Error(), "command not found") {
 				// List available commands for debugging
 				allCommands := h.commandRegistry.GetAllCommands()
 				commandNames := getCommandNames(allCommands)
-				log.Printf("Available commands: %v", commandNames)
+				logging.Info("Available commands", "commands", commandNames)
 
 				return &QueryResponse{
 					Error: &QueryError{
@@ -987,7 +987,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 			}
 		}
 
-		log.Printf("Command '%s' executed successfully, result length: %d", parsed.Name, len(commandResult))
+		logging.Info("Command executed successfully", "name", parsed.Name, "result_length", len(commandResult))
 
 		// Return the command result immediately as a message
 		return &QueryResponse{
