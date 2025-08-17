@@ -78,4 +78,3 @@ fumadocs-dev/
 
 **/*mix/
 .mix.json
-**/*.settings.local.json

@@ -13,10 +13,15 @@
       "Bash(curl:*)",
       "Bash(env)",
       "Bash(brew install ripgrep fzf)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:tauri.app)",
+      "Bash(./build/debug/mix --help)",
+      "Bash(rustc:*)"
     ],
     "deny": [],
-    "defaultMode": "acceptEdits",
-    "ask": []
-  }
+    "ask": [],
+    "defaultMode": "acceptEdits"
+  },
+  "outputStyle": "Explanatory"
 }

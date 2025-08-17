@@ -13,6 +13,7 @@ import {
 	SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import { useSelectSession, useSessionsList } from "@/hooks/useSessionsList";
+import { useCreateSession } from "@/hooks/useSession";
 import { SessionItem } from "@/components/session-item";
 import { Link } from "@tanstack/react-router";
 import { Home } from "lucide-react";
@@ -25,6 +26,7 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 	const navigate = useNavigate();
 	const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
 	const selectSessionMutation = useSelectSession();
+	const createSession = useCreateSession();
 
 	// Sort sessions chronologically (most recent first)
 	const sortedSessions = sessions.sort(
@@ -43,8 +45,17 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 		});
 	};
 
-	const handleNewSession = () => {
-		navigate({ to: "/", replace: true });
+	const handleNewSession = async () => {
+		try {
+			const newSession = await createSession.mutateAsync({ title: "Chat Session" });
+			navigate({
+				to: "/$sessionId",
+				params: { sessionId: newSession.id },
+				replace: true,
+			});
+		} catch (error) {
+			console.error("Failed to create new session:", error);
+		}
 	};
 
 	return (

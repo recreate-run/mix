@@ -20,24 +20,55 @@ Quick Install
 
 ## Configuration
 
-The system requires explicit model configuration for both main and sub-agents. 
+The system requires explicit model configuration for both main and sub-agents.
 
-**Step 1:** Create a configuration file (`.mix.json`) in your home directory or project root:
+### Configuration Hierarchy
 
+Mix uses a **global → local** configuration hierarchy:
+
+1. **Global config**: `~/.mix.json` - System-wide defaults
+2. **Local config**: `./.mix.json` - Project-specific overrides (merges with global)
+
+**Example Global Config** (`~/.mix.json`):
 ```json
 {
   "agents": {
-    "main": {
-      "model": "claude-4-sonnet",
-      "maxTokens": 4096
-    },
-    "sub": {
-      "model": "claude-4-sonnet", 
-      "maxTokens": 2048
-    }
-  }
+    "main": {"model": "claude-4-sonnet", "maxTokens": 4096},
+    "sub": {"model": "claude-4-sonnet", "maxTokens": 2048}
+  },
+  "promptsDir": "~/.mix/prompts"
 }
 ```
+
+**Example Local Override** (`./.mix.json`):
+```json
+{
+  "agents": {
+    "main": {"model": "claude-4-haiku", "maxTokens": 2048}
+  },
+  "promptsDir": ".mix/prompts"
+}
+```
+
+### Directory Structure
+
+```
+~/.mix/                    # Global prompts (default)
+├── prompts/
+│   ├── system.md
+│   └── tools/
+│       └── blender.md
+
+./project/.mix/            # Local prompts (if promptsDir set)
+├── prompts/
+│   ├── custom.md
+│   └── tools/
+└── .mix.json             # Local config
+```
+
+**Key Behavior**: 
+- **Configs merge** (local overrides global)  
+- **Prompts use single resolved directory** (no automatic fallback)
 
 🔐 Authentication Options
 

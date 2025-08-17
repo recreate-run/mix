@@ -29,6 +29,7 @@ export const useCreateSession = () => {
     mutationFn: createSession,
     onSuccess: (data) => {
       queryClient.setQueryData(['session', data.id], data);
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
     },
   });
 };
