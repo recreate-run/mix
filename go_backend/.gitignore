@@ -46,9 +46,6 @@ build-errors.log
 .env
 .env.local
 
-.mix/
-
-mix
 mix.md
 
 tools/blender/__pycache__

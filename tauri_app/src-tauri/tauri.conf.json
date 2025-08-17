@@ -38,7 +38,7 @@
       "icons/128x128@2x.png",
       "icons/icon.icns"
     ],
-    "externalBin": [],
+    "externalBin": ["../../go_backend/build/debug/mix"],
     "copyright": "Copyright © 2024 Mix Team. All rights reserved.",
     "category": "Productivity",
     "shortDescription": "AI-Powered Content Generation",

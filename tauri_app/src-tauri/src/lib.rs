@@ -1,5 +1,5 @@
-// mod sidecar;
-// use sidecar::SidecarManager;
+mod sidecar;
+use sidecar::SidecarManager;
 
 use objc2_app_kit::{NSColor, NSWindow};
 use objc2::ffi::nil;
@@ -27,7 +27,9 @@ use base64::Engine;
 
 // use tauri::menu::{Menu, MenuItem};
 // use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Emitter, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, State, Listener};
+use std::sync::Arc;
+use std::env;
 
 #[cfg(desktop)]
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -189,67 +191,70 @@ async fn get_app_icon(_bundle_id: String) -> Result<String, String> {
     Err("Not supported on this platform".to_string())
 }
 
-// #[tauri::command]
-// async fn start_sidecar(
-//     app: AppHandle,
-//     sidecar_manager: State<'_, Arc<SidecarManager>>,
-// ) -> Result<(), String> {
-//     sidecar_manager.start_sidecar(&app).await
-// }
+#[tauri::command]
+async fn start_sidecar(
+    app: tauri::AppHandle,
+    sidecar_manager: State<'_, Arc<SidecarManager>>,
+) -> Result<(), String> {
+    sidecar_manager.inner().start_sidecar(&app).await
+}
 
-// #[tauri::command]
-// async fn stop_sidecar(
-//     app: AppHandle,
-//     sidecar_manager: State<'_, Arc<SidecarManager>>,
-// ) -> Result<(), String> {
-//     sidecar_manager.stop_sidecar(&app).await
-// }
+#[tauri::command]
+async fn stop_sidecar(
+    app: tauri::AppHandle,
+    sidecar_manager: State<'_, Arc<SidecarManager>>,
+) -> Result<(), String> {
+    sidecar_manager.inner().stop_sidecar(&app).await
+}
 
-// #[tauri::command]
-// fn sidecar_status(sidecar_manager: State<'_, Arc<SidecarManager>>) -> bool {
-//     sidecar_manager.is_running()
-// }
+#[tauri::command]
+fn sidecar_status(sidecar_manager: State<'_, Arc<SidecarManager>>) -> bool {
+    sidecar_manager.inner().is_running()
+}
 
-// #[tauri::command]
-// async fn sidecar_health(sidecar_manager: State<'_, Arc<SidecarManager>>) -> Result<String, String> {
-//     sidecar_manager.health_check().await
-// }
+#[tauri::command]
+async fn sidecar_health(sidecar_manager: State<'_, Arc<SidecarManager>>) -> Result<String, String> {
+    sidecar_manager.inner().health_check().await
+}
 
-// #[tauri::command]
-// fn sidecar_error(sidecar_manager: State<'_, Arc<SidecarManager>>) -> Option<String> {
-//     sidecar_manager.get_error()
-// }
+#[tauri::command]
+fn sidecar_error(sidecar_manager: State<'_, Arc<SidecarManager>>) -> Option<String> {
+    sidecar_manager.inner().get_error()
+}
 
-// #[tauri::command]
-// async fn send_prompt(
-//     prompt: String,
-//     sidecar_manager: State<'_, Arc<SidecarManager>>,
-// ) -> Result<String, String> {
-//     sidecar_manager.send_prompt(Option 1 is already implemented, but it does not work. Let's try option 2. But how to ensure that the list of apps can be fetched again after initialization? &prompt).await
-// }
+#[tauri::command]
+async fn send_prompt(
+    prompt: String,
+    sidecar_manager: State<'_, Arc<SidecarManager>>,
+) -> Result<String, String> {
+    sidecar_manager.inner().send_prompt(&prompt).await
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // let sidecar_manager = Arc::new(SidecarManager::new());
+    let sidecar_manager = Arc::new(SidecarManager::new());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_macos_permissions::init())
-        // .manage(sidecar_manager.clone())
+        .manage(sidecar_manager.clone())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             get_app_list,
             get_app_icon,
-            // start_sidecar,
-            // stop_sidecar,
-            // sidecar_status,
-            // sidecar_health,
-            // sidecar_error,
-            // send_prompt
+            start_sidecar,
+            stop_sidecar,
+            sidecar_status,
+            sidecar_health,
+            sidecar_error,
+            send_prompt
         ])
         .setup(move |app| {
+            // Load environment variables from .env file
+            dotenv::dotenv().ok();
+            
             #[cfg(desktop)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_process::init())?;
@@ -273,31 +278,41 @@ pub fn run() {
                 }
             }
 
-            let _app_handle = app.handle().clone();
-            // let manager = sidecar_manager.clone();
+            let app_handle = app.handle().clone();
+            let manager = sidecar_manager.clone();
 
             // Clone for auto-start
-            // let startup_manager = manager.clone();
+            let startup_manager = manager.clone();
+            let startup_handle = app_handle.clone();
 
-            // Auto-start sidecar on app launch
-            // tauri::async_runtime::spawn(async move {
-            //     if let Err(e) = startup_manager.start_sidecar(&startup_handle).await {
-            //         eprintln!("Failed to auto-start sidecar: {}", e);
-            //     }
-            // });
+            // Check if sidecar should be auto-started (defaults to true for backward compatibility)
+            let sidecar_enabled = env::var("SIDECAR_ENABLED")
+                .unwrap_or_else(|_| "true".to_string())
+                .to_lowercase() == "true";
+
+            if sidecar_enabled {
+                // Auto-start sidecar on app launch
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = startup_manager.start_sidecar(&startup_handle).await {
+                        eprintln!("Failed to auto-start sidecar: {}", e);
+                    }
+                });
+            } else {
+                println!("Sidecar auto-start disabled via SIDECAR_ENABLED environment variable");
+            }
 
             // Set up cleanup handler for app shutdown
-            // let cleanup_manager = manager.clone();
-            // let cleanup_handle = app_handle.clone();
-            // app.listen("tauri://close-requested", move |_| {
-            //     let manager = cleanup_manager.clone();
-            //     let handle = cleanup_handle.clone();
-            //     tauri::async_runtime::spawn(async move {
-            //         if let Err(e) = manager.stop_sidecar(&handle).await {
-            //             eprintln!("Failed to stop sidecar during cleanup: {}", e);
-            //         }
-            //     });
-            // });
+            let cleanup_manager = manager.clone();
+            let cleanup_handle = app_handle.clone();
+            app.listen("tauri://close-requested", move |_| {
+                let manager = cleanup_manager.clone();
+                let handle = cleanup_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = manager.stop_sidecar(&handle).await {
+                        eprintln!("Failed to stop sidecar during cleanup: {}", e);
+                    }
+                });
+            });
 
             // Create system tray
             // let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

@@ -1,6 +1,5 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Check, Copy, Pencil } from 'lucide-react';
-import type { RefObject } from 'react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { VideoPlayer } from './video-player';
@@ -149,7 +148,7 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
 interface ConversationDisplayProps {
   messages: UIMessage[];
   sseStream: StreamingState;
-  conversationRef: RefObject<HTMLDivElement | null>;
+  setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
   onPlanAction?: (action: 'proceed' | 'keep-planning', messageIndex: number) => void;
   onForkMessage?: (index: number) => void;
 }
@@ -231,7 +230,7 @@ const MessageCopyButton = ({ content }: { content: string }) => {
 export function ConversationDisplay({
   messages,
   sseStream,
-  conversationRef,
+  setUserMessageRef,
   onPlanAction,
   onForkMessage,
 }: ConversationDisplayProps) {
@@ -257,10 +256,7 @@ export function ConversationDisplay({
     onPlanAction?.('keep-planning', messageIndex);
   };
   return (
-    <div
-      className="relative h-full flex-1 overflow-y-auto pb-16"
-      ref={conversationRef}
-    >
+    <div className="relative h-full flex-1 pb-16">
       <div className="">
         {messages.length === 0 && (
           <AIMessage from="assistant">
@@ -275,6 +271,7 @@ export function ConversationDisplay({
           <AIMessage
             from={message.from}
             key={index}
+            ref={message.from === 'user' ? setUserMessageRef?.(index) : undefined}
           >
             <AIMessageContent>
               {message.from === 'assistant' ? (

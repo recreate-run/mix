@@ -4,8 +4,8 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = ["--http-port", "8088", "--dangerously-skip-permissions"]
-  bin = "./build/mix"
-  cmd = "go build -o ./build/mix ./main.go "
+  bin = "./build/debug/mix"
+  cmd = "go build -o ./build/debug/mix ./main.go "
   delay = 0
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "build"]
   exclude_file = []

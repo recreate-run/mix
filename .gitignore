@@ -74,3 +74,8 @@ fumadocs_reference/
 **/*.db
 fumadocs-dev/
 .claude/settings.local.json
+
+
+**/*mix/
+.mix.json
+**/*.settings.local.json

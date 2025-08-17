@@ -24,7 +24,6 @@ import {
 import { useFileReference } from '@/hooks/useFileReference';
 import { useForkSession } from '@/hooks/useForkSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
-import { useMessageScrolling } from '@/hooks/useMessageScrolling';
 import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
 import { useActiveSession, useCreateSession } from '@/hooks/useSession';
@@ -202,10 +201,24 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     batchSize: 50,
   });
 
-  const { conversationRef } = useMessageScrolling(
-    messages,
-    sseStream.processing
-  );
+  // Simple auto-scroll to last user message
+  const userMessageRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  useEffect(() => {
+    const lastUserMessageIndex = messages.findLastIndex(m => m.from === 'user');
+    if (lastUserMessageIndex !== -1 && userMessageRefs.current[lastUserMessageIndex]) {
+      setTimeout(() => {
+        userMessageRefs.current[lastUserMessageIndex]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 100);
+    }
+  }, [messages, sseStream.processing]);
+
+  const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
+    userMessageRefs.current[index] = el;
+  };
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -604,11 +617,11 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
           {/* Conversation Display */}
           <ConversationDisplay
-            conversationRef={conversationRef}
             messages={messages}
             onForkMessage={handleForkMessage}
             onPlanAction={handlePlanAction}
             sseStream={sseStream}
+            setUserMessageRef={setUserMessageRef}
           />
 
           {/* Attachment Preview Section */}

@@ -58,3 +58,25 @@ func MarkProjectInitialized() error {
 
 	return nil
 }
+
+// EnsurePromptsDirectory ensures the prompts directory exists with tools subdirectory
+func EnsurePromptsDirectory() error {
+	if cfg == nil {
+		return fmt.Errorf("config not loaded")
+	}
+
+	promptsDir := cfg.PromptsDir
+
+	// Create prompts directory if it doesn't exist
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create prompts directory %s: %w", promptsDir, err)
+	}
+	
+	// Create tools subdirectory
+	toolsDir := filepath.Join(promptsDir, "tools")
+	if err := os.MkdirAll(toolsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create tools directory %s: %w", toolsDir, err)
+	}
+
+	return nil
+}

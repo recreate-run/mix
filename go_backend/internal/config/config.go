@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -74,6 +75,7 @@ type ShellConfig struct {
 type Config struct {
 	Data            Data                              `json:"data"`
 	WorkingDir      string                            `json:"wd,omitempty"`
+	PromptsDir      string                            `json:"promptsDir,omitempty"`
 	MCPServers      map[string]MCPServer              `json:"mcpServers,omitempty"`
 	Providers       map[models.ModelProvider]Provider `json:"providers,omitempty"`
 	Agents          map[AgentName]Agent               `json:"agents,omitempty"`
@@ -112,23 +114,41 @@ func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) 
 		return cfg, nil
 	}
 
-	cfg = &Config{
-		WorkingDir:      workingDir,
-		MCPServers:      make(map[string]MCPServer),
-		Providers:       make(map[models.ModelProvider]Provider),
-		SkipPermissions: skipPermissions,
-	}
-
 	configureViper()
 	setDefaults(debug)
 
 	// Read global config
 	if err := readConfig(viper.ReadInConfig()); err != nil {
-		return cfg, err
+		return nil, err
 	}
 
 	// Load and merge local config
 	mergeLocalConfig(workingDir)
+
+	// Get prompts directory from config with default expansion
+	promptsDir := viper.GetString("promptsDir")
+	if promptsDir == "" {
+		homeDir, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
+		}
+		promptsDir = filepath.Join(homeDir.HomeDir, ".mix", "prompts")
+	} else if strings.HasPrefix(promptsDir, "~/") {
+		// Expand ~ to home directory
+		homeDir, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
+		}
+		promptsDir = filepath.Join(homeDir.HomeDir, promptsDir[2:])
+	}
+
+	cfg = &Config{
+		WorkingDir:      workingDir,
+		PromptsDir:      promptsDir,
+		MCPServers:      make(map[string]MCPServer),
+		Providers:       make(map[models.ModelProvider]Provider),
+		SkipPermissions: skipPermissions,
+	}
 
 	setProviderDefaults()
 
@@ -137,7 +157,15 @@ func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) 
 		return cfg, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	// Restore prompts directory after viper unmarshal (which overwrites with empty default)
+	cfg.PromptsDir = promptsDir
+
 	applyDefaultValues()
+	
+	// Ensure prompts directory exists with default files
+	if err := EnsurePromptsDirectory(); err != nil {
+		return cfg, fmt.Errorf("failed to initialize prompts directory: %w", err)
+	}
 	defaultLevel := slog.LevelInfo
 	if cfg.Debug {
 		defaultLevel = slog.LevelDebug
@@ -233,6 +261,7 @@ func configureViper() {
 func setDefaults(debug bool) {
 	viper.SetDefault("data.directory", defaultDataDirectory)
 	viper.SetDefault("contextPaths", defaultContextPaths)
+	viper.SetDefault("promptsDir", "")
 
 	// Set default shell from environment or fallback to /bin/bash
 	shellPath := os.Getenv("SHELL")
@@ -576,6 +605,14 @@ func LaunchDirectory() (string, error) {
 		return "", fmt.Errorf("config not loaded")
 	}
 	return cfg.WorkingDir, nil
+}
+
+// PromptsDirectory returns the prompts directory from the configuration.
+func PromptsDirectory() (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("config not loaded")
+	}
+	return cfg.PromptsDir, nil
 }
 
 func UpdateAgentModel(agentName AgentName, modelID models.ModelID) error {

@@ -113,7 +113,7 @@ func NewCredentialStorage() (*CredentialStorage, error) {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	configDir := filepath.Join(homeDir, ".creative_agent")
+	configDir := filepath.Join(homeDir, ".mix", "credentials")
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}
@@ -297,10 +297,10 @@ func NewOAuthFlow(clientID string) (*OAuthFlow, error) {
 		State:         state,
 		RedirectURI:   redirectURI,
 	}
-	
+
 	// Store the flow for later retrieval during token exchange
 	StoreOAuthFlow(flow)
-	
+
 	return flow, nil
 }
 
@@ -366,14 +366,14 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 	// Parse authorization code in format "code#state"
 	authCode = strings.TrimSpace(authCode)
 	logging.Info("Processing authorization code", "raw_length", len(authCode), "trimmed_length", len(strings.TrimSpace(authCode)))
-	
+
 	// Try to extract code and state using different methods
 	var codePart, statePart string
-	
+
 	// Method 1: Simple split on #
 	splits := strings.Split(authCode, "#")
 	logging.Info("Authorization code parts", "parts_count", len(splits), "contains_hash", strings.Contains(authCode, "#"))
-	
+
 	if len(splits) == 2 {
 		// Standard format: code#state
 		codePart = strings.TrimSpace(splits[0])
@@ -393,7 +393,7 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 			if len(codeParts) >= 2 {
 				codePart = strings.Split(codeParts[1], "&")[0]
 			}
-			
+
 			// Extract state parameter
 			stateParts := strings.Split(authCode, "state=")
 			if len(stateParts) >= 2 {
@@ -403,16 +403,16 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 			return nil, fmt.Errorf("invalid authorization code format. Expected 'code#state', got: %s", authCode)
 		}
 	}
-	
+
 	// Final validation
 	if codePart == "" {
 		return nil, fmt.Errorf("failed to extract code part from authorization code")
 	}
-	
+
 	if statePart == "" {
 		return nil, fmt.Errorf("state part is empty")
 	}
-	
+
 	logging.Info("Extracted code and state", "code_length", len(codePart), "state_length", len(statePart))
 
 	// Verify state matches (we'll proceed with a warning)
@@ -420,7 +420,7 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 		logging.Warn("State mismatch: expected %s, got %s - proceeding anyway", flow.State, statePart)
 		// Log more details about the state mismatch
 		if len(flow.State) >= 10 && len(statePart) >= 10 {
-			logging.Info("State details", "expected_length", len(flow.State), "received_length", len(statePart), 
+			logging.Info("State details", "expected_length", len(flow.State), "received_length", len(statePart),
 				"expected_prefix", flow.State[:10], "received_prefix", statePart[:10])
 		}
 		// Update the flow's state to match the callback state for the token exchange
@@ -474,7 +474,7 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 	}
 
 	logging.Info("Token exchange response: status=%d, body_length=%d, content_type=%s", resp.StatusCode, len(body), resp.Header.Get("Content-Type"))
-	
+
 	if resp.StatusCode != http.StatusOK {
 		logging.Warn("Token exchange failed with status %d: %s", resp.StatusCode, string(body))
 		return flow.fallbackToBrowserInstructions(authCode)

@@ -1,20 +1,25 @@
 package tools
 
 import (
-	"embed"
-	"path"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"mix/internal/config"
 )
 
-//go:embed descriptions/*.md
-var descriptionFiles embed.FS
-
-// LoadToolDescription loads a tool description from embedded markdown files
+// LoadToolDescription loads a tool description from filesystem tools directory
 func LoadToolDescription(name string) string {
-	content, err := descriptionFiles.ReadFile(path.Join("descriptions", name+".md"))
+	promptsDir, err := config.PromptsDirectory()
 	if err != nil {
-		// Fallback for missing description files
-		return "Tool description not available"
+		return fmt.Sprintf("Error: failed to get prompts directory: %v", err)
+	}
+	
+	toolPath := filepath.Join(promptsDir, "tools", name+".md")
+	content, err := os.ReadFile(toolPath)
+	if err != nil {
+		return fmt.Sprintf("Tool description not found: %s\n\nPlease ensure the file exists in tools directory: %s", name+".md", filepath.Join(promptsDir, "tools"))
 	}
 
 	return strings.TrimSpace(string(content))
