@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"mix/internal/fileutil"
+	"mix/internal/permission"
 )
 
 type GrepParams struct {
@@ -36,14 +37,18 @@ type GrepResponseMetadata struct {
 	Truncated       bool `json:"truncated"`
 }
 
-type grepTool struct{}
+type grepTool struct{
+	permissions permission.Service
+}
 
 const (
 	GrepToolName = "grep"
 )
 
-func NewGrepTool() BaseTool {
-	return &grepTool{}
+func NewGrepTool(permissions permission.Service) BaseTool {
+	return &grepTool{
+		permissions: permissions,
+	}
 }
 
 func (g *grepTool) Info() ToolInfo {
@@ -107,6 +112,32 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		if err != nil {
 			return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
 		}
+	}
+
+	// Check permissions before searching files
+	sessionID, messageID := GetContextValues(ctx)
+	if sessionID == "" || messageID == "" {
+		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for searching files")
+	}
+
+	// Request permission to search files
+	p := g.permissions.Request(
+		permission.CreatePermissionRequest{
+			SessionID:   sessionID,
+			Path:        searchPath,
+			ToolName:    GrepToolName,
+			Action:      fmt.Sprintf("Search files with pattern: %s", params.Pattern),
+			Description: fmt.Sprintf("Search files in %s with pattern: %s", searchPath, params.Pattern),
+			Params: GrepParams{
+				Pattern:     params.Pattern,
+				Path:        searchPath,
+				Include:     params.Include,
+				LiteralText: params.LiteralText,
+			},
+		},
+	)
+	if !p {
+		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
 
 	matches, truncated, err := searchFiles(searchPattern, searchPath, params.Include, 100)

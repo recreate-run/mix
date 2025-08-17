@@ -10,6 +10,16 @@ export type SSEToolCall = {
   id: string;
 };
 
+export type SSEPermissionRequest = {
+  id: string;
+  sessionId: string;
+  toolName: string;
+  description: string;
+  action: string;
+  path: string;
+  params: Record<string, unknown>;
+};
+
 export type PersistentSSEState = {
   connected: boolean;
   connecting: boolean;
@@ -29,12 +39,15 @@ export type PersistentSSEState = {
     attempt: number;
     maxAttempts: number;
   };
+  permissionRequests: SSEPermissionRequest[];
 };
 
 export type PersistentSSEHook = PersistentSSEState & {
   sendMessage: (content: string) => Promise<void>;
   cancelMessage: () => Promise<void>;
   resetCancelledState: () => void;
+  grantPermission: (id: string) => Promise<void>;
+  denyPermission: (id: string) => Promise<void>;
 };
 
 const BACKEND_URL = 'http://localhost:8088';
@@ -54,6 +67,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     reasoning: null,
     reasoningDuration: null,
     rateLimit: undefined,
+    permissionRequests: [],
   });
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -101,6 +115,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       cancelled: false,
       reasoning: null,
       reasoningDuration: null,
+      permissionRequests: [],
     });
 
     const eventSource = new EventSource(
@@ -242,6 +257,31 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
               maxAttempts: 8
             }
           }));
+        }
+      }
+    });
+
+    // Handle permission request events
+    addTrackedEventListener('permission', (event) => {
+      if (event.data) {
+        try {
+          const data = JSON.parse(event.data);
+          const permissionRequest: SSEPermissionRequest = {
+            id: data.id,
+            sessionId: data.sessionId,
+            toolName: data.toolName,
+            description: data.description,
+            action: data.action,
+            path: data.path,
+            params: data.params || {},
+          };
+
+          setState((prev) => ({
+            ...prev,
+            permissionRequests: [...prev.permissionRequests, permissionRequest],
+          }));
+        } catch (err) {
+          console.error('Failed to parse permission event:', err);
         }
       }
     });
@@ -402,10 +442,78 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     setState((prev) => ({ ...prev, cancelled: false }));
   }, []);
 
+  const grantPermission = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/rpc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'permission.grant',
+          params: { id },
+          id: Date.now(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to grant permission: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error.message || 'Grant permission failed');
+      }
+
+      // Remove the permission request from state
+      setState((prev) => ({
+        ...prev,
+        permissionRequests: prev.permissionRequests.filter(req => req.id !== id),
+      }));
+    } catch (error) {
+      console.error('Failed to grant permission:', error);
+      throw error;
+    }
+  }, []);
+
+  const denyPermission = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/rpc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'permission.deny',
+          params: { id },
+          id: Date.now(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to deny permission: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error.message || 'Deny permission failed');
+      }
+
+      // Remove the permission request from state
+      setState((prev) => ({
+        ...prev,
+        permissionRequests: prev.permissionRequests.filter(req => req.id !== id),
+      }));
+    } catch (error) {
+      console.error('Failed to deny permission:', error);
+      throw error;
+    }
+  }, []);
+
   return {
     ...state,
     sendMessage,
     cancelMessage,
     resetCancelledState,
+    grantPermission,
+    denyPermission,
   };
 }

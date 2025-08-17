@@ -47,6 +47,17 @@ type SummarizeEvent struct {
 	Done     bool   `json:"done"`
 }
 
+type PermissionEvent struct {
+	Type        string      `json:"type"`
+	ID          string      `json:"id"`
+	SessionID   string      `json:"sessionId"`
+	ToolName    string      `json:"toolName"`
+	Description string      `json:"description"`
+	Action      string      `json:"action"`
+	Path        string      `json:"path"`
+	Params      interface{} `json:"params"`
+}
+
 // WriteSSE serializes and writes an SSE event to the response writer
 func WriteSSE(w http.ResponseWriter, eventType string, data interface{}) error {
 	jsonData, err := json.Marshal(data)

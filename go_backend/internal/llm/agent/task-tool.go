@@ -7,12 +7,14 @@ import (
 
 	"mix/internal/llm/tools"
 	"mix/internal/message"
+	"mix/internal/permission"
 	"mix/internal/session"
 )
 
 type taskTool struct {
-	sessions session.Service
-	messages message.Service
+	sessions    session.Service
+	messages    message.Service
+	permissions permission.Service
 }
 
 const (
@@ -67,7 +69,7 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 		return tools.ToolResponse{}, fmt.Errorf("session_id and message_id are required")
 	}
 
-	agent, err := NewAgent("sub", b.sessions, b.messages, TaskAgentTools())
+	agent, err := NewAgent("sub", b.sessions, b.messages, TaskAgentTools(b.permissions))
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}
@@ -144,9 +146,11 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 func NewTaskTool(
 	Sessions session.Service,
 	Messages message.Service,
+	Permissions permission.Service,
 ) tools.BaseTool {
 	return &taskTool{
-		sessions: Sessions,
-		messages: Messages,
+		sessions:    Sessions,
+		messages:    Messages,
+		permissions: Permissions,
 	}
 }

@@ -179,10 +179,10 @@ func (a *agent) generateTitle(ctx context.Context, sessionID string, content str
 		return err
 	}
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
-	
+
 	// Add session working directory to context
 	ctx = context.WithValue(ctx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
-	
+
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	response, err := a.titleProvider.SendMessages(
 		ctx,
@@ -388,7 +388,7 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 		planModeContent := prompt.LoadPrompt("plan_mode")
 		messageContent = content + "\n\n<system-reminder>\n" + planModeContent + "\n</system-reminder>"
 	}
-	
+
 	parts := []message.ContentPart{message.TextContent{Text: messageContent}}
 	parts = append(parts, attachmentParts...)
 	return a.messages.Create(ctx, sessionID, message.CreateMessageParams{
@@ -405,7 +405,7 @@ type toolExecResult struct {
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
-	
+
 	// Get session and add working directory to context
 	session, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {
@@ -413,19 +413,19 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	}
 	// Add session working directory to context
 	ctx = context.WithValue(ctx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
-	
+
 	// Get cached session-specific provider
 	sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &session)
 	if err != nil {
 		return message.Message{}, nil, fmt.Errorf("failed to get session provider: %w", err)
 	}
-	
+
 	// Filter tools based on plan mode
 	availableTools := a.tools
 	if ctx.Value("plan_mode") != nil {
 		availableTools = filterToolsForPlanMode(a.tools)
 	}
-	
+
 	eventChan := sessionProvider.StreamResponse(ctx, msgHistory, availableTools)
 
 	assistantMsg, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
@@ -561,14 +561,14 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 			}
 
 			if permissionDenied {
-				result.Content = "Permission denied"
-				result.IsError = true
+				result.Content = "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed."
+				result.IsError = false // Not a technical error - it's a security boundary
 			}
 
 			resultChan <- toolExecResult{
 				index:            index,
 				result:           result,
-				permissionDenied: permissionDenied,
+				permissionDenied: false, // Always send result to LLM for clear communication
 			}
 		}(i, toolCall)
 	}
@@ -817,7 +817,7 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 			return
 		}
 		summarizeCtx = context.WithValue(summarizeCtx, tools.SessionIDContextKey, sessionID)
-		
+
 		// Get session working directory and add to context
 		session, err := a.sessions.Get(summarizeCtx, sessionID)
 		if err == nil {
@@ -1001,7 +1001,7 @@ func filterToolsForPlanMode(allTools []tools.BaseTool) []tools.BaseTool {
 // isToolAllowedInPlanMode checks if a tool is allowed in plan mode
 func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 	toolName := tool.Info().Name
-	
+
 	// Allow read-only and planning tools
 	allowedTools := map[string]bool{
 		"view":           true,
@@ -1012,7 +1012,7 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 		"exit_plan_mode": true,
 		"fetch":          true,
 	}
-	
+
 	return allowedTools[toolName]
 }
 

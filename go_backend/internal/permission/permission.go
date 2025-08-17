@@ -125,11 +125,11 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 		// Get session working directory for relative paths
 		sess, err := s.sessions.Get(context.Background(), opts.SessionID)
 		if err != nil {
-			log.Printf("Failed to get session %s for relative path resolution: %v", opts.SessionID, err)
+			logging.Error("Failed to get session for relative path resolution", "sessionID", opts.SessionID, "error", err)
 			return false // Deny if we can't get session info
 		}
 		if sess.WorkingDirectory == "" {
-			log.Printf("Session %s has no working directory for relative path resolution", opts.SessionID)
+			logging.Error("Session has no working directory for relative path resolution", "sessionID", opts.SessionID)
 			return false // Deny if no working directory set
 		}
 		dir = sess.WorkingDirectory
@@ -171,10 +171,12 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	defer s.pendingRequests.Delete(permission.ID)
 
 	logging.Info("Publishing permission request for approval", "permissionID", permission.ID)
+	fmt.Printf("PERMISSION: Publishing event to %d subscribers\n", s.GetSubscriberCount())
 	if err := s.Publish(context.Background(), pubsub.CreatedEvent, permission); err != nil {
 		logging.Error("Failed to publish permission request", "permissionID", permission.ID, "error", err)
 		return false
 	}
+	fmt.Printf("PERMISSION: Event published successfully\n")
 
 	// Wait for the response with a timeout (30 seconds)
 	select {

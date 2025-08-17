@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -113,9 +114,12 @@ func (b *Broker[T]) Publish(ctx context.Context, t EventType, payload T) error {
 	for _, sub := range subscribers {
 		select {
 		case sub <- event:
+			// Event sent successfully
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			// Channel full - log and skip this subscriber to avoid blocking
+			fmt.Printf("PUBSUB: Dropping event for full subscriber channel\n")
 		}
 	}
 	

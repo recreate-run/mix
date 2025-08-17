@@ -16,6 +16,7 @@ import (
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
+	"mix/internal/permission"
 )
 
 // JSON-RPC Request
@@ -158,6 +159,10 @@ func (h *QueryHandler) Handle(ctx context.Context, req *QueryRequest) *QueryResp
 		return h.handleAuthLogin(ctx, req)
 	case "auth.apikey":
 		return h.handleSetAPIKey(ctx, req)
+	case "permission.grant":
+		return h.handlePermissionGrant(ctx, req)
+	case "permission.deny":
+		return h.handlePermissionDeny(ctx, req)
 	default:
 		return &QueryResponse{
 			Error: &QueryError{
@@ -1279,6 +1284,82 @@ func (h *QueryHandler) handleSessionsDelete(ctx context.Context, req *QueryReque
 	return &QueryResponse{
 		Result: map[string]string{"message": "Session deleted: " + params.ID},
 		ID:     req.ID,
+	}
+}
+
+func (h *QueryHandler) handlePermissionGrant(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		ID string `json:"id"`
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.ID == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: id",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Grant the permission using the existing service
+	h.app.Permissions.Grant(permission.PermissionRequest{ID: params.ID})
+
+	return &QueryResponse{
+		Result: map[string]string{
+			"status":  "granted",
+			"id":      params.ID,
+			"message": "Permission granted successfully",
+		},
+		ID: req.ID,
+	}
+}
+
+func (h *QueryHandler) handlePermissionDeny(ctx context.Context, req *QueryRequest) *QueryResponse {
+	var params struct {
+		ID string `json:"id"`
+	}
+
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Invalid params: " + err.Error(),
+			},
+			ID: req.ID,
+		}
+	}
+
+	if params.ID == "" {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32602,
+				Message: "Missing required parameter: id",
+			},
+			ID: req.ID,
+		}
+	}
+
+	// Deny the permission using the existing service
+	h.app.Permissions.Deny(permission.PermissionRequest{ID: params.ID})
+
+	return &QueryResponse{
+		Result: map[string]string{
+			"status":  "denied",
+			"id":      params.ID,
+			"message": "Permission denied successfully",
+		},
+		ID: req.ID,
 	}
 }
 

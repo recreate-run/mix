@@ -28,25 +28,25 @@ func CoderAgentTools(
 			tools.NewEditTool(permissions, history),
 			tools.NewFetchTool(permissions),
 			tools.NewGlobTool(),
-			tools.NewGrepTool(),
+			tools.NewGrepTool(permissions),
 			tools.NewLsTool(),
-			tools.NewViewTool(),
+			tools.NewViewTool(permissions),
 			tools.NewWriteTool(permissions, history),
 			tools.NewPythonExecutionTool(permissions),
 			tools.NewTodoWriteTool(),
 			tools.NewExitPlanModeTool(),
 			tools.NewMediaShowcaseTool(),
 			// tools.NewNotesTool(permissions, bashTool),
-			NewTaskTool(sessions, messages),
+			NewTaskTool(sessions, messages, permissions),
 		}, otherTools...,
 	)
 }
 
-func TaskAgentTools() []tools.BaseTool {
+func TaskAgentTools(permissions permission.Service) []tools.BaseTool {
 	return []tools.BaseTool{
 		tools.NewGlobTool(),
-		tools.NewGrepTool(),
+		tools.NewGrepTool(permissions),
 		tools.NewLsTool(),
-		tools.NewViewTool(),
+		tools.NewViewTool(permissions),
 	}
 }

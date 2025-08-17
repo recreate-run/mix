@@ -46,6 +46,7 @@ import { AttachmentPreview } from "./attachment-preview";
 import { CommandFileReference } from "./command-file-reference";
 import { CommandSlash } from "./command-slash";
 import { ConversationDisplay } from "./conversation-display";
+import { PermissionDialog } from "./permission-dialog";
 
 // Helper function to check if a message contains media_showcase tool call
 const hasMediaShowcaseTool = (toolCalls: any[]) => {
@@ -696,6 +697,21 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 					)}
 				</div>
 			</div>
+
+			{/* Permission Dialog - Show the first pending permission request */}
+			{sseStream.permissionRequests.length > 0 && (
+				<PermissionDialog
+					permissionRequest={sseStream.permissionRequests[0]}
+					onGrant={sseStream.grantPermission}
+					onDeny={sseStream.denyPermission}
+					onClose={() => {
+						// Safely check if permission request still exists before denying
+						if (sseStream.permissionRequests.length > 0) {
+							sseStream.denyPermission(sseStream.permissionRequests[0].id);
+						}
+					}}
+				/>
+			)}
 		</div>
 	);
 }

@@ -15,6 +15,7 @@ import (
 	"mix/internal/commands"
 	"mix/internal/fileutil"
 	"mix/internal/llm/agent"
+	"mix/internal/pubsub"
 )
 
 // Connection represents a single SSE connection
@@ -128,6 +129,52 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 	// Send connection confirmation
 	WriteSSE(w, "connected", ConnectedEvent{SessionID: sessionID})
 	flusher.Flush()
+
+	// Subscribe to permission events for this session
+	permissionEvents := handler.GetApp().Permissions.Subscribe(ctx)
+
+	// Handle permission events in a separate goroutine with high priority
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-r.Context().Done():
+				return
+			case permissionEvent, ok := <-permissionEvents:
+				if !ok {
+					return
+				}
+
+				// Debug: Log all permission events received
+				fmt.Printf("SSE: Received permission event - Type: %s, EventSessionID: %s, SSESessionID: %s\n", 
+					permissionEvent.Type, permissionEvent.Payload.SessionID, sessionID)
+
+				// Only send permission events for the current session
+				if permissionEvent.Type == pubsub.CreatedEvent && permissionEvent.Payload.SessionID == sessionID {
+					fmt.Printf("SSE: Sending permission event to frontend - ID: %s\n", permissionEvent.Payload.ID)
+					
+					permEvent := PermissionEvent{
+						Type:        "permission",
+						ID:          permissionEvent.Payload.ID,
+						SessionID:   permissionEvent.Payload.SessionID,
+						ToolName:    permissionEvent.Payload.ToolName,
+						Description: permissionEvent.Payload.Description,
+						Action:      permissionEvent.Payload.Action,
+						Path:        permissionEvent.Payload.Path,
+						Params:      permissionEvent.Payload.Params,
+					}
+
+					if err := WriteSSE(w, "permission", permEvent); err != nil {
+						return
+					}
+					flusher.Flush()
+				} else {
+					fmt.Printf("SSE: Filtered out permission event - Type: %s, Session mismatch\n", permissionEvent.Type)
+				}
+			}
+		}
+	}()
 
 	// Heartbeat to prevent browser timeout
 	heartbeat := time.NewTicker(45 * time.Second)

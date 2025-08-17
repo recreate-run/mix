@@ -1,4 +1,4 @@
-import { IconClock, IconTrash } from "@tabler/icons-react";
+import { IconTrash } from "@tabler/icons-react";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import {
 	TITLE_TRUNCATE_LENGTH,
@@ -83,12 +83,11 @@ export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
 					className="flex flex-col items-start gap-1 h-auto py-2 pr-8"
 				>
 					<div className="flex items-center gap-2 w-full">
-						<IconClock className="size-4 flex-shrink-0" />
 						<span className="text-sm font-medium truncate flex-1">
 							{getDisplayTitle(session)}
 						</span>
 					</div>
-					<div className="flex items-center gap-2 text-muted-foreground text-xs ml-6">
+					<div className="flex items-center gap-2 text-muted-foreground text-xs">
 						<span>{formatDate(createdDate)}</span>
 						<span>•</span>
 						<span>{session.messageCount} messages</span>

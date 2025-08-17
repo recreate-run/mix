@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"mix/internal/logging"
+	"mix/internal/permission"
 )
 
 type ViewParams struct {
@@ -20,6 +21,7 @@ type ViewParams struct {
 }
 
 type viewTool struct {
+	permissions permission.Service
 }
 
 type ViewResponseMetadata struct {
@@ -33,8 +35,10 @@ const (
 	MaxLineLength    = 2000
 )
 
-func NewViewTool() BaseTool {
-	return &viewTool{}
+func NewViewTool(permissions permission.Service) BaseTool {
+	return &viewTool{
+		permissions: permissions,
+	}
 }
 
 func (v *viewTool) Info() ToolInfo {
@@ -75,6 +79,31 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	filePath := params.FilePath
 	if !filepath.IsAbs(filePath) {
 		return NewTextErrorResponse("file_path must be an absolute path, not a relative path"), nil
+	}
+
+	// Check permissions before reading the file
+	sessionID, messageID := GetContextValues(ctx)
+	if sessionID == "" || messageID == "" {
+		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for reading a file")
+	}
+
+	// Request permission to read the file
+	p := v.permissions.Request(
+		permission.CreatePermissionRequest{
+			SessionID:   sessionID,
+			Path:        filePath,
+			ToolName:    ViewToolName,
+			Action:      fmt.Sprintf("Read file: %s", filePath),
+			Description: fmt.Sprintf("Read file: %s", filePath),
+			Params: ViewParams{
+				FilePath: filePath,
+				Offset:   params.Offset,
+				Limit:    params.Limit,
+			},
+		},
+	)
+	if !p {
+		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
 
 	// Check if file exists
