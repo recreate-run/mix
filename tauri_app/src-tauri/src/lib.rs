@@ -27,7 +27,7 @@ use base64::Engine;
 
 // use tauri::menu::{Menu, MenuItem};
 // use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Emitter, Manager, State, Listener};
+use tauri::{Emitter, Manager, State};
 use std::sync::Arc;
 use std::env;
 
@@ -278,12 +278,9 @@ pub fn run() {
                 }
             }
 
-            let app_handle = app.handle().clone();
-            let manager = sidecar_manager.clone();
-
             // Clone for auto-start
-            let startup_manager = manager.clone();
-            let startup_handle = app_handle.clone();
+            let startup_manager = sidecar_manager.clone();
+            let startup_handle = app.handle().clone();
 
             // Check if sidecar should be auto-started (defaults to true for backward compatibility)
             let sidecar_enabled = env::var("SIDECAR_ENABLED")
@@ -301,18 +298,6 @@ pub fn run() {
                 println!("Sidecar auto-start disabled via SIDECAR_ENABLED environment variable");
             }
 
-            // Set up cleanup handler for app shutdown
-            let cleanup_manager = manager.clone();
-            let cleanup_handle = app_handle.clone();
-            app.listen("tauri://close-requested", move |_| {
-                let manager = cleanup_manager.clone();
-                let handle = cleanup_handle.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = manager.stop_sidecar(&handle).await {
-                        eprintln!("Failed to stop sidecar during cleanup: {}", e);
-                    }
-                });
-            });
 
             // Create system tray
             // let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

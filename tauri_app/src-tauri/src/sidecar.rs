@@ -1,28 +1,37 @@
 use std::sync::{Arc, Mutex};
 use std::env;
 use tauri::AppHandle;
-use tauri_plugin_shell::{process::CommandEvent, ShellExt};
+use tauri_plugin_shell::{process::{CommandEvent, CommandChild}, ShellExt};
 use tokio::time::{sleep, Duration};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SidecarManager {
-    pub is_running: Arc<Mutex<bool>>,
-    pub child_id: Arc<Mutex<Option<u32>>>,
-    pub error_message: Arc<Mutex<Option<String>>>,
+    child: Arc<Mutex<Option<CommandChild>>>,
+    error_message: Arc<Mutex<Option<String>>>,
+}
+
+impl Drop for SidecarManager {
+    fn drop(&mut self) {
+        if let Ok(mut child_guard) = self.child.lock() {
+            if let Some(child) = child_guard.take() {
+                let _ = child.kill();
+                println!("Sidecar process terminated during cleanup");
+            }
+        }
+    }
 }
 
 impl SidecarManager {
     pub fn new() -> Self {
         Self {
-            is_running: Arc::new(Mutex::new(false)),
-            child_id: Arc::new(Mutex::new(None)),
+            child: Arc::new(Mutex::new(None)),
             error_message: Arc::new(Mutex::new(None)),
         }
     }
 
     pub async fn start_sidecar(&self, app: &AppHandle) -> Result<(), String> {
         // Check if already running
-        if *self.is_running.lock().unwrap() {
+        if self.child.lock().unwrap().is_some() {
             return Ok(());
         }
 
@@ -33,7 +42,7 @@ impl SidecarManager {
         let sidecar_name = env::var("SIDECAR_NAME")
             .unwrap_or_else(|_| "mix".to_string());
 
-        // Use Tauri's sidecar API instead of generic command
+        // Create sidecar command
         let sidecar_command = match app.shell().sidecar(&sidecar_name) {
             Ok(cmd) => cmd,
             Err(e) => {
@@ -45,46 +54,33 @@ impl SidecarManager {
 
         println!("Starting sidecar '{}' with args: -c /Users/sarathmenon/Documents/startup/image_generation/mix --http-port 8088 --dangerously-skip-permissions -d", sidecar_name);
         let command = sidecar_command.args(["-c", "/Users/sarathmenon/Documents/startup/image_generation/mix", "--http-port", "8088", "--dangerously-skip-permissions", "-d"]);
+        
         match command.spawn() {
             Ok((mut rx, child)) => {
-                let child_id = child.pid();
-                *self.child_id.lock().unwrap() = Some(child_id);
-                *self.is_running.lock().unwrap() = true;
+                // Store the child process
+                *self.child.lock().unwrap() = Some(child);
 
-                // Spawn a task to monitor the process
-                let is_running = Arc::clone(&self.is_running);
+                // Simple monitoring task for logging
                 let error_message = Arc::clone(&self.error_message);
-                let child_id_clone = Arc::clone(&self.child_id);
+                let child_ref = Arc::clone(&self.child);
 
                 tokio::spawn(async move {
                     while let Some(event) = rx.recv().await {
                         match event {
                             CommandEvent::Stdout(data) => {
-                                println!(
-                                    "Go server stdout: {}",
-                                    String::from_utf8_lossy(&data)
-                                ); // trigger rebuild
+                                println!("Go server stdout: {}", String::from_utf8_lossy(&data));
                             }
                             CommandEvent::Stderr(data) => {
-                                println!(
-                                    "Go server stderr: {}",
-                                    String::from_utf8_lossy(&data)
-                                );
+                                println!("Go server stderr: {}", String::from_utf8_lossy(&data));
                             }
                             CommandEvent::Error(err) => {
-                                *error_message.lock().unwrap() =
-                                    Some(format!("Process error: {}", err));
-                                *is_running.lock().unwrap() = false;
-                                *child_id_clone.lock().unwrap() = None;
+                                *error_message.lock().unwrap() = Some(format!("Process error: {}", err));
+                                *child_ref.lock().unwrap() = None;
                                 break;
                             }
                             CommandEvent::Terminated(payload) => {
-                                println!(
-                                    "Go server terminated with code: {:?}",
-                                    payload.code
-                                );
-                                *is_running.lock().unwrap() = false;
-                                *child_id_clone.lock().unwrap() = None;
+                                println!("Go server terminated with code: {:?}", payload.code);
+                                *child_ref.lock().unwrap() = None;
                                 if payload.code != Some(0) {
                                     *error_message.lock().unwrap() = Some(format!(
                                         "Process terminated with code: {:?}",
@@ -93,16 +89,13 @@ impl SidecarManager {
                                 }
                                 break;
                             }
-                            _ => {
-                                // Handle any other variants that might exist
-                            }
+                            _ => {}
                         }
                     }
                 });
 
                 // Wait a moment for the server to start
                 sleep(Duration::from_millis(1000)).await;
-
                 Ok(())
             }
             Err(e) => {
@@ -113,58 +106,26 @@ impl SidecarManager {
         }
     }
 
-    pub async fn stop_sidecar(&self, app: &AppHandle) -> Result<(), String> {
-        if !*self.is_running.lock().unwrap() {
-            return Ok(());
-        }
-
-        if let Some(pid) = *self.child_id.lock().unwrap() {
-            let _shell = app.shell();
-
-            // Try to kill the process
-            #[cfg(unix)]
-            {
-                use std::process::Command;
-                match Command::new("kill").arg(pid.to_string()).output() {
-                    Ok(_) => {
-                        *self.is_running.lock().unwrap() = false;
-                        *self.child_id.lock().unwrap() = None;
-                        Ok(())
-                    }
-                    Err(e) => {
-                        let error = format!("Failed to kill process: {}", e);
-                        *self.error_message.lock().unwrap() = Some(error.clone());
-                        Err(error)
-                    }
+    pub async fn stop_sidecar(&self, _app: &AppHandle) -> Result<(), String> {
+        if let Some(child) = self.child.lock().unwrap().take() {
+            match child.kill() {
+                Ok(_) => {
+                    println!("Sidecar process stopped successfully");
+                    Ok(())
                 }
-            }
-
-            #[cfg(windows)]
-            {
-                use std::process::Command;
-                match Command::new("taskkill")
-                    .args(&["/F", "/PID", &pid.to_string()])
-                    .output()
-                {
-                    Ok(_) => {
-                        *self.is_running.lock().unwrap() = false;
-                        *self.child_id.lock().unwrap() = None;
-                        Ok(())
-                    }
-                    Err(e) => {
-                        let error = format!("Failed to kill process: {}", e);
-                        *self.error_message.lock().unwrap() = Some(error.clone());
-                        Err(error)
-                    }
+                Err(e) => {
+                    let error = format!("Failed to kill sidecar process: {}", e);
+                    *self.error_message.lock().unwrap() = Some(error.clone());
+                    Err(error)
                 }
             }
         } else {
-            Err("No process ID available".to_string())
+            Ok(()) // Already stopped
         }
     }
 
     pub async fn health_check(&self) -> Result<String, String> {
-        if !*self.is_running.lock().unwrap() {
+        if self.child.lock().unwrap().is_none() {
             return Err("Sidecar is not running".to_string());
         }
 
@@ -193,7 +154,7 @@ impl SidecarManager {
     }
 
     pub fn is_running(&self) -> bool {
-        *self.is_running.lock().unwrap()
+        self.child.lock().unwrap().is_some()
     }
 
     pub fn get_error(&self) -> Option<String> {
@@ -201,7 +162,7 @@ impl SidecarManager {
     }
 
     pub async fn send_prompt(&self, prompt: &str) -> Result<String, String> {
-        if !*self.is_running.lock().unwrap() {
+        if self.child.lock().unwrap().is_none() {
             return Err("Sidecar is not running".to_string());
         }
 
