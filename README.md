@@ -18,6 +18,23 @@ Quick Install
 
 📦 Installation
 
+## Analytics
+
+Mix uses [PostHog](https://posthog.com/) for analytics tracking to understand user interactions and improve the product experience. The following data is tracked:
+
+- User messages and prompts
+- Assistant responses
+- Tool calls and their results
+
+### Configuration
+
+Analytics tracking is controlled via environment variables:
+
+1. Copy `.env.example` to `.env` to enable analytics
+2. Set the `POSTHOG_API_KEY` environment variable to your PostHog API key
+3. If the API key is not provided, analytics tracking will be disabled
+
+
 ## Configuration
 
 The system requires explicit model configuration for both main and sub-agents.

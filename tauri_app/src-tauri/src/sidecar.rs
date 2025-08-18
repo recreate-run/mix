@@ -1,7 +1,10 @@
-use std::sync::{Arc, Mutex};
 use std::env;
+use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
-use tauri_plugin_shell::{process::{CommandEvent, CommandChild}, ShellExt};
+use tauri_plugin_shell::{
+    process::{CommandChild, CommandEvent},
+    ShellExt,
+};
 use tokio::time::{sleep, Duration};
 
 #[derive(Debug)]
@@ -39,8 +42,7 @@ impl SidecarManager {
         *self.error_message.lock().unwrap() = None;
 
         // Get sidecar name from environment variable (defaults to "mix")
-        let sidecar_name = env::var("SIDECAR_NAME")
-            .unwrap_or_else(|_| "mix".to_string());
+        let sidecar_name = env::var("SIDECAR_NAME").unwrap_or_else(|_| "mix".to_string());
 
         // Create sidecar command
         let sidecar_command = match app.shell().sidecar(&sidecar_name) {
@@ -52,9 +54,23 @@ impl SidecarManager {
             }
         };
 
-        println!("Starting sidecar '{}' with args: -c /Users/sarathmenon/Documents/startup/image_generation/mix --http-port 8088 --dangerously-skip-permissions -d", sidecar_name);
-        let command = sidecar_command.args(["-c", "/Users/sarathmenon/Documents/startup/image_generation/mix", "--http-port", "8088", "--dangerously-skip-permissions", "-d"]);
-        
+        let current_dir = std::env::current_dir().unwrap_or_default();
+        let working_dir = current_dir
+            .parent()
+            .unwrap_or(&current_dir)
+            .to_str()
+            .unwrap_or(".");
+
+        println!("Starting sidecar '{}' with args: -c {} --http-port 8088 --dangerously-skip-permissions -d", 
+                sidecar_name, working_dir);
+        let command = sidecar_command.args([
+            "-c",
+            working_dir,
+            "--http-port",
+            "8088",
+            "--dangerously-skip-permissions",
+            "-d",
+        ]);
         match command.spawn() {
             Ok((mut rx, child)) => {
                 // Store the child process
@@ -74,7 +90,8 @@ impl SidecarManager {
                                 println!("Go server stderr: {}", String::from_utf8_lossy(&data));
                             }
                             CommandEvent::Error(err) => {
-                                *error_message.lock().unwrap() = Some(format!("Process error: {}", err));
+                                *error_message.lock().unwrap() =
+                                    Some(format!("Process error: {}", err));
                                 *child_ref.lock().unwrap() = None;
                                 break;
                             }
