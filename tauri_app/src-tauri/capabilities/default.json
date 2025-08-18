@@ -17,7 +17,7 @@
         {
           "name": "mix",
           "sidecar": true,
-          "args": ["-c", "/Users/sarathmenon/Documents/startup/image_generation/mix", "--http-port", "8088", "--dangerously-skip-permissions", "-d"]
+          "args": ["-c", "$CWD/..", "--http-port", "8088", "--dangerously-skip-permissions", "-d"]
         }
       ]
     },
@@ -27,7 +27,7 @@
         {
           "name": "mix",
           "sidecar": true,
-          "args": ["-c", "/Users/sarathmenon/Documents/startup/image_generation/mix", "--http-port", "8088", "--dangerously-skip-permissions", "-d"]
+          "args": ["-c", "$CWD/..", "--http-port", "8088", "--dangerously-skip-permissions", "-d"]
         }
       ]
     },

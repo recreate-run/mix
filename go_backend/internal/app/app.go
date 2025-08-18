@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 
+	"mix/internal/analytics"
 	"mix/internal/config"
 	"mix/internal/db"
 	"mix/internal/format"
@@ -22,6 +24,7 @@ type App struct {
 	Messages    message.Service
 	History     history.Service
 	Permissions permission.Service
+	Analytics   analytics.Service
 
 	CoderAgent agent.Service
 
@@ -32,14 +35,30 @@ type App struct {
 func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	q := db.New(conn)
 	sessions := session.NewService(q)
-	messages := message.NewService(q)
+	
+	// Create base message service
+	baseMessageService := message.NewService(q)
+	
 	files := history.NewService(q, conn)
+	
+	// Initialize analytics service with PostHog API key from env
+	posthogAPIKey := os.Getenv("POSTHOG_API_KEY")
+	if posthogAPIKey == "" {
+		logging.Info("PostHog analytics disabled: POSTHOG_API_KEY env var not set")
+	} else {
+		logging.Info("PostHog analytics enabled")
+	}
+	analyticsService := analytics.NewAnalyticsService(posthogAPIKey)
+	
+	// Wrap message service with tracking
+	messages := message.NewTrackingService(baseMessageService, analyticsService)
 
 	app := &App{
 		Sessions:    sessions,
 		Messages:    messages,
 		History:     files,
 		Permissions: permission.NewPermissionService(sessions),
+		Analytics:   analyticsService,
 	}
 
 	// Create MCP manager for this agent
@@ -169,5 +188,13 @@ func (app *App) Shutdown() {
 	if app.CoderAgent != nil {
 		app.CoderAgent.Shutdown()
 	}
+	
+	// Clean up analytics service
+	if app.Analytics != nil {
+		if err := app.Analytics.Close(); err != nil {
+			logging.Error("Failed to close analytics service: %v", err)
+		}
+	}
+	
 	logging.Info("Application shutdown completed")
 }
