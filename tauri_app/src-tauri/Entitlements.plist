@@ -6,15 +6,9 @@
     <true/>
     <key>com.apple.security.files.downloads.read-write</key>
     <true/>
-    <key>com.apple.security.files.pictures.read-write</key>
-    <true/>
     <key>com.apple.security.network.client</key>
     <true/>
     <key>com.apple.security.network.server</key>
-    <true/>
-    <key>com.apple.security.device.camera</key>
-    <true/>
-    <key>com.apple.security.device.microphone</key>
     <true/>
     <key>com.apple.security.automation.apple-events</key>
     <true/>

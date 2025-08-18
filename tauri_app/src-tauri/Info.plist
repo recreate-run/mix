@@ -2,12 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NSCameraUsageDescription</key>
-    <string>This app needs access to the camera for content creation features.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>This app needs access to the microphone for audio recording features.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>This app needs access to your photo library to manage and edit images.</string>
     <key>NSDocumentsFolderUsageDescription</key>
     <string>This app needs access to your Documents folder to save and manage your content files.</string>
     <key>NSDownloadsFolderUsageDescription</key>

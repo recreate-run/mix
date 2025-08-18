@@ -29,14 +29,8 @@ Generated icons are stored in `src-tauri/icons/` and automatically referenced in
 Build distribution-ready packages for macOS:
 
 ```bash
-# Build .app bundle only
-bun tauri build --bundles app
-
 # Build .dmg installer 
 bun tauri build --bundles dmg
-
-# Build both .app and .dmg
-bun tauri build --bundles all
 ```
 
 Built files are located in `src-tauri/target/release/bundle/macos/`
@@ -44,24 +38,28 @@ Built files are located in `src-tauri/target/release/bundle/macos/`
 ## Release Process
 
 ### Auto-Update Setup
+
 - Signing keys configured with public key validation
 - GitHub Actions workflow builds signed macOS binaries (Intel + Apple Silicon)
 - Users receive automatic update notifications in-app
 
 ### Creating a Release
+
 1. Update version in `package.json` and `src-tauri/tauri.conf.json`
 2. Create and push a git tag: `git tag v1.0.1 && git push origin v1.0.1`
 3. GitHub Actions automatically builds and releases signed update bundles
 4. Users get notified of updates automatically
 
 ### Required GitHub Secrets
+
 - `TAURI_SIGNING_PRIVATE_KEY`: Content of `~/.tauri/mix.key`
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: `mazhaneer123`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: password
 
 ### Manual Build (for testing)
+
 ```bash
 export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/mix.key)"
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="mazhaneer123"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="password"
 bun tauri build
 ```
 

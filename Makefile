@@ -20,10 +20,8 @@ help:
 	@echo "Available targets:"
 	@echo "  dev         - Install dependencies and run development servers"
 	@echo "  install-deps - Install all project dependencies"
-	@echo "  build       - Build the binary to $(BUILD_DIR)/debug/ directory"
+	@echo "  build       - Build the binary to $(BUILD_DIR)/release/ directory"
 	@echo "  build-sidecar - Build Tauri-compatible sidecar binary with platform suffix"
-	@echo "  build-all   - Build both regular and Tauri-compatible binaries"
-	@echo "  release-macos - Build optimized Apple Silicon release binary"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  install-air - Install Air if not present"
 	@echo "  tail-log    - Show the last 100 lines of the log"
@@ -51,12 +49,6 @@ install-deps:
 	cd packages/remotion_starter_template && bun install
 	@echo "✅ All dependencies installed!"
 
-# Build binary to build directory
-build:
-	@mkdir -p $(BUILD_DIR)/debug
-	cd go_backend && go build -o build/debug/$(BINARY_NAME) main.go
-	@echo "Binary built: $(BUILD_DIR)/debug/$(BINARY_NAME)"
-
 # Internal target for optimized builds
 # Usage: make _build-optimized OUTPUT_PATH=path/to/binary [GOOS=os] [GOARCH=arch]
 _build-optimized:
@@ -74,22 +66,8 @@ _build-optimized:
 # Build Tauri-compatible sidecar binary with platform-specific naming
 build-sidecar:
 	@echo "Building optimized Tauri sidecar binary for platform: $(TARGET_TRIPLE)"
-	@$(MAKE) _build-optimized OUTPUT_PATH=build/debug/$(BINARY_NAME)-$(TARGET_TRIPLE)
-	@echo "Tauri sidecar binary built: $(BUILD_DIR)/debug/$(BINARY_NAME)-$(TARGET_TRIPLE)"
-
-# Build both regular and Tauri-compatible binaries
-build-all: build build-sidecar
-
-# Build optimized Apple Silicon release binary
-release-macos:
-	@echo "Building optimized Apple Silicon release binary..."
-	@$(MAKE) _build-optimized OUTPUT_PATH=build/$(BINARY_NAME)-darwin-arm64 GOOS=darwin GOARCH=arm64
-	@echo "Generating checksums..."
-	@cd $(BUILD_DIR) && shasum -a 256 $(BINARY_NAME)-darwin-arm64 > $(BINARY_NAME)-darwin-arm64.sha256
-	@echo "Release binary built successfully:"
-	@ls -lh $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64
-	@echo "SHA256:"
-	@cat $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64.sha256
+	@$(MAKE) _build-optimized OUTPUT_PATH=build/release/$(BINARY_NAME)-$(TARGET_TRIPLE)
+	@echo "Tauri sidecar binary built: $(BUILD_DIR)/release/$(BINARY_NAME)-$(TARGET_TRIPLE)"
 
 # Run development server with hot reloading (installs deps first)
 dev: install-deps 
