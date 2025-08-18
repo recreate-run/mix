@@ -1,134 +1,35 @@
-# Functional Source License, Version 1.1, MIT Future License
+# LICENSE.md — Mix License (v1.0)
 
-## Abbreviation
+Mix is source-available. Depending on who you are, you may use and modify Mix for free, including commercial use, under the **Free License** below. If you don’t qualify, you need a **Company License** from the project maintainer.
 
-FSL-1.1-MIT
+* [Free License](#free-license)
+* [Company License](#company-license)
+* [Warranty & Liability](#warranty--liability)
 
-## Notice
+## Free License
 
-Copyright 2025 Charmbracelet, Inc
+### Eligibility
 
-## Terms and Conditions
+You may use Mix for free if you are **any** of the following:
 
-### Licensor ("We")
+* **An individual** (acting on your own, including freelancers/sole proprietors with no workers).
+* **A for-profit organization with up to 2 workers total**, counting **employees and contractors** (see “Definitions”).
+* **A non-profit or not-for-profit organization.**
 
-The party offering the Software under these Terms and Conditions.
+Eligibility is determined **at the time you use Mix**. If you later exceed the limits (e.g., you hire more people), you must obtain a Company License within **30 days**.
 
-### The Software
+### Disallowed Uses
 
-The "Software" is each version of the software that we make available under
-these Terms and Conditions, as indicated by our inclusion of these Terms and
-Conditions with the Software.
+The following are **not allowed** under the Free License:
 
-### License Grant
+* It is not allowed to copy or modify Mix code for the purpose of selling, renting, licensing, relicensing, or sublicensing your own derivate of Mix.
 
-Subject to your compliance with this License Grant and the Patents,
-Redistribution and Trademark clauses below, we hereby grant you the right to
-use, copy, modify, create derivative works, publicly perform, publicly display
-and redistribute the Software for any Permitted Purpose identified below.
+If you want to do any of the above, get a **Company License**.
 
-### Permitted Purpose
+### Warranty & Liability
 
-A Permitted Purpose is any purpose other than a Competing Use. A Competing Use
-means making the Software available to others in a commercial product or
-service that:
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-1. substitutes for the Software;
+## Company License
 
-2. substitutes for any other product or service we offer using the Software
-   that exists as of the date we make the Software available; or
-
-3. offers the same or substantially similar functionality as the Software.
-
-Permitted Purposes specifically include using the Software:
-
-1. for your internal use and access;
-
-2. for non-commercial education;
-
-3. for non-commercial research; and
-
-4. in connection with professional services that you provide to a licensee
-   using the Software in accordance with these Terms and Conditions.
-
-### Patents
-
-To the extent your use for a Permitted Purpose would necessarily infringe our
-patents, the license grant above includes a license under our patents. If you
-make a claim against any party that the Software infringes or contributes to
-the infringement of any patent, then your patent license to the Software ends
-immediately.
-
-### Redistribution
-
-The Terms and Conditions apply to all copies, modifications and derivatives of
-the Software.
-
-If you redistribute any copies, modifications or derivatives of the Software,
-you must include a copy of or a link to these Terms and Conditions and not
-remove any copyright notices provided in or with the Software.
-
-### Disclaimer
-
-THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF FITNESS FOR A PARTICULAR
-PURPOSE, MERCHANTABILITY, TITLE OR NON-INFRINGEMENT.
-
-IN NO EVENT WILL WE HAVE ANY LIABILITY TO YOU ARISING OUT OF OR RELATED TO THE
-SOFTWARE, INCLUDING INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES,
-EVEN IF WE HAVE BEEN INFORMED OF THEIR POSSIBILITY IN ADVANCE.
-
-### Trademarks
-
-Except for displaying the License Details and identifying us as the origin of
-the Software, you have no right under these Terms and Conditions to use our
-trademarks, trade names, service marks or product names.
-
-## Grant of Future License
-
-We hereby irrevocably grant you an additional license to use the Software under
-the MIT license that is effective on the second anniversary of the date we make
-the Software available. On or after that date, you may use the Software under
-the MIT license, in which case the following will apply:
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
----
-
-MIT License
-
-Copyright (c) 2025-03-21 - 2025-05-30 Kujtim Hoxha
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You are required to obtain a company license to use Mix if you are not within the group of entities eligible for a free license. This license will enable you to use Mix for the allowed use cases specified in the free license, and give you access to prioritized support. Contact <team@recreate.run> to buy a license
