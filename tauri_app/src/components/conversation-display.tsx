@@ -22,7 +22,7 @@ import {
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { MediaOutput } from "@/types/media";
 import type { UIMessage } from "@/types/message";
-import { LoadingDots } from "./loading-dots";
+import { ConversationLoader } from "./conversation-loader";
 import { MessageAttachmentDisplay } from "./message-attachment-display";
 import { PlanDisplay } from "./plan-display";
 import { RateLimitDisplay } from "./rate-limit-display";
@@ -465,10 +465,10 @@ export function ConversationDisplay({
 											)}
 										</AIToolLadder>
 									)}
-									{!sseStream.completed && <LoadingDots />}
+									{!sseStream.completed && <ConversationLoader />}
 								</>
 							) : (
-								<LoadingDots />
+								<ConversationLoader />
 							)}
 						</AIMessageContent>
 					</AIMessage>

@@ -10,6 +10,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@icons-pack/react-simple-icons": "^13.7.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -46,6 +47,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "gsap": "^3.13.0",
     "katex": "^0.16.22",
     "lucide-react": "^0.539.0",
     "posthog-js": "^1.258.3",

@@ -6,7 +6,7 @@ import { ChatApp } from "@/components/chat-app";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useActiveSession } from "@/hooks/useSession";
-import { PageHeader } from "@/components/page-header";
+// import { PageHeader } from "@/components/page-header";
 
 export const Route = createFileRoute("/$sessionId")({
 	component: SessionApp,
@@ -41,7 +41,7 @@ function SessionApp() {
 		>
 			<AppSidebar variant="inset" sessionId={sessionId} />
 			<SidebarInset className="flex flex-col h-screen">
-				<PageHeader sessionId={sessionId} />
+				{/* <PageHeader sessionId={sessionId} /> */}
 
 				<ChatApp sessionId={sessionId} />
 			</SidebarInset>
