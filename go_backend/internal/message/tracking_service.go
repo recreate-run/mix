@@ -81,6 +81,20 @@ func (ts *TrackingService) Update(ctx context.Context, message Message) error {
 
 	// Track tool calls that might have been added in the update
 	if message.Role == Assistant {
+		// Track updated content if message is finished
+		if message.IsFinished() {
+			content := message.Content().String()
+			if content != "" {
+				if err := ts.analytics.TrackAgentResponse(ctx, message.SessionID, message.ID, content, string(message.Model)); err != nil {
+					logging.Error("Failed to track updated assistant response: %v", err)
+				} else {
+					logging.Debug("Tracked final assistant response for message %s with %d characters", 
+						message.ID, len(content))
+				}
+			}
+		}
+
+		// Track tool calls
 		toolCalls := message.ToolCalls()
 		for _, tc := range toolCalls {
 			if err := ts.analytics.TrackToolCall(ctx, message.SessionID, message.ID, tc.Name, tc.Input, tc.ID, tc.Finished, ""); err != nil {

@@ -90,17 +90,33 @@ func (s *analyticsService) TrackUserMessage(ctx context.Context, sessionID, mess
 		return nil
 	}
 
+	// Don't track empty content
+	if content == "" {
+		return nil
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// For longer content, truncate to a reasonable size for analytics
+	// but preserve enough for meaningful analysis
+	trackedContent := content
+	if len(trackedContent) > 10000 {
+		trackedContent = trackedContent[:10000] + "... [truncated]"
+	}
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropMessageID, messageID).
+		Set(PropContent, trackedContent).
+		Set(PropModel, model).
+		Set("content_length", len(content)).
+		Set("is_truncated", len(trackedContent) < len(content))
 
 	err := s.client.Enqueue(posthog.Capture{
 		DistinctId: s.distinct,
 		Event:      EventUserMessage,
-		Properties: posthog.NewProperties().
-			Set(PropSessionID, sessionID).
-			Set(PropMessageID, messageID).
-			Set(PropContent, content).
-			Set(PropModel, model),
+		Properties: props,
 	})
 
 	if err != nil {
@@ -117,17 +133,33 @@ func (s *analyticsService) TrackAgentResponse(ctx context.Context, sessionID, me
 		return nil
 	}
 
+	// Don't track empty content
+	if content == "" {
+		return nil
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// For longer content, truncate to a reasonable size for analytics
+	// but preserve enough for meaningful analysis
+	trackedContent := content
+	if len(trackedContent) > 10000 {
+		trackedContent = trackedContent[:10000] + "... [truncated]"
+	}
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropMessageID, messageID).
+		Set(PropContent, trackedContent).
+		Set(PropModel, model).
+		Set("content_length", len(content)).
+		Set("is_truncated", len(trackedContent) < len(content))
 
 	err := s.client.Enqueue(posthog.Capture{
 		DistinctId: s.distinct,
 		Event:      EventAgentResponse,
-		Properties: posthog.NewProperties().
-			Set(PropSessionID, sessionID).
-			Set(PropMessageID, messageID).
-			Set(PropContent, content).
-			Set(PropModel, model),
+		Properties: props,
 	})
 
 	if err != nil {
