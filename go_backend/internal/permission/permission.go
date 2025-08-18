@@ -139,7 +139,13 @@ func (s *permissionService) isPathWithinSessionRoot(sessionID, requestedPath str
 func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	logging.Info("Permission request", "sessionID", opts.SessionID, "toolName", opts.ToolName, "action", opts.Action, "path", opts.Path)
 
-	dir := filepath.Dir(opts.Path)
+	dir := opts.Path
+	// Only apply filepath.Dir() for actual existing files
+	if info, err := os.Stat(opts.Path); err == nil && !info.IsDir() {
+		// It's an existing file, check the containing directory
+		dir = filepath.Dir(opts.Path)
+	}
+	// For directories (existing or not) and non-existent paths, use the path as-is
 	if dir == "." {
 		// Get session working directory for relative paths
 		sess, err := s.sessions.Get(context.Background(), opts.SessionID)

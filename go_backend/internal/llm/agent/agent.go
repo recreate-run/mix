@@ -385,7 +385,10 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 	// Check if plan mode is active and append system-reminder
 	messageContent := content
 	if ctx.Value("plan_mode") != nil {
-		planModeContent := prompt.LoadPrompt("plan_mode")
+		planModeContent, err := prompt.LoadPrompt("plan_mode")
+		if err != nil {
+			return message.Message{}, fmt.Errorf("failed to load plan mode prompt: %w", err)
+		}
 		messageContent = content + "\n\n<system-reminder>\n" + planModeContent + "\n</system-reminder>"
 	}
 
@@ -1103,7 +1106,10 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 	}
 
 	// Get system prompt with session variables
-	systemPrompt := prompt.GetAgentPromptWithVars(ctx, agentName, model.Provider, sessionVars)
+	systemPrompt, err := prompt.GetAgentPromptWithVars(ctx, agentName, model.Provider, sessionVars)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load system prompt: %w", err)
+	}
 
 	opts := []provider.ProviderClientOption{
 		provider.WithAPIKey(providerCfg.APIKey),

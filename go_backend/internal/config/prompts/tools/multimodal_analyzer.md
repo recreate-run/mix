@@ -3,6 +3,7 @@
 AI-powered media analysis tool (CLI interface) using multiple LLM providers through LiteLLM. Analyze images, audio, and video files with customizable prompts and output formats.
 
 ## Features
+
 - **Image, Audio & Video Analysis**: Single files or batch process entire directories
 - **Hybrid File Input**: Specify files by directory path OR explicit file lists from multiple locations
 - **Automatic Image Preprocessing**: Images > 500KB are automatically converted to JPEG for optimal processing
@@ -11,9 +12,11 @@ AI-powered media analysis tool (CLI interface) using multiple LLM providers thro
 - **Custom Prompts**: Flexible analysis with custom or predefined prompts
 
 ## Usage notes
+
 - You MUST ALWAYS use Multimodal Analyzer to analyze media files, NEVER read images directly
-- ALWAYS Use with the `bash` tool - this is a standalone CLI command
+- ALWAYS Use with the `bash` tool.
 - ALWAYS use batch processing for analyzing multiple files
+- ALWAYS use relative paths with respect to $<workdir> when specifying file and directory paths. The bash tool is already in $<workdir>, there's no need to go to the folder using cd.
 
 ## When to Use This Tool
 
@@ -29,11 +32,13 @@ Use this tool for ANALYZING/UNDERSTANDING media content:
    - Any AI-powered content interpretation
 
 ## Trigger Phrases for Analysis
+
 - "What's in...", "Describe...", "Analyze...", "Explain..."
 - "What does this show?", "What can you see?"
 - "Extract from...", "Understand...", "Interpret..."
 
 ## When NOT to Use This Tool
+
 - When users just want to VIEW the media, not analyze its content
 - Simple Display Requests: "Show me the file", "Display this image", "Let me see .."
 
@@ -42,6 +47,7 @@ Use this tool for ANALYZING/UNDERSTANDING media content:
 The Multimodal Analyzer CLI supports two flexible input modes:
 
 ### Directory Path Mode (`--path`)
+
 Use `--path` to analyze files from directories or single files:
 
 ```bash
@@ -56,19 +62,20 @@ multimodal-analyzer --type image  --path ./dataset/ --recursive
 ```
 
 ### Explicit File List Mode (`--files`)
+
 Use `--files` to specify exact files from multiple locations:
 
 ```bash
 # Multiple files from different directories
 multimodal-analyzer --type image  \
-  --files /home/user/photo1.jpg \
-  --files /work/project/chart.png \
+  --files ./documents/photo1.jpg \
+  --files ./projects/chart.png \
   --files ./local/screenshot.jpg
 
 # Audio files from various locations
 multimodal-analyzer --type audio  \
   --files recording1.mp3 \
-  --files /meetings/call.wav \
+  --files ./meetings/call.wav \
   --audio-mode transcript
 ```
 
@@ -108,7 +115,7 @@ multimodal-analyzer --type image --model gpt-4o-mini --path ./dataset/ \
 multimodal-analyzer --type image --model gpt-4o-mini \
   --files ./screenshots/chart1.png \
   --files ./photos/diagram.jpg \
-  --files /tmp/analysis_image.png \
+  --files ./temp/analysis_image.png \
   --prompt "Compare these visuals" --word-count 200
 ```
 
@@ -139,7 +146,7 @@ multimodal-analyzer --type audio --model gpt-4o-mini --path podcast.wav \
 multimodal-analyzer --type audio --model whisper-1 \
   --files ./meetings/standup.mp3 \
   --files ./interviews/candidate1.wav \
-  --files /recordings/conference_call.m4a \
+  --files ./recordings/conference_call.m4a \
   --audio-mode transcript --output markdown --output-file transcripts.md
 ```
 
@@ -172,7 +179,7 @@ multimodal-analyzer --type video  --path tutorial.mp4 \
 multimodal-analyzer --type video  \
   --files ./project1/demo.mp4 \
   --files ./project2/presentation.avi \
-  --files /shared/training_video.mov \
+  --files ./shared/training_video.mov \
   --video-mode description --prompt "Focus on key features demonstrated" \
   --word-count 300 --output json --output-file video_summaries.json
 ```
@@ -184,4 +191,5 @@ multimodal-analyzer --type video  \
 Results are returned as an array of objects, one per analyzed file:
 
 ### Error Handling
+
 Failed analyses include error details

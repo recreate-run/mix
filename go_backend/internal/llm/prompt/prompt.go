@@ -13,31 +13,38 @@ import (
 	"mix/internal/logging"
 )
 
-func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string) string {
+func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string) (string, error) {
 	var basePrompt string
+	var err error
 
 	if agentName == config.AgentSub {
 		// Load task agent system prompt (uses same system.md as main agent)
-		basePrompt = LoadPromptWithStandardVars(ctx, "system", sessionVars)
+		basePrompt, err = LoadPromptWithStandardVars(ctx, "system", sessionVars)
+		if err != nil {
+			return "", fmt.Errorf("failed to load system prompt for sub agent: %w", err)
+		}
 	} else {
 		// Load main agent prompt with standard environment variables
-		basePrompt = LoadPromptWithStandardVars(ctx, "system", sessionVars)
+		basePrompt, err = LoadPromptWithStandardVars(ctx, "system", sessionVars)
+		if err != nil {
+			return "", fmt.Errorf("failed to load system prompt for main agent: %w", err)
+		}
 
 		if agentName == config.AgentMain {
 			// Add context from project-specific instruction files if they exist
 			contextContent, err := getContextFromPaths(ctx)
 			if err != nil {
 				logging.Error("Failed to load context files", "error", err)
-				return fmt.Sprintf("%s\n\n# Context Loading Error\nError loading project context files: %s", basePrompt, err.Error())
+				return fmt.Sprintf("%s\n\n# Context Loading Error\nError loading project context files: %s", basePrompt, err.Error()), nil
 			}
 			logging.Debug("Context content", "Context", contextContent)
 			if contextContent != "" {
-				return fmt.Sprintf("%s\n\n# Project-Specific Context\n Make sure to follow the instructions in the context below\n%s", basePrompt, contextContent)
+				return fmt.Sprintf("%s\n\n# Project-Specific Context\n Make sure to follow the instructions in the context below\n%s", basePrompt, contextContent), nil
 			}
 		}
 	}
 
-	return basePrompt
+	return basePrompt, nil
 }
 
 
