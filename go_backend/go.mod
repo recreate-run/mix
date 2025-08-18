@@ -24,7 +24,9 @@ require (
 
 require (
 	github.com/google/renameio/v2 v2.0.0 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mvdan/sh v2.6.4+incompatible // indirect
+	github.com/posthog/posthog-go v1.6.3 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	mvdan.cc/editorconfig v0.3.0 // indirect
 	mvdan.cc/sh/v3 v3.12.0 // indirect

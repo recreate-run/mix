@@ -43,8 +43,12 @@ impl SidecarManager {
             }
         };
 
-        println!("Starting sidecar '{}' with args: -c /Users/sarathmenon/Documents/startup/image_generation/mix --http-port 8088 --dangerously-skip-permissions -d", sidecar_name);
-        let command = sidecar_command.args(["-c", "/Users/sarathmenon/Documents/startup/image_generation/mix", "--http-port", "8088", "--dangerously-skip-permissions", "-d"]);
+        let current_dir = std::env::current_dir().unwrap_or_default();
+        let working_dir = current_dir.parent().unwrap_or(&current_dir).to_str().unwrap_or(".");
+        
+        println!("Starting sidecar '{}' with args: -c {} --http-port 8088 --dangerously-skip-permissions -d", 
+                sidecar_name, working_dir);
+        let command = sidecar_command.args(["-c", working_dir, "--http-port", "8088", "--dangerously-skip-permissions", "-d"]);
         match command.spawn() {
             Ok((mut rx, child)) => {
                 let child_id = child.pid();
