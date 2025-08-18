@@ -3,7 +3,6 @@ package prompt
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -13,28 +12,31 @@ import (
 	"mix/internal/llm/tools"
 )
 
-// LoadPrompt loads a prompt from filesystem markdown files
+// LoadPrompt loads a prompt from embedded filesystem markdown files
 func LoadPrompt(name string) string {
 	return LoadPromptWithVars(name, nil)
 }
 
-// LoadPromptWithVars loads a prompt from filesystem markdown files and replaces $<name> placeholders
-func LoadPromptWithVars(name string, vars map[string]string) string {
-	promptsDir, err := config.PromptsDirectory()
+// loadEmbeddedPrompt loads a prompt from the embedded filesystem
+func loadEmbeddedPrompt(name string) (string, error) {
+	embeddedFS := config.GetEmbeddedPrompts()
+	promptPath := filepath.Join("prompts", name+".md")
+	
+	content, err := embeddedFS.ReadFile(promptPath)
 	if err != nil {
-		return fmt.Sprintf("Error: failed to get prompts directory: %v", err)
+		return "", fmt.Errorf("failed to read embedded prompt file '%s': %w", promptPath, err)
 	}
 	
-	promptPath := filepath.Join(promptsDir, name+".md")
-	content, err := os.ReadFile(promptPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Sprintf("Prompt file not found: %s\n\nPlease ensure the prompts directory exists at: %s\nand contains the required prompt files, or use --prompts-dir to specify a different location", promptPath, promptsDir)
-		}
-		return fmt.Sprintf("Failed to read prompt file '%s': %v", promptPath, err)
-	}
+	return string(content), nil
+}
 
-	result := string(content)
+// LoadPromptWithVars loads a prompt from embedded filesystem only and replaces $<name> placeholders
+func LoadPromptWithVars(name string, vars map[string]string) string {
+	// Load from embedded filesystem only
+	result, err := loadEmbeddedPrompt(name)
+	if err != nil {
+		return fmt.Sprintf("Error: failed to load embedded prompt '%s': %v", name, err)
+	}
 
 	// Replace $<name> placeholders with values
 	if vars != nil {
@@ -83,11 +85,6 @@ func LoadPromptWithStandardVars(ctx context.Context, name string, customVars map
 // resolveMarkdownTemplates resolves {markdown:path} templates in content
 func resolveMarkdownTemplates(content string, vars map[string]string) string {
 	markdownRegex := regexp.MustCompile(`\{markdown:([^}]+)\}`)
-	
-	promptsDir, err := config.PromptsDirectory()
-	if err != nil {
-		return fmt.Sprintf("Error: failed to get prompts directory for markdown templates: %v", err)
-	}
 
 	return markdownRegex.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract the file path from the match
@@ -101,16 +98,15 @@ func resolveMarkdownTemplates(content string, vars map[string]string) string {
 			return fmt.Sprintf("Error: Empty path in markdown template: %s", match)
 		}
 
-		// Load file relative to prompts directory
-		promptPath := filepath.Join(promptsDir, relativePath)
-		fileContent, err := os.ReadFile(promptPath)
+		// Load from embedded filesystem only
+		embeddedFS := config.GetEmbeddedPrompts()
+		embeddedPath := filepath.Join("prompts", relativePath)
+		fileContent, err := embeddedFS.ReadFile(embeddedPath)
+		
 		if err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Sprintf("Markdown template file not found: %s\n\nPlease ensure the file exists in prompts directory: %s", relativePath, promptsDir)
-			}
-			return fmt.Sprintf("Failed to read markdown template file %s: %v", promptPath, err)
+			return fmt.Sprintf("Error: failed to load embedded markdown template '%s': %v", relativePath, err)
 		}
-
+		
 		result := string(fileContent)
 
 		// Apply variable substitution to included markdown file

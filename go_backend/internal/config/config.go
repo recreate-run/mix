@@ -2,6 +2,7 @@
 package config
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -16,6 +17,9 @@ import (
 
 	"github.com/spf13/viper"
 )
+
+//go:embed all:prompts
+var embeddedPrompts embed.FS
 
 // MCPType defines the type of MCP (Model Control Protocol) server.
 type MCPType string
@@ -98,6 +102,39 @@ var defaultContextPaths = []string{
 	"MIX.md",
 }
 
+// getDefaultConfig returns the hardcoded default configuration
+func getDefaultConfig() *Config {
+	return &Config{
+		Data: Data{
+			Directory: ".mix",
+		},
+		ContextPaths: []string{"MIX.md"},
+		Shell: ShellConfig{
+			Path: "",
+			Args: []string{"-l"},
+		},
+		Debug:           false,
+		SkipPermissions: false,
+		MCPServers:      make(map[string]MCPServer),
+		Providers: map[models.ModelProvider]Provider{
+			models.ProviderAnthropic: {
+				APIKey:   "",
+				Disabled: false,
+			},
+		},
+		Agents: map[AgentName]Agent{
+			AgentMain: {
+				Model:     "claude-4-sonnet",
+				MaxTokens: 4096,
+			},
+			AgentSub: {
+				Model:     "claude-4-sonnet",
+				MaxTokens: 2048,
+			},
+		},
+	}
+}
+
 // Global configuration instance
 var cfg *Config
 
@@ -115,6 +152,11 @@ func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) 
 
 	configureViper()
 	setDefaults(debug)
+
+	// Ensure config file exists in home directory
+	if err := ensureConfigFile(); err != nil {
+		return nil, fmt.Errorf("failed to initialize config file: %w", err)
+	}
 
 	// Read global config
 	if err := readConfig(viper.ReadInConfig()); err != nil {
@@ -161,10 +203,12 @@ func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) 
 
 	applyDefaultValues()
 	
-	// Ensure prompts directory exists with default files
-	if err := EnsurePromptsDirectory(); err != nil {
-		return cfg, fmt.Errorf("failed to initialize prompts directory: %w", err)
+	// Ensure embedded .mix directory structure is written to home directory
+	if err := ensureEmbeddedDataDirectory(); err != nil {
+		return cfg, fmt.Errorf("failed to initialize embedded data directory: %w", err)
 	}
+	
+	// Prompts directory no longer needed - all prompts are embedded
 	defaultLevel := slog.LevelInfo
 	if cfg.Debug {
 		defaultLevel = slog.LevelDebug
@@ -339,6 +383,60 @@ func readConfig(err error) error {
 	}
 
 	return fmt.Errorf("failed to read config: %w", err)
+}
+
+// writeEmbeddedResource and writeEmbeddedDirectory functions removed - no longer needed
+// as prompts are now loaded directly from embedded filesystem
+
+// ensureEmbeddedDataDirectory ensures an empty .mix directory exists in the home directory
+func ensureEmbeddedDataDirectory() error {
+	// Get home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Target .mix directory in home
+	targetMixDir := filepath.Join(homeDir, ".mix")
+
+	// Create empty .mix directory if it doesn't exist
+	if err := os.MkdirAll(targetMixDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create .mix directory: %w", err)
+	}
+
+	return nil
+}
+
+// ensureConfigFile creates a .mix.json file in the home directory if it doesn't exist.
+func ensureConfigFile() error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	configFile := filepath.Join(homeDir, fmt.Sprintf(".%s.json", appName))
+
+	// Check if config file already exists
+	if _, err := os.Stat(configFile); err == nil {
+		// File exists, nothing to do
+		return nil
+	} else if !os.IsNotExist(err) {
+		// Some other error occurred
+		return fmt.Errorf("failed to check config file: %w", err)
+	}
+
+	// File doesn't exist, create it with hardcoded default config
+	defaultCfg := getDefaultConfig()
+	configData, err := json.MarshalIndent(defaultCfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal default config: %w", err)
+	}
+
+	if err := os.WriteFile(configFile, configData, 0o644); err != nil {
+		return fmt.Errorf("failed to create config file %s: %w", configFile, err)
+	}
+
+	return nil
 }
 
 // mergeLocalConfig loads and merges configuration from the local directory.
@@ -596,6 +694,11 @@ func updateCfgFile(updateCfg func(config *Config)) error {
 // It's safe to call this function multiple times.
 func Get() *Config {
 	return cfg
+}
+
+// GetEmbeddedPrompts returns the embedded prompts filesystem
+func GetEmbeddedPrompts() embed.FS {
+	return embeddedPrompts
 }
 
 // LaunchDirectory returns the current launch directory from the configuration.

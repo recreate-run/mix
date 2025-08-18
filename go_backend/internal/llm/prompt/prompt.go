@@ -17,8 +17,8 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 	var basePrompt string
 
 	if agentName == config.AgentSub {
-		// Load task agent system prompt
-		basePrompt = LoadPromptWithStandardVars(ctx, "task_agent", sessionVars)
+		// Load task agent system prompt (uses same system.md as main agent)
+		basePrompt = LoadPromptWithStandardVars(ctx, "system", sessionVars)
 	} else {
 		// Load main agent prompt with standard environment variables
 		basePrompt = LoadPromptWithStandardVars(ctx, "system", sessionVars)

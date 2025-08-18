@@ -2,24 +2,20 @@ package tools
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"mix/internal/config"
 )
 
-// LoadToolDescription loads a tool description from filesystem tools directory
+// LoadToolDescription loads a tool description from embedded filesystem
 func LoadToolDescription(name string) string {
-	promptsDir, err := config.PromptsDirectory()
-	if err != nil {
-		return fmt.Sprintf("Error: failed to get prompts directory: %v", err)
-	}
+	embeddedFS := config.GetEmbeddedPrompts()
+	toolPath := filepath.Join("prompts", "tools", name+".md")
 	
-	toolPath := filepath.Join(promptsDir, "tools", name+".md")
-	content, err := os.ReadFile(toolPath)
+	content, err := embeddedFS.ReadFile(toolPath)
 	if err != nil {
-		return fmt.Sprintf("Tool description not found: %s\n\nPlease ensure the file exists in tools directory: %s", name+".md", filepath.Join(promptsDir, "tools"))
+		return fmt.Sprintf("Error: failed to load embedded tool description '%s': %v", name, err)
 	}
 
 	return strings.TrimSpace(string(content))
