@@ -612,22 +612,19 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 						sseStream={sseStream}
 						setUserMessageRef={setUserMessageRef}
 					/>
-
-					{/* Attachment Preview Section */}
-					<div className="z-20 mx-auto mb-0 w-full">
-						<AttachmentPreview
-							attachments={attachments}
-							text={text}
-							referenceMap={referenceMap}
-							onTextChange={setText}
-						/>
-					</div>
 				</div>
 			</div>
 
 			{/* AI Input Section - Fixed at bottom with sidebar awareness */}
 			<div className="fixed bottom-0 left-0 right-0 z-50 px-2 pl-[calc(var(--sidebar-width,0px)+0.5rem)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-[''] bg-gradient-to-t from-background/95 to-transparent ">
 				<div className="relative border-none max-w-5xl mx-auto pb-4">
+					<AttachmentPreview
+						attachments={attachments}
+						text={text}
+						referenceMap={referenceMap}
+						onTextChange={setText}
+					/>
+
 					<AIInput
 						className="border bg-stone-200/60 dark:bg-stone-700/60 backdrop-blur-xl"
 						onSubmit={handleSubmit}
