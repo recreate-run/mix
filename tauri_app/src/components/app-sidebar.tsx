@@ -13,7 +13,7 @@ import {
 	SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import { useSelectSession, useSessionsList } from "@/hooks/useSessionsList";
-import { useCreateSession } from "@/hooks/useSession";
+import { useCreateSession, useActiveSession } from "@/hooks/useSession";
 import { SessionItem } from "@/components/session-item";
 import { Link } from "@tanstack/react-router";
 import { Home } from "lucide-react";
@@ -27,6 +27,7 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 	const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
 	const selectSessionMutation = useSelectSession();
 	const createSession = useCreateSession();
+	const { data: currentSession } = useActiveSession(sessionId || "");
 
 	// Sort sessions chronologically (most recent first)
 	const sortedSessions = sessions.sort(
@@ -47,7 +48,14 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 
 	const handleNewSession = async () => {
 		try {
-			const newSession = await createSession.mutateAsync({ title: "Chat Session" });
+			// NOTE: currentSession?.workingDirectory should always be defined here because:
+			// 1. New users must select a project before accessing chat (enforced by routing)
+			// 2. Backend now requires working directory for all session creation
+			// 3. If currentSession is null/undefined, this will fail gracefully with backend validation
+			const newSession = await createSession.mutateAsync({ 
+				title: "Chat Session",
+				workingDirectory: currentSession?.workingDirectory,
+			});
 			navigate({
 				to: "/$sessionId",
 				params: { sessionId: newSession.id },

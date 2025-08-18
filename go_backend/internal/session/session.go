@@ -46,10 +46,11 @@ type service struct {
 }
 
 func (s *service) Create(ctx context.Context, title string, workingDirectory string) (Session, error) {
-	var workingDirValue sql.NullString
-	if workingDirectory != "" {
-		workingDirValue = sql.NullString{String: workingDirectory, Valid: true}
+	if workingDirectory == "" {
+		return Session{}, fmt.Errorf("working directory is required for session creation")
 	}
+	
+	workingDirValue := sql.NullString{String: workingDirectory, Valid: true}
 
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:               uuid.New().String(),
@@ -62,39 +63,37 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 	session := s.fromDBItem(dbSession)
 
 	// Create input directory structure in session's working directory
-	if workingDirectory != "" {
-		inputDir := filepath.Join(workingDirectory, "input")
-		if err := os.MkdirAll(inputDir, 0o755); err != nil {
-			return Session{}, fmt.Errorf("failed to create input directory: %w", err)
-		}
+	inputDir := filepath.Join(workingDirectory, "input")
+	if err := os.MkdirAll(inputDir, 0o755); err != nil {
+		return Session{}, fmt.Errorf("failed to create input directory: %w", err)
+	}
 
-		inputSubdirs := []string{"images", "videos", "audios", "text"}
-		for _, subdir := range inputSubdirs {
-			subdirPath := filepath.Join(inputDir, subdir)
-			if err := os.MkdirAll(subdirPath, 0o755); err != nil {
-				return Session{}, fmt.Errorf("failed to create input subdirectory %s: %w", subdir, err)
-			}
+	inputSubdirs := []string{"images", "videos", "audios", "text"}
+	for _, subdir := range inputSubdirs {
+		subdirPath := filepath.Join(inputDir, subdir)
+		if err := os.MkdirAll(subdirPath, 0o755); err != nil {
+			return Session{}, fmt.Errorf("failed to create input subdirectory %s: %w", subdir, err)
 		}
+	}
 
-		// Create output directory for Remotion videos
-		outputDir := filepath.Join(workingDirectory, "output")
-		if err := os.MkdirAll(outputDir, 0o755); err != nil {
-			return Session{}, fmt.Errorf("failed to create output directory: %w", err)
-		}
+	// Create output directory for Remotion videos
+	outputDir := filepath.Join(workingDirectory, "output")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return Session{}, fmt.Errorf("failed to create output directory: %w", err)
+	}
 
-		// Setup Remotion project by cloning template repository
-		remotionProjectDir := filepath.Join(workingDirectory, "remotion_project")
-		if err := s.setupRemotionProject(remotionProjectDir); err != nil {
-			return Session{}, fmt.Errorf("failed to setup Remotion project: %w", err)
-		}
+	// Setup Remotion project by cloning template repository
+	remotionProjectDir := filepath.Join(workingDirectory, "remotion_project")
+	if err := s.setupRemotionProject(remotionProjectDir); err != nil {
+		return Session{}, fmt.Errorf("failed to setup Remotion project: %w", err)
+	}
 
-		// Create MIX.md file if it doesn't exist
-		mixFilePath := filepath.Join(workingDirectory, "MIX.md")
-		if _, err := os.Stat(mixFilePath); os.IsNotExist(err) {
-			mixContent := "Sample MIX.md"
-			if err := os.WriteFile(mixFilePath, []byte(mixContent), 0o644); err != nil {
-				return Session{}, fmt.Errorf("failed to create MIX.md file: %w", err)
-			}
+	// Create MIX.md file if it doesn't exist
+	mixFilePath := filepath.Join(workingDirectory, "MIX.md")
+	if _, err := os.Stat(mixFilePath); os.IsNotExist(err) {
+		mixContent := "Sample MIX.md"
+		if err := os.WriteFile(mixFilePath, []byte(mixContent), 0o644); err != nil {
+			return Session{}, fmt.Errorf("failed to create MIX.md file: %w", err)
 		}
 	}
 
