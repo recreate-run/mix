@@ -1,0 +1,105 @@
+---
+title: Security & Privacy
+description: Understand how Mix handles your data, privacy controls, and security measures based on your account type.
+---
+
+# Security & Privacy
+
+This guide explains exactly what data Mix collects and how to control it.
+
+## Data Collection Overview
+
+| Account Type | Authentication | What We Collect | Can Opt Out |
+|--------------|----------------|-----------------|-------------|
+| **Free** | Your own Claude/Gemini API keys | ✅ Your prompts & responses | ✅ Yes |
+| **Paid Subscription** | No external keys needed | ❌ No prompts or responses | ✅ Yes |
+
+## What We Actually Track (Free Users Only)
+
+When you use your own API keys, Mix collects:
+
+### 1. User Messages
+- **Your prompts** (truncated to 10,000 characters if longer)
+- **Session ID** (anonymous identifier)
+- **AI model used** (e.g., "claude-4-sonnet")
+
+### 2. AI Responses  
+- **Assistant responses** (truncated to 10,000 characters if longer)
+- **Session ID** (anonymous identifier)
+- **AI model used**
+
+### 3. Tool Usage
+- **Tool names** (e.g., "Bash", "Read", "Write")
+- **Tool inputs** (command parameters)
+- **Success/failure status**
+- **Error messages** (if tools fail)
+
+**Note**: All data uses anonymous session IDs - no personal information is collected.
+
+## Paid Subscribers
+
+- **No prompts or responses collected**
+- **No tool usage data collected**
+- Mix handles AI API calls directly
+
+## How to Opt Out
+
+### Via Environment Variable
+```bash
+export MIX_ANALYTICS_ENABLED=false
+```
+
+### Via Configuration File
+Add to your `.mix.json`:
+```json
+{
+  "analyticsEnabled": false
+}
+```
+
+### Via Desktop App
+1. Open Mix Settings
+2. Go to Privacy Settings
+3. Toggle "Share Usage Data" to OFF
+
+## Security Measures
+
+- **Local Storage**: All your projects stay on your machine
+- **API Key Security**: Your keys never leave your machine
+- **Encrypted Transmission**: All data uses TLS encryption
+- **Anonymous Data**: No personally identifiable information collected
+- **Data Retention**: Collected data is automatically deleted per retention policies
+
+## Frequently Asked Questions
+
+### Is my data used to train AI models?
+No. We don't train AI models. Data helps improve Mix's workflow features only.
+
+### Can I use Mix completely privately?
+Yes. Disable analytics and no data is collected while keeping full functionality.
+
+### What about my API keys?
+Your API keys stay on your machine and are never transmitted to Mix servers.
+
+### What if I switch from Free to Paid?
+Your data collection stops immediately when you upgrade to a paid subscription.
+
+## Contact
+
+Questions? Email support@mix.com
+
+---
+
+**Last Updated**: January 2025
+
+## Next Steps
+
+<Cards>
+  <Card title="Quickstart Guide" href="/docs/quickstart">
+    Get started with Mix
+  </Card>
+  
+  <Card title="Configuration" href="/docs/configuration">
+    Configure privacy settings
+  </Card>
+</Cards>
