@@ -282,9 +282,9 @@ pub fn run() {
             let startup_manager = sidecar_manager.clone();
             let startup_handle = app.handle().clone();
 
-            // Check if sidecar should be auto-started (defaults to true for backward compatibility)
+            // Check if sidecar should be auto-started (defaults to false)
             let sidecar_enabled = env::var("SIDECAR_ENABLED")
-                .unwrap_or_else(|_| "true".to_string())
+                .unwrap_or_else(|_| "false".to_string())
                 .to_lowercase() == "true";
 
             if sidecar_enabled {

@@ -1,4 +1,3 @@
-use std::env;
 use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 use tauri_plugin_shell::{
@@ -41,8 +40,8 @@ impl SidecarManager {
         // Clear any previous error
         *self.error_message.lock().unwrap() = None;
 
-        // Get sidecar name from environment variable (defaults to "mix")
-        let sidecar_name = env::var("SIDECAR_NAME").unwrap_or_else(|_| "mix".to_string());
+        // Use hardcoded sidecar name
+        let sidecar_name = "mix";
 
         // Create sidecar command
         let sidecar_command = match app.shell().sidecar(&sidecar_name) {
