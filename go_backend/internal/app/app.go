@@ -35,29 +35,31 @@ type App struct {
 func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	q := db.New(conn)
 	sessions := session.NewService(q)
-	
+
 	// Create base message service
 	baseMessageService := message.NewService(q)
-	
+
 	files := history.NewService(q, conn)
-	
-	// Initialize analytics service with PostHog API key from env
+
+	// Initialize analytics service with PostHog API key from env or fallback
 	posthogAPIKey := os.Getenv("POSTHOG_API_KEY")
+	if posthogAPIKey == "" {
+		// Fallback to hardcoded key if env var not set
+		posthogAPIKey = "phc_9QLQI8n19fRg1vsqvYRaQVXFRpMRXTGQK4i2DaYqWRU"
+		logging.Info("Using fallback PostHog API key")
+	}
+
 	cfg := config.Get()
 	analyticsEnabled := cfg.AnalyticsEnabled
-	
-	if posthogAPIKey == "" || !analyticsEnabled {
-		if posthogAPIKey == "" {
-			logging.Info("PostHog analytics disabled: POSTHOG_API_KEY env var not set")
-		} else if !analyticsEnabled {
-			logging.Info("PostHog analytics disabled: analyticsEnabled config set to false")
-		}
+
+	if !analyticsEnabled {
+		logging.Info("PostHog analytics disabled: analyticsEnabled config set to false")
 		posthogAPIKey = "" // Empty API key disables analytics
 	} else {
 		logging.Info("PostHog analytics enabled")
 	}
 	analyticsService := analytics.NewAnalyticsService(posthogAPIKey)
-	
+
 	// Wrap message service with tracking
 	messages := message.NewTrackingService(baseMessageService, analyticsService)
 
@@ -119,7 +121,7 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	if err != nil {
 		return fmt.Errorf("failed to get launch directory: %w", err)
 	}
-	
+
 	sess, err := a.Sessions.Create(ctx, title, launchDir)
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
@@ -196,13 +198,13 @@ func (app *App) Shutdown() {
 	if app.CoderAgent != nil {
 		app.CoderAgent.Shutdown()
 	}
-	
+
 	// Clean up analytics service
 	if app.Analytics != nil {
 		if err := app.Analytics.Close(); err != nil {
 			logging.Error("Failed to close analytics service: %v", err)
 		}
 	}
-	
+
 	logging.Info("Application shutdown completed")
 }
