@@ -36,7 +36,7 @@ Mix uses a **global → local** configuration hierarchy:
 ## Models
 
 - Claude Sonnet 4 as the default model for the agent backbone. Other models might work but they're untested. We recommend authenticating with your claude code code account ($20 plan is enough to get started). You can also use it with an API key.
-- Gemini 2.5 FLashis used via the multimodal analyzer tool, to analyse images,videos and audio. You can authenticate via your google acount (like Gemini CLI) or use your gemini API key
+- Gemini 2.5 flash is used via the multimodal analyzer tool, to analyse images,videos and audio. Please add the API key to the .env
 
 **Important:** API keys must always come from environment variables, never store them in configuration files. The system automatically detects available providers from environment variables and creates the necessary provider configurations.
 
