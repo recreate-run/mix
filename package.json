@@ -3,7 +3,8 @@
 	"private": true,
 	"workspaces": [
 		"tauri_app",
-		"packages/*"
+		"packages/*",
+		"docs"
 	],
 	"scripts": {
 		"dev": "ENV=development",
