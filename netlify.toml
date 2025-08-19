@@ -1,0 +1,8 @@
+[[redirects]]
+from = "/*"
+to = "/"
+status = 200
+
+
+[dev] 
+targetPort = 5173
