@@ -1,6 +1,3 @@
-[build]
-  publish = "docs/out"
-  command = "cd docs && npm run build"
 
 [[redirects]]
   from = "/docs/*"
