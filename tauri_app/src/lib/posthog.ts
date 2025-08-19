@@ -6,6 +6,16 @@ import posthog from 'posthog-js';
  */
 export function initPostHog() {
   try {
+    // Check if analytics are enabled from environment variable
+    const analyticsEnabled = 
+      import.meta.env.VITE_ANALYTICS_ENABLED !== 'false' && 
+      import.meta.env.MIX_ANALYTICS_ENABLED !== 'false';
+    
+    if (!analyticsEnabled) {
+      console.log('Analytics disabled via environment variable');
+      return;
+    }
+
     // Generate a unique identifier for this specific app installation
     const clientId = generateClientId();
 

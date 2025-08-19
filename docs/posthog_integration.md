@@ -13,7 +13,27 @@ Analytics tracking is configured via environment variables:
 POSTHOG_API_KEY=your_posthog_api_key
 ```
 
-If the API key is not provided, analytics tracking will be disabled.
+3. You can also explicitly enable or disable analytics tracking regardless of the API key:
+
+```bash
+# Backend configuration (Go)
+MIX_ANALYTICS_ENABLED=false  # Disable analytics
+
+# Frontend configuration (Tauri)
+VITE_ANALYTICS_ENABLED=false  # Disable analytics
+```
+
+Analytics tracking will be disabled if either:
+- The PostHog API key is not provided, or
+- The analytics is explicitly disabled via environment variables
+
+You can also configure analytics in the `.mix.json` configuration file:
+
+```json
+{
+  "analyticsEnabled": false  // Disable analytics
+}
+```
 
 ## Events Tracked
 

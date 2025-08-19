@@ -936,13 +936,44 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 		}
 	}
 
-	// Set the session as current
-	err := h.app.SetCurrentSession(params.SessionID)
-	if err != nil {
+	// Check authentication status before processing the message using the centralized function
+	authenticated, _, authErr := provider.IsAuthenticated()
+	if authErr != nil {
 		return &QueryResponse{
 			Error: &QueryError{
 				Code:    -32000,
-				Message: "Failed to set session: " + err.Error(),
+				Message: fmt.Sprintf("Error checking authentication: %s", authErr.Error()),
+			},
+			ID: req.ID,
+		}
+	}
+	
+	// If not authenticated, show a clear error message
+	if !authenticated {
+		helpfulMsg := "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
+			"To login:\n" +
+			"1. Visit https://console.anthropic.com/settings/keys\n" +
+			"2. Create an API key\n" +
+			"3. Use the /login command to authenticate"
+		
+		return &QueryResponse{
+			Result: map[string]interface{}{
+				"id":       "system-auth-prompt",
+				"role":     "assistant",
+				"content":  params.Content,
+				"response": helpfulMsg,
+			},
+			ID: req.ID,
+		}
+	}
+	
+	// Set the session as current
+	setSessionErr := h.app.SetCurrentSession(params.SessionID)
+	if setSessionErr != nil {
+		return &QueryResponse{
+			Error: &QueryError{
+				Code:    -32000,
+				Message: "Failed to set session: " + setSessionErr.Error(),
 			},
 			ID: req.ID,
 		}

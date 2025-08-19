@@ -591,15 +591,23 @@ func createAuthStatusHandler() func(ctx context.Context, args string) (string, e
 			return returnError("status", fmt.Sprintf("Error checking credentials: %v", err))
 		}
 
+		// Check if API key is set in environment
+		hasAPIKey := os.Getenv("ANTHROPIC_API_KEY") != ""
+
 		response := AuthStatusResponse{
 			Type:     "auth_status",
 			Provider: "anthropic",
 		}
 
+		// OAuth takes precedence over API key
 		if creds != nil && !creds.IsTokenExpired() {
 			response.Status = "authenticated"
 			response.ExpiresIn = (creds.ExpiresAt - time.Now().Unix()) / 60 // minutes
-			response.Message = "✅ Authenticated with Claude Code"
+			response.Message = "✅ Authenticated with Claude Code OAuth"
+		} else if hasAPIKey {
+			response.Status = "authenticated"
+			response.ExpiresIn = 0 // API keys don't expire
+			response.Message = "✅ Authenticated with Anthropic API Key"
 		} else {
 			response.Status = "not_authenticated"
 			response.ExpiresIn = 0
@@ -746,9 +754,15 @@ func createLogoutHandler() func(ctx context.Context, args string) (string, error
 			return returnError("logout", fmt.Sprintf("Failed to initialize credential storage: %v", err))
 		}
 
-		// Check if authenticated
+		// Check if authenticated with OAuth
 		creds, err := storage.GetOAuthCredentials("anthropic")
-		if err != nil || creds == nil {
+		hasOAuth := err == nil && creds != nil
+
+		// Check if API key is set in environment
+		hasAPIKey := os.Getenv("ANTHROPIC_API_KEY") != ""
+
+		// If neither authentication method is active, we're already logged out
+		if !hasOAuth && !hasAPIKey {
 			response := AuthStatusResponse{
 				Type:     "auth_status",
 				Status:   "not_authenticated",
@@ -759,10 +773,17 @@ func createLogoutHandler() func(ctx context.Context, args string) (string, error
 			return string(jsonData), nil
 		}
 
-		// Clear credentials (logout)
-		err = storage.ClearOAuthCredentials("anthropic")
-		if err != nil {
-			return returnError("logout", fmt.Sprintf("Failed to clear credentials: %v", err))
+		// Clear OAuth credentials if present
+		if hasOAuth {
+			err = storage.ClearOAuthCredentials("anthropic")
+			if err != nil {
+				return returnError("logout", fmt.Sprintf("Failed to clear credentials: %v", err))
+			}
+		}
+
+		// Clear API key from environment if present
+		if hasAPIKey {
+			os.Unsetenv("ANTHROPIC_API_KEY")
 		}
 
 		response := AuthStatusResponse{

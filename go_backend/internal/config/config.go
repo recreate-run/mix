@@ -87,6 +87,7 @@ type Config struct {
 	ContextPaths    []string                          `json:"contextPaths,omitempty"`
 	Shell           ShellConfig                       `json:"shell,omitempty"`
 	SkipPermissions bool                              `json:"skipPermissions,omitempty"`
+	AnalyticsEnabled bool                             `json:"analyticsEnabled,omitempty"`
 }
 
 // Application constants
@@ -132,6 +133,7 @@ func getDefaultConfig() *Config {
 				MaxTokens: 2048,
 			},
 		},
+		AnalyticsEnabled: true, // Default to enabled for backward compatibility
 	}
 }
 
@@ -313,6 +315,14 @@ func setDefaults(debug bool) {
 	}
 	viper.SetDefault("shell.path", shellPath)
 	viper.SetDefault("shell.args", []string{"-l"})
+
+	// Check for analytics enabled flag from environment
+	analyticsEnabled := os.Getenv("MIX_ANALYTICS_ENABLED")
+	if analyticsEnabled != "" {
+		viper.SetDefault("analyticsEnabled", analyticsEnabled == "true" || analyticsEnabled == "1")
+	} else {
+		viper.SetDefault("analyticsEnabled", true)  // Default to true for backward compatibility
+	}
 
 	if debug {
 		viper.SetDefault("debug", true)

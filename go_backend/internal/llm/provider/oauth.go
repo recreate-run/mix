@@ -678,6 +678,31 @@ func (cs *CredentialStorage) GetOpenAICredentials(provider string) (*OpenAICrede
 	return &cred, nil
 }
 
+// IsAuthenticated checks if there are valid authentication credentials available
+func IsAuthenticated() (bool, string, error) {
+	// Check API key from environment
+	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
+		return true, "API Key", nil
+	}
+	
+	// Check OAuth credentials
+	storage, err := NewCredentialStorage()
+	if err != nil {
+		return false, "", fmt.Errorf("failed to initialize credential storage: %w", err)
+	}
+	
+	creds, err := storage.GetOAuthCredentials("anthropic")
+	if err != nil {
+		return false, "", fmt.Errorf("error checking OAuth credentials: %w", err)
+	}
+	
+	if creds != nil && !creds.IsTokenExpired() {
+		return true, "OAuth", nil
+	}
+	
+	return false, "", nil
+}
+
 // RefreshAccessToken refreshes an expired access token
 func RefreshAccessToken(credentials *OAuthCredentials) (*OAuthCredentials, error) {
 	if credentials.RefreshToken == "" {

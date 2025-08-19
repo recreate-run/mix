@@ -43,8 +43,16 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	
 	// Initialize analytics service with PostHog API key from env
 	posthogAPIKey := os.Getenv("POSTHOG_API_KEY")
-	if posthogAPIKey == "" {
-		logging.Info("PostHog analytics disabled: POSTHOG_API_KEY env var not set")
+	cfg := config.Get()
+	analyticsEnabled := cfg.AnalyticsEnabled
+	
+	if posthogAPIKey == "" || !analyticsEnabled {
+		if posthogAPIKey == "" {
+			logging.Info("PostHog analytics disabled: POSTHOG_API_KEY env var not set")
+		} else if !analyticsEnabled {
+			logging.Info("PostHog analytics disabled: analyticsEnabled config set to false")
+		}
+		posthogAPIKey = "" // Empty API key disables analytics
 	} else {
 		logging.Info("PostHog analytics enabled")
 	}

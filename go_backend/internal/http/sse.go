@@ -15,6 +15,7 @@ import (
 	"mix/internal/commands"
 	"mix/internal/fileutil"
 	"mix/internal/llm/agent"
+	"mix/internal/llm/provider"
 	"mix/internal/pubsub"
 )
 
@@ -271,6 +272,31 @@ func handleShellCommand(ctx context.Context, w http.ResponseWriter, flusher http
 
 // handleRegularMessage processes regular messages through the agent
 func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, flusher http.Flusher, sessionID, text string, planMode bool) error {
+	// Check authentication status before processing the message using the centralized function
+	authenticated, _, authErr := provider.IsAuthenticated()
+	if authErr != nil {
+		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Error checking authentication: %s", authErr.Error())})
+		flusher.Flush()
+		return nil
+	}
+	
+	// If not authenticated, show a clear error message
+	if !authenticated {
+		helpfulMsg := "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
+			"To login:\n" +
+			"1. Visit https://console.anthropic.com/settings/keys\n" +
+			"2. Create an API key\n" +
+			"3. Use the /login command to authenticate"
+		
+		WriteSSE(w, "error", ErrorEvent{
+			Error: helpfulMsg,
+			Type: "authentication_error",
+		})
+		flusher.Flush()
+		return nil
+	}
+	
+	// If authenticated, proceed with normal message processing
 	events, err := handler.GetApp().CoderAgent.RunWithPlanMode(ctx, sessionID, text, planMode)
 	if err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())})
