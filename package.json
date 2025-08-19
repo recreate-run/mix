@@ -1,16 +1,16 @@
 {
-  "name": "mix-monorepo",
-  "private": true,
-  "workspaces": [
-    "tauri_app",
-    "packages/*"
-  ],
-  "scripts": {
-    "dev": "ENV=development ./scripts/shoreman.sh",
-    "build": "npm run build --workspaces",
-    "clean": "npm run clean --workspaces"
-  },
-  "devDependencies": {
-    "typescript": "^5.6.2"
-  }
+	"name": "mix-monorepo",
+	"private": true,
+	"workspaces": [
+		"tauri_app",
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "ENV=development",
+		"build": "npm run build --workspaces",
+		"clean": "npm run clean --workspaces"
+	},
+	"devDependencies": {
+		"typescript": "^5.6.2"
+	}
 }

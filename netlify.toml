@@ -1,8 +1,8 @@
-
 [[redirects]]
-  from = "/docs/*"
-  to = "/docs/404"
-  status = 404
+from = "/*"
+to = "/"
+status = 200
+
 
 [dev] 
 targetPort = 5173
