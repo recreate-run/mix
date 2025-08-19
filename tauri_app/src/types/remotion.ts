@@ -8,20 +8,22 @@ export interface VideoConfig {
 
 export interface VideoElement {
   type: string;
-  content?: string;
-  props: Record<string, any>;
+  content: string;
+  from?: number;
+  durationInFrames?: number;
+  position?: { x: number; y: number };
+  style?: {
+    fontSize?: number;
+    color?: string;
+    backgroundColor?: string;
+  };
   animation?: {
-    type: string;
+    type: 'fadeIn' | 'fadeOut' | 'slideIn' | 'slideOut' | 'typing';
     duration: number;
   };
 }
 
 export interface RemotionVideoConfig {
-  composition: {
-    width: number;
-    height: number;
-    durationInFrames: number;
-    fps: number;
-  };
+  composition: VideoConfig;
   elements: VideoElement[];
 }
