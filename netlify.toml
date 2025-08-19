@@ -1,8 +1,11 @@
-[[redirects]]
-from = "/*"
-to = "/"
-status = 200
+[build]
+  publish = "docs/out"
+  command = "cd docs && npm run build"
 
+[[redirects]]
+  from = "/docs/*"
+  to = "/docs/404"
+  status = 404
 
 [dev] 
 targetPort = 5173
