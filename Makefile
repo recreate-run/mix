@@ -92,16 +92,9 @@ install:
 		fi; \
 	fi
 	
-	# Install multimodal-analyzer if not present
-	@if [ ! -d "tools/multimodal-analyzer" ]; then \
-		echo "📦 Installing multimodal-analyzer..."; \
-		mkdir -p tools; \
-		cd tools && git clone https://github.com/sarath-menon/multimodal-analyzer.git; \
-		cd multimodal-analyzer && uv sync; \
-		echo "✅ multimodal-analyzer installed to tools/multimodal-analyzer/"; \
-	else \
-		echo "✅ multimodal-analyzer already installed"; \
-	fi
+	# Install tools
+	@echo "Installing tools..."
+	@uv tool install multimodal-analyzer
 	
 	@echo "✅ System dependencies installed!"
 

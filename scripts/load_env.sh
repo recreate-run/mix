@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Set up Go binary path
+if command -v go >/dev/null 2>&1; then
+  GOPATH_BIN="$(go env GOPATH)/bin"
+  if [[ ":$PATH:" != *":$GOPATH_BIN:"* ]]; then
+    export PATH="$GOPATH_BIN:$PATH"
+    echo "Added Go binaries to PATH: $GOPATH_BIN"
+  fi
+fi
+
 # Load environment variables from .env file
 if [ -f .env ]; then
   echo "Loading environment variables from .env file"
