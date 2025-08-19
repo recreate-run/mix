@@ -60,7 +60,6 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 
       if (result.status === 'success') {
         setShowSuccess(true);
-        setTimeout(() => window.location.reload(), 2000);
       } else if (result.step === 'manual_fallback') {
         setAuthMode('apikey');
       }
@@ -128,7 +127,7 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
         <CardContent className="p-4">
           <div className="flex items-center gap-2 text-green-600">
             <CheckCircle className="h-4 w-4" />
-            <span>✅ Authentication successful! Reloading...</span>
+            <span>✅ Authentication successful!</span>
           </div>
         </CardContent>
       </Card>
@@ -145,7 +144,7 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-4 w-4" />
-              <span>✅ Authentication successful! Reloading...</span>
+              <span>✅ Authentication successful!</span>
             </div>
           </CardContent>
         </Card>
@@ -159,21 +158,23 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 
           {loginData.authUrl && loginData.status === 'pending' && (
             <>
-              <div className="flex gap-2">
-                <Button
-                  variant={authMode === 'code' ? 'default' : 'outline'}
-                  onClick={() => setAuthMode('code')}
-                  size="sm"
-                >
-                  OAuth
-                </Button>
-                <Button
-                  variant={authMode === 'apikey' ? 'default' : 'outline'}
-                  onClick={() => setAuthMode('apikey')}
-                  size="sm"
-                >
-                  API Key
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Button
+                    variant={authMode === 'code' ? 'default' : 'outline'}
+                    onClick={() => setAuthMode('code')}
+                    size="sm"
+                  >
+                    OAuth
+                  </Button>
+                  <Button
+                    variant={authMode === 'apikey' ? 'default' : 'outline'}
+                    onClick={() => setAuthMode('apikey')}
+                    size="sm"
+                  >
+                    API Key
+                  </Button>
+                </div>
               </div>
 
               {authMode === 'code' ? (

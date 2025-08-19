@@ -334,15 +334,8 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 			if strings.Contains(err.Error(), "401") {
 				// Check if using placeholder auth (indicating no real auth provided)
 				if !a.options.useOAuth && a.providerOptions.apiKey == "" {
-					// Return a special error message instructing the user to authenticate
-					return &ProviderResponse{
-						Content: "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
-							"To login:\n" +
-							"1. Visit https://console.anthropic.com/settings/keys\n" +
-							"2. Create an API key\n" +
-							"3. Use the /login command to authenticate",
-						Usage: TokenUsage{},
-					}, nil
+					// Return a proper authentication error that will be handled by the error path
+					return nil, errors.New("authentication_error: Authentication required. Please use /login command to authenticate.")
 				}
 
 				// Try OAuth token refresh if available
@@ -448,37 +441,15 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 	
 	// Handle the case where no authentication is provided
 	if !a.options.useOAuth && a.providerOptions.apiKey == "" {
-		// Send authentication instructions
+		// Send authentication error event instead of content
 		go func() {
-			// Send content start
-			eventChan <- ProviderEvent{Type: EventContentStart}
+			// Create the authentication error message
+			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate."
 			
-			// Send authentication message
-			authMessage := "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
-				"To login:\n" +
-				"1. Visit https://console.anthropic.com/settings/keys\n" +
-				"2. Create an API key\n" +
-				"3. Use the /login command to authenticate"
-			
-			// Send content delta in chunks to simulate streaming
-			for _, chunk := range strings.Split(authMessage, " ") {
-				eventChan <- ProviderEvent{
-					Type:    EventContentDelta,
-					Content: chunk + " ",
-				}
-				time.Sleep(20 * time.Millisecond)
-			}
-			
-			// Send content stop
-			eventChan <- ProviderEvent{Type: EventContentStop}
-			
-			// Send complete event
+			// Send error event that will be properly handled by error handlers
 			eventChan <- ProviderEvent{
-				Type: EventComplete,
-				Response: &ProviderResponse{
-					Content: authMessage,
-					Usage:   TokenUsage{},
-				},
+				Type:  EventError,
+				Error: errors.New(authErrMsg),
 			}
 			
 			close(eventChan)
