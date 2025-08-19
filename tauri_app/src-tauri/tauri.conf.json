@@ -30,7 +30,7 @@
   "bundle": {
     "active": true,
     "targets": ["app"],
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -50,5 +50,12 @@
       "exceptionDomain": null
     }
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU3NUU5OUUzQUEyQzEyMDQKUldRRUVpeXE0NWxlVjcxRlFWNkt1cGNRWkJtQTJHR1RQNUowaktCS3RFYnJ5WEJsaEJ0ZzRSYVMK",
+      "endpoints": [
+        "https://api.github.com/repos/sarath-menon/mix/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }
