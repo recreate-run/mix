@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react';
-import { getParentPath } from '@/stores/attachmentSlice';
 import { useBoundStore } from '@/stores';
+import { getParentPath } from '@/stores/attachmentSlice';
 import { ALL_MEDIA_EXTENSIONS } from '@/utils/fileTypes';
 import { type MediaItem, useFileSystem } from './useFileSystem';
 
@@ -133,7 +133,7 @@ export const useFileReference = (
 
   const handleSelection = async (selectedFile?: MediaItem) => {
     const file = selectedFile || files[state.selected];
-    if (!file || !file.path) return;
+    if (!(file && file.path)) return;
 
     const words = text.split(' ');
     // Only add "../" if file path contains subdirectories
@@ -145,7 +145,9 @@ export const useFileReference = (
 
     // Add file or folder to attachment store based on type
     if (file.isDirectory) {
-      const { createFolderAttachment } = await import('@/stores/attachmentSlice');
+      const { createFolderAttachment } = await import(
+        '@/stores/attachmentSlice'
+      );
       const folderAttachment = await createFolderAttachment(file.path);
       addAttachment(folderAttachment);
     } else {
@@ -173,7 +175,7 @@ export const useFileReference = (
 
   const enterFolder = async (folder: MediaItem) => {
     if (!folder.path) return;
-    
+
     startDebouncedLoading();
     try {
       const contents = await fetchDirectoryContents(folder.path);

@@ -72,7 +72,11 @@ const countMediaFilesInFolder = async (
 };
 
 export const createAttachmentSlice = (
-  set: (partial: (state: AttachmentSlice) => Partial<AttachmentSlice> | AttachmentSlice) => void,
+  set: (
+    partial: (
+      state: AttachmentSlice
+    ) => Partial<AttachmentSlice> | AttachmentSlice
+  ) => void,
   get: () => AttachmentSlice
 ): AttachmentSlice => ({
   attachments: [],
@@ -82,7 +86,11 @@ export const createAttachmentSlice = (
     const state = get();
 
     // Skip if attachment already exists
-    if (state.attachments.some((existing: Attachment) => existing.id === attachment.id)) {
+    if (
+      state.attachments.some(
+        (existing: Attachment) => existing.id === attachment.id
+      )
+    ) {
       return;
     }
 

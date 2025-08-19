@@ -1,5 +1,6 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { readDir, stat } from '@tauri-apps/plugin-fs';
+import type { Attachment } from '@/stores/attachmentSlice';
 import {
   ALL_MEDIA_EXTENSIONS,
   AUDIO_EXTENSIONS,
@@ -7,7 +8,6 @@ import {
   IMAGE_EXTENSIONS,
   VIDEO_EXTENSIONS,
 } from '@/utils/fileTypes';
-import type { Attachment } from '@/stores/attachmentSlice';
 
 // Helper function for folder attachment creation
 const countMediaFilesInFolder = async (

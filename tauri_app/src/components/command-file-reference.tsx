@@ -18,11 +18,11 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import type { useFileReference } from '@/hooks/useFileReference';
+import { useBoundStore } from '@/stores';
 import {
   type Attachment,
   filterAndSortEntries,
 } from '@/stores/attachmentSlice';
-import { useBoundStore } from '@/stores';
 import { getFileType } from '@/utils/fileTypes';
 import { AppIcon } from './app-icon';
 
@@ -47,7 +47,7 @@ const MediaThumbnail = ({ file }: { file: Attachment }) => {
   if (!file.path) {
     return <ImageIcon className="size-4 text-green-500" />;
   }
-  
+
   const previewUrl = convertFileSrc(file.path);
 
   if (fileType === 'image') {
@@ -122,7 +122,7 @@ export function CommandFileReference({
     const displayReference = `@${app.name}`;
     words[words.length - 1] = `${displayReference} `;
     const newText = words.join(' ');
-    
+
     addAttachment(app);
     addReference(displayReference, `app:${app.name}`);
     onTextUpdate?.(newText);
@@ -282,7 +282,9 @@ export function CommandFileReference({
               {filteredFiles.length > 0 && (
                 <CommandGroup
                   heading={
-                    fileRef.currentFolder ? 'Files & Folders' : 'Media & Folders'
+                    fileRef.currentFolder
+                      ? 'Files & Folders'
+                      : 'Media & Folders'
                   }
                 >
                   {filteredFiles.map((file) => {

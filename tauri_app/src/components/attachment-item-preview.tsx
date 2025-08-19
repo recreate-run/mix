@@ -1,4 +1,10 @@
-import { FolderIcon, ImageIcon, NotebookPen, Play, VideoIcon } from 'lucide-react';
+import {
+  FolderIcon,
+  ImageIcon,
+  NotebookPen,
+  Play,
+  VideoIcon,
+} from 'lucide-react';
 import type { Attachment } from '@/stores';
 import { AudioWaveform } from './audio-waveform';
 
@@ -11,7 +17,7 @@ export const ImagePreview = ({ attachment }: AttachmentItemPreviewProps) => {
     <div className="relative">
       <img
         alt={attachment.name}
-        className="size-14 rounded-lg  object-cover"
+        className="size-14 rounded-lg object-cover"
         onError={(e) => {
           console.error('❌ [Attachment Debug] Image failed to load:', {
             name: attachment.name,
@@ -25,7 +31,7 @@ export const ImagePreview = ({ attachment }: AttachmentItemPreviewProps) => {
         src={attachment.preview}
       />
       <ImageIcon
-        className="absolute top-0 left-0 size-14 rounded-lg  p-2 text-muted-foreground"
+        className="absolute top-0 left-0 size-14 rounded-lg p-2 text-muted-foreground"
         style={{ display: 'none' }}
       />
     </div>
@@ -36,7 +42,7 @@ export const VideoPreview = ({ attachment }: AttachmentItemPreviewProps) => {
   return (
     <div className="relative">
       <video
-        className="size-14 rounded-lg  object-cover"
+        className="size-14 rounded-lg object-cover"
         onError={(e) => {
           console.error('❌ [Attachment Debug] Video failed to load:', {
             name: attachment.name,
@@ -55,7 +61,7 @@ export const VideoPreview = ({ attachment }: AttachmentItemPreviewProps) => {
       />
       <Play className="absolute bottom-1 left-1 h-3 w-3 rounded-full bg-black/50 p-0.5 text-white" />
       <VideoIcon
-        className="absolute top-0 left-0 size-14 rounded-lg  p-2 text-muted-foreground"
+        className="absolute top-0 left-0 size-14 rounded-lg p-2 text-muted-foreground"
         style={{ display: 'none' }}
       />
     </div>
@@ -114,7 +120,9 @@ export const AppPreview = ({ attachment }: AttachmentItemPreviewProps) => {
   );
 };
 
-export const DefaultPreview = ({ attachment: _ }: AttachmentItemPreviewProps) => {
+export const DefaultPreview = ({
+  attachment: _,
+}: AttachmentItemPreviewProps) => {
   return (
     <div className="flex size-14 items-center justify-center rounded-lg ">
       <ImageIcon className="h-6 w-6 text-muted-foreground" />

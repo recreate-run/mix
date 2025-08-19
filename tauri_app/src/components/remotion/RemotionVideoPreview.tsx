@@ -1,100 +1,118 @@
-import React, { useState } from 'react';
 import { Player } from '@remotion/player';
+import type React from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TemplateAdapter } from './TemplateAdapter';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { RemotionVideoConfig } from '@/types/remotion';
+import { TemplateAdapter } from './TemplateAdapter';
 
 interface RemotionVideoPreviewProps {
   config: RemotionVideoConfig;
   sessionId?: string;
 }
 
-export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({ 
-  config 
+export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
+  config,
 }) => {
-  const [editableConfig, setEditableConfig] = useState<RemotionVideoConfig>(config);
+  const [editableConfig, setEditableConfig] =
+    useState<RemotionVideoConfig>(config);
 
   // Get the first text element for editing (keep it simple)
-  const firstTextElement = editableConfig.elements.find(el => el.type === 'text');
-  
+  const firstTextElement = editableConfig.elements.find(
+    (el) => el.type === 'text'
+  );
+
   const updateTextContent = (content: string) => {
-    setEditableConfig(prev => ({
+    setEditableConfig((prev) => ({
       ...prev,
-      elements: prev.elements.map(el => 
-        el.type === 'text' && el === firstTextElement 
-          ? { ...el, content }
-          : el
-      )
+      elements: prev.elements.map((el) =>
+        el.type === 'text' && el === firstTextElement ? { ...el, content } : el
+      ),
     }));
   };
 
   const updateAnimationType = (animationType: string) => {
-    setEditableConfig(prev => ({
+    setEditableConfig((prev) => ({
       ...prev,
-      elements: prev.elements.map(el => 
-        el.type === 'text' && el === firstTextElement 
-          ? { ...el, animation: el.animation ? { ...el.animation, type: animationType as any } : undefined }
+      elements: prev.elements.map((el) =>
+        el.type === 'text' && el === firstTextElement
+          ? {
+              ...el,
+              animation: el.animation
+                ? { ...el.animation, type: animationType as any }
+                : undefined,
+            }
           : el
-      )
+      ),
     }));
   };
 
   const updateAnimationDuration = (duration: number) => {
-    setEditableConfig(prev => ({
+    setEditableConfig((prev) => ({
       ...prev,
-      elements: prev.elements.map(el => 
-        el.type === 'text' && el === firstTextElement 
-          ? { ...el, animation: el.animation ? { ...el.animation, duration } : undefined }
+      elements: prev.elements.map((el) =>
+        el.type === 'text' && el === firstTextElement
+          ? {
+              ...el,
+              animation: el.animation
+                ? { ...el.animation, duration }
+                : undefined,
+            }
           : el
-      )
+      ),
     }));
   };
 
   return (
-    <div className="flex gap-4 remotion-video-preview mb-4">
-      <div className="rounded-lg overflow-hidden">
+    <div className="remotion-video-preview mb-4 flex gap-4">
+      <div className="overflow-hidden rounded-lg">
         <Player
+          acknowledgeRemotionLicense
           component={TemplateAdapter}
-          inputProps={{ config: editableConfig }}
+          compositionHeight={editableConfig.composition.height}
+          compositionWidth={editableConfig.composition.width}
+          controls
           durationInFrames={editableConfig.composition.durationInFrames}
           fps={editableConfig.composition.fps}
-          compositionWidth={editableConfig.composition.width}
-          compositionHeight={editableConfig.composition.height}
-          controls
-          style={{ 
-            width: '100%', 
+          inputProps={{ config: editableConfig }}
+          style={{
+            width: '100%',
             maxWidth: '600px',
-            minHeight: '300px'
+            minHeight: '300px',
           }}
-          acknowledgeRemotionLicense
         />
       </div>
-      
+
       {/* Simple Animation Controls */}
-      <Card className='border-none'>
+      <Card className="border-none">
         <CardHeader>
           <CardTitle className="text-base">Animation Controls</CardTitle>
         </CardHeader>
-        
+
         {firstTextElement && (
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Text Content</Label>
+              <Label className="font-medium text-sm">Text Content</Label>
               <Input
-                value={firstTextElement.content}
                 onChange={(e) => updateTextContent(e.target.value)}
                 placeholder="Enter text..."
+                value={firstTextElement.content}
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Animation Type</Label>
+              <Label className="font-medium text-sm">Animation Type</Label>
               <Select
-                value={firstTextElement.animation?.type || 'fadeIn'}
                 onValueChange={updateAnimationType}
+                value={firstTextElement.animation?.type || 'fadeIn'}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -108,18 +126,20 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
-              <Label className="text-sm font-medium">
+              <Label className="font-medium text-sm">
                 Duration: {firstTextElement.animation?.duration || 30} frames
               </Label>
               <Input
-                type="range"
-                min="5"
-                max="150"
-                value={firstTextElement.animation?.duration || 30}
-                onChange={(e) => updateAnimationDuration(Number(e.target.value))}
                 className="w-full"
+                max="150"
+                min="5"
+                onChange={(e) =>
+                  updateAnimationDuration(Number(e.target.value))
+                }
+                type="range"
+                value={firstTextElement.animation?.duration || 30}
               />
             </div>
           </CardContent>

@@ -6,7 +6,7 @@ import {
 } from '@/stores/attachmentSlice';
 import type { ToolCall, ToolCallData } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
-import type { UIMessage, BackendMessage } from '@/types/message';
+import type { BackendMessage, UIMessage } from '@/types/message';
 
 interface ParsedContent {
   text: string;
@@ -82,14 +82,14 @@ const convertToolCallsToUI = (toolCalls: ToolCallData[]): ToolCall[] => {
       // If input is not valid JSON, treat as empty parameters
       parameters = {};
     }
-    
+
     return {
       name: tc.name,
       description: tc.name, // Use name as description since we don't have a separate description
       status: tc.finished ? 'completed' : 'pending',
       parameters,
       result: undefined, // Backend doesn't provide result for persisted tool calls
-      error: undefined,  // Backend doesn't provide error for persisted tool calls
+      error: undefined, // Backend doesn't provide error for persisted tool calls
     };
   });
 };
@@ -109,17 +109,21 @@ export const convertBackendMessageToUI = async (
   const attachments = [...mediaAttachments, ...appAttachments];
 
   // Convert tool calls if present
-  const toolCalls = backendMessage.toolCalls ? convertToolCallsToUI(backendMessage.toolCalls) : undefined;
+  const toolCalls = backendMessage.toolCalls
+    ? convertToolCallsToUI(backendMessage.toolCalls)
+    : undefined;
 
   // Extract media outputs from media_showcase tool calls
-  const mediaOutputs = toolCalls?.find(tc => tc.name === 'media_showcase')?.parameters?.outputs as MediaOutput[] | undefined;
+  const mediaOutputs = toolCalls?.find((tc) => tc.name === 'media_showcase')
+    ?.parameters?.outputs as MediaOutput[] | undefined;
 
   return {
     content: text,
     from: backendMessage.role === 'user' ? 'user' : 'assistant',
     toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
     attachments: attachments.length > 0 ? attachments : undefined,
-    mediaOutputs: mediaOutputs && mediaOutputs.length > 0 ? mediaOutputs : undefined,
+    mediaOutputs:
+      mediaOutputs && mediaOutputs.length > 0 ? mediaOutputs : undefined,
   };
 };
 

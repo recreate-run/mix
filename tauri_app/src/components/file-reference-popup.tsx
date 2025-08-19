@@ -1,7 +1,4 @@
-import {
-  FolderIcon,
-  ImageIcon,
-} from 'lucide-react';
+import { FolderIcon, ImageIcon } from 'lucide-react';
 import type { Attachment } from '@/stores/attachmentSlice';
 
 interface FileReferencePopupProps {

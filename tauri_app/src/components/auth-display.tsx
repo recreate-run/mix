@@ -1,9 +1,9 @@
 import { AlertCircle, CheckCircle, ExternalLink, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { rpcCall } from '@/lib/rpc';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { rpcCall } from '@/lib/rpc';
 
 interface AuthStatusResponse {
   type: string;
@@ -52,8 +52,9 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 
     setIsLoading(true);
     try {
-      const result = await rpcCall<{ status: string; step?: string }>('auth.login', 
-        authMode === 'code' 
+      const result = await rpcCall<{ status: string; step?: string }>(
+        'auth.login',
+        authMode === 'code'
           ? { authCode: input, manual: input.startsWith('sk-ant-') }
           : { apiKey: input }
       );
@@ -65,8 +66,12 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
         setAuthMode('apikey');
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Authentication failed';
-      if (errorMsg.includes('Cloudflare') || errorMsg.includes('manual token')) {
+      const errorMsg =
+        error instanceof Error ? error.message : 'Authentication failed';
+      if (
+        errorMsg.includes('Cloudflare') ||
+        errorMsg.includes('manual token')
+      ) {
         setAuthMode('apikey');
       }
     } finally {
@@ -154,23 +159,23 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 
     return (
       <Card>
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="space-y-4 p-4">
           <p>{loginData.message}</p>
 
           {loginData.authUrl && loginData.status === 'pending' && (
             <>
               <div className="flex gap-2">
                 <Button
-                  variant={authMode === 'code' ? 'default' : 'outline'}
                   onClick={() => setAuthMode('code')}
                   size="sm"
+                  variant={authMode === 'code' ? 'default' : 'outline'}
                 >
                   OAuth
                 </Button>
                 <Button
-                  variant={authMode === 'apikey' ? 'default' : 'outline'}
                   onClick={() => setAuthMode('apikey')}
                   size="sm"
+                  variant={authMode === 'apikey' ? 'default' : 'outline'}
                 >
                   API Key
                 </Button>
@@ -179,8 +184,8 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
               {authMode === 'code' ? (
                 <div className="space-y-3">
                   <Button
-                    onClick={() => window.open(loginData.authUrl, '_blank')}
                     className="w-full"
+                    onClick={() => window.open(loginData.authUrl, '_blank')}
                     variant="outline"
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
@@ -188,37 +193,45 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
                   </Button>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Paste authorization code..."
-                      value={authCode}
+                      disabled={isLoading}
                       onChange={(e) => setAuthCode(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                      disabled={isLoading}
+                      placeholder="Paste authorization code..."
+                      value={authCode}
                     />
                     <Button
-                      onClick={handleSubmit}
                       disabled={!authCode.trim() || isLoading}
+                      onClick={handleSubmit}
                       variant="outline"
                     >
-                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Submit'
+                      )}
                     </Button>
                   </div>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   <Input
-                    placeholder="sk-ant-..."
-                    value={apiKey}
+                    disabled={isLoading}
                     onChange={(e) => setApiKey(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                    disabled={isLoading}
+                    placeholder="sk-ant-..."
                     type="password"
+                    value={apiKey}
                   />
                   <Button
-                    onClick={handleSubmit}
                     disabled={!apiKey.trim() || isLoading}
+                    onClick={handleSubmit}
                     variant="outline"
                   >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Submit'
+                    )}
                   </Button>
                 </div>
               )}

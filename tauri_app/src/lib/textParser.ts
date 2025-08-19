@@ -150,7 +150,6 @@ export class TextParser {
     return null;
   }
 
-
   private isSpecialToken(type: TokenType): boolean {
     return (
       type === 'file-ref' || type === 'app-ref' || type === 'slash-command'
@@ -183,7 +182,6 @@ export function findTokenAtPosition(
     null
   );
 }
-
 
 export function isWholeTokenDeletion(type: TokenType): boolean {
   return type === 'file-ref' || type === 'app-ref' || type === 'slash-command';

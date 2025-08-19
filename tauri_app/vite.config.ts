@@ -1,9 +1,9 @@
 import tailwindcss from '@tailwindcss/vite';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 import { consoleForwardPlugin } from './src/vite-console-forward-plugin';
-import { tanstackRouter } from '@tanstack/router-plugin/vite'
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -31,7 +31,10 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@remotion-shared': path.resolve(__dirname, '../packages/remotion_starter_template/src'),
+      '@remotion-shared': path.resolve(
+        __dirname,
+        '../packages/remotion_starter_template/src'
+      ),
     },
   },
 

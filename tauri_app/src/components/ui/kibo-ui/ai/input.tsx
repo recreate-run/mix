@@ -12,13 +12,7 @@ import type {
   HTMLAttributes,
   KeyboardEventHandler,
 } from 'react';
-import {
-  Children,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
+import { Children, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -131,7 +125,10 @@ export const AIInputTextarea = ({
     () => new TextParser(availableFiles, availableCommands, availableApps),
     [availableFiles, availableCommands, availableApps]
   );
-  const tokens = useMemo(() => parser.parse(String(value || '')), [parser, value]);
+  const tokens = useMemo(
+    () => parser.parse(String(value || '')),
+    [parser, value]
+  );
 
   // Update ref when value changes from outside
   useEffect(() => {
@@ -416,9 +413,7 @@ export const AIInputModelSelectValue = ({
 
 export type AIInputModeSelectProps = ComponentProps<typeof Select>;
 
-export const AIInputModeSelect = ({
-  ...props
-}: AIInputModeSelectProps) => (
+export const AIInputModeSelect = ({ ...props }: AIInputModeSelectProps) => (
   <div className="absolute bottom-1 left-1">
     <Select {...props}>
       <SelectTrigger
@@ -443,7 +438,7 @@ export const AIInputCommands = ({
   ...props
 }: AIInputCommandsProps) => (
   <div
-    className={cn('absolute bottom-full left-0 right-0 z-50', className)}
+    className={cn('absolute right-0 bottom-full left-0 z-50', className)}
     {...props}
   >
     {children}

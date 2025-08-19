@@ -1,4 +1,13 @@
-import { Clock, Command, HelpCircle, RefreshCw, Shield, LogIn, LogOut, UserCheck } from 'lucide-react';
+import {
+  Clock,
+  Command,
+  HelpCircle,
+  LogIn,
+  LogOut,
+  RefreshCw,
+  Shield,
+  UserCheck,
+} from 'lucide-react';
 
 interface SlashCommand {
   id: string;

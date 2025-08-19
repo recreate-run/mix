@@ -1,5 +1,5 @@
 import { AlertTriangle, Clock } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
@@ -10,7 +10,12 @@ interface RateLimitDisplayProps {
   error?: string;
 }
 
-export function RateLimitDisplay({ retryAfter = 60, attempt = 1, maxAttempts = 8, error }: RateLimitDisplayProps) {
+export function RateLimitDisplay({
+  retryAfter = 60,
+  attempt = 1,
+  maxAttempts = 8,
+  error,
+}: RateLimitDisplayProps) {
   const [timeLeft, setTimeLeft] = useState<number>(retryAfter);
   const [progress, setProgress] = useState<number>(0);
   const maxTime = retryAfter;
@@ -50,8 +55,11 @@ export function RateLimitDisplay({ retryAfter = 60, attempt = 1, maxAttempts = 8
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <p className="text-yellow-700 dark:text-yellow-300">{error || "This request would exceed your account's rate limit. The application will automatically retry."}</p>
-          
+          <p className="text-yellow-700 dark:text-yellow-300">
+            {error ||
+              "This request would exceed your account's rate limit. The application will automatically retry."}
+          </p>
+
           <div className="flex flex-col gap-2">
             <div className="flex justify-between text-sm">
               <span className="text-yellow-700 dark:text-yellow-300">
@@ -60,22 +68,33 @@ export function RateLimitDisplay({ retryAfter = 60, attempt = 1, maxAttempts = 8
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                 <span className="text-yellow-700 dark:text-yellow-300">
-                  {timeLeft > 0 ? `Retrying in ${timeLeft}s` : "Retrying now..."}
+                  {timeLeft > 0
+                    ? `Retrying in ${timeLeft}s`
+                    : 'Retrying now...'}
                 </span>
               </div>
             </div>
-            <Progress value={progress} className="h-2 bg-yellow-200 dark:bg-yellow-800">
-              <div 
-                className="h-full bg-yellow-500 dark:bg-yellow-500 transition-all" 
-                style={{ width: `${progress}%` }} 
+            <Progress
+              className="h-2 bg-yellow-200 dark:bg-yellow-800"
+              value={progress}
+            >
+              <div
+                className="h-full bg-yellow-500 transition-all dark:bg-yellow-500"
+                style={{ width: `${progress}%` }}
               />
             </Progress>
           </div>
 
-          <div className="text-sm text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900 p-2 rounded">
+          <div className="rounded bg-yellow-100 p-2 text-sm text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
             <p className="font-medium">Why this happens:</p>
-            <p>Anthropic's API enforces rate limits to ensure fair usage across all users.</p>
-            <p>The application will automatically retry your request when possible.</p>
+            <p>
+              Anthropic's API enforces rate limits to ensure fair usage across
+              all users.
+            </p>
+            <p>
+              The application will automatically retry your request when
+              possible.
+            </p>
           </div>
         </div>
       </CardContent>

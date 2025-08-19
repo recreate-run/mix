@@ -226,7 +226,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         }
       }
     });
-    
+
     // Handle rate limit error events
     addTrackedEventListener('rate_limit_error', (event) => {
       if (event.data) {
@@ -241,8 +241,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             rateLimit: {
               retryAfter: data.retryAfter || 60,
               attempt: data.attempt || 1,
-              maxAttempts: data.maxAttempts || 8
-            }
+              maxAttempts: data.maxAttempts || 8,
+            },
           }));
         } catch (err) {
           console.error('Failed to parse rate limit error:', err);
@@ -254,8 +254,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             rateLimit: {
               retryAfter: 60,
               attempt: 1,
-              maxAttempts: 8
-            }
+              maxAttempts: 8,
+            },
           }));
         }
       }
@@ -456,7 +456,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to grant permission: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to grant permission: ${response.status} ${errorText}`
+        );
       }
 
       const result = await response.json();
@@ -467,7 +469,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       // Remove the permission request from state
       setState((prev) => ({
         ...prev,
-        permissionRequests: prev.permissionRequests.filter(req => req.id !== id),
+        permissionRequests: prev.permissionRequests.filter(
+          (req) => req.id !== id
+        ),
       }));
     } catch (error) {
       console.error('Failed to grant permission:', error);
@@ -489,7 +493,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to deny permission: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to deny permission: ${response.status} ${errorText}`
+        );
       }
 
       const result = await response.json();
@@ -500,7 +506,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       // Remove the permission request from state
       setState((prev) => ({
         ...prev,
-        permissionRequests: prev.permissionRequests.filter(req => req.id !== id),
+        permissionRequests: prev.permissionRequests.filter(
+          (req) => req.id !== id
+        ),
       }));
     } catch (error) {
       console.error('Failed to deny permission:', error);

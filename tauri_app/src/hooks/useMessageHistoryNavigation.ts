@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMessageHistory } from '@/hooks/useMessageHistory';
-import { reconstructAttachmentsFromHistory } from '@/stores/attachmentSlice';
 import { useBoundStore } from '@/stores';
+import { reconstructAttachmentsFromHistory } from '@/stores/attachmentSlice';
 
 interface UseMessageHistoryNavigationProps {
   text: string;
@@ -21,9 +21,7 @@ export function useMessageHistoryNavigation({
     batchSize,
   });
 
-  const clearAttachments = useBoundStore(
-    (state) => state.clearAttachments
-  );
+  const clearAttachments = useBoundStore((state) => state.clearAttachments);
   const setHistoryState = useBoundStore((state) => state.setHistoryState);
   const syncWithText = useBoundStore((state) => state.syncWithText);
 

@@ -158,7 +158,7 @@ export const AIResponse = memo(
   ({ className, options, children, ...props }: AIResponseProps) => (
     <div
       className={cn(
-        'size-full break-words overflow-wrap-anywhere [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+        'overflow-wrap-anywhere size-full break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
         className
       )}
       {...props}

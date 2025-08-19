@@ -1,11 +1,11 @@
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon } from 'lucide-react';
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from '@/components/ui/badge';
 
 export function Announcement({ content }: { content: string }) {
-	return (
-		<Badge variant="secondary" className="rounded-full">
-			{content} <ArrowRightIcon />
-		</Badge>
-	);
+  return (
+    <Badge className="rounded-full" variant="secondary">
+      {content} <ArrowRightIcon />
+    </Badge>
+  );
 }

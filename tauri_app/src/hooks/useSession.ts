@@ -34,14 +34,15 @@ export const useCreateSession = () => {
   });
 };
 
-
 // Fetch actual session data from backend
 export const useActiveSession = (sessionId: string) => {
   return useQuery({
     queryKey: ['session', sessionId],
     queryFn: async (): Promise<Session | null> => {
       try {
-        const sessionData = await rpcCall<Session>('sessions.get', { id: sessionId });
+        const sessionData = await rpcCall<Session>('sessions.get', {
+          id: sessionId,
+        });
         return sessionData;
       } catch (error) {
         console.log('Session not found:', sessionId);

@@ -64,12 +64,14 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
 
     // Check if it's a rate limit error response
     if (parsedData.type === 'rate_limit_error') {
-      return <RateLimitDisplay
-        retryAfter={parsedData.retryAfter}
-        attempt={parsedData.attempt}
-        maxAttempts={parsedData.maxAttempts}
-        error={parsedData.error}
-      />;
+      return (
+        <RateLimitDisplay
+          attempt={parsedData.attempt}
+          error={parsedData.error}
+          maxAttempts={parsedData.maxAttempts}
+          retryAfter={parsedData.retryAfter}
+        />
+      );
     }
 
     // Check if it's an authentication response

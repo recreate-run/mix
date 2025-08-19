@@ -9,10 +9,7 @@ interface FileReferenceProps {
   children: React.ReactNode;
 }
 
-export function FileReference({
-  fullPath,
-  children,
-}: FileReferenceProps) {
+export function FileReference({ fullPath, children }: FileReferenceProps) {
   return (
     <Tooltip>
       <TooltipTrigger>

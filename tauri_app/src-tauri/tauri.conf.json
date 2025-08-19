@@ -1,59 +1,61 @@
 {
-	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "Mix",
-	"version": "0.1.0",
-	"identifier": "com.mix.desktop",
-	"build": {
-		"beforeDevCommand": "bun run dev",
-		"devUrl": "http://localhost:1420",
-		"beforeBuildCommand": "bun run build",
-		"frontendDist": "../dist"
-	},
-	"app": {
-		"windows": [
-			{
-				"transparent": true,
-				"title": ""
-			}
-		],
-		"macOSPrivateApi": true,
-		"security": {
-			"csp": null,
-			"assetProtocol": {
-				"enable": true,
-				"scope": ["$HOME", "$HOME/**"]
-			}
-		}
-	},
-	"bundle": {
-		"active": true,
-		"targets": ["app"],
-		"createUpdaterArtifacts": true,
-		"icon": [
-			"icons/32x32.png",
-			"icons/128x128.png",
-			"icons/128x128@2x.png",
-			"icons/icon.icns"
-		],
-		"externalBin": ["../../go_backend/build/release/mix"],
-		"copyright": "Copyright © 2024 Mix Team. All rights reserved.",
-		"category": "Productivity",
-		"shortDescription": "AI-Powered Content Generation",
-		"longDescription": "Mix is a powerful desktop application for AI-powered content generation and management, featuring advanced editing tools and seamless workflow integration.",
-		"macOS": {
-			"entitlements": "./Entitlements.plist",
-			"minimumSystemVersion": "11.0",
-			"signingIdentity": "-",
-			"providerShortName": null,
-			"exceptionDomain": null
-		}
-	},
-	"plugins": {
-		"updater": {
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU3NUU5OUUzQUEyQzEyMDQKUldRRUVpeXE0NWxlVjcxRlFWNkt1cGNRWkJtQTJHR1RQNUowaktCS3RFYnJ5WEJsaEJ0ZzRSYVMK",
-			"endpoints": [
-				"https://api.github.com/repos/sarath-menon/mix/releases/latest/download/latest.json"
-			]
-		}
-	}
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mix",
+  "version": "0.1.0",
+  "identifier": "com.mix.desktop",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "transparent": true,
+        "title": "",
+        "minHeight": 720,
+        "minWidth": 1080
+      }
+    ],
+    "macOSPrivateApi": true,
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$HOME", "$HOME/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns"
+    ],
+    "externalBin": ["../../go_backend/build/release/mix"],
+    "copyright": "Copyright © 2024 Mix Team. All rights reserved.",
+    "category": "Productivity",
+    "shortDescription": "AI-Powered Content Generation",
+    "longDescription": "Mix is a powerful desktop application for AI-powered content generation and management, featuring advanced editing tools and seamless workflow integration.",
+    "macOS": {
+      "entitlements": "./Entitlements.plist",
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-",
+      "providerShortName": null,
+      "exceptionDomain": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU3NUU5OUUzQUEyQzEyMDQKUldRRUVpeXE0NWxlVjcxRlFWNkt1cGNRWkJtQTJHR1RQNUowaktCS3RFYnJ5WEJsaEJ0ZzRSYVMK",
+      "endpoints": [
+        "https://api.github.com/repos/sarath-menon/mix/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }

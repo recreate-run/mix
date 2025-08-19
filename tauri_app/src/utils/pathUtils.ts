@@ -8,7 +8,7 @@ export const normalizePath = async (inputPath: string): Promise<string> => {
   try {
     // Convert to absolute path using Tauri's resolve
     const absolutePath = await resolve(inputPath);
-    
+
     // Remove trailing slashes but preserve root slash
     return absolutePath.replace(/\/+$/, '') || '/';
   } catch (error) {

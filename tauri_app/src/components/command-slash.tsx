@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router';
 import {
   Accessibility,
   ArrowLeft,
@@ -9,7 +10,6 @@ import {
   Settings,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
 import {
   CommandEmpty,
   CommandGroup,
@@ -19,6 +19,7 @@ import {
   Command as CommandPrimitive,
 } from '@/components/ui/command';
 import { Switch } from '@/components/ui/switch';
+import { useMCPList } from '@/hooks/useMCPList';
 import {
   useAccessibilityPermission,
   useFullDiskAccessPermission,
@@ -31,7 +32,6 @@ import {
   useSelectSession,
   useSessionsList,
 } from '@/hooks/useSessionsList';
-import { useMCPList } from '@/hooks/useMCPList';
 import { slashCommands } from '@/utils/slash-commands';
 
 interface CommandSlashProps {
@@ -40,13 +40,19 @@ interface CommandSlashProps {
   sessionId: string;
 }
 
-export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSlashProps) {
+export function CommandSlash({
+  onExecuteCommand,
+  onClose,
+  sessionId,
+}: CommandSlashProps) {
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showingPermissions, setShowingPermissions] = useState(false);
   const [showingSessions, setShowingSessions] = useState(false);
   const [showingMCP, setShowingMCP] = useState(false);
-  const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(null);
+  const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(
+    null
+  );
   const commandRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -138,16 +144,20 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
 
   // Filter tools based on search query
   const filteredMCPTools = searchQuery.trim()
-    ? selectedServerTools.filter((tool) =>
-        tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tool.description.toLowerCase().includes(searchQuery.toLowerCase())
+    ? selectedServerTools.filter(
+        (tool) =>
+          tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          tool.description.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : selectedServerTools;
 
   // Helper function to get display title (first user message or fallback to title)
   const getDisplayTitle = (session: (typeof sessions)[0]) => {
     if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
-      console.log('Text key unavailable: No firstUserMessage for session', session.id);
+      console.log(
+        'Text key unavailable: No firstUserMessage for session',
+        session.id
+      );
       return session.title; // fallback to original title
     }
 
@@ -220,10 +230,10 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
       selectSessionMutation.mutate(session.id, {
         onSuccess: () => {
           // Navigate to the selected session
-          navigate({ 
-            to: '/$sessionId', 
+          navigate({
+            to: '/$sessionId',
             params: { sessionId: session.id },
-            replace: true 
+            replace: true,
           });
           onClose(); // Close the command palette
         },
@@ -442,7 +452,9 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
               {!filteredMCPTools.length && searchQuery ? (
                 <CommandEmpty>No tools match your search</CommandEmpty>
               ) : filteredMCPTools.length ? (
-                <CommandGroup heading={`${selectedMCPServer} Tools (${filteredMCPTools.length})`}>
+                <CommandGroup
+                  heading={`${selectedMCPServer} Tools (${filteredMCPTools.length})`}
+                >
                   {/* Back to MCP Servers */}
                   <CommandItem
                     onSelect={() => setSelectedMCPServer(null)}
@@ -458,12 +470,14 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
 
                   {/* Tool Items */}
                   {filteredMCPTools.map((tool) => {
-                    const serverInfo = mcpServers.find(s => s.name === selectedMCPServer);
+                    const serverInfo = mcpServers.find(
+                      (s) => s.name === selectedMCPServer
+                    );
                     return (
                       <CommandItem
+                        className="cursor-default"
                         key={tool.name}
                         value={tool.name}
-                        className="cursor-default"
                       >
                         <Settings className="size-4 text-muted-foreground" />
                         <div className="flex-1">
@@ -472,7 +486,9 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
                             {tool.description}
                           </div>
                         </div>
-                        <div className={`text-xs px-2 py-0.5 rounded-full ${serverInfo?.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}>
+                        <div
+                          className={`rounded-full px-2 py-0.5 text-xs ${serverInfo?.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}
+                        >
                           {serverInfo?.connected ? 'connected' : 'disconnected'}
                         </div>
                       </CommandItem>
@@ -491,7 +507,9 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
               ) : !filteredMCPServers.length && searchQuery ? (
                 <CommandEmpty>No servers match your search</CommandEmpty>
               ) : filteredMCPServers.length ? (
-                <CommandGroup heading={`MCP Servers (${filteredMCPServers.length})`}>
+                <CommandGroup
+                  heading={`MCP Servers (${filteredMCPServers.length})`}
+                >
                   {/* Back to Commands */}
                   <CommandItem
                     onSelect={() => handleSelect('back-to-commands')}
@@ -516,7 +534,9 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
                       <div className="flex-1">
                         <div className="flex items-center gap-2 font-medium text-sm">
                           {server.name}
-                          <div className={`text-xs px-2 py-0.5 rounded-full ${server.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}>
+                          <div
+                            className={`rounded-full px-2 py-0.5 text-xs ${server.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}
+                          >
                             {server.status}
                           </div>
                         </div>
@@ -583,7 +603,12 @@ export function CommandSlash({ onExecuteCommand, onClose, sessionId }: CommandSl
                 esc
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">
-                {selectedMCPServer || showingMCP || showingPermissions || showingSessions ? 'back' : 'close'}
+                {selectedMCPServer ||
+                showingMCP ||
+                showingPermissions ||
+                showingSessions
+                  ? 'back'
+                  : 'close'}
               </span>
             </div>
           </div>
