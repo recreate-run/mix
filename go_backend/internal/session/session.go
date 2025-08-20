@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"mix/internal/db"
@@ -76,16 +75,10 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 		}
 	}
 
-	// Create output directory for Remotion videos
+	// Create output directory for generated videos
 	outputDir := filepath.Join(workingDirectory, "output")
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return Session{}, fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	// Setup Remotion project by cloning template repository
-	remotionProjectDir := filepath.Join(workingDirectory, "remotion_project")
-	if err := s.setupRemotionProject(remotionProjectDir); err != nil {
-		return Session{}, fmt.Errorf("failed to setup Remotion project: %w", err)
 	}
 
 	// Create MIX.md file if it doesn't exist
@@ -218,42 +211,6 @@ func (s service) fromDBItem(item db.Session) Session {
 	}
 }
 
-func (s *service) setupRemotionProject(projectDir string) error {
-	// Skip if project already exists
-	if _, err := os.Stat(projectDir); err == nil {
-		return nil
-	}
-
-	// Get absolute path to script (from project root)
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-	
-	// Determine project root directory
-	projectRoot := wd
-	if filepath.Base(wd) == "go_backend" {
-		projectRoot = filepath.Dir(wd)
-	}
-	
-	scriptPath := filepath.Join(projectRoot, "go_backend", "scripts", "setup_remotion_project.sh")
-	
-	// Get session workspace directory (parent of projectDir) and project name
-	sessionWorkspace := filepath.Dir(projectDir)
-	remotionDirName := filepath.Base(projectDir)
-
-	// Execute setup script in session workspace with relative project directory
-	cmd := exec.Command("bash", scriptPath, remotionDirName)
-	cmd.Dir = sessionWorkspace // Execute in session workspace
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to setup Remotion project: %w", err)
-	}
-
-	return nil
-}
 
 func NewService(q db.Querier) Service {
 	broker := pubsub.NewBroker[Session]()

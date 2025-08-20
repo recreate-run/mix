@@ -293,6 +293,22 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		}
 	})
 
+	// Add video export endpoint
+	mux.HandleFunc("/api/video/export", func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		
+		// Handle preflight OPTIONS request
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		httphandlers.HandleVideoExport(ctx, handler, w, r)
+	})
+
 	mux.HandleFunc("/rpc", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -395,6 +411,7 @@ func Execute() {
 	}
 }
 
+
 func init() {
 	rootCmd.Flags().BoolP("help", "h", false, "Help")
 	rootCmd.Flags().BoolP("version", "v", false, "Version")
@@ -422,6 +439,7 @@ func init() {
 		return format.SupportedFormats, cobra.ShellCompDirectiveNoFileComp
 	})
 
-	// Add auth subcommand
+	// Add subcommands
 	rootCmd.AddCommand(authCmd)
 }
+

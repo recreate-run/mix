@@ -10,25 +10,29 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --config) CONFIG_FILE="$2"; shift 2 ;;
         --output) OUTPUT_NAME="$2"; shift 2 ;;
-        *) echo "Usage: $0 --config <config_file> --output <output_name>"; exit 1 ;;
+        *) echo "Usage: $0 [--config <config_file>] --output <output_name>"; exit 1 ;;
     esac
 done
 
-# Validate arguments
-if [[ -z "$CONFIG_FILE" || -z "$OUTPUT_NAME" ]]; then
-    echo "Usage: $0 --config <config_file> --output <output_name>"
+# Validate output name
+if [[ -z "$OUTPUT_NAME" ]]; then
+    echo "Usage: $0 [--config <config_file>] --output <output_name>"
+    echo "Config can be provided via --config file or stdin"
     exit 1
 fi
 
-if [[ ! -f "$CONFIG_FILE" ]]; then
-    echo "❌ Error: Config file not found: $CONFIG_FILE"
-    exit 1
+# Read config from file or stdin
+if [[ -n "$CONFIG_FILE" ]]; then
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo "❌ Error: Config file not found: $CONFIG_FILE"
+        exit 1
+    fi
+    echo "🎬 Exporting $OUTPUT_NAME from $CONFIG_FILE"
+    CONFIG_JSON=$(cat "$CONFIG_FILE")
+else
+    echo "🎬 Exporting $OUTPUT_NAME from stdin"
+    CONFIG_JSON=$(cat)
 fi
-
-echo "🎬 Exporting $OUTPUT_NAME from $CONFIG_FILE"
-
-# Read config
-CONFIG_JSON=$(cat "$CONFIG_FILE")
 
 # Ensure output directory exists
 mkdir -p output

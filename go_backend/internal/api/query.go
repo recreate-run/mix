@@ -111,7 +111,7 @@ func NewQueryHandler(app *app.App) *QueryHandler {
 	}
 }
 
-// GetApp returns the app instance for external access
+// GetApp returns the app instance for external use
 func (h *QueryHandler) GetApp() *app.App {
 	return h.app
 }
@@ -244,7 +244,7 @@ func (h *QueryHandler) handleSetAPIKey(ctx context.Context, req *QueryRequest) *
 func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *QueryResponse {
 	var params struct {
 		AuthCode string `json:"authCode"`
-		APIKey   string `json:"apiKey"`   // Allow direct API key submission
+		APIKey   string `json:"apiKey"` // Allow direct API key submission
 		Manual   bool   `json:"manual"` // Flag for manual token input
 	}
 
@@ -257,12 +257,12 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 			ID: req.ID,
 		}
 	}
-	
+
 	// Check if this is a manual API key submission
 	if params.APIKey != "" {
 		// Set environment variable
 		os.Setenv("ANTHROPIC_API_KEY", params.APIKey)
-		
+
 		return &QueryResponse{
 			Result: map[string]interface{}{
 				"status":  "success",
@@ -296,12 +296,12 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 	// Extract state from auth code to retrieve the correct OAuth flow
 	authCodeParts := strings.Split(params.AuthCode, "#")
 	var oauthFlow *provider.OAuthFlow
-	
+
 	if len(authCodeParts) == 2 {
 		// Auth code format: code#state
 		state := authCodeParts[1]
 		oauthFlow = provider.GetOAuthFlow(state)
-		
+
 		if oauthFlow == nil {
 			return &QueryResponse{
 				Error: &QueryError{
@@ -330,7 +330,7 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 	if params.Manual && strings.HasPrefix(params.AuthCode, "sk-ant-") {
 		// This is a direct API key, not an auth code
 		os.Setenv("ANTHROPIC_API_KEY", params.AuthCode)
-		
+
 		return &QueryResponse{
 			Result: map[string]interface{}{
 				"status":  "success",
@@ -354,7 +354,7 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 				ID: req.ID,
 			}
 		}
-		
+
 		// For other OAuth exchange failures, guide user to manual API key approach
 		return &QueryResponse{
 			Error: &QueryError{
@@ -384,8 +384,8 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 
 	return &QueryResponse{
 		Result: map[string]interface{}{
-			"status":     "success",
-			"message":    "Successfully authenticated with Claude Code OAuth! You can now use the application.",
+			"status":    "success",
+			"message":   "Successfully authenticated with Claude Code OAuth! You can now use the application.",
 			"expiresIn": (credentials.ExpiresAt - time.Now().Unix()) / 60, // minutes
 		},
 		ID: req.ID,
@@ -410,7 +410,7 @@ func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest
 		if s.WorkingDirectory.Valid {
 			workingDir = s.WorkingDirectory.String
 		}
-		
+
 		result = append(result, SessionData{
 			ID:               s.ID,
 			Title:            s.Title,
@@ -599,7 +599,6 @@ func (h *QueryHandler) handleSessionsCreate(ctx context.Context, req *QueryReque
 			ID: req.ID,
 		}
 	}
-
 
 	// Create session
 	session, err := h.app.Sessions.Create(ctx, params.Title, params.WorkingDirectory)
@@ -947,7 +946,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 			ID: req.ID,
 		}
 	}
-	
+
 	// If not authenticated, show a clear error message
 	if !authenticated {
 		helpfulMsg := "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
@@ -955,7 +954,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 			"1. Visit https://console.anthropic.com/settings/keys\n" +
 			"2. Create an API key\n" +
 			"3. Use the /login command to authenticate"
-		
+
 		return &QueryResponse{
 			Result: map[string]interface{}{
 				"id":       "system-auth-prompt",
@@ -966,7 +965,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 			ID: req.ID,
 		}
 	}
-	
+
 	// Set the session as current
 	setSessionErr := h.app.SetCurrentSession(params.SessionID)
 	if setSessionErr != nil {
@@ -1056,7 +1055,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 	if result.Error != nil {
 		// Convert error to user-friendly message
 		errorMessage := result.Error.Error()
-		
+
 		// Special handling for auth errors
 		if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
 			return &QueryResponse{
@@ -1069,7 +1068,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 				ID: req.ID,
 			}
 		}
-		
+
 		return &QueryResponse{
 			Error: &QueryError{
 				Code:    -32000,
@@ -1144,7 +1143,7 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 				Finished: tc.Finished,
 			}
 		}
-		
+
 		result = append(result, MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
@@ -1210,7 +1209,7 @@ func (h *QueryHandler) handleMessagesList(ctx context.Context, req *QueryRequest
 				Finished: tc.Finished,
 			}
 		}
-		
+
 		result = append(result, MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
@@ -1393,4 +1392,3 @@ func (h *QueryHandler) handlePermissionDeny(ctx context.Context, req *QueryReque
 		ID: req.ID,
 	}
 }
-

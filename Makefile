@@ -92,6 +92,12 @@ install:
 		fi; \
 	fi
 	
+	# Install ripgrep if not present
+	@if ! command -v rg >/dev/null 2>&1; then \
+		echo "📦 Installing ripgrep..."; \
+		brew install ripgrep; \
+	fi
+	
 	# Install tools
 	@echo "Installing tools..."
 	@uv tool install multimodal-analyzer
