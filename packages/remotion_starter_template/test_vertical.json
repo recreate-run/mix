@@ -1,0 +1,20 @@
+{
+  "composition": {
+    "durationInFrames": 150,
+    "fps": 30,
+    "format": "vertical"
+  },
+  "elements": [
+    {
+      "type": "text",
+      "content": "Test Vertical Video",
+      "from": 0,
+      "durationInFrames": 150,
+      "layout": "top-center",
+      "style": {
+        "fontSize": 60,
+        "color": "#ffffff"
+      }
+    }
+  ]
+}

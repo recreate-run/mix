@@ -14,8 +14,9 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import type { RemotionVideoConfig } from '@/types/remotion';
+import type { RemotionVideoConfig, VideoFormat } from '@/types/remotion';
 import { TemplateAdapter } from './TemplateAdapter';
+import { getDimensionsForFormat } from '../../../../packages/remotion_starter_template/src/constants/videoDimensions';
 
 interface RemotionVideoPreviewProps {
   config: RemotionVideoConfig;
@@ -27,6 +28,10 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
 }) => {
   const [editableConfig, setEditableConfig] =
     useState<RemotionVideoConfig>(config);
+
+  // Calculate dimensions based on format (fallback to horizontal if format is missing)
+  const format = editableConfig.composition.format || 'horizontal';
+  const dimensions = getDimensionsForFormat(format);
 
 
   // Get the first text element for editing (keep it simple)
@@ -114,16 +119,16 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
   // Helper function to get current stroke type
   const getCurrentStrokeType = () => {
     if (!firstTextElement?.stroke) return 'none';
-    
+
     const { width, color } = firstTextElement.stroke;
-    
+
     // Detect specific TikTok styles by width and color
     if (width === 20 && color === '#ffffff') return 'tiktokWhite';
     if (width === 15 && color === '#ff1493') return 'tiktokNeonPink';
     if (width === 15 && color === '#00ffff') return 'tiktokNeonCyan';
     if (width === 20 && color === '#000000') return 'tiktokBlack';
     if (width <= 4) return 'normal';
-    
+
     // Default fallback
     return 'tiktokBlack';
   };
@@ -155,11 +160,37 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
             ...el,
             style: {
               ...el.style,
-              backgroundColor: enabled ? '#000000' : 'transparent',
+              backgroundColor: enabled ? '#8B0000' : 'transparent',
             },
           }
           : el
       ),
+    }));
+  };
+
+  const updateTextPosition = (layout: string) => {
+    setEditableConfig((prev) => ({
+      ...prev,
+      elements: prev.elements.map((el) =>
+        el.type === 'text' && el === firstTextElement
+          ? { ...el, layout: layout as 'top-center' | 'bottom-center' }
+          : el
+      ),
+    }));
+  };
+
+  // Helper function to get current position
+  const getCurrentPosition = () => {
+    return firstTextElement?.layout || 'top-center';
+  };
+
+  const updateFormat = (format: VideoFormat) => {
+    setEditableConfig((prev) => ({
+      ...prev,
+      composition: {
+        ...prev.composition,
+        format,
+      },
     }));
   };
 
@@ -169,8 +200,8 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
         <Player
           acknowledgeRemotionLicense
           component={TemplateAdapter}
-          compositionHeight={editableConfig.composition.height}
-          compositionWidth={editableConfig.composition.width}
+          compositionHeight={dimensions.height}
+          compositionWidth={dimensions.width}
           controls
           durationInFrames={editableConfig.composition.durationInFrames}
           fps={editableConfig.composition.fps}
@@ -186,19 +217,22 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
 
       {/* Organized Settings Panel */}
       <Tabs defaultValue="format" className="bg-card w-80 p-4 rounded-xl">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="format">Format</TabsTrigger>
           <TabsTrigger value="animation">Animation</TabsTrigger>
+          <TabsTrigger value="layout">Layout</TabsTrigger>
         </TabsList>
 
         <TabsContent value="format" className="space-y-6 my-2">
           {/* Text Section */}
-
-          <Input
-            onChange={(e) => updateTextContent(e.target.value)}
-            placeholder="Enter text..."
-            value={firstTextElement.content}
-          />
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Text Content</h4>
+            <Input
+              onChange={(e) => updateTextContent(e.target.value)}
+              placeholder="Enter text..."
+              value={firstTextElement.content}
+            />
+          </div>
 
 
           <Separator />
@@ -297,27 +331,26 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
         </TabsContent>
 
         <TabsContent value="animation" className="space-y-4 mt-4">
-          <div className="flex gap-4">
-            <Label>Animation Type</Label>
-            <Select
-              onValueChange={updateAnimationType}
-              value={firstTextElement.animation?.type || 'fadeIn'}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fadeIn">Fade In</SelectItem>
-                <SelectItem value="fadeOut">Fade Out</SelectItem>
-                <SelectItem value="slideIn">Slide In</SelectItem>
-                <SelectItem value="slideOut">Slide Out</SelectItem>
-                <SelectItem value="typing">Typing</SelectItem>
-                <SelectItem value="tiktokEntrance">TikTok Entrance</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
-          <div className="space-y-2">
+
+          <Select
+            onValueChange={updateAnimationType}
+            value={firstTextElement.animation?.type || 'fadeIn'}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fadeIn">Fade In</SelectItem>
+              <SelectItem value="fadeOut">Fade Out</SelectItem>
+              <SelectItem value="slideIn">Slide In</SelectItem>
+              <SelectItem value="slideOut">Slide Out</SelectItem>
+              <SelectItem value="typing">Typing</SelectItem>
+              <SelectItem value="tiktokEntrance">TikTok Entrance</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-4">
             <Label >
               Duration: {firstTextElement.animation?.duration || 30} frames
             </Label>
@@ -331,6 +364,50 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
               type="range"
               value={firstTextElement.animation?.duration || 30}
             />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="layout" className="space-y-4 mt-4">
+          {/* Video Format Section */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Video Format</h4>
+            <Select
+              onValueChange={(value) => updateFormat(value as VideoFormat)}
+              value={format}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="horizontal">Horizontal (1920×1080)</SelectItem>
+                <SelectItem value="vertical">Vertical (1080×1920)</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs text-muted-foreground">
+              {format === 'horizontal'
+                ? 'Standard landscape format for YouTube, presentations, and general use'
+                : 'Portrait format optimized for TikTok, Instagram Stories, and mobile content'
+              }
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Text Position</h4>
+
+            <Select
+              onValueChange={updateTextPosition}
+              value={getCurrentPosition()}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="top-center">Top Center</SelectItem>
+                <SelectItem value="bottom-center">Bottom Center</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </TabsContent>
       </Tabs>

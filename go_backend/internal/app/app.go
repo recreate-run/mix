@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 
 	"mix/internal/analytics"
 	"mix/internal/config"
@@ -41,13 +40,8 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 
 	files := history.NewService(q, conn)
 
-	// Initialize analytics service with PostHog API key from env or fallback
-	posthogAPIKey := os.Getenv("POSTHOG_API_KEY")
-	if posthogAPIKey == "" {
-		// Fallback to hardcoded key if env var not set
-		posthogAPIKey = "phc_9QLQI8n19fRg1vsqvYRaQVXFRpMRXTGQK4i2DaYqWRU"
-		logging.Info("Using fallback PostHog API key")
-	}
+	// Initialize analytics service with PostHog API key
+	posthogAPIKey := "phc_9QLQI8n19fRg1vsqvYRaQVXFRpMRXTGQK4i2DaYqWRU"
 
 	cfg := config.Get()
 	analyticsEnabled := cfg.AnalyticsEnabled

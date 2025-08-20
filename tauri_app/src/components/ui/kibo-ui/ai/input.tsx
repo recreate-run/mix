@@ -141,7 +141,7 @@ export const AIInputTextarea = ({
       {renderTokenOverlay()}
       <Textarea
         className={cn(
-          'w-full rounded-none border-none p-3 shadow-none outline-none ring-0',
+          'w-full rounded-none border-none p-3 shadow-none outline-none ring-0 resize-none',
           'relative z-10 bg-transparent dark:bg-transparent',
           'text-foreground focus-visible:ring-0',
           'h-16 overflow-y-auto',

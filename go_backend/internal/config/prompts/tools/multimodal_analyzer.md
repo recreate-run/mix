@@ -16,7 +16,7 @@ AI-powered media analysis tool (CLI interface) using multiple LLM providers thro
 - You MUST ALWAYS use Multimodal Analyzer to analyze media files, NEVER read images directly
 - ALWAYS Use with the `bash` tool.
 - ALWAYS use batch processing for analyzing multiple files
-- ALWAYS use relative paths with respect to $<workdir> when specifying file and directory paths. The bash tool is already in $<workdir>, there's no need to go to the folder using cd.
+- ALWAYS use absolute paths with respect to when specifying file and directory paths.
 
 ## When to Use This Tool
 
@@ -55,10 +55,10 @@ Use `--path` to analyze files from directories or single files:
 multimodal-analyzer --type image  --path photo.jpg
 
 # Directory (all supported files)
-multimodal-analyzer --type image  --path ./photos/
+multimodal-analyzer --type image  --path /Users/.../mix/photos/
 
 # Recursive directory scan
-multimodal-analyzer --type image  --path ./dataset/ --recursive
+multimodal-analyzer --type image  --path /Users/.../mix/dataset/ --recursive
 ```
 
 ### Explicit File List Mode (`--files`)
@@ -68,14 +68,14 @@ Use `--files` to specify exact files from multiple locations:
 ```bash
 # Multiple files from different directories
 multimodal-analyzer --type image  \
-  --files ./documents/photo1.jpg \
-  --files ./projects/chart.png \
-  --files ./local/screenshot.jpg
+  --files /Users/.../mix/documents/photo1.jpg \
+  --files /Users/.../mix/projects/chart.png \
+  --files /Users/.../mix/local/screenshot.jpg
 
 # Audio files from various locations
 multimodal-analyzer --type audio  \
-  --files recording1.mp3 \
-  --files ./meetings/call.wav \
+  --files /Users/.../mix/recording1.mp3 \
+  --files /Users/.../mix/meetings/call.wav \
   --audio-mode transcript
 ```
 
@@ -94,7 +94,7 @@ multimodal-analyzer --type audio  \
 multimodal-analyzer --type image  --path photo.jpg
 
 # Batch process directory
-multimodal-analyzer --type image --model azure/gpt-4.1-mini --path ./photos/ --output markdown
+multimodal-analyzer --type image --model azure/gpt-4.1-mini --path /Users/.../mix/photos/ --output markdown
 
 # Development installation (prefix with uv run)
 uv run multimodal-analyzer --type image  --path photo.jpg
@@ -108,14 +108,14 @@ multimodal-analyzer --type image --model claude-3-sonnet-20240229 --path chart.j
   --prompt "Analyze this chart focusing on data insights" --word-count 300
 
 # Recursive batch processing
-multimodal-analyzer --type image --model gpt-4o-mini --path ./dataset/ \
+multimodal-analyzer --type image --model gpt-4o-mini --path /Users/.../mix/dataset/ \
   --recursive --concurrency 5 --output json --output-file results.json
 
 # Analyze specific images from multiple directories
 multimodal-analyzer --type image --model gpt-4o-mini \
-  --files ./screenshots/chart1.png \
-  --files ./photos/diagram.jpg \
-  --files ./temp/analysis_image.png \
+  --files /Users/.../mix/screenshots/chart1.png \
+  --files /Users/.../mix/photos/diagram.jpg \
+  --files /Users/.../mix/temp/analysis_image.png \
   --prompt "Compare these visuals" --word-count 200
 ```
 
@@ -135,7 +135,7 @@ multimodal-analyzer --type audio --model gpt-4o-mini --path podcast.wav --audio-
 
 ```bash
 # Batch transcription
-multimodal-analyzer --type audio --model whisper-1 --path ./audio/ \
+multimodal-analyzer --type audio --model whisper-1 --path /Users/.../mix/audio/ \
   --audio-mode transcript --output text --output-file transcripts.txt
 
 # Content analysis with custom prompts
@@ -144,9 +144,9 @@ multimodal-analyzer --type audio --model gpt-4o-mini --path podcast.wav \
 
 # Transcribe specific audio files from different locations
 multimodal-analyzer --type audio --model whisper-1 \
-  --files ./meetings/standup.mp3 \
-  --files ./interviews/candidate1.wav \
-  --files ./recordings/conference_call.m4a \
+  --files /Users/.../mix/meetings/standup.mp3 \
+  --files /Users/.../mix/interviews/candidate1.wav \
+  --files /Users/.../mix/recordings/conference_call.m4a \
   --audio-mode transcript --output markdown --output-file transcripts.md
 ```
 
@@ -167,7 +167,7 @@ multimodal-analyzer --type video  --path presentation.mp4 \
   --video-mode description --word-count 150
 
 # Batch video processing with custom prompts
-multimodal-analyzer --type video  --path ./videos/ \
+multimodal-analyzer --type video  --path /Users/.../mix/videos/ \
   --video-mode description --prompt "Describe the visual content and any audio" \
   --recursive --output markdown --output-file video_analysis.md
 
@@ -177,9 +177,9 @@ multimodal-analyzer --type video  --path tutorial.mp4 \
 
 # Analyze specific videos from multiple projects
 multimodal-analyzer --type video  \
-  --files ./project1/demo.mp4 \
-  --files ./project2/presentation.avi \
-  --files ./shared/training_video.mov \
+  --files /Users/.../mix/project1/demo.mp4 \
+  --files /Users/.../mix/project2/presentation.avi \
+  --files /Users/.../mix/shared/training_video.mov \
   --video-mode description --prompt "Focus on key features demonstrated" \
   --word-count 300 --output json --output-file video_summaries.json
 ```

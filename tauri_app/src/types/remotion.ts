@@ -1,7 +1,8 @@
 // Basic Remotion types for compatibility
+export type VideoFormat = 'horizontal' | 'vertical';
+
 export interface VideoConfig {
-  width: number;
-  height: number;
+  format: VideoFormat;
   durationInFrames: number;
   fps: number;
 }
@@ -11,7 +12,7 @@ export interface VideoElement {
   content: string;
   from?: number;
   durationInFrames?: number;
-  position?: { x: number; y: number };
+  layout?: 'top-center' | 'bottom-center';
   style?: {
     fontSize?: number;
     color?: string;

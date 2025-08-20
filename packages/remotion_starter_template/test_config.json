@@ -1,42 +1,44 @@
 {
-  "config": {
-    "composition": {
-      "durationInFrames": 150,
-      "fps": 30,
-      "width": 1920,
-      "height": 1080
-    },
-    "elements": [
-      {
-        "type": "text",
-        "content": "Test Video Export",
-        "position": { "x": 960, "y": 400 },
-        "style": {
-          "fontSize": 72,
-          "color": "#ffffff",
-          "fontWeight": "bold"
-        },
-        "animation": {
-          "type": "fadeIn",
-          "startFrame": 0,
-          "durationFrames": 30
-        }
+  "composition": {
+    "durationInFrames": 90,
+    "fps": 30,
+    "format": "vertical"
+  },
+  "elements": [
+    {
+      "type": "video",
+      "src": "/Users/sarathmenon/Desktop/a16z_demo/new_project/input/videos/garry_tan_voiceover_2.mp4",
+      "from": 0,
+      "durationInFrames": 90,
+      "position": {
+        "x": 0,
+        "y": 0
       },
-      {
-        "type": "text", 
-        "content": "Created with Remotion",
-        "position": { "x": 960, "y": 500 },
-        "style": {
-          "fontSize": 36,
-          "color": "#cccccc"
-        },
-        "animation": {
-          "type": "slideIn",
-          "startFrame": 30,
-          "durationFrames": 30,
-          "direction": "left"
-        }
-      }
-    ]
-  }
+      "scale": 1
+    },
+    {
+      "animation": {
+        "duration": 30,
+        "type": "tiktokEntrance"
+      },
+      "content": "I spent $1000s trying to feel better...",
+      "durationInFrames": 90,
+      "from": 0,
+      "position": {
+        "x": 0,
+        "y": -400
+      },
+      "stroke": {
+        "color": "#000000",
+        "width": 8
+      },
+      "style": {
+        "color": "#ffffff",
+        "fontSize": 64,
+        "fontWeight": "bold",
+        "textAlign": "center"
+      },
+      "type": "text"
+    }
+  ]
 }

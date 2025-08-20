@@ -1,0 +1,27 @@
+{
+  "composition": {
+    "durationInFrames": 60,
+    "fps": 30,
+    "format": "horizontal"
+  },
+  "elements": [
+    {
+      "type": "text",
+      "content": "Fade In Animation Test",
+      "from": 0,
+      "durationInFrames": 60,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "style": {
+        "fontSize": 72,
+        "color": "#ffffff"
+      },
+      "animation": {
+        "type": "fadeIn",
+        "duration": 30
+      }
+    }
+  ]
+}

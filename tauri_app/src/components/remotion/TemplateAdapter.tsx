@@ -84,13 +84,26 @@ const ElementRenderer: React.FC<{
     }
   }
 
+  // Map layout to coordinates
+  const getPositionFromLayout = (layout?: 'top-center' | 'bottom-center') => {
+    switch (layout) {
+      case 'top-center':
+        return { x: 0, y: -200 };
+      case 'bottom-center':
+        return { x: 0, y: 200 };
+      default:
+        return { x: 0, y: -200 }; // Default to top-center
+    }
+  };
+
+  const position = getPositionFromLayout(element.layout);
   const hasBackground = element.style?.backgroundColor && element.style.backgroundColor !== 'transparent';
   
   const style: React.CSSProperties = {
     position: 'absolute',
     left: '50%',
     top: '50%',
-    transform: `translate(calc(-50% + ${element.position?.x || 0}px + ${translateX}px), calc(-50% + ${element.position?.y || 0}px + ${translateY}px)) scale(${scaleValue})`,
+    transform: `translate(calc(-50% + ${position.x}px + ${translateX}px), calc(-50% + ${position.y}px + ${translateY}px)) scale(${scaleValue})`,
     opacity,
     fontSize: element.style?.fontSize || 50,
     color: element.style?.color || '#ffffff',

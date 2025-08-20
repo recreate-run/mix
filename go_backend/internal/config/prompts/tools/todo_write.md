@@ -5,6 +5,7 @@ It also helps the user understand the progress of the task and overall progress 
 their requests.
 
 ## When to Use This Tool
+
 Use this tool proactively in these scenarios:
 
 1. Complex multi-step tasks - When a task requires 3 or more distinct steps or
@@ -16,7 +17,7 @@ todo list
 4. User provides multiple tasks - When users provide a list of things to be done
 (numbered or comma-separated)
 5. After receiving new instructions - Immediately capture user requirements as todos
-6. When you start working on a task - Mark it as in_progress BEFORE beginning work. 
+6. When you start working on a task - Mark it as in_progress BEFORE beginning work.
 Ideally you should only have one todo as in_progress at a time
 7. After completing a task - Mark it as completed and add any new follow-up tasks
 discovered during implementation
@@ -24,6 +25,7 @@ discovered during implementation
 ## When NOT to Use This Tool
 
 Skip using this tool when:
+
 1. There is only a single, straightforward task
 2. The task is trivial and tracking it provides no organizational benefit
 3. The task can be completed in less than 3 trivial steps
@@ -61,7 +63,7 @@ recordings to categorize user behaviors and interaction patterns.
 *Reviews session recordings, noting navigation patterns, hesitation points, and abandonment locations*
 Assistant: After analyzing the sessions, I've identified several friction patterns across different user journeys.
 Let me create a todo list to track our analysis and reporting process.
-*Creates todo list with items like: 1) Categorize sessions by user type and journey stage, 2) Document specific friction points with timestamps, 3) 
+*Creates todo list with items like: 1) Categorize sessions by user type and journey stage, 2) Document specific friction points with timestamps, 3)
 Identify common abandonment patterns, 4) Create visual heatmaps of problem areas, 5) Generate actionable UX recommendations report*
 Let's start by categorizing the sessions to understand different user behavior patterns.
 
@@ -75,26 +77,23 @@ The assistant used the todo list because:
 </reasoning>
 </example>
 
-
-
 <example>
 User: Create and edit a 15-second vertical TikTok video for an AI based fullstack web app generator from the given screen recording
 Assistant: I'll help you create a TikTok-optimized video from your screen recording. This involves multiple creative decisions and technical steps, so let me break this down systematically.
 *Creates todo list with the following items:*
-1. Audio selection - Choose or source background music suitable for tech/AI content and TikTok audience
-2. Text overlay design - Create engaging captions and call-to-action text with TikTok-optimized styling and timing
-3. Video editing with transitions - Convert screen recording to 9:16 vertical format, add smooth transitions, and sync with audio
-4. Thumbnail selection - Create eye-catching thumbnail frame that represents the AI web app generator effectively
-5. TikTok-optimized export - Export final video in TikTok specifications (9:16 aspect ratio, 15-second duration, optimized compression)
-Let me start by analyzing your screen recording and selecting appropriate background music for the tech demo.
+1. Text overlay design - Create engaging captions and call-to-action text with TikTok-optimized styling using remotion
+2. Video editing with transitions - Convert screen recording to 9:16 vertical format and add smooth transitions using ffmpeg
+3. Thumbnail selection - Create eye-catching thumbnail frame that represents the AI web app generator effectively
+4. TikTok-optimized export - Export final video in TikTok specifications (9:16 aspect ratio, 15-second duration,  optimized compression) using ffmpeg
+Let me start by analyzing your screen recording and designing the text overlays for the tech demo.
 
 <reasoning>
 The assistant used the todo list because:
-1. This task involves multiple creative decisions requiring coordination across audio, visual, and textual elements
+1. This task involves multiple creative decisions requiring coordination across visual and textual elements
 2. TikTok optimization requires specific technical requirements (vertical format, duration, compression) that must be systematically addressed
-3. Each step has distinct deliverables: music selection, text design, video editing, thumbnail creation, and platform-specific export
-4. The workflow combines multiple tools (FFmpeg for conversion, Blender for editing, possibly Remotion for text overlays) requiring systematic tracking
-5. Creative decisions around audience engagement (music choice, text timing, thumbnail appeal) benefit from structured approach to ensure nothing is overlooked
+3. Each step has distinct deliverables: text design, video editing, thumbnail creation, and platform-specific export
+4. The workflow combines multiple tools (FFmpeg for conversion and editing, Remotion for text overlays) requiring systematic tracking
+5. Creative decisions around audience engagement (text timing, thumbnail appeal) benefit from structured approach to ensure nothing is overlooked
 </reasoning>
 </example>
 
@@ -129,8 +128,8 @@ Assistant: Sure, let me add a watermark to your image.
 * Uses image editing tools to apply the watermark to the specified image *
 
 <reasoning>
-The assistant did not use the todo list because this is a single, straightforward 
-task applied to one image. Adding a watermark doesn't require tracking 
+The assistant did not use the todo list because this is a single, straightforward
+task applied to one image. Adding a watermark doesn't require tracking
 multiple steps or systematic organization.
 </reasoning>
 </example>
@@ -151,7 +150,7 @@ multiple steps or systematic organization.
 
 3. **Task Completion Requirements**:
    - ONLY mark a task as completed when you have FULLY accomplished it
-   - If you encounter errors, blockers, or cannot finish, keep the task as 
+   - If you encounter errors, blockers, or cannot finish, keep the task as
 in_progress
    - When blocked, create a new task describing what needs to be resolved
    - Never mark a task as completed if:
@@ -165,5 +164,5 @@ in_progress
    - Break complex tasks into smaller, manageable steps
    - Use clear, descriptive task names
 
-When in doubt, use this tool. Being proactive with task management demonstrates 
+When in doubt, use this tool. Being proactive with task management demonstrates
 attentiveness and ensures you complete all requirements successfully.

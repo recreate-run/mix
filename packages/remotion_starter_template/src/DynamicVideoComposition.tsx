@@ -1,12 +1,18 @@
 import React from 'react';
-import { AbsoluteFill, Sequence, useCurrentFrame, interpolate, getInputProps, spring, useVideoConfig } from 'remotion';
+import { getInputProps } from 'remotion';
+// TODO: When converting to separate packages, update this import to use @remotion-shared alias
+// or published package dependency. Current cross-package import works via vite.config.ts alias
+// but should be formalized during package separation.
+import { TemplateAdapter } from '../../../tauri_app/src/components/remotion/TemplateAdapter';
+import { VideoFormat } from './constants/videoDimensions';
 
+// Re-export interfaces for compatibility
 export interface VideoElement {
   type: 'text' | 'shape';
   content: string;
   from: number;
   durationInFrames: number;
-  position: { x: number; y: number };
+  layout?: 'top-center' | 'bottom-center';
   style?: {
     fontSize?: number;
     color?: string;
@@ -24,12 +30,15 @@ export interface VideoConfig {
   composition: {
     durationInFrames: number;
     fps: number;
-    width: number;
-    height: number;
+    format: VideoFormat;
   };
   elements: VideoElement[];
 }
 
+/**
+ * Unified DynamicVideoComposition - now uses TemplateAdapter as single source of truth.
+ * This eliminates code duplication and ensures consistent behavior between preview and export.
+ */
 export const DynamicVideoComposition: React.FC = () => {
   const inputProps = getInputProps() as { config?: VideoConfig };
   const config = inputProps.config;
@@ -46,110 +55,6 @@ export const DynamicVideoComposition: React.FC = () => {
     throw new Error('No elements defined in configuration. At least one element is required to render the video.');
   }
 
-  return (
-    <AbsoluteFill style={{ backgroundColor: '#000' }}>
-      {config.elements.map((element, index) => (
-        <Sequence
-          key={index}
-          from={element.from}
-          durationInFrames={element.durationInFrames}
-        >
-          <ElementRenderer element={element} />
-        </Sequence>
-      ))}
-    </AbsoluteFill>
-  );
-};
-
-export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-
-  let opacity = 1;
-  let translateX = 0;
-  let translateY = 0;
-  let scaleValue = 1;
-  let displayContent = element.content;
-
-  if (element.animation) {
-    switch (element.animation.type) {
-      case 'fadeIn':
-        opacity = interpolate(frame, [0, element.animation.duration], [0, 1], { extrapolateRight: 'clamp' });
-        break;
-      case 'fadeOut':
-        opacity = interpolate(frame, [element.durationInFrames - element.animation.duration, element.durationInFrames], [1, 0], { extrapolateRight: 'clamp' });
-        break;
-      case 'slideIn':
-        translateX = interpolate(frame, [0, element.animation.duration], [-200, 0], { extrapolateRight: 'clamp' });
-        break;
-      case 'slideOut':
-        translateX = interpolate(frame, [element.durationInFrames - element.animation.duration, element.durationInFrames], [0, 200], { extrapolateRight: 'clamp' });
-        break;
-      case 'typing':
-        const revealedChars = interpolate(frame, [0, element.animation.duration], [0, element.content.length], {
-          extrapolateRight: 'clamp',
-          extrapolateLeft: 'clamp'
-        });
-        displayContent = element.content.slice(0, Math.floor(revealedChars));
-        break;
-      case 'tiktokEntrance':
-        const springValue = spring({
-          frame,
-          fps,
-          config: { damping: 200 },
-          durationInFrames: element.animation.duration
-        });
-        opacity = springValue;
-        translateY = interpolate(springValue, [0, 1], [50, 0]);
-        scaleValue = interpolate(springValue, [0, 1], [0.8, 1]);
-        break;
-    }
-  }
-
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    transform: `translate(calc(-50% + ${element.position.x}px + ${translateX}px), calc(-50% + ${element.position.y}px + ${translateY}px)) scale(${scaleValue})`,
-    opacity,
-    fontSize: element.style?.fontSize || 50,
-    color: element.style?.color || '#ffffff',
-    backgroundColor: element.style?.backgroundColor || 'transparent',
-    padding: element.style?.backgroundColor ? '10px 20px' : '0',
-    borderRadius: element.style?.backgroundColor ? '8px' : '0',
-    WebkitTextStroke: (element.stroke?.width && element.stroke?.color) ? `${element.stroke.width}px ${element.stroke.color}` : undefined,
-    paintOrder: (element.stroke?.width && element.stroke?.color) ? 'stroke' : undefined,
-    textTransform: (element.stroke?.width && element.stroke?.color) ? 'uppercase' : undefined,
-  };
-
-  if (element.type === 'text') {
-    // Word-level timing takes precedence over other animations
-    if (element.wordTimings && element.wordTimings.length > 0) {
-      return (
-        <div style={style}>
-          {element.wordTimings.map((word, i) => {
-            const isActive = frame >= word.start && frame < word.end;
-
-            return (
-              <span
-                key={i}
-                style={{
-                  color: isActive ? '#39E508' : style.color,
-                  display: 'inline',
-                  whiteSpace: 'pre',
-                }}
-              >
-                {word.word}
-              </span>
-            );
-          })}
-        </div>
-      );
-    }
-
-    // Standard text rendering with animations
-    return <div style={style}>{displayContent}</div>;
-  }
-
-  return <div style={style}>Shape: {element.content}</div>;
+  // Use TemplateAdapter as the single source of truth for rendering
+  return <TemplateAdapter config={config} />;
 };
