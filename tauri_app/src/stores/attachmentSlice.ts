@@ -219,6 +219,28 @@ export const isImageFile = (filename: string): boolean => {
   return ext ? IMAGE_EXTENSIONS.includes(ext as any) : false;
 };
 
+const IGNORED_DIRECTORIES = [
+  'node_modules',
+  '.git', 
+  '.next',
+  '.nuxt',
+  'dist',
+  'build',
+  'target',     // Rust
+  '.cargo',
+  'tmp',
+  'temp',
+  '__pycache__',
+  '.pytest_cache',
+  'coverage',
+  '.nyc_output',
+  'vendor',     // PHP/Go
+  '.idea',      // JetBrains IDEs
+  '.vscode',    // VS Code
+  '.gradle',    // Gradle
+  'logs'
+];
+
 export const filterAndSortEntries = (
   entries: any[],
   basePath = ''
@@ -226,6 +248,7 @@ export const filterAndSortEntries = (
   return entries
     .filter((entry) => {
       if (entry.name.startsWith('.')) return false;
+      if (entry.isDirectory && IGNORED_DIRECTORIES.includes(entry.name)) return false;
       if (entry.isDirectory) return true;
       const extension = entry.name.split('.').pop()?.toLowerCase();
       return extension && ALL_MEDIA_EXTENSIONS.includes(extension as any);

@@ -100,8 +100,11 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
             stroke:
               strokeType === 'none' ? undefined :
                 strokeType === 'normal' ? { width: 2, color: '#000000' } :
-                  strokeType === 'tiktok' ? { width: 20, color: '#000000' } :
-                    el.stroke, // fallback to current stroke
+                  strokeType === 'tiktokBlack' ? { width: 20, color: '#000000' } :
+                    strokeType === 'tiktokWhite' ? { width: 20, color: '#ffffff' } :
+                      strokeType === 'tiktokNeonPink' ? { width: 15, color: '#ff1493' } :
+                        strokeType === 'tiktokNeonCyan' ? { width: 15, color: '#00ffff' } :
+                          el.stroke, // fallback to current stroke
           }
           : el
       ),
@@ -111,8 +114,18 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
   // Helper function to get current stroke type
   const getCurrentStrokeType = () => {
     if (!firstTextElement?.stroke) return 'none';
-    if (firstTextElement.stroke.width <= 4) return 'normal';
-    return 'tiktok';
+    
+    const { width, color } = firstTextElement.stroke;
+    
+    // Detect specific TikTok styles by width and color
+    if (width === 20 && color === '#ffffff') return 'tiktokWhite';
+    if (width === 15 && color === '#ff1493') return 'tiktokNeonPink';
+    if (width === 15 && color === '#00ffff') return 'tiktokNeonCyan';
+    if (width === 20 && color === '#000000') return 'tiktokBlack';
+    if (width <= 4) return 'normal';
+    
+    // Default fallback
+    return 'tiktokBlack';
   };
 
   const updateBackgroundColor = (color: string) => {
@@ -206,7 +219,10 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="tiktok">TikTok Style</SelectItem>
+                  <SelectItem value="tiktokBlack">TikTok Black</SelectItem>
+                  <SelectItem value="tiktokWhite">TikTok White</SelectItem>
+                  <SelectItem value="tiktokNeonPink">TikTok Neon Pink</SelectItem>
+                  <SelectItem value="tiktokNeonCyan">TikTok Neon Cyan</SelectItem>
                 </SelectContent>
               </Select>
             </div>

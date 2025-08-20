@@ -33,7 +33,7 @@ export interface VideoConfig {
 export const DynamicVideoComposition: React.FC = () => {
   const inputProps = getInputProps() as { config?: VideoConfig };
   const config = inputProps.config;
-  
+
   if (!config) {
     throw new Error('No configuration provided. Video configuration is required to render the composition.');
   }
@@ -64,13 +64,13 @@ export const DynamicVideoComposition: React.FC = () => {
 export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  
+
   let opacity = 1;
   let translateX = 0;
   let translateY = 0;
   let scaleValue = 1;
   let displayContent = element.content;
-  
+
   if (element.animation) {
     switch (element.animation.type) {
       case 'fadeIn':
@@ -86,7 +86,7 @@ export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }
         translateX = interpolate(frame, [element.durationInFrames - element.animation.duration, element.durationInFrames], [0, 200], { extrapolateRight: 'clamp' });
         break;
       case 'typing':
-        const revealedChars = interpolate(frame, [0, element.animation.duration], [0, element.content.length], { 
+        const revealedChars = interpolate(frame, [0, element.animation.duration], [0, element.content.length], {
           extrapolateRight: 'clamp',
           extrapolateLeft: 'clamp'
         });
@@ -105,7 +105,7 @@ export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }
         break;
     }
   }
-  
+
   const style: React.CSSProperties = {
     position: 'absolute',
     left: '50%',
@@ -129,7 +129,7 @@ export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }
         <div style={style}>
           {element.wordTimings.map((word, i) => {
             const isActive = frame >= word.start && frame < word.end;
-            
+
             return (
               <span
                 key={i}
@@ -146,10 +146,10 @@ export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }
         </div>
       );
     }
-    
+
     // Standard text rendering with animations
     return <div style={style}>{displayContent}</div>;
   }
-  
+
   return <div style={style}>Shape: {element.content}</div>;
 };
