@@ -18,9 +18,11 @@ export interface VideoElement {
     backgroundColor?: string;
   };
   animation?: {
-    type: 'fadeIn' | 'fadeOut' | 'slideIn' | 'slideOut' | 'typing';
+    type: 'fadeIn' | 'fadeOut' | 'slideIn' | 'slideOut' | 'typing' | 'tiktokEntrance';
     duration: number;
   };
+  wordTimings?: { word: string; start: number; end: number }[];
+  stroke?: { width: number; color: string };
 }
 
 export interface RemotionVideoConfig {

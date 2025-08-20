@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Sequence, useCurrentFrame, interpolate, getInputProps } from 'remotion';
+import { AbsoluteFill, Sequence, useCurrentFrame, interpolate, getInputProps, spring, useVideoConfig } from 'remotion';
 
 export interface VideoElement {
   type: 'text' | 'shape';
@@ -13,9 +13,11 @@ export interface VideoElement {
     backgroundColor?: string;
   };
   animation?: {
-    type: 'fadeIn' | 'fadeOut' | 'slideIn' | 'slideOut' | 'typing';
+    type: 'fadeIn' | 'fadeOut' | 'slideIn' | 'slideOut' | 'typing' | 'tiktokEntrance';
     duration: number;
   };
+  wordTimings?: { word: string; start: number; end: number }[];
+  stroke?: { width: number; color: string };
 }
 
 export interface VideoConfig {
@@ -61,10 +63,12 @@ export const DynamicVideoComposition: React.FC = () => {
 
 export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }) => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
   
   let opacity = 1;
   let translateX = 0;
   let translateY = 0;
+  let scaleValue = 1;
   let displayContent = element.content;
   
   if (element.animation) {
@@ -88,6 +92,17 @@ export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }
         });
         displayContent = element.content.slice(0, Math.floor(revealedChars));
         break;
+      case 'tiktokEntrance':
+        const springValue = spring({
+          frame,
+          fps,
+          config: { damping: 200 },
+          durationInFrames: element.animation.duration
+        });
+        opacity = springValue;
+        translateY = interpolate(springValue, [0, 1], [50, 0]);
+        scaleValue = interpolate(springValue, [0, 1], [0.8, 1]);
+        break;
     }
   }
   
@@ -95,16 +110,44 @@ export const ElementRenderer: React.FC<{ element: VideoElement }> = ({ element }
     position: 'absolute',
     left: '50%',
     top: '50%',
-    transform: `translate(calc(-50% + ${element.position.x}px + ${translateX}px), calc(-50% + ${element.position.y}px + ${translateY}px))`,
+    transform: `translate(calc(-50% + ${element.position.x}px + ${translateX}px), calc(-50% + ${element.position.y}px + ${translateY}px)) scale(${scaleValue})`,
     opacity,
     fontSize: element.style?.fontSize || 50,
     color: element.style?.color || '#ffffff',
     backgroundColor: element.style?.backgroundColor || 'transparent',
     padding: element.style?.backgroundColor ? '10px 20px' : '0',
     borderRadius: element.style?.backgroundColor ? '8px' : '0',
+    WebkitTextStroke: (element.stroke?.width && element.stroke?.color) ? `${element.stroke.width}px ${element.stroke.color}` : undefined,
+    paintOrder: (element.stroke?.width && element.stroke?.color) ? 'stroke' : undefined,
+    textTransform: (element.stroke?.width && element.stroke?.color) ? 'uppercase' : undefined,
   };
 
   if (element.type === 'text') {
+    // Word-level timing takes precedence over other animations
+    if (element.wordTimings && element.wordTimings.length > 0) {
+      return (
+        <div style={style}>
+          {element.wordTimings.map((word, i) => {
+            const isActive = frame >= word.start && frame < word.end;
+            
+            return (
+              <span
+                key={i}
+                style={{
+                  color: isActive ? '#39E508' : style.color,
+                  display: 'inline',
+                  whiteSpace: 'pre',
+                }}
+              >
+                {word.word}
+              </span>
+            );
+          })}
+        </div>
+      );
+    }
+    
+    // Standard text rendering with animations
     return <div style={style}>{displayContent}</div>;
   }
   

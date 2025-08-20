@@ -25,60 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { TextParser } from '@/lib/textParser';
 import { cn } from '@/lib/utils';
 
-type UseAutoResizeTextareaProps = {
-  minHeight: number;
-  maxHeight?: number;
-};
-
-const useAutoResizeTextarea = ({
-  minHeight,
-  maxHeight,
-}: UseAutoResizeTextareaProps) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const adjustHeight = useCallback(
-    (reset?: boolean) => {
-      const textarea = textareaRef.current;
-      if (!textarea) {
-        return;
-      }
-
-      if (reset) {
-        textarea.style.height = `${minHeight}px`;
-        return;
-      }
-
-      // Temporarily shrink to get the right scrollHeight
-      textarea.style.height = `${minHeight}px`;
-
-      // Calculate new height
-      const newHeight = Math.max(
-        minHeight,
-        Math.min(textarea.scrollHeight, maxHeight ?? Number.POSITIVE_INFINITY)
-      );
-
-      textarea.style.height = `${newHeight}px`;
-    },
-    [minHeight, maxHeight]
-  );
-
-  useEffect(() => {
-    // Set initial height
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = `${minHeight}px`;
-    }
-  }, [minHeight]);
-
-  // Adjust height on window resize
-  useEffect(() => {
-    const handleResize = () => adjustHeight();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [adjustHeight]);
-
-  return { textareaRef, adjustHeight };
-};
 
 export type AIInputProps = HTMLAttributes<HTMLFormElement>;
 
@@ -93,8 +39,6 @@ export const AIInput = ({ className, ...props }: AIInputProps) => (
 );
 
 export type AIInputTextareaProps = ComponentProps<typeof Textarea> & {
-  minHeight?: number;
-  maxHeight?: number;
   availableFiles?: string[];
   availableApps?: string[];
   availableCommands?: string[];
@@ -105,18 +49,13 @@ export const AIInputTextarea = ({
   onKeyDown,
   className,
   placeholder = 'What would you like to know?',
-  minHeight = 48,
-  maxHeight = 164,
   value = '',
   availableFiles = [],
   availableApps = [],
   availableCommands = [],
   ...props
 }: AIInputTextareaProps) => {
-  const { textareaRef, adjustHeight } = useAutoResizeTextarea({
-    minHeight,
-    maxHeight,
-  });
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const previousValueRef = useRef<string>(String(value || ''));
@@ -202,15 +141,14 @@ export const AIInputTextarea = ({
       {renderTokenOverlay()}
       <Textarea
         className={cn(
-          'w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0',
+          'w-full rounded-none border-none p-3 shadow-none outline-none ring-0',
           'relative z-10 bg-transparent dark:bg-transparent',
           'text-foreground focus-visible:ring-0',
+          'h-16 overflow-y-auto',
           className
         )}
         name="message"
         onChange={(e) => {
-          adjustHeight();
-
           const newValue = e.target.value;
           const previousValue = previousValueRef.current;
           const textarea = textareaRef.current;

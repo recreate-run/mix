@@ -1,5 +1,9 @@
 # Mix
 
+[![Twitter Follow](https://img.shields.io/twitter/follow/Sarath?style=social)](https://x.com/intent/user?screen_name=sarath_suresh_m)
+[![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
+[![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/backend)
+
 We’re building "claude code" for complex multimodal workflows. It’s a desktop app that uses existing tools like Blender and Figma. This enables workflows like: “generate videos and edit videos in blender, generate sound effects and edit in Logic Pro, post process in after-effects”.  Startups use it to automate marketing video generation, analyzing session recordings etc. The backend can also be embedded into other products via our SDK (coming soon).
 
 📋 Key Features
@@ -8,9 +12,7 @@ We’re building "claude code" for complex multimodal workflows. It’s a deskto
 - All project data is stores plain text and native media files - absolutely no lock-in.
 - The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our SDK with stdio interface (similar to claude code SDK) is launching soon.
 
-## Stack
-
-Quick Install
+## Quick Install
 
 📦 Installation
 
@@ -126,7 +128,18 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 - Storyboard and scene generation
 - Pixelmator for image editing
 
+## Tech Stack
+
+<p align="center">
+  <img alt="Tauri" src="https://img.shields.io/badge/-Tauri-24C8DB?style=flat-square&logo=tauri&logoColor=white" />
+  <img alt="TanStack Query" src="https://img.shields.io/badge/-TanStack%20Query-FF4154?style=flat-square&logo=react-query&logoColor=white" />
+  <img alt="Radix UI" src="https://img.shields.io/badge/-Radix%20UI-161618?style=flat-square&logo=radix-ui&logoColor=white" />
+  <img alt="Rust" src="https://img.shields.io/badge/-Rust-000000?style=flat-square&logo=rust&logoColor=white" />
+  <img alt="Vite" src="https://img.shields.io/badge/-Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
+  <img alt="SQLite" src="https://img.shields.io/badge/-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" />
+  <img alt="FFmpeg" src="https://img.shields.io/badge/-FFmpeg-007808?style=flat-square&logo=ffmpeg&logoColor=white" />
+</p>
+
 ## Thanks
 
-1. ffmpeg
-2. remotion
+1. All third part softwaare that we've used in the project, especially ffmpeg and remotion
