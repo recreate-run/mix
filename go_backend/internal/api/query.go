@@ -99,12 +99,7 @@ func NewQueryHandler(app *app.App) *QueryHandler {
 	if err := registry.LoadCommands(app); err != nil {
 		logging.Error("Failed to load commands", "error", err)
 		// Continue with empty registry - API will return proper errors
-	} else {
-		// Log successful command loading
-		allCommands := registry.GetAllCommands()
-		logging.Info("Successfully loaded commands", "count", len(allCommands), "names", getCommandNames(allCommands))
 	}
-
 	return &QueryHandler{
 		app:             app,
 		commandRegistry: registry,

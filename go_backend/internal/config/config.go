@@ -77,17 +77,17 @@ type ShellConfig struct {
 
 // Config is the simplified configuration structure for embedded binary.
 type Config struct {
-	Data            Data                              `json:"data"`
-	WorkingDir      string                            `json:"wd,omitempty"`
-	PromptsDir      string                            `json:"promptsDir,omitempty"`
-	MCPServers      map[string]MCPServer              `json:"mcpServers,omitempty"`
-	Providers       map[models.ModelProvider]Provider `json:"providers,omitempty"`
-	Agents          map[AgentName]Agent               `json:"agents,omitempty"`
-	Debug           bool                              `json:"debug,omitempty"`
-	ContextPaths    []string                          `json:"contextPaths,omitempty"`
-	Shell           ShellConfig                       `json:"shell,omitempty"`
-	SkipPermissions bool                              `json:"skipPermissions,omitempty"`
-	AnalyticsEnabled bool                             `json:"analyticsEnabled,omitempty"`
+	Data             Data                              `json:"data"`
+	WorkingDir       string                            `json:"wd,omitempty"`
+	PromptsDir       string                            `json:"promptsDir,omitempty"`
+	MCPServers       map[string]MCPServer              `json:"mcpServers,omitempty"`
+	Providers        map[models.ModelProvider]Provider `json:"providers,omitempty"`
+	Agents           map[AgentName]Agent               `json:"agents,omitempty"`
+	Debug            bool                              `json:"debug,omitempty"`
+	ContextPaths     []string                          `json:"contextPaths,omitempty"`
+	Shell            ShellConfig                       `json:"shell,omitempty"`
+	SkipPermissions  bool                              `json:"skipPermissions,omitempty"`
+	AnalyticsEnabled bool                              `json:"analyticsEnabled,omitempty"`
 }
 
 // Application constants
@@ -204,12 +204,12 @@ func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) 
 	cfg.PromptsDir = promptsDir
 
 	applyDefaultValues()
-	
+
 	// Ensure embedded .mix directory structure is written to home directory
 	if err := ensureEmbeddedDataDirectory(); err != nil {
 		return cfg, fmt.Errorf("failed to initialize embedded data directory: %w", err)
 	}
-	
+
 	// Prompts directory no longer needed - all prompts are embedded
 	defaultLevel := slog.LevelInfo
 	if cfg.Debug {
@@ -321,7 +321,7 @@ func setDefaults(debug bool) {
 	if analyticsEnabled != "" {
 		viper.SetDefault("analyticsEnabled", analyticsEnabled == "true" || analyticsEnabled == "1")
 	} else {
-		viper.SetDefault("analyticsEnabled", true)  // Default to true for backward compatibility
+		viper.SetDefault("analyticsEnabled", true) // Default to true for backward compatibility
 	}
 
 	if debug {
@@ -511,8 +511,6 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 	} else if providerCfg.APIKey == "" && provider != "anthropic" && provider != "openai" {
 		return fmt.Errorf("provider %s has no API key configured for agent %s (model %s)", provider, name, agent.Model)
 	}
-
-	logging.Info("Selected provider", "agent", name, "model", agent.Model, "provider", provider)
 
 	// Validate max tokens
 	if agent.MaxTokens <= 0 {

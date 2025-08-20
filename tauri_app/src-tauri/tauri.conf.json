@@ -37,8 +37,7 @@
       "icons/128x128@2x.png",
       "icons/icon.icns"
     ],
-    "externalBin": ["../../go_backend/build/release/mix"],
-    "copyright": "Copyright © 2024 Mix Team. All rights reserved.",
+    "copyright": "Copyright © 2025 Recreate labs. All rights reserved.",
     "category": "Productivity",
     "shortDescription": "AI-Powered Content Generation",
     "longDescription": "Mix is a powerful desktop application for AI-powered content generation and management, featuring advanced editing tools and seamless workflow integration.",

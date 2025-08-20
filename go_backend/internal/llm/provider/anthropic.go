@@ -88,7 +88,6 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 		anthropicOpts.useOAuth = true
 		anthropicOpts.oauthCreds = oauthCreds
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAuthToken(oauthCreds.AccessToken))
-		logging.Info("Initialized Anthropic client with OAuth authentication via SDK")
 	} else if opts.apiKey != "" {
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
 		logging.Info("Initialized Anthropic client with API key authentication")
@@ -438,25 +437,25 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 		logging.Debug("Prepared messages", "messages", string(jsonData))
 	}
 	attempts := 0
-	
+
 	// Handle the case where no authentication is provided
 	if !a.options.useOAuth && a.providerOptions.apiKey == "" {
 		// Send authentication error event instead of content
 		go func() {
 			// Create the authentication error message
 			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate."
-			
+
 			// Send error event that will be properly handled by error handlers
 			eventChan <- ProviderEvent{
 				Type:  EventError,
 				Error: errors.New(authErrMsg),
 			}
-			
+
 			close(eventChan)
 		}()
 		return eventChan
 	}
-	
+
 	go func() {
 		for {
 			attempts++

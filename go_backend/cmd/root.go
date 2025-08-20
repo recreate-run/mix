@@ -299,13 +299,13 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		
+
 		// Handle preflight OPTIONS request
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		httphandlers.HandleVideoExport(ctx, handler, w, r)
 	})
 
@@ -392,8 +392,6 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 	}()
 
 	// Start server and provide ready confirmation
-	logging.Info("HTTP JSON-RPC server ready", "address", addr)
-	logging.Info("Send JSON-RPC requests", "url", fmt.Sprintf("http://%s/rpc", addr))
 	logging.Info("Press Ctrl+C to stop")
 
 	// Start server and block (this will block until server shuts down)
@@ -410,7 +408,6 @@ func Execute() {
 		os.Exit(1)
 	}
 }
-
 
 func init() {
 	rootCmd.Flags().BoolP("help", "h", false, "Help")
@@ -442,4 +439,3 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(authCmd)
 }
-

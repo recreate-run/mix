@@ -51,8 +51,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	if !analyticsEnabled {
 		logging.Info("PostHog analytics disabled: analyticsEnabled config set to false")
 		posthogAPIKey = "" // Empty API key disables analytics
-	} else {
-		logging.Info("PostHog analytics enabled")
 	}
 	analyticsService := analytics.NewAnalyticsService(posthogAPIKey)
 
