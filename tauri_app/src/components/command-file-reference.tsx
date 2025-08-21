@@ -1,4 +1,3 @@
-import { convertFileSrc } from '@tauri-apps/api/core';
 import { readDir } from '@tauri-apps/plugin-fs';
 import {
   AudioLines,
@@ -18,12 +17,12 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import type { useFileReference } from '@/hooks/useFileReference';
+import { useFileTypes } from '@/hooks/useFileTypes';
 import { useBoundStore } from '@/stores';
-import {
-  type Attachment,
-  filterAndSortEntries,
-} from '@/stores/attachmentSlice';
-import { getFileType } from '@/utils/fileTypes';
+import type { Attachment } from '@/stores/attachmentSlice';
+import { filterAndSortEntries } from '@/utils/attachmentUtils';
+import { getFileType, type SupportedFileTypes } from '@/utils/fileTypes';
+import { generatePreviewUrl } from '@/utils/assetServer';
 import { AppIcon } from './app-icon';
 
 const RECURSIVE_SEARCH_DEPTH = 3;
@@ -34,28 +33,33 @@ interface CommandFileReferenceProps {
   text: string;
   onTextUpdate?: (newText: string) => void;
   onClose?: () => void;
+  workingDirectory: string;
 }
 
 // Media thumbnail component
-const MediaThumbnail = ({ file }: { file: Attachment }) => {
-  const fileType = getFileType(file.name);
+const MediaThumbnail = ({ 
+  file, 
+  workingDirectory, 
+  supportedFileTypes 
+}: { 
+  file: Attachment; 
+  workingDirectory: string; 
+  supportedFileTypes?: SupportedFileTypes;
+}) => {
+  const fileType = getFileType(file.name, supportedFileTypes);
 
-  if (!fileType) {
-    return <ImageIcon className="size-4 text-green-500" />;
-  }
-
-  if (!file.path) {
-    return <ImageIcon className="size-4 text-green-500" />;
-  }
-
-  const previewUrl = convertFileSrc(file.path);
+  const previewUrl = generatePreviewUrl({ path: file.path, type: fileType || 'text' }, workingDirectory);
 
   if (fileType === 'image') {
+    if (!previewUrl) {
+      return <ImageIcon className="size-4 text-green-500" />;
+    }
+
     return (
       <div className="relative flex-shrink-0">
         <img
           alt={file.name}
-          className="size-8 rounded-sm object-cover"
+          className="size-10 rounded-xs object-cover"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
             const fallback = e.currentTarget.nextElementSibling as HTMLElement;
@@ -72,23 +76,26 @@ const MediaThumbnail = ({ file }: { file: Attachment }) => {
   }
 
   if (fileType === 'video') {
+    if (!previewUrl) {
+      return <VideoIcon className="size-4 text-green-500" />;
+    }
+
     return (
       <div className="relative flex-shrink-0">
-        <video
-          className="size-8 aspect-square rounded-sm object-cover"
+        <img
+          alt={`${file.name} thumbnail`}
+          className="size-10 aspect-auto rounded-xs object-cover"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
             const fallback = e.currentTarget.nextElementSibling as HTMLElement;
             if (fallback) fallback.style.display = 'block';
           }}
-          onLoadedMetadata={(e) => {
-            e.currentTarget.currentTime = 1;
-          }}
-          preload="metadata"
           src={previewUrl}
         />
-
-
+        <VideoIcon
+          className="absolute top-0 left-0 size-4 text-green-500"
+          style={{ display: 'none' }}
+        />
       </div>
     );
   }
@@ -110,9 +117,11 @@ export function CommandFileReference({
   text,
   onTextUpdate,
   onClose,
+  workingDirectory,
 }: CommandFileReferenceProps) {
   const addAttachment = useBoundStore((state) => state.addAttachment);
   const addReference = useBoundStore((state) => state.addReference);
+  const { data: supportedFileTypes } = useFileTypes();
 
   const handleAppSelect = (app: Attachment) => {
     const words = text.split(' ');
@@ -139,7 +148,7 @@ export function CommandFileReference({
 
       try {
         const entries = await readDir(basePath);
-        const fileEntries = filterAndSortEntries(entries, basePath);
+        const fileEntries = filterAndSortEntries(entries, basePath, supportedFileTypes);
         const results: Attachment[] = [];
 
         // Add all files/folders from current directory
@@ -299,7 +308,11 @@ export function CommandFileReference({
                         {file.isDirectory ? (
                           <FolderIcon className="size-4 text-blue-500" />
                         ) : (
-                          <MediaThumbnail file={file} />
+                          <MediaThumbnail 
+                            file={file} 
+                            workingDirectory={workingDirectory}
+                            supportedFileTypes={supportedFileTypes}
+                          />
                         )}
                         <div className="flex-1">
                           <div className="font-medium text-sm">{file.name}</div>

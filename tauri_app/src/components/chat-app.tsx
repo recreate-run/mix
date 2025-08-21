@@ -31,9 +31,9 @@ import { useSessionMessages } from '@/hooks/useSessionMessages';
 import { useBoundStore } from '@/stores';
 import {
   type Attachment,
-  expandFileReferences,
   reconstructAttachmentsFromHistory,
 } from '@/stores/attachmentSlice';
+import { expandFileReferences } from '@/utils/attachmentUtils';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
 import type { MessageData, UIMessage } from '@/types/message';
@@ -211,6 +211,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
     userMessageRefs.current[index] = el;
   };
+
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -609,6 +610,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             messages={messages}
             onForkMessage={handleForkMessage}
             onPlanAction={handlePlanAction}
+            workingDirectory={session?.workingDirectory}
             setUserMessageRef={setUserMessageRef}
             sseStream={sseStream}
           />
@@ -618,12 +620,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       {/* AI Input Section - Fixed at bottom with sidebar awareness */}
       <div className="absolute right-0 bottom-0 left-0 z-50 p-4 before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-[''] ">
         <div className="relative mx-auto max-w-4xl border-none">
-          <AttachmentPreview
-            attachments={attachments}
-            onTextChange={setText}
-            referenceMap={referenceMap}
-            text={text}
-          />
+          {session?.workingDirectory && (
+            <AttachmentPreview
+              attachments={attachments}
+              onTextChange={setText}
+              referenceMap={referenceMap}
+              text={text}
+              workingDirectory={session.workingDirectory}
+            />
+          )}
 
           <AIInput
             className="border bg-stone-200/60 backdrop-blur-xl dark:bg-stone-700/60"
@@ -683,13 +688,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           )}
 
           {/* File Reference Dropdown with Command Component */}
-          {fileRef.show && (
+          {fileRef.show && session?.workingDirectory && (
             <CommandFileReference
               apps={availableApps}
               fileRef={fileRef}
               onClose={fileRef.close}
               onTextUpdate={setText}
               text={text}
+              workingDirectory={session.workingDirectory}
             />
           )}
         </div>

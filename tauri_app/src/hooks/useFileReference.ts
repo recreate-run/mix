@@ -1,7 +1,8 @@
 import { useEffect, useReducer, useRef } from 'react';
 import { useBoundStore } from '@/stores';
-import { getParentPath } from '@/stores/attachmentSlice';
-import { ALL_MEDIA_EXTENSIONS } from '@/utils/fileTypes';
+import { getParentPath } from '@/utils/attachmentUtils';
+import { getFileType, type SupportedFileTypes } from '@/utils/fileTypes';
+import { useFileTypes } from '@/hooks/useFileTypes';
 import { type MediaItem, useFileSystem } from './useFileSystem';
 
 type State = {
@@ -66,6 +67,7 @@ export const useFileReference = (
   const { currentFiles, fetchFiles, fetchDirectoryContents } =
     useFileSystem(customBasePath);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { data: supportedFileTypes } = useFileTypes();
 
   const addAttachment = useBoundStore((state) => state.addAttachment);
   const addReference = useBoundStore((state) => state.addReference);
@@ -92,9 +94,11 @@ export const useFileReference = (
 
   const baseFiles = state.currentFolder ? state.folderContents : currentFiles;
   const files = baseFiles.filter(
-    (f) =>
-      f.isDirectory ||
-      (f.extension && ALL_MEDIA_EXTENSIONS.includes(f.extension as any))
+    (f) => {
+      if (f.isDirectory) return true;
+      if (!f.name || !supportedFileTypes) return false;
+      return getFileType(f.name, supportedFileTypes) !== null;
+    }
   );
 
   const words = text.split(' ');
@@ -146,13 +150,13 @@ export const useFileReference = (
     // Add file or folder to attachment store based on type
     if (file.isDirectory) {
       const { createFolderAttachment } = await import(
-        '@/stores/attachmentSlice'
+        '@/utils/attachmentUtils'
       );
-      const folderAttachment = await createFolderAttachment(file.path);
+      const folderAttachment = await createFolderAttachment(file.path, supportedFileTypes);
       addAttachment(folderAttachment);
     } else {
-      const { createFileAttachment } = await import('@/stores/attachmentSlice');
-      const fileAttachment = createFileAttachment(file.path);
+      const { createFileAttachment } = await import('@/utils/attachmentUtils');
+      const fileAttachment = createFileAttachment(file.path, supportedFileTypes);
       if (fileAttachment) {
         addAttachment(fileAttachment);
       }

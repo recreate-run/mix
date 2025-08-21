@@ -28,6 +28,9 @@ export default defineConfig(async () => ({
       levels: ['log', 'warn', 'error', 'info', 'debug'],
     }),
   ],
+  define: {
+    'import.meta.env.VITE_BACKEND_URL': JSON.stringify('http://localhost:8088'),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

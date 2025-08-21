@@ -1,7 +1,7 @@
-import { convertFileSrc } from '@tauri-apps/api/core';
 import { Image, Music, Play, Video } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { MediaOutput } from '@/types/media';
+import { convertToAssetServerUrl } from '@/utils/assetServer';
 
 const formatTime = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
@@ -13,12 +13,14 @@ interface PlaylistSidebarProps {
   mediaOutputs: MediaOutput[];
   selectedIndex: number;
   onSelect: (index: number) => void;
+  workingDirectory: string;
 }
 
 export const PlaylistSidebar = ({
   mediaOutputs,
   selectedIndex,
   onSelect,
+  workingDirectory,
 }: PlaylistSidebarProps) => {
   const getMediaIcon = (type: string) => {
     switch (type) {
@@ -36,13 +38,15 @@ export const PlaylistSidebar = ({
 
   const renderThumbnail = (media: MediaOutput) => {
     if (media.type === 'image') {
+      const imageUrl = convertToAssetServerUrl(media.path, workingDirectory);
+      const thumbnailUrl = `${imageUrl}?thumb=100`;
+      
       return (
         <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
           <img
             alt=""
             className="h-full w-full object-cover"
             onError={(e) => {
-              console.error('Image failed to load:', media.path);
               e.currentTarget.style.display = 'none';
               const parent = e.currentTarget.parentElement;
               if (parent) {
@@ -52,8 +56,7 @@ export const PlaylistSidebar = ({
                   '<svg class="w-4 h-4 text-stone-400" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
               }
             }}
-            onLoad={() => {}}
-            src={convertFileSrc(media.path)}
+            src={thumbnailUrl}
           />
         </div>
       );
@@ -61,20 +64,16 @@ export const PlaylistSidebar = ({
 
     if (media.type === 'video') {
       // Use sourceVideo for highlights, fallback to path for regular videos
-      const videoSrc = convertFileSrc(media.sourceVideo || media.path);
-      // Use startTime for highlights, fallback to 1 second for regular videos
-      const thumbnailTime = media.startTime !== undefined ? media.startTime : 1;
+      const videoPath = media.sourceVideo || media.path;
+      const videoUrl = convertToAssetServerUrl(videoPath, workingDirectory);
+      const thumbnailUrl = `${videoUrl}?thumb=100`;
 
       return (
         <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
-          <video
+          <img
+            alt={`${media.title} thumbnail`}
             className="h-full w-full object-cover"
             onError={(e) => {
-              console.error(
-                'Video failed to load:',
-                media.sourceVideo || media.path,
-                e
-              );
               e.currentTarget.style.display = 'none';
               const parent = e.currentTarget.parentElement;
               if (parent) {
@@ -84,17 +83,7 @@ export const PlaylistSidebar = ({
                   '<svg class="w-4 h-4 text-stone-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
               }
             }}
-            onLoadedMetadata={(e) => {
-              // Seek to startTime for highlights or 1 second for regular videos
-              try {
-                e.currentTarget.currentTime = thumbnailTime;
-              } catch (err) {
-                console.error('Error seeking video:', err);
-              }
-            }}
-            poster=""
-            preload="metadata"
-            src={videoSrc}
+            src={thumbnailUrl}
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/20">
             <Play className="h-3 w-3 text-white drop-shadow-sm" />

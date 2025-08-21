@@ -1,4 +1,4 @@
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertToAssetServerUrl } from '@/utils/assetServer';
 import { Pause, PictureInPicture, Play, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,26 +11,22 @@ export const VideoPlayer = ({
   description,
   startTime,
   duration,
+  workingDirectory,
 }: VideoPlayerProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [hasError, setHasError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     setIsLoading(true);
-  }, [path, startTime, duration]);
-
-  // Reset video position when segment changes
-  useEffect(() => {
-    if (videoRef.current && startTime !== undefined) {
-      videoRef.current.currentTime = startTime;
-    }
-  }, [startTime, duration]);
+    setHasError(false);
+  }, [path]);
 
   // Create URL with media fragment for segments
   const getVideoSrc = () => {
-    const baseSrc = convertFileSrc(path);
+    const baseSrc = convertToAssetServerUrl(path, workingDirectory);
 
     // For video segments, add media fragment to constrain playback
     if (startTime !== undefined && duration !== undefined) {
@@ -42,8 +38,6 @@ export const VideoPlayer = ({
   };
 
   // Get segment info
-  const segmentStartTime = startTime || 0;
-  const segmentDuration = duration || 0;
   const isSegment = startTime !== undefined && duration !== undefined;
 
   // Format time for display (segment time, not absolute time)
@@ -55,21 +49,21 @@ export const VideoPlayer = ({
 
   // Get segment time (0-based from start of segment)
   const getSegmentTime = (videoCurrentTime: number) => {
-    if (!isSegment) return videoCurrentTime;
-    return Math.max(0, videoCurrentTime - segmentStartTime);
+    if (!isSegment || !startTime) return videoCurrentTime;
+    return Math.max(0, videoCurrentTime - startTime);
   };
 
   // Convert segment progress (0-100%) to actual video time
   const segmentProgressToVideoTime = (progress: number) => {
-    if (!isSegment) return 0;
-    return segmentStartTime + (progress / 100) * segmentDuration;
+    if (!isSegment || !startTime || !duration) return 0;
+    return startTime + (progress / 100) * duration;
   };
 
   // Get current segment progress (0-100%)
   const getSegmentProgress = () => {
-    if (!isSegment || segmentDuration === 0) return 0;
+    if (!isSegment || !duration) return 0;
     const segmentTime = getSegmentTime(currentTime);
-    return Math.min(100, (segmentTime / segmentDuration) * 100);
+    return Math.min(100, (segmentTime / duration) * 100);
   };
 
   const handlePlayPause = () => {
@@ -107,8 +101,8 @@ export const VideoPlayer = ({
     if (!videoRef.current) return;
 
     // Reset to start (or segment start for segments)
-    const startTime = isSegment ? segmentStartTime : 0;
-    videoRef.current.currentTime = startTime;
+    const resetTime = isSegment && startTime !== undefined ? startTime : 0;
+    videoRef.current.currentTime = resetTime;
   };
 
   const handlePictureInPicture = async () => {
@@ -139,25 +133,25 @@ export const VideoPlayer = ({
       <div className="relative max-w-xl rounded-md">
         {isLoading && <Skeleton className="aspect-video" />}
         <video
-          className={`aspect-video rounded-md bg-black ${isLoading ? 'hidden' : ''}`}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-            if (fallback) fallback.style.display = 'block';
+          className="aspect-video rounded-md bg-black"
+          onError={() => {
+            setHasError(true);
+            setIsLoading(false);
           }}
           onLoadedData={() => {
             setIsLoading(false);
+            setHasError(false);
           }}
           onPause={() => setIsPlaying(false)}
           onPlay={() => setIsPlaying(true)}
           onSeeking={(e) => {
             // Prevent seeking outside the segment range
-            if (isSegment) {
+            if (isSegment && startTime !== undefined && duration !== undefined) {
               const video = e.currentTarget;
-              const endTime = segmentStartTime + segmentDuration;
+              const endTime = startTime + duration;
 
-              if (video.currentTime < segmentStartTime) {
-                video.currentTime = segmentStartTime;
+              if (video.currentTime < startTime) {
+                video.currentTime = startTime;
               } else if (video.currentTime > endTime) {
                 video.currentTime = endTime;
               }
@@ -168,8 +162,8 @@ export const VideoPlayer = ({
             setCurrentTime(video.currentTime);
 
             // Additional safeguard to keep playback within bounds
-            if (isSegment) {
-              const endTime = segmentStartTime + segmentDuration;
+            if (isSegment && startTime !== undefined && duration !== undefined) {
+              const endTime = startTime + duration;
               if (video.currentTime >= endTime) {
                 video.pause();
                 video.currentTime = endTime;
@@ -231,8 +225,8 @@ export const VideoPlayer = ({
 
                 <span className="font-mono text-white text-xs">
                   {formatTime(
-                    isSegment
-                      ? segmentDuration
+                    isSegment && duration !== undefined
+                      ? duration
                       : videoRef.current?.duration || 0
                   )}
                 </span>
@@ -251,12 +245,26 @@ export const VideoPlayer = ({
           </div>
         )}
 
-        <div
-          className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
-          style={{ display: 'none' }}
-        >
-          Failed to load video: {path}
-        </div>
+        {/* Error overlay - only show if video failed and not loading */}
+        {hasError && !isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-stone-800/80 text-stone-300 text-sm rounded-md">
+            <div className="text-center">
+              <p>Video temporarily unavailable</p>
+              <button
+                onClick={() => {
+                  setHasError(false);
+                  setIsLoading(true);
+                  if (videoRef.current) {
+                    videoRef.current.load();
+                  }
+                }}
+                className="mt-2 text-white underline hover:no-underline"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

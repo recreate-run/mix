@@ -2,10 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import * as path from '@tauri-apps/api/path';
 import { BaseDirectory, readDir } from '@tauri-apps/plugin-fs';
 import { useCallback } from 'react';
-import {
-  type Attachment,
-  filterAndSortEntries,
-} from '@/stores/attachmentSlice';
+import type { Attachment } from '@/stores/attachmentSlice';
+import { filterAndSortEntries } from '@/utils/attachmentUtils';
 
 export type MediaItem = Attachment;
 

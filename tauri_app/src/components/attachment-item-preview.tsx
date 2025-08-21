@@ -10,25 +10,29 @@ import { AudioWaveform } from './audio-waveform';
 
 export interface AttachmentItemPreviewProps {
   attachment: Attachment;
+  previewUrl?: string;
 }
 
-export const ImagePreview = ({ attachment }: AttachmentItemPreviewProps) => {
+export const ImagePreview = ({ attachment, previewUrl }: AttachmentItemPreviewProps) => {
+  if (!previewUrl) {
+    return (
+      <div className="flex size-14 items-center justify-center rounded-lg">
+        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       <img
         alt={attachment.name}
         className="size-14 rounded-lg object-cover"
         onError={(e) => {
-          console.error('❌ [Attachment Debug] Image failed to load:', {
-            name: attachment.name,
-            src: attachment.preview,
-            error: e,
-          });
           e.currentTarget.style.display = 'none';
           const fallback = e.currentTarget.nextElementSibling as HTMLElement;
           if (fallback) fallback.style.display = 'block';
         }}
-        src={attachment.preview}
+        src={previewUrl}
       />
       <ImageIcon
         className="absolute top-0 left-0 size-14 rounded-lg p-2 text-muted-foreground"
@@ -38,26 +42,26 @@ export const ImagePreview = ({ attachment }: AttachmentItemPreviewProps) => {
   );
 };
 
-export const VideoPreview = ({ attachment }: AttachmentItemPreviewProps) => {
+export const VideoPreview = ({ attachment, previewUrl }: AttachmentItemPreviewProps) => {
+  if (!previewUrl) {
+    return (
+      <div className="flex size-14 items-center justify-center rounded-lg">
+        <VideoIcon className="h-6 w-6 text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
-      <video
+      <img
+        alt={`${attachment.name} thumbnail`}
         className="size-14 rounded-lg object-cover"
         onError={(e) => {
-          console.error('❌ [Attachment Debug] Video failed to load:', {
-            name: attachment.name,
-            src: attachment.preview,
-            error: e,
-          });
           e.currentTarget.style.display = 'none';
           const fallback = e.currentTarget.nextElementSibling as HTMLElement;
           if (fallback) fallback.style.display = 'block';
         }}
-        onLoadedMetadata={(e) => {
-          e.currentTarget.currentTime = 1;
-        }}
-        preload="metadata"
-        src={attachment.preview}
+        src={previewUrl}
       />
       <Play className="absolute bottom-1 left-1 h-3 w-3 rounded-full bg-black/50 p-0.5 text-white" />
       <VideoIcon

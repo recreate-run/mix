@@ -1,9 +1,9 @@
 import { stat } from '@tauri-apps/plugin-fs';
+import { type Attachment } from '@/stores/attachmentSlice';
 import {
-  type Attachment,
   createFileAttachment,
   createFolderAttachment,
-} from '@/stores/attachmentSlice';
+} from '@/utils/attachmentUtils';
 import type { ToolCall, ToolCallData } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
 import type { BackendMessage, UIMessage } from '@/types/message';

@@ -50,7 +50,6 @@ export type PersistentSSEHook = PersistentSSEState & {
   denyPermission: (id: string) => Promise<void>;
 };
 
-const BACKEND_URL = 'http://localhost:8088';
 
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const [state, setState] = useState<PersistentSSEState>({
@@ -119,7 +118,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     });
 
     const eventSource = new EventSource(
-      `${BACKEND_URL}/stream?sessionId=${encodeURIComponent(sessionId)}`
+      `${import.meta.env.VITE_BACKEND_URL}/stream?sessionId=${encodeURIComponent(sessionId)}`
     );
     eventSourceRef.current = eventSource;
 
@@ -362,7 +361,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
       try {
         const response = await fetch(
-          `${BACKEND_URL}/stream/${encodeURIComponent(sessionId)}/message`,
+          `${import.meta.env.VITE_BACKEND_URL}/stream/${encodeURIComponent(sessionId)}/message`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -398,7 +397,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     setState((prev) => ({ ...prev, cancelling: true, error: null }));
 
     try {
-      const response = await fetch(`${BACKEND_URL}/rpc`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rpc`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -444,7 +443,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
   const grantPermission = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/rpc`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rpc`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -481,7 +480,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
   const denyPermission = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/rpc`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rpc`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -6,7 +6,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { removeFileReferences } from '@/stores/attachmentSlice';
+import { removeFileReferences } from '@/utils/attachmentUtils';
+import { generatePreviewUrl } from '@/utils/assetServer';
 import {
   AppPreview,
   AudioPreview,
@@ -21,6 +22,7 @@ interface AttachmentPreviewProps {
   attachments: Attachment[];
   text: string;
   referenceMap: Map<string, string>;
+  workingDirectory: string;
   onTextChange?: (newText: string) => void;
 }
 
@@ -28,10 +30,12 @@ export const AttachmentPreview = ({
   attachments,
   text,
   referenceMap,
+  workingDirectory,
   onTextChange,
 }: AttachmentPreviewProps) => {
   const removeAttachment = useBoundStore((state) => state.removeAttachment);
   const removeReference = useBoundStore((state) => state.removeReference);
+
 
   const handleRemoveItem = (index: number) => {
     const attachmentToRemove = attachments[index];
@@ -79,9 +83,9 @@ export const AttachmentPreview = ({
               <TooltipTrigger asChild>
                 <div className="relative">
                   {attachment.type === 'image' ? (
-                    <ImagePreview attachment={attachment} />
+                    <ImagePreview attachment={attachment} previewUrl={generatePreviewUrl(attachment, workingDirectory)} />
                   ) : attachment.type === 'video' ? (
-                    <VideoPreview attachment={attachment} />
+                    <VideoPreview attachment={attachment} previewUrl={generatePreviewUrl(attachment, workingDirectory)} />
                   ) : attachment.type === 'audio' ? (
                     <AudioPreview attachment={attachment} />
                   ) : attachment.type === 'text' ? (
@@ -97,18 +101,18 @@ export const AttachmentPreview = ({
                 <p>
                   {attachment.type === 'folder' && attachment.mediaCount
                     ? (() => {
-                        const { images, videos, audios } =
-                          attachment.mediaCount;
-                        const total = images + videos + audios;
-                        if (total === 0) {
-                          return `${attachment.name} - no media files`;
-                        }
-                        const parts = [];
-                        if (images > 0) parts.push(`${images}i`);
-                        if (videos > 0) parts.push(`${videos}v`);
-                        if (audios > 0) parts.push(`${audios}a`);
-                        return `${attachment.name} ${parts.join('/')}`;
-                      })()
+                      const { images, videos, audios } =
+                        attachment.mediaCount;
+                      const total = images + videos + audios;
+                      if (total === 0) {
+                        return `${attachment.name} - no media files`;
+                      }
+                      const parts = [];
+                      if (images > 0) parts.push(`${images}i`);
+                      if (videos > 0) parts.push(`${videos}v`);
+                      if (audios > 0) parts.push(`${audios}a`);
+                      return `${attachment.name} ${parts.join('/')}`;
+                    })()
                     : attachment.name}
                 </p>
               </TooltipContent>

@@ -1,4 +1,4 @@
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertToAssetServerUrl } from '@/utils/assetServer';
 import { Check, Copy, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ type StreamingState = {
 };
 
 // Main Media Player Component
-const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
+const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; workingDirectory: string }) => {
   return (
     <div className="mb-2 space-y-2">
       <div>
@@ -69,7 +69,7 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
                 .nextElementSibling as HTMLElement;
               if (fallback) fallback.style.display = 'block';
             }}
-            src={convertFileSrc(media.path)}
+            src={convertToAssetServerUrl(media.path, workingDirectory)}
           />
           <div
             className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
@@ -87,6 +87,7 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
           path={media.path}
           startTime={media.startTime}
           title=""
+          workingDirectory={workingDirectory}
         />
       )}
 
@@ -102,7 +103,7 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
               if (fallback) fallback.style.display = 'block';
             }}
             preload="metadata"
-            src={convertFileSrc(media.path)}
+            src={convertToAssetServerUrl(media.path, workingDirectory)}
           >
             Your browser does not support the audio tag.
           </audio>
@@ -123,24 +124,25 @@ const MainMediaPlayer = ({ media }: { media: MediaOutput }) => {
 };
 
 // Media Showcase Component
-const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
+const MediaShowcase = ({ mediaOutputs, workingDirectory }: { mediaOutputs: MediaOutput[]; workingDirectory: string }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   if (!mediaOutputs || mediaOutputs.length === 0) return null;
 
   // Single media file - show directly
   if (mediaOutputs.length === 1) {
-    return <MainMediaPlayer media={mediaOutputs[0]} />;
+    return <MainMediaPlayer media={mediaOutputs[0]} workingDirectory={workingDirectory} />;
   }
 
   // Multiple media files - show player + playlist
   return (
     <div className="space-y-4">
-      <MainMediaPlayer media={mediaOutputs[selectedIndex]} />
+      <MainMediaPlayer media={mediaOutputs[selectedIndex]} workingDirectory={workingDirectory} />
       <PlaylistSidebar
         mediaOutputs={mediaOutputs}
         onSelect={setSelectedIndex}
         selectedIndex={selectedIndex}
+        workingDirectory={workingDirectory}
       />
     </div>
   );
@@ -149,12 +151,13 @@ const MediaShowcase = ({ mediaOutputs }: { mediaOutputs: MediaOutput[] }) => {
 interface ConversationDisplayProps {
   messages: UIMessage[];
   sseStream: StreamingState;
-  setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
   onPlanAction?: (
     action: 'proceed' | 'keep-planning',
     messageIndex: number
   ) => void;
   onForkMessage?: (index: number) => void;
+  setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
+  workingDirectory?: string;
 }
 
 // Helper function to extract todos from todo_write tool calls (works with both ToolCall and SSE formats)
@@ -171,7 +174,7 @@ const extractTodosFromToolCalls = (toolCalls: any[]) => {
       if (Array.isArray(todos) && todos.length > 0) {
         return todos;
       }
-    } catch {}
+    } catch { }
   }
 
   // Fallback: if no calls have parameters yet, return empty array
@@ -232,9 +235,10 @@ const MessageCopyButton = ({ content }: { content: string }) => {
 export function ConversationDisplay({
   messages,
   sseStream,
-  setUserMessageRef,
   onPlanAction,
   onForkMessage,
+  setUserMessageRef,
+  workingDirectory,
 }: ConversationDisplayProps) {
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
 
@@ -286,8 +290,10 @@ export function ConversationDisplay({
               {message.from === 'assistant' ? (
                 <>
                   {/* Render media outputs as primary content */}
-                  {message.mediaOutputs ? (
-                    <MediaShowcase mediaOutputs={message.mediaOutputs} />
+                  {message.mediaOutputs && workingDirectory ? (
+                    <MediaShowcase mediaOutputs={message.mediaOutputs} workingDirectory={workingDirectory} />
+                  ) : message.mediaOutputs ? (
+                    <div className="text-sm text-muted-foreground">Media content requires working directory</div>
                   ) : (
                     <AIMessageContent.Content>
                       {message.reasoning && (
@@ -370,7 +376,7 @@ export function ConversationDisplay({
                                 toolIndex ===
                                 filterNonSpecialTools(message.toolCalls!)
                                   .length -
-                                  1
+                                1
                               }
                               key={`${index}-${toolCall.name}-${toolIndex}`}
                               status={toolCall.status}
@@ -421,12 +427,12 @@ export function ConversationDisplay({
                   {/* Render streaming todos inline without tool wrapper */}
                   {extractTodosFromToolCalls(sseStream.toolCalls).length >
                     0 && (
-                    <div className="mt-4">
-                      <TodoList
-                        todos={extractTodosFromToolCalls(sseStream.toolCalls)}
-                      />
-                    </div>
-                  )}
+                      <div className="mt-4">
+                        <TodoList
+                          todos={extractTodosFromToolCalls(sseStream.toolCalls)}
+                        />
+                      </div>
+                    )}
                   {/* Render streaming plan content */}
                   {extractPlanFromToolCalls(sseStream.toolCalls) && (
                     <PlanDisplay
@@ -446,7 +452,7 @@ export function ConversationDisplay({
                               toolIndex ===
                               filterNonSpecialTools(sseStream.toolCalls)
                                 .length -
-                                1
+                              1
                             }
                             key={`streaming-${toolCall.id}-${toolIndex}`}
                             status={toolCall.status}
