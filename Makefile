@@ -114,7 +114,7 @@ install-deps: install
 	@echo "Installing Tauri app dependencies..."
 	cd tauri_app && bun i
 	@echo "Installing remotion template dependencies..."
-	cd packages/remotion_starter_template && bun install
+	cd packages/remotion_template && bun install
 	@echo "✅ All dependencies installed!"
 
 # Internal target for optimized builds

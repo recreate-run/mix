@@ -33,7 +33,7 @@ export default defineConfig(async () => ({
       '@': path.resolve(__dirname, './src'),
       '@remotion-shared': path.resolve(
         __dirname,
-        '../packages/remotion_starter_template/src'
+        '../packages/remotion_template/src'
       ),
     },
   },
@@ -49,10 +49,10 @@ export default defineConfig(async () => ({
     host,
     hmr: host
       ? {
-          protocol: 'ws',
-          host,
-          port: 1421,
-        }
+        protocol: 'ws',
+        host,
+        port: 1421,
+      }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`

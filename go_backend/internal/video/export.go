@@ -29,9 +29,9 @@ func NewExportService() (*ExportService, error) {
 
 // ExportRequest contains the parameters for video export
 type ExportRequest struct {
-	ConfigJSON   string `json:"config"`
-	OutputPath   string `json:"outputPath"`
-	SessionID    string `json:"sessionId,omitempty"`
+	ConfigJSON string `json:"config"`
+	OutputPath string `json:"outputPath"`
+	SessionID  string `json:"sessionId,omitempty"`
 }
 
 // ExportResponse contains the result of video export
@@ -61,13 +61,12 @@ func (s *ExportService) Export(req ExportRequest) (*ExportResponse, error) {
 
 // executeVideoExport performs the actual video export operation
 func (s *ExportService) executeVideoExport(configJSON, outputPath string) error {
-	remotionDir := filepath.Join(s.projectRoot, "packages", "remotion_starter_template")
-	
+	remotionDir := filepath.Join(s.projectRoot, "packages", "remotion_template")
+
 	// Verify Remotion directory exists
 	if _, err := os.Stat(remotionDir); os.IsNotExist(err) {
 		return fmt.Errorf("Remotion project not found at: %s", remotionDir)
 	}
-
 
 	// Extract output filename (without extension) for export script
 	outputDir := filepath.Dir(outputPath)
@@ -117,9 +116,9 @@ func findProjectRoot() (string, error) {
 		return "", err
 	}
 
-	// Walk up the directory tree looking for packages/remotion_starter_template
+	// Walk up the directory tree looking for packages/remotion_template
 	for {
-		candidatePath := filepath.Join(dir, "packages", "remotion_starter_template")
+		candidatePath := filepath.Join(dir, "packages", "remotion_template")
 		if _, err := os.Stat(candidatePath); err == nil {
 			return dir, nil
 		}
@@ -132,7 +131,7 @@ func findProjectRoot() (string, error) {
 		dir = parent
 	}
 
-	return "", fmt.Errorf("could not find project root (packages/remotion_starter_template not found)")
+	return "", fmt.Errorf("could not find project root (packages/remotion_template not found)")
 }
 
 // copyFile copies a file from src to dst, preserving permissions

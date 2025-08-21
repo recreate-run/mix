@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import type { RemotionVideoConfig, VideoFormat } from '@/types/remotion';
 import { TemplateAdapter } from './TemplateAdapter';
-import { getDimensionsForFormat } from '../../../../packages/remotion_starter_template/src/constants/videoDimensions';
+import { getDimensionsForFormat } from '../../../../packages/remotion_template/src/constants/videoDimensions';
 
 interface RemotionVideoPreviewProps {
   config: RemotionVideoConfig;

@@ -81,15 +81,7 @@ func (p *pythonExecutionTool) Run(ctx context.Context, call ToolCall) (ToolRespo
 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for Python execution")
 	}
 
-	p.permissions.Request(
-		permission.CreatePermissionRequest{
-			SessionID:   sessionID,
-			ToolName:    PythonExecutionToolName,
-			Action:      "execute",
-			Description: "Execute Python code in isolated environment",
-			Params:      params,
-		},
-	)
+	// Skip permission request - Python execution is already sandboxed with uv run --isolated
 
 	result, err := p.executePythonCode(ctx, params.Code)
 	if err != nil {

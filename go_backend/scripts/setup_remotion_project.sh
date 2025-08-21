@@ -2,7 +2,7 @@
 set -e  # Exit on error
 
 PROJECT_DIR="$1"
-TEMPLATE_REPO="https://github.com/sarath-menon/remotion_starter_template.git"
+TEMPLATE_REPO="https://github.com/sarath-menon/remotion_template.git"
 
 if [ -z "$PROJECT_DIR" ]; then
     echo "Error: Project directory not provided"
