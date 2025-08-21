@@ -1,37 +1,33 @@
-name: Build and Release
+name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
-  release:
-    permissions:
-      contents: write
+  build-macos:
+    runs-on: macos-latest
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-
-    runs-on: ${{ matrix.platform }}
+        target: [x86_64-apple-darwin, aarch64-apple-darwin]
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Rust setup
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+          targets: ${{ matrix.target }}
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          workspaces: './tauri_app/src-tauri -> target'
+          go-version: '1.24'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -42,17 +38,182 @@ jobs:
         working-directory: ./tauri_app
         run: bun install
 
-      - name: Build the app
+      - name: Build Go backend
+        working-directory: ./go_backend
+        run: |
+          CGO_ENABLED=0 GOOS=darwin GOARCH=${{ matrix.target == 'x86_64-apple-darwin' && 'amd64' || 'arm64' }} \
+          go build -a -ldflags="-s -w" -o build/release/mix-${{ matrix.target }} main.go
+
+      - name: Build Tauri app
         working-directory: ./tauri_app
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        uses: tauri-apps/tauri-action@v0
+        run: bun run tauri build --target ${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Mix v__VERSION__'
-          releaseBody: 'See the assets to download and install this version.'
-          releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.args }}
-          includeUpdaterJson: true
+          name: macos-${{ matrix.target }}
+          path: |
+            tauri_app/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            go_backend/build/release/mix-${{ matrix.target }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        working-directory: ./tauri_app
+        run: bun install
+
+      - name: Build Go backend
+        working-directory: ./go_backend
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+          go build -a -ldflags="-s -w" -o build/release/mix-x86_64-unknown-linux-gnu main.go
+
+      - name: Build Tauri app
+        working-directory: ./tauri_app
+        run: bun run tauri build --target x86_64-unknown-linux-gnu
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: |
+            tauri_app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+            tauri_app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+            go_backend/build/release/mix-x86_64-unknown-linux-gnu
+
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install frontend dependencies
+        working-directory: ./tauri_app
+        run: bun install
+
+      - name: Build Go backend
+        working-directory: ./go_backend
+        run: |
+          $env:CGO_ENABLED=0
+          $env:GOOS="windows"
+          $env:GOARCH="amd64"
+          go build -a -ldflags="-s -w" -o build/release/mix-x86_64-pc-windows-msvc.exe main.go
+
+      - name: Build Tauri app
+        working-directory: ./tauri_app
+        run: bun run tauri build --target x86_64-pc-windows-msvc
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: |
+            tauri_app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+            tauri_app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            go_backend/build/release/mix-x86_64-pc-windows-msvc.exe
+
+  release:
+    needs: [build-macos, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p ./release-assets
+          
+          # Copy desktop apps
+          find ./artifacts -name "*.dmg" -exec cp {} ./release-assets/ \;
+          find ./artifacts -name "*.deb" -exec cp {} ./release-assets/ \;
+          find ./artifacts -name "*.AppImage" -exec cp {} ./release-assets/ \;
+          find ./artifacts -name "*.msi" -exec cp {} ./release-assets/ \;
+          find ./artifacts -name "*.exe" -exec cp {} ./release-assets/ \;
+          
+          # Copy backend binaries
+          find ./artifacts -name "mix-*" -type f -exec cp {} ./release-assets/ \;
+          
+          # Generate checksums
+          cd ./release-assets
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: Mix ${{ inputs.version }}
+          draft: true
+          generate_release_notes: true
+          files: |
+            ./release-assets/*
+          body: |
+            ## Mix ${{ inputs.version }}
+            
+            ### Desktop Applications
+            - **macOS**: Download the `.dmg` file for your architecture (Intel or Apple Silicon)
+            - **Linux**: Download the `.deb` package or `.AppImage` file
+            - **Windows**: Download the `.msi` installer or `.exe` file
+            
+            ### Command Line Interface
+            Backend CLI binaries are also available for direct download:
+            - `mix-x86_64-apple-darwin` (macOS Intel)
+            - `mix-aarch64-apple-darwin` (macOS Apple Silicon)  
+            - `mix-x86_64-unknown-linux-gnu` (Linux)
+            - `mix-x86_64-pc-windows-msvc.exe` (Windows)
+            
+            ### Installation
+            1. Download the appropriate file for your platform
+            2. Install/run the desktop application, or place the CLI binary in your PATH
+            3. Verify installation with `mix --version`
+            
+            ### Checksums
+            SHA256 checksums are provided in `SHA256SUMS.txt` for verification.
