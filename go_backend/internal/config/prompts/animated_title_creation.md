@@ -1,5 +1,3 @@
-#### Animated Title Creation
-
 When users request animated titles, create them using the media_showcase tool with `type: "remotion_title"`:
 
 Title Generation Guidelines:
@@ -18,6 +16,7 @@ Element Types:
 - `type: "video"`: Background video that plays during composition (place first in elements array)
 
 File Path Format:
+
 - Convert absolute file paths to: `http://localhost:8088/<relative_path_from_workdir>`
 - Example: `http://localhost:8088/input/videos/egg.mp4`
 
@@ -62,9 +61,7 @@ For TikTok and Instagram content:
 - Use format: "vertical" (1080x1920) for TikTok and Instagram Stories
 - Keep duration concise (90-120 frames / 3-4 seconds at 30fps)
 
-Configuration Structure:
-
-```json
+<config_structure>
 {
   "composition": {
     "durationInFrames": 120,
@@ -75,14 +72,15 @@ Configuration Structure:
     {
       "type": "video",
       "content": "http://localhost:8088/input/videos/egg.mp4",
-      "from": 0,
-      "durationInFrames": 120
+      "compositionStartFrame": 0,
+      "compositionDuration": 120,
+      "sourceStartFrame": 60
     },
     {
       "type": "text",
       "content": "Title Text",
-      "from": 0,
-      "durationInFrames": 90,
+      "compositionStartFrame": 0,
+      "compositionDuration": 90,
       "layout": "top-center",
       "style": {"fontSize": 72, "color": "#ffffff"},
       "animation": {"type": "fadeIn", "duration": 30},
@@ -90,7 +88,25 @@ Configuration Structure:
     }
   ]
 }
-```
+</json_config>
+
+**Element Timing Properties:**
+
+- `compositionStartFrame`: Frame in the composition timeline when this element appears
+- `compositionDuration`: How many frames this element is visible in the composition
+- `sourceStartFrame`: For video elements only - which frame in the source video to start playing from
+
+**Example Video Timing:**
+
+<sample_timing_config>
+{
+  "type": "video",
+  "content": "<http://localhost:8088/input/videos/long-video.mp4>",
+  "compositionStartFrame": 30,    // Shows at frame 30 of composition (1 sec in)
+  "compositionDuration": 90,      // Visible for 90 frames (3 seconds)
+  "sourceStartFrame": 180         // Starts from frame 180 of source (6 seconds into original)
+}
+</sample_timing_config>
 
 Video Format Options:
 

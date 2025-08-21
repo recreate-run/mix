@@ -51,8 +51,8 @@ func TestVideoExportHTTPEndpoint(t *testing.T) {
 					{
 						"type":             "text",
 						"content":          "Test Video Export",
-						"from":             0,
-						"durationInFrames": 90,
+						"compositionStartFrame": 0,
+						"compositionDuration": 90,
 						"layout":           "top-center",
 						"style": map[string]interface{}{
 							"fontSize": 72,

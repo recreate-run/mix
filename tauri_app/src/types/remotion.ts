@@ -10,8 +10,9 @@ export interface VideoConfig {
 export interface VideoElement {
   type: 'text' | 'shape' | 'image' | 'video';
   content: string;
-  from?: number;
-  durationInFrames?: number;
+  compositionStartFrame?: number; // When element appears in composition timeline (was: from)
+  compositionDuration?: number;   // How long element shows in composition (was: durationInFrames)
+  sourceStartFrame?: number;      // Where to start in source video file (video elements only)
   layout?: 'top-center' | 'bottom-center';
   style?: {
     fontSize?: number;

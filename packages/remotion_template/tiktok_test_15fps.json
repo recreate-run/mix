@@ -8,8 +8,8 @@
     {
       "type": "text",
       "content": "I spent $1000s trying to feel better...",
-      "from": 0,
-      "durationInFrames": 45,
+      "compositionStartFrame": 0,
+      "compositionDuration": 45,
       "layout": "top-center",
       "style": {
         "fontSize": 85,

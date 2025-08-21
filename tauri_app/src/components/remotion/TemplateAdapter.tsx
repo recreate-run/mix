@@ -28,7 +28,7 @@ const ElementRenderer: React.FC<{
         });
         break;
       case 'fadeOut': {
-        const fadeOutDuration = element.durationInFrames || compositionDuration;
+        const fadeOutDuration = element.compositionDuration || compositionDuration;
         opacity = interpolate(
           frame,
           [fadeOutDuration - element.animation.duration, fadeOutDuration],
@@ -47,7 +47,7 @@ const ElementRenderer: React.FC<{
         break;
       case 'slideOut': {
         const slideOutDuration =
-          element.durationInFrames || compositionDuration;
+          element.compositionDuration || compositionDuration;
         translateX = interpolate(
           frame,
           [slideOutDuration - element.animation.duration, slideOutDuration],
@@ -175,7 +175,19 @@ const ElementRenderer: React.FC<{
       transform: `translate(${translateX}px, ${translateY}px) scale(${scaleValue})`,
     };
     
-    return <Video src={element.content} style={videoStyle} />;
+    // Calculate trimAfter if sourceStartFrame is specified
+    const trimAfter = element.sourceStartFrame ? 
+      element.sourceStartFrame + (element.compositionDuration || compositionDuration) : 
+      undefined;
+    
+    return (
+      <Video 
+        src={element.content} 
+        style={videoStyle}
+        trimBefore={element.sourceStartFrame}
+        trimAfter={trimAfter}
+      />
+    );
   }
 
   return <div style={style}>Shape: {element.content}</div>;
@@ -190,9 +202,9 @@ export const TemplateAdapter: React.FC<TemplateAdapterProps> = ({ config }) => {
       {config.elements.map((element, index) => (
         <Sequence
           durationInFrames={
-            element.durationInFrames || config.composition.durationInFrames
+            element.compositionDuration || config.composition.durationInFrames
           }
-          from={element.from || 0}
+          from={element.compositionStartFrame || 0}
           key={index}
         >
           <ElementRenderer

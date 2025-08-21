@@ -8,8 +8,8 @@
     {
       "type": "video",
       "src": "/Users/sarathmenon/Desktop/a16z_demo/new_project/input/videos/garry_tan_voiceover_2.mp4",
-      "from": 0,
-      "durationInFrames": 90,
+      "compositionStartFrame": 0,
+      "compositionDuration": 90,
       "position": {
         "x": 0,
         "y": 0
@@ -22,8 +22,8 @@
         "type": "tiktokEntrance"
       },
       "content": "I spent $1000s trying to feel better...",
-      "durationInFrames": 90,
-      "from": 0,
+      "compositionDuration": 90,
+      "compositionStartFrame": 0,
       "position": {
         "x": 0,
         "y": -400

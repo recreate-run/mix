@@ -8,8 +8,8 @@
     {
       "type": "text",
       "content": "Fade In Animation Test",
-      "from": 0,
-      "durationInFrames": 60,
+      "compositionStartFrame": 0,
+      "compositionDuration": 60,
       "position": {
         "x": 0,
         "y": 0

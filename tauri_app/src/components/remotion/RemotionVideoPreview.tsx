@@ -219,8 +219,8 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
         {
           type,
           content: src,
-          from: 0,
-          durationInFrames: prev.composition.durationInFrames
+          compositionStartFrame: 0,
+          compositionDuration: prev.composition.durationInFrames
         },
         ...prev.elements.filter(el => el.type !== 'image' && el.type !== 'video') // Remove existing backgrounds, keep text/shape
       ]

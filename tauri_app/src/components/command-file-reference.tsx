@@ -73,9 +73,9 @@ const MediaThumbnail = ({ file }: { file: Attachment }) => {
 
   if (fileType === 'video') {
     return (
-      <div className="relative size-4 flex-shrink-0">
+      <div className="relative flex-shrink-0">
         <video
-          className="size-4 rounded-sm object-cover"
+          className="size-8 aspect-square rounded-sm object-cover"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
             const fallback = e.currentTarget.nextElementSibling as HTMLElement;
@@ -87,11 +87,8 @@ const MediaThumbnail = ({ file }: { file: Attachment }) => {
           preload="metadata"
           src={previewUrl}
         />
-        <Play className="-bottom-0.5 -right-0.5 absolute h-2 w-2 rounded-full bg-black/50 p-0.5 text-white" />
-        <VideoIcon
-          className="absolute top-0 left-0 size-4 text-green-500"
-          style={{ display: 'none' }}
-        />
+
+
       </div>
     );
   }
@@ -200,15 +197,15 @@ export function CommandFileReference({
   // Filter files based on search query - client-side filtering of preloaded files
   const filteredFiles = searchQuery.trim()
     ? allFiles.filter((file) =>
-        file.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      file.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : fileRef.files;
 
   // Filter apps based on search query
   const filteredApps = searchQuery.trim()
     ? apps.filter((app) =>
-        app.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      app.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : apps;
 
   const handleSelect = (value: string) => {
