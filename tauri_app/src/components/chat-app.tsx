@@ -593,9 +593,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const isSubmitDisabled =
     buttonStatus === 'ready'
       ? (!text && attachments.length === 0) ||
-        !session?.id ||
-        sessionLoading ||
-        !sseStream.connected
+      !session?.id ||
+      sessionLoading ||
+      !sseStream.connected
       : buttonStatus === 'paused'
         ? true // Disable button completely during cancellation
         : !session?.id || sessionLoading || !sseStream.connected;
@@ -616,8 +616,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       </div>
 
       {/* AI Input Section - Fixed at bottom with sidebar awareness */}
-      <div className="fixed right-0 bottom-0 left-0 z-50 px-2 pl-[calc(var(--sidebar-width,0px)+0.5rem)] before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-[''] ">
-        <div className="relative mx-auto max-w-4xl border-none pb-4">
+      <div className="absolute right-0 bottom-0 left-0 z-50 p-4 before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-[''] ">
+        <div className="relative mx-auto max-w-4xl border-none">
           <AttachmentPreview
             attachments={attachments}
             onTextChange={setText}

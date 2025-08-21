@@ -1,5 +1,5 @@
 import type React from 'react';
-import { AbsoluteFill, interpolate, Sequence, useCurrentFrame, spring, useVideoConfig } from 'remotion';
+import { AbsoluteFill, interpolate, Sequence, useCurrentFrame, spring, useVideoConfig, Img, Video } from 'remotion';
 import type { RemotionVideoConfig, VideoElement } from '@/types/remotion';
 
 interface TemplateAdapterProps {
@@ -146,6 +146,36 @@ const ElementRenderer: React.FC<{
     
     // Standard text rendering
     return <div style={style}>{displayContent}</div>;
+  }
+
+  if (element.type === 'image') {
+    const imageStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      opacity: opacity,
+      objectFit: 'cover',
+      transform: `translate(${translateX}px, ${translateY}px) scale(${scaleValue})`,
+    };
+    
+    return <Img src={element.content} style={imageStyle} />;
+  }
+
+  if (element.type === 'video') {
+    const videoStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      opacity: opacity,
+      objectFit: 'cover',
+      transform: `translate(${translateX}px, ${translateY}px) scale(${scaleValue})`,
+    };
+    
+    return <Video src={element.content} style={videoStyle} />;
   }
 
   return <div style={style}>Shape: {element.content}</div>;

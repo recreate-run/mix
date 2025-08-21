@@ -45,16 +45,10 @@ type service struct {
 }
 
 func (s *service) Create(ctx context.Context, title string, workingDirectory string) (Session, error) {
-	if workingDirectory == "" {
-		return Session{}, fmt.Errorf("working directory is required for session creation")
-	}
-	
-	workingDirValue := sql.NullString{String: workingDirectory, Valid: true}
-
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:               uuid.New().String(),
 		Title:            title,
-		WorkingDirectory: workingDirValue,
+		WorkingDirectory: sql.NullString{String: workingDirectory, Valid: true},
 	})
 	if err != nil {
 		return Session{}, err
@@ -103,24 +97,17 @@ func (s *service) Fork(ctx context.Context, sourceSessionID string, title string
 		return Session{}, err
 	}
 
-	var parentSessionID sql.NullString
-	parentSessionID = sql.NullString{String: sourceSessionID, Valid: true}
-
-	var workingDirValue sql.NullString
-	if sourceSession.WorkingDirectory != "" {
-		workingDirValue = sql.NullString{String: sourceSession.WorkingDirectory, Valid: true}
-	}
-
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:               uuid.New().String(),
-		ParentSessionID:  parentSessionID,
+		ParentSessionID:  sql.NullString{String: sourceSessionID, Valid: true},
 		Title:            title,
-		WorkingDirectory: workingDirValue,
+		WorkingDirectory: sql.NullString{String: sourceSession.WorkingDirectory, Valid: true},
 	})
 	if err != nil {
 		return Session{}, err
 	}
 	session := s.fromDBItem(dbSession)
+
 	err = s.Publish(ctx, pubsub.CreatedEvent, session)
 	if err != nil {
 		return Session{}, err
@@ -135,6 +122,7 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+
 	err = s.q.DeleteSession(ctx, session.ID)
 	if err != nil {
 		return err
@@ -196,6 +184,11 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 // Removed List method for embedded binary
 
 func (s service) fromDBItem(item db.Session) Session {
+	// Working directories are now required - panic if null
+	if !item.WorkingDirectory.Valid {
+		panic(fmt.Sprintf("session %s has null working directory - database corruption", item.ID))
+	}
+	
 	return Session{
 		ID:               item.ID,
 		ParentSessionID:  item.ParentSessionID.String,
@@ -215,7 +208,7 @@ func (s service) fromDBItem(item db.Session) Session {
 func NewService(q db.Querier) Service {
 	broker := pubsub.NewBroker[Session]()
 	return &service{
-		broker,
-		q,
+		Broker: broker,
+		q:      q,
 	}
 }

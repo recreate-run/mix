@@ -26,6 +26,7 @@ type App struct {
 	Permissions permission.Service
 	Analytics   analytics.Service
 	Video       *video.ExportService
+	AssetServer *session.AssetServer
 
 	CoderAgent agent.Service
 
@@ -61,6 +62,9 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		return nil, fmt.Errorf("failed to initialize video export service: %w", err)
 	}
 
+	// Initialize asset server for serving files
+	assetServer := session.NewAssetServer()
+
 	// Wrap message service with tracking
 	messages := message.NewTrackingService(baseMessageService, analyticsService)
 
@@ -71,6 +75,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		Permissions: permission.NewPermissionService(sessions),
 		Analytics:   analyticsService,
 		Video:       videoService,
+		AssetServer: assetServer,
 	}
 
 	// Create MCP manager for this agent
@@ -164,12 +169,20 @@ func (a *App) SetCurrentSession(sessionID string) error {
 	}
 
 	// Verify session exists
-	_, err := a.Sessions.Get(context.Background(), sessionID)
+	session, err := a.Sessions.Get(context.Background(), sessionID)
 	if err != nil {
 		return fmt.Errorf("session not found: %w", err)
 	}
 
 	a.currentSessionID = sessionID
+
+	// Update asset server working directory
+	if a.AssetServer != nil && session.WorkingDirectory != "" {
+		if err := a.AssetServer.SetWorkingDirectory(session.WorkingDirectory); err != nil {
+			return fmt.Errorf("failed to set asset server working directory: %w", err)
+		}
+	}
+
 	return nil
 }
 

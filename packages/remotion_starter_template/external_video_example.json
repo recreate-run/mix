@@ -1,0 +1,36 @@
+{
+  "composition": {
+    "durationInFrames": 90,
+    "fps": 30,
+    "format": "horizontal"
+  },
+  "elements": [
+    {
+      "type": "video",
+      "content": "/Users/sarathmenon/Videos/background.mp4",
+      "from": 0,
+      "durationInFrames": 90
+    },
+    {
+      "type": "text",
+      "content": "External Video Background",
+      "from": 15,
+      "durationInFrames": 60,
+      "layout": "center",
+      "style": {
+        "fontSize": 64,
+        "color": "#ffffff",
+        "fontWeight": "bold",
+        "textAlign": "center"
+      },
+      "animation": {
+        "type": "fadeIn",
+        "duration": 30
+      },
+      "stroke": {
+        "width": 4,
+        "color": "#000000"
+      }
+    }
+  ]
+}

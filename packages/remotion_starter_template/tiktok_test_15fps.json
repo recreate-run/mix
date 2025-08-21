@@ -1,0 +1,31 @@
+{
+  "composition": {
+    "durationInFrames": 45,
+    "fps": 15,
+    "format": "vertical"
+  },
+  "elements": [
+    {
+      "type": "text",
+      "content": "I spent $1000s trying to feel better...",
+      "from": 0,
+      "durationInFrames": 45,
+      "layout": "top-center",
+      "style": {
+        "fontSize": 85,
+        "color": "#ffffff",
+        "fontWeight": "900",
+        "textAlign": "center",
+        "lineHeight": 1.1
+      },
+      "animation": {
+        "type": "tiktokEntrance",
+        "duration": 23
+      },
+      "stroke": {
+        "width": 20,
+        "color": "#000000"
+      }
+    }
+  ]
+}

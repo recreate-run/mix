@@ -22,6 +22,7 @@ Use for displaying/viewing media files:
    - Image generation/processing (posters, logos, processed images)
    - Audio production (soundtracks, voice-overs, audio effects)
    - Multi-media projects and complete deliverables
+   - Exporting videos
 
 4. Video Highlights - Display video segments with timestamps instead of creating separate files
 
@@ -31,10 +32,8 @@ Skip using this tool when:
 
 1. Content Analysis Requests: "What's in this image?", "Describe this file", "Analyze this"
 2. Information Extraction: "Explain what you see", "What does this show?"
-3. Understanding Content: Any request to interpret or analyze media content
-4. No media files: Task only involved text or code generation  
-5. File doesn't exist: Media file paths are invalid or inaccessible
-6. Non-media content: Documents, data files, or other non-visual/audio content
+3. File doesn't exist: Media file paths are invalid or inaccessible
+4. Non-media content: Documents, data files, or other non-visual/audio content
 
 ## Examples of When to Use Media Showcase
 

@@ -8,7 +8,7 @@ export interface VideoConfig {
 }
 
 export interface VideoElement {
-  type: string;
+  type: 'text' | 'shape' | 'image' | 'video';
   content: string;
   from?: number;
   durationInFrames?: number;
@@ -17,6 +17,8 @@ export interface VideoElement {
     fontSize?: number;
     color?: string;
     backgroundColor?: string;
+    opacity?: number;
+    objectFit?: 'cover' | 'contain' | 'fill' | 'scale-down' | 'none';
   };
   animation?: {
     type: 'fadeIn' | 'fadeOut' | 'slideIn' | 'slideOut' | 'typing' | 'tiktokEntrance';

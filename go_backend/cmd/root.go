@@ -309,6 +309,11 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		httphandlers.HandleVideoExport(ctx, handler, w, r)
 	})
 
+	// Add asset serving endpoint for input files
+	mux.HandleFunc("/input/", func(w http.ResponseWriter, r *http.Request) {
+		app.AssetServer.ServeHTTP(w, r)
+	})
+
 	mux.HandleFunc("/rpc", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")

@@ -26,6 +26,13 @@ interface RemotionVideoPreviewProps {
 export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
   config,
 }) => {
+  // Helper function to safely revoke blob URLs
+  const revokeBlobUrl = (url: string) => {
+    if (url?.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const [editableConfig, setEditableConfig] =
     useState<RemotionVideoConfig>(config);
 
@@ -37,6 +44,11 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
   // Get the first text element for editing (keep it simple)
   const firstTextElement = editableConfig.elements.find(
     (el) => el.type === 'text'
+  );
+
+  // Find background elements
+  const backgroundElements = editableConfig.elements.filter(
+    (el) => el.type === 'image' || el.type === 'video'
   );
 
   const updateTextContent = (content: string) => {
@@ -194,6 +206,49 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
     }));
   };
 
+  // Background management functions
+  const addBackgroundElement = (type: 'image' | 'video', src: string) => {
+    // Revoke existing background blob URL before adding new one
+    if (backgroundElements.length > 0) {
+      revokeBlobUrl(backgroundElements[0].content);
+    }
+
+    setEditableConfig((prev) => ({
+      ...prev,
+      elements: [
+        {
+          type,
+          content: src,
+          from: 0,
+          durationInFrames: prev.composition.durationInFrames
+        },
+        ...prev.elements.filter(el => el.type !== 'image' && el.type !== 'video') // Remove existing backgrounds, keep text/shape
+      ]
+    }));
+  };
+
+  const removeBackground = () => {
+    // Revoke blob URL before removing
+    if (backgroundElements.length > 0) {
+      revokeBlobUrl(backgroundElements[0].content);
+    }
+
+    setEditableConfig((prev) => ({
+      ...prev,
+      elements: prev.elements.filter((el) => el.type !== 'image' && el.type !== 'video')
+    }));
+  };
+
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const fileURL = URL.createObjectURL(file);
+    const type = file.type.startsWith('video/') ? 'video' : 'image';
+    addBackgroundElement(type, fileURL);
+  };
+
   return (
     <div className="remotion-video-preview my-4 mx-8 flex gap-8">
       <div className="overflow-hidden">
@@ -217,11 +272,59 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
 
       {/* Organized Settings Panel */}
       <Tabs defaultValue="format" className="bg-card w-80 p-4 rounded-xl">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="w-full">
+          {/* <TabsTrigger value="background">Background</TabsTrigger> */}
           <TabsTrigger value="format">Format</TabsTrigger>
           <TabsTrigger value="animation">Animation</TabsTrigger>
           <TabsTrigger value="layout">Layout</TabsTrigger>
         </TabsList>
+
+        <TabsContent alue="background" className="space-y-4 mt-4">
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Background Media</h4>
+
+            <input
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="background-upload"
+            />
+            <label
+              htmlFor="background-upload"
+              className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors"
+            >
+              <div className="text-center">
+                <div className="text-sm text-gray-600">
+                  {backgroundElements.length > 0 ? 'Replace Background' : 'Upload Image or Video'}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Click to browse files
+                </div>
+              </div>
+            </label>
+
+            {/* Show current background info */}
+            {backgroundElements.length > 0 && (
+              <div className="space-y-3">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">
+                      {backgroundElements[0].type === 'video' ? '🎥' : '🖼️'} {backgroundElements[0].type.charAt(0).toUpperCase() + backgroundElements[0].type.slice(1)} Background
+                    </span>
+                    <button
+                      onClick={removeBackground}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
         <TabsContent value="format" className="space-y-6 my-2">
           {/* Text Section */}

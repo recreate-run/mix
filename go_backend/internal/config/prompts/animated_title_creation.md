@@ -11,6 +11,16 @@ Title Generation Guidelines:
 - Default format: "horizontal" (1920x1080) for high quality output
 - CRITICAL: Never create multiple text elements with overlapping timeframes at the same layout position - use different layouts or stagger timing to prevent visual overlap
 
+Element Types:
+
+- `type: "text"`: Text elements with animations, strokes, and styling
+- `type: "image"`: Background image that fills the frame (place first in elements array)
+- `type: "video"`: Background video that plays during composition (place first in elements array)
+
+File Path Format:
+- Convert absolute file paths to: `http://localhost:8088/<relative_path_from_workdir>`
+- Example: `http://localhost:8088/input/videos/egg.mp4`
+
 Animation Types:
 
 - `fadeIn`: Element fades in from transparent to opaque (30-45 frame duration)
@@ -63,6 +73,12 @@ Configuration Structure:
   },
   "elements": [
     {
+      "type": "video",
+      "content": "http://localhost:8088/input/videos/egg.mp4",
+      "from": 0,
+      "durationInFrames": 120
+    },
+    {
       "type": "text",
       "content": "Title Text",
       "from": 0,
@@ -96,6 +112,13 @@ Best Practices:
 - Stagger multiple text elements by 20-40 frames for smooth flow
 - Keep animations subtle and professional unless specifically requested otherwise
 - Use fontSize between 48-96 for optimal readability across devices
+
+Background Guidelines:
+
+- Use only one background element per composition (either image OR video, never both)
+- Place background elements first in elements array (render behind text)
+- Set background duration to match composition duration for full coverage
+- Choose high-contrast backgrounds for optimal text readability
 
 Platform-Specific Guidelines:
 
