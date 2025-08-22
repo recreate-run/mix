@@ -66,7 +66,12 @@ export const PlaylistSidebar = ({
       // Use sourceVideo for highlights, fallback to path for regular videos
       const videoPath = media.sourceVideo || media.path;
       const videoUrl = convertToAssetServerUrl(videoPath, workingDirectory);
-      const thumbnailUrl = `${videoUrl}?thumb=100`;
+      
+      // Add time parameter for video segments to get correct thumbnail
+      let thumbnailUrl = `${videoUrl}?thumb=100`;
+      if (media.startTime !== undefined && typeof media.startTime === 'number' && media.startTime >= 0) {
+        thumbnailUrl += `&time=${media.startTime}`;
+      }
 
       return (
         <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">

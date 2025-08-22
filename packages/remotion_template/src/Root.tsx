@@ -1,11 +1,9 @@
 import "./index.css";
 import { Composition, getInputProps } from "remotion";
 import { DynamicVideoComposition, VideoConfig } from "./DynamicVideoComposition";
-import { getDimensionsForFormat, VIDEO_DIMENSIONS } from "./constants/videoDimensions";
+import { VIDEO_DIMENSIONS } from "./constants/videoDimensions";
 
 export const RemotionRoot: React.FC = () => {
-  // Use default values for composition registration
-  // Actual dimensions will be overridden by CLI parameters during export
   let duration = 150;
   let fps = 30;
   
@@ -22,13 +20,23 @@ export const RemotionRoot: React.FC = () => {
   }
 
   return (
-    <Composition
-      id="DynamicComposition"
-      component={DynamicVideoComposition}
-      durationInFrames={duration}
-      fps={fps}
-      width={VIDEO_DIMENSIONS.horizontal.width}
-      height={VIDEO_DIMENSIONS.horizontal.height}
-    />
+    <>
+      <Composition
+        id="DynamicComposition-Horizontal"
+        component={DynamicVideoComposition}
+        durationInFrames={duration}
+        fps={fps}
+        width={VIDEO_DIMENSIONS.horizontal.width}
+        height={VIDEO_DIMENSIONS.horizontal.height}
+      />
+      <Composition
+        id="DynamicComposition-Vertical"
+        component={DynamicVideoComposition}
+        durationInFrames={duration}
+        fps={fps}
+        width={VIDEO_DIMENSIONS.vertical.width}
+        height={VIDEO_DIMENSIONS.vertical.height}
+      />
+    </>
   );
 };

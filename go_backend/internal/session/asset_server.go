@@ -281,7 +281,10 @@ func (as *AssetServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		
-		if err := as.serveThumbnail(w, r, fullPath, thumbParam); err != nil {
+		// Parse optional time parameter for video segments
+		timeParam := r.URL.Query().Get("time")
+		
+		if err := as.serveThumbnail(w, r, fullPath, thumbParam, timeParam); err != nil {
 			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -334,42 +337,60 @@ func (as *AssetServer) parseThumbnailSpec(thumbParam string) (*ThumbnailSpec, er
 }
 
 // generateThumbnailPath creates a consistent cache path for thumbnails
-func (as *AssetServer) generateThumbnailPath(workingDir, originalPath string, spec *ThumbnailSpec) string {
+func (as *AssetServer) generateThumbnailPath(workingDir, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
 	thumbnailDir := filepath.Join(workingDir, ".thumbnails")
 	
 	// Create hash of original path for consistent naming
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(originalPath)))
 	
-	// Generate filename based on thumbnail type
+	// Generate filename based on thumbnail type and time offset
 	var filename string
+	timeSuffix := ""
+	if timeOffset > 0 {
+		// Use 1 decimal place precision to avoid cache collisions
+		timeSuffix = fmt.Sprintf("_t%.1f", timeOffset)
+	}
+	
 	switch spec.Type {
 	case "box":
-		filename = fmt.Sprintf("%s_box%d.jpg", hash, spec.Size)
+		filename = fmt.Sprintf("%s_box%d%s.jpg", hash, spec.Size, timeSuffix)
 	case "width":
-		filename = fmt.Sprintf("%s_w%d.jpg", hash, spec.Size)
+		filename = fmt.Sprintf("%s_w%d%s.jpg", hash, spec.Size, timeSuffix)
 	case "height":
-		filename = fmt.Sprintf("%s_h%d.jpg", hash, spec.Size)
+		filename = fmt.Sprintf("%s_h%d%s.jpg", hash, spec.Size, timeSuffix)
 	default:
-		filename = fmt.Sprintf("%s_unknown.jpg", hash)
+		filename = fmt.Sprintf("%s_unknown%s.jpg", hash, timeSuffix)
 	}
 	
 	return filepath.Join(thumbnailDir, filename)
 }
 
 // serveThumbnail handles thumbnail generation and serving for both videos and images
-func (as *AssetServer) serveThumbnail(w http.ResponseWriter, r *http.Request, mediaPath, thumbParam string) error {
+func (as *AssetServer) serveThumbnail(w http.ResponseWriter, r *http.Request, mediaPath, thumbParam, timeParam string) error {
 	// Parse thumbnail specification
 	spec, err := as.parseThumbnailSpec(thumbParam)
 	if err != nil {
 		return err
 	}
 	
+	// Parse and validate time offset for video segments (default to 1 second)
+	timeOffset := 1.0
+	if timeParam != "" {
+		if parsedTime, err := strconv.ParseFloat(timeParam, 64); err == nil {
+			// Clamp time to reasonable bounds: 0 to 24 hours
+			if parsedTime >= 0 && parsedTime <= 86400 {
+				timeOffset = parsedTime
+			}
+			// Invalid time values fall back to default 1 second
+		}
+	}
+	
 	as.mu.RLock()
 	workingDir := as.currentWorkDir
 	as.mu.RUnlock()
 	
-	// Generate thumbnail path
-	thumbnailPath := as.generateThumbnailPath(workingDir, mediaPath, spec)
+	// Generate thumbnail path with time offset
+	thumbnailPath := as.generateThumbnailPath(workingDir, mediaPath, spec, timeOffset)
 	
 	// Check if thumbnail already exists
 	if _, err := os.Stat(thumbnailPath); err == nil {
@@ -387,7 +408,7 @@ func (as *AssetServer) serveThumbnail(w http.ResponseWriter, r *http.Request, me
 	
 	// Generate thumbnail using FFmpeg based on file type
 	if as.isVideoFile(mediaPath) {
-		if err := as.generateVideoThumbnail(mediaPath, thumbnailPath, spec); err != nil {
+		if err := as.generateVideoThumbnail(mediaPath, thumbnailPath, spec, timeOffset); err != nil {
 			return err
 		}
 	} else if as.isImageFile(mediaPath) {
@@ -405,7 +426,7 @@ func (as *AssetServer) serveThumbnail(w http.ResponseWriter, r *http.Request, me
 }
 
 // generateVideoThumbnail uses FFmpeg to extract a frame as thumbnail with aspect ratio preservation
-func (as *AssetServer) generateVideoThumbnail(videoPath, thumbnailPath string, spec *ThumbnailSpec) error {
+func (as *AssetServer) generateVideoThumbnail(videoPath, thumbnailPath string, spec *ThumbnailSpec, timeOffset float64) error {
 	// Build FFmpeg scale filter based on thumbnail specification
 	var scaleFilter string
 	switch spec.Type {
@@ -422,10 +443,14 @@ func (as *AssetServer) generateVideoThumbnail(videoPath, thumbnailPath string, s
 		return fmt.Errorf("unknown thumbnail type: %s", spec.Type)
 	}
 	
-	// FFmpeg command to extract frame at 1 second, scale maintaining aspect ratio, and save as JPEG
+	// Format time offset for FFmpeg with fractional seconds
+	// FFmpeg supports decimal seconds format: 30.5, 125.75, etc.
+	timeStr := fmt.Sprintf("%.2f", timeOffset)
+	
+	// FFmpeg command to extract frame at specified time, scale maintaining aspect ratio, and save as JPEG
 	cmd := exec.Command("ffmpeg", 
 		"-i", videoPath,
-		"-ss", "00:00:01",
+		"-ss", timeStr,
 		"-frames:v", "1",
 		"-vf", scaleFilter, // Use video filter for proper scaling
 		"-q:v", "2", // High quality JPEG

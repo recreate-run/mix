@@ -48,7 +48,7 @@ echo "$CONFIG_JSON" | node -e "
     }
 " || exit 1
 
-# Extract format from config to determine dimensions
+# Extract format from config to determine composition
 FORMAT=$(echo "$CONFIG_JSON" | node -e "
     const config = JSON.parse(require('fs').readFileSync(0, 'utf8'));
     const format = config?.composition?.format;
@@ -63,28 +63,24 @@ FORMAT=$(echo "$CONFIG_JSON" | node -e "
 # Validate format value was extracted
 if [[ -z "$FORMAT" ]]; then
     echo "❌ Error: Could not determine video format from config file"
-    echo "Please ensure $CONFIG_FILE contains: {\"composition\": {\"format\": \"vertical\" | \"horizontal\"}}"
+    echo "Please ensure config contains: {\"composition\": {\"format\": \"vertical\" | \"horizontal\"}}"
     exit 1
 fi
 
-# Set dimensions based on format
+# Select composition based on format
 if [[ "$FORMAT" == "vertical" ]]; then
-    WIDTH=1080
-    HEIGHT=1920
+    COMPOSITION_ID="DynamicComposition-Vertical"
+    DIMENSIONS="1080×1920"
 else
-    WIDTH=1920
-    HEIGHT=1080
+    COMPOSITION_ID="DynamicComposition-Horizontal" 
+    DIMENSIONS="1920×1080"
 fi
 
-echo "📐 Using format: $FORMAT (${WIDTH}x${HEIGHT})"
+echo "📐 Using format: $FORMAT ($DIMENSIONS)"
 
-# Always use DynamicComposition with config as props
+# Render video with format-specific composition
 INPUT_PROPS="{\"config\": $CONFIG_JSON}"
-
-# Render video with explicit dimensions
-npx remotion render "DynamicComposition" "output/$OUTPUT_NAME.mp4" \
-    --props="$INPUT_PROPS" \
-    --width="$WIDTH" \
-    --height="$HEIGHT"
+npx remotion render "$COMPOSITION_ID" "output/$OUTPUT_NAME.mp4" \
+    --props="$INPUT_PROPS"
 
 echo "✅ Export completed: output/$OUTPUT_NAME.mp4"
