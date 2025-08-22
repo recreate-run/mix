@@ -1,6 +1,7 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
 import { Pause, PictureInPicture, Play } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useThrottledCallback } from '@tanstack/react-pacer';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { VideoPlayerProps } from '@/types/media';
@@ -16,48 +17,36 @@ export const VideoPlayer = ({
 }: VideoPlayerProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(startTime || 0);
   const [hasError, setHasError] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isVertical, setIsVertical] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Use refs for internal state to avoid re-render cycles
   const hasInitialized = useRef(false);
   const isSegment = startTime !== undefined && duration !== undefined;
 
-  // Auto-hide controls after inactivity
-  const resetControlsTimeout = () => {
-    if (controlsTimeout) {
-      clearTimeout(controlsTimeout);
-    }
-    setShowControls(true);
-    const timeout = setTimeout(() => {
-      setShowControls(false);
-    }, 3000); // Hide after 3 seconds
-    setControlsTimeout(timeout);
-  };
+  // Refs for smooth timeline animation
+  const animationFrameRef = useRef<number>();
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const progressDotRef = useRef<HTMLDivElement>(null);
+  const progressFillRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
 
-  // Handle video container click to toggle controls
-  const handleVideoClick = () => {
-    if (showControls) {
-      setShowControls(false);
-      if (controlsTimeout) {
-        clearTimeout(controlsTimeout);
-        setControlsTimeout(null);
-      }
-    } else {
-      resetControlsTimeout();
-    }
-  };
 
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
     setIsVertical(false);
     hasInitialized.current = false;
-    resetControlsTimeout();
+    // Reset timeline position when video changes
+    if (progressFillRef.current) {
+      progressFillRef.current.style.width = '0%';
+    }
+    if (progressDotRef.current) {
+      progressDotRef.current.style.left = '0%';
+    }
   }, [path]);
 
   // Handle startTime/duration changes for segments
@@ -69,30 +58,20 @@ export const VideoPlayer = ({
       // Update current time when segment parameters change
       video.currentTime = startTime;
       hasInitialized.current = true; // Mark as initialized to prevent duplicate seeks
+      // Sync timeline after segment change
+      syncTimelinePosition();
     }
   }, [startTime, duration, isSegment]);
 
-  // Cleanup timeout on unmount
+  // Cleanup animation frame on unmount
   useEffect(() => {
     return () => {
-      if (controlsTimeout) {
-        clearTimeout(controlsTimeout);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [controlsTimeout]);
+  }, []);
 
-  // Handle mouse interactions to control auto-hide behavior
-  const handleMouseEnter = () => {
-    if (controlsTimeout) {
-      clearTimeout(controlsTimeout);
-      setControlsTimeout(null);
-    }
-    setShowControls(true);
-  };
-
-  const handleMouseLeave = () => {
-    resetControlsTimeout();
-  };
 
   // Simple URL without media fragments (more reliable)
   const getVideoSrc = () => {
@@ -129,6 +108,57 @@ export const VideoPlayer = ({
     return Math.min(100, (displayTime / displayDuration) * 100);
   };
 
+  // Unified function to sync timeline position from video element
+  const syncTimelinePosition = () => {
+    const video = videoRef.current;
+    if (!video || !isFinite(video.duration)) return;
+
+    const displayDuration = getDisplayDuration();
+    if (displayDuration === 0) return;
+
+    const displayTime = getDisplayTime(video.currentTime);
+    const progress = Math.min(100, (displayTime / displayDuration) * 100);
+
+    // Update DOM directly
+    if (progressFillRef.current) {
+      progressFillRef.current.style.width = `${progress}%`;
+    }
+    if (progressDotRef.current) {
+      progressDotRef.current.style.left = `${progress}%`;
+    }
+  };
+
+  // Smooth animation loop for timeline
+  const updateTimeline = () => {
+    const video = videoRef.current;
+    if (!video || video.paused || video.ended) {
+      animationFrameRef.current = undefined;
+      return;
+    }
+
+    // Use unified sync function
+    syncTimelinePosition();
+
+    // Continue animation loop
+    animationFrameRef.current = requestAnimationFrame(updateTimeline);
+  };
+
+  // Start/stop animation based on play state
+  const handlePlayStateChange = (playing: boolean) => {
+    setIsPlaying(playing);
+
+    if (playing && !animationFrameRef.current) {
+      // Sync position before starting animation
+      syncTimelinePosition();
+      animationFrameRef.current = requestAnimationFrame(updateTimeline);
+    } else if (!playing && animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = undefined;
+      // Sync position after stopping animation
+      syncTimelinePosition();
+    }
+  };
+
   const handlePlayPause = () => {
     if (!videoRef.current) return;
 
@@ -137,12 +167,31 @@ export const VideoPlayer = ({
     } else {
       videoRef.current.play();
     }
-    if (isVertical) {
-      resetControlsTimeout();
-    }
   };
 
+  // Throttled seek for smooth scrubbing (20fps)
+  const throttledSeek = useThrottledCallback(
+    (progress: number) => {
+      const video = videoRef.current;
+      if (!video?.duration || !isFinite(video.duration)) return;
+
+      let newTime: number;
+      if (isSegment && startTime !== undefined && duration !== undefined) {
+        newTime = startTime + (progress / 100) * duration;
+        newTime = Math.max(startTime, Math.min(startTime + duration, newTime));
+      } else {
+        newTime = (progress / 100) * video.duration;
+      }
+
+      video.currentTime = newTime;
+    },
+    { wait: 50 } // 50ms = 20fps updates
+  );
+
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't handle click if it was a drag
+    if (isDraggingRef.current) return;
+
     const video = videoRef.current;
     if (!video?.duration || !isFinite(video.duration)) return;
 
@@ -161,10 +210,86 @@ export const VideoPlayer = ({
     }
 
     video.currentTime = newTime;
-    if (isVertical) {
-      resetControlsTimeout();
-    }
+    // Immediately sync visual position for responsive feedback
+    syncTimelinePosition();
   };
+
+  const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const video = videoRef.current;
+    if (!video?.duration || !isFinite(video.duration)) return;
+
+    setIsDragging(true);
+    isDraggingRef.current = true;
+
+    // Calculate initial position
+    const rect = progressBarRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const clickX = e.clientX - rect.left;
+    const progress = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+
+    // Update visual position immediately
+    if (progressFillRef.current) {
+      progressFillRef.current.style.width = `${progress}%`;
+    }
+    if (progressDotRef.current) {
+      progressDotRef.current.style.left = `${progress}%`;
+    }
+
+    // Throttled video seek
+    throttledSeek(progress);
+
+    // Prevent text selection during drag
+    e.preventDefault();
+  };
+
+  // Stable timeline drag handler that uses throttled seek
+  const handleTimelineDrag = useCallback((e: MouseEvent) => {
+    if (!isDraggingRef.current) return;
+
+    const rect = progressBarRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const clickX = e.clientX - rect.left;
+    const progress = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+
+    // Update visual position immediately (not throttled)
+    if (progressFillRef.current) {
+      progressFillRef.current.style.width = `${progress}%`;
+    }
+    if (progressDotRef.current) {
+      progressDotRef.current.style.left = `${progress}%`;
+    }
+
+    // Throttled video seek
+    throttledSeek(progress);
+  }, [throttledSeek]);
+
+  const handleProgressMouseUp = (e: MouseEvent) => {
+    if (!isDraggingRef.current) return;
+
+    setIsDragging(false);
+    isDraggingRef.current = false;
+
+    // Sync final position
+    syncTimelinePosition();
+
+    // Prevent the click event from firing after drag
+    e.stopPropagation();
+  };
+
+  // Add document-level mouse event listeners for dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleTimelineDrag);
+      document.addEventListener('mouseup', handleProgressMouseUp);
+
+      return () => {
+        document.removeEventListener('mousemove', handleTimelineDrag);
+        document.removeEventListener('mouseup', handleProgressMouseUp);
+      };
+    }
+  }, [isDragging, handleTimelineDrag]);
 
 
   const handlePictureInPicture = async () => {
@@ -179,8 +304,13 @@ export const VideoPlayer = ({
     } catch (error) {
       console.error('Picture-in-Picture failed:', error);
     }
-    if (isVertical) {
-      resetControlsTimeout();
+  };
+
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.code === 'Space') {
+      e.preventDefault(); // Prevent page scroll
+      handlePlayPause();
     }
   };
 
@@ -196,12 +326,9 @@ export const VideoPlayer = ({
       )}
 
       <div
-        className={`relative rounded-md ${isVertical ? 'max-w-64' : 'max-w-4xl'} mx-auto`}
-        {...(isVertical && {
-          onClick: handleVideoClick,
-          onMouseEnter: handleMouseEnter,
-          onMouseLeave: handleMouseLeave
-        })}
+        className={`relative rounded-md ${isVertical ? 'max-w-64' : 'max-w-4xl'} mx-auto focus:outline-none`}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
       >
         {isLoading && <Skeleton className="aspect-auto" />}
         <video
@@ -227,9 +354,12 @@ export const VideoPlayer = ({
                 hasInitialized.current = true;
               }
             }
+
+            // Sync timeline position after metadata loads
+            syncTimelinePosition();
           }}
-          onPause={() => setIsPlaying(false)}
-          onPlay={() => setIsPlaying(true)}
+          onPause={() => handlePlayStateChange(false)}
+          onPlay={() => handlePlayStateChange(true)}
           onSeeked={() => {
             // Gentle boundary correction after seeking (no loops)
             if (isSegment && startTime !== undefined && duration !== undefined) {
@@ -243,10 +373,17 @@ export const VideoPlayer = ({
                 }
               }
             }
+            // Sync timeline position after seek completes
+            syncTimelinePosition();
           }}
           onTimeUpdate={(e) => {
             const video = e.currentTarget;
             setCurrentTime(video.currentTime);
+
+            // Update timeline if not playing (for manual seeks)
+            if (video.paused || video.ended) {
+              syncTimelinePosition();
+            }
 
             // Only pause at segment end, don't modify time during update
             if (isSegment && startTime !== undefined && duration !== undefined) {
@@ -264,66 +401,71 @@ export const VideoPlayer = ({
         </video>
 
         {/* Controls */}
-        {!isLoading && (isVertical ? showControls : true) && (
+        {!isLoading && (
           <>
             {isVertical ? (
-              /* Vertical Layout: Distributed Controls */
-              <>
-                {/* Top-Left Time Display */}
-                <div className="absolute top-0 left-0 right-0 w-full flex justify-between items-center px-2">
-                  <div className="bg-black/60 backdrop-blur-sm rounded-md px-2 py-1">
-                    <span className="text-white text-sm">
+              /* Vertical Layout: Single Row Controls Above Timeline */
+              <div className="absolute bottom-0 left-0 right-0 p-3 ">
+                {/* Control Row */}
+                <div className="flex items-center justify-between gap-2 mb-1 hover:bg-black/30 transition-opacity rounded-2xl">
+                  {/* Play/Pause Button */}
+                  <Button
+                    onClick={handlePlayPause}
+                    size="icon"
+                    variant="ghost"
+                    className="hover:bg-white/20 text-white border-0 rounded-full"
+                  >
+                    {isPlaying ? (
+                      <IconPlayerPauseFilled className="size-6" />
+                    ) : (
+                      <IconPlayerPlayFilled className="size-6" />
+                    )}
+                  </Button>
+
+                  {/* Time Display */}
+                  <div className="flex-1 text-center">
+                    <span className="text-white text-sm font-medium">
                       {formatTime(getDisplayTime(currentTime))} / {formatTime(getDisplayDuration())}
                     </span>
                   </div>
 
+                  {/* Picture-in-Picture Button */}
                   <Button
                     onClick={handlePictureInPicture}
                     size="icon"
+                    variant={"ghost"}
                     title="Picture-in-Picture"
-                    className="bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white border-0 h-11 w-11 rounded-full"
+                    className=" border-0 rounded-full"
                   >
-                    <PictureInPicture />
+                    <PictureInPicture className="size-4" />
                   </Button>
                 </div>
 
-                {/* Center Play/Pause Button */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Button
-                    onClick={handlePlayPause}
-                    size="lg"
-                    variant="ghost"
-                    className="bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white border-0 h-16 w-16 rounded-full"
-                  >
-                    {isPlaying ? (
-                      <IconPlayerPauseFilled className="size-8" />
-                    ) : (
-                      <IconPlayerPlayFilled className="size-8 ml-1" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Bottom Progress Bar */}
-                <div className="absolute bottom-0 left-0 right-0 p-4">
+                {/* Progress Bar */}
+                <div
+                  ref={progressBarRef}
+                  className={`relative h-[5px] w-full rounded-full bg-white  ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                    }`}
+                  onClick={handleProgressClick}
+                  onMouseDown={handleProgressMouseDown}
+                >
                   <div
-                    className="relative h-1 w-full cursor-pointer rounded-full bg-white/30 backdrop-blur-sm"
-                    onClick={handleProgressClick}
-                  >
-                    <div
-                      className="h-full rounded-full bg-white transition-all duration-150"
-                      style={{
-                        width: `${getDisplayProgress()}%`,
-                      }}
-                    />
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg transition-all duration-150"
-                      style={{
-                        left: `calc(${getDisplayProgress()}% - 6px)`,
-                      }}
-                    />
-                  </div>
+                    ref={progressFillRef}
+                    className="h-full rounded-full bg-white"
+                    style={{ width: '0%' }}
+                  />
+                  <div
+                    ref={progressDotRef}
+                    className={`absolute top-1/2 left-0 w-3 h-3 bg-white rounded-full shadow-lg ${isDragging ? 'scale-125' : ''
+                      } transition-transform`}
+                    style={{
+                      transform: `translateY(-50%) ${isDragging ? 'scale(1.25)' : ''}`,
+                      left: '0%',
+                      marginLeft: '-6px',
+                    }}
+                  />
                 </div>
-              </>
+              </div>
             ) : (
               /* Horizontal Layout: Single Bottom Row */
               <div className="absolute bottom-0 left-0 right-0 p-2">
@@ -344,19 +486,25 @@ export const VideoPlayer = ({
 
                   {/* Progress Bar */}
                   <div
-                    className="flex-1 relative h-1 cursor-pointer rounded-full bg-neutral-600/40 backdrop-blur-sm rounded-lg py-[5px]"
+                    ref={progressBarRef}
+                    className={`flex-1 relative h-1 rounded-full bg-neutral-600/40 backdrop-blur-sm rounded-lg py-[5px] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                      }`}
                     onClick={handleProgressClick}
+                    onMouseDown={handleProgressMouseDown}
                   >
                     <div
-                      className="h-full rounded-full bg-white transition-all duration-150"
-                      style={{
-                        width: `${getDisplayProgress()}%`,
-                      }}
+                      ref={progressFillRef}
+                      className="h-full rounded-full bg-white"
+                      style={{ width: '0%' }}
                     />
                     <div
-                      className="absolute top-1/2 -translate-y-1/2 size-3 bg-white rounded-full shadow-lg transition-all duration-150"
+                      ref={progressDotRef}
+                      className={`absolute top-1/2 left-0 size-3 bg-white rounded-full shadow-lg ${isDragging ? 'scale-125' : ''
+                        } transition-transform`}
                       style={{
-                        left: `calc(${getDisplayProgress()}% - 6px)`,
+                        transform: `translateY(-50%) ${isDragging ? 'scale(1.25)' : ''}`,
+                        left: '0%',
+                        marginLeft: '-6px',
                       }}
                     />
                   </div>
@@ -392,9 +540,6 @@ export const VideoPlayer = ({
                   setIsLoading(true);
                   if (videoRef.current) {
                     videoRef.current.load();
-                  }
-                  if (isVertical) {
-                    resetControlsTimeout();
                   }
                 }}
                 variant="ghost"
