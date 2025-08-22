@@ -83,7 +83,6 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
       {media.type === 'video' && (
         <VideoPlayer
           duration={media.duration}
-          key={`${media.path}-${media.startTime || 0}-${media.duration || 0}`}
           path={media.path}
           startTime={media.startTime}
           title=""

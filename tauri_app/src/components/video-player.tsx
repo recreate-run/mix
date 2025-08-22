@@ -60,6 +60,18 @@ export const VideoPlayer = ({
     resetControlsTimeout();
   }, [path]);
 
+  // Handle startTime/duration changes for segments
+  // Note: This assumes the same video file for all segments (path doesn't change)
+  // If path changes to a different video, the existing useEffect with [path] dependency handles that
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && video.readyState >= 1 && isSegment && startTime !== undefined) {
+      // Update current time when segment parameters change
+      video.currentTime = startTime;
+      hasInitialized.current = true; // Mark as initialized to prevent duplicate seeks
+    }
+  }, [startTime, duration, isSegment]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
