@@ -3,6 +3,10 @@ package session
 import (
 	"crypto/md5"
 	"fmt"
+	"image"
+	"image/jpeg"
+	_ "image/png"
+	_ "image/gif"
 	"net/http"
 	"os"
 	"os/exec"
@@ -11,6 +15,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/nfnt/resize"
+	_ "golang.org/x/image/webp"
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
 )
 
 // File size limits for different media types
@@ -472,42 +481,65 @@ func (as *AssetServer) generateVideoThumbnail(videoPath, thumbnailPath string, s
 	return nil
 }
 
-// generateImageThumbnail uses FFmpeg to resize an image
+// generateImageThumbnail uses Go's native image processing to resize an image
 func (as *AssetServer) generateImageThumbnail(imagePath, thumbnailPath string, spec *ThumbnailSpec) error {
-	// Build FFmpeg scale filter based on thumbnail specification
-	var scaleFilter string
+	// Open source image file
+	sourceFile, err := os.Open(imagePath)
+	if err != nil {
+		return fmt.Errorf("failed to open source image: %v", err)
+	}
+	defer sourceFile.Close()
+	
+	// Decode image (supports JPEG, PNG, GIF automatically via imported decoders)
+	sourceImage, _, err := image.Decode(sourceFile)
+	if err != nil {
+		return fmt.Errorf("failed to decode image: %v", err)
+	}
+	
+	// Get original dimensions
+	bounds := sourceImage.Bounds()
+	originalWidth := bounds.Dx()
+	originalHeight := bounds.Dy()
+	
+	// Calculate target dimensions based on thumbnail specification
+	var targetWidth, targetHeight uint
+	
 	switch spec.Type {
 	case "box":
 		// Fit within box while maintaining aspect ratio
-		scaleFilter = fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease", spec.Size, spec.Size)
+		if originalWidth > originalHeight {
+			targetWidth = uint(spec.Size)
+			targetHeight = 0 // Auto-calculate to maintain aspect ratio
+		} else {
+			targetWidth = 0 // Auto-calculate to maintain aspect ratio
+			targetHeight = uint(spec.Size)
+		}
 	case "width":
 		// Fixed width, auto height (maintains aspect ratio)
-		scaleFilter = fmt.Sprintf("scale=%d:-1", spec.Size)
+		targetWidth = uint(spec.Size)
+		targetHeight = 0
 	case "height":
-		// Fixed height, auto width (maintains aspect ratio)
-		scaleFilter = fmt.Sprintf("scale=-1:%d", spec.Size)
+		// Fixed height, auto width (maintains aspect ratio)  
+		targetWidth = 0
+		targetHeight = uint(spec.Size)
 	default:
 		return fmt.Errorf("unknown thumbnail type: %s", spec.Type)
 	}
 	
-	// FFmpeg command to scale image maintaining aspect ratio and save as JPEG
-	cmd := exec.Command("ffmpeg", 
-		"-i", imagePath,
-		"-vf", scaleFilter, // Use video filter for proper scaling
-		"-q:v", "2", // High quality JPEG
-		"-y", // Overwrite output file
-		thumbnailPath,
-	)
+	// Resize image using high-quality Lanczos resampling
+	resizedImage := resize.Resize(targetWidth, targetHeight, sourceImage, resize.Lanczos3)
 	
-	// Execute FFmpeg command
-	output, err := cmd.CombinedOutput()
+	// Create output file
+	outputFile, err := os.Create(thumbnailPath)
 	if err != nil {
-		return fmt.Errorf("ffmpeg failed: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to create thumbnail file: %v", err)
 	}
+	defer outputFile.Close()
 	
-	// Verify thumbnail was created
-	if _, err := os.Stat(thumbnailPath); err != nil {
-		return fmt.Errorf("thumbnail file not created: %v", err)
+	// Encode as JPEG with high quality (quality 90 out of 100)
+	jpegOptions := &jpeg.Options{Quality: 90}
+	if err := jpeg.Encode(outputFile, resizedImage, jpegOptions); err != nil {
+		return fmt.Errorf("failed to encode JPEG: %v", err)
 	}
 	
 	return nil

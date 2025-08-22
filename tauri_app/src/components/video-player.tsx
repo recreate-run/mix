@@ -20,6 +20,7 @@ export const VideoPlayer = ({
   const [hasError, setHasError] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isVertical, setIsVertical] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Use refs for internal state to avoid re-render cycles
@@ -54,6 +55,7 @@ export const VideoPlayer = ({
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
+    setIsVertical(false);
     hasInitialized.current = false;
     resetControlsTimeout();
   }, [path]);
@@ -123,7 +125,9 @@ export const VideoPlayer = ({
     } else {
       videoRef.current.play();
     }
-    resetControlsTimeout();
+    if (isVertical) {
+      resetControlsTimeout();
+    }
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -145,7 +149,9 @@ export const VideoPlayer = ({
     }
 
     video.currentTime = newTime;
-    resetControlsTimeout();
+    if (isVertical) {
+      resetControlsTimeout();
+    }
   };
 
 
@@ -161,7 +167,9 @@ export const VideoPlayer = ({
     } catch (error) {
       console.error('Picture-in-Picture failed:', error);
     }
-    resetControlsTimeout();
+    if (isVertical) {
+      resetControlsTimeout();
+    }
   };
 
   return (
@@ -176,10 +184,12 @@ export const VideoPlayer = ({
       )}
 
       <div
-        className="relative max-w-64 rounded-md"
-        onClick={handleVideoClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        className={`relative rounded-md ${isVertical ? 'max-w-64' : 'max-w-4xl'} mx-auto`}
+        {...(isVertical && {
+          onClick: handleVideoClick,
+          onMouseEnter: handleMouseEnter,
+          onMouseLeave: handleMouseLeave
+        })}
       >
         {isLoading && <Skeleton className="aspect-auto" />}
         <video
@@ -192,9 +202,14 @@ export const VideoPlayer = ({
             setIsLoading(false);
             setHasError(false);
 
+            // Detect video orientation
+            const video = videoRef.current;
+            if (video) {
+              setIsVertical(video.videoHeight > video.videoWidth);
+            }
+
             // Set initial position for segments (one-time setup)
             if (isSegment && startTime !== undefined && !hasInitialized.current) {
-              const video = videoRef.current;
               if (video) {
                 video.currentTime = startTime;
                 hasInitialized.current = true;
@@ -236,66 +251,121 @@ export const VideoPlayer = ({
           Your browser does not support the video tag.
         </video>
 
-        {/* Mobile-Friendly Controls */}
-        {!isLoading && showControls && (
+        {/* Controls */}
+        {!isLoading && (isVertical ? showControls : true) && (
           <>
-            {/* Top-Left Time Display */}
-            <div className="absolute top-0 left-0 right-0 w-full flex justify-between items-center px-2">
-              <div className="bg-black/60 backdrop-blur-sm rounded-md px-2 py-1">
-                <span className="text-white text-sm">
-                  {formatTime(getDisplayTime(currentTime))} / {formatTime(getDisplayDuration())}
-                </span>
+            {isVertical ? (
+              /* Vertical Layout: Distributed Controls */
+              <>
+                {/* Top-Left Time Display */}
+                <div className="absolute top-0 left-0 right-0 w-full flex justify-between items-center px-2">
+                  <div className="bg-black/60 backdrop-blur-sm rounded-md px-2 py-1">
+                    <span className="text-white text-sm">
+                      {formatTime(getDisplayTime(currentTime))} / {formatTime(getDisplayDuration())}
+                    </span>
+                  </div>
+
+                  <Button
+                    onClick={handlePictureInPicture}
+                    size="icon"
+                    title="Picture-in-Picture"
+                    className="bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white border-0 h-11 w-11 rounded-full"
+                  >
+                    <PictureInPicture />
+                  </Button>
+                </div>
+
+                {/* Center Play/Pause Button */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Button
+                    onClick={handlePlayPause}
+                    size="lg"
+                    variant="ghost"
+                    className="bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white border-0 h-16 w-16 rounded-full"
+                  >
+                    {isPlaying ? (
+                      <IconPlayerPauseFilled className="size-8" />
+                    ) : (
+                      <IconPlayerPlayFilled className="size-8 ml-1" />
+                    )}
+                  </Button>
+                </div>
+
+                {/* Bottom Progress Bar */}
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <div
+                    className="relative h-1 w-full cursor-pointer rounded-full bg-white/30 backdrop-blur-sm"
+                    onClick={handleProgressClick}
+                  >
+                    <div
+                      className="h-full rounded-full bg-white transition-all duration-150"
+                      style={{
+                        width: `${getDisplayProgress()}%`,
+                      }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg transition-all duration-150"
+                      style={{
+                        left: `calc(${getDisplayProgress()}% - 6px)`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Horizontal Layout: Single Bottom Row */
+              <div className="absolute bottom-0 left-0 right-0 p-2">
+                <div className="flex items-center gap-2">
+                  {/* Play/Pause Button */}
+                  <Button
+                    onClick={handlePlayPause}
+                    size="icon"
+                    variant="ghost"
+                    className="hover:bg-white/20 text-white border-0  rounded-full shrink-0"
+                  >
+                    {isPlaying ? (
+                      <IconPlayerPauseFilled className="size-6" />
+                    ) : (
+                      <IconPlayerPlayFilled className="size-6" />
+                    )}
+                  </Button>
+
+                  {/* Progress Bar */}
+                  <div
+                    className="flex-1 relative h-1 cursor-pointer rounded-full bg-neutral-600/40 backdrop-blur-sm rounded-lg py-[5px]"
+                    onClick={handleProgressClick}
+                  >
+                    <div
+                      className="h-full rounded-full bg-white transition-all duration-150"
+                      style={{
+                        width: `${getDisplayProgress()}%`,
+                      }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 size-3 bg-white rounded-full shadow-lg transition-all duration-150"
+                      style={{
+                        left: `calc(${getDisplayProgress()}% - 6px)`,
+                      }}
+                    />
+                  </div>
+
+                  {/* Time Display */}
+                  <div className="bg-black/40 p-1 rounded-md text-white text-xs font-medium shrink-0">
+                    {formatTime(getDisplayTime(currentTime))} / {formatTime(getDisplayDuration())}
+                  </div>
+
+                  {/* Picture-in-Picture Button */}
+                  <Button
+                    onClick={handlePictureInPicture}
+                    size="icon"
+                    variant={"ghost"} title="Picture-in-Picture"
+                    className="hover:bg-white/20 text-white border-0 h-8 w-8 rounded-full shrink-0"
+                  >
+                    <PictureInPicture className="size-4" />
+                  </Button>
+                </div>
               </div>
-
-              <Button
-                onClick={handlePictureInPicture}
-                size="icon"
-                title="Picture-in-Picture"
-                className="bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white border-0 h-11 w-11 rounded-full"
-              >
-                <PictureInPicture />
-              </Button>
-            </div>
-
-
-
-            {/* Center Play/Pause Button */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Button
-                onClick={handlePlayPause}
-                size="lg"
-                variant="ghost"
-                className="bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white border-0 h-16 w-16 rounded-full"
-              >
-                {isPlaying ? (
-                  <IconPlayerPauseFilled className="size-8" />
-                ) : (
-                  <IconPlayerPlayFilled className="size-8 ml-1" />
-                )}
-              </Button>
-            </div>
-
-            {/* Bottom Progress Bar */}
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div
-                className="relative h-1 w-full cursor-pointer rounded-full bg-white/30 backdrop-blur-sm"
-                onClick={handleProgressClick}
-              >
-                <div
-                  className="h-full rounded-full bg-white transition-all duration-150"
-                  style={{
-                    width: `${getDisplayProgress()}%`,
-                  }}
-                />
-                {/* Progress indicator dot */}
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg transition-all duration-150"
-                  style={{
-                    left: `calc(${getDisplayProgress()}% - 6px)`,
-                  }}
-                />
-              </div>
-            </div>
+            )}
           </>
         )}
 
@@ -311,7 +381,9 @@ export const VideoPlayer = ({
                   if (videoRef.current) {
                     videoRef.current.load();
                   }
-                  resetControlsTimeout();
+                  if (isVertical) {
+                    resetControlsTimeout();
+                  }
                 }}
                 variant="ghost"
                 className="mt-3 text-white underline hover:no-underline hover:bg-transparent"
@@ -322,6 +394,6 @@ export const VideoPlayer = ({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
