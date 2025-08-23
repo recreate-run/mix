@@ -36,7 +36,7 @@ type Service interface {
 	Fork(ctx context.Context, sourceSessionID string, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
-	ListWithFirstMessage(ctx context.Context) ([]db.ListSessionsWithFirstMessageRow, error)
+	ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error)
 	Save(ctx context.Context, session Session) (Session, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -151,13 +151,13 @@ func (s *service) Get(ctx context.Context, id string) (Session, error) {
 }
 
 func (s *service) List(ctx context.Context) ([]Session, error) {
-	dbSessions, err := s.q.ListSessions(ctx)
+	dbSessions, err := s.q.ListSessionsMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}
 	sessions := make([]Session, len(dbSessions))
 	for i, dbSession := range dbSessions {
-		session, err := s.fromListSessionsRow(dbSession)
+		session, err := s.fromListSessionsMetadataRow(dbSession)
 		if err != nil {
 			return nil, err
 		}
@@ -166,8 +166,8 @@ func (s *service) List(ctx context.Context) ([]Session, error) {
 	return sessions, nil
 }
 
-func (s *service) ListWithFirstMessage(ctx context.Context) ([]db.ListSessionsWithFirstMessageRow, error) {
-	return s.q.ListSessionsWithFirstMessage(ctx)
+func (s *service) ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error) {
+	return s.q.ListSessionsWithContent(ctx)
 }
 
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {
@@ -230,7 +230,7 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 	}, nil
 }
 
-func (s *service) fromListSessionsRow(item db.ListSessionsRow) (Session, error) {
+func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (Session, error) {
 	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
 		return Session{}, err
 	}

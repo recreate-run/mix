@@ -58,7 +58,7 @@ LEFT JOIN (
 ) counts ON s.id = counts.session_id
 WHERE s.id = ? LIMIT 1;
 
--- name: ListSessions :many
+-- name: ListSessionsMetadata :many
 SELECT 
     s.id, 
     s.parent_session_id,
@@ -83,7 +83,7 @@ LEFT JOIN (
 ) counts ON s.id = counts.session_id
 ORDER BY s.created_at DESC;
 
--- name: ListSessionsWithFirstMessage :many
+-- name: ListSessionsWithContent :many
 SELECT 
     s.id, 
     s.parent_session_id,

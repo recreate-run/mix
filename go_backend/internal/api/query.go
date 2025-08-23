@@ -364,7 +364,7 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 }
 
 func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest) *QueryResponse {
-	sessions, err := h.app.Sessions.ListWithFirstMessage(ctx)
+	sessions, err := h.app.Sessions.ListWithContent(ctx)
 	if err != nil {
 		return newApplicationError(req, "Failed to list sessions: " + err.Error())
 	}

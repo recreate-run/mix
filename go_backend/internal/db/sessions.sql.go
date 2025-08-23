@@ -168,7 +168,7 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 	return i, err
 }
 
-const listSessions = `-- name: ListSessions :many
+const listSessionsMetadata = `-- name: ListSessionsMetadata :many
 SELECT 
     s.id, 
     s.parent_session_id,
@@ -194,7 +194,7 @@ LEFT JOIN (
 ORDER BY s.created_at DESC
 `
 
-type ListSessionsRow struct {
+type ListSessionsMetadataRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
 	Title                 string         `json:"title"`
@@ -210,15 +210,15 @@ type ListSessionsRow struct {
 	ToolCallCount         int64          `json:"tool_call_count"`
 }
 
-func (q *Queries) ListSessions(ctx context.Context) ([]ListSessionsRow, error) {
-	rows, err := q.query(ctx, q.listSessionsStmt, listSessions)
+func (q *Queries) ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetadataRow, error) {
+	rows, err := q.query(ctx, q.listSessionsMetadataStmt, listSessionsMetadata)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSessionsRow{}
+	items := []ListSessionsMetadataRow{}
 	for rows.Next() {
-		var i ListSessionsRow
+		var i ListSessionsMetadataRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ParentSessionID,
@@ -247,7 +247,7 @@ func (q *Queries) ListSessions(ctx context.Context) ([]ListSessionsRow, error) {
 	return items, nil
 }
 
-const listSessionsWithFirstMessage = `-- name: ListSessionsWithFirstMessage :many
+const listSessionsWithContent = `-- name: ListSessionsWithContent :many
 SELECT 
     s.id, 
     s.parent_session_id,
@@ -282,7 +282,7 @@ LEFT JOIN (
 ORDER BY s.created_at DESC
 `
 
-type ListSessionsWithFirstMessageRow struct {
+type ListSessionsWithContentRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
 	Title                 string         `json:"title"`
@@ -299,15 +299,15 @@ type ListSessionsWithFirstMessageRow struct {
 	ToolCallCount         int64          `json:"tool_call_count"`
 }
 
-func (q *Queries) ListSessionsWithFirstMessage(ctx context.Context) ([]ListSessionsWithFirstMessageRow, error) {
-	rows, err := q.query(ctx, q.listSessionsWithFirstMessageStmt, listSessionsWithFirstMessage)
+func (q *Queries) ListSessionsWithContent(ctx context.Context) ([]ListSessionsWithContentRow, error) {
+	rows, err := q.query(ctx, q.listSessionsWithContentStmt, listSessionsWithContent)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSessionsWithFirstMessageRow{}
+	items := []ListSessionsWithContentRow{}
 	for rows.Next() {
-		var i ListSessionsWithFirstMessageRow
+		var i ListSessionsWithContentRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ParentSessionID,
