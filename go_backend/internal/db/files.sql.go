@@ -63,16 +63,6 @@ func (q *Queries) DeleteFile(ctx context.Context, id string) error {
 	return err
 }
 
-const deleteSessionFiles = `-- name: DeleteSessionFiles :exec
-DELETE FROM files
-WHERE session_id = ?
-`
-
-func (q *Queries) DeleteSessionFiles(ctx context.Context, sessionID string) error {
-	_, err := q.exec(ctx, q.deleteSessionFilesStmt, deleteSessionFiles, sessionID)
-	return err
-}
-
 const getFile = `-- name: GetFile :one
 SELECT id, session_id, path, content, version, created_at, updated_at
 FROM files

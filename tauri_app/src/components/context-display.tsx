@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatTokens } from '@/lib/utils';
 
 interface ComponentBreakdown {
   name: string;
@@ -19,7 +20,7 @@ interface ComponentBreakdown {
 interface ContextData {
   model: string;
   maxTokens: number;
-  totalTokens: number;
+  contextTokens: number;
   usagePercent: number;
   components: ComponentBreakdown[];
   warningLevel?: string;
@@ -31,13 +32,6 @@ interface ContextDisplayProps {
 }
 
 export function ContextDisplay({ data }: ContextDisplayProps) {
-  const formatTokens = (tokens: number) => {
-    if (tokens >= 1000) {
-      return `${Math.round(tokens / 1000)}K`;
-    }
-    return tokens.toString();
-  };
-
   const getWarningIcon = () => {
     if (data.warningLevel === 'high') {
       return <AlertTriangle className="h-4 w-4 text-red-500" />;
@@ -60,7 +54,7 @@ export function ContextDisplay({ data }: ContextDisplayProps) {
       <div className="space-y-2">
         <h3 className="font-semibold text-lg">Context Usage Breakdown</h3>
         <p className="text-muted-foreground text-sm">
-          {formatTokens(data.totalTokens)} / {formatTokens(data.maxTokens)} (
+          {formatTokens(data.contextTokens)} / {formatTokens(data.maxTokens)} (
           {Math.round(data.usagePercent)}%) • {data.model}
         </p>
       </div>

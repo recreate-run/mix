@@ -1,5 +1,6 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { rpcCall } from '@/lib/rpc';
+import { invalidateSessionCaches } from '@/lib/session-cache';
 
 interface SendMessageParams {
   content: string;
@@ -19,7 +20,12 @@ const sendMessage = async (
 };
 
 export const useSendMessage = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: sendMessage,
+    onSuccess: (_, variables) => {
+      invalidateSessionCaches(queryClient, variables.sessionId);
+    },
   });
 };

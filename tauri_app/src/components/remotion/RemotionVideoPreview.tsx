@@ -1,7 +1,6 @@
 import { Player } from '@remotion/player';
 import type React from 'react';
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -279,7 +278,7 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
           <TabsTrigger value="layout">Layout</TabsTrigger>
         </TabsList>
 
-        <TabsContent alue="background" className="space-y-4 mt-4">
+        <TabsContent value="background" className="space-y-4 mt-4">
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-foreground">Background Media</h4>
 
@@ -333,7 +332,7 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
             <Input
               onChange={(e) => updateTextContent(e.target.value)}
               placeholder="Enter text..."
-              value={firstTextElement.content}
+              value={firstTextElement?.content || ''}
             />
           </div>
 
@@ -365,7 +364,7 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
             </div>
 
             {/* Show width/color controls when stroke is active */}
-            {firstTextElement.stroke && (
+            {firstTextElement?.stroke && (
               <div className="grid grid-cols-2">
                 <div className="flex items-center gap-2">
                   <Label>Width:</Label>
@@ -374,10 +373,10 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
                     max="30"
                     min="1"
                     onChange={(e) =>
-                      updateStroke(Number(e.target.value), firstTextElement.stroke?.color || '#000000')
+                      updateStroke(Number(e.target.value), firstTextElement?.stroke?.color || '#000000')
                     }
                     type="number"
-                    value={firstTextElement.stroke.width}
+                    value={firstTextElement?.stroke?.width || 0}
                   />
                 </div>
 
@@ -386,10 +385,10 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
                   <Input
                     className="w-16"
                     onChange={(e) =>
-                      updateStroke(firstTextElement.stroke?.width || 20, e.target.value)
+                      updateStroke(firstTextElement?.stroke?.width || 20, e.target.value)
                     }
                     type="color"
-                    value={firstTextElement.stroke.color}
+                    value={firstTextElement?.stroke?.color || '#000000'}
                   />
                 </div>
               </div>
@@ -408,19 +407,19 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-medium text-foreground">Enable</h4>
                 <Switch
-                  checked={!!firstTextElement.style?.backgroundColor &&
-                    firstTextElement.style.backgroundColor !== 'transparent'}
+                  checked={!!firstTextElement?.style?.backgroundColor &&
+                    firstTextElement?.style?.backgroundColor !== 'transparent'}
                   onCheckedChange={toggleBackground}
                 />
               </div>
 
-              {firstTextElement.style?.backgroundColor &&
-                firstTextElement.style.backgroundColor !== 'transparent' && (
+              {firstTextElement?.style?.backgroundColor &&
+                firstTextElement?.style?.backgroundColor !== 'transparent' && (
                   <div className="flex items-center gap-2">
                     <Label>Color:</Label>
                     <Input
                       type="color"
-                      value={firstTextElement.style.backgroundColor}
+                      value={firstTextElement?.style?.backgroundColor || '#000000'}
                       onChange={(e) => updateBackgroundColor(e.target.value)}
                       className="w-16"
                     />
@@ -438,7 +437,7 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
 
           <Select
             onValueChange={updateAnimationType}
-            value={firstTextElement.animation?.type || 'fadeIn'}
+            value={firstTextElement?.animation?.type || 'fadeIn'}
           >
             <SelectTrigger>
               <SelectValue />
@@ -455,7 +454,7 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
 
           <div className="flex items-center gap-4">
             <Label >
-              Duration: {firstTextElement.animation?.duration || 30} frames
+              Duration: {firstTextElement?.animation?.duration || 30} frames
             </Label>
             <Input
               className="w-full"
@@ -465,7 +464,7 @@ export const RemotionVideoPreview: React.FC<RemotionVideoPreviewProps> = ({
                 updateAnimationDuration(Number(e.target.value))
               }
               type="range"
-              value={firstTextElement.animation?.duration || 30}
+              value={firstTextElement?.animation?.duration || 30}
             />
           </div>
         </TabsContent>

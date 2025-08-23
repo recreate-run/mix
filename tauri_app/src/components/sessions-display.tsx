@@ -1,21 +1,12 @@
 import { AIResponse } from '@/components/ui/kibo-ui/ai/response';
-
-interface SessionSummary {
-  id: string;
-  title: string;
-  messageCount: number;
-  totalTokens: number;
-  cost: number;
-  createdAt: number;
-  updatedAt: number;
-  parentSessionId?: string;
-  isCurrent: boolean;
-}
+import type { SessionData } from '@/types/common';
+import { getTotalMessages, getExchangeCount } from '@/types/common';
+import { formatTokens } from '@/lib/utils';
 
 interface SessionsData {
   type: string;
   currentSession?: string;
-  sessions: SessionSummary[];
+  sessions: (SessionData & { isCurrent: boolean })[];
 }
 
 interface SessionsDisplayProps {
@@ -23,17 +14,9 @@ interface SessionsDisplayProps {
 }
 
 export function SessionsDisplay({ data }: SessionsDisplayProps) {
-  // Format tokens in K
-  const formatTokens = (tokens: number) => {
-    if (tokens >= 1000) {
-      return `${(tokens / 1000).toFixed(1)}K`;
-    }
-    return tokens.toString();
-  };
-
-  const formatTimestamp = (timestamp: number) => {
-    if (timestamp === 0) return '';
-    const date = new Date(timestamp * 1000);
+  const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp); // RFC3339 parses directly
     return date.toLocaleDateString();
   };
 
@@ -45,29 +28,32 @@ export function SessionsDisplay({ data }: SessionsDisplayProps) {
     return <AIResponse>{markdown}</AIResponse>;
   }
 
-  // Sort sessions by updated date (most recent first)
+  // Sort sessions by created date (most recent first)
   const sortedSessions = [...data.sessions].sort(
-    (a, b) => b.updatedAt - a.updatedAt
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
   sortedSessions.forEach((session) => {
     const currentIndicator = session.isCurrent ? ' **(current)**' : '';
+    const totalTokens = session.promptTokens + session.completionTokens;
     const tokensDisplay =
-      session.totalTokens > 0 ? formatTokens(session.totalTokens) : '0';
+      totalTokens > 0 ? formatTokens(totalTokens) : '0';
 
     markdown += `## ${session.title}${currentIndicator}\n`;
     markdown += `- **ID:** ${session.id}\n`;
-    markdown += `- **Messages:** ${session.messageCount}\n`;
+    const totalMessages = getTotalMessages(session);
+    const exchanges = getExchangeCount(session);
+    
+    if (session.toolCallCount === 0) {
+      markdown += `- **Messages:** ${totalMessages}\n`;
+    } else {
+      markdown += `- **Messages:** ${exchanges} exchanges, ${session.toolCallCount} tools\n`;
+    }
     markdown += `- **Tokens:** ${tokensDisplay}\n`;
     markdown += `- **Cost:** $${session.cost.toFixed(4)}\n`;
-    markdown += `- **Created:** ${formatTimestamp(session.createdAt)}\n`;
-
-    if (session.updatedAt > 0) {
-      markdown += `- **Last Updated:** ${formatTimestamp(session.updatedAt)}\n`;
-    }
-
-    if (session.parentSessionId) {
-      markdown += `- **Parent Session:** ${session.parentSessionId}\n`;
+    
+    if (session.createdAt) {
+      markdown += `- **Created:** ${formatTimestamp(session.createdAt)}\n`;
     }
 
     markdown += '\n';

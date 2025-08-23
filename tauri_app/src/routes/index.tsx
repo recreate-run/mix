@@ -11,7 +11,8 @@ import { ProjectCard } from "@/components/project-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCreateSession } from "@/hooks/useSession";
-import { type SessionData, useSessionsList } from "@/hooks/useSessionsList";
+import { useSessionsList } from "@/hooks/useSessionsList";
+import type { SessionData } from "@/types/common";
 import { normalizePath } from "@/utils/pathUtils";
 
 export const Route = createFileRoute("/")({

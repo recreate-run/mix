@@ -14,20 +14,17 @@ export const Route = createFileRoute('/$sessionId')({
 function SessionApp() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
-  const { data: session, isLoading } = useActiveSession(sessionId);
+  const { data: session, isLoading, error } = useActiveSession(sessionId);
 
-  // Redirect to home if session doesn't exist
+  // Redirect to home if session doesn't exist, but only after we're sure it failed
   useEffect(() => {
-    if (!isLoading && session === null) {
+    if (!isLoading && (session === null || error)) {
       navigate({ to: '/', replace: true });
     }
-  }, [session, isLoading, navigate]);
+  }, [session, isLoading, error, navigate]);
 
-  // Show loading or nothing while checking session
-  if (isLoading || session === null) {
-    return null;
-  }
-
+  // Always render the shell to prevent flashing
+  // The individual components will handle their own loading states
   return (
     <SidebarProvider
       className="min-h-screen overflow-hidden overscroll-none"
@@ -41,7 +38,8 @@ function SessionApp() {
       <AppSidebar sessionId={sessionId} variant="inset" />
       <SidebarInset className="flex h-screen flex-col">
         {/* <PageHeader sessionId={sessionId} /> */}
-
+        
+        {/* Always render ChatApp - it will handle loading states internally */}
         <ChatApp sessionId={sessionId} />
       </SidebarInset>
     </SidebarProvider>

@@ -159,8 +159,7 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderMock:
-		// TODO: implement mock client for test
-		panic("not implemented")
+		return nil, fmt.Errorf("mock provider not implemented")
 	}
 	return nil, fmt.Errorf("provider not supported: %s", providerName)
 }

@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef } from 'react';
 import { useBoundStore } from '@/stores';
 import { getParentPath } from '@/utils/attachmentUtils';
-import { getFileType, type SupportedFileTypes } from '@/utils/fileTypes';
+import { getFileType } from '@/utils/fileTypes';
 import { useFileTypes } from '@/hooks/useFileTypes';
 import { type MediaItem, useFileSystem } from './useFileSystem';
 

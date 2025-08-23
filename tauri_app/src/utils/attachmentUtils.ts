@@ -1,4 +1,3 @@
-import { convertToAssetServerUrl } from '@/utils/assetServer';
 import { readDir, stat } from '@tauri-apps/plugin-fs';
 import type { Attachment } from '@/stores/attachmentSlice';
 import {

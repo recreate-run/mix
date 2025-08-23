@@ -38,7 +38,6 @@ type Service interface {
 	ListLatestSessionFiles(ctx context.Context, sessionID string) ([]File, error)
 	Update(ctx context.Context, file File) (File, error)
 	Delete(ctx context.Context, id string) error
-	DeleteSessionFiles(ctx context.Context, sessionID string) error
 }
 
 type service struct {
@@ -235,19 +234,6 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *service) DeleteSessionFiles(ctx context.Context, sessionID string) error {
-	files, err := s.ListBySession(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	for _, file := range files {
-		err = s.Delete(ctx, file.ID)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func (s *service) fromDBItem(item db.File) File {
 	return File{

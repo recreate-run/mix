@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { rpcCall } from '@/lib/rpc';
-import type { Session } from '@/types/common';
+import type { SessionData } from '@/types/common';
+import { invalidateSessionCaches } from '@/lib/session-cache';
 
 interface ForkSessionParams {
   sourceSessionId: string;
@@ -8,8 +9,8 @@ interface ForkSessionParams {
   title?: string;
 }
 
-const forkSession = async (params: ForkSessionParams): Promise<Session> => {
-  return await rpcCall<Session>('sessions.fork', params);
+const forkSession = async (params: ForkSessionParams): Promise<SessionData> => {
+  return await rpcCall<SessionData>('sessions.fork', params);
 };
 
 export const useForkSession = () => {
@@ -18,7 +19,7 @@ export const useForkSession = () => {
   return useMutation({
     mutationFn: forkSession,
     onSuccess: (newSession) => {
-      queryClient.setQueryData(['session'], newSession);
+      invalidateSessionCaches(queryClient, newSession.id);
     },
   });
 };

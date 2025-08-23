@@ -50,15 +50,17 @@ type HelpCommand struct {
 
 // SessionResponse represents the JSON response for the /session command
 type SessionResponse struct {
-	Type             string  `json:"type"`
-	ID               string  `json:"id"`
-	Title            string  `json:"title"`
-	MessageCount     int64   `json:"messageCount"`
-	TotalTokens      int64   `json:"totalTokens"`
-	PromptTokens     int64   `json:"promptTokens"`
-	CompletionTokens int64   `json:"completionTokens"`
-	Cost             float64 `json:"cost"`
-	CreatedAt        int64   `json:"createdAt"`
+	Type                  string  `json:"type"`
+	ID                    string  `json:"id"`
+	Title                 string  `json:"title"`
+	UserMessageCount      int64   `json:"userMessageCount"`
+	AssistantMessageCount int64   `json:"assistantMessageCount"`
+	ToolCallCount         int64   `json:"toolCallCount"`
+	TotalTokens           int64   `json:"totalTokens"`
+	PromptTokens          int64   `json:"promptTokens"`
+	CompletionTokens      int64   `json:"completionTokens"`
+	Cost                  float64 `json:"cost"`
+	CreatedAt             int64   `json:"createdAt"`
 	UpdatedAt        int64   `json:"updatedAt"`
 	ParentSessionID  string  `json:"parentSessionId,omitempty"`
 }
@@ -95,7 +97,9 @@ type SessionsResponse struct {
 type SessionSummary struct {
 	ID              string  `json:"id"`
 	Title           string  `json:"title"`
-	MessageCount    int64   `json:"messageCount"`
+	UserMessageCount      int64   `json:"userMessageCount"`
+	AssistantMessageCount int64   `json:"assistantMessageCount"`
+	ToolCallCount         int64   `json:"toolCallCount"`
 	TotalTokens     int64   `json:"totalTokens"`
 	Cost            float64 `json:"cost"`
 	CreatedAt       int64   `json:"createdAt"`
@@ -317,7 +321,9 @@ func createSessionHandler(app *app.App) func(ctx context.Context, args string) (
 				Type:             "session",
 				ID:               currentSession.ID,
 				Title:            currentSession.Title,
-				MessageCount:     currentSession.MessageCount,
+				UserMessageCount:      currentSession.UserMessageCount,
+				AssistantMessageCount: currentSession.AssistantMessageCount,
+				ToolCallCount:         currentSession.ToolCallCount,
 				TotalTokens:      currentSession.PromptTokens + currentSession.CompletionTokens,
 				PromptTokens:     currentSession.PromptTokens,
 				CompletionTokens: currentSession.CompletionTokens,
@@ -358,7 +364,9 @@ func createSessionsHandler(app *app.App) func(ctx context.Context, args string) 
 			sessionSummaries = append(sessionSummaries, SessionSummary{
 				ID:              session.ID,
 				Title:           session.Title,
-				MessageCount:    session.MessageCount,
+				UserMessageCount:      session.UserMessageCount,
+				AssistantMessageCount: session.AssistantMessageCount,
+				ToolCallCount:         session.ToolCallCount,
 				TotalTokens:     session.PromptTokens + session.CompletionTokens,
 				Cost:            session.Cost,
 				CreatedAt:       session.CreatedAt,

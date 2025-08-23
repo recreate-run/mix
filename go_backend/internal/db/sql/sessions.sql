@@ -3,7 +3,6 @@ INSERT INTO sessions (
     id,
     parent_session_id,
     title,
-    message_count,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -18,30 +17,27 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
-    ?,
     null,
     ?,
     strftime('%s', 'now'),
     strftime('%s', 'now')
-) RETURNING *;
+) RETURNING 
+    id, 
+    parent_session_id,
+    title, 
+    prompt_tokens, 
+    completion_tokens, 
+    cost, 
+    created_at, 
+    updated_at,
+    summary_message_id,
+    working_directory;
 
 -- name: GetSessionByID :one
-SELECT *
-FROM sessions
-WHERE id = ? LIMIT 1;
-
--- name: ListSessions :many
-SELECT *
-FROM sessions
-WHERE parent_session_id is NULL
-ORDER BY created_at DESC;
-
--- name: ListSessionsWithFirstMessage :many
 SELECT 
     s.id, 
     s.parent_session_id,
     s.title, 
-    s.message_count, 
     s.prompt_tokens, 
     s.completion_tokens, 
     s.cost, 
@@ -49,7 +45,60 @@ SELECT
     s.updated_at,
     s.summary_message_id,
     s.working_directory,
-    COALESCE(m.parts, '') as first_user_message
+    COALESCE(counts.user_message_count, 0) as user_message_count,
+    COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
+    COALESCE(counts.tool_call_count, 0) as tool_call_count
+FROM sessions s
+LEFT JOIN (
+    SELECT session_id,
+           COUNT(CASE WHEN role = 'user' THEN 1 END) as user_message_count,
+           COUNT(CASE WHEN role = 'assistant' THEN 1 END) as assistant_message_count,
+           COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
+    FROM messages GROUP BY session_id
+) counts ON s.id = counts.session_id
+WHERE s.id = ? LIMIT 1;
+
+-- name: ListSessions :many
+SELECT 
+    s.id, 
+    s.parent_session_id,
+    s.title, 
+    s.prompt_tokens, 
+    s.completion_tokens, 
+    s.cost, 
+    s.created_at, 
+    s.updated_at,
+    s.summary_message_id,
+    s.working_directory,
+    COALESCE(counts.user_message_count, 0) as user_message_count,
+    COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
+    COALESCE(counts.tool_call_count, 0) as tool_call_count
+FROM sessions s
+LEFT JOIN (
+    SELECT session_id,
+           COUNT(CASE WHEN role = 'user' THEN 1 END) as user_message_count,
+           COUNT(CASE WHEN role = 'assistant' THEN 1 END) as assistant_message_count,
+           COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
+    FROM messages GROUP BY session_id
+) counts ON s.id = counts.session_id
+ORDER BY s.created_at DESC;
+
+-- name: ListSessionsWithFirstMessage :many
+SELECT 
+    s.id, 
+    s.parent_session_id,
+    s.title, 
+    s.prompt_tokens, 
+    s.completion_tokens, 
+    s.cost, 
+    s.created_at, 
+    s.updated_at,
+    s.summary_message_id,
+    s.working_directory,
+    COALESCE(first_msg.parts, '') as first_user_message,
+    COALESCE(counts.user_message_count, 0) as user_message_count,
+    COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
+    COALESCE(counts.tool_call_count, 0) as tool_call_count
 FROM sessions s
 LEFT JOIN (
     SELECT 
@@ -58,8 +107,14 @@ LEFT JOIN (
         ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY created_at ASC) as rn
     FROM messages 
     WHERE role = 'user'
-) m ON s.id = m.session_id AND m.rn = 1
-WHERE s.parent_session_id IS NULL
+) first_msg ON s.id = first_msg.session_id AND first_msg.rn = 1
+LEFT JOIN (
+    SELECT session_id,
+           COUNT(CASE WHEN role = 'user' THEN 1 END) as user_message_count,
+           COUNT(CASE WHEN role = 'assistant' THEN 1 END) as assistant_message_count,
+           COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
+    FROM messages GROUP BY session_id
+) counts ON s.id = counts.session_id
 ORDER BY s.created_at DESC;
 
 -- name: UpdateSession :one
@@ -69,9 +124,20 @@ SET
     prompt_tokens = ?,
     completion_tokens = ?,
     summary_message_id = ?,
-    cost = ?
+    cost = ?,
+    updated_at = strftime('%s', 'now')
 WHERE id = ?
-RETURNING *;
+RETURNING 
+    id, 
+    parent_session_id,
+    title, 
+    prompt_tokens, 
+    completion_tokens, 
+    cost, 
+    created_at, 
+    updated_at,
+    summary_message_id,
+    working_directory;
 
 
 -- name: DeleteSession :exec

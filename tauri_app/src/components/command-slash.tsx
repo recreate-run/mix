@@ -27,12 +27,14 @@ import {
   useScreenRecordingPermission,
 } from '@/hooks/usePermissions';
 import { useActiveSession } from '@/hooks/useSession';
+import { formatMessageCounts } from '@/types/common';
 import {
-  TITLE_TRUNCATE_LENGTH,
   useSelectSession,
   useSessionsList,
 } from '@/hooks/useSessionsList';
 import { slashCommands } from '@/utils/slash-commands';
+import { getDisplayTitle } from '@/utils/sessionUtils';
+
 
 interface CommandSlashProps {
   onExecuteCommand: (command: string) => void;
@@ -151,38 +153,6 @@ export function CommandSlash({
       )
     : selectedServerTools;
 
-  // Helper function to get display title (first user message or fallback to title)
-  const getDisplayTitle = (session: (typeof sessions)[0]) => {
-    if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
-      console.log(
-        'Text key unavailable: No firstUserMessage for session',
-        session.id
-      );
-      return session.title; // fallback to original title
-    }
-
-    // Try to parse JSON and extract text from the parts structure
-    let displayText = session.firstUserMessage;
-    try {
-      const parsed = JSON.parse(session.firstUserMessage);
-      // Find the first text part in the parts array
-      const textPart = parsed.find((part: any) => part.type === 'text');
-      if (textPart?.data?.text) {
-        displayText = textPart.data.text;
-      }
-    } catch {
-      // If parsing fails, use the raw message as fallback
-      displayText = session.firstUserMessage;
-      console.log('Failed to parse user message:', session.firstUserMessage);
-    }
-
-    const truncated =
-      displayText.length > TITLE_TRUNCATE_LENGTH
-        ? `${displayText.substring(0, TITLE_TRUNCATE_LENGTH)}...`
-        : displayText;
-
-    return truncated;
-  };
 
   const handleSelect = (value: string) => {
     setSearchQuery('');
@@ -369,7 +339,7 @@ export function CommandSlash({
                           <div className="flex items-center gap-2 text-muted-foreground text-xs">
                             <span>{formatDate(createdDate)}</span>
                             <span>•</span>
-                            <span>{session.messageCount} messages</span>
+                            <span>{formatMessageCounts(session)}</span>
                           </div>
                         </div>
                         <div className="ml-2 font-mono text-muted-foreground text-xs">

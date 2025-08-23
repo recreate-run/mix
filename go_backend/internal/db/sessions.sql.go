@@ -15,7 +15,6 @@ INSERT INTO sessions (
     id,
     parent_session_id,
     title,
-    message_count,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -30,47 +29,66 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
-    ?,
     null,
     ?,
     strftime('%s', 'now'),
     strftime('%s', 'now')
-) RETURNING id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id, working_directory
+) RETURNING 
+    id, 
+    parent_session_id,
+    title, 
+    prompt_tokens, 
+    completion_tokens, 
+    cost, 
+    created_at, 
+    updated_at,
+    summary_message_id,
+    working_directory
 `
 
 type CreateSessionParams struct {
 	ID               string         `json:"id"`
 	ParentSessionID  sql.NullString `json:"parent_session_id"`
 	Title            string         `json:"title"`
-	MessageCount     int64          `json:"message_count"`
 	PromptTokens     int64          `json:"prompt_tokens"`
 	CompletionTokens int64          `json:"completion_tokens"`
 	Cost             float64        `json:"cost"`
 	WorkingDirectory sql.NullString `json:"working_directory"`
 }
 
-func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
+type CreateSessionRow struct {
+	ID               string         `json:"id"`
+	ParentSessionID  sql.NullString `json:"parent_session_id"`
+	Title            string         `json:"title"`
+	PromptTokens     int64          `json:"prompt_tokens"`
+	CompletionTokens int64          `json:"completion_tokens"`
+	Cost             float64        `json:"cost"`
+	CreatedAt        int64          `json:"created_at"`
+	UpdatedAt        int64          `json:"updated_at"`
+	SummaryMessageID sql.NullString `json:"summary_message_id"`
+	WorkingDirectory sql.NullString `json:"working_directory"`
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (CreateSessionRow, error) {
 	row := q.queryRow(ctx, q.createSessionStmt, createSession,
 		arg.ID,
 		arg.ParentSessionID,
 		arg.Title,
-		arg.MessageCount,
 		arg.PromptTokens,
 		arg.CompletionTokens,
 		arg.Cost,
 		arg.WorkingDirectory,
 	)
-	var i Session
+	var i CreateSessionRow
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
 		&i.Title,
-		&i.MessageCount,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
-		&i.UpdatedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.SummaryMessageID,
 		&i.WorkingDirectory,
 	)
@@ -88,58 +106,133 @@ func (q *Queries) DeleteSession(ctx context.Context, id string) error {
 }
 
 const getSessionByID = `-- name: GetSessionByID :one
-SELECT id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id, working_directory
-FROM sessions
-WHERE id = ? LIMIT 1
+SELECT 
+    s.id, 
+    s.parent_session_id,
+    s.title, 
+    s.prompt_tokens, 
+    s.completion_tokens, 
+    s.cost, 
+    s.created_at, 
+    s.updated_at,
+    s.summary_message_id,
+    s.working_directory,
+    COALESCE(counts.user_message_count, 0) as user_message_count,
+    COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
+    COALESCE(counts.tool_call_count, 0) as tool_call_count
+FROM sessions s
+LEFT JOIN (
+    SELECT session_id,
+           COUNT(CASE WHEN role = 'user' THEN 1 END) as user_message_count,
+           COUNT(CASE WHEN role = 'assistant' THEN 1 END) as assistant_message_count,
+           COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
+    FROM messages GROUP BY session_id
+) counts ON s.id = counts.session_id
+WHERE s.id = ? LIMIT 1
 `
 
-func (q *Queries) GetSessionByID(ctx context.Context, id string) (Session, error) {
+type GetSessionByIDRow struct {
+	ID                    string         `json:"id"`
+	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	Title                 string         `json:"title"`
+	PromptTokens          int64          `json:"prompt_tokens"`
+	CompletionTokens      int64          `json:"completion_tokens"`
+	Cost                  float64        `json:"cost"`
+	CreatedAt             int64          `json:"created_at"`
+	UpdatedAt             int64          `json:"updated_at"`
+	SummaryMessageID      sql.NullString `json:"summary_message_id"`
+	WorkingDirectory      sql.NullString `json:"working_directory"`
+	UserMessageCount      int64          `json:"user_message_count"`
+	AssistantMessageCount int64          `json:"assistant_message_count"`
+	ToolCallCount         int64          `json:"tool_call_count"`
+}
+
+func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByIDRow, error) {
 	row := q.queryRow(ctx, q.getSessionByIDStmt, getSessionByID, id)
-	var i Session
+	var i GetSessionByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
 		&i.Title,
-		&i.MessageCount,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
-		&i.UpdatedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.SummaryMessageID,
 		&i.WorkingDirectory,
+		&i.UserMessageCount,
+		&i.AssistantMessageCount,
+		&i.ToolCallCount,
 	)
 	return i, err
 }
 
 const listSessions = `-- name: ListSessions :many
-SELECT id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id, working_directory
-FROM sessions
-WHERE parent_session_id is NULL
-ORDER BY created_at DESC
+SELECT 
+    s.id, 
+    s.parent_session_id,
+    s.title, 
+    s.prompt_tokens, 
+    s.completion_tokens, 
+    s.cost, 
+    s.created_at, 
+    s.updated_at,
+    s.summary_message_id,
+    s.working_directory,
+    COALESCE(counts.user_message_count, 0) as user_message_count,
+    COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
+    COALESCE(counts.tool_call_count, 0) as tool_call_count
+FROM sessions s
+LEFT JOIN (
+    SELECT session_id,
+           COUNT(CASE WHEN role = 'user' THEN 1 END) as user_message_count,
+           COUNT(CASE WHEN role = 'assistant' THEN 1 END) as assistant_message_count,
+           COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
+    FROM messages GROUP BY session_id
+) counts ON s.id = counts.session_id
+ORDER BY s.created_at DESC
 `
 
-func (q *Queries) ListSessions(ctx context.Context) ([]Session, error) {
+type ListSessionsRow struct {
+	ID                    string         `json:"id"`
+	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	Title                 string         `json:"title"`
+	PromptTokens          int64          `json:"prompt_tokens"`
+	CompletionTokens      int64          `json:"completion_tokens"`
+	Cost                  float64        `json:"cost"`
+	CreatedAt             int64          `json:"created_at"`
+	UpdatedAt             int64          `json:"updated_at"`
+	SummaryMessageID      sql.NullString `json:"summary_message_id"`
+	WorkingDirectory      sql.NullString `json:"working_directory"`
+	UserMessageCount      int64          `json:"user_message_count"`
+	AssistantMessageCount int64          `json:"assistant_message_count"`
+	ToolCallCount         int64          `json:"tool_call_count"`
+}
+
+func (q *Queries) ListSessions(ctx context.Context) ([]ListSessionsRow, error) {
 	rows, err := q.query(ctx, q.listSessionsStmt, listSessions)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Session{}
+	items := []ListSessionsRow{}
 	for rows.Next() {
-		var i Session
+		var i ListSessionsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ParentSessionID,
 			&i.Title,
-			&i.MessageCount,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
-			&i.UpdatedAt,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 			&i.SummaryMessageID,
 			&i.WorkingDirectory,
+			&i.UserMessageCount,
+			&i.AssistantMessageCount,
+			&i.ToolCallCount,
 		); err != nil {
 			return nil, err
 		}
@@ -159,7 +252,6 @@ SELECT
     s.id, 
     s.parent_session_id,
     s.title, 
-    s.message_count, 
     s.prompt_tokens, 
     s.completion_tokens, 
     s.cost, 
@@ -167,7 +259,10 @@ SELECT
     s.updated_at,
     s.summary_message_id,
     s.working_directory,
-    COALESCE(m.parts, '') as first_user_message
+    COALESCE(first_msg.parts, '') as first_user_message,
+    COALESCE(counts.user_message_count, 0) as user_message_count,
+    COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
+    COALESCE(counts.tool_call_count, 0) as tool_call_count
 FROM sessions s
 LEFT JOIN (
     SELECT 
@@ -176,24 +271,32 @@ LEFT JOIN (
         ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY created_at ASC) as rn
     FROM messages 
     WHERE role = 'user'
-) m ON s.id = m.session_id AND m.rn = 1
-WHERE s.parent_session_id IS NULL
+) first_msg ON s.id = first_msg.session_id AND first_msg.rn = 1
+LEFT JOIN (
+    SELECT session_id,
+           COUNT(CASE WHEN role = 'user' THEN 1 END) as user_message_count,
+           COUNT(CASE WHEN role = 'assistant' THEN 1 END) as assistant_message_count,
+           COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
+    FROM messages GROUP BY session_id
+) counts ON s.id = counts.session_id
 ORDER BY s.created_at DESC
 `
 
 type ListSessionsWithFirstMessageRow struct {
-	ID               string         `json:"id"`
-	ParentSessionID  sql.NullString `json:"parent_session_id"`
-	Title            string         `json:"title"`
-	MessageCount     int64          `json:"message_count"`
-	PromptTokens     int64          `json:"prompt_tokens"`
-	CompletionTokens int64          `json:"completion_tokens"`
-	Cost             float64        `json:"cost"`
-	CreatedAt        int64          `json:"created_at"`
-	UpdatedAt        int64          `json:"updated_at"`
-	SummaryMessageID sql.NullString `json:"summary_message_id"`
-	WorkingDirectory sql.NullString `json:"working_directory"`
-	FirstUserMessage string         `json:"first_user_message"`
+	ID                    string         `json:"id"`
+	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	Title                 string         `json:"title"`
+	PromptTokens          int64          `json:"prompt_tokens"`
+	CompletionTokens      int64          `json:"completion_tokens"`
+	Cost                  float64        `json:"cost"`
+	CreatedAt             int64          `json:"created_at"`
+	UpdatedAt             int64          `json:"updated_at"`
+	SummaryMessageID      sql.NullString `json:"summary_message_id"`
+	WorkingDirectory      sql.NullString `json:"working_directory"`
+	FirstUserMessage      string         `json:"first_user_message"`
+	UserMessageCount      int64          `json:"user_message_count"`
+	AssistantMessageCount int64          `json:"assistant_message_count"`
+	ToolCallCount         int64          `json:"tool_call_count"`
 }
 
 func (q *Queries) ListSessionsWithFirstMessage(ctx context.Context) ([]ListSessionsWithFirstMessageRow, error) {
@@ -209,7 +312,6 @@ func (q *Queries) ListSessionsWithFirstMessage(ctx context.Context) ([]ListSessi
 			&i.ID,
 			&i.ParentSessionID,
 			&i.Title,
-			&i.MessageCount,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
@@ -218,6 +320,9 @@ func (q *Queries) ListSessionsWithFirstMessage(ctx context.Context) ([]ListSessi
 			&i.SummaryMessageID,
 			&i.WorkingDirectory,
 			&i.FirstUserMessage,
+			&i.UserMessageCount,
+			&i.AssistantMessageCount,
+			&i.ToolCallCount,
 		); err != nil {
 			return nil, err
 		}
@@ -239,9 +344,20 @@ SET
     prompt_tokens = ?,
     completion_tokens = ?,
     summary_message_id = ?,
-    cost = ?
+    cost = ?,
+    updated_at = strftime('%s', 'now')
 WHERE id = ?
-RETURNING id, parent_session_id, title, message_count, prompt_tokens, completion_tokens, cost, updated_at, created_at, summary_message_id, working_directory
+RETURNING 
+    id, 
+    parent_session_id,
+    title, 
+    prompt_tokens, 
+    completion_tokens, 
+    cost, 
+    created_at, 
+    updated_at,
+    summary_message_id,
+    working_directory
 `
 
 type UpdateSessionParams struct {
@@ -253,7 +369,20 @@ type UpdateSessionParams struct {
 	ID               string         `json:"id"`
 }
 
-func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (Session, error) {
+type UpdateSessionRow struct {
+	ID               string         `json:"id"`
+	ParentSessionID  sql.NullString `json:"parent_session_id"`
+	Title            string         `json:"title"`
+	PromptTokens     int64          `json:"prompt_tokens"`
+	CompletionTokens int64          `json:"completion_tokens"`
+	Cost             float64        `json:"cost"`
+	CreatedAt        int64          `json:"created_at"`
+	UpdatedAt        int64          `json:"updated_at"`
+	SummaryMessageID sql.NullString `json:"summary_message_id"`
+	WorkingDirectory sql.NullString `json:"working_directory"`
+}
+
+func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (UpdateSessionRow, error) {
 	row := q.queryRow(ctx, q.updateSessionStmt, updateSession,
 		arg.Title,
 		arg.PromptTokens,
@@ -262,17 +391,16 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (S
 		arg.Cost,
 		arg.ID,
 	)
-	var i Session
+	var i UpdateSessionRow
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
 		&i.Title,
-		&i.MessageCount,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
-		&i.UpdatedAt,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.SummaryMessageID,
 		&i.WorkingDirectory,
 	)

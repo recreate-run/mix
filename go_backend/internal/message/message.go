@@ -27,7 +27,6 @@ type Service interface {
 	Get(ctx context.Context, id string) (Message, error)
 	List(ctx context.Context, sessionID string) ([]Message, error)
 	Delete(ctx context.Context, id string) error
-	DeleteSessionMessages(ctx context.Context, sessionID string) error
 	ListUserMessageHistory(ctx context.Context, limit, offset int64) ([]Message, error)
 	CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error
 }
@@ -91,21 +90,6 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
 	return message, nil
 }
 
-func (s *service) DeleteSessionMessages(ctx context.Context, sessionID string) error {
-	messages, err := s.List(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	for _, message := range messages {
-		if message.SessionID == sessionID {
-			err = s.Delete(ctx, message.ID)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
 
 func (s *service) Update(ctx context.Context, message Message) error {
 	parts, err := marshallParts(message.Parts)

@@ -12,7 +12,7 @@ import type {
   HTMLAttributes,
   KeyboardEventHandler,
 } from 'react';
-import { Children, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Children, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,

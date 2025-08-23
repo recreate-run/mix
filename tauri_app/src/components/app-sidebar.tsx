@@ -34,15 +34,15 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
   );
 
   const handleSessionSelect = (sessionId: string) => {
-    selectSessionMutation.mutate(sessionId, {
-      onSuccess: () => {
-        navigate({
-          to: '/$sessionId',
-          params: { sessionId },
-          replace: true,
-        });
-      },
+    // Navigate immediately for instant UI feedback
+    navigate({
+      to: '/$sessionId',
+      params: { sessionId },
+      // Remove replace: true to prevent full route replacement
     });
+    
+    // Update backend selection in the background
+    selectSessionMutation.mutate(sessionId);
   };
 
   const handleNewSession = async () => {
@@ -58,7 +58,7 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
       navigate({
         to: '/$sessionId',
         params: { sessionId: newSession.id },
-        replace: true,
+        // Remove replace: true for consistency
       });
     } catch (error) {
       console.error('Failed to create new session:', error);
@@ -119,6 +119,8 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
                       key={session.id}
                       onClick={handleSessionSelect}
                       session={session}
+                      currentSessionId={sessionId}
+                      allSessions={sortedSessions}
                     />
                   );
                 })

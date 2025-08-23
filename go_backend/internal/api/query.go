@@ -41,15 +41,17 @@ type QueryError struct {
 
 // Structured data types
 type SessionData struct {
-	ID               string    `json:"id"`
-	Title            string    `json:"title"`
-	MessageCount     int64     `json:"messageCount"`
-	PromptTokens     int64     `json:"promptTokens"`
-	CompletionTokens int64     `json:"completionTokens"`
-	Cost             float64   `json:"cost"`
-	CreatedAt        time.Time `json:"createdAt"`
-	WorkingDirectory string    `json:"workingDirectory,omitempty"`
-	FirstUserMessage string    `json:"firstUserMessage,omitempty"`
+	ID                    string    `json:"id"`
+	Title                 string    `json:"title"`
+	UserMessageCount      int64     `json:"userMessageCount"`
+	AssistantMessageCount int64     `json:"assistantMessageCount"`
+	ToolCallCount         int64     `json:"toolCallCount"`
+	PromptTokens          int64     `json:"promptTokens"`
+	CompletionTokens      int64     `json:"completionTokens"`
+	Cost                  float64   `json:"cost"`
+	CreatedAt             time.Time `json:"createdAt"`
+	WorkingDirectory      string    `json:"workingDirectory,omitempty"`
+	FirstUserMessage      string    `json:"firstUserMessage,omitempty"`
 }
 
 type ToolData struct {
@@ -85,6 +87,44 @@ type MessageData struct {
 	Content   string         `json:"content"`
 	Response  string         `json:"response,omitempty"`
 	ToolCalls []ToolCallData `json:"toolCalls,omitempty"`
+}
+
+// Error response helper functions
+
+// newErrorResponse creates a standardized QueryResponse with error
+func newErrorResponse(req *QueryRequest, code int, message string) *QueryResponse {
+	return &QueryResponse{
+		Error: &QueryError{
+			Code:    code,
+			Message: message,
+		},
+		ID: req.ID,
+	}
+}
+
+// newInvalidParamsError creates a -32602 Invalid params error response
+func newInvalidParamsError(req *QueryRequest, err error) *QueryResponse {
+	return newErrorResponse(req, -32602, "Invalid params: "+err.Error())
+}
+
+// newMissingParamError creates a -32602 Missing required parameter error response
+func newMissingParamError(req *QueryRequest, param string) *QueryResponse {
+	return newErrorResponse(req, -32602, "Missing required parameter: "+param)
+}
+
+// newInternalError creates a -32603 Internal error response
+func newInternalError(req *QueryRequest, err error) *QueryResponse {
+	return newErrorResponse(req, -32603, "Internal error: "+err.Error())
+}
+
+// newMethodNotFoundError creates a -32601 Method not found error response
+func newMethodNotFoundError(req *QueryRequest, method string) *QueryResponse {
+	return newErrorResponse(req, -32601, "Method not found: "+method)
+}
+
+// newApplicationError creates a -32000 Application-specific error response
+func newApplicationError(req *QueryRequest, message string) *QueryResponse {
+	return newErrorResponse(req, -32000, message)
 }
 
 // Query handler
@@ -159,13 +199,7 @@ func (h *QueryHandler) Handle(ctx context.Context, req *QueryRequest) *QueryResp
 	case "permission.deny":
 		return h.handlePermissionDeny(ctx, req)
 	default:
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32601,
-				Message: "Method not found: " + req.Method,
-			},
-			ID: req.ID,
-		}
+		return newMethodNotFoundError(req, req.Method)
 	}
 }
 
@@ -183,12 +217,8 @@ func (h *QueryHandler) HandleQueryType(ctx context.Context, queryType string) *Q
 	}
 
 	// Invalid query type
-	return &QueryResponse{
-		Error: &QueryError{
-			Code:    -32602,
-			Message: "Invalid query type: " + queryType + ". Supported: " + strings.Join(supportedTypes, ", "),
-		},
-	}
+	req := &QueryRequest{ID: 1} // Create temporary request for error response
+	return newErrorResponse(req, -32602, "Invalid query type: " + queryType + ". Supported: " + strings.Join(supportedTypes, ", "))
 }
 
 // GetSupportedQueryTypes returns all supported query types
@@ -202,23 +232,11 @@ func (h *QueryHandler) handleSetAPIKey(ctx context.Context, req *QueryRequest) *
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.APIKey == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: apiKey",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "apiKey")
 	}
 
 	// Set environment variable
@@ -244,13 +262,7 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	// Check if this is a manual API key submission
@@ -268,24 +280,12 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 	}
 
 	if params.AuthCode == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: authCode or apiKey",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "authCode or apiKey")
 	}
 
 	storage, err := provider.NewCredentialStorage()
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32603,
-				Message: "Failed to initialize credential storage: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newErrorResponse(req, -32603, "Failed to initialize credential storage: " + err.Error())
 	}
 
 	// Extract state from auth code to retrieve the correct OAuth flow
@@ -298,26 +298,14 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 		oauthFlow = provider.GetOAuthFlow(state)
 
 		if oauthFlow == nil {
-			return &QueryResponse{
-				Error: &QueryError{
-					Code:    -32603,
-					Message: "OAuth flow not found for this session. Please restart the authentication process.",
-				},
-				ID: req.ID,
-			}
+			return newErrorResponse(req, -32603, "OAuth flow not found for this session. Please restart the authentication process.")
 		}
 	} else {
 		// Fallback: create new OAuth flow (for backwards compatibility)
 		var err error
 		oauthFlow, err = provider.NewOAuthFlow("")
 		if err != nil {
-			return &QueryResponse{
-				Error: &QueryError{
-					Code:    -32603,
-					Message: "Failed to create OAuth flow: " + err.Error(),
-				},
-				ID: req.ID,
-			}
+			return newErrorResponse(req, -32603, "Failed to create OAuth flow: " + err.Error())
 		}
 	}
 
@@ -351,25 +339,13 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 		}
 
 		// For other OAuth exchange failures, guide user to manual API key approach
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32603,
-				Message: "Failed to exchange authorization code: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newErrorResponse(req, -32603, "Failed to exchange authorization code: " + err.Error())
 	}
 
 	// Store the credentials
 	err = storage.StoreOAuthCredentials("anthropic", credentials.AccessToken, credentials.RefreshToken, credentials.ExpiresAt, credentials.ClientID)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32603,
-				Message: "Failed to store credentials: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newErrorResponse(req, -32603, "Failed to store credentials: " + err.Error())
 	}
 
 	// Clean up the OAuth flow from memory after successful authentication
@@ -390,13 +366,7 @@ func (h *QueryHandler) handleAuthLogin(ctx context.Context, req *QueryRequest) *
 func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest) *QueryResponse {
 	sessions, err := h.app.Sessions.ListWithFirstMessage(ctx)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to list sessions: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to list sessions: " + err.Error())
 	}
 
 	var result []SessionData
@@ -407,15 +377,17 @@ func (h *QueryHandler) handleSessionsList(ctx context.Context, req *QueryRequest
 		}
 
 		result = append(result, SessionData{
-			ID:               s.ID,
-			Title:            s.Title,
-			MessageCount:     s.MessageCount,
-			PromptTokens:     s.PromptTokens,
-			CompletionTokens: s.CompletionTokens,
-			Cost:             s.Cost,
-			CreatedAt:        time.Unix(s.CreatedAt, 0),
-			WorkingDirectory: workingDir,
-			FirstUserMessage: s.FirstUserMessage,
+			ID:                    s.ID,
+			Title:                 s.Title,
+			UserMessageCount:      s.UserMessageCount,
+			AssistantMessageCount: s.AssistantMessageCount,
+			ToolCallCount:         s.ToolCallCount,
+			PromptTokens:          s.PromptTokens,
+			CompletionTokens:      s.CompletionTokens,
+			Cost:                  s.Cost,
+			CreatedAt:             time.Unix(s.CreatedAt, 0),
+			WorkingDirectory:      workingDir,
+			FirstUserMessage:      s.FirstUserMessage,
 		})
 	}
 
@@ -431,40 +403,24 @@ func (h *QueryHandler) handleSessionsGet(ctx context.Context, req *QueryRequest)
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.ID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: id",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "id")
 	}
 
 	session, err := h.app.Sessions.Get(ctx, params.ID)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to get session: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to get session: " + err.Error())
 	}
 
 	result := SessionData{
 		ID:               session.ID,
 		Title:            session.Title,
-		MessageCount:     session.MessageCount,
+		UserMessageCount:      session.UserMessageCount,
+		AssistantMessageCount: session.AssistantMessageCount,
+		ToolCallCount:         session.ToolCallCount,
 		PromptTokens:     session.PromptTokens,
 		CompletionTokens: session.CompletionTokens,
 		Cost:             session.Cost,
@@ -481,29 +437,19 @@ func (h *QueryHandler) handleSessionsGet(ctx context.Context, req *QueryRequest)
 func (h *QueryHandler) handleSessionsCurrent(ctx context.Context, req *QueryRequest) *QueryResponse {
 	currentSession, err := h.app.GetCurrentSession(ctx)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to get current session: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to get current session: " + err.Error())
 	}
 
 	if currentSession == nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "No current session selected",
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "No current session selected")
 	}
 
 	result := SessionData{
 		ID:               currentSession.ID,
 		Title:            currentSession.Title,
-		MessageCount:     currentSession.MessageCount,
+		UserMessageCount:      currentSession.UserMessageCount,
+		AssistantMessageCount: currentSession.AssistantMessageCount,
+		ToolCallCount:         currentSession.ToolCallCount,
 		PromptTokens:     currentSession.PromptTokens,
 		CompletionTokens: currentSession.CompletionTokens,
 		Cost:             currentSession.Cost,
@@ -522,23 +468,11 @@ func (h *QueryHandler) handleSessionsSelect(ctx context.Context, req *QueryReque
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.ID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: id",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "id")
 	}
 
 	// Check if already on this session
@@ -553,13 +487,7 @@ func (h *QueryHandler) handleSessionsSelect(ctx context.Context, req *QueryReque
 	// Set current session
 	err := h.app.SetCurrentSession(params.ID)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to select session: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to select session: " + err.Error())
 	}
 
 	return &QueryResponse{
@@ -576,55 +504,33 @@ func (h *QueryHandler) handleSessionsCreate(ctx context.Context, req *QueryReque
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.Title == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: title",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "title")
 	}
 
 	// Create session
 	session, err := h.app.Sessions.Create(ctx, params.Title, params.WorkingDirectory)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to create session: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to create session: " + err.Error())
 	}
 
 	// Optionally set as current
 	if params.SetCurrent {
 		err = h.app.SetCurrentSession(session.ID)
 		if err != nil {
-			return &QueryResponse{
-				Error: &QueryError{
-					Code:    -32000,
-					Message: "Session created but failed to set as current: " + err.Error(),
-				},
-				ID: req.ID,
-			}
+			return newApplicationError(req, "Session created but failed to set as current: " + err.Error())
 		}
 	}
 
 	result := SessionData{
 		ID:               session.ID,
 		Title:            session.Title,
-		MessageCount:     session.MessageCount,
+		UserMessageCount:      session.UserMessageCount,
+		AssistantMessageCount: session.AssistantMessageCount,
+		ToolCallCount:         session.ToolCallCount,
 		PromptTokens:     session.PromptTokens,
 		CompletionTokens: session.CompletionTokens,
 		Cost:             session.Cost,
@@ -646,33 +552,15 @@ func (h *QueryHandler) handleSessionsFork(ctx context.Context, req *QueryRequest
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.SourceSessionID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: sourceSessionId",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "sourceSessionId")
 	}
 
 	if params.MessageIndex <= 0 {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: messageIndex must be > 0",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "messageIndex must be > 0")
 	}
 
 	// Use a default title if not provided
@@ -684,31 +572,21 @@ func (h *QueryHandler) handleSessionsFork(ctx context.Context, req *QueryRequest
 	// Create the forked session
 	newSession, err := h.app.Sessions.Fork(ctx, params.SourceSessionID, title)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to fork session: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to fork session: " + err.Error())
 	}
 
 	// Copy messages to the new session
 	err = h.app.Messages.CopyMessagesToSession(ctx, params.SourceSessionID, newSession.ID, params.MessageIndex)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to copy messages: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to copy messages: " + err.Error())
 	}
 
 	result := SessionData{
 		ID:               newSession.ID,
 		Title:            newSession.Title,
-		MessageCount:     newSession.MessageCount,
+		UserMessageCount:      newSession.UserMessageCount,
+		AssistantMessageCount: newSession.AssistantMessageCount,
+		ToolCallCount:         newSession.ToolCallCount,
 		PromptTokens:     newSession.PromptTokens,
 		CompletionTokens: newSession.CompletionTokens,
 		Cost:             newSession.Cost,
@@ -842,34 +720,16 @@ func (h *QueryHandler) handleCommandsGet(ctx context.Context, req *QueryRequest)
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.Name == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: name",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "name")
 	}
 
 	cmd, exists := h.commandRegistry.GetCommand(params.Name)
 	if !exists {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Command not found: " + params.Name,
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Command not found: " + params.Name)
 	}
 
 	builtins := map[string]bool{
@@ -901,45 +761,21 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.SessionID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: sessionId",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "sessionId")
 	}
 
 	if params.Content == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: content",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "content")
 	}
 
 	// Check authentication status before processing the message using the centralized function
 	authenticated, _, authErr := provider.IsAuthenticated()
 	if authErr != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: fmt.Sprintf("Error checking authentication: %s", authErr.Error()),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, fmt.Sprintf("Error checking authentication: %s", authErr.Error()))
 	}
 
 	// If not authenticated, show a clear error message
@@ -964,26 +800,14 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 	// Set the session as current
 	setSessionErr := h.app.SetCurrentSession(params.SessionID)
 	if setSessionErr != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to set session: " + setSessionErr.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to set session: " + setSessionErr.Error())
 	}
 
 	// Check if this is a slash command and handle it immediately
 	if commands.IsSlashCommand(params.Content) {
 		parsed, parseErr := commands.ParseCommand(params.Content)
 		if parseErr != nil {
-			return &QueryResponse{
-				Error: &QueryError{
-					Code:    -32602,
-					Message: "Invalid slash command: " + parseErr.Error(),
-				},
-				ID: req.ID,
-			}
+			return newErrorResponse(req, -32602, "Invalid slash command: " + parseErr.Error())
 		}
 
 		logging.Info("Executing command", "name", parsed.Name, "args", parsed.Arguments)
@@ -999,22 +823,10 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 				commandNames := getCommandNames(allCommands)
 				logging.Info("Available commands", "commands", commandNames)
 
-				return &QueryResponse{
-					Error: &QueryError{
-						Code:    -32000,
-						Message: fmt.Sprintf("Command '%s' not found. Available commands: %v", parsed.Name, commandNames),
-					},
-					ID: req.ID,
-				}
+				return newApplicationError(req, fmt.Sprintf("Command '%s' not found. Available commands: %v", parsed.Name, commandNames))
 			}
 
-			return &QueryResponse{
-				Error: &QueryError{
-					Code:    -32000,
-					Message: "Command execution failed: " + execErr.Error(),
-				},
-				ID: req.ID,
-			}
+			return newApplicationError(req, "Command execution failed: " + execErr.Error())
 		}
 
 		logging.Info("Command executed successfully", "name", parsed.Name, "result_length", len(commandResult))
@@ -1034,13 +846,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 	// Send message to agent
 	done, err := h.app.CoderAgent.Run(ctx, params.SessionID, params.Content)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to send message: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to send message: " + err.Error())
 	}
 
 	// Wait for response
@@ -1064,13 +870,7 @@ func (h *QueryHandler) handleMessagesSend(ctx context.Context, req *QueryRequest
 			}
 		}
 
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Agent processing failed: " + errorMessage,
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Agent processing failed: " + errorMessage)
 	}
 
 	// Extract text content from the response message
@@ -1099,13 +899,7 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	// Set default limit if not provided
@@ -1115,13 +909,7 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 
 	messages, err := h.app.Messages.ListUserMessageHistory(ctx, params.Limit, params.Offset)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to get message history: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to get message history: " + err.Error())
 	}
 
 	var result []MessageData
@@ -1160,34 +948,16 @@ func (h *QueryHandler) handleMessagesList(ctx context.Context, req *QueryRequest
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.SessionID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: sessionId",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "sessionId")
 	}
 
 	messages, err := h.app.Messages.List(ctx, params.SessionID)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to get messages: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to get messages: " + err.Error())
 	}
 
 	var result []MessageData
@@ -1226,23 +996,11 @@ func (h *QueryHandler) handleAgentCancel(ctx context.Context, req *QueryRequest)
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.SessionID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: sessionId",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "sessionId")
 	}
 
 	// Cancel the agent processing for this session
@@ -1263,47 +1021,23 @@ func (h *QueryHandler) handleSessionsDelete(ctx context.Context, req *QueryReque
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.ID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: id",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "id")
 	}
 
 	// Check if this is the current session
 	currentSessionID := h.app.GetCurrentSessionID()
 	if params.ID == currentSessionID {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Cannot delete the currently active session",
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Cannot delete the currently active session")
 	}
 
 	// Delete the session
 	err := h.app.Sessions.Delete(ctx, params.ID)
 	if err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32000,
-				Message: "Failed to delete session: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newApplicationError(req, "Failed to delete session: " + err.Error())
 	}
 
 	return &QueryResponse{
@@ -1318,23 +1052,11 @@ func (h *QueryHandler) handlePermissionGrant(ctx context.Context, req *QueryRequ
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.ID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: id",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "id")
 	}
 
 	// Grant the permission using the existing service
@@ -1356,23 +1078,11 @@ func (h *QueryHandler) handlePermissionDeny(ctx context.Context, req *QueryReque
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Invalid params: " + err.Error(),
-			},
-			ID: req.ID,
-		}
+		return newInvalidParamsError(req, err)
 	}
 
 	if params.ID == "" {
-		return &QueryResponse{
-			Error: &QueryError{
-				Code:    -32602,
-				Message: "Missing required parameter: id",
-			},
-			ID: req.ID,
-		}
+		return newMissingParamError(req, "id")
 	}
 
 	// Deny the permission using the existing service

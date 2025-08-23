@@ -65,16 +65,6 @@ func (q *Queries) DeleteMessage(ctx context.Context, id string) error {
 	return err
 }
 
-const deleteSessionMessages = `-- name: DeleteSessionMessages :exec
-DELETE FROM messages
-WHERE session_id = ?
-`
-
-func (q *Queries) DeleteSessionMessages(ctx context.Context, sessionID string) error {
-	_, err := q.exec(ctx, q.deleteSessionMessagesStmt, deleteSessionMessages, sessionID)
-	return err
-}
-
 const getMessage = `-- name: GetMessage :one
 SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at
 FROM messages

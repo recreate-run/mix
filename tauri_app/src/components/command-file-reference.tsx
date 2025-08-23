@@ -4,7 +4,6 @@ import {
   FolderIcon,
   ImageIcon,
   NotebookPen,
-  Play,
   VideoIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';

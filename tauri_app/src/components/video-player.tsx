@@ -1,5 +1,5 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
-import { Pause, PictureInPicture, Play } from 'lucide-react';
+import { PictureInPicture } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useThrottledCallback } from '@tanstack/react-pacer';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ export const VideoPlayer = ({
   const isSegment = startTime !== undefined && duration !== undefined;
 
   // Refs for smooth timeline animation
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const progressDotRef = useRef<HTMLDivElement>(null);
   const progressFillRef = useRef<HTMLDivElement>(null);
@@ -66,7 +66,7 @@ export const VideoPlayer = ({
   // Cleanup animation frame on unmount
   useEffect(() => {
     return () => {
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current !== undefined) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
@@ -99,14 +99,6 @@ export const VideoPlayer = ({
     return duration || 0;
   };
 
-  // Get display progress (0-100%)
-  const getDisplayProgress = () => {
-    const displayDuration = getDisplayDuration();
-    if (displayDuration === 0) return 0;
-
-    const displayTime = getDisplayTime(currentTime);
-    return Math.min(100, (displayTime / displayDuration) * 100);
-  };
 
   // Unified function to sync timeline position from video element
   const syncTimelinePosition = () => {
@@ -151,7 +143,7 @@ export const VideoPlayer = ({
       // Sync position before starting animation
       syncTimelinePosition();
       animationFrameRef.current = requestAnimationFrame(updateTimeline);
-    } else if (!playing && animationFrameRef.current) {
+    } else if (!playing && animationFrameRef.current !== undefined) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = undefined;
       // Sync position after stopping animation

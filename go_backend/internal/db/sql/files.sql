@@ -49,9 +49,6 @@ RETURNING *;
 DELETE FROM files
 WHERE id = ?;
 
--- name: DeleteSessionFiles :exec
-DELETE FROM files
-WHERE session_id = ?;
 
 -- name: ListLatestSessionFiles :many
 SELECT f.*

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { convertBackendMessagesToUI } from '@/lib/messageUtils';
 import { rpcCall } from '@/lib/rpc';
 import type { BackendMessage, UIMessage } from '@/types/message';
+import { CACHE_KEYS } from '@/lib/cache-keys';
 
 const loadSessionMessages = async (
   sessionId: string
@@ -26,10 +27,10 @@ const loadAndConvertMessages = async (
 
 export const useSessionMessages = (sessionId: string | null) => {
   return useQuery({
-    queryKey: ['uiMessages', sessionId],
+    queryKey: CACHE_KEYS.sessionMessages(sessionId!),
     queryFn: () => (sessionId ? loadAndConvertMessages(sessionId) : []),
     enabled: !!sessionId,
-    staleTime: 0, // Always refetch when session changes
+    // staleTime: 0, // Always refetch when session changes
     refetchOnWindowFocus: false,
   });
 };

@@ -42,12 +42,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteSessionStmt, err = db.PrepareContext(ctx, deleteSession); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteSession: %w", err)
 	}
-	if q.deleteSessionFilesStmt, err = db.PrepareContext(ctx, deleteSessionFiles); err != nil {
-		return nil, fmt.Errorf("error preparing query DeleteSessionFiles: %w", err)
-	}
-	if q.deleteSessionMessagesStmt, err = db.PrepareContext(ctx, deleteSessionMessages); err != nil {
-		return nil, fmt.Errorf("error preparing query DeleteSessionMessages: %w", err)
-	}
 	if q.getFileStmt, err = db.PrepareContext(ctx, getFile); err != nil {
 		return nil, fmt.Errorf("error preparing query GetFile: %w", err)
 	}
@@ -126,16 +120,6 @@ func (q *Queries) Close() error {
 	if q.deleteSessionStmt != nil {
 		if cerr := q.deleteSessionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteSessionStmt: %w", cerr)
-		}
-	}
-	if q.deleteSessionFilesStmt != nil {
-		if cerr := q.deleteSessionFilesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing deleteSessionFilesStmt: %w", cerr)
-		}
-	}
-	if q.deleteSessionMessagesStmt != nil {
-		if cerr := q.deleteSessionMessagesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing deleteSessionMessagesStmt: %w", cerr)
 		}
 	}
 	if q.getFileStmt != nil {
@@ -258,8 +242,6 @@ type Queries struct {
 	deleteFileStmt                   *sql.Stmt
 	deleteMessageStmt                *sql.Stmt
 	deleteSessionStmt                *sql.Stmt
-	deleteSessionFilesStmt           *sql.Stmt
-	deleteSessionMessagesStmt        *sql.Stmt
 	getFileStmt                      *sql.Stmt
 	getFileByPathAndSessionStmt      *sql.Stmt
 	getMessageStmt                   *sql.Stmt
@@ -287,8 +269,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteFileStmt:                   q.deleteFileStmt,
 		deleteMessageStmt:                q.deleteMessageStmt,
 		deleteSessionStmt:                q.deleteSessionStmt,
-		deleteSessionFilesStmt:           q.deleteSessionFilesStmt,
-		deleteSessionMessagesStmt:        q.deleteSessionMessagesStmt,
 		getFileStmt:                      q.getFileStmt,
 		getFileByPathAndSessionStmt:      q.getFileByPathAndSessionStmt,
 		getMessageStmt:                   q.getMessageStmt,

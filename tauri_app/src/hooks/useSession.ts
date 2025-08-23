@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rpcCall } from '@/lib/rpc';
 import type { Session } from '@/types/common';
+import { CACHE_KEYS } from '@/lib/cache-keys';
+import { invalidateSessionCaches } from '@/lib/session-cache';
 
 interface CreateSessionParams {
   title: string;
@@ -28,8 +30,8 @@ export const useCreateSession = () => {
   return useMutation({
     mutationFn: createSession,
     onSuccess: (data) => {
-      queryClient.setQueryData(['session', data.id], data);
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.setQueryData(CACHE_KEYS.session(data.id), data);
+      invalidateSessionCaches(queryClient);
     },
   });
 };
@@ -37,7 +39,7 @@ export const useCreateSession = () => {
 // Fetch actual session data from backend
 export const useActiveSession = (sessionId: string) => {
   return useQuery({
-    queryKey: ['session', sessionId],
+    queryKey: CACHE_KEYS.session(sessionId),
     queryFn: async (): Promise<Session | null> => {
       try {
         const sessionData = await rpcCall<Session>('sessions.get', {
@@ -49,7 +51,10 @@ export const useActiveSession = (sessionId: string) => {
         return null;
       }
     },
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: 5 * 60 * 1000, // 5 minutes - reduce from infinite to allow some updates
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
     refetchOnWindowFocus: false,
+    refetchOnMount: false, // Don't refetch if we have cached data
+    enabled: !!sessionId, // Only run when sessionId exists
   });
 };

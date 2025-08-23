@@ -14,17 +14,19 @@ import (
 )
 
 type Session struct {
-	ID               string
-	ParentSessionID  string
-	Title            string
-	MessageCount     int64
-	PromptTokens     int64
-	CompletionTokens int64
-	SummaryMessageID string
-	Cost             float64
-	CreatedAt        int64
-	UpdatedAt        int64
-	WorkingDirectory string
+	ID                    string
+	ParentSessionID       string
+	Title                 string
+	UserMessageCount      int64
+	AssistantMessageCount int64
+	ToolCallCount         int64
+	PromptTokens          int64
+	CompletionTokens      int64
+	SummaryMessageID      string
+	Cost                  float64
+	CreatedAt             int64
+	UpdatedAt             int64
+	WorkingDirectory      string
 }
 
 // Simplified Service interface for embedded binary
@@ -53,7 +55,10 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 	if err != nil {
 		return Session{}, err
 	}
-	session := s.fromDBItem(dbSession)
+	session, err := s.fromCreatedSessionRow(dbSession)
+	if err != nil {
+		return Session{}, err
+	}
 
 	// Create input directory structure in session's working directory
 	inputDir := filepath.Join(workingDirectory, "input")
@@ -106,7 +111,10 @@ func (s *service) Fork(ctx context.Context, sourceSessionID string, title string
 	if err != nil {
 		return Session{}, err
 	}
-	session := s.fromDBItem(dbSession)
+	session, err := s.fromCreatedSessionRow(dbSession)
+	if err != nil {
+		return Session{}, err
+	}
 
 	err = s.Publish(ctx, pubsub.CreatedEvent, session)
 	if err != nil {
@@ -139,7 +147,7 @@ func (s *service) Get(ctx context.Context, id string) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	return s.fromDBItem(dbSession), nil
+	return s.fromGetSessionByIDRow(dbSession)
 }
 
 func (s *service) List(ctx context.Context) ([]Session, error) {
@@ -149,7 +157,11 @@ func (s *service) List(ctx context.Context) ([]Session, error) {
 	}
 	sessions := make([]Session, len(dbSessions))
 	for i, dbSession := range dbSessions {
-		sessions[i] = s.fromDBItem(dbSession)
+		session, err := s.fromListSessionsRow(dbSession)
+		if err != nil {
+			return nil, err
+		}
+		sessions[i] = session
 	}
 	return sessions, nil
 }
@@ -173,7 +185,10 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	session = s.fromDBItem(dbSession)
+	session, err = s.fromUpdateSessionRowWithCounts(ctx, dbSession)
+	if err != nil {
+		return Session{}, err
+	}
 	err = s.Publish(ctx, pubsub.UpdatedEvent, session)
 	if err != nil {
 		return Session{}, err
@@ -183,25 +198,108 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 
 // Removed List method for embedded binary
 
-func (s service) fromDBItem(item db.Session) Session {
-	// Working directories are now required - panic if null
-	if !item.WorkingDirectory.Valid {
-		panic(fmt.Sprintf("session %s has null working directory - database corruption", item.ID))
+// Conversion methods for different query return types
+
+// validateWorkingDirectory ensures working directory is valid
+func validateWorkingDirectory(wd sql.NullString, sessionID string) error {
+	if !wd.Valid {
+		return fmt.Errorf("session %s has invalid working directory", sessionID)
+	}
+	return nil
+}
+
+func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, error) {
+	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
+		return Session{}, err
 	}
 	
 	return Session{
-		ID:               item.ID,
-		ParentSessionID:  item.ParentSessionID.String,
-		Title:            item.Title,
-		MessageCount:     item.MessageCount,
-		PromptTokens:     item.PromptTokens,
-		CompletionTokens: item.CompletionTokens,
-		SummaryMessageID: item.SummaryMessageID.String,
-		Cost:             item.Cost,
-		CreatedAt:        item.CreatedAt,
-		UpdatedAt:        item.UpdatedAt,
-		WorkingDirectory: item.WorkingDirectory.String,
+		ID:                    item.ID,
+		ParentSessionID:       item.ParentSessionID.String,
+		Title:                 item.Title,
+		UserMessageCount:      item.UserMessageCount,
+		AssistantMessageCount: item.AssistantMessageCount,
+		ToolCallCount:         item.ToolCallCount,
+		PromptTokens:          item.PromptTokens,
+		CompletionTokens:      item.CompletionTokens,
+		SummaryMessageID:      item.SummaryMessageID.String,
+		Cost:                  item.Cost,
+		CreatedAt:             item.CreatedAt,
+		UpdatedAt:             item.UpdatedAt,
+		WorkingDirectory:      item.WorkingDirectory.String,
+	}, nil
+}
+
+func (s *service) fromListSessionsRow(item db.ListSessionsRow) (Session, error) {
+	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
+		return Session{}, err
 	}
+	
+	return Session{
+		ID:                    item.ID,
+		ParentSessionID:       item.ParentSessionID.String,
+		Title:                 item.Title,
+		UserMessageCount:      item.UserMessageCount,
+		AssistantMessageCount: item.AssistantMessageCount,
+		ToolCallCount:         item.ToolCallCount,
+		PromptTokens:          item.PromptTokens,
+		CompletionTokens:      item.CompletionTokens,
+		SummaryMessageID:      item.SummaryMessageID.String,
+		Cost:                  item.Cost,
+		CreatedAt:             item.CreatedAt,
+		UpdatedAt:             item.UpdatedAt,
+		WorkingDirectory:      item.WorkingDirectory.String,
+	}, nil
+}
+
+func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, error) {
+	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
+		return Session{}, err
+	}
+	
+	return Session{
+		ID:                    item.ID,
+		ParentSessionID:       item.ParentSessionID.String,
+		Title:                 item.Title,
+		UserMessageCount:      0, // New sessions always have 0 messages
+		AssistantMessageCount: 0, // New sessions always have 0 messages
+		ToolCallCount:         0, // New sessions always have 0 messages
+		PromptTokens:          item.PromptTokens,
+		CompletionTokens:      item.CompletionTokens,
+		SummaryMessageID:      item.SummaryMessageID.String,
+		Cost:                  item.Cost,
+		CreatedAt:             item.CreatedAt,
+		UpdatedAt:             item.UpdatedAt,
+		WorkingDirectory:      item.WorkingDirectory.String,
+	}, nil
+}
+
+func (s *service) fromUpdateSessionRowWithCounts(ctx context.Context, item db.UpdateSessionRow) (Session, error) {
+	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
+		return Session{}, err
+	}
+	
+	// Get accurate counts by querying the full session data
+	fullSession, err := s.q.GetSessionByID(ctx, item.ID)
+	if err != nil {
+		return Session{}, err
+	}
+	
+	return Session{
+		ID:                    item.ID,
+		ParentSessionID:       item.ParentSessionID.String,
+		Title:                 item.Title,
+		UserMessageCount:      fullSession.UserMessageCount,      // Get real counts
+		AssistantMessageCount: fullSession.AssistantMessageCount, // Get real counts
+		ToolCallCount:         fullSession.ToolCallCount,         // Get real counts
+		PromptTokens:          item.PromptTokens,
+		CompletionTokens:      item.CompletionTokens,
+		SummaryMessageID:      item.SummaryMessageID.String,
+		Cost:                  item.Cost,
+		CreatedAt:             item.CreatedAt,
+		UpdatedAt:             item.UpdatedAt,
+		WorkingDirectory:      item.WorkingDirectory.String,
+	}, nil
 }
 
 
