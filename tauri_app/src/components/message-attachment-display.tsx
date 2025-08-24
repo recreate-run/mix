@@ -1,4 +1,5 @@
 import type { Attachment } from '@/stores';
+import { generatePreviewUrl } from '@/utils/assetServer';
 import {
   AppPreview,
   AudioPreview,
@@ -11,10 +12,12 @@ import {
 
 interface MessageAttachmentDisplayProps {
   attachments: Attachment[];
+  workingDirectory?: string;
 }
 
 export function MessageAttachmentDisplay({
   attachments,
+  workingDirectory,
 }: MessageAttachmentDisplayProps) {
   if (!attachments || attachments.length === 0) return null;
 
@@ -24,9 +27,15 @@ export function MessageAttachmentDisplay({
         const renderPreview = () => {
           switch (attachment.type) {
             case 'image':
-              return <ImagePreview attachment={attachment} />;
+              return <ImagePreview 
+                attachment={attachment} 
+                previewUrl={workingDirectory ? generatePreviewUrl(attachment, workingDirectory) : undefined}
+              />;
             case 'video':
-              return <VideoPreview attachment={attachment} />;
+              return <VideoPreview 
+                attachment={attachment} 
+                previewUrl={workingDirectory ? generatePreviewUrl(attachment, workingDirectory) : undefined}
+              />;
             case 'audio':
               return <AudioPreview attachment={attachment} />;
             case 'text':

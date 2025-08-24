@@ -325,6 +325,7 @@ export function ConversationDisplay({
                   <AIMessageContent.Content>
                     <MessageAttachmentDisplay
                       attachments={message.attachments || []}
+                      workingDirectory={workingDirectory}
                     />
                     {message.content}
                   </AIMessageContent.Content>
