@@ -4,11 +4,9 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
 [![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/backend)
 
-Mix is an open-source, local agent for multimodal claude code. Claude code users will feel at home.
+Mix is an open-source, local agent for multimodal tasks. Claude code users will feel at home.
 
-
-https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5
-
+<https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5>
 
 📋 Key Features
 
@@ -118,9 +116,10 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 
 ## Roadmap
 
-- Image generation and vide generation tool
-- Storyboard and scene generation
+- Support for other models for the main agent and multimodal analyzer
+- Image generation and video generation tool
 - Pixelmator for image editing
+- Mix SDK (similar to claude code SDK)
 
 ## Tech Stack
 
