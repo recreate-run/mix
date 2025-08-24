@@ -102,6 +102,10 @@ install:
 	@echo "Installing tools..."
 	@uv tool install multimodal-analyzer
 	
+	# Install remotion template dependencies
+	@echo "Installing remotion template dependencies..."
+	@cd packages/remotion_template && bun install
+	
 	@echo "✅ System dependencies installed!"
 
 # Install project dependencies

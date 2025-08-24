@@ -53,7 +53,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU3NUU5OUUzQUEyQzEyMDQKUldRRUVpeXE0NWxlVjcxRlFWNkt1cGNRWkJtQTJHR1RQNUowaktCS3RFYnJ5WEJsaEJ0ZzRSYVMK",
       "endpoints": [
-        "https://api.github.com/repos/sarath-menon/mix/releases/latest/download/latest.json"
+        "https://api.github.com/repos/recreate-run/mix/releases/latest/download/latest.json"
       ]
     }
   }

@@ -1,42 +1,30 @@
 # Claude Code Integration
 
-## Quick Setup (Fresh Machine)
-
-### System Requirements
-Install these first:
-- **Go**: https://golang.org/
-- **Rust/Cargo**: https://rustup.rs/
-- **Bun**: https://bun.sh/
-
-### One-Command Setup
-```bash
-make dev          # Installs ALL dependencies and starts development servers
-```
-
 ## Development Commands
 
-```bash
+<bash_commands>
 make dev          # Install dependencies + start both frontend and backend (autoreloads and auto compiles)
 make install-deps # Install all project dependencies only
 make build        # Production build (we rarely need this)
 make clean        # Clean build artifacts (we rarely need this)
 make tail-log     # Reads the current log file (last 100 lines of code)
 make help         # Show all available commands
-```
+</bash_commands>
 
-* **Do NOT build the program yourself to check for errors—ever.** All output is written to `dev.log`. Run `make tail-log` to view it.
-* **Do NOT stop the dev server.** It stays running, auto-compiles, and auto-reloads via the Go `air` package, logging to `dev.log`.
-* **Run `make` from the project’s top-level directory.** If it fails, you probably weren’t there.
-* You **MUST check the tail-log** after finishing each task
+- Do NOT build the program yourself to check for errors—ever. All output is written to `dev.log`. Run `make tail-log` to view it.
+- Do NOT stop the dev server. It stays running, auto-compiles, and auto-reloads via the Go `air` package, logging to `dev.log`.
+- Run `make` from the project's top-level directory. If it fails, you probably weren't there.
+- You MUST check the tail-log after finishing each task
 
 ## Architecture
 
 1. Backend - Go
-2. Frontend - Tauri 2.0 app withh react
+2. Frontend - Tauri 2.0 app with react
 
 ## Tech Stack
 
-* **ALWAYS use TanStack Query for data fetching**
+- ALWAYS use TanStack Query for data fetching
+- ALWAYS use uv for Python package management and virtual environments
 
 ## Code style
 
@@ -44,7 +32,6 @@ make help         # Show all available commands
 2. NEVER mock LLM API calls
 3. DO NOT preserve backward compatibility unless the user specifically requests it
 4. Do not handle errors (eg. API failures) gracefully, raise exceptions immediately.
-
 
 ## Notes
 

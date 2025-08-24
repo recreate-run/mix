@@ -4,25 +4,29 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
 [![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/backend)
 
-We’re building "claude code" for complex multimodal workflows. It’s a desktop app that uses existing tools like Blender and Figma. This enables workflows like: “generate videos and edit videos in blender, generate sound effects and edit in Logic Pro, post process in after-effects”.  Startups use it to automate marketing video generation, analyzing session recordings etc. The backend can also be embedded into other products via our SDK (coming soon).
+Mix is an open-source desktop platform for multimodal AI agents, multimodal claude code.
 
 📋 Key Features
 
-- Just authenticate with your claude code account ($20 account works) to get started.
 - All project data is stores plain text and native media files - absolutely no lock-in.
 - The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our SDK with stdio interface (similar to claude code SDK) is launching soon.
 
 ## Quick Install
 
-📦 Installation
+1. The agent uses claude sonnet 4. You can authenticate with your claude code account using the `/login` command in the UI after installation ,  or set the  `ANHROPIC_API_KEY` in the `.env` file. Other models might work but they're untested.
+2. A `GEMINI_API_KEY`  is required, since gemini-2.5-flash is used to analyse images,videos and audio., set it in the `.env` file. Ypu can get one free from google ai studio.
 
-### Configuration
+```bash
+make install
+```
 
-Analytics tracking is controlled via environment variables:
+Then, run
 
-1. Copy `.env.example` to `.env` to enable analytics
-2. Set the `POSTHOG_API_KEY` environment variable to your PostHog API key
-3. If the API key is not provided, analytics tracking will be disabled
+```bash
+make dev
+```
+
+This starts bith frontend and backend together with unified logging to the same terminal. See agentic coding section below
 
 ## Configuration
 
@@ -35,42 +39,27 @@ Mix uses a **global → local** configuration hierarchy:
 1. **Global config**: `~/.mix.json` - System-wide defaults
 2. **Local config**: `./.mix.json` - Project-specific overrides (merges with global)
 
-## Models
+## Local Development
 
-- Claude Sonnet 4 as the default model for the agent backbone. Other models might work but they're untested. We recommend authenticating with your claude code code account ($20 plan is enough to get started). You can also use it with an API key.
-- Gemini 2.5 flash is used via the multimodal analyzer tool, to analyse images,videos and audio. Please add the API key to the .env
-
-**Important:** API keys must always come from environment variables, never store them in configuration files. The system automatically detects available providers from environment variables and creates the necessary provider configurations.
-
-The system will fail immediately if agents are not configured or required API keys are missing.
-
-## Development
-
-Each project maintains its own build system and dependencies. Refer to the individual README files in each project directory for specific development instructions.
-
-## Development
-
-### Start frontend and backend together with unified logging
+Install dependencies first
 
 ```bash
-make dev
+make install
 ```
 
-### Separate setup
-
-#### Frontend
+### Frontend
 
 ```bash
-cd mix_tauri_app
-npm install
-npm run tauri dev
+cd tauri_app
+bun run tauri dev
 ```
 
-#### Backend
+### Backend
 
 To use in HTTP server mode (to use with the frontend)
 
 ```bash
+cd go_backend
 ./mix --http-port 8080
 ```
 
@@ -80,7 +69,7 @@ Use in CLI mode
 ./mix -p "Your prompt here"
 ```
 
-🤖 Agentic Coding
+## Agentic Coding
 
 This project is optimized for AI-assisted development with integrated tooling and workflows.
 
@@ -135,10 +124,11 @@ All development output (backend compilation, frontend builds, runtime logs, brow
   <img alt="TanStack Query" src="https://img.shields.io/badge/-TanStack%20Query-FF4154?style=flat-square&logo=react-query&logoColor=white" />
   <img alt="Radix UI" src="https://img.shields.io/badge/-Radix%20UI-161618?style=flat-square&logo=radix-ui&logoColor=white" />
   <img alt="Vite" src="https://img.shields.io/badge/-Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
+  <img alt="Remotion" src="https://img.shields.io/badge/-Remotion-4338CA?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K&logoColor=white" />
   <img alt="SQLite" src="https://img.shields.io/badge/-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" />
   <img alt="FFmpeg" src="https://img.shields.io/badge/-FFmpeg-007808?style=flat-square&logo=ffmpeg&logoColor=white" />
 </p>
 
 ## Thanks
 
-1. All third part softwaare that we've used in the project, especially ffmpeg and remotion
+1. All third part software that we've used in the project, especially ffmpeg and remotion

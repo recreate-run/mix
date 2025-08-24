@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Mix - AI-Powered Content Generation and Management"
 authors = ["Mix Team"]
 license = "MIT"
-repository = "https://github.com/sarath-menon/mix"
+repository = "https://github.com/recreate-run/mix"
 homepage = "https://mix.app"
 edition = "2021"
 

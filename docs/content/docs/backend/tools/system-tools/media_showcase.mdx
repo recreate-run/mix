@@ -31,18 +31,18 @@ Use for displaying/viewing media files:
    - Image generation/processing (posters, logos, processed images)
    - Audio production (soundtracks, voice-overs, audio effects)
    - Multi-media projects and complete deliverables
+   - Exporting videos
 
 4. Video Highlights - Display video segments with timestamps instead of creating separate files
 
 ## When NOT to Use This Tool
 
 Skip using this tool when:
+
 1. Content Analysis Requests: "What's in this image?", "Describe this file", "Analyze this"
 2. Information Extraction: "Explain what you see", "What does this show?"
-3. Understanding Content: Any request to interpret or analyze media content
-4. No media files: Task only involved text or code generation  
-5. File doesn't exist: Media file paths are invalid or inaccessible
-6. Non-media content: Documents, data files, or other non-visual/audio content
+3. File doesn't exist: Media file paths are invalid or inaccessible
+4. Non-media content: Documents, data files, or other non-visual/audio content
 
 ## Examples of When to Use Media Showcase
 
@@ -51,6 +51,7 @@ User: Show me /Users/project/assets/logo.png
 Assistant: Let me display that image for you.
 
 *Uses media_showcase tool with:*
+
 - Path: /Users/project/assets/logo.png
 - Type: image
 - Title: Project Logo
@@ -64,6 +65,7 @@ Assistant: [After performing video creation steps, gathering assets, editing cli
 I've successfully created your marketing video. Let me showcase the final result.
 
 *Uses media_showcase tool with:*
+
 - Path: /output/video/product_marketing_20241201_143022.mp4
 - Type: video
 - Title: Product Marketing Video
@@ -75,6 +77,7 @@ User: I need to see the reference audio file before we start editing
 Assistant: I'll display the reference audio file so you can review it.
 
 *Uses media_showcase tool with:*
+
 - Path: /Users/project/references/background_music.mp3
 - Type: audio
 - Title: Reference Background Music
@@ -88,11 +91,12 @@ Assistant: [After generating the title configuration]
 I've created an animated title for you.
 
 *Uses media_showcase tool with:*
+
 - Path: "" (not required for remotion_title)
 - Type: remotion_title
 - Title: Welcome Title Animation
 - Description: Animated welcome title with fade-in effect
-- Config: {"composition": {"durationInFrames": 90, "fps": 30, "width": 1920, "height": 1080}, "elements": [{"type": "text", "content": "Welcome", "from": 0, "durationInFrames": 90, "position": {"x": 0, "y": 0}, "style": {"fontSize": 72, "color": "#ffffff"}, "animation": {"type": "fadeIn", "duration": 30}}]}
+- Config: <json_config>
 </example>
 
 <example>
@@ -100,6 +104,7 @@ User: Give me three 5-second highlights from this demo video
 Assistant: I've identified key segments from your demo video.
 
 *Uses media_showcase tool with:*
+
 - Type: video, Title: "Product Overview", Path: /Users/project/demo.mp4, StartTime: 15, Duration: 5
 - Type: video, Title: "UI Walkthrough", Path: /Users/project/demo.mp4, StartTime: 85, Duration: 5  
 - Type: video, Title: "Results", Path: /Users/project/demo.mp4, StartTime: 130, Duration: 5
@@ -108,6 +113,7 @@ Assistant: I've identified key segments from your demo video.
 ## Parameters
 
 outputs (required): Array of media outputs to showcase
+
 - path: Absolute file path (required except for remotion_title). For video/audio segments, this is the source media file
 - type: "image", "video", "audio", or "remotion_title"
 - title: Display title
@@ -117,6 +123,7 @@ outputs (required): Array of media outputs to showcase
 - duration: Duration in seconds for video/audio segments (optional)
 
 **Description Field Notes:**
+
 - Use for WHY you're showing the media, not WHAT'S IN it
 - Examples: "Reference for redesign", "Generated as requested", "Option 1"  
 - Never describe media content - that's not the purpose of this tool
@@ -137,4 +144,5 @@ outputs (required): Array of media outputs to showcase
 - Use for any media display - Not limited to creative outputs; great for previews and references
 
 This tool transforms file paths into beautiful media displays in the conversation interface.
+
 ```

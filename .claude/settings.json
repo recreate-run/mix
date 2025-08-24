@@ -13,15 +13,34 @@
       "Bash(curl:*)",
       "Bash(env)",
       "Bash(brew install ripgrep fzf)",
-      "Bash(grep:*)",
       "Bash(find:*)",
       "WebFetch(domain:tauri.app)",
       "Bash(./build/debug/mix --help)",
-      "Bash(rustc:*)"
+      "Bash(rustc:*)",
+      "Bash(spctl:*)",
+      "WebFetch(domain:v2.tauri.app)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)",
+      "Bash(cat:*)",
+      "Bash(lsof:*)",
+      "Bash(npx remotion:*)",
+      "Bash(./scripts/export_video.sh:*)",
+      "Bash(ffprobe:*)",
+      "Bash(./mix export-video --help)",
+      "Bash(./mix_test export-video --config-file ../packages/remotion_starter_template/test_vertical.json --output /tmp/test_output/working_video.mp4)",
+      "Bash(go test:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(system_profiler:*)",
+      "Bash(chmod:*)",
+      "Bash(time ffmpeg:*)",
+      "WebSearch",
+      "WebFetch(domain:www.remotion.dev)",
+      "Bash(go mod:*)",
+      "Bash(/usr/bin/time -l ffmpeg -i ./go_backend/vendor/github.com/tidwall/sjson/logo.png -vf \"scale=200:200:force_original_aspect_ratio=decrease\" -q:v 2 -y /tmp/test_thumb.jpg)",
+      "Bash(sqlite3:*)",
+      "Bash(sqlc:*)"
     ],
     "deny": [],
-    "ask": [],
-    "defaultMode": "acceptEdits"
-  },
-  "outputStyle": "Explanatory"
+    "ask": []
+  }
 }
