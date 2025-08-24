@@ -102,7 +102,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	}
 
 	// Add request timeout to prevent indefinite hangs
-	openaiClientOptions = append(openaiClientOptions, option.WithRequestTimeout(60*time.Second))
+	openaiClientOptions = append(openaiClientOptions, option.WithRequestTimeout(90*time.Second))
 
 	client := openai.NewClient(openaiClientOptions...)
 	return &openaiClient{
@@ -558,7 +558,7 @@ func (o *openaiClient) recreateClient() {
 		}
 	}
 
-	clientOptions = append(clientOptions, option.WithRequestTimeout(60*time.Second))
+	clientOptions = append(clientOptions, option.WithRequestTimeout(90*time.Second))
 	o.client = openai.NewClient(clientOptions...)
 }
 

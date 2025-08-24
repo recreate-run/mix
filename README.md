@@ -4,7 +4,7 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
 [![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/backend)
 
-Mix is an open-source desktop platform for multimodal AI agents, multimodal claude code.
+Mix is an open-source, local agent for multimodal claude code. Claude code users will feel at home.
 
 📋 Key Features
 
@@ -131,4 +131,4 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 
 ## Thanks
 
-1. All third part software that we've used in the project, especially ffmpeg and remotion
+1. All third part software that we've used in the project, especially ffmpeg, remotion and the archived opencode project

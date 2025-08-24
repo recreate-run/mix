@@ -14,8 +14,11 @@
       {
         "transparent": true,
         "title": "",
-        "minHeight": 720,
-        "minWidth": 1080
+        "minHeight": 480,
+        "minWidth": 720,
+        "height": 720,
+        "width": 1080
+
       }
     ],
     "macOSPrivateApi": true,

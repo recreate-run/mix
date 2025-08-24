@@ -1,11 +1,13 @@
 ---
 title: Quickstart Guide
-description: Get up and running with Mix in 5 minutes - complete setup guide for the multimodal AI workflow automation platform.
+description: Get up and running with Mix in 5 minutes - complete setup guide for the multimodal AI agents, multimodal claude code platform.
 ---
 
 # Quickstart Guide
 
 Get Mix up and running in 5 minutes with this step-by-step guide.
+
+Mix is an open-source desktop platform for multimodal AI agents, multimodal claude code, where all project data is stored as plain text and native media files - absolutely no lock-in.
 
 ## Prerequisites
 
@@ -22,57 +24,62 @@ Before starting, ensure you have:
 git clone <repository-url>
 cd mix
 
+# Install dependencies first
+make install
+
 # Start development environment (this starts both frontend and backend)
 make dev
 ```
 
 The `make dev` command will:
-- Start the Go backend HTTP server
-- Launch the Tauri desktop application 
-- Enable auto-reload for development
-- Provide unified logging in `dev.log`
+- Start the Go backend HTTP server (typically on port 8080)
+- Launch the Tauri desktop application (`mix_tauri_app/`)
+- Enable auto-reload with Go Air for hot reloading
+- Provide unified logging with timestamps and color-coded by service in `dev.log`
+- Forward browser console logs to terminal via `mix_tauri_app/src/vite-console-forward-plugin.ts`
 
 ## Step 2: Configure Authentication
 
 Mix requires AI model configuration for both main and sub-agents.
 
 ### Option A: Claude Code Account (Recommended)
-If you have a Claude Code account ($20 plan works):
+If you have a Claude Code account:
 
-```bash
-# The system will automatically detect your Claude Code authentication
-# No additional setup required
-```
+1. Install and start the application with `make dev`
+2. Use the `/login` command in the UI after installation to authenticate
+3. The system will automatically detect your Claude Code authentication
 
 ### Option B: API Keys
-Create a `.mix.json` file in your home directory or project root:
+Set your API keys in the `.env` file:
+
+```bash
+# Required: Claude Sonnet 4 for main agent
+ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# Required: Gemini 2.5-flash for analyzing images, videos and audio
+GEMINI_API_KEY="your-gemini-api-key"
+```
+
+**Configuration Hierarchy**: Mix uses a global → local configuration hierarchy:
+1. **Global config**: `~/.mix.json` - System-wide defaults
+2. **Local config**: `./.mix.json` - Project-specific overrides (merges with global)
+
+Create a `.mix.json` file for explicit model configuration:
 
 ```json
 {
   "agents": {
     "main": {
-      "model": "claude-4-sonnet",
+      "model": "claude-sonnet-4",
       "maxTokens": 4096
     },
     "sub": {
-      "model": "claude-4-sonnet", 
+      "model": "claude-sonnet-4", 
       "maxTokens": 2048
     }
   }
 }
 ```
-
-Set your API keys as environment variables:
-
-```bash
-# For Claude
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-
-# For Gemini (used for multimodal analysis)
-export GEMINI_API_KEY="your-gemini-api-key"
-```
-
-**Important**: Never store API keys in configuration files - always use environment variables.
 
 ## Step 3: Verify Installation
 
@@ -87,6 +94,8 @@ Check the logs:
 # View recent logs (last 100 lines)
 make tail-log
 ```
+
+All development output (backend compilation, frontend builds, runtime logs, browser console) flows through a single log file for streamlined AI-assisted debugging.
 
 ## Step 4: Test Your First Workflow
 
@@ -107,6 +116,9 @@ make tail-log
 ## Common Commands
 
 ```bash
+# Install dependencies first
+make install
+
 # Development (starts both frontend and backend with auto-reload)
 make dev
 
@@ -116,7 +128,7 @@ make build
 # Clean build artifacts
 make clean
 
-# View current logs
+# View current logs (last 100 lines)
 make tail-log
 
 # CLI usage
@@ -143,6 +155,21 @@ make tail-log
 - Verify firewall settings allow local connections
 - Review logs with `make tail-log`
 
+## Example Use Cases
+
+Mix supports various multimodal workflows:
+
+1. **Creating remotion titles** - Generate animated video titles and graphics
+2. **Blender video editing** - Automate 3D modeling and video editing workflows  
+3. **Video analysis** - Ask for highlights and insights from video content
+4. **Session recording analysis** - Analyze user interactions and behavior
+
+## Available Tools
+
+- **Blender integration** - 3D modeling and animation workflows
+- **Pixelmator tools** - Advanced image editing capabilities  
+- **Multimodal analyzer** - Process images, videos, and audio with AI
+
 ## Next Steps
 
 Now that Mix is running, explore these areas:
@@ -167,10 +194,10 @@ Now that Mix is running, explore these areas:
 
 ## Development Notes
 
-- **Auto-reload**: The dev server automatically recompiles and reloads changes
-- **Logging**: All output goes to `dev.log` - never manually stop the dev server
-- **File storage**: All project data is stored as plain text and native media files
-- **No lock-in**: Your data remains portable and accessible outside of Mix
+- **Auto-reload**: Backend uses Go Air for hot reloading, frontend uses Vite's built-in HMR
+- **Unified Logging**: All process output is aggregated with timestamps and color-coded by service in `dev.log`
+- **File storage**: All project data is stored as plain text and native media files - absolutely no lock-in
+- **HTTP Architecture**: The backend is an HTTP server, meaning the frontend is just one of possible clients
 
 ## Get Help
 

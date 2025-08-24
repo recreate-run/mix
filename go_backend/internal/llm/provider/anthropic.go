@@ -104,7 +104,7 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	}
 
 	// Add request timeout to prevent indefinite hangs
-	anthropicClientOptions = append(anthropicClientOptions, option.WithRequestTimeout(60*time.Second))
+	anthropicClientOptions = append(anthropicClientOptions, option.WithRequestTimeout(90*time.Second))
 
 	anthropicClient := &anthropicClient{
 		providerOptions:   opts,
@@ -767,6 +767,6 @@ func (a *anthropicClient) recreateClient() {
 		clientOptions = append(clientOptions, bedrock.WithLoadDefaultConfig(context.Background()))
 	}
 
-	clientOptions = append(clientOptions, option.WithRequestTimeout(60*time.Second))
+	clientOptions = append(clientOptions, option.WithRequestTimeout(90*time.Second))
 	a.client = anthropic.NewClient(clientOptions...)
 }
