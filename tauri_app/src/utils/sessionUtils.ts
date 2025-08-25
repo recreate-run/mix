@@ -10,11 +10,8 @@ import { TITLE_TRUNCATE_LENGTH } from '@/hooks/useSessionsList';
  */
 export const getDisplayTitle = (session: SessionData): string => {
   if (!session.firstUserMessage || session.firstUserMessage.trim() === '') {
-    console.log(
-      'Text key unavailable: No firstUserMessage for session',
-      session.id
-    );
-    return session.title; // fallback to original title
+    // New sessions won't have a first user message yet - use session title as fallback
+    return session.title;
   }
 
   // Try to parse JSON and extract text from the parts structure
@@ -27,9 +24,8 @@ export const getDisplayTitle = (session: SessionData): string => {
       displayText = textPart.data.text;
     }
   } catch {
-    // If parsing fails, use the raw message as fallback
+    // If parsing fails, use the raw message as fallback (likely plain text message)
     displayText = session.firstUserMessage;
-    console.log('Failed to parse user message:', session.firstUserMessage);
   }
 
   const truncated =

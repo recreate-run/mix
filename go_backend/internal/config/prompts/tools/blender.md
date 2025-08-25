@@ -10,8 +10,8 @@ These are python tools for GUI base video editing automation using the blender M
 - Blender has a "Video Editing" workspace, even though it may not be listed when you check with bpy
 - You MUST run the final python script within blender's execution environment as a SINGLE code block. Don't create separate files or split into multiple execution calls - each `execute_blender_code` call is stateless and variables/imports don't persist between calls.
 - You MUST use absolute file paths when working, since Blender's working directory may not match your project directory.
-- **ALL functions are exposed through `blender` - NEVER import from submodules:**
-    **Positive example**
+- ALL functions are exposed through `blender` - NEVER import from submodules:
+    Positive example
 
     <python_example>
     import sys, json
@@ -24,22 +24,22 @@ These are python tools for GUI base video editing automation using the blender M
 
 ## ⚠️ Sequencer Rules
 
-- **No overlapping video/audio/image clips**  - ALWAYS use **a different channel** for each one.
+- No overlapping video/audio/image clips  - ALWAYS use a different channel for each one.
   - each one starts where previous ends
   - Calculate frame positions: `next_start = previous_start + previous_duration`
   - Example: Video1 ch1 (1-100), Video2 ch2 (101-200), Video3 ch1 (201-300) ✓
 
-**Common Patterns:**
+Common Patterns:
 
 <python_example>
 
-# Sequential: clips play one after another
+## Sequential: clips play one after another
 
 add_video('clip1.mp4', 1, 1)      # frames 1-120
 add_video('clip2.mp4', 1, 121)    # frames 121-240  
 add_video('clip3.mp4', 1, 241)    # frames 241-360
 
-# Layered: clips play simultaneously
+## Layered: clips play simultaneously
 
 add_video('background.mp4', 1, 1)  # base layer
 add_video('overlay.mp4', 2, 50)    # on top, starts at frame 50
@@ -50,41 +50,41 @@ add_text('Title', 3, 100, 60)      # text overlay
 
 <python_example>
 
-# Check available workspaces and switch to Video Editing
+## Check available workspaces and switch to Video Editing
 
 current = get_current_workspace()
 print(f"Current workspace: {current}")
 
-# Set timeline frame range
+## Set timeline frame range
 
 set_frame_range(1, 300)
 frame_info = get_frame_range()
 print(f"Timeline: {frame_info['frame_start']}-{frame_info['frame_end']}")
 
-# Add background color and media to timeline
+## Add background color and media to timeline
 
 add_color((0.1, 0.1, 0.1, 1.0), 1, 0, 300)
 add_video('/path/to/video.mp4', 2, 10)
 add_text('Hello World', 3, 50, 120, font_size=72)
 
-# Add transition between sequences
+## Add transition between sequences
 
 add_transition('video1', 'video2', 'CROSS', 15)
 
-# Cut a video sequence at frame 100 (creates two separate sequences)
+## Cut a video sequence at frame 100 (creates two separate sequences)
 
 blade_cut('my_video', 100, 'video_part1', 'video_part2')
 
-# Set playhead position and export
+## Set playhead position and export
 
 set_current_frame(150)
 export_video('/path/to/output.mp4', resolution=(1920, 1080), fps=24)
 
-# Capture preview screenshot at current frame
+## Capture preview screenshot at current frame
 
 capture_preview_frame('/path/to/preview.png', resolution=(1920, 1080))
 
-# Capture specific frame as JPEG
+## Capture specific frame as JPEG
 
 capture_preview_frame('/path/to/frame_100.jpg', frame=100, format='JPEG', quality=85)
 </python_example>
@@ -93,7 +93,7 @@ capture_preview_frame('/path/to/frame_100.jpg', frame=100, format='JPEG', qualit
 
 Returns the name of the currently active Blender workspace
 
-**Returns:**
+Returns:
 
 - `str` - The workspace name (e.g., "Video Editing", "Modeling")
 
@@ -101,11 +101,11 @@ Returns the name of the currently active Blender workspace
 
 Returns timeline sequences, optionally filtered by channel
 
-**Parameters:**
+Parameters:
 
 - `channel` (Optional[int]) - Channel number to filter by, None for all sequences
 
-**Returns:**
+Returns:
 
 - `List[Dict[str, Any]]` - List of sequence dictionaries with name, type, channel, frame_start, frame_end, duration, filepath, original_resolution, transform, is_resized
 
@@ -113,11 +113,11 @@ Returns timeline sequences, optionally filtered by channel
 
 Delete a sequence from the timeline by name
 
-**Parameters:**
+Parameters:
 
 - `sequence_name` (str) - Name of the sequence to delete
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Dictionary with success status, message, and deleted sequence info
 
@@ -125,28 +125,28 @@ Delete a sequence from the timeline by name
 
 Cut a video or audio sequence at a specific frame, creating two separate sequences
 
-**Parameters:**
+Parameters:
 
 - `sequence_name` (str) - Name of the sequence to cut (must be MOVIE or SOUND type)
 - `cut_frame` (int) - Frame position where to make the cut
 - `left_name` (Optional[str]) - Name for the left part (auto-generated if None)
 - `right_name` (Optional[str]) - Name for the right part (auto-generated if None)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Dictionary with success status, message, original sequence info, and info about both created sequences
 
-**Note:** This is the equivalent of a "razor blade" or "blade" tool in video editors. The original sequence is removed and replaced with two new sequences. Only works with MOVIE (video) and SOUND (audio) sequences.
+Note: This is the equivalent of a "razor blade" or "blade" tool in video editors. The original sequence is removed and replaced with two new sequences. Only works with MOVIE (video) and SOUND (audio) sequences.
 
 ### get_sequence_resize_info(sequence_name)
 
 Get detailed resize information for a specific sequence
 
-**Parameters:**
+Parameters:
 
 - `sequence_name` (str) - Name of the sequence to check
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Detailed resize information with original_resolution, current_scale, effective_resolution, resize_method, fit_method, transform
 
@@ -156,7 +156,7 @@ Get detailed resize information for a specific sequence
 
 Add an image element to the timeline at specific channel and position
 
-**Parameters:**
+Parameters:
 
 - `filepath` (str) - Path to image file
 - `channel` (int) - Channel number
@@ -167,17 +167,17 @@ Add an image element to the timeline at specific channel and position
 - `position` (Optional[Tuple[float, float]]) - (x, y) offset in pixels from center
 - `scale` (Optional[float]) - Uniform scale factor (1.0 = original size)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Sequence info dictionary matching get_timeline_items() format
 
-**Supported formats:** .jpg, .jpeg, .png, .tiff, .tif, .exr, .hdr, .bmp, .tga
+Supported formats: .jpg, .jpeg, .png, .tiff, .tif, .exr, .hdr, .bmp, .tga
 
 ### add_video(filepath, channel, frame_start, name=None, fit_method='ORIGINAL', frame_end=None)
 
 Add a video element to the timeline at specific channel and position
 
-**Parameters:**
+Parameters:
 
 - `filepath` (str) - Path to video file
 - `channel` (int) - Channel number
@@ -186,17 +186,17 @@ Add a video element to the timeline at specific channel and position
 - `fit_method` (str) - How to fit video ('ORIGINAL', 'FIT', 'FILL', 'STRETCH')
 - `frame_end` (Optional[int]) - Ending frame position (videos can only be trimmed, not extended)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Sequence info dictionary matching get_timeline_items() format
 
-**Supported formats:** .mp4, .mov, .avi, .mkv, .webm, .wmv, .m4v, .flv
+Supported formats: .mp4, .mov, .avi, .mkv, .webm, .wmv, .m4v, .flv
 
 ### add_audio(filepath, channel, frame_start, name=None, frame_end=None)
 
 Add an audio element to the timeline at specific channel and position
 
-**Parameters:**
+Parameters:
 
 - `filepath` (str) - Path to audio file
 - `channel` (int) - Channel number
@@ -204,17 +204,17 @@ Add an audio element to the timeline at specific channel and position
 - `name` (Optional[str]) - Sequence name
 - `frame_end` (Optional[int]) - Ending frame position (audio can only be trimmed, not extended)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Sequence info dictionary matching get_timeline_items() format
 
-**Supported formats:** .wav, .mp3, .flac, .ogg, .aac, .m4a, .wma
+Supported formats: .wav, .mp3, .flac, .ogg, .aac, .m4a, .wma
 
 ### add_text(text, channel, frame_start, duration, name=None, font_size=50, color=(1.0, 1.0, 1.0, 1.0), location=(0, 0), use_background=False, background_color=(0.0, 0.0, 0.0, 0.8))
 
 Add a text element to the timeline at specific channel and position
 
-**Parameters:**
+Parameters:
 
 - `text` (str) - The text content to display
 - `channel` (int) - Channel number
@@ -227,7 +227,7 @@ Add a text element to the timeline at specific channel and position
 - `use_background` (bool) - Whether to show background behind text
 - `background_color` (Tuple[float, float, float, float]) - Background color as RGBA tuple
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Text sequence info dictionary matching get_timeline_items() format
 
@@ -235,7 +235,7 @@ Add a text element to the timeline at specific channel and position
 
 Add a solid color element to the timeline at specific channel and position. DO NOT use it to add images.
 
-**Parameters:**
+Parameters:
 
 - `color` (Tuple[float, float, float, float]) - Color as RGBA tuple (values 0.0-1.0)
 - `channel` (int) - Channel number
@@ -243,7 +243,7 @@ Add a solid color element to the timeline at specific channel and position. DO N
 - `duration` (int) - Duration in frames
 - `name` (Optional[str]) - Sequence name
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Color sequence info dictionary matching get_timeline_items() format
 
@@ -251,7 +251,7 @@ Add a solid color element to the timeline at specific channel and position. DO N
 
 Add a transition effect between two sequences on the timeline
 
-**Parameters:**
+Parameters:
 
 - `sequence1_name` (str) - Name of the first sequence
 - `sequence2_name` (str) - Name of the second sequence
@@ -259,7 +259,7 @@ Add a transition effect between two sequences on the timeline
 - `duration` (int) - Duration of transition in frames
 - `channel` (Optional[int]) - Channel for transition effect
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Transition info dictionary matching get_timeline_items() format
 
@@ -269,12 +269,12 @@ Add a transition effect between two sequences on the timeline
 
 Set the timeline frame range (start and end frames)
 
-**Parameters:**
+Parameters:
 
 - `start_frame` (int) - Starting frame number for the timeline
 - `end_frame` (int) - Ending frame number for the timeline
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Dictionary with success, message, frame_start, frame_end
 
@@ -282,7 +282,7 @@ Set the timeline frame range (start and end frames)
 
 Get the current timeline frame range and playhead position
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Dictionary with frame_start, frame_end, frame_current, total_frames
 
@@ -290,11 +290,11 @@ Get the current timeline frame range and playhead position
 
 Set the current playhead position on the timeline
 
-**Parameters:**
+Parameters:
 
 - `frame` (int) - Frame number to set as current position
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Dictionary with success, message, frame_current, in_range
 
@@ -302,7 +302,7 @@ Set the current playhead position on the timeline
 
 Get the current playhead position on the timeline
 
-**Returns:**
+Returns:
 
 - `int` - Current frame number
 
@@ -310,7 +310,7 @@ Get the current playhead position on the timeline
 
 Modify image sequences on the timeline (trim, zoom, reposition)
 
-**Parameters:**
+Parameters:
 
 - `sequence_name` (str) - Name of the sequence to modify
 - `trim_start` (Optional[int]) - New start frame for trimming
@@ -319,17 +319,17 @@ Modify image sequences on the timeline (trim, zoom, reposition)
 - `position` (Optional[Tuple[float, float]]) - (x, y) offset in pixels from center
 - `rotation` (Optional[float]) - Rotation angle in radians
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Updated sequence info dictionary matching get_timeline_items() format
 
-**Note:** Only works with IMAGE sequence types. Images can be extended beyond their original duration.
+Note: Only works with IMAGE sequence types. Images can be extended beyond their original duration.
 
 ### modify_video(sequence_name, trim_start=None, trim_end=None, scale=None, position=None, rotation=None, speed=None)
 
 Modify video sequences on the timeline (trim, zoom, reposition, speed)
 
-**Parameters:**
+Parameters:
 
 - `sequence_name` (str) - Name of the sequence to modify
 - `trim_start` (Optional[int]) - New start frame for trimming
@@ -339,17 +339,17 @@ Modify video sequences on the timeline (trim, zoom, reposition, speed)
 - `rotation` (Optional[float]) - Rotation angle in radians
 - `speed` (Optional[float]) - Playback speed multiplier (0.1-10.0, where 1.0 = normal speed)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Updated sequence info dictionary matching get_timeline_items() format
 
-**Note:** Only works with MOVIE sequence types. Videos can only be trimmed, not extended beyond their original duration. Speed control affects playback rate and effective duration.
+Note: Only works with MOVIE sequence types. Videos can only be trimmed, not extended beyond their original duration. Speed control affects playback rate and effective duration.
 
 ### modify_audio(sequence_name, trim_start=None, trim_end=None, volume=None, pan=None)
 
 Modify audio sequences on the timeline (trim, volume, pan)
 
-**Parameters:**
+Parameters:
 
 - `sequence_name` (str) - Name of the sequence to modify
 - `trim_start` (Optional[int]) - New start frame for trimming
@@ -357,23 +357,23 @@ Modify audio sequences on the timeline (trim, volume, pan)
 - `volume` (Optional[float]) - Volume level (0.0-100.0, where 100.0 is full volume)
 - `pan` (Optional[float]) - Stereo panning (-inf to +inf, 0.0 is center, only for mono sources)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Updated sequence info dictionary matching get_timeline_items() format
 
-**Note:** Only works with SOUND sequence types. Other types (IMAGE, MOVIE, TEXT, COLOR, effects) will raise an error.
+Note: Only works with SOUND sequence types. Other types (IMAGE, MOVIE, TEXT, COLOR, effects) will raise an error.
 
 ### detach_audio_from_video(video_sequence_name, audio_channel, audio_name=None)
 
 Detach audio from a video sequence and create a separate audio sequence
 
-**Parameters:**
+Parameters:
 
 - `video_sequence_name` (str) - Name of the video sequence to detach audio from
 - `audio_channel` (int) - Channel number to place the detached audio sequence
 - `audio_name` (Optional[str]) - Name for the audio sequence (auto-generated if None)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Dictionary containing:
   - `success` (bool) - Whether the operation succeeded
@@ -381,15 +381,15 @@ Detach audio from a video sequence and create a separate audio sequence
   - `video_sequence` (Dict[str, Any]) - Original video sequence info
   - `audio_sequence` (Optional[Dict[str, Any]]) - Created audio sequence info (None if no audio)
 
-**Note:** Only works with MOVIE sequence types. Creates a new SOUND sequence from the video's audio track. If the video has no audio, returns success=False with appropriate message.
+Note: Only works with MOVIE sequence types. Creates a new SOUND sequence from the video's audio track. If the video has no audio, returns success=False with appropriate message.
 
-## Timeline operations
+## Timeline Operations
 
 ### export_video(output_path, frame_start=None, frame_end=None, resolution=(1920, 1080), fps=24, video_format='MPEG4', codec='H264', quality='HIGH')
 
 Export timeline sequences to a video file
 
-**Parameters:**
+Parameters:
 
 - `output_path` (str) - Path for the output video file
 - `frame_start` (Optional[int]) - Starting frame (auto-detected if None)
@@ -400,7 +400,7 @@ Export timeline sequences to a video file
 - `codec` (str) - Video codec ('H264', 'XVID', 'THEORA', 'VP9')
 - `quality` (str) - Quality preset ('LOW', 'MEDIUM', 'HIGH', 'LOSSLESS')
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Export info with output_path, frame_start, frame_end, duration, resolution, fps, file_size, success
 
@@ -408,7 +408,7 @@ Export timeline sequences to a video file
 
 Capture a screenshot of the current preview in the video editor
 
-**Parameters:**
+Parameters:
 
 - `output_path` (str) - Path for the output image file
 - `frame` (Optional[int]) - Frame number to capture (uses current frame if None)
@@ -416,11 +416,11 @@ Capture a screenshot of the current preview in the video editor
 - `format` (str) - Image format ('PNG', 'JPEG', 'TIFF', 'BMP', 'TARGA')
 - `quality` (int) - Image quality for JPEG format (1-100)
 
-**Returns:**
+Returns:
 
 - `Dict[str, Any]` - Capture info with output_path, frame, resolution, format, file_size, success
 
-**Supported formats:** PNG (default), JPEG, TIFF, BMP, TARGA
+Supported formats: PNG (default), JPEG, TIFF, BMP, TARGA
 
 ## Video Resize Detection
 

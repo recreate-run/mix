@@ -61,7 +61,7 @@ This architecture ensures prompt isolation while sharing tools and services effi
 ### 4. Data Query Interface (`internal/api/`)
 - **JSON-RPC query system** for structured data access
 - **CLI interface**: `--query <type> --output-format json`
-- **Query types**: `sessions`, `tools`, `mcp`, `commands`
+- **Query types**: `sessions`, `mcp`, `commands`
 - Perfect for **native app integration** (Swift, Electron, etc.)
 
 ### 5. Data Layer (`internal/db/`)
@@ -95,9 +95,6 @@ Get structured JSON data directly via stdout:
 ```bash
 # Get all sessions
 ./build/mix --query sessions --output-format json
-
-# Get available tools (including MCP tools)
-./build/mix --query tools --output-format json
 
 # Get MCP server status and their tools
 ./build/mix --query mcp --output-format json
@@ -279,17 +276,17 @@ Both CLI and HTTP interfaces provide full 2-way communication for session manage
 [{"name": "bash", "description": "Execute shell commands"}]
 ```
 
-## Augthentication
+## Authentication
 
 ```
-./build/mix auth list 
+./build/mix auth status 
 ```
 
 
 ```
-./build/mix add anthropic-claude-pro-max 
+./build/mix auth add anthropic-claude-pro-max 
 ```
 
 ```
-./build/mix add openai
+./build/mix auth add openai
 ```
