@@ -30,22 +30,30 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 
   // Extract base server URL and animation name from config.url
   const baseServerUrl = config.url ? new URL(config.url).origin : null;
-  const animationName = config.url ? new URL(config.url).pathname.substring(1).split('?')[0] : null;
+  const animationName = config.url ? new URL(config.url).pathname.substring(1).split('?')[0].replace('gsap_animations/', '') : null;
 
 
   // Load animation schema
   useEffect(() => {
-    if (!animationName || !baseServerUrl) return;
+    console.log(`[GsapAnimationPreview] Config URL: ${config.url}`);
+    console.log(`[GsapAnimationPreview] Extracted animation name: ${animationName}`);
+    console.log(`[GsapAnimationPreview] Base server URL: ${baseServerUrl}`);
+    
+    if (!animationName || !baseServerUrl) {
+      console.log(`[GsapAnimationPreview] Missing animationName or baseServerUrl, skipping schema fetch`);
+      return;
+    }
 
     setIsLoadingSchema(true);
     fetchAnimationSchema(animationName, baseServerUrl)
       .then((fetchedSchema) => {
+        console.log(`[GsapAnimationPreview] Schema loaded:`, fetchedSchema);
         setSchema(fetchedSchema);
       })
       .finally(() => {
         setIsLoadingSchema(false);
       });
-  }, [animationName, baseServerUrl]);
+  }, [animationName, baseServerUrl, config.url]);
 
 
 

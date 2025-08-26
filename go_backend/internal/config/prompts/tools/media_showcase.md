@@ -135,6 +135,6 @@ outputs (required): Array of media outputs to showcase
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
 - Use for any media display - Not limited to creative outputs; great for previews and references
-- For `gsap_animation` type, the config MUST include a `url` field with the complete iframe URL in the format: `"http://localhost:3000/<animation_name>?param1=value1&param2=value2"`
+- For `gsap_animation` type, the config MUST include a `url` field with the complete iframe URL in the format: `"http://localhost:8088/gsap_animations/<animation_name>?param1=value1&param2=value2"`
 
 This tool transforms file paths into beautiful media displays in the conversation interface.

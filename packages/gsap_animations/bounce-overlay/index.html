@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Style Video Animation</title>
+    <meta name="description" content="Vertical video with TikTok-style animated text overlay">
+    <link rel="stylesheet" href="/shared/base.css">
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap");
+
+        body {
+            background: #000;
+            font-family: "Inter", sans-serif;
+            overflow: hidden;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            aspect-ratio: 9/16;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-player {
+            width: 100%;
+            height: 100%;
+            max-width: calc(100vh * 9/16);
+            max-height: calc(100vw * 16/9);
+            object-fit: cover;
+            border-radius: 0;
+        }
+
+        .text-overlay {
+            position: absolute;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        .animated-text {
+            font-weight: 900;
+            color: #fff;
+            text-shadow:
+                3px 3px 0px #000,
+                -1px -1px 0px #000,
+                1px -1px 0px #000,
+                -1px 1px 0px #000,
+                6px 6px 20px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0;
+            transform: scale(0.5) rotate(-10deg);
+        }
+
+        .char {
+            display: inline-block;
+            transform-origin: center bottom;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="video-container">
+        <video class="video-player" muted loop>
+            <source src="http://localhost:8088/input/videos/egg.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+
+        <div class="text-overlay">
+            <div class="animated-text">Let's go!</div>
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="/shared/capture-helper.js"></script>
+    <script>
+        const video = document.querySelector('.video-player');
+        const animatedText = document.querySelector('.animated-text');
+        let tl;
+
+        function getParams() {
+            const defaults = {
+                overlayText: 'Let\'s go!',
+                totalAnimationDurationSeconds: 3,
+                textSizeRem: 6,
+                textColor: '#fff',
+                backgroundVideoURL: 'http://localhost:8088/input/videos/egg.mp4',
+                characterBounceHeightPixels: 20,
+                characterAnimationDelaySeconds: 0.05,
+                maxPulseScaleFactor: 1.1,
+                textShadowIntensityMultiplier: 1,
+                autoloop: false
+            };
+
+            const urlParams = new URLSearchParams(location.search);
+            const urlObj = Object.fromEntries(urlParams);
+
+            // Convert string numbers to actual numbers
+            Object.keys(urlObj).forEach(key => {
+                if (key !== 'overlayText' && key !== 'textColor' && key !== 'backgroundVideoURL' && key !== 'autoloop') {
+                    urlObj[key] = parseFloat(urlObj[key]) || defaults[key];
+                }
+            });
+
+            // Convert boolean parameters
+            if (urlObj.autoloop !== undefined) {
+                urlObj.autoloop = urlObj.autoloop === 'true';
+            }
+
+            const finalParams = { ...defaults, ...urlObj };
+
+            console.log('Parameter sources:');
+            console.log('- defaults:', defaults);
+            console.log('- urlParams:', urlObj);
+            console.log('- finalParams:', finalParams);
+
+            return finalParams;
+        }
+
+        function applyParams(params) {
+            animatedText.textContent = params.overlayText;
+            animatedText.style.fontSize = `${params.textSizeRem}rem`;
+            animatedText.style.color = params.textColor;
+
+            const baseShadow = '3px 3px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000';
+            const dropShadow = `6px 6px ${20 * params.textShadowIntensityMultiplier}px rgba(0,0,0,${0.8 * params.textShadowIntensityMultiplier})`;
+            animatedText.style.textShadow = `${baseShadow}, ${dropShadow}`;
+
+            video.src = params.backgroundVideoURL;
+        }
+
+        // Split text into characters
+        function splitTextIntoChars() {
+            const text = animatedText.textContent;
+            animatedText.innerHTML = '';
+
+            text.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.className = 'char';
+                span.textContent = char === ' ' ? '\u00A0' : char; // Non-breaking space
+                animatedText.appendChild(span);
+            });
+        }
+
+        function createTimeline(params, captureMode = false) {
+            if (tl) tl.kill();
+
+            // For capture mode, don't loop. For preview mode, loop infinitely
+            tl = gsap.timeline({
+                repeat: captureMode ? 0 : -1,
+                repeatDelay: captureMode ? 0 : 1
+            });
+
+            const chars = document.querySelectorAll('.char');
+
+            gsap.set(animatedText, { opacity: 0 });
+            gsap.set(chars, { y: 100, rotationX: -90, opacity: 0 });
+
+            tl.to(animatedText, {
+                opacity: 1,
+                scale: 1,
+                rotation: 0,
+                duration: 0.4,
+                ease: "back.out(2)"
+            })
+                .to(chars, {
+                    y: 0,
+                    rotationX: 0,
+                    opacity: 1,
+                    duration: 0.6,
+                    stagger: params.characterAnimationDelaySeconds,
+                    ease: "back.out(1.2)"
+                }, "-=0.3")
+                .to(chars, {
+                    y: -params.characterBounceHeightPixels,
+                    duration: 0.3,
+                    stagger: params.characterAnimationDelaySeconds * 0.6,
+                    ease: "power2.out"
+                })
+                .to(chars, {
+                    y: 0,
+                    duration: 0.4,
+                    stagger: params.characterAnimationDelaySeconds * 0.6,
+                    ease: "bounce.out"
+                })
+                .to(animatedText, {
+                    scale: params.maxPulseScaleFactor,
+                    duration: 0.2,
+                    yoyo: true,
+                    repeat: 1,
+                    ease: "power2.inOut"
+                })
+                .to(animatedText, {
+                    scale: 1.05,
+                    duration: 0.3,
+                    ease: "power2.out"
+                });
+
+            return tl;
+        }
+
+        function initAnimation() {
+            const params = getParams();
+            window.currentParams = params;
+            applyParams(params);
+            splitTextIntoChars();
+            createTimeline(params);
+
+            // Auto-start video and animation
+            video.play().catch(console.error);
+            tl.play();
+        }
+
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initAnimation);
+
+        // Handle video loading
+        video.addEventListener('loadeddata', () => {
+            console.log('Video loaded successfully');
+        });
+
+        video.addEventListener('error', (e) => {
+            console.error('Video failed to load:', e);
+        });
+
+        // Expose for capture script compatibility
+        window.__CAPTURE__ = window.CaptureHelper.createTimelineCaptureInterface({
+            duration: () => {
+                const params = getParams();
+                return params.totalAnimationDurationSeconds;
+            },
+            createAnimation: () => {
+                // Initialize for capture mode (no looping)
+                const params = getParams();
+                applyParams(params);
+                splitTextIntoChars();
+                return createTimeline(params, true); // captureMode = true
+            },
+            timelineVar: 'tl'
+        });
+    </script>
+</body>
+
+</html>

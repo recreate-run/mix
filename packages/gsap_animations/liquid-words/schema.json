@@ -1,0 +1,42 @@
+{
+  "name": "liquid-words",
+  "description": "Words dissolve into liquid blur as they seamlessly transform into new words, creating hypnotic flowing text transitions with smooth mathematical interpolation and organic morphing effects",
+  "version": "1.0.0",
+  "parameters": [
+    {
+      "name": "commaSeparatedWordList",
+      "type": "string",
+      "default": "Innovation,Creativity"
+    },
+    {
+      "name": "morphTransitionDurationSeconds",
+      "type": "number",
+      "default": 2.5
+    },
+    {
+      "name": "pauseBetweenMorphsSeconds",
+      "type": "number",
+      "default": 0.5
+    },
+    {
+      "name": "textSizeCSS",
+      "type": "string",
+      "default": "clamp(96px, 24vw, 240px)"
+    },
+    {
+      "name": "textColor",
+      "type": "string",
+      "default": "white"
+    },
+    {
+      "name": "backgroundCSS",
+      "type": "string",
+      "default": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+    },
+    {
+      "name": "autoloop",
+      "type": "boolean",
+      "default": false
+    }
+  ]
+}

@@ -6,7 +6,7 @@ When users request animated titles, create them using the media_showcase tool wi
 
 ## Animation Workflow
 
-- To get Available Animations, call `http://localhost:3000/api/animations` to get the full list of available animations.
+- To get Available Animations, call `http://localhost:8088/api/gsap_animations` to get the full list of available animations.
 
 Response schema:
 
@@ -19,7 +19,7 @@ Response schema:
 ]
 </json_schema>
 
-- For any specific animation you want to use, you MUST call `http://localhost:3000/api/animations/{name}` to get its parameter schema. Response includes the name, type and default value for each parameter.
+- For any specific animation you want to use, you MUST call `http://localhost:8088/api/gsap_animations/{name}` to get its parameter schema. Response includes the name, type and default value for each parameter.
 
 - Use the bash tool to make these CURL requests
 
