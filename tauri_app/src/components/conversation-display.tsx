@@ -26,7 +26,7 @@ import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
 import { PlaylistSidebar } from './playlist-sidebar';
 import { RateLimitDisplay } from './rate-limit-display';
-import { RemotionVideoPreview } from './remotion/RemotionVideoPreview';
+import { GsapAnimationPreview } from './gsap/GsapAnimationPreview';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { VideoPlayer } from './video-player';
@@ -115,8 +115,8 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
         </div>
       )}
 
-      {media.type === 'remotion_title' && media.config && (
-        <RemotionVideoPreview config={media.config as any} />
+      {media.type === 'gsap_animation' && media.config && (
+        <GsapAnimationPreview config={media.config as any} />
       )}
     </div>
   );

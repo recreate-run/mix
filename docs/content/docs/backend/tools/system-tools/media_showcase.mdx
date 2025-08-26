@@ -85,18 +85,20 @@ Assistant: I'll display the reference audio file so you can review it.
 </example>
 
 <example>
-User: Create a simple animated title saying "Welcome"
-Assistant: [After generating the title configuration]
+User: Create a GSAP animation with bouncing text saying "AMAZING!"
+Assistant: [After configuring the GSAP animation]
 
-I've created an animated title for you.
+I've created a dynamic GSAP animation for you.
 
 *Uses media_showcase tool with:*
 
-- Path: "" (not required for remotion_title)
-- Type: remotion_title
-- Title: Welcome Title Animation
-- Description: Animated welcome title with fade-in effect
-- Config: <json_config>
+- Type: gsap_animation
+- Title: AMAZING Text Animation
+- Description: TikTok-style bouncing text with bold styling
+- Config: {
+    "url": <iframe_url>,
+    "animationType": <animation_name>
+  }
 </example>
 
 <example>
@@ -114,11 +116,11 @@ Assistant: I've identified key segments from your demo video.
 
 outputs (required): Array of media outputs to showcase
 
-- path: Absolute file path (required except for remotion_title). For video/audio segments, this is the source media file
-- type: "image", "video", "audio", or "remotion_title"
+- path: Absolute file path (required except for gsap_animation). For video/audio segments, this is the source media file
+- type: "image", "video", "audio", or "gsap_animation"
 - title: Display title
 - description: Project context (optional)
-- config: Remotion configuration JSON (required for remotion_title)
+- config: Animation configuration JSON (required for gsap_animation)
 - startTime: Start time in seconds for video/audio segments (optional)
 - duration: Duration in seconds for video/audio segments (optional)
 
@@ -142,6 +144,7 @@ outputs (required): Array of media outputs to showcase
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
 - Use for any media display - Not limited to creative outputs; great for previews and references
+- For `gsap_animation` type, the config MUST include a `url` field with the complete iframe URL in the format: `"http://localhost:3000/<animation_name>?param1=value1&param2=value2"`
 
 This tool transforms file paths into beautiful media displays in the conversation interface.
 

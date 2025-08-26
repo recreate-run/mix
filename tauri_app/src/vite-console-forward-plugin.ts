@@ -9,7 +9,6 @@ interface LogEntry {
   url?: string;
   userAgent?: string;
   stacks?: string[];
-  extra?: any;
 }
 
 interface ClientLogRequest {
@@ -101,7 +100,6 @@ const MAX_BUFFER_SIZE = 50;
 
 function createLogEntry(level, args) {
   const stacks = [];
-  const extra = [];
   
   const message = args.map((arg) => {
     if (arg === undefined) return "undefined";
@@ -120,12 +118,7 @@ function createLogEntry(level, args) {
       return stringifiedError;
     }
     if (typeof arg === "object" && arg !== null) {
-      try {
-        extra.push(JSON.parse(JSON.stringify(arg)));
-      } catch {
-        extra.push(String(arg));
-      }
-      return "[extra#" + extra.length + "]";
+      return String(arg);
     }
     return String(arg);
   }).join(" ");
@@ -137,7 +130,6 @@ function createLogEntry(level, args) {
     url: window.location.href,
     userAgent: navigator.userAgent,
     stacks,
-    extra,
   };
 }
 
@@ -233,15 +225,6 @@ export default { flushLogs };
                     .join('\n');
               }
 
-              // Add extra data if available
-              if (log.extra && log.extra.length > 0) {
-                message +=
-                  '\n    Extra data: ' +
-                  JSON.stringify(log.extra, null, 2)
-                    .split('\n')
-                    .map((line) => `    ${line}`)
-                    .join('\n');
-              }
 
               // Use Vite's logger for consistent formatting
               const logOptions = { timestamp: false };

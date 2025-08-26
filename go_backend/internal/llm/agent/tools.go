@@ -26,7 +26,7 @@ func CoderAgentTools(
 		[]tools.BaseTool{
 			bashTool,
 			tools.NewEditTool(permissions, history),
-			tools.NewFetchTool(permissions),
+			// tools.NewFetchTool(permissions),
 			tools.NewGlobTool(),
 			tools.NewGrepTool(permissions),
 			tools.NewLsTool(),

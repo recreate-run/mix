@@ -25,7 +25,6 @@ export const PlaylistSidebar = ({
   const getMediaIcon = (type: string) => {
     switch (type) {
       case 'video':
-      case 'remotion_title':
         return <Video className="h-4 w-4" />;
       case 'audio':
         return <Music className="h-4 w-4" />;
@@ -40,7 +39,7 @@ export const PlaylistSidebar = ({
     if (media.type === 'image') {
       const imageUrl = convertToAssetServerUrl(media.path, workingDirectory);
       const thumbnailUrl = `${imageUrl}?thumb=100`;
-      
+
       return (
         <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
           <img
@@ -66,7 +65,7 @@ export const PlaylistSidebar = ({
       // Use sourceVideo for highlights, fallback to path for regular videos
       const videoPath = media.sourceVideo || media.path;
       const videoUrl = convertToAssetServerUrl(videoPath, workingDirectory);
-      
+
       // Add time parameter for video segments to get correct thumbnail
       let thumbnailUrl = `${videoUrl}?thumb=100`;
       if (media.startTime !== undefined && typeof media.startTime === 'number' && media.startTime >= 0) {
@@ -97,7 +96,7 @@ export const PlaylistSidebar = ({
       );
     }
 
-    // Fallback for audio/remotion_title - show icon in colored box
+    // Fallback  - show icon in colored box
     return (
       <div className="flex h-12 w-16 flex-shrink-0 items-center justify-center rounded bg-stone-700/50">
         {getMediaIcon(media.type)}
@@ -114,11 +113,10 @@ export const PlaylistSidebar = ({
         <div className="flex gap-3 pb-2">
           {mediaOutputs.map((media, index) => (
             <button
-              className={`min-w-32 rounded-md bg-stone-700/30 p-2 text-left transition-colors ${
-                selectedIndex === index
-                  ? ' border border-primary/30'
-                  : 'hover:bg-stone-700/30'
-              }`}
+              className={`min-w-32 rounded-md bg-stone-700/30 p-2 text-left transition-colors ${selectedIndex === index
+                ? ' border border-primary/30'
+                : 'hover:bg-stone-700/30'
+                }`}
               key={index}
               onClick={() => onSelect(index)}
             >

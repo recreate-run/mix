@@ -20,9 +20,9 @@ type MediaOutput struct {
 	Type        string      `json:"type"`
 	Title       string      `json:"title"`
 	Description string      `json:"description"`
-	Config      interface{} `json:"config,omitempty"` // For remotion configuration data
+	Config      interface{} `json:"config,omitempty"`    // For remotion configuration data
 	StartTime   *int        `json:"startTime,omitempty"` // Optional: start time in seconds for video/audio segments
-	Duration    *int        `json:"duration,omitempty"` // Optional: duration in seconds for video/audio segments
+	Duration    *int        `json:"duration,omitempty"`  // Optional: duration in seconds for video/audio segments
 }
 
 func NewMediaShowcaseTool() BaseTool {
@@ -42,12 +42,12 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 					"properties": map[string]any{
 						"path": map[string]any{
 							"type":        "string",
-							"description": "Absolute path to the media file (required for image/video/audio, optional for remotion_title)",
+							"description": "Absolute path to the media file (required for image/video/audio, optional for gsap_animation)",
 						},
 						"type": map[string]any{
 							"type":        "string",
 							"description": "Media type",
-							"enum":        []string{"image", "video", "audio", "remotion_title"},
+							"enum":        []string{"image", "video", "audio", "gsap_animation"},
 						},
 						"title": map[string]any{
 							"type":        "string",
@@ -59,7 +59,7 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 						},
 						"config": map[string]any{
 							"type":        "object",
-							"description": "Configuration data for remotion_title type (JSON object with composition settings and elements)",
+							"description": "Configuration data for gsap_animation type (JSON object with animation settings)",
 						},
 						"startTime": map[string]any{
 							"type":        "integer",
@@ -98,36 +98,36 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 		if output.Title == "" {
 			return NewTextErrorResponse(fmt.Sprintf("Output %d missing title", i)), nil
 		}
-		
-		// Path is only required for non-remotion types
-		if output.Type != "remotion_title" && output.Path == "" {
+
+		// Path is only required for physical file types (not gsap_animation)
+		if output.Type != "gsap_animation" && output.Path == "" {
 			return NewTextErrorResponse(fmt.Sprintf("Output %d missing path", i)), nil
 		}
 
 		// Validate media type
 		validTypes := map[string]bool{
-			"image":         true,
-			"video":         true,
-			"audio":         true,
-			"remotion_title": true,
+			"image":          true,
+			"video":          true,
+			"audio":          true,
+			"gsap_animation": true,
 		}
 		if !validTypes[output.Type] {
 			return NewTextErrorResponse(fmt.Sprintf("Invalid media type '%s' for output %d", output.Type, i)), nil
 		}
 
-		// Check if file exists (skip for remotion_title which doesn't require physical files)
-		if output.Type != "remotion_title" {
+		// Check if file exists (skip for gsap_animation which doesn't require physical files)
+		if output.Type != "gsap_animation" {
 			if !filepath.IsAbs(output.Path) {
 				return NewTextErrorResponse(fmt.Sprintf("Path must be absolute for output %d: %s", i, output.Path)), nil
 			}
-			
+
 			if _, err := os.Stat(output.Path); err != nil {
 				return NewTextErrorResponse(fmt.Sprintf("Media file not found for output %d: %s", i, output.Path)), nil
 			}
 		}
 
-		// Validate file extension matches type (skip for remotion_title which doesn't require physical files)
-		if output.Type != "remotion_title" {
+		// Validate file extension matches type (skip for gsap_animation which doesn't require physical files)
+		if output.Type != "gsap_animation" {
 			ext := strings.ToLower(filepath.Ext(output.Path))
 			switch output.Type {
 			case "image":
@@ -144,9 +144,32 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 				}
 			}
 		} else {
-			// For remotion_title, validate that config is provided
+			// For gsap_animation, validate that config is provided
 			if output.Config == nil {
-				return NewTextErrorResponse(fmt.Sprintf("remotion_title type requires config parameter for output %d", i)), nil
+				return NewTextErrorResponse(fmt.Sprintf("%s type requires config parameter for output %d", output.Type, i)), nil
+			}
+
+			// Validate that config.url is provided for gsap_animation
+			if output.Type == "gsap_animation" {
+				configMap, ok := output.Config.(map[string]interface{})
+				if !ok {
+					return NewTextErrorResponse(fmt.Sprintf("gsap_animation config must be a JSON object for output %d", i)), nil
+				}
+
+				url, exists := configMap["url"]
+				if !exists || url == nil {
+					return NewTextErrorResponse(fmt.Sprintf("gsap_animation requires config.url field for output %d", i)), nil
+				}
+
+				urlStr, ok := url.(string)
+				if !ok || urlStr == "" {
+					return NewTextErrorResponse(fmt.Sprintf("gsap_animation config.url must be a non-empty string for output %d", i)), nil
+				}
+
+				// Basic URL validation
+				if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+					return NewTextErrorResponse(fmt.Sprintf("gsap_animation config.url must be a valid HTTP/HTTPS URL for output %d", i)), nil
+				}
 			}
 		}
 
@@ -168,9 +191,9 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 	for i, output := range params.Outputs {
 		titles[i] = output.Title
 	}
-	
-	message := fmt.Sprintf("Successfully showcasing %d media output(s): %s", 
-		len(params.Outputs), 
+
+	message := fmt.Sprintf("Successfully showcasing %d media output(s): %s",
+		len(params.Outputs),
 		strings.Join(titles, ", "))
 
 	return ToolResponse{

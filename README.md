@@ -11,7 +11,7 @@ Mix is an open-source, local agent for multimodal tasks. Claude code users will 
 📋 Key Features
 
 - Uses ffmpeg and local apps like blender instead of clunky cloud based editors
-- All project data is stored plain text and native media files - absolutely no lock-in.
+- All project data is stored plain text and native media files - absolutely no lock-in.create a  
 - The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our SDK with stdio interface (similar to claude code SDK) is launching soon.
 
 ## Quick Install

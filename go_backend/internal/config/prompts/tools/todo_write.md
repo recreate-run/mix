@@ -37,26 +37,6 @@ this case you are better off just doing the task directly.
 ## Examples of When to Use the Todo List
 
 <example>
-User: Create a typing animation for the text "Apple" and load it in Blender
-Assistant: I'll help you create a typing animation for "Apple" and load it into Blender for further editing. Let me break down this workflow into manageable steps.
-*Creates todo list with the following items:*
-1. Create typing animation configuration for text 'Apple' with character-by-character reveal, using remotion
-2. Show animated title using media_showcase with remotion_title type
-3. Export the typing animation as video file using remotion export
-4. Load exported video into Blender video editor workspace and Position video on timeline
-*Begins working on the first task*
-
-<reasoning>
-The assistant used the todo list because:
-1. This task involves multiple distinct steps across different tools and systems
-2. Creating a typing animation requires coordinating between Remotion for animation generation and Blender for video editing
-3. Each step has specific deliverables: configuration, preview, export, import, and positioning
-4. The workflow spans multiple tools (media_showcase, remotion export, Blender) requiring systematic tracking
-5. This ensures the complete pipeline is followed from animation creation to final Blender integration
-</reasoning>
-</example>
-
-<example>
 User: Analyze these 20 user session recordings to identify friction points and create a summary report
 Assistant: I'll help analyze your user session recordings to identify UX friction points. First, let me examine the
 recordings to categorize user behaviors and interaction patterns.
@@ -81,7 +61,7 @@ The assistant used the todo list because:
 User: Create and edit a 15-second vertical TikTok video for an AI based fullstack web app generator from the given screen recording
 Assistant: I'll help you create a TikTok-optimized video from your screen recording. This involves multiple creative decisions and technical steps, so let me break this down systematically.
 *Creates todo list with the following items:*
-1. Text overlay design - Create engaging captions and call-to-action text with TikTok-optimized styling using remotion
+1. Text overlay design - Create engaging captions and call-to-action text with TikTok-optimized styling using gsap
 2. Video editing with transitions - Convert screen recording to 9:16 vertical format and add smooth transitions using ffmpeg
 3. Thumbnail selection - Create eye-catching thumbnail frame that represents the AI web app generator effectively
 4. TikTok-optimized export - Export final video in TikTok specifications (9:16 aspect ratio, 15-second duration,  optimized compression) using ffmpeg
@@ -92,7 +72,7 @@ The assistant used the todo list because:
 1. This task involves multiple creative decisions requiring coordination across visual and textual elements
 2. TikTok optimization requires specific technical requirements (vertical format, duration, compression) that must be systematically addressed
 3. Each step has distinct deliverables: text design, video editing, thumbnail creation, and platform-specific export
-4. The workflow combines multiple tools (FFmpeg for conversion and editing, Remotion for text overlays) requiring systematic tracking
+4. The workflow combines multiple tools (FFmpeg for conversion and editing, gsap for animations) requiring systematic tracking
 5. Creative decisions around audience engagement (text timing, thumbnail appeal) benefit from structured approach to ensure nothing is overlooked
 </reasoning>
 </example>

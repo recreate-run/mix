@@ -1,6 +1,6 @@
 export type MediaOutput = {
   path: string;
-  type: 'image' | 'video' | 'audio' | 'remotion_title';
+  type: 'image' | 'video' | 'audio' | 'gsap_animation';
   title: string;
   description?: string;
   startTime?: number;
