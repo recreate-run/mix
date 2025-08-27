@@ -176,8 +176,8 @@
             text2.textContent = texts[(currentTextIndex + 1) % texts.length];
         }
 
-        async function initAnimation() {
-            const params = await getParams();
+        function initAnimation() {
+            const params = getParams();
             window.currentParams = params;
             applyParams(params);
             
@@ -201,15 +201,19 @@
 
         // Expose for capture script compatibility
         window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
-            duration: async () => {
-                const params = await getParams();
-                applyParams(params);
-                return totalCycleTime * texts.length;
+            duration: () => {
+                return window.currentParams ? totalCycleTime * texts.length : 6;
             },
-            initAnimation: async () => {
-                const params = await getParams();
+            initAnimation: () => {
+                // Use already loaded params from currentParams
+                const params = window.currentParams;
+                if (!params) {
+                    console.error('Parameters not loaded. Make sure animation is initialized first.');
+                    return null;
+                }
+                
                 applyParams(params);
-                const timeline = await initAnimation();
+                const timeline = initAnimation();
                 window.masterTimeline = timeline;
                 return timeline;
             },

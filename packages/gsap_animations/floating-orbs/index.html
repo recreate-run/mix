@@ -278,12 +278,17 @@
 
         // Expose for capture script compatibility
         window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
-            duration: async () => {
-                const params = await getParams();
-                return params.animationDurationSeconds;
+            duration: () => {
+                return window.currentParams ? window.currentParams.animationDurationSeconds : 3;
             },
-            initAnimation: async () => {
-                const params = await getParams();
+            initAnimation: () => {
+                // Use already loaded params from currentParams
+                const params = window.currentParams;
+                if (!params) {
+                    console.error('Parameters not loaded. Make sure animation is initialized first.');
+                    return null;
+                }
+                
                 applyParams(params);
                 init();
                 return masterTimeline;
