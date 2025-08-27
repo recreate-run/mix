@@ -19,14 +19,14 @@
       "default": 0.5
     },
     {
-      "name": "textSizeCSS",
-      "type": "string",
-      "default": "clamp(96px, 24vw, 240px)"
+      "name": "textSizeRem",
+      "type": "number",
+      "default": 3
     },
     {
       "name": "textColor",
       "type": "string",
-      "default": "white"
+      "default": "#fff"
     },
     {
       "name": "backgroundCSS",

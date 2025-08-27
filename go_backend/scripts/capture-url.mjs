@@ -129,9 +129,9 @@ async function captureFrames() {
     // Capture frames
     for (let i = 0; i < totalFrames; i++) {
       // Set the exact frame position
-      await page.evaluate(({frameIndex, fps}) => {
-        window.__CAPTURE__.setFrame(frameIndex, fps);
-      }, {frameIndex: i, fps: FPS});
+      await page.evaluate(async ({ frameIndex, fps }) => {
+        await window.__CAPTURE__.setFrame(frameIndex, fps);
+      }, { frameIndex: i, fps: FPS });
 
       // Ensure all layout and paint operations are complete
       await page.evaluate(() => 

@@ -76,40 +76,16 @@
 
     <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+    <script src="../shared/param-loader.js"></script>
+    <script src="../shared/capture-helper.js"></script>
     <script>
         let timeline;
         let particles = [];
         let DURATION = 3;
         let split;
 
-        function getParams() {
-            const defaults = {
-                displayText: 'CREATIVE CODING',
-                totalAnimationDurationSeconds: 3,
-                textSizeCSS: 'clamp(48px, 12vw, 180px)',
-                primaryTextColor: '#ffffff',
-                textGlowShadowColor: '#00ff88',
-                slideInDistancePixels: 400,
-                characterFlipDelaySeconds: 0.12,
-                floatingParticleCount: 40,
-                backgroundGradientCSS: 'radial-gradient(circle at 30% 40%, rgba(0, 255, 136, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255, 0, 136, 0.1) 0%, transparent 50%), radial-gradient(circle at 40% 80%, rgba(0, 136, 255, 0.1) 0%, transparent 50%), #0a0a0a',
-                autoloop: false
-            };
-            
-            const urlParams = new URLSearchParams(location.search);
-            const urlObj = Object.fromEntries(urlParams);
-            
-            // Convert string numbers to actual numbers
-            ['totalAnimationDurationSeconds', 'slideInDistancePixels', 'characterFlipDelaySeconds', 'floatingParticleCount'].forEach(key => {
-                if (urlObj[key]) urlObj[key] = parseFloat(urlObj[key]);
-            });
-            
-            // Convert boolean parameters
-            if (urlObj.autoloop !== undefined) {
-                urlObj.autoloop = urlObj.autoloop === 'true';
-            }
-            
-            return { ...defaults, ...urlObj };
+        async function getParams() {
+            return await window.AnimationParams.loadParameters();
         }
 
         function applyParams(params) {
@@ -220,8 +196,8 @@
             return timeline;
         }
         
-        function initAnimation() {
-            const params = getParams();
+        async function initAnimation() {
+            const params = await getParams();
             window.currentParams = params;
             applyParams(params);
             createAnimation(params);
@@ -232,23 +208,26 @@
         window.addEventListener('load', initAnimation);
 
         // Expose for capture script compatibility
-        window.__CAPTURE__ = {
-            duration: DURATION,
-            timeline: null,
-            
-            init() {
-                this.timeline = createAnimation();
+        window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
+            duration: async () => {
+                const params = await getParams();
+                return params.totalAnimationDurationSeconds;
             },
-            
-            setFrame(frameIndex, fps) {
-                const time = frameIndex / fps;
-                this.timeline.progress(time / this.duration);
+            initAnimation: async () => {
+                const params = await getParams();
+                applyParams(params);
+                const timeline = createAnimation(params);
+                window.timeline = timeline;
+                return timeline;
             },
-            
-            getTotalFrames(fps) {
-                return Math.round(this.duration * fps);
+            setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
+                // Standard timeline progress sync
+                timeline.progress(progress);
+                
+                // Update particles based on current time
+                updateParticles(time);
             }
-        };
+        });
     </script>
 </body>
 </html>

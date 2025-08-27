@@ -38,7 +38,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
     console.log(`[GsapAnimationPreview] Config URL: ${config.url}`);
     console.log(`[GsapAnimationPreview] Extracted animation name: ${animationName}`);
     console.log(`[GsapAnimationPreview] Base server URL: ${baseServerUrl}`);
-    
+
     if (!animationName || !baseServerUrl) {
       console.log(`[GsapAnimationPreview] Missing animationName or baseServerUrl, skipping schema fetch`);
       return;
@@ -180,7 +180,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 
 
   return (
-    <div className="gsap-animation-preview my-4 mx-8 flex gap-8">
+    <div className="gsap-animation-preview my-4 flex gap-8">
       {/* Animation Preview */}
       <div className="flex-1 max-w-2xl">
         <div className="relative w-[360px] h-[640px]">

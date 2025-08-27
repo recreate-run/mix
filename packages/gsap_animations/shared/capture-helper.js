@@ -106,7 +106,7 @@ function createCustomCaptureInterface(config) {
     });
     
     // Override setFrame with custom logic
-    captureInterface.setFrame = function(frameIndex, fps) {
+    captureInterface.setFrame = async function(frameIndex, fps) {
         if (!this.timeline) {
             console.warn('Timeline not initialized. Call init() first.');
             return;
@@ -115,7 +115,7 @@ function createCustomCaptureInterface(config) {
         const time = frameIndex / fps;
         const progress = Math.min(time / this.duration, 1);
         
-        config.setFrameLogic(frameIndex, fps, time, progress, this.timeline);
+        await config.setFrameLogic(frameIndex, fps, time, progress, this.timeline);
     };
     
     return captureInterface;

@@ -80,49 +80,15 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="../shared/param-loader.js"></script>
     <script src="../shared/capture-helper.js"></script>
     <script>
         const video = document.querySelector('.video-player');
         const animatedText = document.querySelector('.animated-text');
         let tl;
 
-        function getParams() {
-            const defaults = {
-                overlayText: 'Let\'s go!',
-                totalAnimationDurationSeconds: 3,
-                textSizeRem: 6,
-                textColor: '#fff',
-                backgroundVideoURL: 'http://localhost:8088/input/videos/egg.mp4',
-                characterBounceHeightPixels: 20,
-                characterAnimationDelaySeconds: 0.05,
-                maxPulseScaleFactor: 1.1,
-                textShadowIntensityMultiplier: 1,
-                autoloop: false
-            };
-
-            const urlParams = new URLSearchParams(location.search);
-            const urlObj = Object.fromEntries(urlParams);
-
-            // Convert string numbers to actual numbers
-            Object.keys(urlObj).forEach(key => {
-                if (key !== 'overlayText' && key !== 'textColor' && key !== 'backgroundVideoURL' && key !== 'autoloop') {
-                    urlObj[key] = parseFloat(urlObj[key]) || defaults[key];
-                }
-            });
-
-            // Convert boolean parameters
-            if (urlObj.autoloop !== undefined) {
-                urlObj.autoloop = urlObj.autoloop === 'true';
-            }
-
-            const finalParams = { ...defaults, ...urlObj };
-
-            console.log('Parameter sources:');
-            console.log('- defaults:', defaults);
-            console.log('- urlParams:', urlObj);
-            console.log('- finalParams:', finalParams);
-
-            return finalParams;
+        async function getParams() {
+            return await window.AnimationParams.loadParameters();
         }
 
         function applyParams(params) {
@@ -150,14 +116,10 @@
             });
         }
 
-        function createTimeline(params, captureMode = false) {
+        function createTimeline(params) {
             if (tl) tl.kill();
 
-            // For capture mode, don't loop. For preview mode, loop infinitely
-            tl = gsap.timeline({
-                repeat: captureMode ? 0 : -1,
-                repeatDelay: captureMode ? 0 : 1
-            });
+            tl = gsap.timeline({ repeat: -1, repeatDelay: 1 });
 
             const chars = document.querySelectorAll('.char');
 
@@ -207,8 +169,8 @@
             return tl;
         }
 
-        function initAnimation() {
-            const params = getParams();
+        async function initAnimation() {
+            const params = await getParams();
             window.currentParams = params;
             applyParams(params);
             splitTextIntoChars();
@@ -232,20 +194,44 @@
             console.error('Video failed to load:', e);
         });
 
-        // Expose for capture script compatibility
-        window.__CAPTURE__ = window.CaptureHelper.createTimelineCaptureInterface({
-            duration: () => {
-                const params = getParams();
+        // Expose for capture script compatibility with video sync
+        window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
+            duration: async () => {
+                const params = await getParams();
                 return params.totalAnimationDurationSeconds;
             },
-            createAnimation: () => {
-                // Initialize for capture mode (no looping)
-                const params = getParams();
+            initAnimation: async () => {
+                const params = await getParams();
                 applyParams(params);
                 splitTextIntoChars();
-                return createTimeline(params, true); // captureMode = true
+                
+                // Pause video for capture mode
+                video.pause();
+                video.currentTime = 0;
+                
+                const timeline = createTimeline(params);
+                window.tl = timeline;
+                return timeline;
             },
-            timelineVar: 'tl'
+            setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
+                // Sync timeline progress
+                timeline.progress(progress);
+                
+                // Sync video currentTime and wait for seek to complete
+                video.currentTime = time;
+                
+                // Wait for video to seek to the exact frame
+                await new Promise(resolve => {
+                    const onSeeked = () => {
+                        video.removeEventListener('seeked', onSeeked);
+                        resolve();
+                    };
+                    video.addEventListener('seeked', onSeeked);
+                    
+                    // Fallback timeout to prevent hanging
+                    setTimeout(resolve, 100);
+                });
+            }
         });
     </script>
 </body>

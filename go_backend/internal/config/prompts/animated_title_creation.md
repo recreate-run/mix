@@ -30,10 +30,10 @@ Response schema:
 Request Body (JSON)
 
 <sample_request>{
-  "url": "<http://localhost:8088/gsap_animations/bounce-overlay/index.html?overlayText=Hello&textSizeRem=4>",
+  "url": "<http://localhost:8088/gsap_animations/bounce-overlay/index.html?overlayText=Hello&textSizeRem=3>",
   "outputPath": "/tmp/animation.mp4",
-  "width": 720,
-  "height": 1280,
+  "width": 360,
+  "height": 640,
   "duration": 3.0,
   "fps": 30
 }</sample_request>
@@ -46,7 +46,7 @@ Response (Success - HTTP 200)
   "message": "Video exported successfully"
 }</sample_response>
 
-Use 720x1280 for vertical social media.
+Use 36x640 for vertical social media.
 
 ## Animation Timing Best Practices
 

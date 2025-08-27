@@ -61,7 +61,7 @@
         .title {
             font-family: 'Urbanist', sans-serif;
             font-weight: 700;
-            font-size: 80px;
+            font-size: 3rem;
             color: #111;
             margin: 0;
             max-width: 900px;
@@ -74,7 +74,6 @@
             display: inline-block;
             opacity: 0;
         }
-
     </style>
 </head>
 
@@ -95,6 +94,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+    <script src="../shared/param-loader.js"></script>
+    <script src="../shared/capture-helper.js"></script>
     <script>
         const blobs = document.querySelectorAll('.blob');
         let masterTimeline;
@@ -102,56 +103,28 @@
         let blobAnimations = [];
         let DURATION = 3;
 
-        function getParams() {
-            const defaults = {
-                overlayText: 'Meet Mix: Your local multimodal agent',
-                animationDurationSeconds: 3,
-                overlayTextSizePixels: 80,
-                overlayTextColor: '#111',
-                canvasBackgroundColor: '#d1fae5',
-                primaryBlobColor: '#84fab0',
-                secondaryBlobColor: '#8fd3f4',
-                tertiaryBlobColor: '#fbc2eb',
-                quaternaryBlobColor: '#7dd3fc',
-                blobOpacityLevel: 0.6,
-                blobBlurRadiusPixels: 80,
-                autoloop: false
-            };
-            
-            const urlParams = new URLSearchParams(location.search);
-            const urlObj = Object.fromEntries(urlParams);
-            
-            // Convert string numbers to actual numbers
-            ['animationDurationSeconds', 'overlayTextSizePixels', 'blobOpacityLevel', 'blobBlurRadiusPixels'].forEach(key => {
-                if (urlObj[key]) urlObj[key] = parseFloat(urlObj[key]);
-            });
-            
-            // Convert boolean parameters
-            if (urlObj.autoloop !== undefined) {
-                urlObj.autoloop = urlObj.autoloop === 'true';
-            }
-            
-            return { ...defaults, ...urlObj };
+        async function getParams() {
+            return await window.AnimationParams.loadParameters();
         }
 
         function applyParams(params) {
             DURATION = params.animationDurationSeconds;
-            
+
             // Apply text
-            document.getElementById('titleText').textContent = params.overlayText;
-            
+            document.getElementById('titleText').textContent = params.displayText;
+
             // Apply styles
-            document.querySelector('.title').style.fontSize = `${params.overlayTextSizePixels}px`;
-            document.querySelector('.title').style.color = params.overlayTextColor;
+            document.querySelector('.title').style.fontSize = `${params.textSizeRem}rem`;
+            document.querySelector('.title').style.color = params.textColor;
             document.querySelector('.background').style.backgroundColor = params.canvasBackgroundColor;
             document.body.style.backgroundColor = params.canvasBackgroundColor;
-            
+
             // Apply blob colors and styles
             document.querySelector('.blob-1').style.backgroundColor = params.primaryBlobColor;
             document.querySelector('.blob-2').style.backgroundColor = params.secondaryBlobColor;
             document.querySelector('.blob-3').style.backgroundColor = params.tertiaryBlobColor;
             document.querySelector('.blob-4').style.backgroundColor = params.quaternaryBlobColor;
-            
+
             blobs.forEach(blob => {
                 blob.style.opacity = params.blobOpacityLevel;
                 blob.style.filter = `blur(${params.blobBlurRadiusPixels}px)`;
@@ -287,13 +260,13 @@
             if (masterTimeline.duration() < DURATION) {
                 masterTimeline.duration(DURATION);
             }
-            
+
             // Auto-start animation
             masterTimeline.play();
         }
 
-        function initAnimation() {
-            const params = getParams();
+        async function initAnimation() {
+            const params = await getParams();
             window.currentParams = params;
             applyParams(params);
             init();
@@ -304,19 +277,22 @@
         window.addEventListener('load', initAnimation);
 
         // Expose for capture script compatibility
-        window.__CAPTURE__ = {
-            duration: DURATION,
-            init() {
+        window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
+            duration: async () => {
+                const params = await getParams();
+                return params.animationDurationSeconds;
+            },
+            initAnimation: async () => {
+                const params = await getParams();
+                applyParams(params);
                 init();
+                return masterTimeline;
             },
-            setFrame(frameIndex, fps) {
-                const time = frameIndex / fps;
-                masterTimeline.progress(time / DURATION);
-            },
-            getTotalFrames(fps) {
-                return Math.round(DURATION * fps);
+            setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
+                // Standard timeline progress sync
+                timeline.progress(progress);
             }
-        };
+        });
     </script>
 </body>
 

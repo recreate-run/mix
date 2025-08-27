@@ -318,13 +318,13 @@ export const VideoPlayer = ({
       )}
 
       <div
-        className={`relative rounded-md ${isVertical ? 'max-w-64' : 'max-w-4xl'} mx-auto focus:outline-none`}
+        className={`relative rounded-md ${isVertical ? 'max-w-[360px]' : 'max-w-4xl'}  focus:outline-none`}
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
         {isLoading && <Skeleton className="aspect-auto" />}
         <video
-          className="aspect-auto rounded-xl bg-black w-full"
+          className="aspect-auto rounded-md bg-black w-full"
           onError={() => {
             setHasError(true);
             setIsLoading(false);

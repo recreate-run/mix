@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSAP Morphing Text Animation</title>
+    <link rel="stylesheet" href="../shared/base.css">
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: "Inter", sans-serif;
+        }
+
+        .morphing-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 120px;
+            text-align: center;
+            filter: url(#threshold) blur(0.6px);
+        }
+
+        .text-element {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            font-size: 3rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="morphing-container">
+        <div class="text-element" id="text1">Innovation</div>
+        <div class="text-element" id="text2">Creativity</div>
+    </div>
+
+
+    <!-- SVG Filters -->
+    <svg id="filters" style="position: fixed; height: 0; width: 0;">
+        <defs>
+            <filter id="threshold">
+                <feColorMatrix
+                    in="SourceGraphic"
+                    type="matrix"
+                    values="1 0 0 0 0
+                            0 1 0 0 0
+                            0 0 1 0 0
+                            0 0 0 255 -140"
+                />
+            </filter>
+        </defs>
+    </svg>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script src="../shared/capture-helper.js"></script>
+    <script>
+        const text1 = document.getElementById('text1');
+        const text2 = document.getElementById('text2');
+        let currentTextIndex = 0;
+        let masterTimeline;
+        let texts = [];
+        let morphTime = 2.5;
+        let cooldownTime = 0.5;
+        let totalCycleTime;
+
+        function getParams() {
+            const defaults = {
+                commaSeparatedWordList: 'Innovation,Creativity',
+                morphTransitionDurationSeconds: 2.5,
+                pauseBetweenMorphsSeconds: 0.5,
+                textSizeRem: 3,
+                textColor: '#fff',
+                backgroundCSS: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                autoloop: false
+            };
+            
+            const urlParams = new URLSearchParams(location.search);
+            const urlObj = Object.fromEntries(urlParams);
+            
+            // Convert string numbers to actual numbers
+            ['morphTransitionDurationSeconds', 'pauseBetweenMorphsSeconds', 'textSizeRem'].forEach(key => {
+                if (urlObj[key]) urlObj[key] = parseFloat(urlObj[key]);
+            });
+            
+            // Convert boolean parameters
+            if (urlObj.autoloop !== undefined) {
+                urlObj.autoloop = urlObj.autoloop === 'true';
+            }
+            
+            return { ...defaults, ...urlObj };
+        }
+
+        function applyParams(params) {
+            // Parse words array
+            texts = params.commaSeparatedWordList.split(',').map(w => w.trim());
+            morphTime = params.morphTransitionDurationSeconds;
+            cooldownTime = params.pauseBetweenMorphsSeconds;
+            totalCycleTime = morphTime + cooldownTime;
+            
+            // Apply styles to both text elements
+            document.querySelectorAll('.text-element').forEach(element => {
+                element.style.fontSize = `${params.textSizeRem}rem`;
+                element.style.color = params.textColor;
+            });
+            document.body.style.background = params.backgroundCSS;
+        }
+
+        function createMorphTimeline() {
+            const params = window.currentParams || { autoloop: false };
+            const tl = gsap.timeline({ 
+                repeat: params.autoloop ? -1 : 0,
+                repeatDelay: params.autoloop ? 0.5 : 0,
+                onRepeat: params.autoloop ? () => {
+                    currentTextIndex = (currentTextIndex + 1) % texts.length;
+                    updateTexts();
+                } : null
+            });
+
+            // Morph phase (2.5s)
+            tl.to(text1, {
+                duration: morphTime,
+                opacity: 0,
+                filter: "blur(100px)",
+                ease: "none",
+                onUpdate: function() {
+                    const progress = this.progress();
+                    const invertedFraction = 1 - progress;
+                    
+                    // Apply custom opacity curve
+                    const opacity1 = Math.pow(invertedFraction, 0.4);
+                    const opacity2 = Math.pow(progress, 0.4);
+                    
+                    // Apply custom blur curve
+                    const blur1 = Math.min(8 / invertedFraction - 8, 100);
+                    const blur2 = Math.min(8 / progress - 8, 100);
+                    
+                    gsap.set(text1, {
+                        opacity: opacity1,
+                        filter: `blur(${blur1}px)`
+                    });
+                    
+                    gsap.set(text2, {
+                        opacity: opacity2,
+                        filter: `blur(${blur2}px)`
+                    });
+                }
+            }, 0);
+
+            // Cooldown phase (0.5s)
+            tl.set(text1, { 
+                opacity: 0, 
+                filter: "none" 
+            });
+            tl.set(text2, { 
+                opacity: 1, 
+                filter: "none" 
+            });
+            tl.to({}, { duration: cooldownTime });
+
+            return tl;
+        }
+
+        function updateTexts() {
+            text1.textContent = texts[currentTextIndex % texts.length];
+            text2.textContent = texts[(currentTextIndex + 1) % texts.length];
+        }
+
+        async function initAnimation() {
+            const params = await getParams();
+            window.currentParams = params;
+            applyParams(params);
+            
+            currentTextIndex = 0;
+            updateTexts();
+            
+            // Initial state
+            gsap.set(text1, { opacity: 1, filter: "none" });
+            gsap.set(text2, { opacity: 0, filter: "none" });
+            
+            if (masterTimeline) masterTimeline.kill();
+            masterTimeline = createMorphTimeline();
+            masterTimeline.play();
+            
+            return masterTimeline;
+        }
+
+
+        // Initialize
+        window.addEventListener('load', initAnimation);
+
+        // Expose for capture script compatibility
+        window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
+            duration: async () => {
+                const params = await getParams();
+                applyParams(params);
+                return totalCycleTime * texts.length;
+            },
+            initAnimation: async () => {
+                const params = await getParams();
+                applyParams(params);
+                const timeline = await initAnimation();
+                window.masterTimeline = timeline;
+                return timeline;
+            },
+            setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
+                // Calculate cycle-based progress
+                const totalDuration = totalCycleTime * texts.length;
+                const cycleTime = totalCycleTime;
+                const cycleIndex = Math.floor(time / cycleTime);
+                const timeInCycle = time % cycleTime;
+                
+                // Update current text pair for this cycle
+                currentTextIndex = cycleIndex % texts.length;
+                updateTexts();
+                
+                // Set timeline progress within current cycle
+                if (masterTimeline) {
+                    masterTimeline.progress(timeInCycle / cycleTime);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
