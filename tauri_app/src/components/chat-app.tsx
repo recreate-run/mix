@@ -48,15 +48,15 @@ import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
 
-// Helper function to check if a message contains media_showcase tool call
+// Helper function to check if a message contains show_media tool call
 const hasMediaShowcaseTool = (toolCalls: any[]) => {
-  return toolCalls?.some((tc) => tc.name === 'media_showcase');
+  return toolCalls?.some((tc) => tc.name === 'show_media');
 };
 
-// Helper function to extract media outputs from media_showcase tool call
+// Helper function to extract media outputs from show_media tool call
 const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
   const mediaShowcaseTool = toolCalls?.find(
-    (tc) => tc.name === 'media_showcase'
+    (tc) => tc.name === 'show_media'
   );
   if (!mediaShowcaseTool?.parameters?.outputs) return [];
 

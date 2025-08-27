@@ -113,8 +113,8 @@ export const convertBackendMessageToUI = async (
     ? convertToolCallsToUI(backendMessage.toolCalls)
     : undefined;
 
-  // Extract media outputs from media_showcase tool calls
-  const mediaOutputs = toolCalls?.find((tc) => tc.name === 'media_showcase')
+  // Extract media outputs from show_media tool calls
+  const mediaOutputs = toolCalls?.find((tc) => tc.name === 'show_media')
     ?.parameters?.outputs as MediaOutput[] | undefined;
 
   return {

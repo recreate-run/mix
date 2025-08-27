@@ -41,7 +41,7 @@ Skip using this tool when:
 User: Show me /Users/project/assets/logo.png
 Assistant: Let me display that image for you.
 
-*Uses media_showcase tool with:*
+*Uses show_media tool with:*
 
 - Path: /Users/project/assets/logo.png
 - Type: image
@@ -55,7 +55,7 @@ Assistant: [After performing video creation steps, gathering assets, editing cli
 
 I've successfully created your marketing video. Let me showcase the final result.
 
-*Uses media_showcase tool with:*
+*Uses show_media tool with:*
 
 - Path: /output/video/product_marketing_20241201_143022.mp4
 - Type: video
@@ -67,7 +67,7 @@ I've successfully created your marketing video. Let me showcase the final result
 User: I need to see the reference audio file before we start editing
 Assistant: I'll display the reference audio file so you can review it.
 
-*Uses media_showcase tool with:*
+*Uses show_media tool with:*
 
 - Path: /Users/project/references/background_music.mp3
 - Type: audio
@@ -81,7 +81,7 @@ Assistant: [After configuring the GSAP animation]
 
 I've created a dynamic GSAP animation for you.
 
-*Uses media_showcase tool with:*
+*Uses show_media tool with:*
 
 - Type: gsap_animation
 - Title: AMAZING Text Animation
@@ -96,7 +96,7 @@ I've created a dynamic GSAP animation for you.
 User: Give me three 5-second highlights from this demo video
 Assistant: I've identified key segments from your demo video.
 
-*Uses media_showcase tool with:*
+*Uses show_media tool with:*
 
 - Type: video, Title: "Product Overview", Path: /Users/project/demo.mp4, StartTime: 15, Duration: 5
 - Type: video, Title: "UI Walkthrough", Path: /Users/project/demo.mp4, StartTime: 85, Duration: 5  

@@ -187,7 +187,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
           <iframe
             ref={iframeRef}
             src={iframeUrl}
-            className="w-full h-full bg-black rounded-lg border"
+            className="w-full h-full bg-transparent rounded-lg border"
             style={{ transform: 'scale(1)', transformOrigin: 'top left' }}
             title="GSAP Animation Preview"
             sandbox="allow-scripts allow-same-origin"

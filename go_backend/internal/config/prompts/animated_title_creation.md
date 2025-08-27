@@ -1,6 +1,6 @@
 # GSAP Animation Studio Integration
 
-When users request animated titles, create them using the media_showcase tool with `type: "gsap_animation"`.
+When users request animated titles, create them using the show_media tool with `type: "gsap_animation"`.
 
 ## Configuration Structure
 
@@ -22,6 +22,31 @@ Response schema:
 - For any specific animation you want to use, you MUST call `http://localhost:8088/api/gsap_animations/{name}` to get its parameter schema. Response includes the name, type and default value for each parameter.
 
 - Use the bash tool to make these CURL requests
+
+## Video Export
+
+**POST** `/api/video/export-url`
+
+Request Body (JSON)
+
+<sample_request>{
+  "url": "<http://localhost:8088/gsap_animations/bounce-overlay/index.html?overlayText=Hello&textSizeRem=4>",
+  "outputPath": "/tmp/animation.mp4",
+  "width": 720,
+  "height": 1280,
+  "duration": 3.0,
+  "fps": 30
+}</sample_request>
+
+Response (Success - HTTP 200)
+
+<sample_response>{
+  "success": true,
+  "outputPath": "/tmp/animation.mp4",
+  "message": "Video exported successfully"
+}</sample_response>
+
+Use 720x1280 for vertical social media.
 
 ## Animation Timing Best Practices
 

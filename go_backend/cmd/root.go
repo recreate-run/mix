@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -294,7 +293,7 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		}
 	})
 
-	// Add video export endpoint
+	// Add video export endpoint (existing Remotion-based export)
 	mux.HandleFunc("/api/video/export", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -310,275 +309,24 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		httphandlers.HandleVideoExport(ctx, handler, w, r)
 	})
 
+	// Add URL video export endpoint (new Playwright-based export)
+	mux.HandleFunc("/api/video/export-url", httphandlers.HandleURLVideoExport)
+
 	// Add file types endpoint
-	mux.HandleFunc("/api/file-types", func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Method != "GET" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Get supported file types from asset server
-		fileTypes := app.AssetServer.GetSupportedFileTypes()
-
-		// Set JSON content type
-		w.Header().Set("Content-Type", "application/json")
-
-		// Marshal and send response
-		jsonBytes, err := json.Marshal(fileTypes)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(jsonBytes)
-	})
+	mux.HandleFunc("/api/file-types", httphandlers.HandleFileTypes(app))
 
 	// Add animations list endpoint
-	mux.HandleFunc("/api/gsap_animations", func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Method != "GET" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Get current working directory
-		workingDir, err := os.Getwd()
-		if err != nil {
-			http.Error(w, "Failed to get working directory", http.StatusInternalServerError)
-			return
-		}
-
-		// Construct path to animations directory
-		projectRoot := filepath.Dir(workingDir)
-		animationsDir := filepath.Join(projectRoot, "packages", "gsap_animations")
-
-		// Create secure root for animations directory
-		root, err := os.OpenRoot(animationsDir)
-		if err != nil {
-			http.Error(w, "Failed to open animations directory", http.StatusInternalServerError)
-			return
-		}
-		defer root.Close()
-
-		// Read animations directory
-		entries, err := os.ReadDir(animationsDir)
-		if err != nil {
-			http.Error(w, "Failed to read animations directory", http.StatusInternalServerError)
-			return
-		}
-
-		var animations []map[string]interface{}
-
-		for _, entry := range entries {
-			// Skip non-directories and shared directory
-			if !entry.IsDir() || entry.Name() == "shared" {
-				continue
-			}
-
-			// Read schema.json for this animation through secure root
-			schemaFile, err := root.Open(entry.Name() + "/schema.json")
-			if err != nil {
-				logging.Debug("Failed to open schema for %s: %v", entry.Name(), err)
-				continue
-			}
-
-			schemaBytes, err := io.ReadAll(schemaFile)
-			schemaFile.Close()
-			if err != nil {
-				logging.Debug("Failed to read schema for %s: %v", entry.Name(), err)
-				continue
-			}
-
-			// Parse schema JSON
-			var schema map[string]interface{}
-			if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-				logging.Debug("Failed to parse schema for %s: %v", entry.Name(), err)
-				continue
-			}
-
-			// Create lightweight response with only name and description
-			animationSummary := map[string]interface{}{
-				"name":        schema["name"],
-				"description": schema["description"],
-			}
-
-			animations = append(animations, animationSummary)
-		}
-
-		// Set JSON content type
-		w.Header().Set("Content-Type", "application/json")
-
-		// Marshal and send response
-		jsonBytes, err := json.Marshal(animations)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(jsonBytes)
-	})
+	mux.HandleFunc("/api/gsap_animations", httphandlers.HandleGSAPAnimationsList)
 
 	// Add specific animation endpoint
-	mux.HandleFunc("/api/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Method != "GET" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Extract animation name from URL path
-		animationName := strings.TrimPrefix(r.URL.Path, "/api/gsap_animations/")
-		if animationName == "" {
-			http.Error(w, "Animation name required", http.StatusBadRequest)
-			return
-		}
-
-		// Get current working directory
-		workingDir, err := os.Getwd()
-		if err != nil {
-			http.Error(w, "Failed to get working directory", http.StatusInternalServerError)
-			return
-		}
-
-		// Construct path to animations directory
-		projectRoot := filepath.Dir(workingDir)
-		animationsDir := filepath.Join(projectRoot, "packages", "gsap_animations")
-
-		// Create secure root for animations directory
-		root, err := os.OpenRoot(animationsDir)
-		if err != nil {
-			http.Error(w, "Failed to open animations directory", http.StatusInternalServerError)
-			return
-		}
-		defer root.Close()
-
-		// Read schema file through secure root - automatically handles path traversal protection
-		schemaFile, err := root.Open(animationName + "/schema.json")
-		if err != nil {
-			if os.IsNotExist(err) {
-				http.NotFound(w, r)
-				return
-			}
-			http.Error(w, "Failed to read animation schema", http.StatusInternalServerError)
-			return
-		}
-		defer schemaFile.Close()
-
-		schemaBytes, err := io.ReadAll(schemaFile)
-		if err != nil {
-			http.Error(w, "Failed to read animation schema", http.StatusInternalServerError)
-			return
-		}
-
-		// Parse and validate JSON
-		var schema map[string]interface{}
-		if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-			http.Error(w, "Invalid animation schema", http.StatusInternalServerError)
-			return
-		}
-
-		// Set JSON content type
-		w.Header().Set("Content-Type", "application/json")
-
-		// Send response
-		w.WriteHeader(http.StatusOK)
-		w.Write(schemaBytes)
-	})
+	mux.HandleFunc("/api/gsap_animations/", httphandlers.HandleGSAPAnimationSchema)
 
 	// Add asset serving endpoints for media files
-	mux.HandleFunc("/input/", func(w http.ResponseWriter, r *http.Request) {
-		app.AssetServer.ServeHTTP(w, r)
-	})
-	mux.HandleFunc("/output/", func(w http.ResponseWriter, r *http.Request) {
-		app.AssetServer.ServeHTTP(w, r)
-	})
+	mux.HandleFunc("/input/", httphandlers.HandleInputAssets(app))
+	mux.HandleFunc("/output/", httphandlers.HandleOutputAssets(app))
 
 	// Add GSAP animations endpoint
-	mux.HandleFunc("/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers for frontend access
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Only allow GET requests
-		if r.Method != "GET" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Strip /gsap_animations/ prefix and construct path to animations package
-		animationPath := strings.TrimPrefix(r.URL.Path, "/gsap_animations/")
-
-		// Get current working directory directly (independent of AssetServer state)
-		workingDir, err := os.Getwd()
-		if err != nil {
-			http.Error(w, "Failed to get working directory", http.StatusInternalServerError)
-			return
-		}
-
-		// Construct full file path to animations package (go up one level from go_backend to reach packages)
-		projectRoot := filepath.Dir(workingDir) // Go up one level from go_backend
-		fullPath := filepath.Join(projectRoot, "packages", "gsap_animations", animationPath)
-
-		// Security check: ensure path is within animations package directory
-		animationsDir := filepath.Join(projectRoot, "packages", "gsap_animations")
-		if !strings.HasPrefix(fullPath, animationsDir) {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
-
-		// Check if file exists
-		if _, err := os.Stat(fullPath); err != nil {
-			if os.IsNotExist(err) {
-				http.NotFound(w, r)
-				return
-			}
-			http.Error(w, "File access error", http.StatusInternalServerError)
-			return
-		}
-
-		// Serve the file
-		http.ServeFile(w, r, fullPath)
-	})
+	mux.HandleFunc("/gsap_animations/", httphandlers.HandleGSAPAnimationFiles)
 
 	mux.HandleFunc("/rpc", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
