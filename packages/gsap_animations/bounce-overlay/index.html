@@ -20,7 +20,6 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            aspect-ratio: 9/16;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -29,8 +28,6 @@
         .video-player {
             width: 100%;
             height: 100%;
-            max-width: calc(100vh * 9/16);
-            max-height: calc(100vw * 16/9);
             object-fit: cover;
             border-radius: 0;
         }
@@ -87,11 +84,35 @@
         const animatedText = document.querySelector('.animated-text');
         let tl;
 
+        /**
+         * Parses aspect ratio string like "16/9" into numeric values
+         * @param {string} aspectRatioStr - Format like "16/9", "4/3", etc.
+         * @returns {Object} Object with width, height, and decimal ratio
+         */
+        function parseAspectRatio(aspectRatioStr) {
+            const parts = aspectRatioStr.split('/');
+            if (parts.length !== 2) {
+                console.warn(`Invalid aspect ratio format: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9/16 };
+            }
+            
+            const width = parseFloat(parts[0]);
+            const height = parseFloat(parts[1]);
+            
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                console.warn(`Invalid aspect ratio values: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9/16 };
+            }
+            
+            return { width, height, decimal: width/height };
+        }
+
         async function getParams() {
             return await window.AnimationParams.loadParameters();
         }
 
         function applyParams(params) {
+            // Apply text parameters
             animatedText.textContent = params.overlayText;
             animatedText.style.fontSize = `${params.textSizeRem}rem`;
             animatedText.style.color = params.textColor;
@@ -101,6 +122,20 @@
             animatedText.style.textShadow = `${baseShadow}, ${dropShadow}`;
 
             video.src = params.backgroundVideoURL;
+
+            // Apply dynamic aspect ratio
+            const aspectRatio = parseAspectRatio(params.aspectRatio);
+            const videoContainer = document.querySelector('.video-container');
+            const videoPlayer = document.querySelector('.video-player');
+            
+            // Set aspect ratio on container
+            videoContainer.style.aspectRatio = `${aspectRatio.width}/${aspectRatio.height}`;
+            
+            // Set responsive max-width and max-height on video player
+            // For max-width: if height-constrained, width = height * aspect-ratio
+            videoPlayer.style.maxWidth = `calc(100vh * ${aspectRatio.width}/${aspectRatio.height})`;
+            // For max-height: if width-constrained, height = width * inverse-aspect-ratio
+            videoPlayer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
         }
 
         // Split text into characters

@@ -248,12 +248,12 @@ func HandleGSAPAnimationFiles(w http.ResponseWriter, r *http.Request) {
 
 // URLVideoExportRequest represents the request payload for URL video export
 type URLVideoExportRequest struct {
-	URL        string   `json:"url"`
-	OutputPath string   `json:"outputPath"`           // Required absolute path where video will be saved
-	FPS        *int     `json:"fps,omitempty"`        // default: 30
-	Width      *int     `json:"width,omitempty"`      // default: 360
-	Height     *int     `json:"height,omitempty"`     // default: 640
-	Duration   *float64 `json:"duration,omitempty"`   // default: 3.0
+	URL         string   `json:"url"`
+	OutputPath  string   `json:"outputPath"`             // Required absolute path where video will be saved
+	FPS         *int     `json:"fps,omitempty"`          // default: 30
+	AspectRatio *string  `json:"aspectRatio,omitempty"`  // default: "9/16" (format like "16/9", "4/3")
+	Height      *int     `json:"height,omitempty"`       // default: 640
+	Duration    *float64 `json:"duration,omitempty"`     // default: 3.0
 }
 
 // URLVideoExportResponse represents the response for URL video export
@@ -264,6 +264,40 @@ type URLVideoExportResponse struct {
 	Error      string `json:"error,omitempty"`
 }
 
+// AspectRatio represents parsed aspect ratio values
+type AspectRatio struct {
+	Width   float64
+	Height  float64
+	Decimal float64
+}
+
+// parseAspectRatio parses aspect ratio string like "16/9" into numeric values
+func parseAspectRatio(aspectRatioStr string) (AspectRatio, error) {
+	if aspectRatioStr == "" {
+		return AspectRatio{Width: 9, Height: 16, Decimal: 9.0 / 16.0}, nil
+	}
+
+	parts := strings.Split(aspectRatioStr, "/")
+	if len(parts) != 2 {
+		return AspectRatio{}, fmt.Errorf("invalid aspect ratio format: %s (expected format like '16/9')", aspectRatioStr)
+	}
+
+	width, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil || width <= 0 {
+		return AspectRatio{}, fmt.Errorf("invalid aspect ratio width: %s", parts[0])
+	}
+
+	height, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil || height <= 0 {
+		return AspectRatio{}, fmt.Errorf("invalid aspect ratio height: %s", parts[1])
+	}
+
+	return AspectRatio{
+		Width:   width,
+		Height:  height,
+		Decimal: width / height,
+	}, nil
+}
 
 // HandleURLVideoExport handles POST /api/video/export-url
 // Exports a URL as a video using Playwright-based frame capture
@@ -327,26 +361,35 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	if req.FPS != nil {
 		fps = *req.FPS
 	}
-	width := 360
-	if req.Width != nil {
-		width = *req.Width
+	
+	aspectRatioStr := "9/16"
+	if req.AspectRatio != nil {
+		aspectRatioStr = *req.AspectRatio
 	}
+	
 	height := 640
 	if req.Height != nil {
 		height = *req.Height
 	}
+	
 	duration := 3.0
 	if req.Duration != nil {
 		duration = *req.Duration
 	}
 
+	// Parse aspect ratio and calculate width
+	aspectRatio, err := parseAspectRatio(aspectRatioStr)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid aspect ratio: %v", err), http.StatusBadRequest)
+		return
+	}
+	
+	// Calculate width from height and aspect ratio
+	width := int(float64(height) * aspectRatio.Decimal)
+
 	// Validate parameters
 	if fps <= 0 || fps > 120 {
 		http.Error(w, "FPS must be between 1 and 120", http.StatusBadRequest)
-		return
-	}
-	if width <= 0 || width > 4096 {
-		http.Error(w, "Width must be between 1 and 4096", http.StatusBadRequest)
 		return
 	}
 	if height <= 0 || height > 4096 {
@@ -355,6 +398,11 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	}
 	if duration <= 0 || duration > 60 {
 		http.Error(w, "Duration must be between 0.1 and 60 seconds", http.StatusBadRequest)
+		return
+	}
+	// Width is calculated from height and aspect ratio, so validate the calculated result
+	if width <= 0 || width > 8192 {
+		http.Error(w, fmt.Sprintf("Calculated width (%d) is invalid for height %d and aspect ratio %s", width, height, aspectRatioStr), http.StatusBadRequest)
 		return
 	}
 

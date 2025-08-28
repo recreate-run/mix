@@ -32,7 +32,7 @@ Request Body (JSON)
 <sample_request>{
   "url": "<http://localhost:8088/gsap_animations/bounce-overlay/index.html?overlayText=Hello&textSizeRem=3>",
   "outputPath": "/tmp/animation.mp4",
-  "width": 360,
+  "aspectRatio": "9/16",
   "height": 640,
   "duration": 3.0,
   "fps": 30
@@ -45,8 +45,6 @@ Response (Success - HTTP 200)
   "outputPath": "/tmp/animation.mp4",
   "message": "Video exported successfully"
 }</sample_response>
-
-Use 36x640 for vertical social media.
 
 ## Animation Timing Best Practices
 
@@ -63,3 +61,4 @@ Use 36x640 for vertical social media.
 - **Font Size**: Prefer 3rem for vertical videos to ensure readability
 - Standard duration: 2-4 seconds
 - CRITICAL: Never create multiple text elements with overlapping timeframes at the same layout position - use different layouts or stagger timing to prevent visual overlap
+- Choose the aspect ratio based on platform: 9/16 for vertical social (TikTok, Stories), 16/9 for YouTube/landscape content, 1/1 for Instagram posts

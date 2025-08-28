@@ -52,6 +52,11 @@
       "name": "autoloop",
       "type": "boolean",
       "default": false
+    },
+    {
+      "name": "aspectRatio",
+      "type": "string",
+      "default": "9/16"
     }
   ]
 }
