@@ -25,6 +25,8 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
   const [config, setConfig] = useState(initialConfig);
   const [schema, setSchema] = useState<AnimationSchema | null>(null);
   const [isLoadingSchema, setIsLoadingSchema] = useState<boolean>(false);
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { isCopied, copyToClipboard } = useCopyToClipboard();
 
@@ -55,8 +57,26 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
       });
   }, [animationName, baseServerUrl, config.url]);
 
+  // Intersection Observer to track iframe visibility
+  useEffect(() => {
+    if (!containerNode) return;
 
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { 
+        threshold: 0.1, // Trigger when 10% of the iframe container is visible
+        rootMargin: '50px' // Start loading slightly before it comes into view
+      }
+    );
 
+    observer.observe(containerNode);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [containerNode]);
 
   // Use iframe URL with config parameters as URL search params
   const iframeUrl = useMemo(() => {
@@ -78,6 +98,9 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 
     return url.toString();
   }, [config]);
+
+  // Conditional iframe URL - only load when visible to save resources
+  const effectiveIframeUrl = isVisible ? iframeUrl : undefined;
 
   // Update parameter value - support flexible config structure
   const updateParameter = (key: string, value: any) => {
@@ -183,10 +206,10 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
     <div className="gsap-animation-preview my-4 flex gap-8">
       {/* Animation Preview */}
       <div className="flex-1 max-w-2xl">
-        <div className="relative w-[360px] h-[640px]">
+        <div ref={setContainerNode} className="relative w-[360px] h-[640px]">
           <iframe
             ref={iframeRef}
-            src={iframeUrl}
+            src={effectiveIframeUrl}
             className="w-full h-full bg-transparent rounded-lg border"
             style={{ transform: 'scale(1)', transformOrigin: 'top left' }}
             title="GSAP Animation Preview"

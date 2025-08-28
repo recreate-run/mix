@@ -23,14 +23,11 @@ const DEFAULT_GSAP_SERVER = import.meta.env.VITE_BACKEND_URL;
 // Fetch list of available animations
 export async function fetchAnimationList(serverUrl: string = DEFAULT_GSAP_SERVER): Promise<string[]> {
   try {
-    console.log(`[GSAP API] Fetching animation list from: ${serverUrl}/api/gsap_animations`);
     const response = await fetch(`${serverUrl}/api/gsap_animations`);
-    console.log(`[GSAP API] Animation list response status: ${response.status}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch animations: ${response.statusText}`);
     }
     const animations = await response.json();
-    console.log(`[GSAP API] Animation list response:`, animations);
     return animations.map((anim: any) => anim.name);
   } catch (error) {
     console.error(`[GSAP API] Error fetching animation list:`, error);
@@ -45,15 +42,12 @@ export async function fetchAnimationSchema(
 ): Promise<AnimationSchema | null> {
   try {
     const url = `${serverUrl}/api/gsap_animations/${encodeURIComponent(animationName)}`;
-    console.log(`[GSAP API] Fetching animation schema from: ${url}`);
     const response = await fetch(url);
-    console.log(`[GSAP API] Animation schema response status: ${response.status}`);
     if (!response.ok) {
       console.error(`[GSAP API] Failed to fetch animation schema: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch animation schema: ${response.statusText}`);
     }
     const schema = await response.json();
-    console.log(`[GSAP API] Animation schema response:`, schema);
     return schema;
   } catch (error) {
     console.error(`[GSAP API] Error fetching animation schema for ${animationName}:`, error);
@@ -96,13 +90,11 @@ export function buildAnimationUrl(
 // Check if GSAP server is available
 export async function checkGsapServerHealth(serverUrl: string = DEFAULT_GSAP_SERVER): Promise<boolean> {
   try {
-    console.log(`[GSAP API] Checking server health: ${serverUrl}/api/gsap_animations`);
     const response = await fetch(`${serverUrl}/api/gsap_animations`, {
       method: 'GET',
       // Add timeout
       signal: AbortSignal.timeout(3000)
     });
-    console.log(`[GSAP API] Health check response status: ${response.status}`);
     return response.ok;
   } catch (error) {
     console.error(`[GSAP API] Health check failed:`, error);

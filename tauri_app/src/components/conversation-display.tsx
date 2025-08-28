@@ -27,6 +27,7 @@ import { PlanDisplay } from './plan-display';
 import { PlaylistSidebar } from './playlist-sidebar';
 import { RateLimitDisplay } from './rate-limit-display';
 import { GsapAnimationPreview } from './gsap/GsapAnimationPreview';
+import { LazyVideoPlayer } from './LazyVideoPlayer';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { VideoPlayer } from './video-player';
@@ -81,11 +82,8 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
       )}
 
       {media.type === 'video' && (
-        <VideoPlayer
-          duration={media.duration}
-          path={media.path}
-          startTime={media.startTime}
-          title=""
+        <LazyVideoPlayer
+          media={media}
           workingDirectory={workingDirectory}
         />
       )}
