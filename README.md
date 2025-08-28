@@ -102,13 +102,6 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 └── README.md           # This file
 ```
 
-## Demos
-
-1. Creating remotion titles
-2. Use blender for video editing
-3. Asking highlights in a video
-4. Analyze session recording
-
 ## Tools
 
 1. Blender, pixelmator tools
@@ -128,11 +121,11 @@ All development output (backend compilation, frontend builds, runtime logs, brow
   <img alt="TanStack Query" src="https://img.shields.io/badge/-TanStack%20Query-FF4154?style=flat-square&logo=react-query&logoColor=white" />
   <img alt="Radix UI" src="https://img.shields.io/badge/-Radix%20UI-161618?style=flat-square&logo=radix-ui&logoColor=white" />
   <img alt="Vite" src="https://img.shields.io/badge/-Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
-  <img alt="Remotion" src="https://img.shields.io/badge/-Remotion-4338CA?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K&logoColor=white" />
+  <img alt="GSAP" src="https://img.shields.io/badge/-GSAP-0ae448?style=flat-square&logo=greensock&logoColor=white" />
   <img alt="SQLite" src="https://img.shields.io/badge/-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white" />
   <img alt="FFmpeg" src="https://img.shields.io/badge/-FFmpeg-007808?style=flat-square&logo=ffmpeg&logoColor=white" />
 </p>
 
 ## Thanks
 
-1. All third part software that we've used in the project, especially ffmpeg, remotion and the archived opencode project
+1. All third part software that we've used in the project, especially ffmpeg, gsap and the archived opencode project

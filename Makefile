@@ -102,10 +102,6 @@ install:
 	@echo "Installing tools..."
 	@uv tool install multimodal-analyzer
 	
-	# Install remotion template dependencies
-	@echo "Installing remotion template dependencies..."
-	@cd packages/remotion_template && bun install
-	
 	@echo "✅ System dependencies installed!"
 
 # Install project dependencies
@@ -117,8 +113,6 @@ install-deps: install
 	cd go_backend && go mod download
 	@echo "Installing Tauri app dependencies..."
 	cd tauri_app && bun i
-	@echo "Installing remotion template dependencies..."
-	cd packages/remotion_template && bun install
 	@echo "✅ All dependencies installed!"
 
 # Internal target for optimized builds

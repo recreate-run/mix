@@ -16,7 +16,6 @@ import (
 	"mix/internal/message"
 	"mix/internal/permission"
 	"mix/internal/session"
-	"mix/internal/video"
 )
 
 type App struct {
@@ -25,7 +24,6 @@ type App struct {
 	History     history.Service
 	Permissions permission.Service
 	Analytics   analytics.Service
-	Video       *video.ExportService
 	AssetServer *session.AssetServer
 
 	CoderAgent agent.Service
@@ -55,12 +53,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	}
 	analyticsService := analytics.NewAnalyticsService(posthogAPIKey)
 
-	// Initialize video export service
-	videoService, err := video.NewExportService()
-	if err != nil {
-		logging.Error("Failed to initialize video export service", "error", err)
-		return nil, fmt.Errorf("failed to initialize video export service: %w", err)
-	}
 
 	// Initialize asset server for serving files
 	assetServer := session.NewAssetServer()
@@ -74,7 +66,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		History:     files,
 		Permissions: permission.NewPermissionService(sessions),
 		Analytics:   analyticsService,
-		Video:       videoService,
 		AssetServer: assetServer,
 	}
 

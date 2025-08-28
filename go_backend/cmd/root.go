@@ -293,21 +293,6 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		}
 	})
 
-	// Add video export endpoint (existing Remotion-based export)
-	mux.HandleFunc("/api/video/export", func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		httphandlers.HandleVideoExport(ctx, handler, w, r)
-	})
 
 	// Add URL video export endpoint (new Playwright-based export)
 	mux.HandleFunc("/api/video/export-url", httphandlers.HandleURLVideoExport)

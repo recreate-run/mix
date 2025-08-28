@@ -10,7 +10,7 @@ from pathlib import Path
 from jinja2 import Template
 
 # Files to ignore during conversion
-IGNORE_FILES = ['kill_bash.md', 'remotion.md']
+IGNORE_FILES = ['kill_bash.md']
 
 # Tools to exclude from documentation (backend-only tools)
 EXCLUDED_TOOLS = ['todo_write_cc.md', 'web_search.md', 'bash_output.md']

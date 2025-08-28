@@ -20,7 +20,7 @@ type MediaOutput struct {
 	Type        string      `json:"type"`
 	Title       string      `json:"title"`
 	Description string      `json:"description"`
-	Config      interface{} `json:"config,omitempty"`    // For remotion configuration data
+	Config      interface{} `json:"config,omitempty"`    // For configuration data
 	StartTime   *int        `json:"startTime,omitempty"` // Optional: start time in seconds for video/audio segments
 	Duration    *int        `json:"duration,omitempty"`  // Optional: duration in seconds for video/audio segments
 }
