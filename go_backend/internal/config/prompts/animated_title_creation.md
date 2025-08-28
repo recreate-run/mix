@@ -58,7 +58,7 @@ Response (Success - HTTP 200)
 
 - Keep titles concise and impactful (1-5 words typically work best)
 - Use clean, readable typography with sufficient contrast
-- **Font Size**: Prefer 3rem for vertical videos to ensure readability
+- Prefer 3rem title font size for "9/16" aspect ratio
 - Standard duration: 2-4 seconds
 - CRITICAL: Never create multiple text elements with overlapping timeframes at the same layout position - use different layouts or stagger timing to prevent visual overlap
 - Choose the aspect ratio based on platform: 9/16 for vertical social (TikTok, Stories), 16/9 for YouTube/landscape content, 1/1 for Instagram posts

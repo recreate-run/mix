@@ -33,7 +33,7 @@ func CoderAgentTools(
 			tools.NewViewTool(permissions),
 			tools.NewWriteTool(permissions, history),
 			tools.NewPythonExecutionTool(permissions),
-			tools.NewTodoWriteTool(),
+			// tools.NewTodoWriteTool(),
 			tools.NewExitPlanModeTool(),
 			tools.NewMediaShowcaseTool(),
 			// tools.NewNotesTool(permissions, bashTool),

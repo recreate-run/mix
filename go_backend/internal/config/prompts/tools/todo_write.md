@@ -57,26 +57,6 @@ The assistant used the todo list because:
 </reasoning>
 </example>
 
-<example>
-User: Create and edit a 15-second vertical TikTok video for an AI based fullstack web app generator from the given screen recording
-Assistant: I'll help you create a TikTok-optimized video from your screen recording. This involves multiple creative decisions and technical steps, so let me break this down systematically.
-*Creates todo list with the following items:*
-1. Text overlay design - Create engaging captions and call-to-action text with TikTok-optimized styling using gsap
-2. Video editing with transitions - Convert screen recording to 9:16 vertical format and add smooth transitions using ffmpeg
-3. Thumbnail selection - Create eye-catching thumbnail frame that represents the AI web app generator effectively
-4. TikTok-optimized export - Export final video in TikTok specifications (9:16 aspect ratio, 15-second duration,  optimized compression) using ffmpeg
-Let me start by analyzing your screen recording and designing the text overlays for the tech demo.
-
-<reasoning>
-The assistant used the todo list because:
-1. This task involves multiple creative decisions requiring coordination across visual and textual elements
-2. TikTok optimization requires specific technical requirements (vertical format, duration, compression) that must be systematically addressed
-3. Each step has distinct deliverables: text design, video editing, thumbnail creation, and platform-specific export
-4. The workflow combines multiple tools (FFmpeg for conversion and editing, gsap for animations) requiring systematic tracking
-5. Creative decisions around audience engagement (text timing, thumbnail appeal) benefit from structured approach to ensure nothing is overlooked
-</reasoning>
-</example>
-
 ## Examples of When NOT to Use the Todo List
 
 <example>

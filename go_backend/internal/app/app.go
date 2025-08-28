@@ -53,7 +53,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	}
 	analyticsService := analytics.NewAnalyticsService(posthogAPIKey)
 
-
 	// Initialize asset server for serving files
 	assetServer := session.NewAssetServer()
 
@@ -72,6 +71,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	// Create MCP manager for this agent
 	mcpManager := agent.NewMCPClientManager()
 
+	var err error
 	app.CoderAgent, err = agent.NewAgent(
 		config.AgentMain,
 		app.Sessions,
