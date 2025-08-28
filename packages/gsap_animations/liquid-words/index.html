@@ -188,6 +188,7 @@
             gsap.set(text1, { opacity: 1, filter: "none" });
             gsap.set(text2, { opacity: 0, filter: "none" });
             
+            // Kill existing timeline
             if (masterTimeline) masterTimeline.kill();
             masterTimeline = createMorphTimeline();
             masterTimeline.play();

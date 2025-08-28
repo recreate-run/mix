@@ -91,7 +91,7 @@ Always use video highlights (sourceVideo + startTime + duration) when showcasing
 ### Workspace File Management
 
 - Input folder structure: `input/text/`, `input/images/`, `input/audio/`, `input/videos/` (each subfolder is flat). Output folder must preserve the same structure: `output/text/`, `output/images/`, `output/audio/`, `output/videos/`.
-- ALL edits must be non-destructive - never modify original files. Use naming format: `{semantic_name}_{YYYYMMDD_HHMMSS}.{extension}`. Examples: `product_showcase_video_20241201_143022.mp4`, `ui_card_component_20241201_143022.tsx`.
+- ALL edits must be non-destructive - never modify original files. Use naming format: `{semantic_name}_{YYYYMMDD_HHMMSS}.{extension}`. Generate timestamps first using bash commands, then use the result in. NEVER use shell command substitution like `$(date +%H%M%S)`.
 - To access any media file in the workspace, convert absolute file paths to: `http://localhost:8088/<relative_path_from_workdir>`. Example: `http://localhost:8088/input/videos/egg.mp4`
 
 NEVER publish or share content unless the user explicitly asks you to. It is VERY IMPORTANT to only publish when explicitly asked, otherwise the user will feel that you are being too proactive.

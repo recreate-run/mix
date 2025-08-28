@@ -86,7 +86,6 @@
         const video = document.querySelector('.video-player');
         const animatedText = document.querySelector('.animated-text');
         let tl;
-        let videoSyncListener = null;
 
         async function getParams() {
             return await window.AnimationParams.loadParameters();
@@ -117,47 +116,16 @@
             });
         }
 
-        function createTimeline(params, enableVideoSync = true) {
+        function createTimeline(params) {
             if (tl) tl.kill();
-
-            // Remove existing video sync listener to prevent accumulation
-            if (videoSyncListener) {
-                video.removeEventListener('timeupdate', videoSyncListener);
-                videoSyncListener = null;
-            }
-
-            const animationDuration = params.totalAnimationDurationSeconds;
             
-            tl = gsap.timeline({ 
-                repeat: -1, 
-                repeatDelay: 1,
-                onStart: () => {
-                    video.currentTime = 0;
-                    video.play().catch(console.error);
-                },
-                onComplete: () => {
-                    video.pause();
-                    video.currentTime = 0;
-                },
-                onRepeat: () => {
-                    video.currentTime = 0;
-                    video.play().catch(console.error);
-                }
-            });
+            tl = gsap.timeline({ repeat: -1, repeatDelay: 1 });
 
-            // Create and store new video sync listener only if not in capture mode
-            if (enableVideoSync) {
-                videoSyncListener = () => {
-                    // Pause video when it reaches the animation duration
-                    if (video.currentTime >= animationDuration) {
-                        video.pause();
-                        video.currentTime = animationDuration - 0.01; // Slight buffer to avoid flicker
-                    }
-                };
-
-                // Add the new listener
-                video.addEventListener('timeupdate', videoSyncListener);
-            }
+            // Start video at beginning of timeline
+            tl.call(() => {
+                video.currentTime = 0;
+                video.play().catch(console.error);
+            }, [], 0);
 
             const chars = document.querySelectorAll('.char');
 
@@ -170,7 +138,7 @@
                 rotation: 0,
                 duration: 0.4,
                 ease: "back.out(2)"
-            })
+            }, 0)
                 .to(chars, {
                     y: 0,
                     rotationX: 0,
@@ -178,7 +146,7 @@
                     duration: 0.6,
                     stagger: params.characterAnimationDelaySeconds,
                     ease: "back.out(1.2)"
-                }, "-=0.3")
+                }, 0)
                 .to(chars, {
                     y: -params.characterBounceHeightPixels,
                     duration: 0.3,
@@ -204,6 +172,11 @@
                     ease: "power2.out"
                 });
 
+            // Stop video when animation actually completes
+            tl.call(() => {
+                video.pause();
+            });
+
             return tl;
         }
 
@@ -222,13 +195,6 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', initAnimation);
 
-        // Cleanup function for video sync listener
-        function cleanupVideoSync() {
-            if (videoSyncListener) {
-                video.removeEventListener('timeupdate', videoSyncListener);
-                videoSyncListener = null;
-            }
-        }
 
         // Handle video loading
         video.addEventListener('loadeddata', () => {
@@ -239,8 +205,6 @@
             console.error('Video failed to load:', e);
         });
 
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', cleanupVideoSync);
 
         // Expose for capture script compatibility with video sync
         window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
@@ -248,7 +212,6 @@
                 return window.currentParams ? window.currentParams.totalAnimationDurationSeconds : 3;
             },
             initAnimation: () => {
-                // Use already loaded params from currentParams
                 const params = window.currentParams;
                 if (!params) {
                     console.error('Parameters not loaded. Make sure animation is initialized first.');
@@ -258,21 +221,20 @@
                 applyParams(params);
                 splitTextIntoChars();
                 
-                // Pause video for capture mode
                 video.pause();
                 video.currentTime = 0;
                 
-                const timeline = createTimeline(params, false); // Disable video sync for capture mode
+                const timeline = createTimeline(params);
                 window.tl = timeline;
                 return timeline;
             },
             setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
                 // Sync timeline progress
                 timeline.progress(progress);
-                
+
                 // Sync video currentTime and wait for seek to complete
                 video.currentTime = time;
-                
+
                 // Wait for video to seek to the exact frame
                 await new Promise(resolve => {
                     const onSeeked = () => {
@@ -280,7 +242,7 @@
                         resolve();
                     };
                     video.addEventListener('seeked', onSeeked);
-                    
+
                     // Fallback timeout to prevent hanging
                     setTimeout(resolve, 100);
                 });

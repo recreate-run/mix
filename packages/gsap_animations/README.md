@@ -87,7 +87,7 @@ window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
 });
 ```
 
-## Video Background Pattern
+## Video Background Pattern (Capture/Export)
 
 ```javascript
 setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
@@ -106,6 +106,55 @@ setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
     });
 }
 ```
+
+## Video-Animation Synchronization (Live Playback)
+
+**Core Principle**: Let GSAP's timeline control video timing, not parameter durations.
+
+### ✅ Correct Pattern
+
+```javascript
+function createTimeline(params) {
+    const tl = gsap.timeline({ repeat: -1, repeatDelay: 1 });
+    
+    // Start video when timeline begins
+    tl.call(() => {
+        video.currentTime = 0;
+        video.play().catch(console.error);
+    }, [], 0);
+    
+    // Add all your text/visual animations...
+    tl.to(element, { opacity: 1, duration: 0.5 }, 0)
+      .to(chars, { y: 0, stagger: 0.1 })
+      .to(element, { scale: 1.2, duration: 0.3 });
+    
+    // Stop video when animation actually completes
+    tl.call(() => {
+        video.pause();
+    });
+    
+    return tl;
+}
+```
+
+### ❌ Avoid These Patterns
+
+```javascript
+// DON'T: Hard-coded parameter timing
+tl.call(() => video.pause(), [], params.totalAnimationDurationSeconds);
+
+// DON'T: Event listeners for duration control  
+video.addEventListener('timeupdate', () => {
+    if (video.currentTime >= params.duration) video.pause();
+});
+```
+
+### Why This Works
+
+- **Automatic duration calculation**: GSAP computes real animation duration including stagger effects
+- **Perfect synchronization**: Video stops exactly when animation completes
+- **No timing bugs**: Eliminates mismatches between parameter duration and actual animation duration
+- **Capture compatibility**: Works seamlessly with frame-accurate video export
 
 ## Testing
 

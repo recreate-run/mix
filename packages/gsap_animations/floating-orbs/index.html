@@ -226,6 +226,10 @@
         }
 
         function init() {
+            // Kill existing animations 
+            if (masterTimeline) masterTimeline.kill();
+            blobAnimations.length = 0;
+
             // Initialize split text
             initializeSplitText();
 
@@ -288,7 +292,7 @@
                     console.error('Parameters not loaded. Make sure animation is initialized first.');
                     return null;
                 }
-                
+
                 applyParams(params);
                 init();
                 return masterTimeline;
