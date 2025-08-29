@@ -1,0 +1,148 @@
+---
+title: Blender Setup Guide
+description: Step by step instructions for setting up and configuring Blender with Mix for video editing automation
+category: App Tools
+---
+
+# Blender Integration Setup Guide
+
+Mix integrates deeply with Blender to automate video editing workflows using AI. This guide will walk you through setting up Blender to work with Mix.
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- **Mix** properly installed and configured
+- **Blender 3.0+** installed on your system
+- **Python 3.8+** (usually bundled with Blender)
+
+## Installation Steps
+
+### 1. Install Blender
+
+If you haven't already installed Blender:
+
+1. Visit the [official Blender website](https://www.blender.org/download/)
+2. Download the latest stable version (3.0 or newer recommended)
+3. Complete the installation process for your operating system
+
+### 2. Configure Mix to Find Blender
+
+Mix needs to know where your Blender installation is located. You can specify this in your Mix configuration:
+
+1. Create or edit your `.mix.json` file
+2. Add the Blender path configuration:
+
+```json
+{
+  "tools": {
+    "blender": {
+      "path": "/path/to/blender",
+      "python_path": "/path/to/blender/python"
+    }
+  }
+}
+```
+
+On different platforms, typical paths are:
+- **Windows**: `C:\\Program Files\\Blender Foundation\\Blender 3.x\\blender.exe`
+- **macOS**: `/Applications/Blender.app/Contents/MacOS/Blender`
+- **Linux**: `/usr/bin/blender` or `/snap/bin/blender`
+
+### 3. Verify Installation
+
+To verify that Mix can communicate with Blender:
+
+1. Run Mix with a simple Blender command:
+
+```bash
+./mix -p "Create a simple 10-second timeline in Blender"
+```
+
+2. Check the logs for successful Blender initialization:
+
+```bash
+make tail-log
+```
+
+## Common Workflows
+
+### Basic Video Editing
+
+Mix can help you automate common video editing tasks in Blender:
+
+1. **Timeline Management** - Create and organize sequences
+2. **Transitions** - Add cross-dissolves and other transitions
+3. **Text Overlays** - Add animated text elements
+4. **Color Correction** - Apply color grading and effects
+5. **Audio Synchronization** - Align audio tracks with video
+
+### Advanced Features
+
+Beyond basic editing, Mix can also automate:
+
+1. **3D Elements** - Add 3D elements to your videos
+2. **Complex Animations** - Create keyframe animations
+3. **Compositing** - Apply compositing nodes and effects
+4. **Rendering** - Configure and execute renders in various formats
+5. **Batch Processing** - Process multiple files with the same settings
+
+## Troubleshooting
+
+If you encounter issues with the Blender integration:
+
+1. **Path Issues** - Ensure the Blender executable path is correct in your configuration
+2. **Permission Problems** - Make sure Mix has permission to execute Blender
+3. **Python Version Conflicts** - Verify that Blender's bundled Python is compatible with Mix
+4. **Missing Dependencies** - Check if any required Blender add-ons are installed
+5. **Log Inspection** - Run `make tail-log` to check for specific error messages
+
+## Best Practices
+
+For optimal results when using Mix with Blender:
+
+1. **Use Absolute Paths** - Always use absolute paths for media files
+2. **Channel Organization** - Keep video and audio on separate channels
+3. **Naming Conventions** - Use consistent naming for sequences
+4. **Regular Saves** - Save your Blender project frequently
+5. **Version Control** - Use version control for complex projects
+
+## Example Commands
+
+Here are some example Mix commands for working with Blender:
+
+1. **Create a simple video edit**:
+
+```bash
+./mix -p "Take these 3 video clips and edit them together with cross-dissolve transitions in Blender"
+```
+
+2. **Add text overlays**:
+
+```bash
+./mix -p "Add a title at the beginning of my Blender project and credits at the end"
+```
+
+3. **Export rendered video**:
+
+```bash
+./mix -p "Export my Blender timeline as a 1080p MP4 video"
+```
+
+## Next Steps
+
+Now that you've set up Blender with Mix, you can:
+
+<Cards>
+  <Card title="Explore Blender Tools" href="/docs/backend/tools/app-tools/blender">
+    Learn about the available Blender functions
+  </Card>
+  
+  <Card title="Video Editing Examples" href="/docs/backend/examples">
+    See examples of video editing workflows
+  </Card>
+  
+  <Card title="Advanced Configuration" href="/docs/configuration">
+    Configure advanced Blender settings
+  </Card>
+</Cards>
