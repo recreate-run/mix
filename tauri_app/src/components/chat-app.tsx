@@ -90,7 +90,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // Mode toggles and session management
   const [isPlanMode, setIsPlanMode] = useState(false);
-  const [pendingForkText, setPendingForkText] = useState<{
+  const pendingForkTextRef = useRef<{
     text: string;
     attachments: Attachment[];
     referenceMap: Map<string, string>;
@@ -118,11 +118,22 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const createSession = useCreateSession();
   const navigate = useNavigate();
 
-  // Clear UI state when session changes (new working directory selected)
+  // Handle session changes: fork text loading and UI state clearing
   useEffect(() => {
     if (session?.id && session.id !== previousSessionIdRef.current) {
-      // Only clear if we're switching from one session to another (not initial load)
-      if (previousSessionIdRef.current !== '') {
+      // Handle pending fork first (deterministic order)
+      if (pendingForkTextRef.current) {
+        setText(pendingForkTextRef.current.text);
+        useBoundStore
+          .getState()
+          .setHistoryState(
+            pendingForkTextRef.current.attachments,
+            pendingForkTextRef.current.referenceMap
+          );
+        pendingForkTextRef.current = null;
+      }
+      // Then handle session clearing (only if no fork was processed and not initial load)
+      else if (previousSessionIdRef.current !== '') {
         setText('');
         clearAttachments();
         interruptedMessageAddedRef.current = false;
@@ -139,20 +150,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setMessages([]);
     }
   }, [sessionMessages.data, session?.id]);
-
-  // Set fork text after session switching completes
-  useEffect(() => {
-    if (pendingForkText && session?.id) {
-      setText(pendingForkText.text);
-      useBoundStore
-        .getState()
-        .setHistoryState(
-          pendingForkText.attachments,
-          pendingForkText.referenceMap
-        );
-      setPendingForkText(null);
-    }
-  }, [pendingForkText, session?.id]);
 
   // Transform open apps to Attachment format and filter allowed apps
   const allowedApps = [
@@ -557,15 +554,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           appNames
         );
 
+      // Queue fork text BEFORE navigation to prevent race condition
+      pendingForkTextRef.current = { text: contractedText, attachments, referenceMap };
+
       // Navigate to the forked session
       navigate({
         to: '/$sessionId',
         params: { sessionId: newSession.id },
         replace: true,
       });
-
-      // Queue fork text to be set after session switching completes
-      setPendingForkText({ text: contractedText, attachments, referenceMap });
     } catch (error) {
       console.error('Failed to fork conversation:', error);
       setMessages((prev) => [
