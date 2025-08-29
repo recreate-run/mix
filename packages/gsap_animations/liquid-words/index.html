@@ -9,8 +9,23 @@
         @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
 
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #000;
             font-family: "Inter", sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .morphing-container {
@@ -40,9 +55,11 @@
     </style>
 </head>
 <body>
-    <div class="morphing-container">
-        <div class="text-element" id="text1">Innovation</div>
-        <div class="text-element" id="text2">Creativity</div>
+    <div class="page-container">
+        <div class="morphing-container">
+            <div class="text-element" id="text1">Innovation</div>
+            <div class="text-element" id="text2">Creativity</div>
+        </div>
     </div>
 
 
@@ -82,7 +99,8 @@
                 textSizeRem: 3,
                 textColor: '#fff',
                 backgroundCSS: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                autoloop: false
+                autoloop: false,
+                aspectRatio: '9/16'
             };
             
             const urlParams = new URLSearchParams(location.search);
@@ -101,6 +119,29 @@
             return { ...defaults, ...urlObj };
         }
 
+        /**
+         * Parses aspect ratio string like "16/9" into numeric values
+         * @param {string} aspectRatioStr - Format like "16/9", "4/3", etc.
+         * @returns {Object} Object with width, height, and decimal ratio
+         */
+        function parseAspectRatio(aspectRatioStr) {
+            const parts = aspectRatioStr.split('/');
+            if (parts.length !== 2) {
+                console.warn(`Invalid aspect ratio format: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9/16 };
+            }
+            
+            const width = parseFloat(parts[0]);
+            const height = parseFloat(parts[1]);
+            
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                console.warn(`Invalid aspect ratio values: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9/16 };
+            }
+            
+            return { width, height, decimal: width/height };
+        }
+
         function applyParams(params) {
             // Parse words array
             texts = params.commaSeparatedWordList.split(',').map(w => w.trim());
@@ -113,7 +154,15 @@
                 element.style.fontSize = `${params.textSizeRem}rem`;
                 element.style.color = params.textColor;
             });
-            document.body.style.background = params.backgroundCSS;
+            // Apply dynamic aspect ratio
+            const aspectRatio = parseAspectRatio(params.aspectRatio);
+            const pageContainer = document.querySelector('.page-container');
+            pageContainer.style.aspectRatio = `${aspectRatio.width}/${aspectRatio.height}`;
+            pageContainer.style.maxWidth = `calc(100vh * ${aspectRatio.width}/${aspectRatio.height})`;
+            pageContainer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
+            
+            // Apply background to page-container instead of body
+            pageContainer.style.background = params.backgroundCSS;
         }
 
         function createMorphTimeline() {

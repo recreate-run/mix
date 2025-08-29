@@ -14,12 +14,18 @@
             background: #000;
             font-family: "Inter", sans-serif;
             overflow: hidden;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .video-container {
+        .page-container {
             position: relative;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -64,7 +70,7 @@
 </head>
 
 <body>
-    <div class="video-container">
+    <div class="page-container">
         <video class="video-player" muted>
             <source src="http://localhost:8088/input/videos/egg.mp4" type="video/mp4">
             Your browser does not support the video tag.
@@ -93,18 +99,18 @@
             const parts = aspectRatioStr.split('/');
             if (parts.length !== 2) {
                 console.warn(`Invalid aspect ratio format: ${aspectRatioStr}, using default 9/16`);
-                return { width: 9, height: 16, decimal: 9/16 };
+                return { width: 9, height: 16, decimal: 9 / 16 };
             }
-            
+
             const width = parseFloat(parts[0]);
             const height = parseFloat(parts[1]);
-            
+
             if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
                 console.warn(`Invalid aspect ratio values: ${aspectRatioStr}, using default 9/16`);
-                return { width: 9, height: 16, decimal: 9/16 };
+                return { width: 9, height: 16, decimal: 9 / 16 };
             }
-            
-            return { width, height, decimal: width/height };
+
+            return { width, height, decimal: width / height };
         }
 
         async function getParams() {
@@ -125,17 +131,12 @@
 
             // Apply dynamic aspect ratio
             const aspectRatio = parseAspectRatio(params.aspectRatio);
-            const videoContainer = document.querySelector('.video-container');
-            const videoPlayer = document.querySelector('.video-player');
-            
-            // Set aspect ratio on container
-            videoContainer.style.aspectRatio = `${aspectRatio.width}/${aspectRatio.height}`;
-            
-            // Set responsive max-width and max-height on video player
-            // For max-width: if height-constrained, width = height * aspect-ratio
-            videoPlayer.style.maxWidth = `calc(100vh * ${aspectRatio.width}/${aspectRatio.height})`;
-            // For max-height: if width-constrained, height = width * inverse-aspect-ratio
-            videoPlayer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
+            const pageContainer = document.querySelector('.page-container');
+
+            // Set aspect ratio and responsive constraints on container
+            pageContainer.style.aspectRatio = `${aspectRatio.width}/${aspectRatio.height}`;
+            pageContainer.style.maxWidth = `calc(100vh * ${aspectRatio.width}/${aspectRatio.height})`;
+            pageContainer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
         }
 
         // Split text into characters
@@ -153,7 +154,7 @@
 
         function createTimeline(params) {
             if (tl) tl.kill();
-            
+
             tl = gsap.timeline({ repeat: -1, repeatDelay: 1 });
 
             // Start video at beginning of timeline
@@ -252,13 +253,13 @@
                     console.error('Parameters not loaded. Make sure animation is initialized first.');
                     return null;
                 }
-                
+
                 applyParams(params);
                 splitTextIntoChars();
-                
+
                 video.pause();
                 video.currentTime = 0;
-                
+
                 const timeline = createTimeline(params);
                 window.tl = timeline;
                 return timeline;

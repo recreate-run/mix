@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rough Notation Underline Animation</title>
+    <link rel="stylesheet" href="../shared/base.css">
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+
+        body {
+            font-family: "Inter", system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        .page-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Aspect ratio will be applied dynamically via JavaScript */
+        }
+
+        .annotation-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+        }
+
+        .text-element {
+            font-size: 4rem;
+            font-weight: 700;
+            color: #2D3748;
+            line-height: 1.2;
+            position: relative;
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .annotation-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-container">
+        <div class="annotation-container">
+            <div class="annotation-wrapper">
+                <span class="text-element" id="textElement">Amazing</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://unpkg.com/rough-notation/lib/rough-notation.iife.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script src="../shared/param-loader.js"></script>
+    <script src="../shared/capture-helper.js"></script>
+
+    <script>
+        // Global variables
+        let params;
+        let currentAnnotation = null;
+        let masterTimeline;
+        let textElement;
+        let totalDuration;
+
+        // Initialize on load
+        window.addEventListener('load', async () => {
+            try {
+                params = await window.AnimationParams.loadParameters();
+                initAnimation();
+            } catch (error) {
+                console.error('Failed to load parameters:', error);
+                // Fallback with defaults
+                initWithDefaults();
+            }
+        });
+
+        function initWithDefaults() {
+            params = {
+                singleWord: 'Amazing',
+                underlineColor: '#FF6B6B',
+                animationDuration: 1.5,
+                strokeWidth: 3,
+                textSizeRem: 4,
+                textColor: '#2D3748',
+                backgroundCSS: 'linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                padding: 4,
+                autoloop: false,
+                aspectRatio: '9/16'
+            };
+            initAnimation();
+        }
+
+        /**
+         * Parses aspect ratio string like "16/9" into numeric values
+         * @param {string} aspectRatioStr - Format like "16/9", "4/3", etc.
+         * @returns {Object} Object with width, height, and decimal ratio
+         */
+        function parseAspectRatio(aspectRatioStr) {
+            const parts = aspectRatioStr.split('/');
+            if (parts.length !== 2) {
+                console.warn(`Invalid aspect ratio format: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9 / 16 };
+            }
+
+            const width = parseFloat(parts[0]);
+            const height = parseFloat(parts[1]);
+
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                console.warn(`Invalid aspect ratio values: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9 / 16 };
+            }
+
+            return { width, height, decimal: width / height };
+        }
+
+        function applyStyles() {
+            textElement = document.getElementById('textElement');
+
+            // Apply text styles
+            textElement.style.fontSize = `${params.textSizeRem}rem`;
+            textElement.style.color = params.textColor;
+            textElement.style.fontFamily = params.fontFamily;
+            textElement.textContent = params.singleWord;
+
+            // Apply dynamic aspect ratio to page container
+            const aspectRatio = parseAspectRatio(params.aspectRatio);
+            const pageContainer = document.querySelector('.page-container');
+            pageContainer.style.aspectRatio = `${aspectRatio.width}/${aspectRatio.height}`;
+            pageContainer.style.maxWidth = `calc(100vh * ${aspectRatio.width}/${aspectRatio.height})`;
+            pageContainer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
+
+            // Apply background to container only, not full body
+            pageContainer.style.background = params.backgroundCSS;
+        }
+
+        function createUnderlineAnnotation() {
+            // Remove existing annotation
+            if (currentAnnotation) {
+                currentAnnotation.remove();
+                currentAnnotation = null;
+            }
+
+            // Create underline annotation
+            const annotation = window.RoughNotation.annotate(textElement, {
+                type: 'underline',
+                color: params.underlineColor,
+                strokeWidth: params.strokeWidth,
+                animationDuration: params.animationDuration * 1000, // Convert to ms
+                padding: params.padding,
+                multiline: false
+            });
+
+            return annotation;
+        }
+
+        function createMasterTimeline() {
+            // Calculate total duration
+            const textEntranceDuration = 0.6;
+            const underlineDuration = params.animationDuration;
+            const holdDuration = 0.5;
+            totalDuration = textEntranceDuration + underlineDuration + holdDuration;
+
+            const tl = gsap.timeline({
+                repeat: params.autoloop ? -1 : 0,
+                repeatDelay: params.autoloop ? 0.8 : 0
+            });
+
+            // Initial state - text hidden
+            tl.set(textElement, { opacity: 0, y: 25, scale: 0.95 });
+
+            // Text entrance animation
+            tl.to(textElement, {
+                duration: textEntranceDuration,
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                ease: "back.out(1.4)"
+            })
+
+                // Small pause before underline
+                .to({}, { duration: 0.2 })
+
+                // Underline animation
+                .call(() => {
+                    currentAnnotation = createUnderlineAnnotation();
+                    currentAnnotation.show();
+                })
+
+                // Hold final state
+                .to({}, { duration: holdDuration });
+
+            // If autoloop, add reset logic
+            if (params.autoloop) {
+                tl.call(() => {
+                    if (currentAnnotation) {
+                        currentAnnotation.hide();
+                    }
+                })
+                    .to(textElement, {
+                        duration: 0.3,
+                        opacity: 0,
+                        y: -15,
+                        scale: 1.05,
+                        ease: "back.in(1.4)"
+                    });
+            }
+
+            return tl;
+        }
+
+        function initAnimation() {
+            applyStyles();
+
+            // Kill existing timeline
+            if (masterTimeline) {
+                masterTimeline.kill();
+            }
+
+            // Remove existing annotation
+            if (currentAnnotation) {
+                currentAnnotation.remove();
+                currentAnnotation = null;
+            }
+
+            // Create and start animation
+            masterTimeline = createMasterTimeline();
+            masterTimeline.play();
+
+            return masterTimeline;
+        }
+
+        // Capture interface for video generation
+        window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
+            duration: () => {
+                if (!params) return 3; // fallback
+                return totalDuration;
+            },
+            initAnimation: () => {
+                if (!params) {
+                    console.error('Parameters not loaded. Make sure animation is initialized first.');
+                    return null;
+                }
+
+                const timeline = initAnimation();
+                return timeline;
+            },
+            setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
+                // Simple linear progress for single animation
+                if (masterTimeline) {
+                    const clampedProgress = Math.min(progress, 1);
+                    masterTimeline.progress(clampedProgress);
+                }
+            }
+        });
+
+        // Expose for debugging
+        window.DEBUG = {
+            params,
+            masterTimeline,
+            currentAnnotation
+        };
+    </script>
+</body>
+
+</html>

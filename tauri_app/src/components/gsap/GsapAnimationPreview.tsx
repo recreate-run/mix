@@ -37,19 +37,15 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 
   // Load animation schema
   useEffect(() => {
-    console.log(`[GsapAnimationPreview] Config URL: ${config.url}`);
-    console.log(`[GsapAnimationPreview] Extracted animation name: ${animationName}`);
-    console.log(`[GsapAnimationPreview] Base server URL: ${baseServerUrl}`);
 
     if (!animationName || !baseServerUrl) {
-      console.log(`[GsapAnimationPreview] Missing animationName or baseServerUrl, skipping schema fetch`);
+      console.error(`[GsapAnimationPreview] Missing animationName or baseServerUrl, skipping schema fetch`);
       return;
     }
 
     setIsLoadingSchema(true);
     fetchAnimationSchema(animationName, baseServerUrl)
       .then((fetchedSchema) => {
-        console.log(`[GsapAnimationPreview] Schema loaded:`, fetchedSchema);
         setSchema(fetchedSchema);
       })
       .finally(() => {
@@ -65,7 +61,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
       ([entry]) => {
         setIsVisible(entry.isIntersecting);
       },
-      { 
+      {
         threshold: 0.1, // Trigger when 10% of the iframe container is visible
         rootMargin: '50px' // Start loading slightly before it comes into view
       }

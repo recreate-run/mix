@@ -27,6 +27,7 @@ function getCurrentAnimationName() {
     if (path.includes('character-cascade')) return 'character-cascade';
     if (path.includes('floating-orbs')) return 'floating-orbs';
     if (path.includes('liquid-words')) return 'liquid-words';
+    if (path.includes('rough-annotations')) return 'rough-annotations';
     
     throw new Error('Could not determine animation name from URL');
 }

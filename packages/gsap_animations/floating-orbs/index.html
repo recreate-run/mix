@@ -10,8 +10,23 @@
         @import url("https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&display=swap");
 
         body {
-            background-color: #d1fae5;
+            background: #000;
             font-family: 'Urbanist', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .background {
@@ -78,7 +93,7 @@
 </head>
 
 <body>
-    <div class="">
+    <div class="page-container">
         <div class="background">
             <div class="blob blob-1"></div>
             <div class="blob blob-2"></div>
@@ -107,6 +122,29 @@
             return await window.AnimationParams.loadParameters();
         }
 
+        /**
+         * Parses aspect ratio string like "16/9" into numeric values
+         * @param {string} aspectRatioStr - Format like "16/9", "4/3", etc.
+         * @returns {Object} Object with width, height, and decimal ratio
+         */
+        function parseAspectRatio(aspectRatioStr) {
+            const parts = aspectRatioStr.split('/');
+            if (parts.length !== 2) {
+                console.warn(`Invalid aspect ratio format: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9/16 };
+            }
+            
+            const width = parseFloat(parts[0]);
+            const height = parseFloat(parts[1]);
+            
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                console.warn(`Invalid aspect ratio values: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9/16 };
+            }
+            
+            return { width, height, decimal: width/height };
+        }
+
         function applyParams(params) {
             DURATION = params.animationDurationSeconds;
 
@@ -117,7 +155,6 @@
             document.querySelector('.title').style.fontSize = `${params.textSizeRem}rem`;
             document.querySelector('.title').style.color = params.textColor;
             document.querySelector('.background').style.backgroundColor = params.canvasBackgroundColor;
-            document.body.style.backgroundColor = params.canvasBackgroundColor;
 
             // Apply blob colors and styles
             document.querySelector('.blob-1').style.backgroundColor = params.primaryBlobColor;
@@ -129,6 +166,16 @@
                 blob.style.opacity = params.blobOpacityLevel;
                 blob.style.filter = `blur(${params.blobBlurRadiusPixels}px)`;
             });
+
+            // Apply dynamic aspect ratio
+            const aspectRatio = parseAspectRatio(params.aspectRatio);
+            const pageContainer = document.querySelector('.page-container');
+            pageContainer.style.aspectRatio = `${aspectRatio.width}/${aspectRatio.height}`;
+            pageContainer.style.maxWidth = `calc(100vh * ${aspectRatio.width}/${aspectRatio.height})`;
+            pageContainer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
+            
+            // Apply background to page-container instead of body
+            pageContainer.style.background = params.canvasBackgroundColor;
         }
 
         function initializeSplitText() {
@@ -157,10 +204,12 @@
                 const radiusVariation = seededRandom(waypointIndex * 10) * 200 + 300; // Variable movement radius
                 const angle = seededRandom(waypointIndex * 15) * Math.PI * 2;
 
-                // Use actual viewport dimensions
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                const centerX = screenWidth / 2 - blobSize / 2; // Actual screen center minus blob center offset
+                // Use page-container dimensions instead of viewport
+                const container = document.querySelector('.page-container');
+                const containerRect = container.getBoundingClientRect();
+                const screenWidth = containerRect.width;
+                const screenHeight = containerRect.height;
+                const centerX = screenWidth / 2 - blobSize / 2;
                 const centerY = screenHeight / 2 - blobSize / 2;
 
                 return {
@@ -255,9 +304,12 @@
             // Set initial positions for blobs
             blobs.forEach((blob, index) => {
                 const blobSize = 400;
-                const centerX = window.innerWidth / 2 - blobSize / 2;
-                const centerY = window.innerHeight / 2 - blobSize / 2;
-                gsap.set(blob, { x: centerX, y: centerY }); // Actual screen center position
+                // Use page-container dimensions instead of viewport
+                const container = document.querySelector('.page-container');
+                const containerRect = container.getBoundingClientRect();
+                const centerX = containerRect.width / 2 - blobSize / 2;
+                const centerY = containerRect.height / 2 - blobSize / 2;
+                gsap.set(blob, { x: centerX, y: centerY });
             });
 
             // Force timeline to have minimum duration
