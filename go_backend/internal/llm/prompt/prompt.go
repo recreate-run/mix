@@ -47,7 +47,6 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 	return basePrompt, nil
 }
 
-
 func getContextFromPaths(ctx context.Context) (string, error) {
 	workingDir, ok := ctx.Value(tools.WorkingDirectoryContextKey).(string)
 	if !ok {
@@ -118,11 +117,6 @@ func processContextPaths(workDir string, paths []string) (string, error) {
 	}
 
 	content := strings.Join(results, "\n")
-	logging.Info("Context file loading completed",
-		"files_found", foundCount,
-		"files_loaded", loadedCount,
-		"content_length", len(content))
-
 	return content, nil
 }
 
@@ -136,12 +130,11 @@ func processFile(filePath string) (string, bool, error) {
 		logging.Error("Failed to read context file", "path", filePath, "error", err)
 		return "", false, fmt.Errorf("failed to read context file %s: %w", filePath, err)
 	}
-	
+
 	if len(content) == 0 {
 		logging.Info("Context file is empty", "path", filePath)
 		return "", true, nil // Found but empty
 	}
-	
-	logging.Info("Successfully loaded context file", "path", filePath, "size", len(content))
+
 	return "# From:" + filePath + "\n" + string(content), true, nil
 }

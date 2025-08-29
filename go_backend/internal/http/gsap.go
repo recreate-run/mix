@@ -42,9 +42,8 @@ func HandleGSAPAnimationsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Construct path to animations directory
-	projectRoot := filepath.Dir(workingDir)
-	animationsDir := filepath.Join(projectRoot, "packages", "gsap_animations")
+	// Construct path to animations directory (workingDir is now the project root)
+	animationsDir := filepath.Join(workingDir, "packages", "gsap_animations")
 
 	// Create secure root for animations directory
 	root, err := os.OpenRoot(animationsDir)
@@ -146,9 +145,8 @@ func HandleGSAPAnimationSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Construct path to animations directory
-	projectRoot := filepath.Dir(workingDir)
-	animationsDir := filepath.Join(projectRoot, "packages", "gsap_animations")
+	// Construct path to animations directory (workingDir is now the project root)
+	animationsDir := filepath.Join(workingDir, "packages", "gsap_animations")
 
 	// Create secure root for animations directory
 	root, err := os.OpenRoot(animationsDir)
@@ -221,12 +219,11 @@ func HandleGSAPAnimationFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Construct full file path to animations package (go up one level from go_backend to reach packages)
-	projectRoot := filepath.Dir(workingDir) // Go up one level from go_backend
-	fullPath := filepath.Join(projectRoot, "packages", "gsap_animations", animationPath)
+	// Construct full file path to animations package (workingDir is now the project root)
+	fullPath := filepath.Join(workingDir, "packages", "gsap_animations", animationPath)
 
 	// Security check: ensure path is within animations package directory
-	animationsDir := filepath.Join(projectRoot, "packages", "gsap_animations")
+	animationsDir := filepath.Join(workingDir, "packages", "gsap_animations")
 	if !strings.HasPrefix(fullPath, animationsDir) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
@@ -423,7 +420,7 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 
 	// Create unique temporary directory for frames only
 	timestamp := time.Now().Format("20060102-150405")
-	framesDir := filepath.Join(workingDir, "temp", "video_frames", timestamp)
+	framesDir := filepath.Join(workingDir, "go_backend", "temp", "video_frames", timestamp)
 	if err := os.MkdirAll(framesDir, 0755); err != nil {
 		logging.Debug("Failed to create frames directory: %v", err)
 		http.Error(w, "Failed to create frames directory", http.StatusInternalServerError)
@@ -438,7 +435,7 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Path to Node.js capture script
-	scriptPath := filepath.Join(workingDir, "scripts", "capture-url.mjs")
+	scriptPath := filepath.Join(workingDir, "go_backend", "scripts", "capture-url.mjs")
 	
 	// Check if Node.js script exists
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
