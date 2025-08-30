@@ -1,0 +1,476 @@
+<!--
+=== GSAP ANIMATION TEMPLATE ===
+
+QUICK START:
+1. Copy this template: cp -r packages/gsap_animations/gsap_starter_template packages/gsap_animations/your-animation-name
+2. Replace {{ ANIMATION_NAME }} and {{ ANIMATION_DESCRIPTION }} placeholders
+3. Customize the animation logic in createTimeline() function
+4. Test: make dev, visit http://localhost:3000/gsap_animations/your-animation-name/
+
+REQUIRED PATTERNS (DO NOT MODIFY):
+- Parameter loading via getParams() and applyParams()
+- Aspect ratio handling via parseAspectRatio()  
+- Capture interface for video export
+- Standard event listener setup
+
+COMMON ANIMATION PATTERNS:
+- Character reveals: splitTextIntoChars() + stagger: 0.05
+- Word reveals: splitTextIntoWords() + stagger: 0.15  
+- Easing: "back.out(1.4)", "power2.out", "bounce.out"
+- Video sync: Use timeline.call() for video start/stop
+
+PARAMETER NAMING CONVENTIONS:
+- Duration: *DurationSeconds, *DelaySeconds
+- Size: textSizeRem, *SizePixels  
+- Colors: *Color (hex format)
+- CSS: *CSS (complex values)
+- Required: aspectRatio, autoloop
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ ANIMATION_NAME }} Animation</title>
+    <meta name="description" content="{{ ANIMATION_DESCRIPTION }}">
+
+    <!-- Standard shared styles - REQUIRED for all animations -->
+    <link rel="stylesheet" href="../shared/base.css">
+
+    <!-- Animation-specific styles -->
+    <style>
+        /* === GOOGLE FONTS IMPORT === */
+        /* Add your Google Fonts import here. Common choices:
+         * @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap");
+         * @import url("https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&display=swap");
+         */
+
+        /* === STANDARD BODY STYLES (COMMON PATTERN) === */
+        body {
+            background: #000;
+            /* Default black background */
+            font-family: "Inter", sans-serif;
+            /* Use consistent font family */
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            /* Prevent scrolling during animations */
+        }
+
+        /* === PAGE CONTAINER PATTERN === */
+        .page-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Aspect ratio will be applied dynamically via JavaScript */
+        }
+
+        /* === ANIMATION-SPECIFIC STYLES === */
+        /* Add your custom styles here following these patterns:
+         * 
+         * Text Elements:
+         * - Use position: absolute for overlays
+         * - Use transform-origin for proper scaling
+         * - Set initial opacity: 0 for reveal animations
+         * 
+         * Animation Elements:
+         * - Use transform-origin: center for balanced scaling
+         * - Consider z-index layering
+         * - Use relative/absolute positioning as needed
+         */
+
+        .main-element {
+            /* Example main animation element */
+            position: relative;
+            z-index: 10;
+        }
+
+        .animated-text {
+            font-weight: 700;
+            color: #fff;
+            text-align: center;
+            opacity: 0;
+            /* Hidden initially for reveal animation */
+            transform: scale(0.8);
+            /* Slightly scaled down for entrance effect */
+        }
+
+        /* Character-level animation support */
+        .char {
+            display: inline-block;
+            transform-origin: center bottom;
+        }
+
+        /* Word-level animation support */
+        .word {
+            display: inline-block;
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-container">
+        <!-- === MAIN CONTENT STRUCTURE === -->
+        <!-- Replace this section with your animation-specific HTML -->
+        <div class="main-element">
+            <div class="animated-text" id="mainText">Your Animation Content</div>
+        </div>
+
+        <!-- === OPTIONAL: VIDEO BACKGROUND === -->
+        <!-- Uncomment if your animation uses video background:
+        <video class="video-player" muted style="width: 100%; height: 100%; object-fit: cover;">
+            <source src="http://localhost:8088/input/videos/default.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        -->
+
+        <!-- === OPTIONAL: SVG FILTERS === -->
+        <!-- Uncomment and customize if you need SVG filters:
+        <svg id="filters" style="position: fixed; height: 0; width: 0;">
+            <defs>
+                <filter id="your-filter">
+                    <!-- Your filter definitions -->
+        </filter>
+        </defs>
+        </svg>
+        -->
+    </div>
+
+    <!-- === REQUIRED SCRIPTS (STANDARD ORDER) === -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+
+    <!-- === OPTIONAL: GSAP PLUGINS === -->
+    <!-- Add GSAP plugins as needed:
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/SplitText.min.js"></script>
+    -->
+
+    <!-- === OPTIONAL: THIRD-PARTY LIBRARIES === -->
+    <!-- Add other libraries as needed:
+    <script src="https://unpkg.com/rough-notation/lib/rough-notation.iife.js"></script>
+    -->
+
+    <!-- === SHARED INFRASTRUCTURE (REQUIRED) === -->
+    <script src="../shared/param-loader.js"></script>
+    <script src="../shared/capture-helper.js"></script>
+
+    <script>
+        // === GLOBAL VARIABLES ===
+        let masterTimeline;
+        let currentParams;
+
+        // Add your animation-specific global variables here
+        // Example: let video, animatedText, splitText;
+
+        // === REQUIRED: PARAMETER LOADING ===
+        // This function is REQUIRED and uses the shared parameter loader
+        async function getParams() {
+            return await window.AnimationParams.loadParameters();
+        }
+
+        // === REQUIRED: ASPECT RATIO PARSING ===
+        // This function is REQUIRED and should be copied exactly from existing animations
+        function parseAspectRatio(aspectRatioStr) {
+            const parts = aspectRatioStr.split('/');
+            if (parts.length !== 2) {
+                console.warn(`Invalid aspect ratio format: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9 / 16 };
+            }
+
+            const width = parseFloat(parts[0]);
+            const height = parseFloat(parts[1]);
+
+            if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+                console.warn(`Invalid aspect ratio values: ${aspectRatioStr}, using default 9/16`);
+                return { width: 9, height: 16, decimal: 9 / 16 };
+            }
+
+            return { width, height, decimal: width / height };
+        }
+
+        // === REQUIRED: APPLY PARAMETERS ===
+        // This function applies parameters to DOM elements and styles
+        function applyParams(params) {
+            // === STANDARD TEXT APPLICATION ===
+            const textElement = document.querySelector('.animated-text');
+            if (textElement && params.displayText) {
+                textElement.textContent = params.displayText;
+            }
+            if (textElement && params.textSizeRem) {
+                textElement.style.fontSize = `${params.textSizeRem}rem`;
+            }
+            if (textElement && params.textColor) {
+                textElement.style.color = params.textColor;
+            }
+
+            // === STANDARD ASPECT RATIO APPLICATION ===
+            const aspectRatio = parseAspectRatio(params.aspectRatio);
+            const pageContainer = document.querySelector('.page-container');
+            pageContainer.style.aspectRatio = `${aspectRatio.width}/${aspectRatio.height}`;
+            pageContainer.style.maxWidth = `calc(100vh * ${aspectRatio.width}/${aspectRatio.height})`;
+            pageContainer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
+
+            // === STANDARD BACKGROUND APPLICATION ===
+            if (params.backgroundCSS) {
+                pageContainer.style.background = params.backgroundCSS;
+            }
+
+            // === VIDEO APPLICATION (if using video) ===
+            // Uncomment if your animation uses video:
+            /*
+            const video = document.querySelector('video');
+            if (video && params.backgroundVideoURL) {
+                video.src = params.backgroundVideoURL;
+            }
+            */
+
+            // === ADD YOUR CUSTOM PARAMETER APPLICATIONS HERE ===
+            // Apply animation-specific parameters:
+            // if (params.customParam) {
+            //     // Apply your custom parameter
+            // }
+        }
+
+        // === OPTIONAL: TEXT SPLITTING UTILITIES ===
+        // Uncomment and use these if your animation needs character or word splitting
+
+        // Split text into individual character spans
+        function splitTextIntoChars(textElement) {
+            const text = textElement.textContent;
+            textElement.innerHTML = '';
+
+            text.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.className = 'char';
+                span.textContent = char === ' ' ? '\u00A0' : char; // Non-breaking space
+                textElement.appendChild(span);
+            });
+        }
+
+        // Split text into word spans (basic implementation)
+        function splitTextIntoWords(textElement) {
+            const text = textElement.textContent;
+            textElement.innerHTML = '';
+
+            text.split(' ').forEach(word => {
+                const span = document.createElement('span');
+                span.className = 'word';
+                span.textContent = word;
+                textElement.appendChild(span);
+
+                // Add space after word (except last)
+                if (word !== text.split(' ').pop()) {
+                    textElement.appendChild(document.createTextNode(' '));
+                }
+            });
+        }
+
+        // === REQUIRED: TIMELINE CREATION ===
+        function createTimeline(params) {
+            // Kill existing timeline to prevent memory leaks
+            if (masterTimeline) masterTimeline.kill();
+
+            // Create timeline with standard autoloop pattern
+            const tl = gsap.timeline({
+                repeat: params.autoloop ? -1 : 0,
+                repeatDelay: params.autoloop ? 1 : 0 // 1 second delay between loops
+            });
+
+            // === ADD YOUR ANIMATION LOGIC HERE ===
+            // Common animation patterns:
+
+            // 1. Text reveal with character stagger:
+            /*
+            const chars = document.querySelectorAll('.char');
+            gsap.set(chars, { y: 50, opacity: 0 });
+            tl.to(chars, {
+                y: 0,
+                opacity: 1,
+                duration: 0.6,
+                stagger: 0.05, // 50ms delay between characters
+                ease: "back.out(1.2)"
+            });
+            */
+
+            // 2. Scale and rotation entrance:
+            /*
+            gsap.set('.animated-text', { opacity: 0, scale: 0.5, rotation: -10 });
+            tl.to('.animated-text', {
+                opacity: 1,
+                scale: 1,
+                rotation: 0,
+                duration: 0.4,
+                ease: "back.out(2)"
+            });
+            */
+
+            // 3. Video synchronization (if using video):
+            /*
+            const video = document.querySelector('video');
+            if (video) {
+                // Start video with timeline
+                tl.call(() => {
+                    video.currentTime = 0;
+                    video.play().catch(console.error);
+                }, [], 0);
+                
+                // Stop video when animation completes
+                tl.call(() => {
+                    video.pause();
+                });
+            }
+            */
+
+            // === EXAMPLE: SIMPLE FADE IN ANIMATION ===
+            // Replace this with your custom animation logic
+            const textElement = document.querySelector('.animated-text');
+            gsap.set(textElement, { opacity: 0, y: 30 });
+
+            tl.to(textElement, {
+                opacity: 1,
+                y: 0,
+                duration: 0.8,
+                ease: "power2.out"
+            })
+                .to(textElement, {
+                    scale: 1.05,
+                    duration: 0.3,
+                    yoyo: true,
+                    repeat: 1,
+                    ease: "power2.inOut"
+                });
+
+            return tl;
+        }
+
+        // === REQUIRED: INITIALIZATION FUNCTION ===
+        async function initAnimation() {
+            try {
+                // Load parameters using shared system
+                const params = await getParams();
+                window.currentParams = params; // Store globally for capture interface
+
+                // Apply parameters to DOM and styles
+                applyParams(params);
+
+                // === ADD YOUR INITIALIZATION LOGIC HERE ===
+                // Common initialization tasks:
+                // - Split text if needed: splitTextIntoChars(document.querySelector('.animated-text'));
+                // - Initialize third-party libraries
+                // - Set up event listeners
+                // - Prepare animation elements
+
+                // Create and start the animation timeline
+                masterTimeline = createTimeline(params);
+                masterTimeline.play();
+
+                return masterTimeline;
+
+            } catch (error) {
+                console.error('Animation initialization failed:', error);
+                // Provide fallback behavior if needed
+            }
+        }
+
+        // === REQUIRED: EVENT LISTENERS ===
+        // Standard initialization - use 'load' for most cases, 'DOMContentLoaded' for simple animations
+        window.addEventListener('load', initAnimation);
+
+        // === OPTIONAL: VIDEO EVENT HANDLERS ===
+        // Uncomment if your animation uses video:
+        /*
+        const video = document.querySelector('video');
+        if (video) {
+            video.addEventListener('loadeddata', () => {
+                console.log('Video loaded successfully');
+            });
+
+            video.addEventListener('error', (e) => {
+                console.error('Video failed to load:', e);
+            });
+        }
+        */
+
+        // === REQUIRED: CAPTURE INTERFACE ===
+        // This interface enables video capture/export functionality
+        window.__CAPTURE__ = window.CaptureHelper.createCustomCaptureInterface({
+            // Duration function - returns animation duration in seconds
+            duration: () => {
+                return window.currentParams ? window.currentParams.animationDurationSeconds : 3;
+            },
+
+            // Initialize animation for capture
+            initAnimation: () => {
+                const params = window.currentParams;
+                if (!params) {
+                    console.error('Parameters not loaded. Make sure animation is initialized first.');
+                    return null;
+                }
+
+                // Apply parameters and create timeline for capture
+                applyParams(params);
+
+                // === ADD YOUR CAPTURE INITIALIZATION HERE ===
+                // Common capture prep:
+                // - Reset any randomized elements to consistent state
+                // - Pause any videos: video.pause(); video.currentTime = 0;
+                // - Re-initialize text splitting if needed
+
+                const timeline = createTimeline(params);
+                return timeline;
+            },
+
+            // Frame-by-frame logic for video export
+            setFrameLogic: async (frameIndex, fps, time, progress, timeline) => {
+                // Standard timeline progress sync
+                timeline.progress(progress);
+
+                // === VIDEO SYNC PATTERN (if using video) ===
+                // Uncomment if your animation includes video:
+                /*
+                const video = document.querySelector('video');
+                if (video) {
+                    video.currentTime = time;
+                    
+                    // Wait for video to seek to exact frame
+                    await new Promise(resolve => {
+                        const onSeeked = () => {
+                            video.removeEventListener('seeked', onSeeked);
+                            resolve();
+                        };
+                        video.addEventListener('seeked', onSeeked);
+                        
+                        // Fallback timeout to prevent hanging
+                        setTimeout(resolve, 100);
+                    });
+                }
+                */
+
+                // === ADD YOUR CUSTOM FRAME LOGIC HERE ===
+                // Examples:
+                // - Update particle systems
+                // - Sync with external data
+                // - Apply frame-specific calculations
+            }
+        });
+
+        // === OPTIONAL: DEBUG EXPORTS ===
+        // Expose variables for debugging (remove in production)
+        window.DEBUG = {
+            params: () => window.currentParams,
+            timeline: () => masterTimeline,
+            // Add other debug helpers here
+        };
+    </script>
+</body>
+
+</html>

@@ -6,14 +6,6 @@
 
 Mix is an open-source, local agent for multimodal tasks. Claude code users will feel at home.
 
-<https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5>
-
-📋 Key Features
-
-- Uses ffmpeg and local apps like blender instead of clunky cloud based editors
-- All project data is stored plain text and native media files - absolutely no lock-in.create a  
-- The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our SDK with stdio interface (similar to claude code SDK) is launching soon.
-
 ## Quick Install
 
 1. The agent uses claude sonnet 4. You can authenticate with your claude code account using the `/login` command in the UI after installation ,  or set the  `ANHROPIC_API_KEY` in the `.env` file. Other models might work but they're untested.
@@ -31,16 +23,13 @@ make dev
 
 This starts bith frontend and backend together with unified logging to the same terminal. See agentic coding section below
 
-## Configuration
+<https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5>
 
-The system requires explicit model configuration for both main and sub-agents.
+📋 Key Features
 
-### Configuration Hierarchy
-
-Mix uses a **global → local** configuration hierarchy:
-
-1. **Global config**: `~/.mix.json` - System-wide defaults
-2. **Local config**: `./.mix.json` - Project-specific overrides (merges with global)
+- Uses ffmpeg and local apps like blender instead of clunky cloud based editors
+- All project data is stored plain text and native media files - absolutely no lock-in.create a  
+- The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our SDK with stdio interface (similar to claude code SDK) is launching soon.
 
 ## Local Development
 
@@ -128,4 +117,4 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 
 ## Thanks
 
-1. All third part software that we've used in the project, especially ffmpeg, gsap and the archived opencode project
+1. All third part software that we've used in the project, especadd. ially ffmpeg, gsap and the archived opencode project

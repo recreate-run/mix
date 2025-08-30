@@ -2,9 +2,11 @@ package session
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/jpeg"
+	"io"
 	_ "image/png"
 	_ "image/gif"
 	"net/http"
@@ -555,4 +557,360 @@ func (as *AssetServer) GetCurrentWorkingDirectory() string {
 // GetSupportedFileTypes returns the supported file types configuration
 func (as *AssetServer) GetSupportedFileTypes() SupportedFileTypes {
 	return supportedFileTypes
+}
+
+// GSAP Animation Support
+
+// getGSAPAnimationDirectories returns both global and session GSAP animation directories
+func (as *AssetServer) getGSAPAnimationDirectories() (string, string, error) {
+	as.mu.RLock()
+	currentWorkDir := as.currentWorkDir
+	as.mu.RUnlock()
+	
+	// Get global animations directory
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+	globalDir := filepath.Join(workingDir, "packages", "gsap_animations")
+	
+	// Get session animations directory
+	var sessionDir string
+	if currentWorkDir != "" {
+		sessionDir = filepath.Join(currentWorkDir, "gsap_animations")
+	}
+	
+	return globalDir, sessionDir, nil
+}
+
+// scanAnimationDirectory scans a directory for animations and returns them with directory info
+func (as *AssetServer) scanAnimationDirectory(animationsDir string, source string) (map[string]map[string]interface{}, error) {
+	// Check if directory exists
+	if _, err := os.Stat(animationsDir); os.IsNotExist(err) {
+		return make(map[string]map[string]interface{}), nil // Return empty map instead of error
+	}
+	
+	animations := make(map[string]map[string]interface{})
+	
+	// Read animations directory
+	entries, err := os.ReadDir(animationsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read animations directory '%s': %w", animationsDir, err)
+	}
+	
+	for _, entry := range entries {
+		// Skip non-directories and shared directory
+		if !entry.IsDir() || entry.Name() == "shared" {
+			continue
+		}
+		
+		// Read schema.json for this animation
+		schemaPath := filepath.Join(animationsDir, entry.Name(), "schema.json")
+		schemaFile, err := os.Open(schemaPath)
+		if err != nil {
+			continue // Skip animations without schema.json
+		}
+		
+		schemaBytes, err := io.ReadAll(schemaFile)
+		schemaFile.Close()
+		if err != nil {
+			continue // Skip animations with unreadable schema
+		}
+		
+		// Parse schema JSON
+		var schema map[string]interface{}
+		if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+			continue // Skip animations with invalid JSON
+		}
+		
+		// Validate required schema fields
+		if schema["name"] == nil || schema["description"] == nil {
+			continue // Skip animations with missing required fields
+		}
+		
+		// Create animation summary with source information
+		animationSummary := map[string]interface{}{
+			"name":        schema["name"],
+			"description": schema["description"],
+			"source":      source, // "global" or "session"
+		}
+		
+		animations[entry.Name()] = animationSummary
+	}
+	
+	return animations, nil
+}
+
+// ServeGSAPAnimationsList handles GET /api/gsap_animations
+func (as *AssetServer) ServeGSAPAnimationsList(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	globalDir, sessionDir, err := as.getGSAPAnimationDirectories()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get animation directories: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Scan both directories
+	globalAnimations, err := as.scanAnimationDirectory(globalDir, "global")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to scan global animations: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	sessionAnimations, err := as.scanAnimationDirectory(sessionDir, "session")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to scan session animations: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Check for conflicts - error if same animation name exists in both directories
+	for name := range globalAnimations {
+		if _, exists := sessionAnimations[name]; exists {
+			http.Error(w, fmt.Sprintf("Animation name conflict: '%s' exists in both global and session directories", name), http.StatusConflict)
+			return
+		}
+	}
+	
+	// Merge animations (no conflicts at this point)
+	allAnimations := make([]map[string]interface{}, 0, len(globalAnimations)+len(sessionAnimations))
+	for _, animation := range globalAnimations {
+		allAnimations = append(allAnimations, animation)
+	}
+	for _, animation := range sessionAnimations {
+		allAnimations = append(allAnimations, animation)
+	}
+	
+	// Set JSON content type and send response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(allAnimations)
+}
+
+// findGSAPAnimationSchema finds schema for a specific animation in both directories
+func (as *AssetServer) findGSAPAnimationSchema(animationName string) ([]byte, string, error) {
+	globalDir, sessionDir, err := as.getGSAPAnimationDirectories()
+	if err != nil {
+		return nil, "", err
+	}
+	
+	var globalExists, sessionExists bool
+	var globalPath, sessionPath string
+	
+	// Check global directory
+	if globalDir != "" {
+		globalPath = filepath.Join(globalDir, animationName, "schema.json")
+		if _, err := os.Stat(globalPath); err == nil {
+			globalExists = true
+		}
+	}
+	
+	// Check session directory
+	if sessionDir != "" {
+		sessionPath = filepath.Join(sessionDir, animationName, "schema.json")
+		if _, err := os.Stat(sessionPath); err == nil {
+			sessionExists = true
+		}
+	}
+	
+	// Error on conflicts
+	if globalExists && sessionExists {
+		return nil, "", fmt.Errorf("animation name conflict: '%s' exists in both global and session directories", animationName)
+	}
+	
+	// Determine which file to read
+	var schemaPath, source string
+	if sessionExists {
+		schemaPath = sessionPath
+		source = "session"
+	} else if globalExists {
+		schemaPath = globalPath
+		source = "global"
+	} else {
+		return nil, "", fmt.Errorf("animation '%s' not found", animationName)
+	}
+	
+	// Read schema file
+	schemaBytes, err := os.ReadFile(schemaPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read schema.json for animation '%s': %w", animationName, err)
+	}
+	
+	// Validate JSON syntax
+	var schema map[string]interface{}
+	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+		return nil, "", fmt.Errorf("invalid JSON in schema.json for animation '%s': %w", animationName, err)
+	}
+	
+	return schemaBytes, source, nil
+}
+
+// ServeGSAPAnimationSchema handles GET /api/gsap_animations/{name}
+func (as *AssetServer) ServeGSAPAnimationSchema(w http.ResponseWriter, r *http.Request, animationName string) {
+	// Set CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	if animationName == "" {
+		http.Error(w, "Animation name required", http.StatusBadRequest)
+		return
+	}
+	
+	schemaBytes, _, err := as.findGSAPAnimationSchema(animationName)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.NotFound(w, r)
+			return
+		}
+		if strings.Contains(err.Error(), "conflict") {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Return the schema
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(schemaBytes)
+}
+
+// findGSAPAnimationFile finds a static animation file in both directories
+func (as *AssetServer) findGSAPAnimationFile(animationPath string) (string, error) {
+	globalDir, sessionDir, err := as.getGSAPAnimationDirectories()
+	if err != nil {
+		return "", err
+	}
+	
+	var globalPath, sessionPath string
+	var globalExists, sessionExists bool
+	
+	// Check global directory
+	if globalDir != "" {
+		globalPath = filepath.Join(globalDir, animationPath)
+		// Security check: ensure path is within global animations directory
+		cleanGlobalDir := filepath.Clean(globalDir)
+		cleanGlobalPath := filepath.Clean(globalPath)
+		if strings.HasPrefix(cleanGlobalPath, cleanGlobalDir) {
+			if _, err := os.Stat(globalPath); err == nil {
+				globalExists = true
+			}
+		}
+	}
+	
+	// Check session directory
+	if sessionDir != "" {
+		sessionPath = filepath.Join(sessionDir, animationPath)
+		// Security check: ensure path is within session animations directory
+		cleanSessionDir := filepath.Clean(sessionDir)
+		cleanSessionPath := filepath.Clean(sessionPath)
+		if strings.HasPrefix(cleanSessionPath, cleanSessionDir) {
+			if _, err := os.Stat(sessionPath); err == nil {
+				sessionExists = true
+			}
+		}
+	}
+	
+	// Extract animation name from path for conflict checking
+	pathParts := strings.Split(animationPath, "/")
+	if len(pathParts) > 0 {
+		animationName := pathParts[0]
+		// Check if both directories contain this animation (conflict detection)
+		globalAnimDir := filepath.Join(globalDir, animationName)
+		sessionAnimDir := filepath.Join(sessionDir, animationName)
+		globalAnimExists := false
+		sessionAnimExists := false
+		
+		if _, err := os.Stat(globalAnimDir); err == nil {
+			globalAnimExists = true
+		}
+		if _, err := os.Stat(sessionAnimDir); err == nil {
+			sessionAnimExists = true
+		}
+		
+		if globalAnimExists && sessionAnimExists {
+			return "", fmt.Errorf("animation name conflict: '%s' exists in both global and session directories", animationName)
+		}
+	}
+	
+	// Determine which file to serve
+	if sessionExists {
+		return sessionPath, nil
+	} else if globalExists {
+		return globalPath, nil
+	}
+	
+	return "", fmt.Errorf("file '%s' not found", animationPath)
+}
+
+// ServeGSAPAnimationFiles serves static GSAP animation files with security checks and conflict detection
+func (as *AssetServer) ServeGSAPAnimationFiles(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	// Only allow GET requests
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	// Strip /gsap_animations/ prefix to get relative animation path
+	animationPath := strings.TrimPrefix(r.URL.Path, "/gsap_animations/")
+	if animationPath == "" {
+		http.Error(w, "Animation path required", http.StatusBadRequest)
+		return
+	}
+	
+	// Find file using helper function with security checks and conflict detection
+	fullPath, err := as.findGSAPAnimationFile(animationPath)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.NotFound(w, r)
+			return
+		}
+		if strings.Contains(err.Error(), "conflict") {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Serve the file
+	http.ServeFile(w, r, fullPath)
 }

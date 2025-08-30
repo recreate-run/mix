@@ -293,25 +293,31 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		}
 	})
 
-
 	// Add URL video export endpoint (new Playwright-based export)
 	mux.HandleFunc("/api/video/export-url", httphandlers.HandleURLVideoExport)
 
 	// Add file types endpoint
 	mux.HandleFunc("/api/file-types", httphandlers.HandleFileTypes(app))
 
-	// Add animations list endpoint
-	mux.HandleFunc("/api/gsap_animations", httphandlers.HandleGSAPAnimationsList)
-
-	// Add specific animation endpoint
-	mux.HandleFunc("/api/gsap_animations/", httphandlers.HandleGSAPAnimationSchema)
-
 	// Add asset serving endpoints for media files
 	mux.HandleFunc("/input/", httphandlers.HandleInputAssets(app))
 	mux.HandleFunc("/output/", httphandlers.HandleOutputAssets(app))
-
-	// Add GSAP animations endpoint
-	mux.HandleFunc("/gsap_animations/", httphandlers.HandleGSAPAnimationFiles)
+	
+	// Add GSAP animation endpoints with clean, explicit routing
+	mux.HandleFunc("/api/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
+		animationName := strings.TrimPrefix(r.URL.Path, "/api/gsap_animations/")
+		if animationName == "" {
+			app.AssetServer.ServeGSAPAnimationsList(w, r)
+		} else {
+			app.AssetServer.ServeGSAPAnimationSchema(w, r, animationName)
+		}
+	})
+	mux.HandleFunc("/api/gsap_animations", func(w http.ResponseWriter, r *http.Request) {
+		app.AssetServer.ServeGSAPAnimationsList(w, r)
+	})
+	mux.HandleFunc("/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
+		app.AssetServer.ServeGSAPAnimationFiles(w, r)
+	})
 
 	mux.HandleFunc("/rpc", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
@@ -394,9 +400,6 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		logging.Info("Shutting down HTTP server")
 		server.Shutdown(context.Background())
 	}()
-
-	// Start server and provide ready confirmation
-	logging.Info("Press Ctrl+C to stop")
 
 	// Start server and block (this will block until server shuts down)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

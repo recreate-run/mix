@@ -80,6 +80,12 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 		return Session{}, fmt.Errorf("failed to create output directory: %w", err)
 	}
 
+	// Create gsap_animations directory for session-specific GSAP animations
+	gsapAnimationsDir := filepath.Join(workingDirectory, "gsap_animations")
+	if err := os.MkdirAll(gsapAnimationsDir, 0o755); err != nil {
+		return Session{}, fmt.Errorf("failed to create gsap_animations directory: %w", err)
+	}
+
 	// Create MIX.md file if it doesn't exist
 	mixFilePath := filepath.Join(workingDirectory, "MIX.md")
 	if _, err := os.Stat(mixFilePath); os.IsNotExist(err) {

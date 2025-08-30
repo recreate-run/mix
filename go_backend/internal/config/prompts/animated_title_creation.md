@@ -62,3 +62,33 @@ Response (Success - HTTP 200)
 - Standard duration: 2-4 seconds
 - CRITICAL: Never create multiple text elements with overlapping timeframes at the same layout position - use different layouts or stagger timing to prevent visual overlap
 - Choose the aspect ratio based on platform: 9/16 for vertical social (TikTok, Stories), 16/9 for YouTube/landscape content, 1/1 for Instagram posts
+
+## Creating New Animations
+
+When existing animations fail to meet user requirements, create new animations in $<workdir>/gsap_animations/
+
+Use the standardized template at $<launchdir>/packages/gsap_animations/gsap_starter_template/ as your starting point to ensure consistency with existing patterns. Simply copy the template directory and customize the marked sections for your specific animation requirements.
+
+<folder_structure>
+$<workdir>/gsap_animations/
+└── animation-name/
+    ├── index.html    # Complete HTML animation page
+    └── schema.json   # Animation metadata and parameters
+</folder_structure>
+
+<schema_format>
+{
+  "name": "animation-name",
+  "description": "Brief description of the animation",
+  "version": "1.0.0",
+  "parameters": [
+    {
+      "name": "parameterName",
+      "type": "string|number|boolean",
+      "default": "defaultValue"
+    }
+  ]
+}
+</schema_format>
+
+New animations become immediately available via the API and can be used exactly like existing animations.

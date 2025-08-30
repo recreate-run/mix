@@ -14,21 +14,13 @@ function getCurrentAnimationName() {
     // Extract animation name from URL path like '/gsap_animations/bounce-overlay/'
     const path = window.location.pathname;
     const parts = path.split('/').filter(p => p);
-    
+
     // Find gsap_animations in the path and get the next part
     const gsapIndex = parts.findIndex(p => p === 'gsap_animations');
     if (gsapIndex !== -1 && gsapIndex + 1 < parts.length) {
         return parts[gsapIndex + 1];
     }
-    
-    // Fallback: try to infer from directory structure if served locally
-    // This handles cases like file:///path/to/bounce-overlay/index.html
-    if (path.includes('bounce-overlay')) return 'bounce-overlay';
-    if (path.includes('character-cascade')) return 'character-cascade';
-    if (path.includes('floating-orbs')) return 'floating-orbs';
-    if (path.includes('liquid-words')) return 'liquid-words';
-    if (path.includes('rough-annotations')) return 'rough-annotations';
-    
+
     throw new Error('Could not determine animation name from URL');
 }
 
@@ -38,12 +30,12 @@ function getCurrentAnimationName() {
  */
 async function fetchAnimationSchema() {
     const animationName = getCurrentAnimationName();
-    
+
     // Check cache first
     if (schemaCache.has(animationName)) {
         return schemaCache.get(animationName);
     }
-    
+
     try {
         // Try API endpoint first (when served via Go backend)
         const apiResponse = await fetch(`/api/gsap_animations/${animationName}`);
@@ -55,7 +47,7 @@ async function fetchAnimationSchema() {
     } catch (e) {
         console.warn('API fetch failed, trying direct file access:', e);
     }
-    
+
     try {
         // Fallback to direct file access (for development/local files)
         const fileResponse = await fetch(`./schema.json`);
@@ -67,7 +59,7 @@ async function fetchAnimationSchema() {
     } catch (e) {
         console.warn('Direct file fetch failed:', e);
     }
-    
+
     throw new Error(`Could not load schema for animation: ${animationName}`);
 }
 
@@ -78,7 +70,7 @@ async function fetchAnimationSchema() {
  */
 function extractDefaults(schema) {
     const defaults = {};
-    
+
     if (schema.parameters && Array.isArray(schema.parameters)) {
         schema.parameters.forEach(param => {
             if (param.name && param.default !== undefined) {
@@ -86,7 +78,7 @@ function extractDefaults(schema) {
             }
         });
     }
-    
+
     return defaults;
 }
 
@@ -98,16 +90,16 @@ function extractDefaults(schema) {
 function parseUrlParams(defaults) {
     const urlParams = new URLSearchParams(window.location.search);
     const parsedParams = {};
-    
+
     for (const [key, value] of urlParams) {
         // Skip if this parameter isn't in defaults (unknown parameter)
         if (!(key in defaults)) {
             continue;
         }
-        
+
         // Convert based on the type of the default value
         const defaultValue = defaults[key];
-        
+
         if (typeof defaultValue === 'boolean') {
             parsedParams[key] = value === 'true';
         } else if (typeof defaultValue === 'number') {
@@ -118,7 +110,7 @@ function parseUrlParams(defaults) {
             parsedParams[key] = value;
         }
     }
-    
+
     return parsedParams;
 }
 
@@ -131,19 +123,19 @@ async function loadParameters() {
         // Fetch schema and extract defaults
         const schema = await fetchAnimationSchema();
         const defaults = extractDefaults(schema);
-        
+
         // Parse URL parameters
         const urlOverrides = parseUrlParams(defaults);
-        
+
         // Merge defaults with URL overrides
         const finalParams = { ...defaults, ...urlOverrides };
-        
+
         console.log('Parameter loading results:');
         console.log('- Animation:', getCurrentAnimationName());
         console.log('- Schema defaults:', defaults);
         console.log('- URL overrides:', urlOverrides);
         console.log('- Final parameters:', finalParams);
-        
+
         return finalParams;
     } catch (error) {
         console.error('Failed to load parameters:', error);
