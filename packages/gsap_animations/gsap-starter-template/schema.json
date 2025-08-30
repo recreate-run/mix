@@ -23,7 +23,7 @@
     },
     {
       "name": "textColor",
-      "type": "string",
+      "type": "color",
       "default": "#fff",
       "_comment": "Primary text color - use '*Color' naming pattern with hex values"
     },
@@ -59,7 +59,7 @@
     },
     {
       "name": "primaryColor",
-      "type": "string", 
+      "type": "color", 
       "default": "#84fab0",
       "_comment": "EXAMPLE: Color parameters - use descriptive names with 'Color' suffix"
     },

@@ -228,38 +228,6 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
         ) : (
           <ScrollArea className="h-[600px] pr-4">
             <div className="space-y-4">
-              {(config.textColor || config.style?.color) && (
-                <div className="space-y-2">
-                  <Label>Text Color</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="color"
-                      value={config.textColor || config.style?.color || '#ffffff'}
-                      onChange={(e) => {
-                        if (config.textColor !== undefined) {
-                          updateParameter('textColor', e.target.value);
-                        } else {
-                          updateParameter('style', { ...config.style, color: e.target.value });
-                        }
-                      }}
-                      className="w-16"
-                    />
-                    <Input
-                      type="text"
-                      value={config.textColor || config.style?.color || '#ffffff'}
-                      onChange={(e) => {
-                        if (config.textColor !== undefined) {
-                          updateParameter('textColor', e.target.value);
-                        } else {
-                          updateParameter('style', { ...config.style, color: e.target.value });
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              )}
-
               {config.duration !== undefined && (
                 <div className="space-y-2">
                   <Label>Duration (ms): {config.duration}</Label>

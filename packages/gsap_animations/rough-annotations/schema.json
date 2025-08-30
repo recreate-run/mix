@@ -10,7 +10,7 @@
     },
     {
       "name": "underlineColor",
-      "type": "string",
+      "type": "color",
       "default": "#FF6B6B"
     },
     {
@@ -30,7 +30,7 @@
     },
     {
       "name": "textColor",
-      "type": "string",
+      "type": "color",
       "default": "#2D3748"
     },
     {

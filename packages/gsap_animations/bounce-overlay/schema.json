@@ -20,7 +20,7 @@
     },
     {
       "name": "textColor",
-      "type": "string",
+      "type": "color",
       "default": "#fff"
     },
     {
