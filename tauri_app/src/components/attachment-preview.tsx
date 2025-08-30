@@ -40,16 +40,28 @@ export const AttachmentPreview = ({
   const handleRemoveItem = (index: number) => {
     const attachmentToRemove = attachments[index];
     if (attachmentToRemove) {
-      const fullPath =
-        attachmentToRemove.type === 'app'
-          ? `app:${attachmentToRemove.name}`
-          : attachmentToRemove.path!;
-      const updatedText = removeFileReferences(text, referenceMap, fullPath);
-      onTextChange?.(updatedText);
+      let identifier: string;
+      
+      if (attachmentToRemove.type === 'app') {
+        identifier = `app:${attachmentToRemove.name}`;
+      } else if (attachmentToRemove.url) {
+        // For URL attachments, remove the URL directly from text
+        identifier = attachmentToRemove.url;
+        const updatedText = text.replace(new RegExp(attachmentToRemove.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+        onTextChange?.(updatedText);
+      } else {
+        identifier = attachmentToRemove.path!;
+      }
+
+      // For non-URL attachments, use the existing file reference removal logic
+      if (!attachmentToRemove.url) {
+        const updatedText = removeFileReferences(text, referenceMap, identifier);
+        onTextChange?.(updatedText);
+      }
 
       // Remove the reference from the map
       for (const [displayName, mappedPath] of referenceMap) {
-        if (mappedPath === fullPath) {
+        if (mappedPath === identifier) {
           removeReference(displayName);
           break;
         }
@@ -85,7 +97,7 @@ export const AttachmentPreview = ({
                   {attachment.type === 'image' ? (
                     <ImagePreview attachment={attachment} previewUrl={generatePreviewUrl(attachment, workingDirectory)} />
                   ) : attachment.type === 'video' ? (
-                    <VideoPreview attachment={attachment} previewUrl={generatePreviewUrl(attachment, workingDirectory)} />
+                    <VideoPreview attachment={attachment} previewUrl={attachment.url ? undefined : generatePreviewUrl(attachment, workingDirectory)} />
                   ) : attachment.type === 'audio' ? (
                     <AudioPreview attachment={attachment} />
                   ) : attachment.type === 'text' ? (

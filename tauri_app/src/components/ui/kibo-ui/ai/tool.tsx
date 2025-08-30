@@ -67,7 +67,7 @@ export const AIToolContent = ({
   ...props
 }: AIToolContentProps) => (
   <CollapsibleContent
-    className={cn('grid gap-4 overflow-x-auto border-t p-4 text-sm', className)}
+    className={cn('grid gap-4 overflow-x-auto  p-4 text-sm', className)}
     {...props}
   >
     {toolCall && (

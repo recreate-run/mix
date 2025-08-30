@@ -212,6 +212,28 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     userMessageRefs.current[index] = el;
   };
 
+  // Handle paste events to detect video URLs
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData('text');
+    
+    // Only process if pasted content might contain URLs
+    if (pastedText.includes('http') || pastedText.includes('youtu') || pastedText.includes('vimeo')) {
+      const textarea = e.currentTarget;
+      const selectionStart = textarea.selectionStart;
+      const selectionEnd = textarea.selectionEnd;
+      const currentText = text; // Use React state for reliability
+      
+      // Calculate what the text will be after paste operation
+      const finalText = currentText.substring(0, selectionStart) + 
+                       pastedText + 
+                       currentText.substring(selectionEnd);
+      
+      // Use setTimeout to avoid blocking the paste operation
+      setTimeout(() => {
+        useBoundStore.getState().addUrlAttachments(finalText);
+      }, 0);
+    }
+  };
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -651,6 +673,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                 }
               }}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               value={text}
             />
             <AIInputToolbar>

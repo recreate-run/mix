@@ -3,6 +3,7 @@ import {
   createFileAttachment as createFileAttachmentUtil,
   createFolderAttachment as createFolderAttachmentUtil,
 } from '@/utils/attachmentUtils';
+import { detectVideoUrls, createVideoUrlAttachment } from '@/utils/videoUrlDetection';
 
 export type Attachment = {
   id: string;
@@ -22,6 +23,10 @@ export type Attachment = {
   icon?: string; // base64
   isOpen?: boolean;
   bundleId?: string;
+  // URL specific (for video/image URLs)
+  url?: string;
+  thumbnailUrl?: string;
+  platform?: 'youtube' | 'vimeo' | 'direct' | 'unknown';
 };
 
 export interface AttachmentSlice {
@@ -38,6 +43,7 @@ export interface AttachmentSlice {
     referenceMap: Map<string, string>
   ) => void;
   getMediaFiles: () => Attachment[];
+  addUrlAttachments: (text: string) => void;
 }
 
 
@@ -147,6 +153,45 @@ export const createAttachmentSlice = (
         attachment.type === 'audio'
     );
   },
+
+  addUrlAttachments: (text: string) => {
+    const videoUrls = detectVideoUrls(text);
+    const state = get();
+    
+    let newAttachments = [...state.attachments];
+    let newReferenceMap = new Map(state.referenceMap);
+    let hasChanges = false;
+    
+    for (const videoInfo of videoUrls) {
+      const attachment = createVideoUrlAttachment(videoInfo);
+      
+      // Skip if URL attachment already exists
+      if (state.attachments.some(existing => existing.url === videoInfo.url)) {
+        continue;
+      }
+      
+      // Add the attachment
+      newAttachments.push(attachment);
+      
+      // Add reference mapping (URL to itself for direct reference)
+      newReferenceMap.set(videoInfo.url, videoInfo.url);
+      hasChanges = true;
+      
+      // Enforce 10 attachment limit
+      if (newAttachments.length > 10) {
+        console.warn('Maximum 10 attachments allowed');
+        newAttachments = newAttachments.slice(0, 10);
+        break;
+      }
+    }
+    
+    if (hasChanges) {
+      set(() => ({
+        attachments: newAttachments,
+        referenceMap: newReferenceMap
+      }));
+    }
+  },
 });
 
 export const getParentPath = (path: string): string | null => {
@@ -162,10 +207,14 @@ export const getReferencedAttachments = (
   attachments: Attachment[]
 ): Attachment[] => {
   return attachments.filter((attachment) => {
-    return (
-      text.includes(`@${attachment.name}`) ||
-      text.includes(`@../${attachment.name}`)
-    );
+    // Handle file/folder references
+    const hasFileReference = text.includes(`@${attachment.name}`) || 
+                            text.includes(`@../${attachment.name}`);
+    
+    // Handle URL references (URLs are referenced directly, not with @ prefix)
+    const hasUrlReference = attachment.url && text.includes(attachment.url);
+    
+    return hasFileReference || hasUrlReference;
   });
 };
 

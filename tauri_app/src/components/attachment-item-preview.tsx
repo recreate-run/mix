@@ -43,9 +43,12 @@ export const ImagePreview = ({ attachment, previewUrl }: AttachmentItemPreviewPr
 };
 
 export const VideoPreview = ({ attachment, previewUrl }: AttachmentItemPreviewProps) => {
-  if (!previewUrl) {
+  // For URL-based attachments, use thumbnailUrl if available, otherwise use previewUrl
+  const thumbnailSrc = attachment.thumbnailUrl || previewUrl;
+  
+  if (!thumbnailSrc) {
     return (
-      <div className="flex size-14 items-center justify-center rounded-lg">
+      <div className="flex size-14 items-center justify-center rounded-lg border-2 border-dashed border-gray-300">
         <VideoIcon className="h-6 w-6 text-muted-foreground" />
       </div>
     );
@@ -61,9 +64,17 @@ export const VideoPreview = ({ attachment, previewUrl }: AttachmentItemPreviewPr
           const fallback = e.currentTarget.nextElementSibling as HTMLElement;
           if (fallback) fallback.style.display = 'block';
         }}
-        src={previewUrl}
+        src={thumbnailSrc}
       />
       <Play className="absolute bottom-1 left-1 h-3 w-3 rounded-full bg-black/50 p-0.5 text-white" />
+      {/* Platform indicator for URL videos */}
+      {attachment.platform && (
+        <div className="absolute top-1 left-1 rounded bg-black/60 px-1 py-0.5 text-white text-xs font-medium">
+          {attachment.platform === 'youtube' ? 'YT' : 
+           attachment.platform === 'vimeo' ? 'VM' : 
+           attachment.platform === 'direct' ? 'MP4' : 'VID'}
+        </div>
+      )}
       <VideoIcon
         className="absolute top-0 left-0 size-14 rounded-lg p-2 text-muted-foreground"
         style={{ display: 'none' }}
