@@ -1,4 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   type FormEventHandler,
   useEffect,
@@ -34,6 +35,7 @@ import {
   reconstructAttachmentsFromHistory,
 } from '@/stores/attachmentSlice';
 import { expandFileReferences } from '@/utils/attachmentUtils';
+import { invalidateMessageHistoryCache } from '@/lib/session-cache';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
 import type { MessageData, UIMessage } from '@/types/message';
@@ -117,6 +119,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const forkSession = useForkSession();
   const createSession = useCreateSession();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Handle session changes: fork text loading and UI state clearing
   useEffect(() => {
@@ -461,6 +464,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
       };
       await sseStream.sendMessage(JSON.stringify(messageData));
+      
+      // Invalidate message history cache to ensure fresh data on next navigation
+      invalidateMessageHistoryCache(queryClient);
     } catch (error) {
       console.error('Failed to send message:', error);
       // Error will be handled by the error useEffect

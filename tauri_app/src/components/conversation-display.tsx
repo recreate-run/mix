@@ -30,7 +30,6 @@ import { GsapAnimationPreview } from './gsap/GsapAnimationPreview';
 import { LazyVideoPlayer } from './LazyVideoPlayer';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
-import { VideoPlayer } from './video-player';
 
 type StreamingState = {
   processing: boolean;

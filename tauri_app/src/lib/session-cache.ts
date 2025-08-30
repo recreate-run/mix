@@ -31,3 +31,7 @@ export const optimisticallySelectSession = (
     }))
   );
 };
+
+export const invalidateMessageHistoryCache = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: CACHE_KEYS.messageHistory });
+};
