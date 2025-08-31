@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import type { SupportedFileTypes } from '@/utils/fileTypes';
+import { getBackendUrl } from '@/utils/backendUrl';
 
 async function fetchFileTypes(): Promise<SupportedFileTypes> {
-  const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/file-types`);
+  const response = await fetch(`${getBackendUrl()}/api/file-types`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch file types: ${response.status}`);

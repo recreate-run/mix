@@ -1,4 +1,5 @@
 import type { Attachment } from '@/stores/attachmentSlice';
+import { getBackendUrl } from './backendUrl';
 
 /**
  * Convert absolute file path to HTTP asset server URL
@@ -14,7 +15,7 @@ export const convertToAssetServerUrl = (absolutePath: string, workingDirectory: 
   }
 
   const relativePath = absolutePath.substring(workingDirNormalized.length + 1);
-  return `${import.meta.env.VITE_BACKEND_URL}/${relativePath}`;
+  return `${getBackendUrl()}/${relativePath}`;
 };
 
 /**

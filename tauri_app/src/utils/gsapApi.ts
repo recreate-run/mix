@@ -18,7 +18,9 @@ export interface ParameterSchema {
 
 // Accept any configuration format from the endpoint
 
-const DEFAULT_GSAP_SERVER = import.meta.env.VITE_BACKEND_URL;
+import { getBackendUrl } from './backendUrl';
+
+const DEFAULT_GSAP_SERVER = getBackendUrl();
 
 // Fetch list of available animations
 export async function fetchAnimationList(serverUrl: string = DEFAULT_GSAP_SERVER): Promise<string[]> {
