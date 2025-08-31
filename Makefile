@@ -28,6 +28,7 @@ help:
 	@echo "  tail-log    - Show the last 100 lines of the log"
 	@echo "  test-env    - Validate environment variables and configuration"
 	@echo "  test-connection - Test connection between frontend and backend"
+	@echo "  test-installation - Test if all dependencies are installed"
 	@echo "  test-all    - Run all validation tests"
 	@echo "  help        - Show this help message"
 	@echo ""
@@ -39,73 +40,7 @@ dev: install-deps
 
 # Install system dependencies (one-time setup)
 install:
-	@echo "Installing system dependencies..."
-	
-	# Install Homebrew if not present (required for FFmpeg and preferred for other tools)
-	@if ! command -v brew >/dev/null 2>&1; then \
-		echo "📦 Installing Homebrew..."; \
-		/bin/bash -c "$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; \
-		eval "$$(/opt/homebrew/bin/brew shellenv)"; \
-		export PATH="/opt/homebrew/bin:$$PATH"; \
-	fi
-	
-	# Install FFmpeg if not present
-	@if ! command -v ffmpeg >/dev/null 2>&1; then \
-		echo "📦 Installing FFmpeg..."; \
-		brew install ffmpeg; \
-	fi
-	
-	# Install Go if not present
-	@if ! command -v go >/dev/null 2>&1; then \
-		echo "📦 Installing Go..."; \
-		if command -v brew >/dev/null 2>&1; then \
-			brew install go; \
-		else \
-			echo "Installing Go via official installer..."; \
-			curl -L "https://go.dev/dl/go1.22.0.darwin-amd64.pkg" -o /tmp/go-installer.pkg && \
-			sudo installer -pkg /tmp/go-installer.pkg -target / && \
-			rm /tmp/go-installer.pkg; \
-		fi; \
-		export PATH="/usr/local/go/bin:$$PATH"; \
-	fi
-	
-	# Install Rust/Cargo if not present
-	@if ! command -v cargo >/dev/null 2>&1; then \
-		echo "📦 Installing Rust/Cargo..."; \
-		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
-		source "$$HOME/.cargo/env"; \
-		export PATH="$$HOME/.cargo/bin:$$PATH"; \
-	fi
-	
-	# Install Bun if not present
-	@if ! command -v bun >/dev/null 2>&1; then \
-		echo "📦 Installing Bun..."; \
-		curl -fsSL https://bun.sh/install | bash; \
-		export PATH="$$HOME/.bun/bin:$$PATH"; \
-	fi
-	
-	# Install UV if not present
-	@if ! command -v uv >/dev/null 2>&1; then \
-		echo "📦 Installing UV (Python package installer)..."; \
-		if command -v brew >/dev/null 2>&1; then \
-			brew install uv; \
-		else \
-			curl -LsSf https://astral.sh/uv/install.sh | sh; \
-			export PATH="$$HOME/.local/bin:$$PATH"; \
-		fi; \
-	fi
-	
-	# Install ripgrep if not present
-	@if ! command -v rg >/dev/null 2>&1; then \
-		echo "📦 Installing ripgrep..."; \
-		brew install ripgrep; \
-	fi
-	
-	# Install tools
-	@echo "Installing tools..."
-	@uv tool install multimodal-analyzer
-	
-	@echo "✅ System dependencies installed!"
+	@./scripts/install_deps.sh
 
 # Install project dependencies
 install-deps: install
@@ -154,5 +89,8 @@ test-connection:
 test-dev-env:
 	@./scripts/tests/validate_dev_env.sh
 
-test-all: test-env test-dev-env test-connection
+test-installation:
+	@./scripts/test_installation.sh
+
+test-all: test-env test-dev-env test-connection test-installation
 	@echo "All validation tests completed."

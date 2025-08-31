@@ -93,6 +93,12 @@ make test-env
    make test-connection
    ```
 
+3. **Port conflict**: If the backend fails to start due to port conflict:
+   ```bash
+   lsof -i :8088  # Check what's using the port
+   lsof -ti:8088 | xargs kill -9  # Kill the process
+   ```
+
 ### Problem: Frontend build fails
 
 **Possible causes and solutions:**
@@ -105,6 +111,16 @@ make test-env
 2. **Typescript errors**: Check logs for type errors:
    ```bash
    make tail-log
+   ```
+
+3. **Frontend not starting**: If you see errors in the frontend startup:
+   ```bash
+   # Ensure the frontend environment is properly set up
+   echo "VITE_BACKEND_URL=http://localhost:8088" > tauri_app/.env
+   
+   # Check if any processes are blocking the frontend port
+   lsof -i :1420
+   lsof -ti:1420 | xargs kill -9  # If needed
    ```
 
 ## Environment Variable Issues

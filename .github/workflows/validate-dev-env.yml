@@ -33,6 +33,11 @@ jobs:
         with:
           bun-version: latest
           
+      - name: Install Ubuntu Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg ripgrep
+          
       - name: Install UV
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -41,11 +46,15 @@ jobs:
       - name: Install Air
         run: go install github.com/air-verse/air@latest
         
-      - name: Install Dependencies
+      - name: Install Project Dependencies
         run: make install-deps
+        
+      - name: Test Installation
+        run: make test-installation
 
       - name: Create test environment file
         run: |
+          mkdir -p tauri_app
           echo "POSTHOG_API_KEY=test_key" > .env
           echo "SIDECAR_ENABLED=false" >> .env
           echo "MIX_ANALYTICS_ENABLED=false" >> .env
