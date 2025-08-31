@@ -8,6 +8,9 @@ make install-deps # Install all project dependencies only
 make build        # Production build (we rarely need this)
 make clean        # Clean build artifacts (we rarely need this)
 make tail-log     # Reads the current log file (last 100 lines of code)
+make test-env     # Validate environment variables and configuration
+make test-connection # Test connection between frontend and backend
+make test-all     # Run all validation tests
 make help         # Show all available commands
 </bash_commands>
 
@@ -15,6 +18,8 @@ make help         # Show all available commands
 - Do NOT stop the dev server. It stays running, auto-compiles, and auto-reloads via the Go `air` package, logging to `dev.log`.
 - Run `make` from the project's top-level directory. If it fails, you probably weren't there.
 - You MUST check the tail-log after finishing each task
+- If you encounter any issues, run `make test-all` to validate the environment and check for common problems
+- For detailed troubleshooting steps, refer to the TROUBLESHOOTING.md file
 
 ## Architecture
 

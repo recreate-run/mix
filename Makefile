@@ -26,6 +26,9 @@ help:
 	@echo "  clean       - Clean build artifacts"
 	@echo "  install-air - Install Air if not present"
 	@echo "  tail-log    - Show the last 100 lines of the log"
+	@echo "  test-env    - Validate environment variables and configuration"
+	@echo "  test-connection - Test connection between frontend and backend"
+	@echo "  test-all    - Run all validation tests"
 	@echo "  help        - Show this help message"
 	@echo ""
 
@@ -140,3 +143,16 @@ build-sidecar:
 # Display the last 100 lines of development log with ANSI codes stripped
 tail-log:
 	@tail -100 ./dev.log | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'
+
+# Validation targets
+test-env:
+	@./scripts/tests/validate_env.sh
+
+test-connection:
+	@./scripts/tests/test_connection.sh
+
+test-dev-env:
+	@./scripts/tests/validate_dev_env.sh
+
+test-all: test-env test-dev-env test-connection
+	@echo "All validation tests completed."

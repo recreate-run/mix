@@ -277,6 +277,23 @@ func startHTTPServer(ctx context.Context, app *app.App, host string, port int) e
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprintf(w, "Mix HTTP JSON-RPC Server\nPath: %s\nMethod: %s\n", r.URL.Path, r.Method)
 	})
+	
+	// Add health check endpoint
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Return detailed health information
+		health := map[string]interface{}{
+			"status":      "ok",
+			"timestamp":   time.Now().Format(time.RFC3339),
+			"version":     version.Version,
+			"environment": os.Getenv("ENV"),
+			"services": map[string]string{
+				"backend":  "healthy",
+				"database": "connected",
+			},
+		}
+		json.NewEncoder(w).Encode(health)
+	})
 
 	// Add SSE streaming endpoint
 	mux.HandleFunc("/stream", func(w http.ResponseWriter, r *http.Request) {

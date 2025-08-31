@@ -1,0 +1,82 @@
+name: Validate Development Environment
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  validate:
+    name: Validate Dev Environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+          cache: true
+          
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Air
+        run: go install github.com/air-verse/air@latest
+        
+      - name: Install Dependencies
+        run: make install-deps
+
+      - name: Create test environment file
+        run: |
+          echo "POSTHOG_API_KEY=test_key" > .env
+          echo "SIDECAR_ENABLED=false" >> .env
+          echo "MIX_ANALYTICS_ENABLED=false" >> .env
+          echo "VITE_BACKEND_URL=http://localhost:8088" > tauri_app/.env
+          
+      - name: Run Environment Variable Validation
+        run: make test-env
+
+      - name: Run Development Environment Validation
+        run: make test-dev-env
+        
+      - name: Build Backend
+        run: |
+          cd go_backend
+          go build -o ./build/debug/mix ./main.go
+          
+      - name: Start Backend (Background)
+        run: |
+          cd go_backend
+          ./build/debug/mix --http-port 8088 --dangerously-skip-permissions &
+          sleep 5  # Give the backend time to start
+          
+      - name: Test Backend Health
+        run: |
+          curl -s http://localhost:8088/health || (echo "Backend health check failed" && exit 1)
+          
+      - name: Test Connection
+        run: |
+          make test-connection || true  # Allow this to fail since frontend won't be running
+          
+      - name: Check Backend Logs
+        if: always()  # Run even if previous steps fail
+        run: |
+          cat dev.log || echo "No logs found"
