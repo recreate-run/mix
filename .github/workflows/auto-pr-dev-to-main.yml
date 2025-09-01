@@ -6,6 +6,11 @@ on:
       - dev
   workflow_dispatch:  # Allow manual triggering
 
+# These permissions are needed for the GitHub CLI to create pull requests
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   create-pr:
     name: Create PR from Dev to Main
