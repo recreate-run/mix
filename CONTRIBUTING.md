@@ -25,6 +25,8 @@ The automated workflow:
 - Creates a new PR if one doesn't exist and there are changes to merge
 - Includes a summary of the commits being proposed for merge
 
+> **Note:** This workflow requires enabling "Allow GitHub Actions to create and approve pull requests" in the repository settings under Settings > Actions > General > Workflow permissions.
+
 To skip automatic PR creation for a specific commit, include `[skip-auto-pr]` in your commit message.
 
 ### Manual PR Process
