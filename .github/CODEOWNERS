@@ -1,0 +1,21 @@
+# Mix CODEOWNERS File
+# This file defines code ownership for the Mix project
+# For more information, see: https://docs.github.com/en/repositories/managing-your-code/about-code-owners
+
+# Default owners for everything in the repo - using exact usernames from GitHub profiles
+* @sarath-menon @avaibhav54
+
+# Frontend code
+/tauri_app/ @avaibhav54
+/tauri_app/src/ @avaibhav54
+
+# Backend code
+/go_backend/ @sarath-menon
+/go_backend/src/ @sarath-menon
+
+# Workflow files
+/.github/workflows/ @sarath-menon @avaibhav54
+
+# Documentation
+/*.md @sarath-menon @avaibhav54
+/docs/ @sarath-menon @avaibhav54
