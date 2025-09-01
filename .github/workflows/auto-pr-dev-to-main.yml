@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0  # Fetch all history for proper comparison
 
       - name: Setup GitHub CLI
-        uses: cli/cli-action@v2
+        uses: github/cli-action@v2
         
       - name: Check for existing PRs
         id: check-pr
