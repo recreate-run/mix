@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { TimelineEntry } from '@/types/message';
 
 export type SSEToolCall = {
   name: string;
@@ -33,6 +34,7 @@ export type PersistentSSEState = {
   cancelled: boolean;
   reasoning: string | null;
   reasoningDuration: number | null;
+  timeline: TimelineEntry[];
   startTime?: number;
   rateLimit?: {
     retryAfter: number;
@@ -67,6 +69,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     cancelled: false,
     reasoning: null,
     reasoningDuration: null,
+    timeline: [],
     rateLimit: undefined,
     permissionRequests: [],
   });
@@ -74,6 +77,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const eventSourceRef = useRef<EventSource | null>(null);
   const toolCallsMap = useRef<Map<string, SSEToolCall>>(new Map());
   const toolStartTimes = useRef<Map<string, number>>(new Map());
+  const timelineRef = useRef<TimelineEntry[]>([]);
   const connectedRef = useRef<boolean>(false);
   const currentSessionRef = useRef<string>('');
   const eventListenersRef = useRef<
@@ -101,6 +105,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     }
     toolCallsMap.current.clear();
     toolStartTimes.current.clear();
+    timelineRef.current = [];
     currentSessionRef.current = sessionId;
 
     setState({
@@ -116,6 +121,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       cancelled: false,
       reasoning: null,
       reasoningDuration: null,
+      timeline: [],
       permissionRequests: [],
     });
 
@@ -139,6 +145,30 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
     addTrackedEventListener('heartbeat', (_event) => {
       // Heartbeat events keep connection alive - no UI state changes needed
+    });
+
+    addTrackedEventListener('thinking', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const thinkingContent = data.content || '';
+        
+        // Add to timeline
+        const thinkingEntry: TimelineEntry = {
+          type: 'thinking',
+          timestamp: Date.now(),
+          content: thinkingContent,
+          id: `thinking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        };
+        
+        timelineRef.current = [...timelineRef.current, thinkingEntry];
+        
+        setState((prev) => ({
+          ...prev,
+          reasoning: (prev.reasoning || '') + thinkingContent,
+          timeline: [...timelineRef.current],
+          processing: true,
+        }));
+      } catch (_err) {}
     });
 
     addTrackedEventListener('tool', (event) => {
@@ -180,9 +210,29 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
         toolCallsMap.current.set(toolCall.id, toolCall);
 
+        // Add to timeline when tool is first seen (running or pending status)
+        if (!timelineRef.current.some(entry => entry.type === 'tool' && (entry.content as any).id === toolCall.id)) {
+          const toolEntry: TimelineEntry = {
+            type: 'tool',
+            timestamp: Date.now(),
+            content: toolCall,
+            id: toolCall.id
+          };
+          
+          timelineRef.current = [...timelineRef.current, toolEntry];
+        } else {
+          // Update existing tool entry
+          timelineRef.current = timelineRef.current.map(entry => 
+            entry.type === 'tool' && (entry.content as any).id === toolCall.id 
+              ? { ...entry, content: toolCall }
+              : entry
+          );
+        }
+
         setState((prev) => ({
           ...prev,
           toolCalls: Array.from(toolCallsMap.current.values()),
+          timeline: [...timelineRef.current],
           processing: true,
         }));
       } catch (_err) {}
@@ -315,6 +365,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       }
       toolCallsMap.current.clear();
       toolStartTimes.current.clear();
+      timelineRef.current = [];
       currentSessionRef.current = '';
     };
   }, [sessionId]);
@@ -334,6 +385,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       }
       toolCallsMap.current.clear();
       toolStartTimes.current.clear();
+      timelineRef.current = [];
       currentSessionRef.current = '';
     };
   }, []);
@@ -356,10 +408,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         cancelled: false,
         reasoning: null,
         reasoningDuration: null,
+        timeline: [],
         rateLimit: undefined,
       }));
 
       toolCallsMap.current.clear();
+      timelineRef.current = [];
 
       try {
         const response = await fetch(

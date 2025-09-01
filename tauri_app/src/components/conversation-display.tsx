@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import type { MediaOutput } from '@/types/media';
-import type { UIMessage } from '@/types/message';
+import type { TimelineEntry, UIMessage } from '@/types/message';
 import { ConversationLoader } from './conversation-loader';
 import { MessageAttachmentDisplay } from './message-attachment-display';
 import { PlanDisplay } from './plan-display';
@@ -214,6 +214,77 @@ const isPreviousUserMessageCommand = (
   return false;
 };
 
+// Helper function to render timeline entries chronologically
+const renderTimelineEntries = (timeline: TimelineEntry[]) => {
+  if (!timeline || timeline.length === 0) return null;
+
+  // Group consecutive thinking entries together for better UX
+  const groupedEntries: Array<{ type: 'thinking', entries: string[], timestamps: number[] } | { type: 'tool', entry: TimelineEntry }> = [];
+  
+  for (const entry of timeline) {
+    if (entry.type === 'thinking') {
+      const lastGroup = groupedEntries[groupedEntries.length - 1];
+      if (lastGroup && lastGroup.type === 'thinking') {
+        // Add to existing thinking group
+        lastGroup.entries.push(entry.content);
+        lastGroup.timestamps.push(entry.timestamp);
+      } else {
+        // Start new thinking group
+        groupedEntries.push({
+          type: 'thinking',
+          entries: [entry.content],
+          timestamps: [entry.timestamp]
+        });
+      }
+    } else {
+      // Tool entry - always separate
+      groupedEntries.push({
+        type: 'tool',
+        entry
+      });
+    }
+  }
+
+  return groupedEntries.map((group, index) => {
+    if (group.type === 'thinking') {
+      const totalContent = group.entries.join('');
+      const duration = group.timestamps.length > 1 
+        ? Math.round((group.timestamps[group.timestamps.length - 1] - group.timestamps[0]) / 1000)
+        : 0;
+
+      return (
+        <AIReasoning
+          key={`thinking-group-${index}`}
+          className="mb-4 w-full"
+          duration={duration > 0 ? duration : undefined}
+          isStreaming={false}
+        >
+          <AIReasoningTrigger />
+          <AIReasoningContent>{totalContent}</AIReasoningContent>
+        </AIReasoning>
+      );
+    } else {
+      const toolCall = group.entry.content;
+      return (
+        <AIToolLadder key={`tool-${group.entry.id}`}>
+          <AIToolStep
+            isLast={true}
+            status={toolCall.status}
+            stepNumber={1}
+          >
+            <AIToolHeader
+              description={toolCall.description}
+              name={toolCall.name}
+              status={toolCall.status}
+            />
+            <AIToolContent toolCall={toolCall} />
+          </AIToolStep>
+        </AIToolLadder>
+      );
+    }
+  });
+};
+
 const MessageCopyButton = ({ content }: { content: string }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
   return (
@@ -292,18 +363,8 @@ export function ConversationDisplay({
                     <div className="text-sm text-muted-foreground">Media content requires working directory</div>
                   ) : (
                     <AIMessageContent.Content>
-                      {message.reasoning && (
-                        <AIReasoning
-                          className="mb- w-full"
-                          duration={message.reasoningDuration || undefined}
-                          isStreaming={false}
-                        >
-                          <AIReasoningTrigger />
-                          <AIReasoningContent>
-                            {message.reasoning}
-                          </AIReasoningContent>
-                        </AIReasoning>
-                      )}
+                      {/* Render timeline-based interleaved thinking and tools */}
+                      {renderTimelineEntries(message.timeline)}
                       {isPreviousUserMessageCommand(messages, index) ? (
                         <AIResponse>{`\`\`\`bash\n${message.content}\n\`\`\``}</AIResponse>
                       ) : (
@@ -342,7 +403,7 @@ export function ConversationDisplay({
                   </AIMessageContent.Toolbar>
                 </>
               )}
-              {/* Render todos inline without tool wrapper */}
+              {/* Render special tools (todos, plans) and legacy tools when timeline is not available */}
               {message.toolCalls && message.toolCalls.length > 0 && (
                 <>
                   {/* Render plan content */}
@@ -362,34 +423,6 @@ export function ConversationDisplay({
                       />
                     </div>
                   )}
-                  {/* Render non-special tools in ladder */}
-                  {message.toolCalls &&
-                    filterNonSpecialTools(message.toolCalls).length > 0 && (
-                      <AIToolLadder>
-                        {filterNonSpecialTools(message.toolCalls).map(
-                          (toolCall, toolIndex) => (
-                            <AIToolStep
-                              isLast={
-                                toolIndex ===
-                                filterNonSpecialTools(message.toolCalls!)
-                                  .length -
-                                1
-                              }
-                              key={`${index}-${toolCall.name}-${toolIndex}`}
-                              status={toolCall.status}
-                              stepNumber={toolIndex + 1}
-                            >
-                              <AIToolHeader
-                                description={toolCall.description}
-                                name={toolCall.name}
-                                status={toolCall.status}
-                              />
-                              <AIToolContent toolCall={toolCall} />
-                            </AIToolStep>
-                          )
-                        )}
-                      </AIToolLadder>
-                    )}
                 </>
               )}
             </AIMessageContent>
@@ -398,17 +431,8 @@ export function ConversationDisplay({
         {sseStream.processing && (
           <AIMessage from="assistant">
             <AIMessageContent>
-              {/* Show reasoning during streaming if available */}
-              {sseStream.reasoning && (
-                <AIReasoning
-                  className="mb-4 w-full"
-                  duration={sseStream.reasoningDuration || undefined}
-                  isStreaming={true}
-                >
-                  <AIReasoningTrigger />
-                  <AIReasoningContent>{sseStream.reasoning}</AIReasoningContent>
-                </AIReasoning>
-              )}
+              {/* Show timeline-based interleaved thinking and tools during streaming */}
+              {renderTimelineEntries(sseStream.timeline)}
               {/* Show rate limit message when rate limiting is detected */}
               {sseStream.rateLimit ? (
                 <div className="mt-4">
@@ -438,33 +462,6 @@ export function ConversationDisplay({
                       )}
                       showOptions={false}
                     />
-                  )}
-                  {/* Render streaming non-special tools in ladder */}
-                  {filterNonSpecialTools(sseStream.toolCalls).length > 0 && (
-                    <AIToolLadder>
-                      {filterNonSpecialTools(sseStream.toolCalls).map(
-                        (toolCall, toolIndex) => (
-                          <AIToolStep
-                            isLast={
-                              toolIndex ===
-                              filterNonSpecialTools(sseStream.toolCalls)
-                                .length -
-                              1
-                            }
-                            key={`streaming-${toolCall.id}-${toolIndex}`}
-                            status={toolCall.status}
-                            stepNumber={toolIndex + 1}
-                          >
-                            <AIToolHeader
-                              description={toolCall.description}
-                              name={toolCall.name}
-                              status={toolCall.status}
-                            />
-                            <AIToolContent toolCall={toolCall} />
-                          </AIToolStep>
-                        )
-                      )}
-                    </AIToolLadder>
                   )}
                   {!sseStream.completed && <ConversationLoader />}
                 </>

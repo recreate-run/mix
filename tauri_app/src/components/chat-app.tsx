@@ -403,8 +403,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             from: 'assistant',
             toolCalls:
               convertedToolCalls.length > 0 ? convertedToolCalls : undefined,
-            reasoning: sseStream.reasoning || undefined,
-            reasoningDuration: sseStream.reasoningDuration || undefined,
+            timeline: sseStream.timeline && sseStream.timeline.length > 0 ? sseStream.timeline : undefined,
             mediaOutputs,
           },
         ];

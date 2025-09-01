@@ -32,6 +32,7 @@ const (
 	AgentEventTypeError     AgentEventType = "error"
 	AgentEventTypeResponse  AgentEventType = "response"
 	AgentEventTypeSummarize AgentEventType = "summarize"
+	AgentEventTypeThinking  AgentEventType = "thinking"
 )
 
 type AgentEvent struct {
@@ -43,6 +44,9 @@ type AgentEvent struct {
 	SessionID string
 	Progress  string
 	Done      bool
+
+	// When thinking
+	Thinking string
 }
 
 type Service interface {
@@ -335,6 +339,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	// Append the new user message to the conversation history.
 	msgHistory := append(msgs, userMsg)
 
+	conversationTurn := 1
 	for {
 		// Check for cancellation before each iteration
 		select {
@@ -343,6 +348,12 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		default:
 			// Continue processing
 		}
+
+		logging.Info("[INTERLEAVED] Starting conversation turn",
+			"sessionID", sessionID,
+			"turn", conversationTurn,
+			"messageHistoryLength", len(msgHistory))
+
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
 			logging.Info("[Agent] Stream processing failed for session", "sessionID", sessionID, "error", err)
@@ -362,7 +373,13 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
 			// We are not done, we need to respond with the tool response
+			logging.Info("[INTERLEAVED] Tool execution completed, continuing conversation",
+				"sessionID", sessionID,
+				"turn", conversationTurn,
+				"toolResultsCount", len(toolResults.ToolResults()),
+				"nextTurn", conversationTurn+1)
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
+			conversationTurn++
 			continue
 		}
 		// Publish final completion event
@@ -398,12 +415,6 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 		Role:  message.User,
 		Parts: parts,
 	})
-}
-
-type toolExecResult struct {
-	index            int
-	result           message.ToolResult
-	permissionDenied bool
 }
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
@@ -465,195 +476,152 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		}
 	}
 
-	toolResults := make([]message.ToolResult, len(assistantMsg.ToolCalls()))
 	toolCalls := assistantMsg.ToolCalls()
-
-	// Create channel for collecting results from parallel tool execution
-	resultChan := make(chan toolExecResult, len(toolCalls))
-
-	// Launch goroutines for parallel tool execution
-	var wg sync.WaitGroup
-	for i, toolCall := range toolCalls {
-		wg.Add(1)
-		go func(index int, tc message.ToolCall) {
-			defer wg.Done()
-
-			// Check for context cancellation first
-			select {
-			case <-ctx.Done():
-				resultChan <- toolExecResult{
-					index: index,
-					result: message.ToolResult{
-						ToolCallID: tc.ID,
-						Content:    "Tool execution canceled by user",
-						IsError:    true,
-					},
-				}
-				return
-			default:
-			}
-
-			// Find tool
-			var tool tools.BaseTool
-			for _, availableTool := range a.tools {
-				if availableTool.Info().Name == tc.Name {
-					tool = availableTool
-					break
-				}
-			}
-
-			// Tool not found
-			if tool == nil {
-				resultChan <- toolExecResult{
-					index: index,
-					result: message.ToolResult{
-						ToolCallID: tc.ID,
-						Content:    fmt.Sprintf("Tool not found: %s", tc.Name),
-						IsError:    true,
-					},
-				}
-				return
-			}
-
-			// Check if tool is available in plan mode
-			if ctx.Value("plan_mode") != nil && !isToolAllowedInPlanMode(tool) {
-				resultChan <- toolExecResult{
-					index: index,
-					result: message.ToolResult{
-						ToolCallID: tc.ID,
-						Content:    "Tool not available in plan mode. Use exit_plan_mode to proceed with execution.",
-						IsError:    true,
-					},
-				}
-				return
-			}
-
-			logging.Info("[Agent] Executing tool", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "inputSize", len(tc.Input), "inputContent", tc.Input)
-
-			toolStartTime := time.Now()
-			toolResult, toolErr := tool.Run(ctx, tools.ToolCall{
-				ID:    tc.ID,
-				Name:  tc.Name,
-				Input: tc.Input,
-			})
-			toolDuration := time.Since(toolStartTime)
-
-			logging.Info("[Agent] Tool execution result", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "duration", toolDuration, "error", toolErr, "resultLength", len(toolResult.Content), "resultContent", toolResult.Content, "resultIsError", toolResult.IsError)
-
-			permissionDenied := false
-			if toolErr != nil {
-				logging.Info("[Agent] TOOL EXECUTION ERROR", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "error", toolErr)
-
-				if errors.Is(toolErr, permission.ErrorPermissionDenied) {
-					logging.Info("[Agent] TOOL PERMISSION DENIED", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID)
-					permissionDenied = true
-				}
-			}
-
-			// Log tool execution result
-			isError := toolErr != nil
-			if isError {
-				logging.Error("[Agent] Tool execution failed", "toolName", tc.Name, "sessionID", sessionID, "toolCallID", tc.ID, "hasError", isError)
-			}
-
-			result := message.ToolResult{
-				ToolCallID: tc.ID,
-				Content:    toolResult.Content,
-				Metadata:   toolResult.Metadata,
-				IsError:    toolResult.IsError,
-			}
-
-			if permissionDenied {
-				result.Content = "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed."
-				result.IsError = false // Not a technical error - it's a security boundary
-			}
-
-			resultChan <- toolExecResult{
-				index:            index,
-				result:           result,
-				permissionDenied: false, // Always send result to LLM for clear communication
-			}
-		}(i, toolCall)
-	}
-
-	// Close channel when all goroutines complete
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	// Collect results with simple state tracking
-	cancelled := false
-	permissionDenied := false
-
-	// Always drain the entire channel - no early exits
-	for result := range resultChan {
-		// Check for cancellation on each result
-		if ctx.Err() != nil {
-			cancelled = true
-		}
-
-		// Check for permission denied
-		if result.permissionDenied {
-			permissionDenied = true
-		}
-
-		// Only store result if not cancelled and no permission denied
-		if !cancelled && !permissionDenied {
-			toolResults[result.index] = result.result
-		}
-
-		// Only publish events if everything is still OK
-		if !cancelled && !permissionDenied {
-			err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
-				Type:      AgentEventTypeResponse,
-				Message:   assistantMsg,
-				SessionID: sessionID,
-			})
-			if err != nil {
-				logging.Error("Failed to publish agent event", "error", err)
-			}
-		}
-	}
-
-	// Handle finish messages after all goroutines complete
-	if cancelled {
-		a.finishMessage(context.Background(), &assistantMsg, message.FinishReasonCanceled)
-	} else if permissionDenied {
-		a.finishMessage(ctx, &assistantMsg, message.FinishReasonPermissionDenied)
-	}
-
-	// Fill any missing results with appropriate error messages
-	for i := range toolResults {
-		if toolResults[i].ToolCallID == "" {
-			content := "Tool execution canceled by user"
-			if permissionDenied {
-				content = "Tool execution canceled due to permission denied"
-			}
-			toolResults[i] = message.ToolResult{
-				ToolCallID: toolCalls[i].ID,
-				Content:    content,
-				IsError:    true,
-			}
-		}
-	}
-
-	if len(toolResults) == 0 {
+	if len(toolCalls) == 0 {
 		return assistantMsg, nil, nil
 	}
-	parts := make([]message.ContentPart, 0)
-	for _, tr := range toolResults {
-		parts = append(parts, tr)
-	}
-	msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
-		Role:  message.Tool,
-		Parts: parts,
-	})
-	if err != nil {
-		return assistantMsg, nil, fmt.Errorf("failed to create cancelled tool message: %w", err)
+
+	// Debug logging: Show all requested tool calls for interleaving analysis
+	if len(toolCalls) > 1 {
+		logging.Info("[INTERLEAVED] LLM requested MULTIPLE tools - will process sequentially",
+			"sessionID", sessionID,
+			"totalTools", len(toolCalls),
+			"toolNames", func() []string {
+				names := make([]string, len(toolCalls))
+				for i, tc := range toolCalls {
+					names[i] = tc.Name
+				}
+				return names
+			}())
+	} else {
+		logging.Info("[INTERLEAVED] LLM requested SINGLE tool",
+			"sessionID", sessionID,
+			"toolName", toolCalls[0].Name)
 	}
 
-	return assistantMsg, &msg, err
+	// Execute ONLY the first tool call - let main loop handle interleaving
+	toolCall := toolCalls[0]
+	logging.Info("[INTERLEAVED] Processing tool",
+		"sessionID", sessionID,
+		"toolName", toolCall.Name,
+		"toolIndex", "1 of "+fmt.Sprintf("%d", len(toolCalls)),
+		"remainingTools", len(toolCalls)-1)
+
+	// Check for context cancellation
+	select {
+	case <-ctx.Done():
+		a.finishMessage(context.Background(), &assistantMsg, message.FinishReasonCanceled)
+		return assistantMsg, nil, ctx.Err()
+	default:
+	}
+
+	// Find tool
+	var tool tools.BaseTool
+	for _, availableTool := range a.tools {
+		if availableTool.Info().Name == toolCall.Name {
+			tool = availableTool
+			break
+		}
+	}
+
+	// Tool not found
+	if tool == nil {
+		result := message.ToolResult{
+			ToolCallID: toolCall.ID,
+			Content:    fmt.Sprintf("Tool not found: %s", toolCall.Name),
+			IsError:    true,
+		}
+		msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
+			Role:  message.Tool,
+			Parts: []message.ContentPart{result},
+		})
+		if err != nil {
+			return assistantMsg, nil, fmt.Errorf("failed to create tool not found message: %w", err)
+		}
+		return assistantMsg, &msg, nil
+	}
+
+	// Check if tool is available in plan mode
+	if ctx.Value("plan_mode") != nil && !isToolAllowedInPlanMode(tool) {
+		result := message.ToolResult{
+			ToolCallID: toolCall.ID,
+			Content:    "Tool not available in plan mode. Use exit_plan_mode to proceed with execution.",
+			IsError:    true,
+		}
+		msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
+			Role:  message.Tool,
+			Parts: []message.ContentPart{result},
+		})
+		if err != nil {
+			return assistantMsg, nil, fmt.Errorf("failed to create plan mode restriction message: %w", err)
+		}
+		return assistantMsg, &msg, nil
+	}
+
+	logging.Info("[Agent] Executing tool", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "inputSize", len(toolCall.Input), "inputContent", toolCall.Input)
+
+	toolStartTime := time.Now()
+	toolResult, toolErr := tool.Run(ctx, tools.ToolCall{
+		ID:    toolCall.ID,
+		Name:  toolCall.Name,
+		Input: toolCall.Input,
+	})
+	toolDuration := time.Since(toolStartTime)
+
+	logging.Info("[Agent] Tool execution result", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "duration", toolDuration, "error", toolErr, "resultLength", len(toolResult.Content), "resultContent", toolResult.Content, "resultIsError", toolResult.IsError)
+
+	// Handle permission denied - exit early for security
+	if toolErr != nil && errors.Is(toolErr, permission.ErrorPermissionDenied) {
+		logging.Info("[Agent] TOOL PERMISSION DENIED", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID)
+		a.finishMessage(ctx, &assistantMsg, message.FinishReasonPermissionDenied)
+		result := message.ToolResult{
+			ToolCallID: toolCall.ID,
+			Content:    "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
+			IsError:    false, // Not a technical error - it's a security boundary
+		}
+		msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
+			Role:  message.Tool,
+			Parts: []message.ContentPart{result},
+		})
+		if err != nil {
+			return assistantMsg, nil, fmt.Errorf("failed to create permission denied message: %w", err)
+		}
+		return assistantMsg, &msg, nil
+	}
+
+	// Handle other tool errors
+	if toolErr != nil {
+		logging.Error("[Agent] Tool execution failed", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "error", toolErr)
+	}
+
+	// Create tool result
+	result := message.ToolResult{
+		ToolCallID: toolCall.ID,
+		Content:    toolResult.Content,
+		Metadata:   toolResult.Metadata,
+		IsError:    toolResult.IsError,
+	}
+
+	// Publish intermediate event
+	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
+		Type:      AgentEventTypeResponse,
+		Message:   assistantMsg,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		logging.Error("Failed to publish agent event", "error", err)
+	}
+
+	// Create tool result message for the single tool
+	msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
+		Role:  message.Tool,
+		Parts: []message.ContentPart{result},
+	})
+	if err != nil {
+		return assistantMsg, nil, fmt.Errorf("failed to create tool result message: %w", err)
+	}
+
+	return assistantMsg, &msg, nil
 }
 
 func (a *agent) finishMessage(ctx context.Context, msg *message.Message, finishReson message.FinishReason) {
@@ -671,12 +639,22 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 	switch event.Type {
 	case provider.EventThinkingDelta:
+		logging.Info("[INTERLEAVED] Claude thinking delta received",
+			"sessionID", sessionID,
+			"thinkingLength", len(event.Thinking),
+			"thinkingPreview", func() string {
+				if len(event.Thinking) > 50 {
+					return event.Thinking[:50] + "..."
+				}
+				return event.Thinking
+			}())
 		assistantMsg.AppendReasoningContent(event.Thinking)
 		// Publish thinking event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
-			Type:      AgentEventTypeResponse,
+			Type:      AgentEventTypeThinking,
 			Message:   *assistantMsg,
 			SessionID: sessionID,
+			Thinking:  event.Thinking,
 		})
 		if err != nil {
 			return err
@@ -729,6 +707,15 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case provider.EventComplete:
 		assistantMsg.SetToolCalls(event.Response.ToolCalls)
 		assistantMsg.AddFinish(event.Response.FinishReason)
+
+		// Store thinking blocks from the response
+		for _, thinkingBlock := range event.Response.ThinkingBlocks {
+			assistantMsg.AddThinkingBlock(thinkingBlock.Thinking, thinkingBlock.Signature)
+		}
+		for _, redactedBlock := range event.Response.RedactedThinkingBlocks {
+			assistantMsg.AddRedactedThinkingBlock(redactedBlock.Data)
+		}
+
 		if err := a.messages.Update(ctx, *assistantMsg); err != nil {
 			return fmt.Errorf("failed to update message: %w", err)
 		}
@@ -1055,11 +1042,12 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
 			),
 		)
-	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentMain {
+	} else if model.Provider == models.ProviderAnthropic {
 		opts = append(
 			opts,
 			provider.WithAnthropicOptions(
 				provider.WithAnthropicThinkingBudgetFn(provider.DefaultThinkingBudgetFn),
+				provider.WithAnthropicInterleavedThinking(),
 			),
 		)
 	}
@@ -1129,6 +1117,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 			opts,
 			provider.WithAnthropicOptions(
 				provider.WithAnthropicThinkingBudgetFn(provider.DefaultThinkingBudgetFn),
+				provider.WithAnthropicInterleavedThinking(),
 			),
 		)
 	}

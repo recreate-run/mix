@@ -246,13 +246,15 @@ func (s *service) fromDBItem(item db.Message) (Message, error) {
 type partType string
 
 const (
-	reasoningType  partType = "reasoning"
-	textType       partType = "text"
-	imageURLType   partType = "image_url"
-	binaryType     partType = "binary"
-	toolCallType   partType = "tool_call"
-	toolResultType partType = "tool_result"
-	finishType     partType = "finish"
+	reasoningType           partType = "reasoning"
+	thinkingBlockType       partType = "thinking_block"
+	redactedThinkingType    partType = "redacted_thinking"
+	textType                partType = "text"
+	imageURLType            partType = "image_url"
+	binaryType              partType = "binary"
+	toolCallType            partType = "tool_call"
+	toolResultType          partType = "tool_result"
+	finishType              partType = "finish"
 )
 
 type partWrapper struct {
@@ -269,6 +271,10 @@ func marshallParts(parts []ContentPart) ([]byte, error) {
 		switch part.(type) {
 		case ReasoningContent:
 			typ = reasoningType
+		case ThinkingBlockContent:
+			typ = thinkingBlockType
+		case RedactedThinkingContent:
+			typ = redactedThinkingType
 		case TextContent:
 			typ = textType
 		case ImageURLContent:
@@ -315,6 +321,18 @@ func unmarshallParts(data []byte) ([]ContentPart, error) {
 		switch wrapper.Type {
 		case reasoningType:
 			part := ReasoningContent{}
+			if err := json.Unmarshal(wrapper.Data, &part); err != nil {
+				return nil, err
+			}
+			parts = append(parts, part)
+		case thinkingBlockType:
+			part := ThinkingBlockContent{}
+			if err := json.Unmarshal(wrapper.Data, &part); err != nil {
+				return nil, err
+			}
+			parts = append(parts, part)
+		case redactedThinkingType:
+			part := RedactedThinkingContent{}
 			if err := json.Unmarshal(wrapper.Data, &part); err != nil {
 				return nil, err
 			}

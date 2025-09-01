@@ -146,6 +146,18 @@ func (a *anthropicClient) convertMessages(messages []message.Message) (anthropic
 
 		case message.Assistant:
 			blocks := []anthropic.ContentBlockParamUnion{}
+			
+			// Add thinking blocks first (must be in sequence)
+			for _, thinkingBlock := range msg.ThinkingBlocks() {
+				blocks = append(blocks, anthropic.NewThinkingBlock(thinkingBlock.Signature, thinkingBlock.Thinking))
+			}
+			
+			// Add redacted thinking blocks
+			for _, redactedBlock := range msg.RedactedThinkingBlocks() {
+				blocks = append(blocks, anthropic.NewRedactedThinkingBlock(redactedBlock.Data))
+			}
+			
+			// Add text content
 			if msg.Content().String() != "" {
 				content := anthropic.NewTextBlock(msg.Content().String())
 				if cache && !a.options.disableCache {
@@ -156,6 +168,7 @@ func (a *anthropicClient) convertMessages(messages []message.Message) (anthropic
 				blocks = append(blocks, content)
 			}
 
+			// Add tool calls
 			for _, toolCall := range msg.ToolCalls() {
 				var inputMap map[string]any
 				err := json.Unmarshal([]byte(toolCall.Input), &inputMap)
@@ -228,18 +241,53 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 	isUser := lastMessage.Role == anthropic.MessageParamRoleUser
 	messageContent := ""
 	temperature := anthropic.Float(0)
+	
+	// Extract message content for thinking budget calculation
 	if isUser {
 		for _, m := range lastMessage.Content {
 			if m.OfText != nil && m.OfText.Text != "" {
 				messageContent = m.OfText.Text
 			}
 		}
-		if messageContent != "" && a.options.thinkingBudget != nil {
-			if tokenBudget := a.options.thinkingBudget(messageContent); tokenBudget > 0 {
-				thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(tokenBudget))
-				temperature = anthropic.Float(1)
+	}
+	
+	// Enable thinking based on budget function - but ensure API compatibility
+	if a.options.thinkingBudget != nil {
+		tokenBudget := 0 // Default to disabled
+		if messageContent != "" {
+			tokenBudget = a.options.thinkingBudget(messageContent)
+		}
+		
+		// Check if conversation history contains thinking blocks
+		hasThinkingInHistory := false
+		for _, msg := range messages {
+			if msg.Role == anthropic.MessageParamRoleAssistant {
+				for _, content := range msg.Content {
+					if content.OfThinking != nil || content.OfRedactedThinking != nil {
+						hasThinkingInHistory = true
+						break
+					}
+				}
+				if hasThinkingInHistory {
+					break
+				}
 			}
 		}
+		
+		if tokenBudget > 0 {
+			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(tokenBudget))
+			temperature = anthropic.Float(1)
+			logging.Debug("Thinking enabled", "tokenBudget", tokenBudget, "messageContent", messageContent)
+		} else if hasThinkingInHistory {
+			// Enable with minimal budget for API compatibility
+			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(1024)
+			temperature = anthropic.Float(1)
+			logging.Debug("Thinking enabled for API compatibility - conversation contains thinking blocks", "tokenBudget", 1024)
+		} else {
+			logging.Debug("Thinking disabled - no 'think' phrase detected and no thinking in history", "messageContent", messageContent)
+		}
+	} else {
+		logging.Debug("No thinking budget function - thinking disabled")
 	}
 
 	// Determine system message based on authentication method
@@ -395,9 +443,11 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 		}
 
 		return &ProviderResponse{
-			Content:   content,
-			ToolCalls: a.toolCalls(*anthropicResponse),
-			Usage:     a.usage(*anthropicResponse),
+			Content:                content,
+			ToolCalls:              a.toolCalls(*anthropicResponse),
+			Usage:                  a.usage(*anthropicResponse),
+			ThinkingBlocks:         a.extractThinkingBlocks(*anthropicResponse),
+			RedactedThinkingBlocks: a.extractRedactedThinkingBlocks(*anthropicResponse),
 		}, nil
 	}
 }
@@ -547,10 +597,12 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 					eventChan <- ProviderEvent{
 						Type: EventComplete,
 						Response: &ProviderResponse{
-							Content:      content,
-							ToolCalls:    a.toolCalls(accumulatedMessage),
-							Usage:        a.usage(accumulatedMessage),
-							FinishReason: a.finishReason(string(accumulatedMessage.StopReason)),
+							Content:                content,
+							ToolCalls:              a.toolCalls(accumulatedMessage),
+							Usage:                  a.usage(accumulatedMessage),
+							FinishReason:           a.finishReason(string(accumulatedMessage.StopReason)),
+							ThinkingBlocks:         a.extractThinkingBlocks(accumulatedMessage),
+							RedactedThinkingBlocks: a.extractRedactedThinkingBlocks(accumulatedMessage),
 						},
 					}
 				}
@@ -680,6 +732,39 @@ func (a *anthropicClient) usage(msg anthropic.Message) TokenUsage {
 		CacheCreationTokens: msg.Usage.CacheCreationInputTokens,
 		CacheReadTokens:     msg.Usage.CacheReadInputTokens,
 	}
+}
+
+// extractThinkingBlocks extracts thinking blocks from Anthropic response
+func (a *anthropicClient) extractThinkingBlocks(msg anthropic.Message) []message.ThinkingBlockContent {
+	var thinkingBlocks []message.ThinkingBlockContent
+	
+	for _, block := range msg.Content {
+		switch variant := block.AsAny().(type) {
+		case anthropic.ThinkingBlock:
+			thinkingBlocks = append(thinkingBlocks, message.ThinkingBlockContent{
+				Thinking:  variant.Thinking,
+				Signature: variant.Signature,
+			})
+		}
+	}
+	
+	return thinkingBlocks
+}
+
+// extractRedactedThinkingBlocks extracts redacted thinking blocks from Anthropic response
+func (a *anthropicClient) extractRedactedThinkingBlocks(msg anthropic.Message) []message.RedactedThinkingContent {
+	var redactedBlocks []message.RedactedThinkingContent
+	
+	for _, block := range msg.Content {
+		switch variant := block.AsAny().(type) {
+		case anthropic.RedactedThinkingBlock:
+			redactedBlocks = append(redactedBlocks, message.RedactedThinkingContent{
+				Data: variant.Data,
+			})
+		}
+	}
+	
+	return redactedBlocks
 }
 
 func WithAnthropicBedrock(useBedrock bool) AnthropicOption {

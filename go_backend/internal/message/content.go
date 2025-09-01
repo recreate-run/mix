@@ -47,6 +47,29 @@ func (tc ReasoningContent) String() string {
 }
 func (ReasoningContent) isPart() {}
 
+// ThinkingBlockContent represents thinking blocks from Anthropic API
+// Contains the actual thinking content and signature for verification
+type ThinkingBlockContent struct {
+	Thinking  string `json:"thinking"`
+	Signature string `json:"signature"` // Required for API verification
+}
+
+func (tbc ThinkingBlockContent) String() string {
+	return tbc.Thinking
+}
+func (ThinkingBlockContent) isPart() {}
+
+// RedactedThinkingContent represents redacted/encrypted thinking blocks
+// Contains encrypted thinking data when safety systems flag content
+type RedactedThinkingContent struct {
+	Data string `json:"data"` // Encrypted thinking data
+}
+
+func (rtc RedactedThinkingContent) String() string {
+	return "[Redacted Thinking]"
+}
+func (RedactedThinkingContent) isPart() {}
+
 type TextContent struct {
 	Text string `json:"text"`
 }
@@ -137,6 +160,41 @@ func (m *Message) ReasoningContent() ReasoningContent {
 		}
 	}
 	return ReasoningContent{}
+}
+
+// ThinkingBlocks returns all thinking blocks from the message
+func (m *Message) ThinkingBlocks() []ThinkingBlockContent {
+	var blocks []ThinkingBlockContent
+	for _, part := range m.Parts {
+		if c, ok := part.(ThinkingBlockContent); ok {
+			blocks = append(blocks, c)
+		}
+	}
+	return blocks
+}
+
+// RedactedThinkingBlocks returns all redacted thinking blocks from the message
+func (m *Message) RedactedThinkingBlocks() []RedactedThinkingContent {
+	var blocks []RedactedThinkingContent
+	for _, part := range m.Parts {
+		if c, ok := part.(RedactedThinkingContent); ok {
+			blocks = append(blocks, c)
+		}
+	}
+	return blocks
+}
+
+// HasThinkingBlocks checks if message contains any thinking blocks
+func (m *Message) HasThinkingBlocks() bool {
+	for _, part := range m.Parts {
+		if _, ok := part.(ThinkingBlockContent); ok {
+			return true
+		}
+		if _, ok := part.(RedactedThinkingContent); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Message) ImageURLContent() []ImageURLContent {
@@ -374,4 +432,19 @@ func (m *Message) AddImageURL(url, detail string) {
 
 func (m *Message) AddBinary(mimeType string, data []byte) {
 	m.Parts = append(m.Parts, BinaryContent{MIMEType: mimeType, Data: data})
+}
+
+// AddThinkingBlock adds a thinking block to the message
+func (m *Message) AddThinkingBlock(thinking, signature string) {
+	m.Parts = append(m.Parts, ThinkingBlockContent{
+		Thinking:  thinking,
+		Signature: signature,
+	})
+}
+
+// AddRedactedThinkingBlock adds a redacted thinking block to the message
+func (m *Message) AddRedactedThinkingBlock(data string) {
+	m.Parts = append(m.Parts, RedactedThinkingContent{
+		Data: data,
+	})
 }

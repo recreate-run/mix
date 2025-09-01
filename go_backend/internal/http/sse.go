@@ -449,6 +449,12 @@ func HandleMessageQueue(w http.ResponseWriter, r *http.Request) {
 // WriteAgentEventAsSSE converts an AgentEvent to SSE format using unified event types
 func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 	switch event.Type {
+	case agent.AgentEventTypeThinking:
+		// Send thinking delta event
+		if err := WriteSSE(w, "thinking", ThinkingEvent{Type: "thinking", Content: event.Thinking}); err != nil {
+			return err
+		}
+
 	case agent.AgentEventTypeResponse:
 		// Stream tool calls - detect new tool calls by checking completion status
 		toolCalls := event.Message.ToolCalls()
