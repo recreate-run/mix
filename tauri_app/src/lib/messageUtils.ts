@@ -88,8 +88,8 @@ const convertToolCallsToUI = (toolCalls: ToolCallData[]): ToolCall[] => {
       description: tc.name, // Use name as description since we don't have a separate description
       status: tc.finished ? 'completed' : 'pending',
       parameters,
-      result: undefined, // Backend doesn't provide result for persisted tool calls
-      error: undefined, // Backend doesn't provide error for persisted tool calls
+      result: tc.result || undefined,
+      error: tc.isError ? tc.result : undefined,
     };
   });
 };
@@ -124,6 +124,8 @@ export const convertBackendMessageToUI = async (
     attachments: attachments.length > 0 ? attachments : undefined,
     mediaOutputs:
       mediaOutputs && mediaOutputs.length > 0 ? mediaOutputs : undefined,
+    reasoning: backendMessage.reasoning,
+    reasoningDuration: backendMessage.reasoningDuration,
   };
 };
 
