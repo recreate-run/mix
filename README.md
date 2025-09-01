@@ -103,6 +103,10 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 - Pixelmator for image editing
 - Mix SDK (similar to claude code SDK)
 
+## Contributing
+
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for information on how to contribute to the project, including our branch strategy and pull request workflow.
+
 ## Tech Stack
 
 <p align="center">
