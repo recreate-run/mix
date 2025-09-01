@@ -18,9 +18,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Fetch all history for proper comparison
-
-      - name: Setup GitHub CLI
-        uses: github/cli-action@v2
+          
+      # GitHub CLI is pre-installed on GitHub Actions runners
         
       - name: Check for existing PRs
         id: check-pr
