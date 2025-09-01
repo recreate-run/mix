@@ -7,6 +7,8 @@
     "---Getting Started---",
     "index",
     "quickstart",
+    "overview",
+    "design-decisions",
     "---Usage---",
     "common-workflows",
     "desktop-app",
