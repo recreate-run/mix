@@ -1,0 +1,43 @@
+name: Auto PR from Dev to Main
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip-auto-pr]')"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Check if PR exists
+        id: check_pr
+        run: |
+          PR_COUNT=$(gh pr list --base main --head dev --json number | jq length)
+          echo "count=$PR_COUNT" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Create Pull Request
+        if: steps.check_pr.outputs.count == '0'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: auto-pr-dev-to-main
+          delete-branch: true
+          title: "Auto PR: Dev to Main"
+          body: |
+            ## Automatic PR from Dev to Main
+            
+            This PR was automatically generated to merge changes from the dev branch into main.
+          labels: automated,dev-to-main
