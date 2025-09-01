@@ -6,38 +6,33 @@ import (
 	"path/filepath"
 	"testing"
 
-	"mix/internal/config"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetContextFromPaths(t *testing.T) {
+func TestProcessContextPaths(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
-	_, err := config.Load(tmpDir, false)
-	if err != nil {
-		t.Fatalf("Failed to load config: %v", err)
-	}
-	cfg := config.Get()
-	cfg.WorkingDir = tmpDir
-	cfg.ContextPaths = []string{
-		"file.txt",
-		"directory/",
-	}
 	testFiles := []string{
 		"file.txt",
 		"directory/file_a.txt",
 		"directory/file_b.txt",
 		"directory/file_c.txt",
 	}
+	
+	contextPaths := []string{
+		"file.txt",
+		"directory/",
+	}
 
 	createTestFiles(t, tmpDir, testFiles)
 
-	context := getContextFromPaths()
+	contextResult, err := processContextPaths(tmpDir, contextPaths)
+	require.NoError(t, err)
+
 	expectedContext := fmt.Sprintf("# From:%s/file.txt\nfile.txt: test content\n# From:%s/directory/file_a.txt\ndirectory/file_a.txt: test content\n# From:%s/directory/file_b.txt\ndirectory/file_b.txt: test content\n# From:%s/directory/file_c.txt\ndirectory/file_c.txt: test content", tmpDir, tmpDir, tmpDir, tmpDir)
-	assert.Equal(t, expectedContext, context)
+	assert.Equal(t, expectedContext, contextResult)
 }
 
 func createTestFiles(t *testing.T, tmpDir string, testFiles []string) {

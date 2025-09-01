@@ -69,8 +69,6 @@ temp/
 *.tmp
 *.temp
 
-fumadocs_reference/
-
 **/*.db
 fumadocs-dev/
 .claude/settings.local.json
@@ -78,6 +76,5 @@ fumadocs-dev/
 
 **/*mix/
 .mix.json
-.vercel
 
-template-tiktok-main
+planning/

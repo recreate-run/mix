@@ -1,15 +1,10 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"mix/internal/api"
@@ -20,6 +15,7 @@ import (
 	httphandlers "mix/internal/http"
 	"mix/internal/llm/agent"
 	"mix/internal/logging"
+	"mix/internal/stdio"
 	"mix/internal/version"
 
 	"github.com/spf13/cobra"
@@ -121,7 +117,7 @@ and content creation workflows.`,
 
 		// HTTP server mode (blocks, no other modes)
 		if httpPort > 0 {
-			return startHTTPServer(ctx, app, httpHost, httpPort)
+			return httphandlers.StartServer(ctx, app, httpHost, httpPort)
 		}
 
 		// Query mode (structured data output)
@@ -161,7 +157,7 @@ func runQuery(ctx context.Context, app *app.App, queryType, outputFormat string)
 
 	// Special case: if queryType is "json", read JSON-RPC requests from stdin
 	if queryType == "json" {
-		return handleJSONRPCFromStdin(ctx, handler, outputFormat)
+		return stdio.HandleJSONRPC(ctx, handler, outputFormat)
 	}
 
 	response := handler.HandleQueryType(ctx, queryType)
@@ -189,242 +185,6 @@ func runQuery(ctx context.Context, app *app.App, queryType, outputFormat string)
 	return nil
 }
 
-// hasStdinData checks if stdin has data available without blocking
-func hasStdinData() bool {
-	stat, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	// Check if stdin is a pipe/file (has data) or if it's coming from terminal
-	return (stat.Mode()&os.ModeCharDevice) == 0 && stat.Size() > 0
-}
-
-func handleJSONRPCFromStdin(ctx context.Context, handler *api.QueryHandler, outputFormat string) error {
-	// Check if stdin has data before trying to read
-	if !hasStdinData() {
-		return fmt.Errorf(`no JSON-RPC input provided
-
-Usage examples:
-  echo '{"method": "sessions.list", "id": 1}' | %s --query json --output-format json
-  echo '{"method": "sessions.create", "params": {"title": "New Session"}, "id": 1}' | %s --query json --output-format json
-  
-Available methods: sessions.list, sessions.create, sessions.select, sessions.delete, tools.list, mcp.list, commands.list`,
-			os.Args[0], os.Args[0])
-	}
-
-	scanner := bufio.NewScanner(os.Stdin)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			continue
-		}
-
-		// Parse JSON-RPC request
-		var request api.QueryRequest
-		if err := json.Unmarshal([]byte(line), &request); err != nil {
-			// Output error response
-			errorResponse := &api.QueryResponse{
-				Error: &api.QueryError{
-					Code:    -32700,
-					Message: "Parse error: " + err.Error(),
-				},
-				ID: nil,
-			}
-			outputJSONRPCResponse(errorResponse, outputFormat)
-			continue
-		}
-
-		// Handle the request
-		response := handler.Handle(ctx, &request)
-		outputJSONRPCResponse(response, outputFormat)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading stdin: %w", err)
-	}
-
-	return nil
-}
-
-func outputJSONRPCResponse(response *api.QueryResponse, outputFormat string) {
-	jsonBytes, err := json.Marshal(response)
-	if err != nil {
-		// Fallback error response
-		fallbackResponse := &api.QueryResponse{
-			Error: &api.QueryError{
-				Code:    -32603,
-				Message: "Internal error: " + err.Error(),
-			},
-			ID: response.ID,
-		}
-		jsonBytes, _ = json.Marshal(fallbackResponse)
-	}
-
-	fmt.Println(string(jsonBytes))
-}
-
-// SSE handler functions moved to internal/http/sse.go
-
-func startHTTPServer(ctx context.Context, app *app.App, host string, port int) error {
-	handler := api.NewQueryHandler(app)
-
-	// Create dedicated HTTP mux
-	mux := http.NewServeMux()
-
-	// Add debug endpoint
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "Mix HTTP JSON-RPC Server\nPath: %s\nMethod: %s\n", r.URL.Path, r.Method)
-	})
-	
-	// Add health check endpoint
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		// Return detailed health information
-		health := map[string]interface{}{
-			"status":      "ok",
-			"timestamp":   time.Now().Format(time.RFC3339),
-			"version":     version.Version,
-			"environment": os.Getenv("ENV"),
-			"services": map[string]string{
-				"backend":  "healthy",
-				"database": "connected",
-			},
-		}
-		json.NewEncoder(w).Encode(health)
-	})
-
-	// Add SSE streaming endpoint
-	mux.HandleFunc("/stream", func(w http.ResponseWriter, r *http.Request) {
-		httphandlers.HandleSSEStream(ctx, handler, w, r)
-	})
-
-	// Add message queue endpoint for persistent SSE
-	mux.HandleFunc("/stream/", func(w http.ResponseWriter, r *http.Request) {
-		// Handle stream endpoints
-		if strings.HasSuffix(r.URL.Path, "/message") {
-			httphandlers.HandleMessageQueue(w, r)
-		} else {
-			http.NotFound(w, r)
-		}
-	})
-
-	// Add URL video export endpoint (new Playwright-based export)
-	mux.HandleFunc("/api/video/export-url", httphandlers.HandleURLVideoExport)
-
-	// Add file types endpoint
-	mux.HandleFunc("/api/file-types", httphandlers.HandleFileTypes(app))
-
-	// Add asset serving endpoints for media files
-	mux.HandleFunc("/input/", httphandlers.HandleInputAssets(app))
-	mux.HandleFunc("/output/", httphandlers.HandleOutputAssets(app))
-	
-	// Add GSAP animation endpoints with clean, explicit routing
-	mux.HandleFunc("/api/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
-		animationName := strings.TrimPrefix(r.URL.Path, "/api/gsap_animations/")
-		if animationName == "" {
-			app.AssetServer.ServeGSAPAnimationsList(w, r)
-		} else {
-			app.AssetServer.ServeGSAPAnimationSchema(w, r, animationName)
-		}
-	})
-	mux.HandleFunc("/api/gsap_animations", func(w http.ResponseWriter, r *http.Request) {
-		app.AssetServer.ServeGSAPAnimationsList(w, r)
-	})
-	mux.HandleFunc("/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
-		app.AssetServer.ServeGSAPAnimationFiles(w, r)
-	})
-
-	mux.HandleFunc("/rpc", func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Only accept POST requests
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Read request body
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			errorResponse := &api.QueryResponse{
-				Error: &api.QueryError{
-					Code:    -32700,
-					Message: "Parse error: " + err.Error(),
-				},
-			}
-			json.NewEncoder(w).Encode(errorResponse)
-			return
-		}
-
-		// Parse JSON-RPC request
-		var request api.QueryRequest
-		if err := json.Unmarshal(body, &request); err != nil {
-			errorResponse := &api.QueryResponse{
-				Error: &api.QueryError{
-					Code:    -32700,
-					Message: "Parse error: " + err.Error(),
-				},
-			}
-			json.NewEncoder(w).Encode(errorResponse)
-			return
-		}
-
-		// Log the incoming request
-		logging.Debug("HTTP Request: method=%s\n", request.Method)
-		logging.Debug("HTTP Request Body: %s\n", string(body))
-
-		// Handle the request
-		response := handler.Handle(ctx, &request)
-
-		// Log the response
-		if responseJSON, err := json.Marshal(response); err == nil {
-			logging.Debug("HTTP Response: %s\n", string(responseJSON))
-		} else {
-			logging.Debug("HTTP Response: failed to marshal response: %v\n", err)
-		}
-
-		// Send response
-		json.NewEncoder(w).Encode(response)
-	})
-
-	addr := host + ":" + strconv.Itoa(port)
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  5 * time.Minute,
-		WriteTimeout: 10 * time.Minute,
-		IdleTimeout:  15 * time.Minute, // Prevent 60-second drops
-	}
-
-	// Immediate feedback to user
-	logging.Info("Starting HTTP JSON-RPC server", "address", addr)
-
-	// Handle graceful shutdown
-	go func() {
-		<-ctx.Done()
-		logging.Info("Shutting down HTTP server")
-		server.Shutdown(context.Background())
-	}()
-
-	// Start server and block (this will block until server shuts down)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("HTTP server failed: %v", err)
-	}
-
-	return nil
-}
 
 func Execute() {
 	err := rootCmd.Execute()
