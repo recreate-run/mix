@@ -21,11 +21,10 @@ We have an automated GitHub workflow that creates pull requests from `dev` to `m
 
 The automated workflow:
 - Triggers when code is pushed to `dev`
-- Checks if an open PR from `dev` to `main` already exists
-- Creates a new PR if one doesn't exist and there are changes to merge
+- Creates a temporary branch (`auto-pr-dev-to-main`) from the current dev state
+- Creates a PR from this branch to `main` if there are changes to merge
 - Includes a summary of the commits being proposed for merge
-
-> **Note:** This workflow requires enabling "Allow GitHub Actions to create and approve pull requests" in the repository settings under Settings > Actions > General > Workflow permissions.
+- Automatically deletes the temporary branch once the PR is merged or closed
 
 To skip automatic PR creation for a specific commit, include `[skip-auto-pr]` in your commit message.
 
