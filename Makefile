@@ -1,4 +1,4 @@
-.PHONY: build dev clean install install-air install-deps help update-blender-init release-macos
+.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos
 
 # Variables
 BINARY_NAME=mix
@@ -19,6 +19,7 @@ CGO_ENV=CGO_ENABLED=0
 help:
 	@echo "Available targets:"
 	@echo "  dev         - Install dependencies and run development servers"
+	@echo "  docs        - Run documentation development server"
 	@echo "  install     - Install system dependencies (one-time setup)"
 	@echo "  install-deps - Install project dependencies"
 	@echo "  build       - Build the binary to $(BUILD_DIR)/release/ directory"
@@ -37,6 +38,10 @@ help:
 # Run development server with hot reloading (installs deps first)
 dev: install-deps 
 	@ENV=development ./scripts/shoreman.sh
+
+# Run documentation development server
+docs:
+	cd docs && bun run dev
 
 # Install system dependencies (one-time setup)
 install:

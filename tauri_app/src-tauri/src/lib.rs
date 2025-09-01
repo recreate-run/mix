@@ -1,35 +1,35 @@
 mod sidecar;
 use sidecar::SidecarManager;
 
-use objc2_app_kit::{NSColor, NSWindow};
 use objc2::ffi::nil;
 use objc2::runtime::AnyObject;
+use objc2_app_kit::{NSColor, NSWindow};
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
-#[cfg(target_os = "macos")]
-use objc2_app_kit::{NSWorkspace, NSBitmapImageRep};
-#[cfg(target_os = "macos")]
-use objc2::{msg_send, ClassType};
-#[cfg(target_os = "macos")]
-use objc2::rc::autoreleasepool;
-#[cfg(target_os = "macos")]
-use objc2_foundation::ns_string;
-#[cfg(target_os = "macos")]
-use block2::StackBlock;
-#[cfg(target_os = "macos")]
-use std::ptr::NonNull;
-#[cfg(target_os = "macos")]
-use std::ffi::CStr;
 #[cfg(target_os = "macos")]
 use base64::engine::general_purpose;
 #[cfg(target_os = "macos")]
 use base64::Engine;
+#[cfg(target_os = "macos")]
+use block2::StackBlock;
+#[cfg(target_os = "macos")]
+use objc2::rc::autoreleasepool;
+#[cfg(target_os = "macos")]
+use objc2::{msg_send, ClassType};
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSBitmapImageRep, NSWorkspace};
+#[cfg(target_os = "macos")]
+use objc2_foundation::ns_string;
+#[cfg(target_os = "macos")]
+use std::ffi::CStr;
+#[cfg(target_os = "macos")]
+use std::ptr::NonNull;
 
-// use tauri::menu::{Menu, MenuItem};
-// use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Emitter, Manager, State};
-use std::sync::Arc;
 use std::env;
+use std::sync::Arc;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{Emitter, Manager, State};
 
 #[cfg(desktop)]
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -56,7 +56,7 @@ async fn get_app_list() -> Result<Vec<AppMetadata>, String> {
             // Check if app is visible (not background-only)
             let is_hidden: bool = msg_send![&*app, isHidden];
             let activation_policy: i64 = msg_send![&*app, activationPolicy];
-            
+
             // Only include regular GUI apps
             if is_hidden || activation_policy != 0 {
                 continue;
@@ -153,7 +153,8 @@ async fn get_app_icon(bundle_id: String) -> Result<String, String> {
             }
 
             // Convert to PNG data (NSBitmapImageFileTypePNG = 4)
-            let png_data: *mut AnyObject = msg_send![bitmap_rep, representationUsingType: 4u64, properties: nil];
+            let png_data: *mut AnyObject =
+                msg_send![bitmap_rep, representationUsingType: 4u64, properties: nil];
             if png_data == nil {
                 return Err("Failed to convert to PNG".to_string());
             }
@@ -254,11 +255,11 @@ pub fn run() {
         .setup(move |app| {
             // Load environment variables from .env file
             dotenv::dotenv().ok();
-            
+
             #[cfg(desktop)]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_process::init())?;
-            
+
             let window = app.get_webview_window("main").unwrap();
 
             #[cfg(target_os = "macos")]
@@ -300,76 +301,48 @@ pub fn run() {
 
 
             // Create system tray
-            // let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            // let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            // let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
-            // // let sidecar_status_item =
-            // //     MenuItem::with_id(app, "sidecar_status", "Sidecar Status", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+            let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
+            // let sidecar_status_item =
+            //     MenuItem::with_id(app, "sidecar_status", "Sidecar Status", true, None::<&str>)?;
 
-            // let tray_menu = Menu::with_items(
-            //     app,
-            //     &[&show_item, &hide_item, &quit_item],
-            // )?;
+            let tray_menu = Menu::with_items(
+                app,
+                &[&show_item, &hide_item, &quit_item],
+            )?;
 
-            // let _tray = TrayIconBuilder::new()
-            //     .icon(app.default_window_icon().unwrap().clone())
-            //     .menu(&tray_menu)
-            //     .show_menu_on_left_click(false)
-            //     .on_menu_event(|app, event| match event.id.as_ref() {
-            //         "quit" => {
-            //             println!("Quit menu item clicked");
-            //             app.exit(0);
-            //         }
-            //         "show" => {
-            //             println!("Show menu item clicked");
-            //             if let Some(window) = app.get_webview_window("main") {
-            //                 let _ = window.show();
-            //                 let _ = window.set_focus();
-            //             }
-            //         }
-            //         "hide" => {
-            //             println!("Hide menu item clicked");
-            //             if let Some(window) = app.get_webview_window("main") {
-            //                 let _ = window.hide();
-            //             }
-            //         }
-            //         _ => {
-            //             println!("Unhandled menu item: {:?}", event.id);
-            //         }
-            //     })
-            //     .on_tray_icon_event(|tray, event| match event {
-            //         TrayIconEvent::Click {
-            //             button: MouseButton::Left,
-            //             button_state: MouseButtonState::Up,
-            //             ..
-            //         } => {
-            //             println!("Left click on tray icon");
-            //             let app = tray.app_handle();
-            //             if let Some(window) = app.get_webview_window("main") {
-            //                 if window.is_visible().unwrap_or(false) {
-            //                     let _ = window.hide();
-            //                 } else {
-            //                     let _ = window.show();
-            //                     let _ = window.set_focus();
-            //                 }
-            //             }
-            //         }
-            //         TrayIconEvent::DoubleClick {
-            //             button: MouseButton::Left,
-            //             ..
-            //         } => {
-            //             println!("Double click on tray icon");
-            //             let app = tray.app_handle();
-            //             if let Some(window) = app.get_webview_window("main") {
-            //                 let _ = window.show();
-            //                 let _ = window.set_focus();
-            //             }
-            //         }
-            //         _ => {
-            //             println!("Unhandled tray event: {:?}", event);
-            //         }
-            //     })
-            //     .build(app)?;
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&tray_menu)
+                .show_menu_on_left_click(true)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        println!("Quit menu item clicked");
+                        app.exit(0);
+                    }
+                    "show" => {
+                        println!("Show menu item clicked");
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "hide" => {
+                        println!("Hide menu item clicked");
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.hide();
+                        }
+                    }
+                    _ => {
+                        println!("Unhandled menu item: {:?}", event.id);
+                    }
+                })
+                .on_tray_icon_event(|_tray, _event| {
+                    // Only log tray events for debugging, all interactions handled via menu
+                    // println!("Tray event: {:?}", event);
+                })
+                .build(app)?;
 
             // Register global shortcut for window toggle
             #[cfg(desktop)]
@@ -377,7 +350,7 @@ pub fn run() {
                 // Use Cmd+Shift+T on macOS, Ctrl+Shift+T on Windows/Linux
                 #[cfg(target_os = "macos")]
                 let toggle_shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyT);
-                
+
                 #[cfg(not(target_os = "macos"))]
                 let toggle_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyT);
 
@@ -413,7 +386,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 let app_handle = app.handle().clone();
-                
+
                 // Set up proper NSWorkspace notification observers
                 std::thread::spawn(move || {
                     autoreleasepool(|_| {
@@ -421,23 +394,23 @@ pub fn run() {
                             // Get the shared workspace and its notification center
                             let workspace = NSWorkspace::sharedWorkspace();
                             let nc = workspace.notificationCenter();
-                            
+
                             // Define notification names as NSString constants
                             let launch_notification = ns_string!("NSWorkspaceDidLaunchApplicationNotification");
                             let terminate_notification = ns_string!("NSWorkspaceDidTerminateApplicationNotification");
-                            
+
                             // Create observer for app launches
                             let launch_app_handle = app_handle.clone();
                             let launch_block = StackBlock::new(move |_notif: NonNull<objc2_foundation::NSNotification>| {
                                 let _ = launch_app_handle.emit("app-list-changed", ());
                             });
-                            
+
                             // Create observer for app terminations
                             let term_app_handle = app_handle.clone();
                             let term_block = StackBlock::new(move |_notif: NonNull<objc2_foundation::NSNotification>| {
                                 let _ = term_app_handle.emit("app-list-changed", ());
                             });
-                            
+
                             // Register observers
                             let _launch_token = nc.addObserverForName_object_queue_usingBlock(
                                 Some(launch_notification),
@@ -445,16 +418,16 @@ pub fn run() {
                                 None,  // current thread queue
                                 &launch_block,
                             );
-                            
+
                             let _term_token = nc.addObserverForName_object_queue_usingBlock(
                                 Some(terminate_notification),
                                 None,  // any sender
                                 None,  // current thread queue
                                 &term_block,
                             );
-                            
+
                             println!("NSWorkspace notification observers registered for real-time app changes");
-                            
+
                             // Keep the thread alive to process notifications
                             loop {
                                 std::thread::park();
