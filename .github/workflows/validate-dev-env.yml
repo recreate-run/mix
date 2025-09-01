@@ -52,13 +52,10 @@ jobs:
       - name: Test Installation
         run: make test-installation
 
-      - name: Create test environment file
+      - name: Create minimum required directories
         run: |
           mkdir -p tauri_app
-          echo "POSTHOG_API_KEY=test_key" > .env
-          echo "SIDECAR_ENABLED=false" >> .env
-          echo "MIX_ANALYTICS_ENABLED=false" >> .env
-          echo "VITE_BACKEND_URL=http://localhost:8088" > tauri_app/.env
+          mkdir -p go_backend/build/debug
           
       - name: Run Environment Variable Validation
         run: make test-env

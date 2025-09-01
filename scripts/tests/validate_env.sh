@@ -78,7 +78,8 @@ ENV_ERRORS=0
 ENV_WARNINGS=0
 
 echo "Checking backend environment variables..."
-check_variable "POSTHOG_API_KEY" "warning" "PostHog Analytics API Key for tracking usage" 
+# All variables are optional with defaults, so use warning level
+check_variable "POSTHOG_API_KEY" "warning" "PostHog Analytics API Key for tracking usage" "(disabled)"
 check_variable "SIDECAR_ENABLED" "warning" "Controls whether the sidecar is automatically started" "false"
 check_variable "MIX_ANALYTICS_ENABLED" "warning" "Controls whether analytics are enabled" "true"
 check_variable "ANTHROPIC_API_KEY" "warning" "Anthropic API key for Claude LLM" "(will use OAuth)"

@@ -63,13 +63,9 @@ echo -e "\n${BOLD}Checking environment file${NC}"
 if [ -f ".env" ]; then
   echo -e "${GREEN}✓ .env file exists${NC}"
 else
-  echo -e "${YELLOW}⚠ .env file not found, creating sample file${NC}"
-  cat > .env << EOF
-POSTHOG_API_KEY=sample_key
-SIDECAR_ENABLED=false
-MIX_ANALYTICS_ENABLED=true
-EOF
-  echo -e "${GREEN}✓ Created sample .env file${NC}"
+  echo -e "${GREEN}ℹ No .env file found${NC}"
+  echo -e "   The application will use default values."
+  echo -e "   This is the expected behavior for fresh installations."
 fi
 
 # Check frontend environment file
@@ -77,9 +73,9 @@ echo -e "\n${BOLD}Checking frontend environment file${NC}"
 if [ -f "tauri_app/.env" ]; then
   echo -e "${GREEN}✓ Frontend .env file exists${NC}"
 else
-  echo -e "${YELLOW}⚠ Frontend .env file not found, creating file${NC}"
-  echo "VITE_BACKEND_URL=http://localhost:8088" > tauri_app/.env
-  echo -e "${GREEN}✓ Created frontend .env file${NC}"
+  echo -e "${GREEN}ℹ No frontend .env file found${NC}"
+  echo -e "   The frontend will use the default backend URL: http://localhost:8088"
+  echo -e "   This is the expected behavior for fresh installations."
 fi
 
 # Summary

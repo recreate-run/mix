@@ -120,9 +120,9 @@ if [ -f "$FRONTEND_ENV_FILE" ]; then
     echo -e "   Check $FRONTEND_ENV_FILE to ensure it contains: VITE_BACKEND_URL=$DEFAULT_BACKEND_URL"
   fi
 else
-  echo -e "⚠️  ${YELLOW}Frontend .env file not found at $FRONTEND_ENV_FILE${NC}"
-  echo -e "   The app will use default values, which may cause connection issues."
-  echo -e "   Create the file with: echo \"VITE_BACKEND_URL=$DEFAULT_BACKEND_URL\" > $FRONTEND_ENV_FILE"
+  echo -e "ℹ️  ${GREEN}Frontend .env file not found at $FRONTEND_ENV_FILE${NC}"
+  echo -e "   The app will use the default backend URL: $DEFAULT_BACKEND_URL"
+  echo -e "   This is the expected behavior for fresh installations."
 fi
 
 # Step 5: Test actual API request
