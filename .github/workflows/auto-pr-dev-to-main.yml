@@ -15,33 +15,48 @@ jobs:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[skip-auto-pr]')"
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          
+          ref: dev
       
-      - name: Check if PR exists
-        id: check_pr
+      - name: Debug branch information
         run: |
+          git fetch origin main
+          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+          echo "Commits ahead: $(git rev-list --count origin/main..HEAD)"
+          echo "Commit differences:"
+          git log --oneline origin/main..HEAD
+
+      - name: Create Pull Request with GitHub CLI
+        run: |
+          # Check if PR already exists
           PR_COUNT=$(gh pr list --base main --head dev --json number | jq length)
-          echo "count=$PR_COUNT" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-      
-      - name: Create Pull Request
-        if: steps.check_pr.outputs.count == '0'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          base: main
-          branch: auto-pr-dev-to-main
-          delete-branch: true
-          title: "Auto PR: Dev to Main"
-          body: |
-            ## Automatic PR from Dev to Main
+          echo "Found $PR_COUNT existing PRs"
+          
+          if [ "$PR_COUNT" -eq "0" ]; then
+            # Check if there are changes to merge
+            COMMITS_AHEAD=$(git rev-list --count origin/main..HEAD)
+            echo "Found $COMMITS_AHEAD commits ahead of main"
             
-            This PR was automatically generated to merge changes from the dev branch into main.
-          labels: automated,dev-to-main
-          reviewers: |
-            avaibhav54
-            sarath-menon
+            if [ "$COMMITS_AHEAD" -gt "0" ]; then
+              echo "Creating PR..."
+              gh pr create \
+                --base main \
+                --head dev \
+                --title "Auto PR: Dev to Main" \
+                --body "## Automatic PR from Dev to Main
+
+                This PR was automatically generated to merge changes from the dev branch into main." \
+                --reviewer avaibhav54,sarath-menon \
+                --label automated
+              echo "PR created successfully"
+            else
+              echo "No changes to merge, skipping PR creation"
+            fi
+          else
+            echo "PR already exists, skipping"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
