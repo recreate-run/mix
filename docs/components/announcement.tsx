@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 export function Announcement() {
   return (
     <Link
-      href="/docs"
+      href="/docs/backend"
       className="inline-flex items-center rounded-lg bg-fd-muted px-3 py-1 text-sm font-medium"
     >
       <Badge variant="secondary" className="mr-2">
