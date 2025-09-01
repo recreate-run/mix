@@ -23,6 +23,9 @@ jobs:
       
       - name: Debug branch information
         run: |
+          # Use PAT for all git operations
+          git config --global url."https://${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          
           git fetch origin main
           echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
           echo "Commits ahead: $(git rev-list --count origin/main..HEAD)"
@@ -42,7 +45,7 @@ jobs:
             
             if [ "$COMMITS_AHEAD" -gt "0" ]; then
               echo "Creating PR..."
-              # Create the PR without labels first
+              # Create the PR using PAT_TOKEN
               gh pr create \
                 --base main \
                 --head dev \
@@ -59,4 +62,4 @@ jobs:
             echo "PR already exists, skipping"
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
