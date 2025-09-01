@@ -2,7 +2,7 @@
 # This file defines code ownership for the Mix project
 # For more information, see: https://docs.github.com/en/repositories/managing-your-code/about-code-owners
 
-# Default owners for everything in the repo
+# Default owners for everything in the repo - using exact usernames from GitHub profiles
 * @sarath-menon @avaibhav54
 
 # Frontend code

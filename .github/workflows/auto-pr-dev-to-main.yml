@@ -42,3 +42,6 @@ jobs:
             
             This PR was automatically generated to merge changes from the dev branch into main.
           labels: automated,dev-to-main
+          reviewers: |
+            avaibhav54
+            sarath-menon
