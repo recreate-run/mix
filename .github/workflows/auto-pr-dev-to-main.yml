@@ -42,6 +42,7 @@ jobs:
             
             if [ "$COMMITS_AHEAD" -gt "0" ]; then
               echo "Creating PR..."
+              # Create the PR without labels first
               gh pr create \
                 --base main \
                 --head dev \
@@ -49,8 +50,7 @@ jobs:
                 --body "## Automatic PR from Dev to Main
 
                 This PR was automatically generated to merge changes from the dev branch into main." \
-                --reviewer avaibhav54,sarath-menon \
-                --label automated
+                --reviewer avaibhav54,sarath-menon
               echo "PR created successfully"
             else
               echo "No changes to merge, skipping PR creation"
