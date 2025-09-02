@@ -375,12 +375,6 @@ func unmarshallParts(data []byte) ([]ContentPart, error) {
 				return nil, err
 			}
 			parts = append(parts, part)
-		case thinkingBlockType:
-			part := ThinkingBlock{}
-			if err := json.Unmarshal(wrapper.Data, &part); err != nil {
-				return nil, err
-			}
-			parts = append(parts, part)
 		default:
 			return nil, fmt.Errorf("unknown part type: %s", wrapper.Type)
 		}

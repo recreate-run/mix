@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"mix/internal/config"
 	"mix/internal/llm/models"
 	toolsPkg "mix/internal/llm/tools"
 	"mix/internal/logging"
