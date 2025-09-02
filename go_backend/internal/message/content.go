@@ -127,6 +127,13 @@ type ToolResult struct {
 
 func (ToolResult) isPart() {}
 
+type ThinkingBlock struct {
+	Thinking  string `json:"thinking"`
+	Signature string `json:"signature"`
+}
+
+func (ThinkingBlock) isPart() {}
+
 type Finish struct {
 	Reason FinishReason `json:"reason"`
 	Time   int64        `json:"time"`

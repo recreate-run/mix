@@ -16,6 +16,7 @@ import (
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
+	"mix/internal/message"
 	"mix/internal/permission"
 )
 
@@ -78,15 +79,19 @@ type ToolCallData struct {
 	Input    string `json:"input"`
 	Type     string `json:"type"`
 	Finished bool   `json:"finished"`
+	Result   string `json:"result,omitempty"`
+	IsError  bool   `json:"isError,omitempty"`
 }
 
 type MessageData struct {
-	ID        string         `json:"id"`
-	SessionID string         `json:"sessionId"`
-	Role      string         `json:"role"`
-	Content   string         `json:"content"`
-	Response  string         `json:"response,omitempty"`
-	ToolCalls []ToolCallData `json:"toolCalls,omitempty"`
+	ID                string         `json:"id"`
+	SessionID         string         `json:"sessionId"`
+	Role              string         `json:"role"`
+	Content           string         `json:"content"`
+	Response          string         `json:"response,omitempty"`
+	ToolCalls         []ToolCallData `json:"toolCalls,omitempty"`
+	Reasoning         string         `json:"reasoning,omitempty"`
+	ReasoningDuration int64          `json:"reasoningDuration,omitempty"`
 }
 
 // Error response helper functions
@@ -914,26 +919,67 @@ func (h *QueryHandler) handleMessagesHistory(ctx context.Context, req *QueryRequ
 
 	var result []MessageData
 	for _, msg := range messages {
-		// Extract tool calls
+		// Extract tool calls and match with tool results
 		toolCalls := msg.ToolCalls()
+		toolResults := msg.ToolResults()
+		
+		// Extract reasoning content from both ReasoningContent and ThinkingBlock parts
+		var reasoning string
+		var reasoningDuration int64
+		for _, part := range msg.Parts {
+			if reasoningContent, ok := part.(message.ReasoningContent); ok {
+				if reasoning == "" { // Use first reasoning content found
+					reasoning = reasoningContent.Thinking
+					reasoningDuration = reasoningContent.Duration
+				}
+			} else if thinkingBlock, ok := part.(message.ThinkingBlock); ok {
+				if reasoning == "" { // Use thinking block if no reasoning content found
+					reasoning = thinkingBlock.Thinking
+					reasoningDuration = 0 // ThinkingBlock doesn't have duration
+				}
+			}
+		}
+		
+		// Create a map of tool results by tool call ID for quick lookup
+		resultsByID := make(map[string]message.ToolResult)
+		for _, tr := range toolResults {
+			resultsByID[tr.ToolCallID] = tr
+		}
+		
 		toolCallsData := make([]ToolCallData, len(toolCalls))
 		for i, tc := range toolCalls {
-			toolCallsData[i] = ToolCallData{
+			toolCallData := ToolCallData{
 				ID:       tc.ID,
 				Name:     tc.Name,
 				Input:    tc.Input,
 				Type:     tc.Type,
 				Finished: tc.Finished,
 			}
+			
+			// Add result if available
+			if toolResult, exists := resultsByID[tc.ID]; exists {
+				toolCallData.Result = toolResult.Content
+				toolCallData.IsError = toolResult.IsError
+			}
+			
+			toolCallsData[i] = toolCallData
 		}
 
-		result = append(result, MessageData{
+		messageData := MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
 			Content:   msg.Content().String(),
 			ToolCalls: toolCallsData,
-		})
+		}
+		
+		// Add reasoning content if present
+		if reasoning != "" {
+			messageData.Reasoning = reasoning
+			messageData.ReasoningDuration = reasoningDuration
+		}
+		
+		result = append(result, messageData)
 	}
 
 	return &QueryResponse{
@@ -962,26 +1008,67 @@ func (h *QueryHandler) handleMessagesList(ctx context.Context, req *QueryRequest
 
 	var result []MessageData
 	for _, msg := range messages {
-		// Extract tool calls
+		// Extract tool calls and match with tool results
 		toolCalls := msg.ToolCalls()
+		toolResults := msg.ToolResults()
+		
+		// Extract reasoning content from both ReasoningContent and ThinkingBlock parts
+		var reasoning string
+		var reasoningDuration int64
+		for _, part := range msg.Parts {
+			if reasoningContent, ok := part.(message.ReasoningContent); ok {
+				if reasoning == "" { // Use first reasoning content found
+					reasoning = reasoningContent.Thinking
+					reasoningDuration = reasoningContent.Duration
+				}
+			} else if thinkingBlock, ok := part.(message.ThinkingBlock); ok {
+				if reasoning == "" { // Use thinking block if no reasoning content found
+					reasoning = thinkingBlock.Thinking
+					reasoningDuration = 0 // ThinkingBlock doesn't have duration
+				}
+			}
+		}
+		
+		// Create a map of tool results by tool call ID for quick lookup
+		resultsByID := make(map[string]message.ToolResult)
+		for _, tr := range toolResults {
+			resultsByID[tr.ToolCallID] = tr
+		}
+		
 		toolCallsData := make([]ToolCallData, len(toolCalls))
 		for i, tc := range toolCalls {
-			toolCallsData[i] = ToolCallData{
+			toolCallData := ToolCallData{
 				ID:       tc.ID,
 				Name:     tc.Name,
 				Input:    tc.Input,
 				Type:     tc.Type,
 				Finished: tc.Finished,
 			}
+			
+			// Add result if available
+			if toolResult, exists := resultsByID[tc.ID]; exists {
+				toolCallData.Result = toolResult.Content
+				toolCallData.IsError = toolResult.IsError
+			}
+			
+			toolCallsData[i] = toolCallData
 		}
 
-		result = append(result, MessageData{
+		messageData := MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
 			Content:   msg.Content().String(),
 			ToolCalls: toolCallsData,
-		})
+		}
+		
+		// Add reasoning content if present
+		if reasoning != "" {
+			messageData.Reasoning = reasoning
+			messageData.ReasoningDuration = reasoningDuration
+		}
+		
+		result = append(result, messageData)
 	}
 
 	return &QueryResponse{
