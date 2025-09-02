@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Announcement } from "@/components/announcement";
+import { Footer } from "@/components/footer";
 import {
 	PageActions,
 	PageHeader,
@@ -41,20 +42,23 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
 	return (
-		<div className="grid min-h-[80vh] place-content-center place-items-center">
-			<PageHeader>
-				<Announcement />
-				<PageHeaderHeading className="max-w-4xl">{title}</PageHeaderHeading>
-				<PageHeaderDescription>{description}</PageHeaderDescription>
-				<PageActions>
-					<Button size="sm">
-						<Link href={config.links.github}>Get Started</Link>
-					</Button>
-					<Button size="sm" variant="ghost">
-						<Link href="/docs/backend">View Documentation</Link>
-					</Button>
-				</PageActions>
-			</PageHeader>
-		</div>
+		<>
+			<div className="grid min-h-[80vh] place-content-center place-items-center">
+				<PageHeader>
+					<Announcement />
+					<PageHeaderHeading className="max-w-4xl">{title}</PageHeaderHeading>
+					<PageHeaderDescription>{description}</PageHeaderDescription>
+					<PageActions>
+						<Button size="sm">
+							<Link href={config.links.github}>Get Started</Link>
+						</Button>
+						<Button size="sm" variant="ghost">
+							<Link href="/docs/backend">View Documentation</Link>
+						</Button>
+					</PageActions>
+				</PageHeader>
+			</div>
+			<Footer />
+		</>
 	);
 }

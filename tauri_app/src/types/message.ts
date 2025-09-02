@@ -32,6 +32,8 @@ export interface BackendMessage {
   role: string;
   content: string;
   toolCalls?: ToolCallData[];
+  reasoning?: string;
+  reasoningDuration?: number;
 }
 
 export type MessageData = {

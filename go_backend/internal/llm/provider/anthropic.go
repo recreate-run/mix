@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"mix/internal/config"
 	"mix/internal/llm/models"
 	toolsPkg "mix/internal/llm/tools"
 	"mix/internal/logging"
@@ -360,11 +359,6 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 
 	// Use SDK for both OAuth and API key authentication
 	preparedMessages := a.preparedMessages(a.convertMessages(messages), a.convertTools(tools))
-	cfg := config.Get()
-	if cfg.Debug {
-		jsonData, _ := json.Marshal(preparedMessages)
-		logging.Debug("Prepared messages", "messages", string(jsonData))
-	}
 
 	attempts := 0
 	for {
@@ -480,12 +474,6 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 
 	// Use SDK for both OAuth and API key authentication
 	preparedMessages := a.preparedMessages(a.convertMessages(messages), a.convertTools(tools))
-	cfg := config.Get()
-
-	if cfg.Debug {
-		jsonData, _ := json.Marshal(preparedMessages)
-		logging.Debug("Prepared messages", "messages", string(jsonData))
-	}
 	attempts := 0
 
 	// Handle the case where no authentication is provided

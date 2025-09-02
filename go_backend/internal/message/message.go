@@ -287,6 +287,8 @@ func marshallParts(parts []ContentPart) ([]byte, error) {
 			typ = toolResultType
 		case Finish:
 			typ = finishType
+		case ThinkingBlock:
+			typ = thinkingBlockType
 		default:
 			return nil, fmt.Errorf("unknown part type: %T", part)
 		}

@@ -62,4 +62,6 @@ export interface ToolCallData {
   input: string;
   type: string;
   finished: boolean;
+  result?: string;
+  isError?: boolean;
 }
