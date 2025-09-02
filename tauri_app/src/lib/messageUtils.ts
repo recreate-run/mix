@@ -6,7 +6,7 @@ import {
 } from '@/utils/attachmentUtils';
 import type { ToolCall, ToolCallData } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
-import type { BackendMessage, UIMessage } from '@/types/message';
+import type { BackendMessage, UIMessage, TimelineEntry } from '@/types/message';
 
 interface ParsedContent {
   text: string;
@@ -117,11 +117,23 @@ export const convertBackendMessageToUI = async (
   const mediaOutputs = toolCalls?.find((tc) => tc.name === 'show_media')
     ?.parameters?.outputs as MediaOutput[] | undefined;
 
+  // Create timeline from stored reasoning if available
+  let timeline: TimelineEntry[] | undefined;
+  if (backendMessage.reasoning && backendMessage.reasoning.trim()) {
+    timeline = [{
+      type: 'thinking',
+      timestamp: Date.now(), // Could be derived from message timestamp
+      content: backendMessage.reasoning,
+      id: `stored-reasoning-${backendMessage.id}`
+    }];
+  }
+
   return {
     content: text,
     from: backendMessage.role === 'user' ? 'user' : 'assistant',
     toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
     attachments: attachments.length > 0 ? attachments : undefined,
+    timeline,
     mediaOutputs:
       mediaOutputs && mediaOutputs.length > 0 ? mediaOutputs : undefined,
     reasoning: backendMessage.reasoning,

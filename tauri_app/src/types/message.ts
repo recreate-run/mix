@@ -24,6 +24,8 @@ export interface UIMessage {
   attachments?: Attachment[];
   timeline?: TimelineEntry[];
   mediaOutputs?: MediaOutput[];
+  reasoning?: string;
+  reasoningDuration?: number;
 }
 
 export interface BackendMessage {
