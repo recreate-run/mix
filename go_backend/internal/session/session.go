@@ -86,12 +86,12 @@ func (s *service) Create(ctx context.Context, title string, workingDirectory str
 		return Session{}, fmt.Errorf("failed to create gsap_animations directory: %w", err)
 	}
 
-	// Create MIX.md file if it doesn't exist
-	mixFilePath := filepath.Join(workingDirectory, "MIX.md")
+	// Create AGENTS.md file if it doesn't exist
+	mixFilePath := filepath.Join(workingDirectory, "AGENTS.md")
 	if _, err := os.Stat(mixFilePath); os.IsNotExist(err) {
-		mixContent := "Sample MIX.md"
+		mixContent := "Sample AGENTS.md"
 		if err := os.WriteFile(mixFilePath, []byte(mixContent), 0o644); err != nil {
-			return Session{}, fmt.Errorf("failed to create MIX.md file: %w", err)
+			return Session{}, fmt.Errorf("failed to create AGENTS.md file: %w", err)
 		}
 	}
 
@@ -218,7 +218,7 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
 		return Session{}, err
 	}
-	
+
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
@@ -240,7 +240,7 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
 		return Session{}, err
 	}
-	
+
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
@@ -262,7 +262,7 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
 		return Session{}, err
 	}
-	
+
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
@@ -284,13 +284,13 @@ func (s *service) fromUpdateSessionRowWithCounts(ctx context.Context, item db.Up
 	if err := validateWorkingDirectory(item.WorkingDirectory, item.ID); err != nil {
 		return Session{}, err
 	}
-	
+
 	// Get accurate counts by querying the full session data
 	fullSession, err := s.q.GetSessionByID(ctx, item.ID)
 	if err != nil {
 		return Session{}, err
 	}
-	
+
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
@@ -307,7 +307,6 @@ func (s *service) fromUpdateSessionRowWithCounts(ctx context.Context, item db.Up
 		WorkingDirectory:      item.WorkingDirectory.String,
 	}, nil
 }
-
 
 func NewService(q db.Querier) Service {
 	broker := pubsub.NewBroker[Session]()

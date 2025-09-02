@@ -100,7 +100,7 @@ const (
 )
 
 var defaultContextPaths = []string{
-	"MIX.md",
+	"AGENTS.md",
 }
 
 // getDefaultConfig returns the hardcoded default configuration
@@ -109,7 +109,7 @@ func getDefaultConfig() *Config {
 		Data: Data{
 			Directory: ".mix",
 		},
-		ContextPaths: []string{"MIX.md"},
+		ContextPaths: []string{"AGENTS.md"},
 		Shell: ShellConfig{
 			Path: "",
 			Args: []string{"-l"},

@@ -208,7 +208,7 @@
     },
     "contextPaths": {
       "default": [
-        "MIX.md"
+        "AGENTS.md"
 
       ],
       "description": "Context paths for the application",

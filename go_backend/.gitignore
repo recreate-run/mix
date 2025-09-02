@@ -46,8 +46,6 @@ build-errors.log
 .env
 .env.local
 
-mix.md
-
 tools/blender/__pycache__
 
 # Database files
