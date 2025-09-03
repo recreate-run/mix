@@ -55,6 +55,18 @@ Assistant: Let me display that image for you.
 </example>
 
 <example>
+User: Show me this image: https://example.com/images/banner.jpg
+Assistant: I'll display that image from the URL for you.
+
+*Uses show_media tool with:*
+
+- Path: https://example.com/images/banner.jpg
+- Type: image
+- Title: Banner Image
+- Description: Remote banner image from example.com
+</example>
+
+<example>
 User: Create a 30-second marketing video for our product
 Assistant: [After performing video creation steps, gathering assets, editing clips, adding music, and rendering the final output]
 
@@ -78,6 +90,30 @@ Assistant: I'll display the reference audio file so you can review it.
 - Type: audio
 - Title: Reference Background Music
 - Description: Original audio file for editing reference
+</example>
+
+<example>
+User: Display this video from YouTube: https://www.youtube.com/watch?v=example123
+Assistant: I'll show you that video from the URL.
+
+*Uses show_media tool with:*
+
+- Path: https://www.youtube.com/watch?v=example123
+- Type: video
+- Title: YouTube Reference Video
+- Description: External video content for reference
+</example>
+
+<example>
+User: Show this audio track: https://soundcloud.com/artist/track
+Assistant: I'll display that audio track from the URL.
+
+*Uses show_media tool with:*
+
+- Path: https://soundcloud.com/artist/track
+- Type: audio
+- Title: SoundCloud Track
+- Description: Remote audio content from SoundCloud
 </example>
 
 <example>
@@ -112,7 +148,7 @@ Assistant: I've identified key segments from your demo video.
 
 outputs (required): Array of media outputs to showcase
 
-- path: Absolute file path (required except for gsap_animation). For video/audio segments, this is the source media file
+- path: Absolute file path or HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media file
 - type: "image", "video", "audio", or "gsap_animation"
 - title: Display title
 - description: Project context (optional)
@@ -135,7 +171,9 @@ outputs (required): Array of media outputs to showcase
 
 ## Usage Notes
 
-- Always use absolute paths - Relative paths will be rejected
+- Always use absolute paths or URLs - Relative paths will be rejected
+- URLs supported - HTTP/HTTPS URLs work for image, video, and audio types
+- File extension validation skipped for URLs - URLs don't need specific extensions
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once

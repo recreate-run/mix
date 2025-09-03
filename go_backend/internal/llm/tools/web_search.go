@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,10 +15,13 @@ import (
 	"mix/internal/permission"
 )
 
-type WebSearchParams struct {
+type SearchParams struct {
 	Query          string   `json:"query"`
+	SearchType     string   `json:"search_type,omitempty"`
 	AllowedDomains []string `json:"allowed_domains,omitempty"`
 	BlockedDomains []string `json:"blocked_domains,omitempty"`
+	SafeSearch     string   `json:"safesearch,omitempty"`
+	SpellCheck     *bool    `json:"spellcheck,omitempty"`
 }
 
 // Brave Search API response structures
@@ -37,24 +41,62 @@ type SearchResult struct {
 	Description string `json:"description"`
 }
 
-type WebSearchPermissionsParams struct {
-	Query          string   `json:"query"`
-	AllowedDomains []string `json:"allowed_domains,omitempty"`
-	BlockedDomains []string `json:"blocked_domains,omitempty"`
+// Image search response structures
+type ImageSearchResponse struct {
+	Type    string        `json:"type"`
+	Results []ImageResult `json:"results"`
 }
 
-type webSearchTool struct {
+type ImageResult struct {
+	Type        string                 `json:"type"`
+	Title       string                 `json:"title"`
+	URL         string                 `json:"url"`          // Source page URL
+	Source      string                 `json:"source"`
+	PageFetched string                 `json:"page_fetched"`
+	Thumbnail   ImageResultThumbnail   `json:"thumbnail"`
+	Properties  ImageResultProperties  `json:"properties"`
+	MetaURL     *ImageResultMetaURL    `json:"meta_url,omitempty"`
+	Confidence  string                 `json:"confidence"`
+}
+
+type ImageResultThumbnail struct {
+	Src string `json:"src"`
+}
+
+type ImageResultProperties struct {
+	URL         string `json:"url"`         // Actual image URL
+	Placeholder string `json:"placeholder"`
+}
+
+type ImageResultMetaURL struct {
+	Scheme   string `json:"scheme"`
+	Netloc   string `json:"netloc"`
+	Hostname string `json:"hostname"`
+	Favicon  string `json:"favicon"`
+	Path     string `json:"path"`
+}
+
+type SearchPermissionsParams struct {
+	Query          string   `json:"query"`
+	SearchType     string   `json:"search_type,omitempty"`
+	AllowedDomains []string `json:"allowed_domains,omitempty"`
+	BlockedDomains []string `json:"blocked_domains,omitempty"`
+	SafeSearch     string   `json:"safesearch,omitempty"`
+	SpellCheck     *bool    `json:"spellcheck,omitempty"`
+}
+
+type searchTool struct {
 	client      *http.Client
 	permissions permission.Service
 }
 
 const (
-	WebSearchToolName = "web_search"
-	MaxSearchResults  = 3
+	SearchToolName   = "search"
+	MaxSearchResults = 3
 )
 
 func NewWebSearchTool(permissions permission.Service) BaseTool {
-	return &webSearchTool{
+	return &searchTool{
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -62,15 +104,21 @@ func NewWebSearchTool(permissions permission.Service) BaseTool {
 	}
 }
 
-func (t *webSearchTool) Info() ToolInfo {
+func (t *searchTool) Info() ToolInfo {
 	return ToolInfo{
-		Name:        WebSearchToolName,
+		Name:        SearchToolName,
 		Description: LoadToolDescription("web_search"),
 		Parameters: map[string]any{
 			"query": map[string]any{
 				"type":        "string",
 				"description": "The search query to use (minimum 2 characters)",
 				"minLength":   2,
+			},
+			"search_type": map[string]any{
+				"type":        "string",
+				"description": "Type of search to perform",
+				"enum":        []string{"web", "images"},
+				"default":     "web",
 			},
 			"allowed_domains": map[string]any{
 				"type":        "array",
@@ -86,15 +134,26 @@ func (t *webSearchTool) Info() ToolInfo {
 					"type": "string",
 				},
 			},
+			"safesearch": map[string]any{
+				"type":        "string",
+				"description": "Safe search level for image search",
+				"enum":        []string{"strict", "moderate", "off"},
+				"default":     "strict",
+			},
+			"spellcheck": map[string]any{
+				"type":        "boolean",
+				"description": "Enable spell correction",
+				"default":     true,
+			},
 		},
 		Required: []string{"query"},
 	}
 }
 
-func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
-	var params WebSearchParams
+func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
+	var params SearchParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
-		return NewTextErrorResponse("Failed to parse web search parameters: " + err.Error()), nil
+		return NewTextErrorResponse("Failed to parse search parameters: " + err.Error()), nil
 	}
 
 	if params.Query == "" {
@@ -103,6 +162,27 @@ func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 
 	if len(params.Query) < 2 {
 		return NewTextErrorResponse("Query must be at least 2 characters long"), nil
+	}
+
+	// Set defaults for search parameters
+	if params.SearchType == "" {
+		params.SearchType = "web"
+	}
+	
+	// Validate search type
+	if params.SearchType != "web" && params.SearchType != "images" {
+		return NewTextErrorResponse("search_type must be 'web' or 'images'"), nil
+	}
+
+	// Set defaults for image search parameters
+	if params.SearchType == "images" {
+		if params.SafeSearch == "" {
+			params.SafeSearch = "strict"
+		}
+		if params.SpellCheck == nil {
+			defaultSpellCheck := true
+			params.SpellCheck = &defaultSpellCheck
+		}
 	}
 
 	// Get API key from environment
@@ -121,15 +201,19 @@ func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Request permission for web search
+	// Request permission for search
+	searchType := "web"
+	if params.SearchType == "images" {
+		searchType = "image"
+	}
 	p := t.permissions.Request(
 		permission.CreatePermissionRequest{
 			SessionID:   sessionID,
 			Path:        workingDir,
-			ToolName:    WebSearchToolName,
-			Action:      "web_search",
-			Description: fmt.Sprintf("Search the web for: %s", params.Query),
-			Params:      WebSearchPermissionsParams(params),
+			ToolName:    SearchToolName,
+			Action:      searchType + "_search",
+			Description: fmt.Sprintf("Search for %s: %s", searchType, params.Query),
+			Params:      SearchPermissionsParams(params),
 		},
 	)
 
@@ -137,8 +221,15 @@ func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
 
-	// Build the request URL
-	u, err := url.Parse("https://api.search.brave.com/res/v1/web/search")
+	// Build the request URL based on search type
+	var baseURL string
+	if params.SearchType == "images" {
+		baseURL = "https://api.search.brave.com/res/v1/images/search"
+	} else {
+		baseURL = "https://api.search.brave.com/res/v1/web/search"
+	}
+	
+	u, err := url.Parse(baseURL)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to parse Brave API URL: %w", err)
 	}
@@ -148,6 +239,20 @@ func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 	q.Set("count", "10")
 	q.Set("country", "us")
 	q.Set("search_lang", "en")
+
+	// Add image-specific parameters
+	if params.SearchType == "images" {
+		if params.SafeSearch != "" {
+			q.Set("safesearch", params.SafeSearch)
+		}
+		if params.SpellCheck != nil {
+			if *params.SpellCheck {
+				q.Set("spellcheck", "1")
+			} else {
+				q.Set("spellcheck", "0")
+			}
+		}
+	}
 
 	// Add domain filtering if specified
 	if len(params.AllowedDomains) > 0 {
@@ -177,6 +282,8 @@ func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 	// Set the required headers
 	req.Header.Set("X-Subscription-Token", apiKey)
 	req.Header.Set("User-Agent", "mix/1.0")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Encoding", "gzip")
 
 	// Execute the request
 	resp, err := t.client.Do(req)
@@ -189,22 +296,42 @@ func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 		return NewTextErrorResponse(fmt.Sprintf("Brave Search API returned status code: %d", resp.StatusCode)), nil
 	}
 
+	// Handle gzip compression
+	var reader io.ReadCloser
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		reader, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return NewTextErrorResponse("Failed to decompress search results: " + err.Error()), nil
+		}
+		defer reader.Close()
+	} else {
+		reader = resp.Body
+	}
+
 	// Read the response body with size limit
 	maxSize := int64(5 * 1024 * 1024) // 5MB limit
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxSize))
+	body, err := io.ReadAll(io.LimitReader(reader, maxSize))
 	if err != nil {
 		return NewTextErrorResponse("Failed to read search results: " + err.Error()), nil
 	}
 
-	// Parse the Brave API response
+	// Parse response based on search type and format results
+	if params.SearchType == "images" {
+		return t.formatImageResults(body, params.Query)
+	} else {
+		return t.formatWebResults(body, params.Query)
+	}
+}
+
+func (t *searchTool) formatWebResults(body []byte, query string) (ToolResponse, error) {
 	var braveResponse BraveSearchResponse
 	if err := json.Unmarshal(body, &braveResponse); err != nil {
-		return NewTextErrorResponse("Failed to parse search results: " + err.Error()), nil
+		return NewTextErrorResponse("Failed to parse web search results: " + err.Error()), nil
 	}
 
 	// Check if we have web results
 	if len(braveResponse.Web.Results) == 0 {
-		return NewTextResponse("No search results found."), nil
+		return NewTextResponse("No web search results found."), nil
 	}
 
 	// Format results for readability, limited to MaxSearchResults
@@ -214,13 +341,70 @@ func (t *webSearchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 	}
 
 	var formattedOutput strings.Builder
-	formattedOutput.WriteString(fmt.Sprintf("Search results for: %s\n\n", params.Query))
+	formattedOutput.WriteString(fmt.Sprintf("Web search results for: %s\n\n", query))
 
 	for i := 0; i < resultsToShow; i++ {
 		result := braveResponse.Web.Results[i]
 		formattedOutput.WriteString(fmt.Sprintf("%d. %s\n", i+1, result.Title))
 		formattedOutput.WriteString(fmt.Sprintf("   URL: %s\n", result.URL))
 		formattedOutput.WriteString(fmt.Sprintf("   Description: %s\n", result.Description))
+		if i < resultsToShow-1 {
+			formattedOutput.WriteString("\n---\n\n")
+		}
+	}
+
+	return NewTextResponse(formattedOutput.String()), nil
+}
+
+func (t *searchTool) formatImageResults(body []byte, query string) (ToolResponse, error) {
+	var imageResponse ImageSearchResponse
+	if err := json.Unmarshal(body, &imageResponse); err != nil {
+		return NewTextErrorResponse("Failed to parse image search results: " + err.Error()), nil
+	}
+
+	// Check if we have image results
+	if len(imageResponse.Results) == 0 {
+		return NewTextResponse("No image search results found."), nil
+	}
+
+	// Format results for readability, limited to MaxSearchResults
+	resultsToShow := len(imageResponse.Results)
+	if resultsToShow > MaxSearchResults {
+		resultsToShow = MaxSearchResults
+	}
+
+	var formattedOutput strings.Builder
+	formattedOutput.WriteString(fmt.Sprintf("Image search results for: %s\n\n", query))
+
+	for i := 0; i < resultsToShow; i++ {
+		result := imageResponse.Results[i]
+		formattedOutput.WriteString(fmt.Sprintf("%d. %s\n", i+1, result.Title))
+		
+		// Show actual image URL (from properties)
+		if result.Properties.URL != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Image URL: %s\n", result.Properties.URL))
+		}
+		
+		// Show thumbnail URL
+		if result.Thumbnail.Src != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Thumbnail: %s\n", result.Thumbnail.Src))
+		}
+		
+		// Show source information
+		if result.Source != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Source: %s\n", result.Source))
+		}
+		
+		// Show source page URL
+		if result.URL != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Source Page: %s\n", result.URL))
+		}
+		
+		// Show confidence if available
+		if result.Confidence != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Confidence: %s\n", result.Confidence))
+		}
+		
 		if i < resultsToShow-1 {
 			formattedOutput.WriteString("\n---\n\n")
 		}

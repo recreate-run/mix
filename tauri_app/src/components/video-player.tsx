@@ -1,4 +1,9 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
+
+// Helper function to detect URLs
+const isURL = (path: string): boolean => {
+  return path.startsWith('http://') || path.startsWith('https://');
+};
 import { PictureInPicture } from 'lucide-react';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useThrottledCallback } from '@tanstack/react-pacer';
@@ -75,7 +80,7 @@ export const VideoPlayer = ({
 
   // Simple URL without media fragments (more reliable)
   const getVideoSrc = () => {
-    return convertToAssetServerUrl(path, workingDirectory);
+    return isURL(path) ? path : convertToAssetServerUrl(path, workingDirectory);
   };
 
   // Format time for display

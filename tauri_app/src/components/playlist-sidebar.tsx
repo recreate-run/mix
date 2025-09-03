@@ -3,6 +3,16 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { MediaOutput } from '@/types/media';
 import { convertToAssetServerUrl } from '@/utils/assetServer';
 
+// Helper function to detect URLs
+const isURL = (path: string): boolean => {
+  return path.startsWith('http://') || path.startsWith('https://');
+};
+
+// Helper function to get media source URL
+const getMediaSrc = (path: string, workingDirectory: string): string => {
+  return isURL(path) ? path : convertToAssetServerUrl(path, workingDirectory);
+};
+
 const formatTime = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
@@ -37,8 +47,9 @@ export const PlaylistSidebar = ({
 
   const renderThumbnail = (media: MediaOutput) => {
     if (media.type === 'image') {
-      const imageUrl = convertToAssetServerUrl(media.path, workingDirectory);
-      const thumbnailUrl = `${imageUrl}?thumb=100`;
+      const imageUrl = getMediaSrc(media.path, workingDirectory);
+      // Only add thumbnail parameter for local files, use URL directly for remote images
+      const thumbnailUrl = isURL(media.path) ? imageUrl : `${imageUrl}?thumb=100`;
 
       return (
         <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -64,12 +75,15 @@ export const PlaylistSidebar = ({
     if (media.type === 'video') {
       // Use sourceVideo for highlights, fallback to path for regular videos
       const videoPath = media.sourceVideo || media.path;
-      const videoUrl = convertToAssetServerUrl(videoPath, workingDirectory);
+      const videoUrl = getMediaSrc(videoPath, workingDirectory);
 
-      // Add time parameter for video segments to get correct thumbnail
-      let thumbnailUrl = `${videoUrl}?thumb=100`;
-      if (media.startTime !== undefined && typeof media.startTime === 'number' && media.startTime >= 0) {
-        thumbnailUrl += `&time=${media.startTime}`;
+      // Only add thumbnail and time parameters for local files
+      let thumbnailUrl = videoUrl;
+      if (!isURL(videoPath)) {
+        thumbnailUrl = `${videoUrl}?thumb=100`;
+        if (media.startTime !== undefined && typeof media.startTime === 'number' && media.startTime >= 0) {
+          thumbnailUrl += `&time=${media.startTime}`;
+        }
       }
 
       return (

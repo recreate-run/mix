@@ -1,4 +1,14 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
+
+// Helper function to detect URLs
+const isURL = (path: string): boolean => {
+  return path.startsWith('http://') || path.startsWith('https://');
+};
+
+// Helper function to get media source URL
+const getMediaSrc = (path: string, workingDirectory: string): string => {
+  return isURL(path) ? path : convertToAssetServerUrl(path, workingDirectory);
+};
 import { Check, Copy, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -69,7 +79,7 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
                 .nextElementSibling as HTMLElement;
               if (fallback) fallback.style.display = 'block';
             }}
-            src={convertToAssetServerUrl(media.path, workingDirectory)}
+            src={getMediaSrc(media.path, workingDirectory)}
           />
           <div
             className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
@@ -99,7 +109,7 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
               if (fallback) fallback.style.display = 'block';
             }}
             preload="metadata"
-            src={convertToAssetServerUrl(media.path, workingDirectory)}
+            src={getMediaSrc(media.path, workingDirectory)}
           >
             Your browser does not support the audio tag.
           </audio>
