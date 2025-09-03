@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
 	return (
 		<>
-			<div className="grid min-h-[80vh] place-content-center place-items-center">
+			<div className="grid min-h-[100vh] place-content-center place-items-center">
 				<PageHeader>
 					<Announcement />
 					<PageHeaderHeading className="max-w-4xl">{title}</PageHeaderHeading>
