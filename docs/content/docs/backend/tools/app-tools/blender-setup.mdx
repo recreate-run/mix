@@ -1,148 +1,337 @@
 ---
-title: Blender Setup Guide
-description: Step by step instructions for setting up and configuring Blender with Mix for video editing automation
+title: Blender MCP Setup Guide
+description: Step by step instructions for setting up Blender MCP integration with Mix for professional 3D modeling and video editing
 category: App Tools
 ---
 
-# Blender Integration Setup Guide
+# Blender MCP Integration Setup Guide
 
-Mix integrates deeply with Blender to automate video editing workflows using AI. This guide will walk you through setting up Blender to work with Mix.
+Mix integrates with Blender through the **Blender MCP (Model Context Protocol)** to provide AI-powered 3D modeling and professional video editing capabilities. This guide covers the complete setup process.
 
 ## Prerequisites
 
 Before starting, ensure you have:
 
 - **Mix** properly installed and configured
-- **Blender 3.0+** installed on your system
-- **Python 3.8+** (usually bundled with Blender)
+- **Blender 3.0+** installed on your system  
+- **uv package manager** installed
+- **Python 3.10+** (for the MCP server)
 
 ## Installation Steps
 
-### 1. Install Blender
+### 1. Install Required Dependencies
 
-If you haven't already installed Blender:
+#### Install uv Package Manager
 
-1. Visit the [official Blender website](https://www.blender.org/download/)
-2. Download the latest stable version (3.0 or newer recommended)
-3. Complete the installation process for your operating system
+**On macOS:**
+```bash
+brew install uv
+```
 
-### 2. Configure Mix to Find Blender
+**On Windows:**
+```bash
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
-Mix needs to know where your Blender installation is located. You can specify this in your Mix configuration:
+**On Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-1. Create or edit your `.mix.json` file
-2. Add the Blender path configuration:
+#### Install Blender-MCP Package
+
+```bash
+uv tool install blender-mcp
+```
+
+### 2. Clone the Blender MCP Repository
+
+Clone the official Blender MCP repository for the addon:
+
+```bash
+git clone https://github.com/ahujasid/blender-mcp.git
+```
+
+### 3. Install the Blender Addon
+
+1. **Copy the addon file:**
+   ```bash
+   cp blender-mcp/addon.py ~/Downloads/
+   ```
+
+2. **Install in Blender:**
+   - Open Blender
+   - Go to **Edit > Preferences > Add-ons**
+   - Click **"Install..."** and select `~/Downloads/addon.py`
+   - Enable the addon by checking **"Interface: Blender MCP"**
+
+3. **Start the MCP server in Blender:**
+   - Press `N` to open the sidebar if not visible
+   - Find the **"BlenderMCP"** tab
+   - Click **"Connect to Claude"** (this starts the server on port 9876)
+
+### 4. Configure Mix for Blender MCP
+
+Create or edit your `.mix.json` file in your project root directory:
 
 ```json
 {
-  "tools": {
-    "blender": {
-      "path": "/path/to/blender",
-      "python_path": "/path/to/blender/python"
+  "agents": {
+    "main": {
+      "model": "claude-4-sonnet",
+      "maxTokens": 4096
+    },
+    "sub": {
+      "model": "claude-4-sonnet", 
+      "maxTokens": 2048
+    }
+  },
+  "mcpServers": {
+    "blender": { 
+      "type": "stdio",
+      "command": "uv",
+      "allowedTools": ["execute_blender_code"],
+      "args": [
+        "--directory",
+        "/path/to/your/blender-mcp/src/blender_mcp",
+        "run",
+        "server.py"
+      ],
+      "env": []
     }
   }
 }
 ```
 
-On different platforms, typical paths are:
-- **Windows**: `C:\\Program Files\\Blender Foundation\\Blender 3.x\\blender.exe`
-- **macOS**: `/Applications/Blender.app/Contents/MacOS/Blender`
-- **Linux**: `/usr/bin/blender` or `/snap/bin/blender`
+**Important**: Replace `/path/to/your/blender-mcp` with the actual path where you cloned the repository.
 
-### 3. Verify Installation
+### 5. Verify Installation
 
-To verify that Mix can communicate with Blender:
+To verify that Mix can communicate with Blender MCP:
 
-1. Run Mix with a simple Blender command:
+1. **Ensure Blender MCP server is running:**
+   - Blender is open with the addon enabled
+   - The "Connect to Claude" button shows active connection
 
-```bash
-./mix -p "Create a simple 10-second timeline in Blender"
-```
+2. **Test the integration:**
+   ```bash
+   # Test with a simple 3D modeling command
+   ./mix -p "Create a red cube in Blender"
+   ```
 
-2. Check the logs for successful Blender initialization:
+3. **Check the logs:**
+   ```bash
+   make tail-log
+   ```
+   
+   You should see logs indicating successful MCP connection and tool loading.
 
-```bash
-make tail-log
-```
+## How It Works
 
-## Common Workflows
+The Blender MCP integration uses a sophisticated architecture:
 
-### Basic Video Editing
+1. **Blender Addon**: Creates a socket server (port 9876) within Blender
+2. **MCP Server**: Python server that implements the Model Context Protocol
+3. **Mix Integration**: Connects to the MCP server via `uvx blender-mcp`
+4. **Tool Filtering**: Only `execute_blender_code` tool is exposed for security
 
-Mix can help you automate common video editing tasks in Blender:
+## Available Capabilities
 
-1. **Timeline Management** - Create and organize sequences
-2. **Transitions** - Add cross-dissolves and other transitions
-3. **Text Overlays** - Add animated text elements
-4. **Color Correction** - Apply color grading and effects
-5. **Audio Synchronization** - Align audio tracks with video
+With Blender MCP, Mix can perform:
+
+### 3D Modeling
+- Create, modify, and delete 3D objects
+- Apply materials and textures
+- Set up lighting and cameras
+- Scene composition and arrangement
+
+### Video Editing
+- Timeline-based video editing
+- Multi-track audio/video composition
+- Transitions and effects
+- Professional video export
 
 ### Advanced Features
+- 3D model generation via AI (Hyper3D)
+- Asset downloading from Poly Haven and Sketchfab
+- Viewport screenshots and previews
+- Complex material and node setups
 
-Beyond basic editing, Mix can also automate:
+## Configuration Options
 
-1. **3D Elements** - Add 3D elements to your videos
-2. **Complex Animations** - Create keyframe animations
-3. **Compositing** - Apply compositing nodes and effects
-4. **Rendering** - Configure and execute renders in various formats
-5. **Batch Processing** - Process multiple files with the same settings
+### MCP Server Configuration
+
+```json
+{
+  "mcpServers": {
+    "blender": {
+      "type": "stdio",              // Communication method
+      "command": "uv",              // Command to run MCP server
+      "allowedTools": [...],        // Whitelist of allowed tools
+      "deniedTools": [...],         // Blacklist of denied tools
+      "env": [...]                  // Environment variables
+    }
+  }
+}
+```
+
+### Environment Variables
+
+Optional environment variables for Blender connection:
+
+- `BLENDER_HOST`: Socket server host (default: "localhost")
+- `BLENDER_PORT`: Socket server port (default: 9876)
 
 ## Troubleshooting
 
-If you encounter issues with the Blender integration:
+### Common Issues
 
-1. **Path Issues** - Ensure the Blender executable path is correct in your configuration
-2. **Permission Problems** - Make sure Mix has permission to execute Blender
-3. **Python Version Conflicts** - Verify that Blender's bundled Python is compatible with Mix
-4. **Missing Dependencies** - Check if any required Blender add-ons are installed
-5. **Log Inspection** - Run `make tail-log` to check for specific error messages
+1. **"Connection refused" errors:**
+   - Ensure Blender is running with the MCP addon enabled
+   - Check that the MCP server is active (green indicator in Blender sidebar)
+   - Verify port 9876 is not blocked by firewall
+
+2. **"MCP servers count=0" in logs:**
+   - Check that `.mix.json` is in the correct directory (project root)
+   - Verify the JSON syntax is valid
+   - Ensure the blender-mcp path is correct
+
+3. **"Tool filtered out" messages:**
+   - Check the `allowedTools` configuration
+   - Ensure `execute_blender_code` is in the allowed list
+
+4. **Timeout errors:**
+   - Blender may be busy with another operation
+   - Try breaking complex requests into smaller steps
+   - Increase timeout in MCP configuration if needed
+
+### Debug Steps
+
+1. **Test MCP server manually:**
+   ```bash
+   uvx blender-mcp
+   ```
+   Should show successful connection to Blender.
+
+2. **Check configuration loading:**
+   ```bash
+   make tail-log | grep -i "mcp\|blender"
+   ```
+
+3. **Verify Blender addon status:**
+   - Check BlenderMCP sidebar in Blender
+   - Look for "Connected" status indicator
 
 ## Best Practices
 
-For optimal results when using Mix with Blender:
+### For 3D Modeling
+1. **Start Simple**: Begin with basic shapes and gradually add complexity
+2. **Use Clear Descriptions**: Be specific about materials, colors, and positioning
+3. **Save Frequently**: Blender projects should be saved regularly
+4. **Check Results**: Use viewport screenshots to verify changes
 
-1. **Use Absolute Paths** - Always use absolute paths for media files
-2. **Channel Organization** - Keep video and audio on separate channels
-3. **Naming Conventions** - Use consistent naming for sequences
-4. **Regular Saves** - Save your Blender project frequently
-5. **Version Control** - Use version control for complex projects
+### For Video Editing
+1. **Organize Assets**: Keep media files in organized directories
+2. **Use Absolute Paths**: Always provide full file paths
+3. **Channel Management**: Use different channels for different media types
+4. **Export Settings**: Specify resolution, framerate, and codec preferences
 
 ## Example Commands
 
-Here are some example Mix commands for working with Blender:
-
-1. **Create a simple video edit**:
+### 3D Modeling Examples
 
 ```bash
-./mix -p "Take these 3 video clips and edit them together with cross-dissolve transitions in Blender"
+# Create a basic 3D scene
+./mix -p "Create a red cube, blue sphere, and green plane in Blender with proper lighting"
+
+# Generate AI-powered 3D model
+./mix -p "Use Hyper3D to generate a 3D model of a coffee cup and import it into Blender"
+
+# Download assets from Poly Haven
+./mix -p "Download a rock texture from Poly Haven and apply it to the cube"
 ```
 
-2. **Add text overlays**:
+### Video Editing Examples
 
 ```bash
-./mix -p "Add a title at the beginning of my Blender project and credits at the end"
+# Basic video editing
+./mix -p "Import these 3 video files into Blender and create a timeline with crossfade transitions"
+
+# Add text overlays
+./mix -p "Add animated title text at the beginning and credits at the end of the timeline"
+
+# Professional export
+./mix -p "Export the timeline as 1080p MP4 with H.264 codec at 24fps"
 ```
 
-3. **Export rendered video**:
+## Advanced Configuration
 
-```bash
-./mix -p "Export my Blender timeline as a 1080p MP4 video"
+### Custom Tool Selection
+
+You can customize which Blender MCP tools are available:
+
+```json
+{
+  "mcpServers": {
+    "blender": {
+      "allowedTools": [
+        "execute_blender_code",
+        "get_scene_info",
+        "get_viewport_screenshot"
+      ]
+    }
+  }
+}
 ```
+
+### Multiple Blender Instances
+
+For advanced workflows, you can configure multiple Blender instances:
+
+```json
+{
+  "mcpServers": {
+    "blender-modeling": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "/path/to/blender-mcp-1", "run", "server.py"],
+      "env": ["BLENDER_PORT=9876"]
+    },
+    "blender-rendering": {
+      "type": "stdio", 
+      "command": "uv",
+      "args": ["--directory", "/path/to/blender-mcp-2", "run", "server.py"],
+      "env": ["BLENDER_PORT=9877"]
+    }
+  }
+}
+```
+
+## Security Considerations
+
+- The `execute_blender_code` tool allows running arbitrary Python code in Blender
+- Always review AI-generated code before execution in production
+- Use tool filtering to limit available capabilities
+- Consider running Blender in isolated environments for untrusted content
 
 ## Next Steps
 
-Now that you've set up Blender with Mix, you can:
+Now that you've set up Blender MCP with Mix:
 
 <Cards>
   <Card title="Explore Blender Tools" href="/docs/backend/tools/app-tools/blender">
-    Learn about the available Blender functions
+    Learn about available Blender MCP functions and workflows
   </Card>
   
-  <Card title="Video Editing Examples" href="/docs/backend/examples">
-    See examples of video editing workflows
+  <Card title="3D Modeling Examples" href="/docs/backend/examples/3d-modeling">
+    See examples of AI-powered 3D modeling workflows
   </Card>
   
-  <Card title="Advanced Configuration" href="/docs/configuration">
-    Configure advanced Blender settings
+  <Card title="Video Editing Workflows" href="/docs/backend/examples/video-editing">
+    Discover professional video editing automation
+  </Card>
+  
+  <Card title="Advanced MCP Configuration" href="/docs/configuration/mcp">
+    Configure advanced MCP server settings
   </Card>
 </Cards>

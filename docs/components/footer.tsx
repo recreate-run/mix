@@ -8,7 +8,7 @@ function Footer({
   ...props
 }: React.ComponentProps<"footer">) {
   return (
-    <footer className={cn("border-t", className)} {...props}>
+    <footer className={cn("border-t mt-auto", className)} {...props}>
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3 lg:grid-cols-4">
           {/* About */}
