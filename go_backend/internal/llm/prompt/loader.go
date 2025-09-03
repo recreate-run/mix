@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	"mix/internal/config"
 	"mix/internal/llm/tools"
@@ -65,9 +66,10 @@ func getStandardVars(ctx context.Context) (map[string]string, error) {
 	}
 
 	return map[string]string{
-		"workdir":   workingDir,
-		"platform":  runtime.GOOS,
-		"launchdir": launchDir,
+		"workdir":    workingDir,
+		"platform":   runtime.GOOS,
+		"launchdir":  launchDir,
+		"today_date": time.Now().Format("2006-01-02"),
 	}, nil
 }
 

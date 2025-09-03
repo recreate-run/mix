@@ -5,13 +5,14 @@
 - Searches are performed automatically within a single API call
 
 Usage notes:
+
 - Domain filtering is supported to include or block specific websites
-- Web search is only available in the US
 - Account for "Today's date" in <env>. For example, if <env> says "Today's date:
 2025-07-01", and the user wants the latest docs, do not use 2024 in the search
 query. Use 2025.
 
 Parameters:
+
 - query (required): The search query to use (minimum 2 characters)
 - allowed_domains (optional): Only include search results from these domains
 - blocked_domains (optional): Never include search results from these domains

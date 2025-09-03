@@ -185,7 +185,6 @@ func runQuery(ctx context.Context, app *app.App, queryType, outputFormat string)
 	return nil
 }
 
-
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {

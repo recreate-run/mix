@@ -132,6 +132,7 @@ Notes:
 Here is useful information about the environment you are running in:
 
 <env>
-Working directory: add
+Working directory: $<workdir>
 Platform: $<platform>
+Today's date:: $<today_date>
 </env>

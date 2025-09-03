@@ -349,7 +349,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			// Continue processing
 		}
 
-		logging.Info("[INTERLEAVED] Starting conversation turn",
+		logging.Info("Starting conversation turn",
 			"sessionID", sessionID,
 			"turn", conversationTurn,
 			"messageHistoryLength", len(msgHistory))
@@ -373,7 +373,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
 			// We are not done, we need to respond with the tool response
-			logging.Info("[INTERLEAVED] Tool execution completed, continuing conversation",
+			logging.Info("Tool execution completed, continuing conversation",
 				"sessionID", sessionID,
 				"turn", conversationTurn,
 				"toolResultsCount", len(toolResults.ToolResults()),
@@ -481,9 +481,9 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		return assistantMsg, nil, nil
 	}
 
-	// Debug logging: Show all requested tool calls for interleaving analysis
+	// Debug logging: Show all requested tool calls for analysis
 	if len(toolCalls) > 1 {
-		logging.Info("[INTERLEAVED] LLM requested MULTIPLE tools - will process sequentially",
+		logging.Info("LLM requested MULTIPLE tools - will process sequentially",
 			"sessionID", sessionID,
 			"totalTools", len(toolCalls),
 			"toolNames", func() []string {
@@ -494,14 +494,14 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 				return names
 			}())
 	} else {
-		logging.Info("[INTERLEAVED] LLM requested SINGLE tool",
+		logging.Info("LLM requested SINGLE tool",
 			"sessionID", sessionID,
 			"toolName", toolCalls[0].Name)
 	}
 
-	// Execute ONLY the first tool call - let main loop handle interleaving
+	// Execute ONLY the first tool call - let main loop handle processing
 	toolCall := toolCalls[0]
-	logging.Info("[INTERLEAVED] Processing tool",
+	logging.Info("Processing tool",
 		"sessionID", sessionID,
 		"toolName", toolCall.Name,
 		"toolIndex", "1 of "+fmt.Sprintf("%d", len(toolCalls)),
@@ -639,7 +639,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 	switch event.Type {
 	case provider.EventThinkingDelta:
-		logging.Info("[INTERLEAVED] Claude thinking delta received",
+		logging.Info("Claude thinking delta received",
 			"sessionID", sessionID,
 			"thinkingLength", len(event.Thinking),
 			"thinkingPreview", func() string {

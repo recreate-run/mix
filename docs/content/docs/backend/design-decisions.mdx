@@ -14,3 +14,15 @@ description: Why Mix was built like this
 
 
 This HTTP-first approach enables Mix's flexible architecture where a single Go backend serves multiple clients (Tauri desktop app, CLI tools, external integrations) through standard HTTP communication. This design supports Mix's dual role as both a desktop application and an embeddable backend service while leveraging familiar web development debugging workflows.
+
+## JSON-RPC interface instead of separate REST endpoints
+
+| Aspect | JSON-RPC Interface ✅ | REST Endpoints ❌ |
+|--------|----------------------|-------------------|
+| **Error Handling** | Standardized error codes (-32602, -32603) with consistent `QueryError` structure | Custom error handling required for each endpoint, inconsistent response formats |
+| **Type Safety** | Unified `QueryRequest`/`QueryResponse` types with compile-time validation | Different request/response types per endpoint, potential for structural inconsistencies |
+| **Maintenance** | Single `Handle()` method with centralized routing logic in switch statement | Distributed routing across multiple HTTP handlers, harder to track and modify |
+| **Authentication** | Single authentication point applies to all methods consistently | Auth middleware needed for each endpoint, risk of missed security coverage |
+| **Request Routing** | Method name in JSON payload determines handler, clean separation of concerns | URL pattern matching with potential route conflicts and complex routing logic |
+
+This JSON-RPC approach provides architectural consistency for Mix's complex operations like session management, message streaming, and agent interactions. While REST endpoints offer better HTTP semantics and caching, the unified error handling and type safety benefits outweigh these trade-offs for Mix's AI-centric workflow requirements.
