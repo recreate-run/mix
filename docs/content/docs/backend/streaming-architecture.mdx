@@ -40,6 +40,8 @@ Provider events enhanced with session context and streaming state:
 - `AgentEventTypeResponse` - Tool/content updates
 - `AgentEventTypeError` - Application errors  
 - `AgentEventTypeSummarize` - Session summarization
+- `AgentEventTypeToolExecutionStart` - Backend tool execution begins
+- `AgentEventTypeToolExecutionComplete` - Backend tool execution finished
 
 ### 3. Pub/Sub Broadcasting
 **Location**: `go_backend/internal/pubsub/broker.go`
@@ -53,7 +55,9 @@ Provider events enhanced with session context and streaming state:
 
 User-facing events delivered to web/desktop clients:
 - `thinking` - AI reasoning in real-time
-- `tool` - Tool execution start/completion  
+- `tool` - Tool declaration and final results  
+- `tool_execution_start` - Backend tool execution begins
+- `tool_execution_complete` - Backend tool execution finished
 - `complete` - Final response ready
 - `error` - Error handling
 - `permission` - Interactive permission requests
@@ -102,11 +106,18 @@ sequenceDiagram
     
     Note over Agent,Tool: Agent processes completed stream, then executes tools
     Agent->>Agent: Check for tool calls
+    
+    Agent->>PubSub: AgentEventTypeToolExecutionStart
+    PubSub->>Frontend: SSE: tool_execution_start
+    
     Agent->>Tool: Execute Tool (with session context)
     Tool->>Tool: Run with permissions & working directory
     Tool->>Agent: ToolResult
     
-    Agent->>PubSub: AgentEventTypeResponse (tool completed)
+    Agent->>PubSub: AgentEventTypeToolExecutionComplete
+    PubSub->>Frontend: SSE: tool_execution_complete
+    
+    Agent->>PubSub: AgentEventTypeResponse (final results)
     PubSub->>Frontend: SSE: tool (results)
     
     Note over Agent: Tool results feed into next conversation turn
@@ -114,8 +125,8 @@ sequenceDiagram
 />
 
 **When**: File operations, bash commands, API calls  
-**Purpose**: Real-time tool execution feedback  
-**Key Point**: Tools execute AFTER provider completes streaming, not during
+**Purpose**: Real-time tool execution feedback with start/completion events  
+**Key Point**: Tools execute AFTER provider completes streaming, with dedicated execution events
 
 ### 3. Permission System Integration
 

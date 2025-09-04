@@ -29,10 +29,12 @@ var (
 type AgentEventType string
 
 const (
-	AgentEventTypeError     AgentEventType = "error"
-	AgentEventTypeResponse  AgentEventType = "response"
-	AgentEventTypeSummarize AgentEventType = "summarize"
-	AgentEventTypeThinking  AgentEventType = "thinking"
+	AgentEventTypeError              AgentEventType = "error"
+	AgentEventTypeResponse           AgentEventType = "response"
+	AgentEventTypeSummarize          AgentEventType = "summarize"
+	AgentEventTypeThinking           AgentEventType = "thinking"
+	AgentEventTypeToolExecutionStart AgentEventType = "tool_execution_start"
+	AgentEventTypeToolExecutionComplete AgentEventType = "tool_execution_complete"
 )
 
 type AgentEvent struct {
@@ -47,6 +49,9 @@ type AgentEvent struct {
 
 	// When thinking
 	Thinking string
+
+	// When executing tools
+	ToolCallID string
 }
 
 type Service interface {
@@ -560,6 +565,18 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 	logging.Info("[Agent] Executing tool", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "inputSize", len(toolCall.Input), "inputContent", toolCall.Input)
 
+	// Publish tool execution start event
+	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
+		Type:       AgentEventTypeToolExecutionStart,
+		Message:    assistantMsg,
+		SessionID:  sessionID,
+		Progress:   fmt.Sprintf("Executing %s tool", toolCall.Name),
+		ToolCallID: toolCall.ID,
+	})
+	if err != nil {
+		logging.Error("Failed to publish tool execution start event", "error", err)
+	}
+
 	toolStartTime := time.Now()
 	toolResult, toolErr := tool.Run(ctx, tools.ToolCall{
 		ID:    toolCall.ID,
@@ -569,6 +586,22 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	toolDuration := time.Since(toolStartTime)
 
 	logging.Info("[Agent] Tool execution result", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "duration", toolDuration, "error", toolErr, "resultLength", len(toolResult.Content), "resultContent", toolResult.Content, "resultIsError", toolResult.IsError)
+
+	// Publish tool execution completion event
+	completionProgress := fmt.Sprintf("Completed %s tool in %v", toolCall.Name, toolDuration)
+	if toolErr != nil {
+		completionProgress = fmt.Sprintf("Failed %s tool after %v: %v", toolCall.Name, toolDuration, toolErr)
+	}
+	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
+		Type:       AgentEventTypeToolExecutionComplete,
+		Message:    assistantMsg,
+		SessionID:  sessionID,
+		Progress:   completionProgress,
+		ToolCallID: toolCall.ID,
+	})
+	if err != nil {
+		logging.Error("Failed to publish tool execution completion event", "error", err)
+	}
 
 	// Handle permission denied - exit early for security
 	if toolErr != nil && errors.Is(toolErr, permission.ErrorPermissionDenied) {

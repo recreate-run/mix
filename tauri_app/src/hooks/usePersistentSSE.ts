@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TimelineEntry } from '@/types/message';
-
-export type SSEToolCall = {
-  name: string;
-  description: string;
-  status: 'pending' | 'running' | 'completed' | 'error';
-  parameters: Record<string, unknown>;
-  result?: string;
-  error?: string;
-  id: string;
-};
+import type { ToolCall } from '@/types/common';
 
 export type SSEPermissionRequest = {
   id: string;
@@ -25,7 +16,7 @@ export type PersistentSSEState = {
   connected: boolean;
   connecting: boolean;
   error: string | null;
-  toolCalls: SSEToolCall[];
+  toolCalls: ToolCall[];
   finalContent: string | null;
   completed: boolean;
   processing: boolean;
@@ -75,7 +66,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   });
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const toolCallsMap = useRef<Map<string, SSEToolCall>>(new Map());
+  const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
   const toolStartTimes = useRef<Map<string, number>>(new Map());
   const timelineRef = useRef<TimelineEntry[]>([]);
   const connectedRef = useRef<boolean>(false);
@@ -174,7 +165,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     addTrackedEventListener('tool', (event) => {
       try {
         const data = JSON.parse(event.data);
-        const toolCall: SSEToolCall = {
+        const toolCall: ToolCall = {
           id: data.id || `${data.name}-${Date.now()}`,
           name: data.name || 'unknown',
           description: data.description || data.name || 'Tool execution',
@@ -235,6 +226,87 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           timeline: [...timelineRef.current],
           processing: true,
         }));
+      } catch (_err) {}
+    });
+
+    // Handle tool execution start events
+    addTrackedEventListener('tool_execution_start', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const toolCallId = data.toolCallId;
+        const progress = data.progress;
+        
+        // Find the corresponding tool call by ID and update its status to running
+        const existingToolCall = toolCallsMap.current.get(toolCallId);
+        
+        if (existingToolCall) {
+          const updatedToolCall = {
+            ...existingToolCall,
+            status: 'running' as const,
+            description: progress
+          };
+          
+          toolCallsMap.current.set(toolCallId, updatedToolCall);
+          toolStartTimes.current.set(toolCallId, Date.now());
+          
+          // Update timeline entry
+          timelineRef.current = timelineRef.current.map(entry => 
+            entry.type === 'tool' && (entry.content as any).id === toolCallId 
+              ? { ...entry, content: updatedToolCall }
+              : entry
+          );
+          
+          setState((prev) => ({
+            ...prev,
+            toolCalls: Array.from(toolCallsMap.current.values()),
+            timeline: [...timelineRef.current],
+            processing: true,
+          }));
+        }
+      } catch (_err) {}
+    });
+
+    // Handle tool execution complete events
+    addTrackedEventListener('tool_execution_complete', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const toolCallId = data.toolCallId;
+        const progress = data.progress;
+        const success = data.success;
+        
+        // Find the corresponding tool call by ID and update its status
+        const existingToolCall = toolCallsMap.current.get(toolCallId);
+        
+        if (existingToolCall) {
+          const updatedToolCall = {
+            ...existingToolCall,
+            status: success ? 'completed' as const : 'error' as const,
+            description: progress,
+            result: success ? progress : undefined,
+            error: success ? undefined : progress
+          };
+          
+          toolCallsMap.current.set(toolCallId, updatedToolCall);
+          
+          // Remove from start times tracking
+          if (toolStartTimes.current.has(toolCallId)) {
+            toolStartTimes.current.delete(toolCallId);
+          }
+          
+          // Update timeline entry
+          timelineRef.current = timelineRef.current.map(entry => 
+            entry.type === 'tool' && (entry.content as any).id === toolCallId 
+              ? { ...entry, content: updatedToolCall }
+              : entry
+          );
+          
+          setState((prev) => ({
+            ...prev,
+            toolCalls: Array.from(toolCallsMap.current.values()),
+            timeline: [...timelineRef.current],
+            processing: true,
+          }));
+        }
       } catch (_err) {}
     });
 

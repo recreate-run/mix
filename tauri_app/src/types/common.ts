@@ -1,6 +1,7 @@
 import type { AIToolStatus } from '@/components/ui/kibo-ui/ai/tool';
 
 export type ToolCall = {
+  id: string;
   name: string;
   description: string;
   status: AIToolStatus;

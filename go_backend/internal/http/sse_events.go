@@ -63,6 +63,21 @@ type ThinkingEvent struct {
 	Content string `json:"content"`
 }
 
+type ToolExecutionStartEvent struct {
+	Type       string `json:"type"`
+	ToolName   string `json:"toolName"`
+	Progress   string `json:"progress"`
+	ToolCallID string `json:"toolCallId"`
+}
+
+type ToolExecutionCompleteEvent struct {
+	Type       string `json:"type"`
+	ToolName   string `json:"toolName"`
+	Progress   string `json:"progress"`
+	Success    bool   `json:"success"`
+	ToolCallID string `json:"toolCallId"`
+}
+
 // WriteSSE serializes and writes an SSE event to the response writer
 func WriteSSE(w http.ResponseWriter, eventType string, data interface{}) error {
 	jsonData, err := json.Marshal(data)

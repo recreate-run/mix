@@ -84,6 +84,7 @@ const convertToolCallsToUI = (toolCalls: ToolCallData[]): ToolCall[] => {
     }
 
     return {
+      id: tc.id,
       name: tc.name,
       description: tc.name, // Use name as description since we don't have a separate description
       status: tc.finished ? 'completed' : 'pending',

@@ -14,7 +14,6 @@ import {
   AIInputToolbar,
   AIInputTools,
 } from '@/components/ui/kibo-ui/ai/input';
-import type { AIToolStatus } from '@/components/ui/kibo-ui/ai/tool';
 import {
   Select,
   SelectContent,
@@ -51,12 +50,12 @@ import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
 
 // Helper function to check if a message contains show_media tool call
-const hasMediaShowcaseTool = (toolCalls: any[]) => {
+const hasMediaShowcaseTool = (toolCalls: ToolCall[]) => {
   return toolCalls?.some((tc) => tc.name === 'show_media');
 };
 
 // Helper function to extract media outputs from show_media tool call
-const getMediaShowcaseOutputs = (toolCalls: any[]): MediaOutput[] => {
+const getMediaShowcaseOutputs = (toolCalls: ToolCall[]): MediaOutput[] => {
   const mediaShowcaseTool = toolCalls?.find(
     (tc) => tc.name === 'show_media'
   );
@@ -381,15 +380,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       (sseStream.finalContent || sseStream.toolCalls.length > 0) &&
       !sseStream.processing
     ) {
-      // Convert SSE tool calls to our Message format
-      const convertedToolCalls: ToolCall[] = sseStream.toolCalls.map((tc) => ({
-        name: tc.name,
-        description: tc.description,
-        status: tc.status as AIToolStatus,
-        parameters: tc.parameters,
-        result: tc.result,
-        error: tc.error,
-      }));
+      // SSE tool calls are already in ToolCall format
+      const convertedToolCalls: ToolCall[] = sseStream.toolCalls;
 
       setMessages((prev) => {
         const mediaOutputs = hasMediaShowcaseTool(convertedToolCalls)

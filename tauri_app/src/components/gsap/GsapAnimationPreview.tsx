@@ -100,7 +100,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 
   // Update parameter value - support flexible config structure
   const updateParameter = (key: string, value: any) => {
-    setConfig(prev => ({
+    setConfig((prev: any) => ({
       ...prev,
       [key]: value
     }));

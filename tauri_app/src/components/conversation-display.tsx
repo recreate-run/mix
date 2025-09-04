@@ -1,5 +1,6 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
 import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/videoUrlDetection';
+import type { ToolCall } from '@/types/common';
 
 // Helper function to detect URLs
 const isURL = (path: string): boolean => {
@@ -53,9 +54,10 @@ type StreamingState = {
   processing: boolean;
   reasoning: string | null;
   reasoningDuration: number | null;
-  toolCalls: any[];
+  toolCalls: ToolCall[];
   completed: boolean;
   error?: string | null;
+  timeline?: TimelineEntry[];
   rateLimit?: {
     retryAfter: number;
     attempt: number;
@@ -194,8 +196,8 @@ interface ConversationDisplayProps {
   workingDirectory?: string;
 }
 
-// Helper function to extract todos from todo_write tool calls (works with both ToolCall and SSE formats)
-const extractTodosFromToolCalls = (toolCalls: any[]) => {
+// Helper function to extract todos from todo_write tool calls
+const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
   const todoWriteCalls = toolCalls.filter((tc) => tc.name === 'todo_write');
   if (todoWriteCalls.length === 0) return [];
 
@@ -215,25 +217,26 @@ const extractTodosFromToolCalls = (toolCalls: any[]) => {
   return [];
 };
 
-// Helper function to extract plan content from exit_plan_mode tool calls (works with both ToolCall and SSE formats)
-const extractPlanFromToolCalls = (toolCalls: any[]) => {
+// Helper function to extract plan content from exit_plan_mode tool calls
+const extractPlanFromToolCalls = (toolCalls: ToolCall[]) => {
   const planTool = toolCalls.find((tc) => tc.name === 'exit_plan_mode');
   if (!planTool) return '';
 
   try {
-    return planTool.parameters?.plan || '';
+    const plan = planTool.parameters?.plan;
+    return typeof plan === 'string' ? plan : '';
   } catch {
     return '';
   }
 };
 
 // Helper function to check if a message contains exit_plan_mode tool call
-const hasExitPlanModeTool = (toolCalls: any[]) => {
+const hasExitPlanModeTool = (toolCalls: ToolCall[]) => {
   return toolCalls?.some((tc) => tc.name === 'exit_plan_mode');
 };
 
 // Helper function to filter out special tools (todo_write, exit_plan_mode) from toolCalls
-const filterNonSpecialTools = (toolCalls: any[]) => {
+const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
   return toolCalls.filter(
     (tc) => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode'
   );
@@ -302,7 +305,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
         </AIReasoning>
       );
     } else {
-      const toolCall = group.entry.content;
+      const toolCall = group.entry.content as ToolCall;
       return (
         <AIToolLadder key={`tool-${group.entry.id}`}>
           <AIToolStep
@@ -314,6 +317,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
               description={toolCall.description}
               name={toolCall.name}
               status={toolCall.status}
+              toolCall={toolCall}
             />
             <AIToolContent toolCall={toolCall} />
           </AIToolStep>
@@ -402,7 +406,7 @@ export function ConversationDisplay({
                   ) : (
                     <AIMessageContent.Content>
                       {/* Render timeline-based interleaved thinking and tools */}
-                      {renderTimelineEntries(message.timeline)}
+                      {message.timeline && renderTimelineEntries(message.timeline)}
                       {isPreviousUserMessageCommand(messages, index) ? (
                         <AIResponse>{`\`\`\`bash\n${message.content}\n\`\`\``}</AIResponse>
                       ) : (
@@ -461,8 +465,8 @@ export function ConversationDisplay({
                       />
                     </div>
                   )}
-                  {/* Render regular tool calls directly */}
-                  {filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
+                  {/* Render regular tool calls directly ONLY when timeline is not available or empty */}
+                  {(!message.timeline || message.timeline.length === 0) && filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
                     <AIToolLadder key={`direct-tool-${toolCall.id}-${index}`}>
                       <AIToolStep
                         isLast={true}
@@ -473,6 +477,7 @@ export function ConversationDisplay({
                           description={toolCall.description}
                           name={toolCall.name}
                           status={toolCall.status}
+                          toolCall={toolCall}
                         />
                         <AIToolContent toolCall={toolCall} />
                       </AIToolStep>
@@ -487,7 +492,7 @@ export function ConversationDisplay({
           <AIMessage from="assistant">
             <AIMessageContent>
               {/* Show timeline-based interleaved thinking and tools during streaming */}
-              {renderTimelineEntries(sseStream.timeline)}
+              {sseStream.timeline && renderTimelineEntries(sseStream.timeline)}
               {/* Show rate limit message when rate limiting is detected */}
               {sseStream.rateLimit ? (
                 <div className="mt-4">
@@ -518,8 +523,8 @@ export function ConversationDisplay({
                       showOptions={false}
                     />
                   )}
-                  {/* Render streaming regular tool calls directly */}
-                  {filterNonSpecialTools(sseStream.toolCalls).map((toolCall, index) => (
+                  {/* Render streaming regular tool calls directly ONLY when timeline is not available or empty */}
+                  {(!sseStream.timeline || sseStream.timeline.length === 0) && filterNonSpecialTools(sseStream.toolCalls).map((toolCall, index) => (
                     <AIToolLadder key={`streaming-direct-tool-${toolCall.id}-${index}`}>
                       <AIToolStep
                         isLast={true}
@@ -530,6 +535,7 @@ export function ConversationDisplay({
                           description={toolCall.description}
                           name={toolCall.name}
                           status={toolCall.status}
+                          toolCall={toolCall}
                         />
                         <AIToolContent toolCall={toolCall} />
                       </AIToolStep>

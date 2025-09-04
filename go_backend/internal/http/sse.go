@@ -542,6 +542,59 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 		if err := WriteSSE(w, "summarize", SummarizeEvent{Type: "summarize", Progress: event.Progress, Done: event.Done}); err != nil {
 			return err
 		}
+
+	case agent.AgentEventTypeToolExecutionStart:
+		// Extract tool name from progress message
+		toolName := "tool" // Default fallback
+		if strings.Contains(event.Progress, "Executing ") && strings.Contains(event.Progress, " tool") {
+			// Extract tool name from "Executing {toolName} tool"
+			start := strings.Index(event.Progress, "Executing ") + len("Executing ")
+			end := strings.Index(event.Progress[start:], " tool")
+			if end > 0 {
+				toolName = event.Progress[start : start+end]
+			}
+		}
+
+		if err := WriteSSE(w, "tool_execution_start", ToolExecutionStartEvent{
+			Type:       "tool_execution_start",
+			ToolName:   toolName,
+			Progress:   event.Progress,
+			ToolCallID: event.ToolCallID,
+		}); err != nil {
+			return err
+		}
+
+	case agent.AgentEventTypeToolExecutionComplete:
+		// Extract tool name and success status from progress message
+		toolName := "tool" // Default fallback
+		success := true    // Default to success
+		
+		if strings.Contains(event.Progress, "Completed ") && strings.Contains(event.Progress, " tool") {
+			// Extract tool name from "Completed {toolName} tool in {duration}"
+			start := strings.Index(event.Progress, "Completed ") + len("Completed ")
+			end := strings.Index(event.Progress[start:], " tool")
+			if end > 0 {
+				toolName = event.Progress[start : start+end]
+			}
+		} else if strings.Contains(event.Progress, "Failed ") && strings.Contains(event.Progress, " tool") {
+			// Extract tool name from "Failed {toolName} tool after {duration}: {error}"
+			start := strings.Index(event.Progress, "Failed ") + len("Failed ")
+			end := strings.Index(event.Progress[start:], " tool")
+			if end > 0 {
+				toolName = event.Progress[start : start+end]
+			}
+			success = false
+		}
+
+		if err := WriteSSE(w, "tool_execution_complete", ToolExecutionCompleteEvent{
+			Type:       "tool_execution_complete",
+			ToolName:   toolName,
+			Progress:   event.Progress,
+			Success:    success,
+			ToolCallID: event.ToolCallID,
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil

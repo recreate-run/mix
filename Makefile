@@ -31,6 +31,7 @@ help:
 	@echo "  test-connection - Test connection between frontend and backend"
 	@echo "  test-installation - Test if all dependencies are installed"
 	@echo "  test-all    - Run all validation tests"
+	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
 	@echo "  help        - Show this help message"
 	@echo ""
 
@@ -99,3 +100,8 @@ test-installation:
 
 test-all: test-env test-dev-env test-connection test-installation
 	@echo "All validation tests completed."
+
+# Run TypeScript typecheck on frontend code
+frontend-typecheck:
+	@echo "Running frontend TypeScript typecheck..."
+	cd tauri_app && bun run typecheck

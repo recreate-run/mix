@@ -7,6 +7,8 @@ import {
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
+const TOOL_CONTENT_TRUNCATE_LIMIT = 60;
+
 export type AIToolStatus = 'pending' | 'running' | 'completed' | 'error';
 
 export type AIToolProps = ComponentProps<typeof Collapsible> & {
@@ -19,15 +21,63 @@ export const AITool = ({
   ...props
 }: AIToolProps) => (
   <Collapsible
+    defaultOpen={true}
     className={cn('not-prose mb-4 w-full rounded-md border', className)}
     {...props}
   />
 );
 
+// Helper function to extract and format tool content for display
+const extractToolContent = (toolCall?: {
+  parameters: Record<string, unknown>;
+  result?: string;
+  error?: string;
+}): string => {
+  if (!toolCall) return '';
+
+  // Priority: result > parameters > error
+  let content = '';
+  if (toolCall.result) {
+    content = toolCall.result;
+  } else if (toolCall.parameters && Object.keys(toolCall.parameters).length > 0) {
+    content = JSON.stringify(toolCall.parameters);
+  } else if (toolCall.error) {
+    content = toolCall.error;
+  }
+
+  if (!content) return '';
+
+  // Remove outer brackets if they exist (parentheses, curly brackets, square brackets)
+  const trimmed = content.trim();
+  const withoutBrackets = (() => {
+    if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+      return trimmed.slice(1, -1);
+    }
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return trimmed.slice(1, -1);
+    }
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  })();
+
+  // Truncate to configured limit
+  return withoutBrackets.length > TOOL_CONTENT_TRUNCATE_LIMIT
+    ? `${withoutBrackets.substring(0, TOOL_CONTENT_TRUNCATE_LIMIT)}...`
+    : withoutBrackets;
+};
+
 export type AIToolHeaderProps = ComponentProps<typeof CollapsibleTrigger> & {
   status?: AIToolStatus;
   name: string;
   description?: string;
+  toolCall?: {
+    name: string;
+    parameters: Record<string, unknown>;
+    result?: string;
+    error?: string;
+  };
 };
 
 export const AIToolHeader = ({
@@ -35,21 +85,36 @@ export const AIToolHeader = ({
   status = 'pending',
   name,
   description,
+  toolCall,
   ...props
-}: AIToolHeaderProps) => (
-  <CollapsibleTrigger
-    className={cn(
-      'flex w-full items-center justify-between gap-4 hover:cursor-pointer',
-      className
-    )}
-    {...props}
-  >
-    <div className="flex items-center gap-2">
-      <span className="font-medium text-xs">{name}</span>
-    </div>
-    <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-  </CollapsibleTrigger>
-);
+}: AIToolHeaderProps) => {
+  const toolContent = extractToolContent(toolCall);
+
+  return (
+    <CollapsibleTrigger
+      className={cn(
+        'flex w-full items-center justify-between gap-4 hover:cursor-pointer',
+        className
+      )}
+      {...props}
+    >
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-xs">{name}</span>
+        {toolContent && (
+          <span className="text-xs text-muted-foreground">
+            {toolContent}
+          </span>
+        )}
+        {status === 'running' && description && (
+          <span className="text-xs text-muted-foreground animate-pulse">
+            {description}
+          </span>
+        )}
+      </div>
+      <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+    </CollapsibleTrigger>
+  );
+};
 
 export type AIToolContentProps = ComponentProps<typeof CollapsibleContent> & {
   toolCall?: {
@@ -183,6 +248,7 @@ export const AIToolStep = ({
       {/* Tool content */}
       <div className="min-w-0 flex-1">
         <Collapsible
+          defaultOpen={false}
           className={cn('not-prose w-full rounded-md ', className)}
           {...props}
         >
