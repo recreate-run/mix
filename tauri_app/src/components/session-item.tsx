@@ -1,6 +1,5 @@
 import { IconTrash } from '@tabler/icons-react';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -19,21 +18,20 @@ interface SessionItemProps {
 }
 
 export function SessionItem({ session, isActive, onClick, currentSessionId, allSessions }: SessionItemProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
   const deleteSessionMutation = useDeleteSession();
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (deleteSessionMutation.isPending || session.isDeleting) return;
-    
+
     if (
       await ask(
         `Are you sure you want to delete the session "${getDisplayTitle(session)}"? This action cannot be undone.`
       )
     ) {
       const isCurrentSession = currentSessionId === session.id;
-      
+
       // If we're deleting the current session, find the next session to navigate to
       let nextSessionId: string | null = null;
       if (isCurrentSession && allSessions.length > 1) {
@@ -47,13 +45,13 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
           }
         }
       }
-      
+
       try {
         if (isCurrentSession) {
           if (nextSessionId) {
             // First, switch to the next session to avoid backend restriction
             await rpcCall('sessions.select', { id: nextSessionId });
-            
+
             // Navigate immediately for instant UI feedback
             navigate({
               to: '/$sessionId',
@@ -63,12 +61,12 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
           } else {
             // No other sessions available, clear current session by selecting empty ID
             await rpcCall('sessions.select', { id: '' });
-            
+
             // Navigate to home
             navigate({ to: '/', replace: true });
           }
         }
-        
+
         // Trigger deletion mutation (includes animation timing and backend call)
         await deleteSessionMutation.mutateAsync(session.id);
       } catch (error) {
@@ -93,16 +91,13 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
   const createdDate = new Date(session.createdAt);
 
   return (
-    <SidebarMenuItem>
-      <div
-        className={`group relative ${
-          session.isDeleting ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+    <SidebarMenuItem
+      className={`group/session-item overflow-hidden ${session.isDeleting ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
         }`}
-        onMouseEnter={() => !session.isDeleting && setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+    >
+      <div className="flex transition-transform duration-200 ease-out translate-x-0 will-change-transform group-hover/session-item:translate-x-[-40px]">
         <SidebarMenuButton
-          className="flex h-auto flex-col items-start gap-1 py-2 pr-8 min-h-[60px]"
+          className="flex h-auto hover:bg-transparent flex-col items-start gap-1 py-2 pr-2 min-h-[60px] w-full flex-shrink-0"
           isActive={isActive}
           onClick={() => !session.isDeleting && onClick(session.id)}
         >
@@ -116,15 +111,12 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
           </div>
         </SidebarMenuButton>
         <Button
-          className={`absolute top-4 right-1 ${
-            isHovered && !session.isDeleting ? 'opacity-70 hover:opacity-100' : 'invisible'
-          }`}
+          className=" bg-red-500 hover:bg-red-500 flex-shrink-0 min-h-[60px] flex items-center justify-center cursor-pointer"
           disabled={deleteSessionMutation.isPending || session.isDeleting}
           onClick={handleDelete}
-          size="sm"
-          variant="ghost"
+          size="icon"
         >
-          <IconTrash className="size-5" />
+          <IconTrash />
         </Button>
       </div>
     </SidebarMenuItem>
