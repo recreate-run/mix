@@ -1,0 +1,220 @@
+---
+title: Event Streaming 
+description: Real-time tool event streaming from backend to frontend
+---
+
+Mix implements a sophisticated **4-layer streaming architecture** that provides real-time visibility into AI reasoning, tool execution, and results. This system transforms raw LLM provider events into user-facing updates via Server-Sent Events (SSE).
+
+## Architecture Overview
+
+<Mermaid
+  chart="
+graph LR
+    A[LLM Provider] --> B[Agent Processing]
+    B --> C[Pub/Sub Broker]  
+    C --> D[SSE Frontend]
+"
+/>
+
+**Key Insight**: Events flow through distinct transformation layers, with tool execution happening AFTER provider streaming completes.
+
+
+## Event Flow Layers
+
+### 1. LLM Provider Events (Raw Stream)
+**Location**: `go_backend/internal/llm/provider/provider.go`
+
+Raw streaming events from LLM providers (Anthropic, OpenAI):
+- `EventThinkingDelta` - Claude's reasoning chunks
+- `EventContentDelta` - Response text chunks  
+- `EventToolUseStart` - Tool invocation begins
+- `EventToolUseStop` - Tool execution completes
+- `EventComplete` - Final response ready
+- `EventError` - Provider-level errors
+
+### 2. Agent Events (Session-Aware Wrappers)
+**Location**: `go_backend/internal/llm/agent/agent.go:29-36`
+
+Provider events enhanced with session context and streaming state:
+- `AgentEventTypeThinking` - Reasoning with session ID
+- `AgentEventTypeResponse` - Tool/content updates
+- `AgentEventTypeError` - Application errors  
+- `AgentEventTypeSummarize` - Session summarization
+
+### 3. Pub/Sub Broadcasting
+**Location**: `go_backend/internal/pubsub/broker.go`
+
+- **Multi-client support**: Broadcasts to all connected sessions
+- **Buffered channels**: Prevents blocking on slow clients
+- **Subscription management**: Session-specific filtering
+
+### 4. SSE Frontend Delivery
+**Location**: `go_backend/internal/http/sse_events.go`
+
+User-facing events delivered to web/desktop clients:
+- `thinking` - AI reasoning in real-time
+- `tool` - Tool execution start/completion  
+- `complete` - Final response ready
+- `error` - Error handling
+- `permission` - Interactive permission requests
+
+## Key Streaming Scenarios
+
+### 1. AI Reasoning (Thinking)
+
+<Mermaid
+  chart="
+sequenceDiagram
+    participant Provider
+    participant Agent
+    participant PubSub
+    participant Frontend
+    
+    Provider->>Agent: EventThinkingDelta
+    Agent->>Agent: Process + Add Session Context
+    Agent->>PubSub: AgentEventTypeThinking
+    PubSub->>Frontend: SSE: thinking
+    Frontend->>Frontend: Display AI reasoning
+"
+/>
+
+**When**: During Claude's reasoning process  
+**Purpose**: Transparent AI decision-making
+
+### 2. Tool Execution Flow
+
+<Mermaid
+  chart="
+sequenceDiagram
+    participant Provider
+    participant Agent
+    participant Tool
+    participant PubSub
+    participant Frontend
+    
+    Note over Provider,Agent: Provider streams complete response first
+    Provider->>Agent: EventToolUseStart
+    Agent->>PubSub: AgentEventTypeResponse (tool declared)
+    PubSub->>Frontend: SSE: tool (declared)
+    
+    Provider->>Agent: EventToolUseStop  
+    Provider->>Agent: EventComplete
+    
+    Note over Agent,Tool: Agent processes completed stream, then executes tools
+    Agent->>Agent: Check for tool calls
+    Agent->>Tool: Execute Tool (with session context)
+    Tool->>Tool: Run with permissions & working directory
+    Tool->>Agent: ToolResult
+    
+    Agent->>PubSub: AgentEventTypeResponse (tool completed)
+    PubSub->>Frontend: SSE: tool (results)
+    
+    Note over Agent: Tool results feed into next conversation turn
+"
+/>
+
+**When**: File operations, bash commands, API calls  
+**Purpose**: Real-time tool execution feedback  
+**Key Point**: Tools execute AFTER provider completes streaming, not during
+
+### 3. Permission System Integration
+
+<Mermaid
+  chart="
+sequenceDiagram
+    participant Agent
+    participant Tool
+    participant PubSub
+    participant Frontend
+    
+    Agent->>Tool: Execute Tool Call
+    Tool->>Tool: Attempt Operation (file edit, bash command)
+    Tool->>Tool: Internal Permission Check
+    
+    alt Permission Granted
+        Tool->>Agent: ToolResult (success)
+        Agent->>PubSub: AgentEventTypeResponse (completed)
+        PubSub->>Frontend: SSE: tool (success)
+    else Permission Denied
+        Tool->>Agent: permission.ErrorPermissionDenied
+        Agent->>Agent: Create error response
+        Agent->>PubSub: AgentEventTypeResponse (denied)
+        PubSub->>Frontend: SSE: tool (permission denied)
+        Note over Frontend: User sees security boundary message
+    end
+"
+/>
+
+**When**: File modifications, system operations  
+**Purpose**: Security boundaries with error handling  
+**Key Point**: Permission checking is REACTIVE - tools fail and return errors, no interactive dialogs
+
+## Session Management
+
+### Session-Scoped Providers
+Each session maintains its own provider instance with:
+- **Session-specific system prompts**
+- **Working directory context**  
+- **Cached provider reuse** for performance
+
+```go
+// go_backend/internal/llm/agent/agent.go:1135
+sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &session)
+```
+
+### Context Propagation
+Every tool execution includes:
+- `SessionIDContextKey` - Message correlation
+- `WorkingDirectoryContextKey` - File operation boundaries
+- `MessageIDContextKey` - Response tracking
+
+## Performance Features
+
+### Buffered Streaming
+```go
+events := make(chan AgentEvent, 10) // Smooth real-time streaming
+```
+
+### Concurrent Processing
+- **Main processing goroutine**: Tool execution and conversation management
+- **Subscription forwarder**: Intermediate event streaming  
+- **Background tasks**: Title generation, cleanup
+
+### Error Recovery
+- **Context cancellation**: Clean stream termination
+- **Permission denial**: Graceful security boundary handling
+- **Provider failures**: Automatic retry and fallback
+
+## Implementation Details
+
+### Event Processing Loop
+**Location**: `go_backend/internal/llm/agent/agent.go:468`
+
+```go
+for event := range eventChan {
+    if processErr := a.processEvent(ctx, sessionID, &assistantMsg, event); processErr != nil {
+        // Handle cancellation and cleanup
+        a.finishMessage(ctx, &assistantMsg, message.FinishReasonCanceled)
+        return assistantMsg, nil, processErr
+    }
+}
+```
+
+### Dual Channel Architecture
+**Location**: `go_backend/internal/llm/agent/agent.go:272-294`
+
+- **Direct event channel**: Immediate final results for CLI mode
+- **Pub/sub subscription**: All intermediate events for web clients
+- **Ensures compatibility** between different client types
+
+### Tool Execution Integration
+**Location**: `go_backend/internal/llm/agent/agent.go:561`
+
+```go
+toolResult, toolErr := tool.Run(ctx, tools.ToolCall{
+    ID:    toolCall.ID,
+    Name:  toolCall.Name,
+    Input: toolCall.Input,
+})
+// Stream results immediately
+```

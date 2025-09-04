@@ -9,6 +9,8 @@
     "quickstart",
     "overview",
     "design-decisions",
+    "---Architecture---",
+    "streaming-architecture",
     "---Usage---",
     "common-workflows",
     "desktop-app",
