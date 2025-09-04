@@ -47,7 +47,7 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 						"type": map[string]any{
 							"type":        "string",
 							"description": "Media type",
-							"enum":        []string{"image", "video", "audio", "gsap_animation"},
+							"enum":        []string{"image", "video", "audio", "gsap_animation", "youtube"},
 						},
 						"title": map[string]any{
 							"type":        "string",
@@ -110,13 +110,14 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 			"video":          true,
 			"audio":          true,
 			"gsap_animation": true,
+			"youtube":        true,
 		}
 		if !validTypes[output.Type] {
 			return NewTextErrorResponse(fmt.Sprintf("Invalid media type '%s' for output %d", output.Type, i)), nil
 		}
 
-		// Check if file exists (skip for gsap_animation and URLs)
-		if output.Type != "gsap_animation" && !isURL(output.Path) {
+		// Check if file exists (skip for gsap_animation, youtube, and URLs)
+		if output.Type != "gsap_animation" && output.Type != "youtube" && !isURL(output.Path) {
 			if !filepath.IsAbs(output.Path) {
 				return NewTextErrorResponse(fmt.Sprintf("Path must be absolute for output %d: %s", i, output.Path)), nil
 			}
@@ -126,8 +127,8 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 			}
 		}
 
-		// Validate file extension matches type (skip for gsap_animation and URLs)
-		if output.Type != "gsap_animation" && !isURL(output.Path) {
+		// Validate file extension matches type (skip for gsap_animation, youtube, and URLs)
+		if output.Type != "gsap_animation" && output.Type != "youtube" && !isURL(output.Path) {
 			ext := strings.ToLower(filepath.Ext(output.Path))
 			switch output.Type {
 			case "image":

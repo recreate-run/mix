@@ -94,12 +94,12 @@ Assistant: I'll display the reference audio file so you can review it.
 
 <example>
 User: Display this video from YouTube: https://www.youtube.com/watch?v=example123
-Assistant: I'll show you that video from the URL.
+Assistant: I'll show you that YouTube video as an embedded player.
 
 *Uses show_media tool with:*
 
 - Path: https://www.youtube.com/watch?v=example123
-- Type: video
+- Type: youtube
 - Title: YouTube Reference Video
 - Description: External video content for reference
 </example>
@@ -149,7 +149,7 @@ Assistant: I've identified key segments from your demo video.
 outputs (required): Array of media outputs to showcase
 
 - path: Absolute file path or HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media file
-- type: "image", "video", "audio", or "gsap_animation"
+- type: "image", "video", "audio", "gsap_animation", or "youtube"
 - title: Display title
 - description: Project context (optional)
 - config: Animation configuration JSON (required for gsap_animation)
@@ -178,6 +178,7 @@ outputs (required): Array of media outputs to showcase
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
 - Use for any media display - Not limited to creative outputs; great for previews and references
+- **YouTube URLs** - Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
 - For `gsap_animation` type, the config MUST include a `url` field with the complete iframe URL in the format: `"http://localhost:8088/gsap_animations/<animation_name>?param1=value1&param2=value2"`
 
 This tool transforms file paths into beautiful media displays in the conversation interface.

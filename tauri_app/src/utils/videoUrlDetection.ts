@@ -109,3 +109,24 @@ export function hasVideoUrls(text: string): boolean {
   
   return allPatterns.some(pattern => pattern.test(text));
 }
+
+/**
+ * Converts a YouTube URL to its embed format
+ */
+export function getYouTubeEmbedUrl(url: string): string | null {
+  for (const pattern of VIDEO_URL_PATTERNS.youtube) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      const videoId = match[1];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Checks if a URL is a YouTube URL
+ */
+export function isYouTubeUrl(url: string): boolean {
+  return VIDEO_URL_PATTERNS.youtube.some(pattern => pattern.test(url));
+}

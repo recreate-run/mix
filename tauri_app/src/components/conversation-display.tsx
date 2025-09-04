@@ -1,4 +1,5 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
+import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/videoUrlDetection';
 
 // Helper function to detect URLs
 const isURL = (path: string): boolean => {
@@ -7,7 +8,14 @@ const isURL = (path: string): boolean => {
 
 // Helper function to get media source URL
 const getMediaSrc = (path: string, workingDirectory: string): string => {
-  return isURL(path) ? path : convertToAssetServerUrl(path, workingDirectory);
+  if (isURL(path)) {
+    // For YouTube URLs, convert to embed format
+    if (isYouTubeUrl(path)) {
+      return getYouTubeEmbedUrl(path) || path;
+    }
+    return path;
+  }
+  return convertToAssetServerUrl(path, workingDirectory);
 };
 import { Check, Copy, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -124,6 +132,34 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
 
       {media.type === 'gsap_animation' && media.config && (
         <GsapAnimationPreview config={media.config as any} />
+      )}
+
+      {media.type === 'youtube' && (
+        <div className="overflow-hidden rounded-md">
+          <iframe
+            width="560"
+            height="315"
+            src={getMediaSrc(media.path, workingDirectory)}
+            title={media.title}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+            className="aspect-video w-full bg-black"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget
+                .nextElementSibling as HTMLElement;
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <div
+            className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
+            style={{ display: 'none' }}
+          >
+            Failed to load YouTube video: {media.path}
+          </div>
+        </div>
       )}
     </div>
   );

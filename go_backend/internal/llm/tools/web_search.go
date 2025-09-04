@@ -76,6 +76,44 @@ type ImageResultMetaURL struct {
 	Path     string `json:"path"`
 }
 
+// Video search response structures
+type VideoSearchResponse struct {
+	Type    string        `json:"type"`
+	Results []VideoResult `json:"results"`
+}
+
+type VideoResult struct {
+	Type        string                 `json:"type"`
+	Title       string                 `json:"title"`
+	URL         string                 `json:"url"`          // Source page URL
+	Source      string                 `json:"source"`
+	PageFetched string                 `json:"page_fetched"`
+	Thumbnail   VideoResultThumbnail   `json:"thumbnail"`
+	Properties  VideoResultProperties  `json:"properties"`
+	MetaURL     *VideoResultMetaURL    `json:"meta_url,omitempty"`
+	Confidence  string                 `json:"confidence"`
+}
+
+type VideoResultThumbnail struct {
+	Src string `json:"src"`
+}
+
+type VideoResultProperties struct {
+	URL         string `json:"url"`         // Actual video URL
+	Duration    string `json:"duration"`    // Video duration
+	Views       string `json:"views"`       // View count
+	UploadDate  string `json:"upload_date"` // Upload date
+	Placeholder string `json:"placeholder"`
+}
+
+type VideoResultMetaURL struct {
+	Scheme   string `json:"scheme"`
+	Netloc   string `json:"netloc"`
+	Hostname string `json:"hostname"`
+	Favicon  string `json:"favicon"`
+	Path     string `json:"path"`
+}
+
 type SearchPermissionsParams struct {
 	Query          string   `json:"query"`
 	SearchType     string   `json:"search_type,omitempty"`
@@ -117,7 +155,7 @@ func (t *searchTool) Info() ToolInfo {
 			"search_type": map[string]any{
 				"type":        "string",
 				"description": "Type of search to perform",
-				"enum":        []string{"web", "images"},
+				"enum":        []string{"web", "images", "videos"},
 				"default":     "web",
 			},
 			"allowed_domains": map[string]any{
@@ -170,8 +208,8 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	}
 	
 	// Validate search type
-	if params.SearchType != "web" && params.SearchType != "images" {
-		return NewTextErrorResponse("search_type must be 'web' or 'images'"), nil
+	if params.SearchType != "web" && params.SearchType != "images" && params.SearchType != "videos" {
+		return NewTextErrorResponse("search_type must be 'web', 'images', or 'videos'"), nil
 	}
 
 	// Set defaults for image search parameters
@@ -205,6 +243,8 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	searchType := "web"
 	if params.SearchType == "images" {
 		searchType = "image"
+	} else if params.SearchType == "videos" {
+		searchType = "video"
 	}
 	p := t.permissions.Request(
 		permission.CreatePermissionRequest{
@@ -225,6 +265,8 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	var baseURL string
 	if params.SearchType == "images" {
 		baseURL = "https://api.search.brave.com/res/v1/images/search"
+	} else if params.SearchType == "videos" {
+		baseURL = "https://api.search.brave.com/res/v1/videos/search"
 	} else {
 		baseURL = "https://api.search.brave.com/res/v1/web/search"
 	}
@@ -318,6 +360,8 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	// Parse response based on search type and format results
 	if params.SearchType == "images" {
 		return t.formatImageResults(body, params.Query)
+	} else if params.SearchType == "videos" {
+		return t.formatVideoResults(body, params.Query)
 	} else {
 		return t.formatWebResults(body, params.Query)
 	}
@@ -348,6 +392,78 @@ func (t *searchTool) formatWebResults(body []byte, query string) (ToolResponse, 
 		formattedOutput.WriteString(fmt.Sprintf("%d. %s\n", i+1, result.Title))
 		formattedOutput.WriteString(fmt.Sprintf("   URL: %s\n", result.URL))
 		formattedOutput.WriteString(fmt.Sprintf("   Description: %s\n", result.Description))
+		if i < resultsToShow-1 {
+			formattedOutput.WriteString("\n---\n\n")
+		}
+	}
+
+	return NewTextResponse(formattedOutput.String()), nil
+}
+
+func (t *searchTool) formatVideoResults(body []byte, query string) (ToolResponse, error) {
+	var videoResponse VideoSearchResponse
+	if err := json.Unmarshal(body, &videoResponse); err != nil {
+		return NewTextErrorResponse("Failed to parse video search results: " + err.Error()), nil
+	}
+
+	// Check if we have video results
+	if len(videoResponse.Results) == 0 {
+		return NewTextResponse("No video search results found."), nil
+	}
+
+	// Format results for readability, limited to MaxSearchResults
+	resultsToShow := len(videoResponse.Results)
+	if resultsToShow > MaxSearchResults {
+		resultsToShow = MaxSearchResults
+	}
+
+	var formattedOutput strings.Builder
+	formattedOutput.WriteString(fmt.Sprintf("Video search results for: %s\n\n", query))
+
+	for i := 0; i < resultsToShow; i++ {
+		result := videoResponse.Results[i]
+		formattedOutput.WriteString(fmt.Sprintf("%d. %s\n", i+1, result.Title))
+		
+		// Show actual video URL (from properties)
+		if result.Properties.URL != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Video URL: %s\n", result.Properties.URL))
+		}
+		
+		// Show duration if available
+		if result.Properties.Duration != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Duration: %s\n", result.Properties.Duration))
+		}
+		
+		// Show view count if available
+		if result.Properties.Views != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Views: %s\n", result.Properties.Views))
+		}
+		
+		// Show upload date if available
+		if result.Properties.UploadDate != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Upload Date: %s\n", result.Properties.UploadDate))
+		}
+		
+		// Show thumbnail URL
+		if result.Thumbnail.Src != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Thumbnail: %s\n", result.Thumbnail.Src))
+		}
+		
+		// Show source information
+		if result.Source != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Source: %s\n", result.Source))
+		}
+		
+		// Show source page URL
+		if result.URL != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Source Page: %s\n", result.URL))
+		}
+		
+		// Show confidence if available
+		if result.Confidence != "" {
+			formattedOutput.WriteString(fmt.Sprintf("   Confidence: %s\n", result.Confidence))
+		}
+		
 		if i < resultsToShow-1 {
 			formattedOutput.WriteString("\n---\n\n")
 		}
