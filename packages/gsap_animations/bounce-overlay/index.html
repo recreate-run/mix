@@ -60,6 +60,8 @@
             text-transform: uppercase;
             opacity: 0;
             transform: scale(0.5) rotate(-10deg);
+            max-width: 100%;
+            width: max-content;
         }
 
         .char {
@@ -139,16 +141,24 @@
             pageContainer.style.maxHeight = `calc(100vw * ${aspectRatio.height}/${aspectRatio.width})`;
         }
 
-        // Split text into characters
+        // Split text into characters with each word on separate line
         function splitTextIntoChars() {
             const text = animatedText.textContent;
             animatedText.innerHTML = '';
 
-            text.split('').forEach(char => {
-                const span = document.createElement('span');
-                span.className = 'char';
-                span.textContent = char === ' ' ? '\u00A0' : char; // Non-breaking space
-                animatedText.appendChild(span);
+            const words = text.split(' ');
+
+            words.forEach((word, wordIndex) => {
+                word.split('').forEach(char => {
+                    const span = document.createElement('span');
+                    span.className = 'char';
+                    span.textContent = char;
+                    animatedText.appendChild(span);
+                });
+
+                if (wordIndex < words.length - 1) {
+                    animatedText.appendChild(document.createElement('br'));
+                }
             });
         }
 

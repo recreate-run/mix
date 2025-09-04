@@ -131,15 +131,13 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
       {media.type === 'youtube' && (
         <div className="overflow-hidden rounded-md">
           <iframe
-            width="560"
-            height="315"
             src={getMediaSrc(media.path, workingDirectory)}
             title={media.title}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen
-            className="aspect-video w-full bg-black"
+            className="aspect-video w-full min-w-xl bg-black"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const fallback = e.currentTarget

@@ -11,6 +11,7 @@ import {
   AnimationSchema,
   fetchAnimationSchema
 } from '@/utils/gsapApi';
+import { getBackendUrl } from '@/utils/backendUrl';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 
 interface GsapAnimationPreviewProps {
@@ -30,16 +31,21 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { isCopied, copyToClipboard } = useCopyToClipboard();
 
-  // Extract base server URL and animation name from config.url
-  const baseServerUrl = config.url ? new URL(config.url).origin : null;
-  const animationName = config.url ? new URL(config.url).pathname.substring(1).split('?')[0].replace('gsap_animations/', '') : null;
+  // Use proper backend URL for schema fetching (not derived from iframe URL)
+  const baseServerUrl = getBackendUrl();
+  const animationName = config.url ? (() => {
+    const path = new URL(config.url).pathname.substring(1).split('?')[0];
+    const cleanPath = path.replace('gsap_animations/', '');
+    // Extract just the animation directory name (first part before any file)
+    return cleanPath.split('/')[0];
+  })() : null;
 
 
   // Load animation schema
   useEffect(() => {
 
-    if (!animationName || !baseServerUrl) {
-      console.error(`[GsapAnimationPreview] Missing animationName or baseServerUrl, skipping schema fetch`);
+    if (!animationName) {
+      console.error(`[GsapAnimationPreview] Missing animationName, skipping schema fetch`);
       return;
     }
 

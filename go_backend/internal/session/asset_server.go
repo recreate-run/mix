@@ -302,6 +302,11 @@ func (as *AssetServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Disable caching for development - ensures media changes are immediately visible
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	
 	// Serve the file using Go's optimized file server
 	http.ServeFile(w, r, fullPath)
 }
@@ -910,6 +915,11 @@ func (as *AssetServer) ServeGSAPAnimationFiles(w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	
+	// Disable caching for development - ensures animation changes are immediately visible
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	
 	// Serve the file
 	http.ServeFile(w, r, fullPath)
