@@ -240,11 +240,14 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	}
 
 	// Request permission for search
-	searchType := "web"
-	if params.SearchType == "images" {
+	var searchType string
+	switch params.SearchType {
+	case "images":
 		searchType = "image"
-	} else if params.SearchType == "videos" {
+	case "videos":
 		searchType = "video"
+	default:
+		searchType = "web"
 	}
 	p := t.permissions.Request(
 		permission.CreatePermissionRequest{
@@ -263,11 +266,12 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 
 	// Build the request URL based on search type
 	var baseURL string
-	if params.SearchType == "images" {
+	switch params.SearchType {
+	case "images":
 		baseURL = "https://api.search.brave.com/res/v1/images/search"
-	} else if params.SearchType == "videos" {
+	case "videos":
 		baseURL = "https://api.search.brave.com/res/v1/videos/search"
-	} else {
+	default:
 		baseURL = "https://api.search.brave.com/res/v1/web/search"
 	}
 	
@@ -358,11 +362,12 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	}
 
 	// Parse response based on search type and format results
-	if params.SearchType == "images" {
+	switch params.SearchType {
+	case "images":
 		return t.formatImageResults(body, params.Query)
-	} else if params.SearchType == "videos" {
+	case "videos":
 		return t.formatVideoResults(body, params.Query)
-	} else {
+	default:
 		return t.formatWebResults(body, params.Query)
 	}
 }

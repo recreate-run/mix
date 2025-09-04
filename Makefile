@@ -1,4 +1,4 @@
-.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos
+.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint
 
 # Variables
 BINARY_NAME=mix
@@ -32,6 +32,7 @@ help:
 	@echo "  test-installation - Test if all dependencies are installed"
 	@echo "  test-all    - Run all validation tests"
 	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
+	@echo "  go_lint     - Run golangci-lint on Go backend code"
 	@echo "  help        - Show this help message"
 	@echo ""
 
@@ -105,3 +106,8 @@ test-all: test-env test-dev-env test-connection test-installation
 frontend-typecheck:
 	@echo "Running frontend TypeScript typecheck..."
 	cd tauri_app && bun run typecheck
+
+# Run golangci-lint on Go backend code
+go_lint:
+	@echo "Running golangci-lint on Go backend code..."
+	cd go_backend && golangci-lint run ./...

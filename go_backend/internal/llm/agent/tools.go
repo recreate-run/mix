@@ -26,7 +26,6 @@ func CoderAgentTools(
 		[]tools.BaseTool{
 			bashTool,
 			tools.NewEditTool(permissions, history),
-			// tools.NewFetchTool(permissions),
 			tools.NewGlobTool(),
 			tools.NewGrepTool(permissions),
 			tools.NewLsTool(),
@@ -37,7 +36,6 @@ func CoderAgentTools(
 			// tools.NewTodoWriteTool(),
 			tools.NewExitPlanModeTool(),
 			tools.NewMediaShowcaseTool(),
-			// tools.NewNotesTool(permissions, bashTool),
 			NewTaskTool(sessions, messages, permissions),
 		}, otherTools...,
 	)

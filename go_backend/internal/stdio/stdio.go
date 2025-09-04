@@ -12,7 +12,7 @@ import (
 
 // HandleJSONRPC is the main entry point for handling JSON-RPC requests from stdin
 func HandleJSONRPC(ctx context.Context, handler *api.QueryHandler, outputFormat string) error {
-	return handleJSONRPCFromStdin(ctx, handler, outputFormat)
+	return handleJSONRPCFromStdin(ctx, handler)
 }
 
 // hasStdinData checks if stdin has data available without blocking
@@ -25,7 +25,7 @@ func hasStdinData() bool {
 	return (stat.Mode()&os.ModeCharDevice) == 0 && stat.Size() > 0
 }
 
-func handleJSONRPCFromStdin(ctx context.Context, handler *api.QueryHandler, outputFormat string) error {
+func handleJSONRPCFromStdin(ctx context.Context, handler *api.QueryHandler) error {
 	// Check if stdin has data before trying to read
 	if !hasStdinData() {
 		return fmt.Errorf(`no JSON-RPC input provided
@@ -57,13 +57,13 @@ Available methods: sessions.list, sessions.create, sessions.select, sessions.del
 				},
 				ID: nil,
 			}
-			outputJSONRPCResponse(errorResponse, outputFormat)
+			outputJSONRPCResponse(errorResponse)
 			continue
 		}
 
 		// Handle the request
 		response := handler.Handle(ctx, &request)
-		outputJSONRPCResponse(response, outputFormat)
+		outputJSONRPCResponse(response)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -73,7 +73,7 @@ Available methods: sessions.list, sessions.create, sessions.select, sessions.del
 	return nil
 }
 
-func outputJSONRPCResponse(response *api.QueryResponse, outputFormat string) {
+func outputJSONRPCResponse(response *api.QueryResponse) {
 	jsonBytes, err := json.Marshal(response)
 	if err != nil {
 		// Fallback error response
