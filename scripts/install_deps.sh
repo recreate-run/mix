@@ -148,6 +148,37 @@ install_ripgrep() {
   fi
 }
 
+# Install yt-dlp using direct download method
+install_ytdlp() {
+  if ! command -v yt-dlp >/dev/null 2>&1; then
+    echo -e "📦 ${BOLD}Installing yt-dlp...${NC}"
+    
+    # Create ~/.local/bin directory if it doesn't exist
+    mkdir -p "$HOME/.local/bin"
+    
+    # Download yt-dlp to ~/.local/bin
+    if curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o "$HOME/.local/bin/yt-dlp"; then
+      # Make executable
+      chmod a+rx "$HOME/.local/bin/yt-dlp"
+      
+      # Add ~/.local/bin to PATH if not already there
+      if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        export PATH="$HOME/.local/bin:$PATH"
+        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$HOME/.bashrc"
+        if [ "$OS" = "Darwin" ]; then
+          echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$HOME/.zshrc" 2>/dev/null || true
+        fi
+      fi
+      
+      echo -e "✅ ${GREEN}yt-dlp installed successfully${NC}"
+    else
+      echo -e "${RED}Failed to download yt-dlp${NC}"
+    fi
+  else
+    echo -e "✅ ${GREEN}yt-dlp is already installed${NC}"
+  fi
+}
+
 # Main installation process
 echo -e "${BOLD}Installing system dependencies...${NC}"
 
@@ -158,6 +189,7 @@ install_rust
 install_bun
 install_uv
 install_ripgrep
+install_ytdlp
 
 # Install tools
 echo -e "${BOLD}Installing tools...${NC}"

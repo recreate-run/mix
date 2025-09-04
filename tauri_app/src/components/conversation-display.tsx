@@ -77,25 +77,17 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
       </div>
 
       {media.type === 'image' && (
-        <div className="overflow-hidden rounded-md">
-          <img
-            alt={media.title}
-            className="aspect-video w-full bg-black object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const fallback = e.currentTarget
-                .nextElementSibling as HTMLElement;
-              if (fallback) fallback.style.display = 'block';
-            }}
-            src={getMediaSrc(media.path, workingDirectory)}
-          />
-          <div
-            className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
-            style={{ display: 'none' }}
-          >
-            Failed to load image: {media.path}
-          </div>
-        </div>
+        <img
+          alt={media.title}
+          className="aspect-auto max-h-120  object-contain"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            const fallback = e.currentTarget
+              .nextElementSibling as HTMLElement;
+            if (fallback) fallback.style.display = 'block';
+          }}
+          src={getMediaSrc(media.path, workingDirectory)}
+        />
       )}
 
       {media.type === 'video' && (
@@ -266,7 +258,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 
   // Group consecutive thinking entries together for better UX
   const groupedEntries: Array<{ type: 'thinking', entries: string[], timestamps: number[] } | { type: 'tool', entry: TimelineEntry }> = [];
-  
+
   for (const entry of timeline) {
     if (entry.type === 'thinking') {
       const lastGroup = groupedEntries[groupedEntries.length - 1];
@@ -294,7 +286,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
   return groupedEntries.map((group, index) => {
     if (group.type === 'thinking') {
       const totalContent = group.entries.join('');
-      const duration = group.timestamps.length > 1 
+      const duration = group.timestamps.length > 1
         ? Math.round((group.timestamps[group.timestamps.length - 1] - group.timestamps[0]) / 1000)
         : 0;
 
@@ -469,6 +461,23 @@ export function ConversationDisplay({
                       />
                     </div>
                   )}
+                  {/* Render regular tool calls directly */}
+                  {filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
+                    <AIToolLadder key={`direct-tool-${toolCall.id}-${index}`}>
+                      <AIToolStep
+                        isLast={true}
+                        status={toolCall.status}
+                        stepNumber={1}
+                      >
+                        <AIToolHeader
+                          description={toolCall.description}
+                          name={toolCall.name}
+                          status={toolCall.status}
+                        />
+                        <AIToolContent toolCall={toolCall} />
+                      </AIToolStep>
+                    </AIToolLadder>
+                  ))}
                 </>
               )}
             </AIMessageContent>
@@ -509,6 +518,23 @@ export function ConversationDisplay({
                       showOptions={false}
                     />
                   )}
+                  {/* Render streaming regular tool calls directly */}
+                  {filterNonSpecialTools(sseStream.toolCalls).map((toolCall, index) => (
+                    <AIToolLadder key={`streaming-direct-tool-${toolCall.id}-${index}`}>
+                      <AIToolStep
+                        isLast={true}
+                        status={toolCall.status}
+                        stepNumber={1}
+                      >
+                        <AIToolHeader
+                          description={toolCall.description}
+                          name={toolCall.name}
+                          status={toolCall.status}
+                        />
+                        <AIToolContent toolCall={toolCall} />
+                      </AIToolStep>
+                    </AIToolLadder>
+                  ))}
                   {!sseStream.completed && <ConversationLoader />}
                 </>
               ) : (
