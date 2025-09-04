@@ -161,6 +161,7 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
 const MediaShowcase = ({ mediaOutputs, workingDirectory }: { mediaOutputs: MediaOutput[]; workingDirectory: string }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+
   if (!mediaOutputs || mediaOutputs.length === 0) return null;
 
   // Single media file - show directly

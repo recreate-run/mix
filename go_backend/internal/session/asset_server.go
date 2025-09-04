@@ -22,6 +22,8 @@ import (
 	_ "golang.org/x/image/webp"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
+	
+	"mix/internal/logging"
 )
 
 // File size limits for different media types
@@ -286,8 +288,16 @@ func (as *AssetServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Check if thumbnail is requested
 	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
+		logging.Info("Thumbnail requested", 
+			"filePath", fullPath,
+			"thumbParam", thumbParam,
+			"timeParam", r.URL.Query().Get("time"),
+			"isVideoFile", as.isVideoFile(fullPath),
+			"isImageFile", as.isImageFile(fullPath))
+		
 		// Generate thumbnails for video and image files
 		if !as.isVideoFile(fullPath) && !as.isImageFile(fullPath) {
+			logging.Error("Thumbnail request rejected: file type not supported", "filePath", fullPath)
 			http.Error(w, "Thumbnails only supported for video and image files", http.StatusBadRequest)
 			return
 		}
@@ -296,6 +306,7 @@ func (as *AssetServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		timeParam := r.URL.Query().Get("time")
 		
 		if err := as.serveThumbnail(w, r, fullPath, thumbParam, timeParam); err != nil {
+			logging.Error("Thumbnail generation failed", "filePath", fullPath, "error", err)
 			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -477,13 +488,30 @@ func (as *AssetServer) generateVideoThumbnail(videoPath, thumbnailPath string, s
 	// Execute FFmpeg command
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		// Log detailed FFmpeg error information
+		logging.Error("FFmpeg thumbnail generation failed",
+			"videoPath", videoPath,
+			"thumbnailPath", thumbnailPath,
+			"timeOffset", timeOffset,
+			"scaleFilter", scaleFilter,
+			"ffmpegCommand", cmd.Args,
+			"error", err,
+			"ffmpegOutput", string(output))
 		return fmt.Errorf("ffmpeg failed: %v, output: %s", err, string(output))
 	}
 	
 	// Verify thumbnail was created
 	if _, err := os.Stat(thumbnailPath); err != nil {
+		logging.Error("FFmpeg thumbnail verification failed",
+			"expectedThumbnailPath", thumbnailPath,
+			"verificationError", err)
 		return fmt.Errorf("thumbnail file not created: %v", err)
 	}
+	
+	logging.Info("FFmpeg thumbnail generation successful",
+		"videoPath", videoPath,
+		"thumbnailPath", thumbnailPath,
+		"timeOffset", timeOffset)
 	
 	return nil
 }

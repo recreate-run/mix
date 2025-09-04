@@ -2,15 +2,46 @@ import { Image, Music, Play, Video } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { MediaOutput } from '@/types/media';
 import { convertToAssetServerUrl } from '@/utils/assetServer';
+import { isYouTubeUrl } from '@/utils/videoUrlDetection';
 
 // Helper function to detect URLs
 const isURL = (path: string): boolean => {
   return path.startsWith('http://') || path.startsWith('https://');
 };
 
+// Helper function to detect local asset server URLs (localhost URLs that need thumbnail params)
+const isLocalAssetServerURL = (path: string): boolean => {
+  return path.startsWith('http://localhost:') || path.startsWith('https://localhost:');
+};
+
 // Helper function to get media source URL
 const getMediaSrc = (path: string, workingDirectory: string): string => {
   return isURL(path) ? path : convertToAssetServerUrl(path, workingDirectory);
+};
+
+// Helper function to extract YouTube video ID
+const getYouTubeVideoId = (url: string): string | null => {
+  const patterns = [
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+};
+
+// Helper function to get YouTube thumbnail URL
+const getYouTubeThumbnail = (url: string): string | null => {
+  const videoId = getYouTubeVideoId(url);
+  if (videoId) {
+    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  }
+  return null;
 };
 
 const formatTime = (seconds: number): string => {
@@ -46,10 +77,12 @@ export const PlaylistSidebar = ({
   };
 
   const renderThumbnail = (media: MediaOutput) => {
+    
     if (media.type === 'image') {
       const imageUrl = getMediaSrc(media.path, workingDirectory);
       // Only add thumbnail parameter for local files, use URL directly for remote images
       const thumbnailUrl = isURL(media.path) ? imageUrl : `${imageUrl}?thumb=100`;
+      
 
       return (
         <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -57,14 +90,12 @@ export const PlaylistSidebar = ({
             alt=""
             className="h-full w-full object-cover"
             onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const parent = e.currentTarget.parentElement;
-              if (parent) {
-                parent.className =
-                  'w-16 h-12 rounded bg-stone-700 flex-shrink-0 flex items-center justify-center';
-                parent.innerHTML =
-                  '<svg class="w-4 h-4 text-stone-400" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
-              }
+              console.error('Image thumbnail failed to load:', {
+                src: e.currentTarget.src,
+                media: media,
+                workingDirectory: workingDirectory,
+                error: e
+              });
             }}
             src={thumbnailUrl}
           />
@@ -77,14 +108,15 @@ export const PlaylistSidebar = ({
       const videoPath = media.sourceVideo || media.path;
       const videoUrl = getMediaSrc(videoPath, workingDirectory);
 
-      // Only add thumbnail and time parameters for local files
+      // Add thumbnail and time parameters for local files (including localhost asset server URLs)
       let thumbnailUrl = videoUrl;
-      if (!isURL(videoPath)) {
+      if (!isURL(videoPath) || isLocalAssetServerURL(videoPath)) {
         thumbnailUrl = `${videoUrl}?thumb=100`;
         if (media.startTime !== undefined && typeof media.startTime === 'number' && media.startTime >= 0) {
           thumbnailUrl += `&time=${media.startTime}`;
         }
       }
+      
 
       return (
         <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -92,14 +124,16 @@ export const PlaylistSidebar = ({
             alt={`${media.title} thumbnail`}
             className="h-full w-full object-cover"
             onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const parent = e.currentTarget.parentElement;
-              if (parent) {
-                parent.className =
-                  'w-16 h-12 rounded bg-stone-700 flex-shrink-0 flex items-center justify-center';
-                parent.innerHTML =
-                  '<svg class="w-4 h-4 text-stone-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
-              }
+              console.error('Video thumbnail failed to load:', JSON.stringify({
+                src: e.currentTarget.src,
+                media: media,
+                workingDirectory: workingDirectory,
+                videoPath: media.sourceVideo || media.path,
+                startTime: media.startTime,
+                thumbnailUrl: thumbnailUrl,
+                errorType: e.type,
+                errorTarget: e.target
+              }, null, 2));
             }}
             src={thumbnailUrl}
           />
@@ -108,6 +142,34 @@ export const PlaylistSidebar = ({
           </div>
         </div>
       );
+    }
+
+    if (media.type === 'youtube') {
+      const thumbnailUrl = getYouTubeThumbnail(media.path);
+      
+
+      if (thumbnailUrl) {
+        return (
+          <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
+            <img
+              alt={`${media.title} thumbnail`}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                console.error('YouTube thumbnail failed to load:', {
+                  src: e.currentTarget.src,
+                  media: media,
+                  thumbnailUrl: thumbnailUrl,
+                  error: e
+                });
+              }}
+              src={thumbnailUrl}
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play className="h-3 w-3 text-white drop-shadow-sm" />
+            </div>
+          </div>
+        );
+      }
     }
 
     // Fallback  - show icon in colored box
