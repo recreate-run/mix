@@ -2,7 +2,6 @@ import { Image, Music, Play, Video } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { MediaOutput } from '@/types/media';
 import { convertToAssetServerUrl } from '@/utils/assetServer';
-import { isYouTubeUrl } from '@/utils/videoUrlDetection';
 
 // Helper function to detect URLs
 const isURL = (path: string): boolean => {
@@ -25,7 +24,7 @@ const getYouTubeVideoId = (url: string): string | null => {
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
     /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/
   ];
-  
+
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match && match[1]) {
@@ -77,12 +76,12 @@ export const PlaylistSidebar = ({
   };
 
   const renderThumbnail = (media: MediaOutput) => {
-    
+
     if (media.type === 'image') {
       const imageUrl = getMediaSrc(media.path, workingDirectory);
       // Only add thumbnail parameter for local files, use URL directly for remote images
       const thumbnailUrl = isURL(media.path) ? imageUrl : `${imageUrl}?thumb=100`;
-      
+
 
       return (
         <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -116,7 +115,7 @@ export const PlaylistSidebar = ({
           thumbnailUrl += `&time=${media.startTime}`;
         }
       }
-      
+
 
       return (
         <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -146,7 +145,7 @@ export const PlaylistSidebar = ({
 
     if (media.type === 'youtube') {
       const thumbnailUrl = getYouTubeThumbnail(media.path);
-      
+
 
       if (thumbnailUrl) {
         return (

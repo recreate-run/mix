@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { config } from "@/lib/config";
 
-const title = "Claude Code for Complex Multimodal Workflows";
+const title = "Claude Code for Multimodal tasks";
 const description =
 	"Automate marketing video generation, analyze session recordings, and orchestrate complex workflows across Blender, Figma, Logic Pro, and more. Built for startups who need AI-powered creative automation.";
 

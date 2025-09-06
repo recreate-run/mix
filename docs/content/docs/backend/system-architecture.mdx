@@ -1,0 +1,119 @@
+---
+title: Architecture overview
+description: Go-based agent architecture
+---
+
+Mix is a sophisticated AI-powered development platform built with Go, designed as a clean architecture monolith with microservices patterns. The system provides both CLI and HTTP interfaces for interacting with multiple LLM providers while maintaining session-based conversations and real-time streaming capabilities.
+
+## High-Level Architecture
+
+<Mermaid
+  chart="
+graph TB
+    User[User Input<br/>CLI • Web • Desktop App]
+    Core[Mix Application<br/>Sessions & Messages]
+
+    Agent[AI Agent<br/>Conversations & Reasoning]
+    Tools[Tools & Services<br/>File Ops • Shell • Web Search]
+    External[External APIs<br/>LLMs • Search • Analytics]
+    DB[(Database<br/>SQLite)]
+    
+    User --> Core
+    Core --> Agent
+    Agent --> Tools
+    Agent --> External
+    Core --> DB
+    Agent --> DB
+"
+/>
+
+**Database Connections**: Both the Mix Application and AI Agent connect directly to the database for different purposes: Mix Application handles session management and user operations, while AI Agent requires direct access for real-time conversation history retrieval and message storage during multi-turn conversations.
+
+## Core Components
+
+### 1. Application Core
+The central orchestrator managing all system components:
+- **Session Management**: Multi-session conversation tracking with working directories
+- **Message Handling**: Multi-part message processing with tool call correlation
+- **Service Composition**: Clean dependency injection of all system services
+
+### 2. LLM Agent System
+Sophisticated AI conversation management:
+- **Multi-turn Conversations**: Context-aware dialog flows across sessions
+- **Tool Orchestration**: Sequential tool execution with streaming events
+- **Plan Mode**: Restricted mode for planning workflows
+- **Provider Abstraction**: Unified interface across multiple LLM providers
+
+### 3. Provider Layer
+Multi-provider LLM support with advanced features:
+- **Supported Providers**: Anthropic (Claude), OpenAI (GPT), Google (Gemini), AWS Bedrock, Local models
+- **Advanced Features**: Reasoning blocks, function calling, context caching, token tracking
+- **Session-specific Caching**: Optimized provider instances per conversation
+
+### 4. Tool System
+Extensible plugin architecture:
+- **Built-in Tools**: File operations, shell execution, web search, media handling
+- **MCP Integration**: Model Context Protocol for external tool plugins
+- **Permission-gated**: All tool operations require user consent
+- **Real-time Execution**: Live progress updates via Server-Sent Events
+
+### 5. Data Architecture
+Robust data persistence and management:
+- **SQLite with WAL**: High-performance local database with concurrent access
+- **Type-safe Queries**: SQLC-generated queries for compile-time safety
+- **Session Isolation**: Per-session directory structure with asset management
+- **Migration System**: Goose-based schema evolution
+
+## Key Architectural Patterns
+
+### Event-Based Communication
+Components communicate through events rather than direct calls:
+- **PubSub System**: Broadcasts events to multiple subscribers
+- **Real-time Streaming**: Server-Sent Events deliver live updates to frontend
+- **Tool Execution Events**: Track progress and status during tool execution
+
+### Plugin System
+Tools can be added without modifying core code:
+- **Standardized Interface**: All tools implement the same execution pattern
+- **MCP Integration**: External plugins via Model Context Protocol
+- **Runtime Discovery**: New tools are detected and registered automatically
+
+
+## Security Architecture
+
+### Permission System
+- **User Consent Required**: All tool operations need explicit approval
+- **Session-scoped**: Permissions tied to specific conversations
+- **Audit Trail**: Complete logging of all permission requests and grants
+
+### Data Security
+- **Local-first**: All data stored locally in SQLite database
+- **Session Isolation**: File system isolation per session
+- **API Key Management**: Secure storage and environment-based configuration
+
+## Integration Points
+
+### External Services
+- **LLM Providers**: RESTful APIs with streaming support
+- **Web Search**: Brave Search API for web, image, and video search
+- **Analytics**: PostHog integration for usage tracking
+
+### File System Integration
+- **Working Directories**: Automatic session-based directory creation
+- **Asset Serving**: Static file serving for media workflows
+- **File Versioning**: Complete history tracking for all file operations
+
+## Scalability Considerations
+
+### Horizontal Scaling
+While currently designed as a single-instance application, the architecture supports future scaling:
+- **Stateless Design**: Session state stored in database, not memory
+- **Event-driven Architecture**: Natural boundary for service separation
+- **Provider Abstraction**: Easy addition of new LLM providers
+
+### Resource Management
+- **Memory Efficiency**: Streaming responses to minimize memory usage
+- **Connection Limits**: Bounded connection pools and goroutine management
+- **Timeout Management**: Comprehensive timeout handling for all operations
+
+This architecture successfully balances sophistication with maintainability, providing a robust foundation for AI-powered development assistance while maintaining excellent performance and security characteristics.

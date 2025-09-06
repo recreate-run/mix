@@ -4,7 +4,7 @@ export const config = {
   },
   site: {
     name: "Mix",
-    description: "Claude Code for Complex Multimodal Workflows",
+    description: "Claude Code for Multimodal tasks",
     url: process.env.NEXT_PUBLIC_SITE_URL,
   },
 } as const;
