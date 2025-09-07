@@ -1,0 +1,677 @@
+package http
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+// HandleDocumentation serves OpenAPI 3.1 specification as JSON
+func HandleDocumentation(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	serveOpenAPISpec(w, r)
+}
+
+// serveOpenAPISpec serves the OpenAPI 3.1 specification as JSON
+func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+	spec := getOpenAPISpec()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	
+	if err := json.NewEncoder(w).Encode(spec); err != nil {
+		sendInternalError(w, "generating OpenAPI spec", err)
+	}
+}
+
+// OpenAPI 3.1 specification structures with proper field ordering
+type OpenAPISpec struct {
+	OpenAPI    string                 `json:"openapi"`
+	Info       OpenAPIInfo            `json:"info"`
+	Servers    []OpenAPIServer        `json:"servers"`
+	Paths      map[string]interface{} `json:"paths"`
+	Components OpenAPIComponents      `json:"components"`
+}
+
+type OpenAPIInfo struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Version     string `json:"version"`
+}
+
+type OpenAPIServer struct {
+	URL         string `json:"url"`
+	Description string `json:"description"`
+}
+
+type OpenAPIComponents struct {
+	Schemas map[string]interface{} `json:"schemas"`
+}
+
+// getOpenAPISpec returns the complete OpenAPI 3.1 specification with proper field ordering
+func getOpenAPISpec() OpenAPISpec {
+	return OpenAPISpec{
+		OpenAPI: "3.1.0",
+		Info: OpenAPIInfo{
+			Title:       "Mix REST API",
+			Description: "REST API for the Mix application - session management, messaging, and system operations",
+			Version:     "1.0.0",
+		},
+		Servers: []OpenAPIServer{
+			{
+				URL:         "http://localhost:8088",
+				Description: "Development server",
+			},
+		},
+		Paths: map[string]interface{}{
+			// Session Management Endpoints
+			"/api/sessions": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "List all sessions",
+					"description": "Retrieve a list of all available sessions with their metadata",
+					"tags":        []string{"Sessions"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("array", getSessionDataSchema(), "List of sessions"),
+					},
+				},
+				"post": map[string]interface{}{
+					"summary":     "Create a new session",
+					"description": "Create a new session with optional title and working directory",
+					"tags":        []string{"Sessions"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"title": map[string]interface{}{
+								"type":        "string",
+								"description": "Optional title for the session",
+							},
+							"workingDirectory": map[string]interface{}{
+								"type":        "string",
+								"description": "Optional working directory path",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"201": createSuccessResponse("object", getSessionDataSchema(), "Created session"),
+						"400": createErrorResponse("Invalid request data"),
+					},
+				},
+			},
+			"/api/sessions/{id}": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "Get a specific session",
+					"description": "Retrieve detailed information about a specific session",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", getSessionDataSchema(), "Session details"),
+						"404": createErrorResponse("Session not found"),
+					},
+				},
+				"delete": map[string]interface{}{
+					"summary":     "Delete a session",
+					"description": "Permanently delete a session and all its data",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+					},
+					"responses": map[string]interface{}{
+						"204": map[string]interface{}{
+							"description": "Session deleted successfully",
+						},
+						"404": createErrorResponse("Session not found"),
+					},
+				},
+			},
+			"/api/sessions/{id}/fork": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Fork a session",
+					"description": "Create a new session based on an existing session",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Source session ID to fork from"),
+					},
+					"responses": map[string]interface{}{
+						"201": createSuccessResponse("object", getSessionDataSchema(), "Forked session"),
+						"404": createErrorResponse("Source session not found"),
+					},
+				},
+			},
+			// Message Operations
+			"/api/sessions/{id}/messages": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Send a message to session",
+					"description": "Send a user message to a specific session for AI processing",
+					"tags":        []string{"Messages"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"content"},
+						"properties": map[string]interface{}{
+							"content": map[string]interface{}{
+								"type":        "string",
+								"description": "Message content to send",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", getMessageDataSchema(), "Message sent and processed"),
+						"400": createErrorResponse("Invalid message data"),
+						"404": createErrorResponse("Session not found"),
+					},
+				},
+				"get": map[string]interface{}{
+					"summary":     "List session messages",
+					"description": "Retrieve all messages from a specific session",
+					"tags":        []string{"Messages"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("array", getMessageDataSchema(), "List of session messages"),
+						"404": createErrorResponse("Session not found"),
+					},
+				},
+			},
+			"/api/sessions/{id}/cancel": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Cancel agent processing",
+					"description": "Cancel any ongoing agent processing in the specified session",
+					"tags":        []string{"Messages"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"cancelled": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Whether cancellation was successful",
+								},
+							},
+						}, "Cancellation status"),
+						"404": createErrorResponse("Session not found"),
+					},
+				},
+			},
+			"/api/messages/history": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "Get global message history",
+					"description": "Retrieve message history across all sessions with optional pagination",
+					"tags":        []string{"Messages"},
+					"parameters": []map[string]interface{}{
+						{
+							"name":        "limit",
+							"in":          "query",
+							"description": "Maximum number of messages to return",
+							"schema": map[string]interface{}{
+								"type":    "integer",
+								"default": 50,
+								"minimum": 1,
+								"maximum": 1000,
+							},
+						},
+						{
+							"name":        "offset",
+							"in":          "query",
+							"description": "Number of messages to skip",
+							"schema": map[string]interface{}{
+								"type":    "integer",
+								"default": 0,
+								"minimum": 0,
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("array", getMessageDataSchema(), "Message history"),
+					},
+				},
+			},
+			// System Operations
+			"/api/auth/login": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "OAuth authentication",
+					"description": "Initiate OAuth authentication flow",
+					"tags":        []string{"Authentication"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"authUrl": map[string]interface{}{
+									"type":        "string",
+									"description": "OAuth authorization URL",
+								},
+							},
+						}, "Authentication URL"),
+					},
+				},
+			},
+			"/api/auth/apikey": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Set API key",
+					"description": "Set API key for direct authentication",
+					"tags":        []string{"Authentication"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"apiKey"},
+						"properties": map[string]interface{}{
+							"apiKey": map[string]interface{}{
+								"type":        "string",
+								"description": "API key for authentication",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"success": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Whether API key was set successfully",
+								},
+							},
+						}, "API key set status"),
+						"400": createErrorResponse("Invalid API key"),
+					},
+				},
+			},
+			"/api/mcp": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "List MCP servers",
+					"description": "Retrieve list of available Model Context Protocol (MCP) servers",
+					"tags":        []string{"System"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("array", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"name": map[string]interface{}{
+									"type":        "string",
+									"description": "MCP server name",
+								},
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Server status",
+								},
+							},
+						}, "List of MCP servers"),
+					},
+				},
+			},
+			"/api/commands": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "List available commands",
+					"description": "Retrieve list of all available commands",
+					"tags":        []string{"System"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("array", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"name": map[string]interface{}{
+									"type":        "string",
+									"description": "Command name",
+								},
+								"description": map[string]interface{}{
+									"type":        "string",
+									"description": "Command description",
+								},
+							},
+						}, "List of commands"),
+					},
+				},
+			},
+			"/api/commands/{name}": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "Get specific command",
+					"description": "Retrieve details about a specific command",
+					"tags":        []string{"System"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("name", "Command name"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"name": map[string]interface{}{
+									"type":        "string",
+									"description": "Command name",
+								},
+								"description": map[string]interface{}{
+									"type":        "string",
+									"description": "Command description",
+								},
+								"usage": map[string]interface{}{
+									"type":        "string",
+									"description": "Command usage instructions",
+								},
+							},
+						}, "Command details"),
+						"404": createErrorResponse("Command not found"),
+					},
+				},
+			},
+			"/api/permissions/{id}/grant": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Grant permission",
+					"description": "Grant a specific permission",
+					"tags":        []string{"Permissions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Permission ID"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"granted": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Whether permission was granted",
+								},
+							},
+						}, "Permission grant status"),
+					},
+				},
+			},
+			"/api/permissions/{id}/deny": map[string]interface{}{
+				"post": map[string]interface{}{
+					"summary":     "Deny permission",
+					"description": "Deny a specific permission",
+					"tags":        []string{"Permissions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Permission ID"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"denied": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Whether permission was denied",
+								},
+							},
+						}, "Permission deny status"),
+					},
+				},
+			},
+			"/health": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary":     "Health check",
+					"description": "Check server health and status",
+					"tags":        []string{"System"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Health status",
+								},
+								"timestamp": map[string]interface{}{
+									"type":        "string",
+									"description": "Current timestamp",
+								},
+								"version": map[string]interface{}{
+									"type":        "string",
+									"description": "Application version",
+								},
+							},
+						}, "Health information"),
+					},
+				},
+			},
+		},
+		Components: OpenAPIComponents{
+			Schemas: map[string]interface{}{
+				"RESTResponse": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"data": map[string]interface{}{
+							"description": "Response data",
+						},
+						"error": map[string]interface{}{
+							"$ref": "#/components/schemas/RESTError",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Optional message",
+						},
+					},
+				},
+				"RESTError": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"code": map[string]interface{}{
+							"type":        "integer",
+							"description": "HTTP status code",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Error message",
+						},
+						"type": map[string]interface{}{
+							"type":        "string",
+							"description": "Error type",
+							"enum":        []string{"bad_request", "not_found", "internal_error", "unauthorized", "validation_error"},
+						},
+					},
+					"required": []string{"code", "message", "type"},
+				},
+				"SessionData":    getSessionDataSchema(),
+				"MessageData":    getMessageDataSchema(),
+				"ToolCallData":   getToolCallDataSchema(),
+			},
+		},
+	}
+}
+
+// Helper functions for OpenAPI schema generation
+func createPathParameter(name, description string) map[string]interface{} {
+	return map[string]interface{}{
+		"name":        name,
+		"in":          "path",
+		"required":    true,
+		"description": description,
+		"schema": map[string]interface{}{
+			"type": "string",
+		},
+	}
+}
+
+func createRequestBody(schema map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"required": true,
+		"content": map[string]interface{}{
+			"application/json": map[string]interface{}{
+				"schema": schema,
+			},
+		},
+	}
+}
+
+func createSuccessResponse(dataType string, schema map[string]interface{}, description string) map[string]interface{} {
+	var dataSchema map[string]interface{}
+	if dataType == "array" {
+		dataSchema = map[string]interface{}{
+			"type":  "array",
+			"items": schema,
+		}
+	} else {
+		dataSchema = schema
+	}
+
+	return map[string]interface{}{
+		"description": description,
+		"content": map[string]interface{}{
+			"application/json": map[string]interface{}{
+				"schema": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{
+							"$ref": "#/components/schemas/RESTResponse",
+						},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": dataSchema,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createErrorResponse(description string) map[string]interface{} {
+	return map[string]interface{}{
+		"description": description,
+		"content": map[string]interface{}{
+			"application/json": map[string]interface{}{
+				"schema": map[string]interface{}{
+					"$ref": "#/components/schemas/RESTResponse",
+				},
+			},
+		},
+	}
+}
+
+func getSessionDataSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"id": map[string]interface{}{
+				"type":        "string",
+				"description": "Unique session identifier",
+			},
+			"title": map[string]interface{}{
+				"type":        "string",
+				"description": "Session title",
+			},
+			"userMessageCount": map[string]interface{}{
+				"type":        "integer",
+				"description": "Number of user messages in session",
+			},
+			"assistantMessageCount": map[string]interface{}{
+				"type":        "integer",
+				"description": "Number of assistant messages in session",
+			},
+			"toolCallCount": map[string]interface{}{
+				"type":        "integer",
+				"description": "Number of tool calls made in session",
+			},
+			"promptTokens": map[string]interface{}{
+				"type":        "integer",
+				"description": "Total prompt tokens used",
+			},
+			"completionTokens": map[string]interface{}{
+				"type":        "integer",
+				"description": "Total completion tokens used",
+			},
+			"cost": map[string]interface{}{
+				"type":        "number",
+				"format":      "double",
+				"description": "Total cost of session",
+			},
+			"createdAt": map[string]interface{}{
+				"type":        "string",
+				"format":      "date-time",
+				"description": "Session creation timestamp",
+			},
+			"workingDirectory": map[string]interface{}{
+				"type":        "string",
+				"description": "Working directory path (optional)",
+			},
+			"firstUserMessage": map[string]interface{}{
+				"type":        "string",
+				"description": "First user message (optional)",
+			},
+		},
+		"required": []string{"id", "title", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
+	}
+}
+
+func getMessageDataSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"id": map[string]interface{}{
+				"type":        "string",
+				"description": "Unique message identifier",
+			},
+			"sessionId": map[string]interface{}{
+				"type":        "string",
+				"description": "Session identifier",
+			},
+			"role": map[string]interface{}{
+				"type":        "string",
+				"enum":        []string{"user", "assistant"},
+				"description": "Message role",
+			},
+			"content": map[string]interface{}{
+				"type":        "string",
+				"description": "Message content",
+			},
+			"response": map[string]interface{}{
+				"type":        "string",
+				"description": "Assistant response (optional)",
+			},
+			"toolCalls": map[string]interface{}{
+				"type": "array",
+				"items": map[string]interface{}{
+					"$ref": "#/components/schemas/ToolCallData",
+				},
+				"description": "Tool calls made during message processing",
+			},
+			"reasoning": map[string]interface{}{
+				"type":        "string",
+				"description": "Reasoning process (optional)",
+			},
+			"reasoningDuration": map[string]interface{}{
+				"type":        "integer",
+				"description": "Reasoning duration in milliseconds (optional)",
+			},
+		},
+		"required": []string{"id", "sessionId", "role", "content"},
+	}
+}
+
+func getToolCallDataSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"id": map[string]interface{}{
+				"type":        "string",
+				"description": "Unique tool call identifier",
+			},
+			"name": map[string]interface{}{
+				"type":        "string",
+				"description": "Tool name",
+			},
+			"input": map[string]interface{}{
+				"type":        "string",
+				"description": "Tool input parameters",
+			},
+			"type": map[string]interface{}{
+				"type":        "string",
+				"description": "Tool type",
+			},
+			"finished": map[string]interface{}{
+				"type":        "boolean",
+				"description": "Whether tool call has finished",
+			},
+			"result": map[string]interface{}{
+				"type":        "string",
+				"description": "Tool execution result (optional)",
+			},
+			"isError": map[string]interface{}{
+				"type":        "boolean",
+				"description": "Whether tool call resulted in error (optional)",
+			},
+		},
+		"required": []string{"id", "name", "input", "type", "finished"},
+	}
+}

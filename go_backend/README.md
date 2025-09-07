@@ -7,6 +7,7 @@
 ## Project Overview
 
 ### Core Technology Stack
+
 - **Language**: Go 1.24.0
 - **Database**: SQLite with SQLC for type-safe queries
 - **CLI Framework**: Cobra for command-line interface
@@ -14,15 +15,29 @@
 - **Build System**: Go modules with custom build scripts
 
 ### Architecture Philosophy
+
 - **Minimal Complexity**: Simple, maintainable code with clean interfaces
 - **Dual Interface Model**: CLI for scripting and HTTP API for web applications
 - **Data Query System**: JSON-RPC structured data access via CLI
 - **Multi-Provider AI**: Support for multiple AI backends (Anthropic, OpenAI, etc.)
 - **Tool Extensibility**: MCP protocol for external integrations
 
+## Installation
+
+Install Mix CLI globally:
+
+```bash
+cd go_backend && go install .
+```
+
+Verify installation: `mix --version`
+b
+*Note: Ensure `~/go/bin` is in your PATH*
+
 ## Main Components
 
 ### 1. Entry Points (`main.go`, `cmd/`)
+
 - Single main entry point with Cobra CLI framework
 - **Default**: CLI mode with explicit prompt flag required
 - CLI-only mode for scripting and automation (`-p "prompt"`)
@@ -30,12 +45,14 @@
 - Graceful shutdown and panic recovery
 
 ### 2. Core Application (`internal/app/`)
+
 - Central app orchestrator managing all services
 - Session management and message handling
 - CLI-only execution flow for scripting
 - Automatic permission approval for non-interactive sessions
 
 ### 3. LLM Integration (`internal/llm/`)
+
 - **Agents**: Main coder agent with tool orchestration
 - **Models**: Support for multiple AI providers (OpenAI, Anthropic, Azure, Gemini, Groq, etc.)
 - **Providers**: Provider-specific implementations for each AI service
@@ -45,11 +62,13 @@
 #### Session Isolation Architecture
 
 **Session-Specific Resources (Isolated):**
+
 - **System Prompts**: Each session gets a unique provider with session-aware system prompts
 - **Session Context**: Variables like `session_id`, `session_workdir` are injected per-session
 - **Request Processing**: Each request creates an isolated provider with session context
 
 **Shared Resources (By Design):**
+
 - **Tools**: All sessions share the same tool instances (`[]tools.BaseTool`)
 - **Agent State**: `activeRequests` sync.Map tracks cross-session state
 - **Providers**: Title and summarize providers are shared across sessions
@@ -59,18 +78,21 @@
 This architecture ensures prompt isolation while sharing tools and services efficiently.
 
 ### 4. Data Query Interface (`internal/api/`)
+
 - **JSON-RPC query system** for structured data access
 - **CLI interface**: `--query <type> --output-format json`
-- **Query types**: `sessions`, `mcp`, `commands`
+- **Query types**: `sessions`, `tools`, `mcp`, `commands`
 - Perfect for **native app integration** (Swift, Electron, etc.)
 
 ### 5. Data Layer (`internal/db/`)
+
 - SQLite database with proper migrations
 - Three core entities: Sessions, Messages, Files
 - SQLC for type-safe database operations
 - Automatic timestamping and relationship management
 
 ### 6. Supporting Services
+
 - **Permissions**: Request approval system (can be bypassed with `--dangerously-skip-permissions` for trusted environments)
 - **Logging**: Structured logging throughout
 - **File Operations**: Safe file manipulation with history tracking
@@ -78,6 +100,7 @@ This architecture ensures prompt isolation while sharing tools and services effi
 - **Message Handling**: Multi-part message processing with attachments
 
 ## Database Schema
+
 ```sql
 sessions (conversations)
 ├── messages (user/assistant exchanges)
@@ -95,6 +118,9 @@ Get structured JSON data directly via stdout:
 ```bash
 # Get all sessions
 ./build/mix --query sessions --output-format json
+
+# Get available tools (including MCP tools)
+./build/mix --query tools --output-format json
 
 # Get MCP server status and their tools
 ./build/mix --query mcp --output-format json
@@ -159,6 +185,7 @@ curl -N -H "Accept: text/event-stream" \
 ```
 
 **SSE Event Types:**
+
 - `connected` - Connection established with session ID
 - `tool` - Tool execution events (with status: pending/running/completed)
 - `complete` - Response finished (includes final content)
@@ -169,6 +196,7 @@ curl -N -H "Accept: text/event-stream" \
 ### Native Integration Examples
 
 **Via HTTP:**
+
 ```swift
 // HTTP JSON-RPC request from Swift
 struct RPCRequest: Codable {
@@ -191,6 +219,7 @@ let sessions = try JSONDecoder().decode([SessionData].self, from: data)
 #### JavaScript/Web Integration
 
 **SSE Streaming with EventSource:**
+
 ```javascript
 // Real-time agent progress streaming in web applications
 const sessionId = 'your-session-id';
@@ -249,6 +278,7 @@ Both CLI and HTTP interfaces provide full 2-way communication for session manage
 ### Query Response Formats
 
 **Sessions Response:**
+
 ```json
 [{
   "id": "uuid",
@@ -262,6 +292,7 @@ Both CLI and HTTP interfaces provide full 2-way communication for session manage
 ```
 
 **MCP Response:**
+
 ```json
 [{
   "name": "blender",
@@ -272,21 +303,21 @@ Both CLI and HTTP interfaces provide full 2-way communication for session manage
 ```
 
 **Tools Response:**
+
 ```json
 [{"name": "bash", "description": "Execute shell commands"}]
 ```
 
-## Authentication
+## Augthentication
 
 ```
-./build/mix auth status 
-```
-
-
-```
-./build/mix auth add anthropic-claude-pro-max 
+./build/mix auth list 
 ```
 
 ```
-./build/mix auth add openai
+./build/debug/mix auth add anthropic-claude-pro-max 
+```
+
+```
+./build/debug/mix auth add openai
 ```

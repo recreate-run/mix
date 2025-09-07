@@ -4,22 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"mix/internal/api"
 	"mix/internal/app"
 	"mix/internal/logging"
 	"mix/internal/version"
 )
 
-// StartServer starts the HTTP JSON-RPC server with all configured routes
+// StartServer starts the HTTP REST API server with all configured routes
 func StartServer(ctx context.Context, app *app.App, host string, port int) error {
-	handler := api.NewQueryHandler(app)
+	// Create REST handlers
+	sessionHandler := NewSessionHandler(app)
+	messageHandler := NewMessageHandler(app)
+	systemHandler := NewSystemHandler(app)
 
 	// Create dedicated HTTP mux
 	mux := http.NewServeMux()
@@ -27,7 +28,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	// Add debug endpoint
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "Mix HTTP JSON-RPC Server\\nPath: %s\\nMethod: %s\\n", r.URL.Path, r.Method)
+		fmt.Fprintf(w, "Mix HTTP REST API Server\\nPath: %s\\nMethod: %s\\n", r.URL.Path, r.Method)
 	})
 	
 	// Add health check endpoint
@@ -47,9 +48,12 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 		json.NewEncoder(w).Encode(health)
 	})
 
+	// Add documentation endpoint  
+	mux.HandleFunc("GET /doc", HandleDocumentation)
+
 	// Add SSE streaming endpoint
 	mux.HandleFunc("/stream", func(w http.ResponseWriter, r *http.Request) {
-		HandleSSEStream(ctx, handler, w, r)
+		HandleSSEStream(ctx, app, w, r)
 	})
 
 	// Add message queue endpoint for persistent SSE
@@ -88,68 +92,29 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 		app.AssetServer.ServeGSAPAnimationFiles(w, r)
 	})
 
-	mux.HandleFunc("/rpc", func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Only accept POST requests
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Read request body
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			errorResponse := &api.QueryResponse{
-				Error: &api.QueryError{
-					Code:    -32700,
-					Message: "Parse error: " + err.Error(),
-				},
-			}
-			json.NewEncoder(w).Encode(errorResponse)
-			return
-		}
-
-		// Parse JSON-RPC request
-		var request api.QueryRequest
-		if err := json.Unmarshal(body, &request); err != nil {
-			errorResponse := &api.QueryResponse{
-				Error: &api.QueryError{
-					Code:    -32700,
-					Message: "Parse error: " + err.Error(),
-				},
-			}
-			json.NewEncoder(w).Encode(errorResponse)
-			return
-		}
-
-		// Log the incoming request
-		logging.Debug("HTTP Request: method=%s\\n", request.Method)
-		logging.Debug("HTTP Request Body: %s\\n", string(body))
-
-		// Handle the request
-		response := handler.Handle(ctx, &request)
-
-		// Log the response
-		if responseJSON, err := json.Marshal(response); err == nil {
-			logging.Debug("HTTP Response: %s\\n", string(responseJSON))
-		} else {
-			logging.Debug("HTTP Response: failed to marshal response: %v\\n", err)
-		}
-
-		// Send response
-		json.NewEncoder(w).Encode(response)
-	})
+	// REST API Endpoints
+	
+	// Session endpoints
+	mux.HandleFunc("GET /api/sessions", sessionHandler.HandleListSessions)
+	mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.HandleGetSession)
+	mux.HandleFunc("POST /api/sessions", sessionHandler.HandleCreateSession)
+	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.HandleDeleteSession)
+	
+	// Message endpoints
+	mux.HandleFunc("POST /api/sessions/{id}/messages", messageHandler.HandleSendMessage)
+	mux.HandleFunc("GET /api/sessions/{id}/messages", messageHandler.HandleListSessionMessages)
+	mux.HandleFunc("GET /api/messages/history", messageHandler.HandleMessageHistory)
+	mux.HandleFunc("POST /api/sessions/{id}/cancel", messageHandler.HandleCancelAgent)
+	
+	// System endpoints
+	mux.HandleFunc("POST /api/auth/login", systemHandler.HandleAuthLogin)
+	mux.HandleFunc("POST /api/auth/apikey", systemHandler.HandleSetAPIKey)
+	mux.HandleFunc("GET /api/mcp", systemHandler.HandleListMCPServers)
+	mux.HandleFunc("GET /api/commands", systemHandler.HandleListCommands)
+	mux.HandleFunc("GET /api/commands/{name}", systemHandler.HandleGetCommand)
+	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
+	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
 
 	addr := host + ":" + strconv.Itoa(port)
 	server := &http.Server{
@@ -161,7 +126,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	}
 
 	// Immediate feedback to user
-	logging.Info("Starting HTTP JSON-RPC server", "address", addr)
+	logging.Info("Starting HTTP REST API server", "address", addr)
 
 	// Handle graceful shutdown
 	go func() {

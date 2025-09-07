@@ -141,7 +141,28 @@ const (
 
 // NewAssetServer creates a new asset server
 func NewAssetServer() *AssetServer {
-	return &AssetServer{}
+	// Require WORKING_DIR environment variable - fail immediately if not set
+	workingDir := os.Getenv("WORKING_DIR")
+	if workingDir == "" {
+		panic("WORKING_DIR environment variable is required but not set. Please configure WORKING_DIR to point to the session directory.")
+	}
+	
+	// Validate working directory exists and is accessible
+	if _, err := os.Stat(workingDir); err != nil {
+		if os.IsNotExist(err) {
+			panic(fmt.Sprintf("WORKING_DIR points to non-existent directory: %s. Please ensure the directory exists.", workingDir))
+		}
+		panic(fmt.Sprintf("WORKING_DIR directory is not accessible: %s. Error: %v", workingDir, err))
+	}
+	
+	as := &AssetServer{}
+	
+	// Set working directory and fail immediately on error
+	if err := as.SetWorkingDirectory(workingDir); err != nil {
+		panic(fmt.Sprintf("Failed to set working directory %s: %v", workingDir, err))
+	}
+	
+	return as
 }
 
 // SetWorkingDirectory sets the current working directory to serve assets from
@@ -229,9 +250,9 @@ func (as *AssetServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	workingDir := as.currentWorkDir
 	as.mu.RUnlock()
 	
+	// Fail immediately if working directory is not configured
 	if workingDir == "" {
-		http.NotFound(w, r)
-		return
+		panic("Asset server has no working directory configured. This indicates a serious configuration error - WORKING_DIR environment variable should have been validated during server initialization.")
 	}
 	
 	// URL format: /input/videos/file.mp4
@@ -600,27 +621,36 @@ func (as *AssetServer) getGSAPAnimationDirectories() (string, string, error) {
 	currentWorkDir := as.currentWorkDir
 	as.mu.RUnlock()
 	
-	// Get global animations directory
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get working directory: %w", err)
+	// Require explicit global animations directory configuration
+	globalAnimationsDir := os.Getenv("GSAP_GLOBAL_DIR")
+	if globalAnimationsDir == "" {
+		return "", "", fmt.Errorf("GSAP_GLOBAL_DIR environment variable is required but not set. Please configure GSAP_GLOBAL_DIR to point to the global GSAP animations directory (e.g., /path/to/packages/gsap_animations)")
 	}
-	globalDir := filepath.Join(workingDir, "packages", "gsap_animations")
 	
-	// Get session animations directory
+	// Validate global directory exists
+	if _, err := os.Stat(globalAnimationsDir); err != nil {
+		if os.IsNotExist(err) {
+			return "", "", fmt.Errorf("GSAP_GLOBAL_DIR points to non-existent directory: %s. Please ensure the directory exists", globalAnimationsDir)
+		}
+		return "", "", fmt.Errorf("GSAP_GLOBAL_DIR directory is not accessible: %s. Error: %v", globalAnimationsDir, err)
+	}
+	
+	// Get session animations directory - this should always be set since NewAssetServer validates it
 	var sessionDir string
 	if currentWorkDir != "" {
 		sessionDir = filepath.Join(currentWorkDir, "gsap_animations")
+	} else {
+		return "", "", fmt.Errorf("no session working directory configured. This should never happen after proper initialization")
 	}
 	
-	return globalDir, sessionDir, nil
+	return globalAnimationsDir, sessionDir, nil
 }
 
 // scanAnimationDirectory scans a directory for animations and returns them with directory info
 func (as *AssetServer) scanAnimationDirectory(animationsDir string, source string) (map[string]map[string]interface{}, error) {
-	// Check if directory exists
+	// Check if directory exists - fail immediately if not
 	if _, err := os.Stat(animationsDir); os.IsNotExist(err) {
-		return make(map[string]map[string]interface{}), nil // Return empty map instead of error
+		return nil, fmt.Errorf("animation directory does not exist: %s", animationsDir)
 	}
 	
 	animations := make(map[string]map[string]interface{})
@@ -641,24 +671,24 @@ func (as *AssetServer) scanAnimationDirectory(animationsDir string, source strin
 		schemaPath := filepath.Join(animationsDir, entry.Name(), "schema.json")
 		schemaFile, err := os.Open(schemaPath)
 		if err != nil {
-			continue // Skip animations without schema.json
+			return nil, fmt.Errorf("animation '%s' missing required schema.json file in directory '%s': %w", entry.Name(), animationsDir, err)
 		}
 		
 		schemaBytes, err := io.ReadAll(schemaFile)
 		schemaFile.Close()
 		if err != nil {
-			continue // Skip animations with unreadable schema
+			return nil, fmt.Errorf("failed to read schema.json for animation '%s' in directory '%s': %w", entry.Name(), animationsDir, err)
 		}
 		
 		// Parse schema JSON
 		var schema map[string]interface{}
 		if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-			continue // Skip animations with invalid JSON
+			return nil, fmt.Errorf("invalid JSON in schema.json for animation '%s' in directory '%s': %w", entry.Name(), animationsDir, err)
 		}
 		
 		// Validate required schema fields
 		if schema["name"] == nil || schema["description"] == nil {
-			continue // Skip animations with missing required fields
+			return nil, fmt.Errorf("animation '%s' schema missing required fields (name and/or description) in directory '%s'", entry.Name(), animationsDir)
 		}
 		
 		// Create animation summary with source information

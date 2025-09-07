@@ -1,12 +1,14 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
-	"mix/internal/api"
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
@@ -186,20 +188,23 @@ func validateForkResult(t *testing.T, app *app.App, sourceSessionID, forkedSessi
 
 func TestSessionFork(t *testing.T) {
 	app, sourceSessionID := setupTestServerForFork(t)
-	ctx := context.Background()
 
 	// Create test messages (3 pairs = 6 total messages)
 	messages := createTestMessages(t, app, sourceSessionID, 3)
 	t.Logf("Created %d test messages in source session", len(messages))
 
-	// Create query handler
-	handler := api.NewQueryHandler(app)
+	// Create REST handler and test server
+	sessionHandler := NewSessionHandler(app)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	server := httptest.NewServer(mux)
+	defer server.Close()
 
 	// Test forking at message index 4 (should copy first 4 messages)
-	forkParams := map[string]interface{}{
-		"sourceSessionId": sourceSessionID,
-		"messageIndex":    int64(4),
-		"title":          "Forked Test Session",
+	forkParams := ForkSessionRequest{
+		SourceSessionID: sourceSessionID,
+		MessageIndex:    int64(4),
+		Title:          "Forked Test Session",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -207,55 +212,75 @@ func TestSessionFork(t *testing.T) {
 		t.Fatalf("Failed to marshal fork params: %v", err)
 	}
 
-	request := &api.QueryRequest{
-		Method: "sessions.fork",
-		Params: paramsJSON,
-		ID:     1,
+	// Make REST API call to fork session
+	url := server.URL + "/api/sessions/dummy/fork" // dummy ID since we're using sourceSessionId in request body
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to make fork request: %v", err)
 	}
-
-	// Execute fork operation
-	response := handler.Handle(ctx, request)
+	defer resp.Body.Close()
 
 	// Validate response
-	if response.Error != nil {
-		t.Fatalf("Fork operation failed: %s", response.Error.Message)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status 201, got %d", resp.StatusCode)
+	}
+
+	// Decode response
+	var restResponse RESTResponse
+	if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
 	}
 
 	// Extract forked session data
-	sessionData, ok := response.Result.(api.SessionData)
+	sessionDataMap, ok := restResponse.Data.(map[string]interface{})
 	if !ok {
-		t.Fatalf("Expected SessionData in response, got %T", response.Result)
+		t.Fatalf("Expected session data in response, got %T", restResponse.Data)
 	}
 
-	t.Logf("Fork successful: created session %s with title '%s'", sessionData.ID, sessionData.Title)
+	forkedSessionID, ok := sessionDataMap["id"].(string)
+	if !ok {
+		t.Fatalf("Expected session ID in response data")
+	}
+
+	title, ok := sessionDataMap["title"].(string)
+	if !ok {
+		t.Fatalf("Expected title in response data")
+	}
+
+	t.Logf("Fork successful: created session %s with title '%s'", forkedSessionID, title)
 
 	// Validate fork result
-	validateForkResult(t, app, sourceSessionID, sessionData.ID, 4)
+	validateForkResult(t, app, sourceSessionID, forkedSessionID, 4)
 
 	// Validate response data
-	if sessionData.Title != "Forked Test Session" {
-		t.Errorf("Expected title 'Forked Test Session', got '%s'", sessionData.Title)
+	if title != "Forked Test Session" {
+		t.Errorf("Expected title 'Forked Test Session', got '%s'", title)
 	}
 
-	if sessionData.WorkingDirectory == "" {
+	workingDirectory, _ := sessionDataMap["workingDirectory"].(string)
+	if workingDirectory == "" {
 		t.Error("Expected forked session to have working directory")
 	}
 }
 
 func TestSessionForkWithDefaultTitle(t *testing.T) {
 	app, sourceSessionID := setupTestServerForFork(t)
-	ctx := context.Background()
 
 	// Create test messages
 	createTestMessages(t, app, sourceSessionID, 2)
 
-	// Create query handler
-	handler := api.NewQueryHandler(app)
+	// Create REST handler and test server
+	sessionHandler := NewSessionHandler(app)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	server := httptest.NewServer(mux)
+	defer server.Close()
 
 	// Test forking without custom title
-	forkParams := map[string]interface{}{
-		"sourceSessionId": sourceSessionID,
-		"messageIndex":    int64(2),
+	forkParams := ForkSessionRequest{
+		SourceSessionID: sourceSessionID,
+		MessageIndex:    int64(2),
+		// No title - should use default
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -263,105 +288,134 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 		t.Fatalf("Failed to marshal fork params: %v", err)
 	}
 
-	request := &api.QueryRequest{
-		Method: "sessions.fork",
-		Params: paramsJSON,
-		ID:     1,
+	// Make REST API call to fork session
+	url := server.URL + "/api/sessions/dummy/fork"
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to make fork request: %v", err)
 	}
-
-	// Execute fork operation
-	response := handler.Handle(ctx, request)
+	defer resp.Body.Close()
 
 	// Validate response
-	if response.Error != nil {
-		t.Fatalf("Fork operation failed: %s", response.Error.Message)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status 201, got %d", resp.StatusCode)
+	}
+
+	// Decode response
+	var restResponse RESTResponse
+	if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
 	}
 
 	// Extract forked session data
-	sessionData, ok := response.Result.(api.SessionData)
+	sessionDataMap, ok := restResponse.Data.(map[string]interface{})
 	if !ok {
-		t.Fatalf("Expected SessionData in response, got %T", response.Result)
+		t.Fatalf("Expected session data in response, got %T", restResponse.Data)
+	}
+
+	title, ok := sessionDataMap["title"].(string)
+	if !ok {
+		t.Fatalf("Expected title in response data")
 	}
 
 	// Should use default title
-	if sessionData.Title != "Forked Session" {
-		t.Errorf("Expected default title 'Forked Session', got '%s'", sessionData.Title)
+	if title != "Forked Session" {
+		t.Errorf("Expected default title 'Forked Session', got '%s'", title)
 	}
 
-	validateForkResult(t, app, sourceSessionID, sessionData.ID, 2)
+	forkedSessionID, ok := sessionDataMap["id"].(string)
+	if !ok {
+		t.Fatalf("Expected session ID in response data")
+	}
+
+	validateForkResult(t, app, sourceSessionID, forkedSessionID, 2)
 }
 
 func TestSessionForkErrorHandling(t *testing.T) {
 	app, _ := setupTestServerForFork(t)
-	ctx := context.Background()
-	handler := api.NewQueryHandler(app)
+
+	// Create REST handler and test server
+	sessionHandler := NewSessionHandler(app)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	server := httptest.NewServer(mux)
+	defer server.Close()
 
 	testCases := []struct {
 		name        string
-		params      map[string]interface{}
+		request     ForkSessionRequest
 		expectError bool
-		errorMsg    string
+		statusCode  int
+		errorType   string
 	}{
 		{
 			name: "missing source session ID",
-			params: map[string]interface{}{
-				"messageIndex": int64(2),
+			request: ForkSessionRequest{
+				MessageIndex: int64(2),
+				// SourceSessionID missing
 			},
 			expectError: true,
-			errorMsg:    "Missing required parameter: sourceSessionId",
+			statusCode:  400,
+			errorType:   "validation_error",
 		},
 		{
 			name: "invalid source session ID",
-			params: map[string]interface{}{
-				"sourceSessionId": "invalid-session-id",
-				"messageIndex":    int64(2),
+			request: ForkSessionRequest{
+				SourceSessionID: "invalid-session-id",
+				MessageIndex:    int64(2),
 			},
 			expectError: true,
-			errorMsg:    "Failed to fork session: sql: no rows in result set",
-		},
-		{
-			name: "missing message index",
-			params: map[string]interface{}{
-				"sourceSessionId": "some-session-id",
-			},
-			expectError: true,
-			errorMsg:    "Missing required parameter: messageIndex must be > 0",
+			statusCode:  500,
+			errorType:   "internal_error",
 		},
 		{
 			name: "zero message index",
-			params: map[string]interface{}{
-				"sourceSessionId": "some-session-id",
-				"messageIndex":    int64(0),
+			request: ForkSessionRequest{
+				SourceSessionID: "some-session-id",
+				MessageIndex:    int64(0),
 			},
 			expectError: true,
-			errorMsg:    "Missing required parameter: messageIndex must be > 0",
+			statusCode:  400,
+			errorType:   "validation_error",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			paramsJSON, err := json.Marshal(tc.params)
+			paramsJSON, err := json.Marshal(tc.request)
 			if err != nil {
 				t.Fatalf("Failed to marshal params: %v", err)
 			}
 
-			request := &api.QueryRequest{
-				Method: "sessions.fork",
-				Params: paramsJSON,
-				ID:     1,
+			// Make REST API call
+			url := server.URL + "/api/sessions/dummy/fork"
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+			if err != nil {
+				t.Fatalf("Failed to make fork request: %v", err)
+			}
+			defer resp.Body.Close()
+
+			// Validate response status code
+			if resp.StatusCode != tc.statusCode {
+				t.Errorf("Expected status code %d, got %d", tc.statusCode, resp.StatusCode)
 			}
 
-			response := handler.Handle(ctx, request)
-
 			if tc.expectError {
-				if response.Error == nil {
-					t.Errorf("Expected error, but got success")
-				} else if response.Error.Message != tc.errorMsg {
-					t.Errorf("Expected error message '%s', got '%s'", tc.errorMsg, response.Error.Message)
+				// Decode error response
+				var restResponse RESTResponse
+				if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
+					t.Fatalf("Failed to decode error response: %v", err)
+				}
+
+				if restResponse.Error == nil {
+					t.Errorf("Expected error in response, but got none")
+				} else if restResponse.Error.Type != tc.errorType {
+					t.Errorf("Expected error type '%s', got '%s'", tc.errorType, restResponse.Error.Type)
 				}
 			} else {
-				if response.Error != nil {
-					t.Errorf("Unexpected error: %s", response.Error.Message)
+				// Should be successful
+				if resp.StatusCode >= 400 {
+					t.Errorf("Expected successful response, got status %d", resp.StatusCode)
 				}
 			}
 		})
@@ -386,13 +440,18 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 		t.Fatalf("Failed to create final message: %v", err)
 	}
 
-	handler := api.NewQueryHandler(app)
+	// Create REST handler and test server
+	sessionHandler := NewSessionHandler(app)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	server := httptest.NewServer(mux)
+	defer server.Close()
 
 	// Test forking at exact message boundary
-	forkParams := map[string]interface{}{
-		"sourceSessionId": sourceSessionID,
-		"messageIndex":    int64(5), // Should copy all 5 messages
-		"title":          "Boundary Fork Test",
+	forkParams := ForkSessionRequest{
+		SourceSessionID: sourceSessionID,
+		MessageIndex:    int64(5), // Should copy all 5 messages
+		Title:          "Boundary Fork Test",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -400,23 +459,35 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 		t.Fatalf("Failed to marshal fork params: %v", err)
 	}
 
-	request := &api.QueryRequest{
-		Method: "sessions.fork",
-		Params: paramsJSON,
-		ID:     1,
+	// Make REST API call
+	url := server.URL + "/api/sessions/dummy/fork"
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to make fork request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status 201, got %d", resp.StatusCode)
 	}
 
-	response := handler.Handle(ctx, request)
-
-	if response.Error != nil {
-		t.Fatalf("Fork operation failed: %s", response.Error.Message)
+	// Decode response
+	var restResponse RESTResponse
+	if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	sessionData, ok := response.Result.(api.SessionData)
+	// Extract forked session data
+	sessionDataMap, ok := restResponse.Data.(map[string]interface{})
 	if !ok {
-		t.Fatalf("Expected SessionData in response, got %T", response.Result)
+		t.Fatalf("Expected session data in response, got %T", restResponse.Data)
+	}
+
+	forkedSessionID, ok := sessionDataMap["id"].(string)
+	if !ok {
+		t.Fatalf("Expected session ID in response data")
 	}
 
 	// Should copy exactly 5 messages
-	validateForkResult(t, app, sourceSessionID, sessionData.ID, 5)
+	validateForkResult(t, app, sourceSessionID, forkedSessionID, 5)
 }

@@ -28,8 +28,6 @@ type App struct {
 
 	CoderAgent agent.Service
 
-	// Current session tracking for API session selection
-	currentSessionID string
 }
 
 func New(ctx context.Context, conn *sql.DB) (*App, error) {
@@ -152,51 +150,6 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	return nil
 }
 
-// SetCurrentSession sets the current session ID for API operations
-func (a *App) SetCurrentSession(sessionID string) error {
-	if sessionID == "" {
-		a.currentSessionID = ""
-		return nil
-	}
-
-	// Verify session exists
-	session, err := a.Sessions.Get(context.Background(), sessionID)
-	if err != nil {
-		return fmt.Errorf("session not found: %w", err)
-	}
-
-	a.currentSessionID = sessionID
-
-	// Update asset server working directory
-	if a.AssetServer != nil && session.WorkingDirectory != "" {
-		if err := a.AssetServer.SetWorkingDirectory(session.WorkingDirectory); err != nil {
-			return fmt.Errorf("failed to set asset server working directory: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// GetCurrentSession returns the currently selected session, or nil if none selected
-func (a *App) GetCurrentSession(ctx context.Context) (*session.Session, error) {
-	if a.currentSessionID == "" {
-		return nil, nil
-	}
-
-	sess, err := a.Sessions.Get(ctx, a.currentSessionID)
-	if err != nil {
-		// Reset current session if it no longer exists
-		a.currentSessionID = ""
-		return nil, fmt.Errorf("current session no longer exists: %w", err)
-	}
-
-	return &sess, nil
-}
-
-// GetCurrentSessionID returns the current session ID (may be empty)
-func (a *App) GetCurrentSessionID() string {
-	return a.currentSessionID
-}
 
 // Shutdown performs a clean shutdown of the application
 func (app *App) Shutdown() {

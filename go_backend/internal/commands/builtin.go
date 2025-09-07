@@ -88,9 +88,8 @@ type McpTool struct {
 
 // SessionsResponse represents the JSON response for the /sessions command
 type SessionsResponse struct {
-	Type           string           `json:"type"`
-	CurrentSession string           `json:"currentSession,omitempty"`
-	Sessions       []SessionSummary `json:"sessions"`
+	Type     string           `json:"type"`
+	Sessions []SessionSummary `json:"sessions"`
 }
 
 // SessionSummary represents a session summary in the sessions list
@@ -105,7 +104,6 @@ type SessionSummary struct {
 	CreatedAt       int64   `json:"createdAt"`
 	UpdatedAt       int64   `json:"updatedAt"`
 	ParentSessionID string  `json:"parentSessionId,omitempty"`
-	IsCurrent       bool    `json:"isCurrent"`
 }
 
 // ErrorResponse represents error responses from commands
@@ -138,6 +136,17 @@ type AuthLoginResponse struct {
 	Message string `json:"message"`
 	AuthURL string `json:"authUrl,omitempty"` // for OAuth flow
 	Step    string `json:"step,omitempty"`    // current step in flow
+}
+
+// SessionSwitchResponse represents responses that create a session and instruct client to switch
+type SessionSwitchResponse struct {
+	Type                  string  `json:"type"`
+	Action                string  `json:"action"` // "switch"
+	Message               string  `json:"message"`
+	Command               string  `json:"command,omitempty"`
+	SessionID             string  `json:"sessionId"`
+	SessionTitle          string  `json:"sessionTitle"`
+	WorkingDirectory      string  `json:"workingDirectory,omitempty"`
 }
 
 // BuiltinCommand represents a built-in command
@@ -183,6 +192,21 @@ func returnMessage(command, message string) (string, error) {
 	return string(jsonData), nil
 }
 
+// returnSessionSwitch creates a structured session switch response
+func returnSessionSwitch(command, message, sessionID, sessionTitle, workingDirectory string) (string, error) {
+	response := SessionSwitchResponse{
+		Type:             "session_switch",
+		Action:           "switch", 
+		Message:          message,
+		Command:          command,
+		SessionID:        sessionID,
+		SessionTitle:     sessionTitle,
+		WorkingDirectory: workingDirectory,
+	}
+	jsonData, _ := json.Marshal(response)
+	return string(jsonData), nil
+}
+
 // GetBuiltinCommands returns all built-in commands
 func GetBuiltinCommands(registry *Registry, app *app.App) map[string]Command {
 	return map[string]Command{
@@ -195,11 +219,6 @@ func GetBuiltinCommands(registry *Registry, app *app.App) map[string]Command {
 			name:        "clear",
 			description: "Start new session",
 			handler:     createClearHandler(app),
-		},
-		"session": &BuiltinCommand{
-			name:        "session",
-			description: "Show session information or switch sessions",
-			handler:     createSessionHandler(app),
 		},
 		"sessions": &BuiltinCommand{
 			name:        "sessions",
@@ -277,75 +296,29 @@ func createHelpHandler(registry *Registry) func(ctx context.Context, args string
 
 func createClearHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
 	return func(ctx context.Context, args string) (string, error) {
-		// Create a new session with a default title
-		title := "New Session"
-		workingDirectory := ""
-
-		// Get current session for working directory context
-		if currentSession, err := app.GetCurrentSession(ctx); err == nil && currentSession != nil {
-			workingDirectory = currentSession.WorkingDirectory
+		// Extract session ID from context - required for clear command
+		sessionID, ok := ctx.Value(tools.SessionIDContextKey).(string)
+		if !ok || sessionID == "" {
+			return returnError("clear", "Session context required")
 		}
 
-		// Create the new session
-		session, err := app.Sessions.Create(ctx, title, workingDirectory)
+		// Get current session to inherit working directory
+		currentSession, err := app.Sessions.Get(ctx, sessionID)
+		if err != nil {
+			return returnError("clear", fmt.Sprintf("Failed to get current session: %v", err))
+		}
+
+		// Create new session inheriting working directory
+		session, err := app.Sessions.Create(ctx, "New Session", currentSession.WorkingDirectory)
 		if err != nil {
 			return returnError("clear", fmt.Sprintf("Failed to create new session: %v", err))
 		}
 
-		// Set the new session as current
-		if err := app.SetCurrentSession(session.ID); err != nil {
-			return returnError("clear", fmt.Sprintf("Failed to set new session as current: %v", err))
-		}
-
-		// Return success message with session info
-		return returnMessage("clear", fmt.Sprintf("Started new session: %s (ID: %s)", session.Title, session.ID[:8]))
+		// Return session switch response
+		return returnSessionSwitch("clear", fmt.Sprintf("Started new session: %s", session.Title), session.ID, session.Title, currentSession.WorkingDirectory)
 	}
 }
 
-func createSessionHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
-	return func(ctx context.Context, args string) (string, error) {
-		args = strings.TrimSpace(args)
-		if args == "" {
-			// Show current session info
-			currentSession, err := app.GetCurrentSession(ctx)
-			if err != nil {
-				return returnError("session", fmt.Sprintf("Error retrieving current session: %v", err))
-			}
-
-			if currentSession == nil {
-				return returnMessage("session", "No active session. Use /sessions to list available sessions.")
-			}
-
-			// Create structured response
-			response := SessionResponse{
-				Type:             "session",
-				ID:               currentSession.ID,
-				Title:            currentSession.Title,
-				UserMessageCount:      currentSession.UserMessageCount,
-				AssistantMessageCount: currentSession.AssistantMessageCount,
-				ToolCallCount:         currentSession.ToolCallCount,
-				TotalTokens:      currentSession.PromptTokens + currentSession.CompletionTokens,
-				PromptTokens:     currentSession.PromptTokens,
-				CompletionTokens: currentSession.CompletionTokens,
-				Cost:             currentSession.Cost,
-				CreatedAt:        currentSession.CreatedAt,
-				UpdatedAt:        currentSession.UpdatedAt,
-				ParentSessionID:  currentSession.ParentSessionID,
-			}
-
-			// Convert to JSON
-			jsonData, err := json.Marshal(response)
-			if err != nil {
-				return returnError("session", fmt.Sprintf("Error marshaling session data: %v", err))
-			}
-
-			return string(jsonData), nil
-		} else {
-			// Switch to specific session
-			return returnMessage("session", fmt.Sprintf("Session switching to '%s' is available via the HTTP API.", args))
-		}
-	}
-}
 
 func createSessionsHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
 	return func(ctx context.Context, args string) (string, error) {
@@ -354,9 +327,6 @@ func createSessionsHandler(app *app.App) func(ctx context.Context, args string) 
 		if err != nil {
 			return returnError("sessions", fmt.Sprintf("Error retrieving sessions: %v", err))
 		}
-
-		// Get current session ID for comparison
-		currentSessionID := app.GetCurrentSessionID()
 
 		// Build session summaries
 		var sessionSummaries []SessionSummary
@@ -372,15 +342,13 @@ func createSessionsHandler(app *app.App) func(ctx context.Context, args string) 
 				CreatedAt:       session.CreatedAt,
 				UpdatedAt:       session.UpdatedAt,
 				ParentSessionID: session.ParentSessionID,
-				IsCurrent:       session.ID == currentSessionID,
 			})
 		}
 
 		// Create structured response
 		response := SessionsResponse{
-			Type:           "sessions",
-			CurrentSession: currentSessionID,
-			Sessions:       sessionSummaries,
+			Type:     "sessions",
+			Sessions: sessionSummaries,
 		}
 
 		// Convert to JSON
@@ -489,98 +457,7 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 
 func createContextHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
 	return func(ctx context.Context, args string) (string, error) {
-		currentSession, err := app.GetCurrentSession(ctx)
-		if err != nil {
-			return returnError("context", fmt.Sprintf("Error retrieving current session: %v", err))
-		}
-
-		if currentSession == nil {
-			return returnMessage("context", "No active session. Use /sessions to list available sessions.")
-		}
-
-		// Get current model's context window from agent
-		currentModel := app.CoderAgent.Model()
-		maxContextTokens := int64(currentModel.ContextWindow)
-
-		// System prompt estimation (rough approximation)
-		systemPromptTokens := int64(5000) // Typical system prompt size
-		systemPromptPercent := float64(systemPromptTokens) / float64(maxContextTokens) * 100
-
-		// Tool descriptions estimation
-		toolTokens := int64(15000) // Typical tool descriptions size
-		toolPercent := float64(toolTokens) / float64(maxContextTokens) * 100
-
-		// Calculate conversation tokens (excluding system overhead)
-		conversationTokens := currentSession.PromptTokens + currentSession.CompletionTokens
-
-		// User and assistant message breakdown
-		userTokens := currentSession.PromptTokens
-		userPercent := float64(userTokens) / float64(maxContextTokens) * 100
-
-		assistantTokens := currentSession.CompletionTokens
-		assistantPercent := float64(assistantTokens) / float64(maxContextTokens) * 100
-
-		// Calculate total tokens including baseline system context
-		baselineTokens := systemPromptTokens + toolTokens
-		totalTokens := baselineTokens + conversationTokens
-		contextUsagePercent := float64(totalTokens) / float64(maxContextTokens) * 100
-
-		// Determine warning level
-		warningLevel := "none"
-		warningMessage := ""
-		if contextUsagePercent > 80 {
-			warningLevel = "high"
-			warningMessage = "Context usage above 80% - consider starting a new session"
-		} else if contextUsagePercent > 60 {
-			warningLevel = "medium"
-			warningMessage = "Context usage above 60% - monitor usage"
-		}
-
-		// Create structured response
-		response := ContextResponse{
-			Model:          currentModel.Name,
-			MaxTokens:      maxContextTokens,
-			TotalTokens:    totalTokens,
-			UsagePercent:   contextUsagePercent,
-			WarningLevel:   warningLevel,
-			WarningMessage: warningMessage,
-			Components: []ComponentBreakdown{
-				{
-					Name:       "System Prompt",
-					Tokens:     systemPromptTokens,
-					Percentage: systemPromptPercent,
-				},
-				{
-					Name:       "Tool Descriptions",
-					Tokens:     toolTokens,
-					Percentage: toolPercent,
-				},
-				{
-					Name:       "User Messages",
-					Tokens:     userTokens,
-					Percentage: userPercent,
-				},
-				{
-					Name:       "Assistant Responses",
-					Tokens:     assistantTokens,
-					Percentage: assistantPercent,
-				},
-				{
-					Name:       "Total",
-					Tokens:     totalTokens,
-					Percentage: contextUsagePercent,
-					IsTotal:    true,
-				},
-			},
-		}
-
-		// Convert to JSON
-		jsonData, err := json.Marshal(response)
-		if err != nil {
-			return returnError("context", fmt.Sprintf("Error marshaling context data: %v", err))
-		}
-
-		return string(jsonData), nil
+		return returnMessage("context", "Context command requires session ID: /context <session-id>. Use /sessions to list available sessions.")
 	}
 }
 

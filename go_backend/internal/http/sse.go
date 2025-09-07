@@ -11,11 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"mix/internal/api"
+	"mix/internal/app"
 	"mix/internal/commands"
 	"mix/internal/fileutil"
 	"mix/internal/llm/agent"
 	"mix/internal/llm/provider"
+	"mix/internal/llm/tools"
 	"mix/internal/pubsub"
 )
 
@@ -68,19 +69,18 @@ func (r *ConnectionRegistry) Broadcast(sessionID, message string) {
 	defer r.mu.RUnlock()
 
 	connections := r.connections[sessionID]
+	
 	for conn := range connections {
 		select {
 		case conn.Messages <- message:
 		case <-conn.Done:
-			// Connection is closed, skip
 		default:
-			// Channel full, drop message to prevent blocking
 		}
 	}
 }
 
 // HandleSSEStream handles persistent Server-Sent Events streaming for agent responses
-func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, r *http.Request) {
+func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r *http.Request) {
 	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -99,8 +99,10 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 		return
 	}
 
-	if err := handler.GetApp().SetCurrentSession(sessionID); err != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: "Failed to set session: " + err.Error()})
+	// Validate session exists
+	_, err := app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Invalid session ID: %s", sessionID)})
 		return
 	}
 
@@ -132,7 +134,7 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 	flusher.Flush()
 
 	// Subscribe to permission events for this session
-	permissionEvents := handler.GetApp().Permissions.Subscribe(ctx)
+	permissionEvents := app.Permissions.Subscribe(ctx)
 
 	// Handle permission events in a separate goroutine with high priority
 	go func() {
@@ -186,12 +188,12 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 		select {
 		case <-r.Context().Done():
 			// Client disconnected
-			handler.GetApp().CoderAgent.Cancel(sessionID)
+			app.CoderAgent.Cancel(sessionID)
 			return
 
 		case <-ctx.Done():
 			// Handler context cancelled (server shutdown, timeout, etc.)
-			handler.GetApp().CoderAgent.Cancel(sessionID)
+			app.CoderAgent.Cancel(sessionID)
 			return
 
 		case <-heartbeat.C:
@@ -203,7 +205,7 @@ func HandleSSEStream(ctx context.Context, handler *api.QueryHandler, w http.Resp
 				return
 			}
 
-			if err := processMessage(ctx, handler, w, flusher, sessionID, message); err != nil {
+			if err := processMessage(ctx, app, w, flusher, sessionID, message); err != nil {
 				return
 			}
 		}
@@ -271,7 +273,8 @@ func handleShellCommand(ctx context.Context, w http.ResponseWriter, flusher http
 }
 
 // handleRegularMessage processes regular messages through the agent
-func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, flusher http.Flusher, sessionID, text string, planMode bool) error {
+func handleRegularMessage(ctx context.Context, app *app.App, w http.ResponseWriter, flusher http.Flusher, sessionID, text string, planMode bool) error {
+	
 	// Check authentication status before processing the message using the centralized function
 	authenticated, _, authErr := provider.IsAuthenticated()
 	if authErr != nil {
@@ -279,6 +282,7 @@ func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http
 		flusher.Flush()
 		return nil
 	}
+	
 	
 	// If not authenticated, show a clear error message
 	if !authenticated {
@@ -297,24 +301,25 @@ func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http
 	}
 	
 	// If authenticated, proceed with normal message processing
-	events, err := handler.GetApp().CoderAgent.RunWithPlanMode(ctx, sessionID, text, planMode)
+	events, err := app.CoderAgent.RunWithPlanMode(ctx, sessionID, text, planMode)
 	if err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())})
 		flusher.Flush()
 		return nil
 	}
+	
 
 	for {
 		select {
 		case <-ctx.Done():
-			handler.GetApp().CoderAgent.Cancel(sessionID)
+			app.CoderAgent.Cancel(sessionID)
 			return ctx.Err()
 
 		case event, ok := <-events:
 			if !ok {
 				var content, messageID, reasoning string
 				var reasoningDuration int64
-				if messages, err := handler.GetApp().Messages.List(context.Background(), sessionID); err == nil && len(messages) > 0 {
+				if messages, err := app.Messages.List(context.Background(), sessionID); err == nil && len(messages) > 0 {
 					lastMessage := messages[len(messages)-1]
 					if lastMessage.Role == "assistant" {
 						content = lastMessage.Content().String()
@@ -342,7 +347,8 @@ func handleRegularMessage(ctx context.Context, handler *api.QueryHandler, w http
 }
 
 // processMessage processes a single message and streams the response
-func processMessage(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
+func processMessage(ctx context.Context, app *app.App, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
+	
 	msgContent, err := parseMessageContent(content)
 	if err != nil {
 		return err
@@ -354,18 +360,19 @@ func processMessage(ctx context.Context, handler *api.QueryHandler, w http.Respo
 	case strings.HasPrefix(text, "/"):
 		// Quote paths in slash commands if they contain file references
 		quotedText := quotePaths(text, msgContent.Media)
-		return handleSlashCommandStreaming(ctx, handler, w, flusher, sessionID, quotedText)
+		return handleSlashCommandStreaming(ctx, app, w, flusher, sessionID, quotedText)
 	case strings.HasPrefix(text, "!"):
 		// Quote paths in shell commands
 		quotedText := quotePaths(text, msgContent.Media)
 		return handleShellCommand(ctx, w, flusher, quotedText)
 	default:
-		return handleRegularMessage(ctx, handler, w, flusher, sessionID, text, msgContent.PlanMode)
+		return handleRegularMessage(ctx, app, w, flusher, sessionID, text, msgContent.PlanMode)
 	}
 }
 
 // handleSlashCommandStreaming processes slash commands for persistent connections
-func handleSlashCommandStreaming(ctx context.Context, handler *api.QueryHandler, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
+func handleSlashCommandStreaming(ctx context.Context, app *app.App, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
+	
 	parsedCmd, err := commands.ParseCommand(content)
 	if err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Invalid slash command: %s", err.Error())})
@@ -373,14 +380,18 @@ func handleSlashCommandStreaming(ctx context.Context, handler *api.QueryHandler,
 		return nil
 	}
 
+
 	reg := commands.NewRegistry()
-	if err := reg.LoadCommands(handler.GetApp()); err != nil {
+	if err := reg.LoadCommands(app); err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to load commands: %s", err.Error())})
 		flusher.Flush()
 		return nil
 	}
 
-	result, err := reg.ExecuteCommand(ctx, parsedCmd.Name, parsedCmd.Arguments)
+	// Add session context for commands that need session information
+	cmdCtx := context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
+	
+	result, err := reg.ExecuteCommand(cmdCtx, parsedCmd.Name, parsedCmd.Arguments)
 	if err != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Command execution failed: %s", err.Error())})
 		flusher.Flush()

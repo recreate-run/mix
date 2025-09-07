@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"mix/internal/api"
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
@@ -15,7 +14,6 @@ import (
 	httphandlers "mix/internal/http"
 	"mix/internal/llm/agent"
 	"mix/internal/logging"
-	"mix/internal/stdio"
 	"mix/internal/version"
 
 	"github.com/spf13/cobra"
@@ -153,29 +151,29 @@ func initMCPTools(ctx context.Context, app *app.App) {
 }
 
 func runQuery(ctx context.Context, app *app.App, queryType, outputFormat string) error {
-	handler := api.NewQueryHandler(app)
+	handler := httphandlers.NewCLIQueryHandler(app)
 
-	// Special case: if queryType is "json", read JSON-RPC requests from stdin
+	// JSON-RPC mode is no longer supported - removed for simplicity
 	if queryType == "json" {
-		return stdio.HandleJSONRPC(ctx, handler, outputFormat)
+		return fmt.Errorf("JSON-RPC mode is no longer supported. Use specific query types: %v", 
+			handler.GetSupportedQueryTypes())
 	}
 
-	response := handler.HandleQueryType(ctx, queryType)
-
-	if response.Error != nil {
-		return fmt.Errorf("query error: %s", response.Error.Message)
+	result, err := handler.HandleQueryType(ctx, queryType)
+	if err != nil {
+		return fmt.Errorf("query error: %s", err.Error())
 	}
 
 	// Format output
 	if outputFormat == "json" {
-		jsonBytes, err := json.Marshal(response.Result)
+		jsonBytes, err := json.Marshal(result)
 		if err != nil {
 			return fmt.Errorf("failed to marshal result: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 	} else {
 		// For text output, pretty print
-		jsonBytes, err := json.MarshalIndent(response.Result, "", "  ")
+		jsonBytes, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {
 			return fmt.Errorf("failed to marshal result: %w", err)
 		}
@@ -208,7 +206,7 @@ func init() {
 	rootCmd.Flags().String("query", "", "Query structured data: sessions, tools, mcp, commands")
 
 	// HTTP server flags
-	rootCmd.Flags().Int("http-port", 0, "Start HTTP JSON-RPC server on this port (0 = disabled)")
+	rootCmd.Flags().Int("http-port", 0, "Start HTTP REST API server on this port (0 = disabled)")
 	rootCmd.Flags().String("http-host", "localhost", "HTTP server host")
 
 	// Permission flags
