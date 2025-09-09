@@ -20,17 +20,8 @@ export const updateSessionInList = (
   );
 };
 
-export const optimisticallySelectSession = (
-  queryClient: QueryClient,
-) => {
-  // Update the sessions list to reflect the current selection optimistically
-  updateSessionInList(queryClient, (sessions) =>
-    sessions.map(session => ({
-      ...session,
-      // Note: We don't track "current" in SessionData, so this is just for cache consistency
-    }))
-  );
-};
+// REMOVED: optimisticallySelectSession - part of stateless design migration
+// Session selection is now handled explicitly via sessionId parameters
 
 export const invalidateMessageHistoryCache = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: CACHE_KEYS.messageHistory });

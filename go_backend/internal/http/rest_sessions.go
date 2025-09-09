@@ -171,7 +171,6 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 
 // ForkSessionRequest represents the request body for forking a session
 type ForkSessionRequest struct {
-	SourceSessionID string `json:"sourceSessionId"`
 	MessageIndex    int64  `json:"messageIndex"`
 	Title           string `json:"title,omitempty"`
 }
@@ -188,14 +187,15 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var req ForkSessionRequest
-	if err := parseJSONBody(r, &req); err != nil {
-		sendValidationError(w, "body", err.Error())
+	sourceSessionID := r.PathValue("id")
+	if sourceSessionID == "" {
+		sendValidationError(w, "id", "source session ID is required")
 		return
 	}
 
-	if req.SourceSessionID == "" {
-		sendValidationError(w, "sourceSessionId", "source session ID is required")
+	var req ForkSessionRequest
+	if err := parseJSONBody(r, &req); err != nil {
+		sendValidationError(w, "body", err.Error())
 		return
 	}
 
@@ -211,14 +211,14 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 	}
 
 	ctx := r.Context()
-	newSession, err := h.app.Sessions.Fork(ctx, req.SourceSessionID, title)
+	newSession, err := h.app.Sessions.Fork(ctx, sourceSessionID, title)
 	if err != nil {
 		sendInternalError(w, "forking session", err)
 		return
 	}
 
 	// Copy messages to the new session
-	err = h.app.Messages.CopyMessagesToSession(ctx, req.SourceSessionID, newSession.ID, req.MessageIndex)
+	err = h.app.Messages.CopyMessagesToSession(ctx, sourceSessionID, newSession.ID, req.MessageIndex)
 	if err != nil {
 		sendInternalError(w, "copying messages", err)
 		return

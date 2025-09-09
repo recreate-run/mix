@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { rpcCall } from '@/lib/rpc';
+import { mix } from '@/lib/mix-sdk';
 import type { Session } from '@/types/common';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import { invalidateSessionCaches } from '@/lib/session-cache';
@@ -10,17 +10,20 @@ interface CreateSessionParams {
 }
 
 const createSession = async (params: CreateSessionParams): Promise<Session> => {
-  const result = await rpcCall<any>('sessions.create', params);
-  const sessionId = result?.id || result;
+  const response = await mix.sessions.create(params);
 
-  if (!sessionId) {
-    throw new Error('No session ID returned from server');
+  if (response.error) {
+    throw new Error(response.error.message || 'Failed to create session');
+  }
+
+  if (!response.data) {
+    throw new Error('No session data returned from server');
   }
 
   return {
-    id: sessionId,
-    title: result?.title || 'Chat Session',
-    workingDirectory: result?.workingDirectory,
+    id: response.data.id,
+    title: response.data.title,
+    workingDirectory: response.data.workingDirectory,
   };
 };
 
@@ -30,8 +33,13 @@ export const useCreateSession = () => {
   return useMutation({
     mutationFn: createSession,
     onSuccess: (data) => {
+      // Set both session metadata and empty messages immediately
       queryClient.setQueryData(CACHE_KEYS.session(data.id), data);
-      invalidateSessionCaches(queryClient);
+      queryClient.setQueryData(CACHE_KEYS.sessionMessages(data.id), []);
+      
+      // Only invalidate sessions list to show the new session in sidebar
+      // No need to invalidate specific session data since we just set it
+      queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
     },
   });
 };
@@ -41,15 +49,21 @@ export const useActiveSession = (sessionId: string) => {
   return useQuery({
     queryKey: CACHE_KEYS.session(sessionId),
     queryFn: async (): Promise<Session | null> => {
-      try {
-        const sessionData = await rpcCall<Session>('sessions.get', {
-          id: sessionId,
-        });
-        return sessionData;
-      } catch (error) {
-        console.log('Session not found:', sessionId);
-        return null;
+      const response = await mix.sessions.get({ id: sessionId });
+
+      if (response.error) {
+        throw new Error(`Session not found (${sessionId}): ${response.error.message}`);
       }
+
+      if (!response.data) {
+        throw new Error(`No session data returned for session: ${sessionId}`);
+      }
+
+      return {
+        id: response.data.id,
+        title: response.data.title,
+        workingDirectory: response.data.workingDirectory,
+      };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - reduce from infinite to allow some updates
     gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer

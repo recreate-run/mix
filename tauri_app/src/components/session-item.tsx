@@ -6,7 +6,6 @@ import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { SessionData } from '@/types/common';
 import { useDeleteSession } from '@/hooks/useSessionsList';
 import { getDisplayTitle } from '@/utils/sessionUtils';
-import { rpcCall } from '@/lib/rpc';
 
 
 interface SessionItemProps {
@@ -19,7 +18,19 @@ interface SessionItemProps {
 
 export function SessionItem({ session, isActive, onClick, currentSessionId, allSessions }: SessionItemProps) {
   const navigate = useNavigate();
-  const deleteSessionMutation = useDeleteSession();
+  
+  // Simple delete hook with navigation callback - no circular dependencies
+  const deleteSessionMutation = useDeleteSession({
+    allSessions,
+    currentSessionId,
+    onNavigate: (nextSessionId) => {
+      if (nextSessionId) {
+        navigate({ to: '/$sessionId', params: { sessionId: nextSessionId }, replace: true });
+      } else {
+        navigate({ to: '/', replace: true });
+      }
+    },
+  });
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -30,44 +41,9 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
         `Are you sure you want to delete the session "${getDisplayTitle(session)}"? This action cannot be undone.`
       )
     ) {
-      const isCurrentSession = currentSessionId === session.id;
-
-      // If we're deleting the current session, find the next session to navigate to
-      let nextSessionId: string | null = null;
-      if (isCurrentSession && allSessions.length > 1) {
-        const currentIndex = allSessions.findIndex(s => s.id === session.id);
-        if (currentIndex !== -1) {
-          // Try next session, then previous session
-          if (currentIndex < allSessions.length - 1) {
-            nextSessionId = allSessions[currentIndex + 1].id;
-          } else if (currentIndex > 0) {
-            nextSessionId = allSessions[currentIndex - 1].id;
-          }
-        }
-      }
-
       try {
-        if (isCurrentSession) {
-          if (nextSessionId) {
-            // First, switch to the next session to avoid backend restriction
-            await rpcCall('sessions.select', { id: nextSessionId });
-
-            // Navigate immediately for instant UI feedback
-            navigate({
-              to: '/$sessionId',
-              params: { sessionId: nextSessionId },
-              replace: true,
-            });
-          } else {
-            // No other sessions available, clear current session by selecting empty ID
-            await rpcCall('sessions.select', { id: '' });
-
-            // Navigate to home
-            navigate({ to: '/', replace: true });
-          }
-        }
-
-        // Trigger deletion mutation (includes animation timing and backend call)
+        // The enhanced hook handles all navigation logic automatically
+        // No need for manual RPC calls or navigation logic
         await deleteSessionMutation.mutateAsync(session.id);
       } catch (error) {
         console.error('Failed to delete session:', error);

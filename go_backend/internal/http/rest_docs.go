@@ -153,13 +153,29 @@ func getOpenAPISpec() OpenAPISpec {
 				"post": map[string]interface{}{
 					"operationId":  "forkSession",
 					"summary":     "Fork a session",
-					"description": "Create a new session based on an existing session",
+					"description": "Create a new session based on an existing session, copying messages up to a specified index",
 					"tags":        []string{"Sessions"},
 					"parameters": []map[string]interface{}{
 						createPathParameter("id", "Source session ID to fork from"),
 					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"messageIndex"},
+						"properties": map[string]interface{}{
+							"messageIndex": map[string]interface{}{
+								"type":        "integer",
+								"minimum":     1,
+								"description": "Index of the last message to include in the fork (1-based)",
+							},
+							"title": map[string]interface{}{
+								"type":        "string",
+								"description": "Optional title for the forked session (defaults to 'Forked Session')",
+							},
+						},
+					}),
 					"responses": map[string]interface{}{
 						"201": createSuccessResponse("object", getSessionDataSchema(), "Forked session"),
+						"400": createErrorResponse("Invalid request - messageIndex must be > 0"),
 						"404": createErrorResponse("Source session not found"),
 					},
 				},
@@ -331,11 +347,35 @@ func getOpenAPISpec() OpenAPISpec {
 									"type":        "string",
 									"description": "MCP server name",
 								},
+								"connected": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Whether the MCP server is currently connected",
+								},
 								"status": map[string]interface{}{
 									"type":        "string",
-									"description": "Server status",
+									"description": "Server connection status (e.g., 'connected', 'failed', 'disconnected')",
+								},
+								"tools": map[string]interface{}{
+									"type": "array",
+									"items": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"name": map[string]interface{}{
+												"type":        "string",
+												"description": "Tool name",
+											},
+											"description": map[string]interface{}{
+												"type":        "string",
+												"description": "Tool description",
+											},
+										},
+										"required": []string{"name", "description"},
+									},
+									"description": "List of tools provided by this MCP server (null if server is not connected)",
+									"nullable":    true,
 								},
 							},
+							"required": []string{"name", "connected", "status"},
 						}, "List of MCP servers"),
 						"401": createErrorResponse("Unauthorized - authentication required"),
 						"500": createErrorResponse("Internal server error"),
@@ -515,7 +555,7 @@ func getOpenAPISpec() OpenAPISpec {
 				},
 				"MessageRole": map[string]interface{}{
 					"type":        "string",
-					"enum":        []string{"user", "assistant"},
+					"enum":        []string{"user", "assistant", "tool"},
 					"description": "Message role",
 				},
 				"SessionData": map[string]interface{}{

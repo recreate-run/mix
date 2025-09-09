@@ -1,15 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { rpcCall } from '@/lib/rpc';
+import { mix } from '@/lib/mix-sdk';
 import type { SessionData } from '@/types/common';
 import { CACHE_KEYS } from '@/lib/cache-keys';
-import { invalidateSessionCaches, optimisticallySelectSession } from '@/lib/session-cache';
-import { toast } from "sonner"
+import { invalidateSessionCaches } from '@/lib/session-cache';
+import { toast } from "sonner";
 
 export const TITLE_TRUNCATE_LENGTH = 100;
 
 const loadSessionsList = async (): Promise<SessionData[]> => {
-  const result = await rpcCall<SessionData[]>('sessions.list', {});
-  return result || [];
+  const response = await mix.sessions.list();
+
+  if (response.error) {
+    throw new Error(response.error.message || 'Failed to load sessions');
+  }
+
+  // Transform SDK SessionData to match local interface (Date -> string)
+  return (response.data || []).map(session => ({
+    ...session,
+    createdAt: session.createdAt instanceof Date ? session.createdAt.toISOString() : session.createdAt
+  }));
 };
 
 export const useSessionsList = () => {
@@ -20,32 +29,51 @@ export const useSessionsList = () => {
   });
 };
 
-const selectSession = async (sessionId: string): Promise<void> => {
-  await rpcCall('sessions.select', { id: sessionId });
-};
-
-export const useSelectSession = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: selectSession,
-    onMutate: () => {
-      // Optimistic update for instant UI feedback
-      optimisticallySelectSession(queryClient);
-    },
-    onSuccess: () => {
-      // Only invalidate sessions list, not individual session data
-      // This prevents unnecessary re-fetches that cause flashing
-      queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
-    },
-  });
-};
+// REMOVED: useSelectSession - part of stateless design migration
+// Sessions are now selected explicitly via sessionId parameters instead of global state
 
 const deleteSession = async (sessionId: string): Promise<void> => {
-  await rpcCall('sessions.delete', { id: sessionId });
+  await mix.sessions.delete({ id: sessionId });
 };
 
-export const useDeleteSession = () => {
+
+// Simple utility to find next session for navigation
+const findNextSession = (sessions: SessionData[], deletedSessionId: string): string | null => {
+  if (sessions.length <= 1) return null;
+  
+  const currentIndex = sessions.findIndex(s => s.id === deletedSessionId);
+  if (currentIndex === -1) return null;
+  
+  // Try next session, then previous
+  if (currentIndex < sessions.length - 1) {
+    return sessions[currentIndex + 1].id;
+  } else if (currentIndex > 0) {
+    return sessions[currentIndex - 1].id;
+  }
+  
+  return null;
+};
+
+interface UseDeleteSessionOptions {
+  /**
+   * All sessions for navigation logic
+   */
+  allSessions?: SessionData[];
+  /**
+   * Current session ID to determine if navigation is needed
+   */
+  currentSessionId?: string;
+  /**
+   * Callback for navigation after successful deletion
+   */
+  onNavigate?: (sessionId: string | null) => void;
+}
+
+/**
+ * Enhanced useDeleteSession with simple navigation support
+ */
+export const useDeleteSession = (options: UseDeleteSessionOptions = {}) => {
+  const { allSessions = [], currentSessionId, onNavigate } = options;
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -74,6 +102,12 @@ export const useDeleteSession = () => {
       queryClient.removeQueries({ queryKey: CACHE_KEYS.sessionMessages(deletedSessionId) });
 
       invalidateSessionCaches(queryClient, deletedSessionId);
+
+      // Handle navigation if needed
+      if (currentSessionId === deletedSessionId && onNavigate) {
+        const nextSessionId = findNextSession(allSessions, deletedSessionId);
+        onNavigate(nextSessionId);
+      }
     },
     onError: (error, deletedSessionId) => {
       // Just undo the graying out
@@ -87,7 +121,7 @@ export const useDeleteSession = () => {
 
       toast("Failed to delete session", {
         description: error.message,
-      })
+      });
     },
   });
 };

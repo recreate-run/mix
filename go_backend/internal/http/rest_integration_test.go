@@ -409,9 +409,8 @@ func TestRESTSessionForking(t *testing.T) {
 
 	// Fork the session
 	forkRequest := map[string]interface{}{
-		"sourceSessionId": sourceSessionID,
-		"messageIndex":    int64(1),
-		"title":          "Forked Session",
+		"messageIndex": int64(1),
+		"title":        "Forked Session",
 	}
 
 	forkResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sourceSessionID+"/fork", forkRequest)
@@ -992,7 +991,7 @@ func TestRESTAPIIntegration(t *testing.T) {
 	t.Run("AgentCancellation", TestRESTAgentCancellation)
 	t.Run("CommandsListing", TestRESTCommandsListing)
 	t.Run("CommandDetails", TestRESTCommandDetails)
-	// t.Run("MCPServersListing", TestRESTMCPServersListing) // Disabled: expects MCP servers but test env has none
+	t.Run("MCPServersListing", TestRESTMCPServersListing)
 	t.Run("HealthCheck", TestRESTHealthCheck)
 	t.Run("StreamEndpoint", TestRESTStreamEndpoint)
 	t.Run("StreamSubPathEndpoint", TestRESTStreamSubPathEndpoint)

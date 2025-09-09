@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useActiveSession, useCreateSession } from '@/hooks/useSession';
-import { useSelectSession, useSessionsList } from '@/hooks/useSessionsList';
+import { useSessionsList } from '@/hooks/useSessionsList';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   sessionId?: string;
@@ -24,7 +24,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
   const navigate = useNavigate();
   const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
-  const selectSessionMutation = useSelectSession();
   const createSession = useCreateSession();
   const { data: currentSession } = useActiveSession(sessionId || '');
 
@@ -34,15 +33,12 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
   );
 
   const handleSessionSelect = (sessionId: string) => {
-    // Navigate immediately for instant UI feedback
+    // Navigate directly to the selected session (stateless design)
     navigate({
       to: '/$sessionId',
       params: { sessionId },
       // Remove replace: true to prevent full route replacement
     });
-    
-    // Update backend selection in the background
-    selectSessionMutation.mutate(sessionId);
   };
 
   const handleNewSession = async () => {

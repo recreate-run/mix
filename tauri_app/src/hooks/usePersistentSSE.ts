@@ -45,6 +45,7 @@ export type PersistentSSEHook = PersistentSSEState & {
 
 
 import { getBackendUrl } from '@/utils/backendUrl';
+import { mix } from '@/lib/mix-sdk';
 
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const [state, setState] = useState<PersistentSSEState>({
@@ -142,7 +143,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       try {
         const data = JSON.parse(event.data);
         const thinkingContent = data.content || '';
-        
+
         // Add to timeline
         const thinkingEntry: TimelineEntry = {
           type: 'thinking',
@@ -150,16 +151,18 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           content: thinkingContent,
           id: `thinking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         };
-        
+
         timelineRef.current = [...timelineRef.current, thinkingEntry];
-        
+
         setState((prev) => ({
           ...prev,
           reasoning: (prev.reasoning || '') + thinkingContent,
           timeline: [...timelineRef.current],
           processing: true,
         }));
-      } catch (_err) {}
+      } catch (err) {
+        console.error('Failed to parse thinking event:', err, 'Raw event data:', event.data);
+      }
     });
 
     addTrackedEventListener('tool', (event) => {
@@ -173,12 +176,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           parameters: data.input
             ? typeof data.input === 'string'
               ? (() => {
-                  try {
-                    return JSON.parse(data.input);
-                  } catch {
-                    return { input: data.input };
-                  }
-                })()
+                try {
+                  return JSON.parse(data.input);
+                } catch {
+                  return { input: data.input };
+                }
+              })()
               : data.input
             : {},
           result: data.result,
@@ -209,12 +212,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             content: toolCall,
             id: toolCall.id
           };
-          
+
           timelineRef.current = [...timelineRef.current, toolEntry];
         } else {
           // Update existing tool entry
-          timelineRef.current = timelineRef.current.map(entry => 
-            entry.type === 'tool' && (entry.content as any).id === toolCall.id 
+          timelineRef.current = timelineRef.current.map(entry =>
+            entry.type === 'tool' && (entry.content as any).id === toolCall.id
               ? { ...entry, content: toolCall }
               : entry
           );
@@ -226,7 +229,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           timeline: [...timelineRef.current],
           processing: true,
         }));
-      } catch (_err) {}
+      } catch (err) {
+        console.error('Failed to parse tool event:', err, 'Raw event data:', event.data);
+        // Don't silently ignore - this could indicate backend issues
+      }
     });
 
     // Handle tool execution start events
@@ -235,27 +241,27 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         const data = JSON.parse(event.data);
         const toolCallId = data.toolCallId;
         const progress = data.progress;
-        
+
         // Find the corresponding tool call by ID and update its status to running
         const existingToolCall = toolCallsMap.current.get(toolCallId);
-        
+
         if (existingToolCall) {
           const updatedToolCall = {
             ...existingToolCall,
             status: 'running' as const,
             description: progress
           };
-          
+
           toolCallsMap.current.set(toolCallId, updatedToolCall);
           toolStartTimes.current.set(toolCallId, Date.now());
-          
+
           // Update timeline entry
-          timelineRef.current = timelineRef.current.map(entry => 
-            entry.type === 'tool' && (entry.content as any).id === toolCallId 
+          timelineRef.current = timelineRef.current.map(entry =>
+            entry.type === 'tool' && (entry.content as any).id === toolCallId
               ? { ...entry, content: updatedToolCall }
               : entry
           );
-          
+
           setState((prev) => ({
             ...prev,
             toolCalls: Array.from(toolCallsMap.current.values()),
@@ -263,7 +269,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             processing: true,
           }));
         }
-      } catch (_err) {}
+      } catch (err) {
+        console.error('Failed to parse tool_execution_start event:', err, 'Raw event data:', event.data);
+        // Don't silently ignore - this could indicate backend issues
+      }
     });
 
     // Handle tool execution complete events
@@ -273,10 +282,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         const toolCallId = data.toolCallId;
         const progress = data.progress;
         const success = data.success;
-        
+
         // Find the corresponding tool call by ID and update its status
         const existingToolCall = toolCallsMap.current.get(toolCallId);
-        
+
         if (existingToolCall) {
           const updatedToolCall = {
             ...existingToolCall,
@@ -285,21 +294,21 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             result: success ? progress : undefined,
             error: success ? undefined : progress
           };
-          
+
           toolCallsMap.current.set(toolCallId, updatedToolCall);
-          
+
           // Remove from start times tracking
           if (toolStartTimes.current.has(toolCallId)) {
             toolStartTimes.current.delete(toolCallId);
           }
-          
+
           // Update timeline entry
-          timelineRef.current = timelineRef.current.map(entry => 
-            entry.type === 'tool' && (entry.content as any).id === toolCallId 
+          timelineRef.current = timelineRef.current.map(entry =>
+            entry.type === 'tool' && (entry.content as any).id === toolCallId
               ? { ...entry, content: updatedToolCall }
               : entry
           );
-          
+
           setState((prev) => ({
             ...prev,
             toolCalls: Array.from(toolCallsMap.current.values()),
@@ -307,7 +316,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             processing: true,
           }));
         }
-      } catch (_err) {}
+      } catch (err) {
+        console.error('Failed to parse tool_execution_complete event:', err, 'Raw event data:', event.data);
+        // Don't silently ignore - this could indicate backend issues
+      }
     });
 
     addTrackedEventListener('complete', (event) => {
@@ -525,26 +537,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     setState((prev) => ({ ...prev, cancelling: true, error: null }));
 
     try {
-      const response = await fetch(`${getBackendUrl()}/rpc`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'agent.cancel',
-          params: { sessionId },
-          id: Date.now(),
-        }),
-      });
+      const response = await mix.messages.cancelProcessing({ id: sessionId });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (response.error) {
         throw new Error(
-          `Failed to cancel message: ${response.status} ${errorText}`
+          response.error.message || 'Failed to cancel message processing'
         );
-      }
-
-      const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error.message || 'Cancel request failed');
       }
 
       setState((prev) => ({
@@ -571,26 +569,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
   const grantPermission = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`${getBackendUrl()}/rpc`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'permission.grant',
-          params: { id },
-          id: Date.now(),
-        }),
-      });
+      const response = await mix.permissions.grant({ id });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (response.error) {
         throw new Error(
-          `Failed to grant permission: ${response.status} ${errorText}`
+          response.error.message || 'Failed to grant permission'
         );
-      }
-
-      const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error.message || 'Grant permission failed');
       }
 
       // Remove the permission request from state
@@ -608,26 +592,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
   const denyPermission = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`${getBackendUrl()}/rpc`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'permission.deny',
-          params: { id },
-          id: Date.now(),
-        }),
-      });
+      const response = await mix.permissions.deny({ id });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (response.error) {
         throw new Error(
-          `Failed to deny permission: ${response.status} ${errorText}`
+          response.error.message || 'Failed to deny permission'
         );
-      }
-
-      const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error.message || 'Deny permission failed');
       }
 
       // Remove the permission request from state

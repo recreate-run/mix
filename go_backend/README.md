@@ -253,27 +253,54 @@ eventSource.addEventListener('error', (event) => {
 });
 ```
 
-#### Session Management API (2-Way Communication)
+#### Session Management API
+
+**REST API Endpoints (Recommended):**
 
 ```bash
 # Create a new session
-echo '{"method": "sessions.create", "params": {"title": "New Analysis", "setCurrent": true}, "id": 1}' | \
-./build/mix --query json --output-format json
+curl -X POST http://localhost:8088/api/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"title": "New Analysis", "workingDirectory": "/path/to/project"}'
 
-# Select a different session
-echo '{"method": "sessions.select", "params": {"id": "session-uuid"}, "id": 1}' | \
-./build/mix --query json --output-format json
+# Get specific session
+curl -X GET http://localhost:8088/api/sessions/{session-id}
 
-# Get current session
-echo '{"method": "sessions.current", "id": 1}' | \
-./build/mix --query json --output-format json
+# List all sessions
+curl -X GET http://localhost:8088/api/sessions
 
 # Delete a session
+curl -X DELETE http://localhost:8088/api/sessions/{session-id}
+
+# Fork a session
+curl -X POST http://localhost:8088/api/sessions/{session-id}/fork \
+  -H "Content-Type: application/json" \
+  -d '{"messageIndex": 5, "title": "Forked Session"}'
+
+# Send message to session
+curl -X POST http://localhost:8088/api/sessions/{session-id}/messages \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello, can you help me?"}'
+
+# Get session messages
+curl -X GET http://localhost:8088/api/sessions/{session-id}/messages
+```
+
+**Legacy JSON-RPC API (Deprecated):**
+
+```bash
+# Create a new session (RPC - still supported)
+echo '{"method": "sessions.create", "params": {"title": "New Analysis"}, "id": 1}' | \
+./build/mix --query json --output-format json
+
+# Delete a session (RPC - still supported)
 echo '{"method": "sessions.delete", "params": {"id": "session-uuid"}, "id": 1}' | \
 ./build/mix --query json --output-format json
 ```
 
-Both CLI and HTTP interfaces provide full 2-way communication for session management, enabling programmatic control of Mix from external applications or scripts. The HTTP interface offers better performance for web-based integrations, while the CLI interface is ideal for shell scripts and simple integrations.
+**Note**: Session selection (`sessions.select`, `sessions.current`) has been removed in favor of stateless design. Sessions are now managed through URL parameters and explicit session IDs in REST endpoints.
+
+The REST API provides better HTTP semantics, caching support, and integrates seamlessly with modern web applications. The JSON-RPC interface remains available for backward compatibility but new applications should use the REST endpoints.
 
 ### Query Response Formats
 

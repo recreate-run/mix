@@ -22,8 +22,28 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	messageHandler := NewMessageHandler(app)
 	systemHandler := NewSystemHandler(app)
 
-	// Create dedicated HTTP mux
+	// Create dedicated HTTP mux with CORS middleware
 	mux := http.NewServeMux()
+	
+	// CORS middleware wrapper
+	corsMiddleware := func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set CORS headers for all requests
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+			
+			// Handle preflight requests
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			
+			// Continue with the actual handler
+			handler.ServeHTTP(w, r)
+		})
+	}
 
 	// Add debug endpoint
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +139,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	addr := host + ":" + strconv.Itoa(port)
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      mux,
+		Handler:      corsMiddleware(mux), // Apply CORS middleware to all routes
 		ReadTimeout:  5 * time.Minute,
 		WriteTimeout: 10 * time.Minute,
 		IdleTimeout:  15 * time.Minute, // Prevent 60-second drops

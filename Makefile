@@ -37,7 +37,7 @@ help:
 	@echo "  test-all    - Run all validation tests"
 	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
 	@echo "  go_lint     - Run golangci-lint on Go backend code"
-	@echo "  generate-sdk - Generate TypeScript SDK from OpenAPI spec"
+	@echo "  generate-openapi - Generate JSON OpenAPI spec"
 	@echo "  help        - Show this help message"
 	@echo ""
 
@@ -118,20 +118,20 @@ go_lint:
 	cd go_backend && golangci-lint run ./...
 
 # Generate TypeScript SDK from OpenAPI specification
-generate-sdk:
+generate-openapi:
 	@echo "Generating TypeScript SDK from OpenAPI spec..."
 	@echo "Using configuration from sdk/gen.yaml"
 	@echo "Downloading OpenAPI spec from $(OPENAPI_ENDPOINT)..."
 	@curl -s $(OPENAPI_ENDPOINT) > sdk/openapi-spec.json
 	@echo "Saving pretty-printed OpenAPI document to sdk/openapi.json..."
 	@curl -s $(OPENAPI_ENDPOINT) | jq '.' > sdk/openapi.json
-	@echo "Running Speakeasy SDK generation..."
-	@speakeasy generate sdk --schema sdk/openapi-spec.json --lang typescript --out $(SDK_OUTPUT_DIR)
-	@echo "Installing SDK dependencies with bun..."
-	@cd $(SDK_OUTPUT_DIR) && bun install
-	@echo "Building TypeScript SDK..."
-	@cd $(SDK_OUTPUT_DIR) && bun run build
-	@echo "✅ TypeScript SDK generated and built successfully at $(SDK_OUTPUT_DIR)"
-	@echo "📖 See sdk/README.md for usage instructions"
-	@echo "📄 OpenAPI document saved at sdk/openapi.json"
-	@rm -f sdk/openapi-spec.json
+# 	@echo "Running Speakeasy SDK generation..."
+# 	@speakeasy generate sdk --schema sdk/openapi-spec.json --lang typescript --out $(SDK_OUTPUT_DIR)
+# 	@echo "Installing SDK dependencies with bun..."
+# 	@cd $(SDK_OUTPUT_DIR) && bun install
+# 	@echo "Building TypeScript SDK..."
+# 	@cd $(SDK_OUTPUT_DIR) && bun run build
+# 	@echo "✅ TypeScript SDK generated and built successfully at $(SDK_OUTPUT_DIR)"
+# 	@echo "📖 See sdk/README.md for usage instructions"
+# 	@echo "📄 OpenAPI document saved at sdk/openapi.json"
+# 	@rm -f sdk/openapi-spec.json

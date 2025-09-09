@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { rpcCall } from '@/lib/rpc';
+import { mix } from '@/lib/mix-sdk';
 import { invalidateSessionCaches } from '@/lib/session-cache';
 
 interface SendMessageParams {
@@ -14,8 +14,18 @@ interface MessageResponse {
 const sendMessage = async (
   params: SendMessageParams
 ): Promise<MessageResponse> => {
-  const result = await rpcCall<any>('messages.send', params);
-  const assistantResponse = result?.response || 'No response from server';
+  const response = await mix.messages.send({
+    id: params.sessionId,
+    requestBody: {
+      content: params.content
+    }
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'Failed to send message');
+  }
+
+  const assistantResponse = response.data?.response || 'No response from server';
   return { response: assistantResponse };
 };
 

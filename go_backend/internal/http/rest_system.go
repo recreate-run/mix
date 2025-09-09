@@ -240,7 +240,7 @@ func (h *SystemHandler) HandleListMCPServers(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 	cfg := config.Get()
 
-	var result []MCPServerData
+	result := make([]MCPServerData, 0)
 
 	if len(cfg.MCPServers) == 0 {
 		sendJSONResponse(w, http.StatusOK, result) // Empty array

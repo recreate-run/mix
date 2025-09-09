@@ -348,6 +348,7 @@ export function ConversationDisplay({
   setUserMessageRef,
   workingDirectory,
 }: ConversationDisplayProps) {
+  
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
 
   // Detect when a new message with exit_plan_mode is added and show plan options
@@ -386,14 +387,15 @@ export function ConversationDisplay({
             </AIMessageContent>
           </AIMessage>
         )}
-        {messages.map((message, index) => (
-          <AIMessage
-            from={message.from}
-            key={index}
-            ref={
-              message.from === 'user' ? setUserMessageRef?.(index) : undefined
-            }
-          >
+        {messages.map((message, index) => {
+          return (
+            <AIMessage
+              from={message.from}
+              key={index}
+              ref={
+                message.from === 'user' ? setUserMessageRef?.(index) : undefined
+              }
+            >
             <AIMessageContent>
               {message.from === 'assistant' ? (
                 <>
@@ -486,7 +488,8 @@ export function ConversationDisplay({
               )}
             </AIMessageContent>
           </AIMessage>
-        ))}
+          );
+        })}
         {sseStream.processing && (
           <AIMessage from="assistant">
             <AIMessageContent>

@@ -29,7 +29,6 @@ import {
 import { useActiveSession } from '@/hooks/useSession';
 import { formatMessageCounts } from '@/types/common';
 import {
-  useSelectSession,
   useSessionsList,
 } from '@/hooks/useSessionsList';
 import { slashCommands } from '@/utils/slash-commands';
@@ -71,7 +70,6 @@ export function CommandSlash({
 
   // Session hooks
   const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
-  const selectSessionMutation = useSelectSession();
   const activeSession = useActiveSession(sessionId);
 
   // MCP hooks
@@ -194,20 +192,16 @@ export function CommandSlash({
       return;
     }
 
-    // Handle session selection
+    // Handle session selection - direct navigation (stateless design)
     const session = sessions.find((s) => s.id === value);
     if (session) {
-      selectSessionMutation.mutate(session.id, {
-        onSuccess: () => {
-          // Navigate to the selected session
-          navigate({
-            to: '/$sessionId',
-            params: { sessionId: session.id },
-            replace: true,
-          });
-          onClose(); // Close the command palette
-        },
+      // Navigate directly to the selected session
+      navigate({
+        to: '/$sessionId',
+        params: { sessionId: session.id },
+        replace: true,
       });
+      onClose(); // Close the command palette
 
       return;
     }

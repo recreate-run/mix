@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { rpcCall } from "@/lib/rpc";
+import { mix } from "@/lib/mix-sdk";
 
 interface AuthStatusResponse {
 	type: string;
@@ -52,16 +52,31 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 
 		setIsLoading(true);
 		try {
-			const result = await rpcCall<{ status: string; step?: string }>(
-				"auth.login",
-				authMode === "code"
-					? { authCode: input, manual: input.startsWith("sk-ant-") }
-					: { apiKey: input },
-			);
+			let result;
+			
+			if (authMode === "code") {
+				// OAuth authentication flow
+				if (input.startsWith("sk-ant-")) {
+					// If it looks like an API key, switch to API key mode
+					result = await mix.auth.setApiKey({ apiKey: input });
+				} else {
+					// OAuth code authentication - though the backend RPC had authCode,
+					// the REST API just initiates OAuth without a code parameter
+					result = await mix.authentication.login();
+				}
+			} else {
+				// API key authentication
+				result = await mix.auth.setApiKey({ apiKey: input });
+			}
 
-			if (result.status === "success") {
+			if (result.error) {
+				throw new Error(result.error.message || 'Authentication failed');
+			}
+
+			// Check for success in the response data structure
+			if (result.data?.success === true || result.data?.status === "success") {
 				setShowSuccess(true);
-			} else if (result.step === "manual_fallback") {
+			} else if (result.data?.step === "manual_fallback") {
 				setAuthMode("apikey");
 			}
 		} catch (error) {
@@ -69,7 +84,9 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 				error instanceof Error ? error.message : "Authentication failed";
 			if (
 				errorMsg.includes("Cloudflare") ||
-				errorMsg.includes("manual token")
+				errorMsg.includes("manual token") ||
+				errorMsg.includes("API key") ||
+				errorMsg.includes("OAuth")
 			) {
 				setAuthMode("apikey");
 			}

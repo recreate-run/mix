@@ -202,7 +202,6 @@ func TestSessionFork(t *testing.T) {
 
 	// Test forking at message index 4 (should copy first 4 messages)
 	forkParams := ForkSessionRequest{
-		SourceSessionID: sourceSessionID,
 		MessageIndex:    int64(4),
 		Title:          "Forked Test Session",
 	}
@@ -213,7 +212,7 @@ func TestSessionFork(t *testing.T) {
 	}
 
 	// Make REST API call to fork session
-	url := server.URL + "/api/sessions/dummy/fork" // dummy ID since we're using sourceSessionId in request body
+	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
@@ -278,7 +277,6 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 
 	// Test forking without custom title
 	forkParams := ForkSessionRequest{
-		SourceSessionID: sourceSessionID,
 		MessageIndex:    int64(2),
 		// No title - should use default
 	}
@@ -361,7 +359,6 @@ func TestSessionForkErrorHandling(t *testing.T) {
 		{
 			name: "invalid source session ID",
 			request: ForkSessionRequest{
-				SourceSessionID: "invalid-session-id",
 				MessageIndex:    int64(2),
 			},
 			expectError: true,
@@ -371,7 +368,6 @@ func TestSessionForkErrorHandling(t *testing.T) {
 		{
 			name: "zero message index",
 			request: ForkSessionRequest{
-				SourceSessionID: "some-session-id",
 				MessageIndex:    int64(0),
 			},
 			expectError: true,
@@ -449,7 +445,6 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 
 	// Test forking at exact message boundary
 	forkParams := ForkSessionRequest{
-		SourceSessionID: sourceSessionID,
 		MessageIndex:    int64(5), // Should copy all 5 messages
 		Title:          "Boundary Fork Test",
 	}
@@ -460,7 +455,7 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 	}
 
 	// Make REST API call
-	url := server.URL + "/api/sessions/dummy/fork"
+	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)

@@ -112,7 +112,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   const { data: session, isLoading: sessionLoading } =
     useActiveSession(sessionId);
-  const sessionMessages = useSessionMessages(session?.id || null);
+  const sessionMessages = useSessionMessages(sessionId);
   const sseStream = usePersistentSSE(session?.id || '');
   const { apps: openApps } = useAppList();
   const forkSession = useForkSession();
@@ -144,14 +144,25 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   }, [session?.id]);
 
+
   // Load messages when session messages data changes
   useEffect(() => {
-    if (sessionMessages.data && session?.id) {
+    if (sessionMessages.data && sessionId) {
       setMessages(sessionMessages.data);
-    } else {
+    } else if (sessionMessages.error) {
+      // Show error message in chat
+      setMessages([
+        {
+          content: `Failed to load messages: ${sessionMessages.error.message}`,
+          from: 'assistant',
+          frontend_only: true,
+        },
+      ]);
+    } else if (!sessionMessages.isLoading) {
+      // Clear messages only if not loading (avoid flash of empty state)
       setMessages([]);
     }
-  }, [sessionMessages.data, session?.id]);
+  }, [sessionMessages.data, sessionMessages.error, sessionMessages.isLoading, sessionId]);
 
   // Transform open apps to Attachment format and filter allowed apps
   const allowedApps = [
@@ -621,6 +632,16 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     <div className="fl flex h-full w-full p-8">
       <div className="flex-1 overflow-y-auto">
         <div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
+          {/* Loading indicator for messages */}
+          {sessionMessages.isLoading && (
+            <div className="flex items-center justify-center p-4 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-foreground"></div>
+                Loading messages...
+              </div>
+            </div>
+          )}
+          
           {/* Conversation Display */}
           <ConversationDisplay
             messages={messages}

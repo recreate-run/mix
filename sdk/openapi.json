@@ -330,15 +330,46 @@
                         "data": {
                           "items": {
                             "properties": {
+                              "connected": {
+                                "description": "Whether the MCP server is currently connected",
+                                "type": "boolean"
+                              },
                               "name": {
                                 "description": "MCP server name",
                                 "type": "string"
                               },
                               "status": {
-                                "description": "Server status",
+                                "description": "Server connection status (e.g., 'connected', 'failed', 'disconnected')",
                                 "type": "string"
+                              },
+                              "tools": {
+                                "description": "List of tools provided by this MCP server (null if server is not connected)",
+                                "items": {
+                                  "properties": {
+                                    "description": {
+                                      "description": "Tool description",
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "description": "Tool name",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "description"
+                                  ],
+                                  "type": "object"
+                                },
+                                "nullable": true,
+                                "type": "array"
                               }
                             },
+                            "required": [
+                              "name",
+                              "connected",
+                              "status"
+                            ],
                             "type": "object"
                           },
                           "type": "array"
@@ -892,7 +923,7 @@
     },
     "/api/sessions/{id}/fork": {
       "post": {
-        "description": "Create a new session based on an existing session",
+        "description": "Create a new session based on an existing session, copying messages up to a specified index",
         "operationId": "forkSession",
         "parameters": [
           {
@@ -905,6 +936,30 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "messageIndex": {
+                    "description": "Index of the last message to include in the fork (1-based)",
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "title": {
+                    "description": "Optional title for the forked session (defaults to 'Forked Session')",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "messageIndex"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "201": {
             "content": {
@@ -927,6 +982,16 @@
               }
             },
             "description": "Forked session"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Invalid request - messageIndex must be > 0"
           },
           "404": {
             "content": {
@@ -1195,7 +1260,8 @@
         "description": "Message role",
         "enum": [
           "user",
-          "assistant"
+          "assistant",
+          "tool"
         ],
         "type": "string"
       },

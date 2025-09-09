@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { rpcCall } from '@/lib/rpc';
+import { mix } from '@/lib/mix-sdk';
 
 interface MessageHistoryItem {
   id: string;
@@ -43,10 +43,20 @@ const extractMessageData = (content: string) => {
   }
 };
 
-const fetchMessages = async (params: any): Promise<MessageHistoryItem[]> => {
-  const result = await rpcCall<any[]>('messages.history', params);
+const fetchMessages = async (params: { limit: number; offset: number }): Promise<MessageHistoryItem[]> => {
+  // Let SDK validation errors propagate - don't mask them with fallbacks
+  const response = await mix.messages.getHistory(params);
 
-  return (result || []).map((msg: any) => {
+  if (response.error) {
+    throw new Error(response.error.message || 'Failed to fetch message history');
+  }
+
+  if (!response.data) {
+    throw new Error('No message history data returned from server');
+  }
+
+  // Don't use any type or fallback arrays - let type errors surface if schema doesn't match
+  return response.data.map((msg) => {
     const messageData = extractMessageData(msg.content);
     return {
       id: msg.id,
