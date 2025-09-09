@@ -78,3 +78,7 @@ fumadocs-dev/
 .mix.json
 
 planning/
+speakeasy_docs/
+
+# SDK generation temporary files
+sdk/openapi-spec.json

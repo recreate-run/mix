@@ -28,11 +28,12 @@ func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
 
 // OpenAPI 3.1 specification structures with proper field ordering
 type OpenAPISpec struct {
-	OpenAPI    string                 `json:"openapi"`
-	Info       OpenAPIInfo            `json:"info"`
-	Servers    []OpenAPIServer        `json:"servers"`
-	Paths      map[string]interface{} `json:"paths"`
-	Components OpenAPIComponents      `json:"components"`
+	OpenAPI           string                 `json:"openapi"`
+	Info              OpenAPIInfo            `json:"info"`
+	Servers           []OpenAPIServer        `json:"servers"`
+	XSpeakeasyRetries map[string]interface{} `json:"x-speakeasy-retries"`
+	Paths             map[string]interface{} `json:"paths"`
+	Components        OpenAPIComponents      `json:"components"`
 }
 
 type OpenAPIInfo struct {
@@ -65,18 +66,37 @@ func getOpenAPISpec() OpenAPISpec {
 				Description: "Development server",
 			},
 		},
+		XSpeakeasyRetries: map[string]interface{}{
+			"strategy": "backoff",
+			"backoff": map[string]interface{}{
+				"initialInterval": 500,    // 500ms
+				"maxInterval":     60000,  // 60 seconds  
+				"maxElapsedTime":  600000, // 10 minutes (shorter for dev environment)
+				"exponent":        1.5,    // exponential backoff
+			},
+			"statusCodes": []string{
+				"5XX", // All server errors
+				"408", // Request timeout
+				"429", // Too many requests
+			},
+			"retryConnectionErrors": true,
+		},
 		Paths: map[string]interface{}{
 			// Session Management Endpoints
 			"/api/sessions": map[string]interface{}{
 				"get": map[string]interface{}{
+					"operationId":  "listSessions",
 					"summary":     "List all sessions",
 					"description": "Retrieve a list of all available sessions with their metadata",
 					"tags":        []string{"Sessions"},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("array", getSessionDataSchema(), "List of sessions"),
+						"401": createErrorResponse("Unauthorized - authentication required"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 				"post": map[string]interface{}{
+					"operationId":  "createSession",
 					"summary":     "Create a new session",
 					"description": "Create a new session with optional title and working directory",
 					"tags":        []string{"Sessions"},
@@ -101,6 +121,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}": map[string]interface{}{
 				"get": map[string]interface{}{
+					"operationId":  "getSession",
 					"summary":     "Get a specific session",
 					"description": "Retrieve detailed information about a specific session",
 					"tags":        []string{"Sessions"},
@@ -113,6 +134,7 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 				"delete": map[string]interface{}{
+					"operationId":  "deleteSession",
 					"summary":     "Delete a session",
 					"description": "Permanently delete a session and all its data",
 					"tags":        []string{"Sessions"},
@@ -129,6 +151,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/fork": map[string]interface{}{
 				"post": map[string]interface{}{
+					"operationId":  "forkSession",
 					"summary":     "Fork a session",
 					"description": "Create a new session based on an existing session",
 					"tags":        []string{"Sessions"},
@@ -144,6 +167,7 @@ func getOpenAPISpec() OpenAPISpec {
 			// Message Operations
 			"/api/sessions/{id}/messages": map[string]interface{}{
 				"post": map[string]interface{}{
+					"operationId":  "sendMessage",
 					"summary":     "Send a message to session",
 					"description": "Send a user message to a specific session for AI processing",
 					"tags":        []string{"Messages"},
@@ -167,6 +191,7 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 				"get": map[string]interface{}{
+					"operationId":  "getSessionMessages",
 					"summary":     "List session messages",
 					"description": "Retrieve all messages from a specific session",
 					"tags":        []string{"Messages"},
@@ -181,6 +206,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/cancel": map[string]interface{}{
 				"post": map[string]interface{}{
+					"operationId":  "cancelSessionProcessing",
 					"summary":     "Cancel agent processing",
 					"description": "Cancel any ongoing agent processing in the specified session",
 					"tags":        []string{"Messages"},
@@ -203,6 +229,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/messages/history": map[string]interface{}{
 				"get": map[string]interface{}{
+					"operationId":  "getMessageHistory",
 					"summary":     "Get global message history",
 					"description": "Retrieve message history across all sessions with optional pagination",
 					"tags":        []string{"Messages"},
@@ -231,12 +258,15 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("array", getMessageDataSchema(), "Message history"),
+						"401": createErrorResponse("Unauthorized - authentication required"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
 			// System Operations
 			"/api/auth/login": map[string]interface{}{
 				"post": map[string]interface{}{
+					"operationId":  "initiateOAuthLogin",
 					"summary":     "OAuth authentication",
 					"description": "Initiate OAuth authentication flow",
 					"tags":        []string{"Authentication"},
@@ -250,11 +280,14 @@ func getOpenAPISpec() OpenAPISpec {
 								},
 							},
 						}, "Authentication URL"),
+						"401": createErrorResponse("Unauthorized - authentication failed"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
 			"/api/auth/apikey": map[string]interface{}{
 				"post": map[string]interface{}{
+					"operationId":  "setApiKey",
 					"summary":     "Set API key",
 					"description": "Set API key for direct authentication",
 					"tags":        []string{"Authentication"},
@@ -279,11 +312,14 @@ func getOpenAPISpec() OpenAPISpec {
 							},
 						}, "API key set status"),
 						"400": createErrorResponse("Invalid API key"),
+						"401": createErrorResponse("Unauthorized - authentication failed"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
 			"/api/mcp": map[string]interface{}{
 				"get": map[string]interface{}{
+					"operationId":  "listMcpServers",
 					"summary":     "List MCP servers",
 					"description": "Retrieve list of available Model Context Protocol (MCP) servers",
 					"tags":        []string{"System"},
@@ -301,11 +337,14 @@ func getOpenAPISpec() OpenAPISpec {
 								},
 							},
 						}, "List of MCP servers"),
+						"401": createErrorResponse("Unauthorized - authentication required"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
 			"/api/commands": map[string]interface{}{
 				"get": map[string]interface{}{
+					"operationId":  "listCommands",
 					"summary":     "List available commands",
 					"description": "Retrieve list of all available commands",
 					"tags":        []string{"System"},
@@ -323,11 +362,14 @@ func getOpenAPISpec() OpenAPISpec {
 								},
 							},
 						}, "List of commands"),
+						"401": createErrorResponse("Unauthorized - authentication required"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
 			"/api/commands/{name}": map[string]interface{}{
 				"get": map[string]interface{}{
+					"operationId":  "getCommand",
 					"summary":     "Get specific command",
 					"description": "Retrieve details about a specific command",
 					"tags":        []string{"System"},
@@ -358,6 +400,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/permissions/{id}/grant": map[string]interface{}{
 				"post": map[string]interface{}{
+					"operationId":  "grantPermission",
 					"summary":     "Grant permission",
 					"description": "Grant a specific permission",
 					"tags":        []string{"Permissions"},
@@ -374,11 +417,15 @@ func getOpenAPISpec() OpenAPISpec {
 								},
 							},
 						}, "Permission grant status"),
+						"401": createErrorResponse("Unauthorized - authentication required"),
+						"404": createErrorResponse("Permission not found"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
 			"/api/permissions/{id}/deny": map[string]interface{}{
 				"post": map[string]interface{}{
+					"operationId":  "denyPermission",
 					"summary":     "Deny permission",
 					"description": "Deny a specific permission",
 					"tags":        []string{"Permissions"},
@@ -395,11 +442,15 @@ func getOpenAPISpec() OpenAPISpec {
 								},
 							},
 						}, "Permission deny status"),
+						"401": createErrorResponse("Unauthorized - authentication required"),
+						"404": createErrorResponse("Permission not found"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
+					"operationId":  "healthCheck",
 					"summary":     "Health check",
 					"description": "Check server health and status",
 					"tags":        []string{"System"},
@@ -421,6 +472,7 @@ func getOpenAPISpec() OpenAPISpec {
 								},
 							},
 						}, "Health information"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},
@@ -461,9 +513,137 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"required": []string{"code", "message", "type"},
 				},
-				"SessionData":    getSessionDataSchema(),
-				"MessageData":    getMessageDataSchema(),
-				"ToolCallData":   getToolCallDataSchema(),
+				"MessageRole": map[string]interface{}{
+					"type":        "string",
+					"enum":        []string{"user", "assistant"},
+					"description": "Message role",
+				},
+				"SessionData": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Unique session identifier",
+						},
+						"title": map[string]interface{}{
+							"type":        "string",
+							"description": "Session title",
+						},
+						"userMessageCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of user messages in session",
+						},
+						"assistantMessageCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of assistant messages in session",
+						},
+						"toolCallCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of tool calls made in session",
+						},
+						"promptTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total prompt tokens used",
+						},
+						"completionTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total completion tokens used",
+						},
+						"cost": map[string]interface{}{
+							"type":        "number",
+							"format":      "double",
+							"description": "Total cost of session",
+						},
+						"createdAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Session creation timestamp",
+						},
+						"workingDirectory": map[string]interface{}{
+							"type":        "string",
+							"description": "Working directory path (optional)",
+						},
+						"firstUserMessage": map[string]interface{}{
+							"type":        "string",
+							"description": "First user message (optional)",
+						},
+					},
+					"required": []string{"id", "title", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
+				},
+				"MessageData": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Unique message identifier",
+						},
+						"sessionId": map[string]interface{}{
+							"type":        "string",
+							"description": "Session identifier",
+						},
+						"role": map[string]interface{}{
+							"$ref": "#/components/schemas/MessageRole",
+						},
+						"content": map[string]interface{}{
+							"type":        "string",
+							"description": "Message content",
+						},
+						"response": map[string]interface{}{
+							"type":        "string",
+							"description": "Assistant response (optional)",
+						},
+						"toolCalls": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"$ref": "#/components/schemas/ToolCallData",
+							},
+							"description": "Tool calls made during message processing",
+						},
+						"reasoning": map[string]interface{}{
+							"type":        "string",
+							"description": "Reasoning process (optional)",
+						},
+						"reasoningDuration": map[string]interface{}{
+							"type":        "integer",
+							"description": "Reasoning duration in milliseconds (optional)",
+						},
+					},
+					"required": []string{"id", "sessionId", "role", "content"},
+				},
+				"ToolCallData": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Unique tool call identifier",
+						},
+						"name": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool name",
+						},
+						"input": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool input parameters",
+						},
+						"type": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool type",
+						},
+						"finished": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether tool call has finished",
+						},
+						"result": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool execution result (optional)",
+						},
+						"isError": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether tool call resulted in error (optional)",
+						},
+					},
+					"required": []string{"id", "name", "input", "type", "finished"},
+				},
 			},
 		},
 	}
@@ -541,137 +721,18 @@ func createErrorResponse(description string) map[string]interface{} {
 
 func getSessionDataSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"id": map[string]interface{}{
-				"type":        "string",
-				"description": "Unique session identifier",
-			},
-			"title": map[string]interface{}{
-				"type":        "string",
-				"description": "Session title",
-			},
-			"userMessageCount": map[string]interface{}{
-				"type":        "integer",
-				"description": "Number of user messages in session",
-			},
-			"assistantMessageCount": map[string]interface{}{
-				"type":        "integer",
-				"description": "Number of assistant messages in session",
-			},
-			"toolCallCount": map[string]interface{}{
-				"type":        "integer",
-				"description": "Number of tool calls made in session",
-			},
-			"promptTokens": map[string]interface{}{
-				"type":        "integer",
-				"description": "Total prompt tokens used",
-			},
-			"completionTokens": map[string]interface{}{
-				"type":        "integer",
-				"description": "Total completion tokens used",
-			},
-			"cost": map[string]interface{}{
-				"type":        "number",
-				"format":      "double",
-				"description": "Total cost of session",
-			},
-			"createdAt": map[string]interface{}{
-				"type":        "string",
-				"format":      "date-time",
-				"description": "Session creation timestamp",
-			},
-			"workingDirectory": map[string]interface{}{
-				"type":        "string",
-				"description": "Working directory path (optional)",
-			},
-			"firstUserMessage": map[string]interface{}{
-				"type":        "string",
-				"description": "First user message (optional)",
-			},
-		},
-		"required": []string{"id", "title", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
+		"$ref": "#/components/schemas/SessionData",
 	}
 }
 
 func getMessageDataSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"id": map[string]interface{}{
-				"type":        "string",
-				"description": "Unique message identifier",
-			},
-			"sessionId": map[string]interface{}{
-				"type":        "string",
-				"description": "Session identifier",
-			},
-			"role": map[string]interface{}{
-				"type":        "string",
-				"enum":        []string{"user", "assistant"},
-				"description": "Message role",
-			},
-			"content": map[string]interface{}{
-				"type":        "string",
-				"description": "Message content",
-			},
-			"response": map[string]interface{}{
-				"type":        "string",
-				"description": "Assistant response (optional)",
-			},
-			"toolCalls": map[string]interface{}{
-				"type": "array",
-				"items": map[string]interface{}{
-					"$ref": "#/components/schemas/ToolCallData",
-				},
-				"description": "Tool calls made during message processing",
-			},
-			"reasoning": map[string]interface{}{
-				"type":        "string",
-				"description": "Reasoning process (optional)",
-			},
-			"reasoningDuration": map[string]interface{}{
-				"type":        "integer",
-				"description": "Reasoning duration in milliseconds (optional)",
-			},
-		},
-		"required": []string{"id", "sessionId", "role", "content"},
+		"$ref": "#/components/schemas/MessageData",
 	}
 }
 
 func getToolCallDataSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"id": map[string]interface{}{
-				"type":        "string",
-				"description": "Unique tool call identifier",
-			},
-			"name": map[string]interface{}{
-				"type":        "string",
-				"description": "Tool name",
-			},
-			"input": map[string]interface{}{
-				"type":        "string",
-				"description": "Tool input parameters",
-			},
-			"type": map[string]interface{}{
-				"type":        "string",
-				"description": "Tool type",
-			},
-			"finished": map[string]interface{}{
-				"type":        "boolean",
-				"description": "Whether tool call has finished",
-			},
-			"result": map[string]interface{}{
-				"type":        "string",
-				"description": "Tool execution result (optional)",
-			},
-			"isError": map[string]interface{}{
-				"type":        "boolean",
-				"description": "Whether tool call resulted in error (optional)",
-			},
-		},
-		"required": []string{"id", "name", "input", "type", "finished"},
+		"$ref": "#/components/schemas/ToolCallData",
 	}
 }

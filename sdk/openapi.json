@@ -1,0 +1,1350 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Mix REST API",
+    "description": "REST API for the Mix application - session management, messaging, and system operations",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8088",
+      "description": "Development server"
+    }
+  ],
+  "x-speakeasy-retries": {
+    "backoff": {
+      "exponent": 1.5,
+      "initialInterval": 500,
+      "maxElapsedTime": 600000,
+      "maxInterval": 60000
+    },
+    "retryConnectionErrors": true,
+    "statusCodes": [
+      "5XX",
+      "408",
+      "429"
+    ],
+    "strategy": "backoff"
+  },
+  "paths": {
+    "/api/auth/apikey": {
+      "post": {
+        "description": "Set API key for direct authentication",
+        "operationId": "setApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "apiKey": {
+                    "description": "API key for authentication",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "apiKey"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "success": {
+                              "description": "Whether API key was set successfully",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "API key set status"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Invalid API key"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Set API key",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "description": "Initiate OAuth authentication flow",
+        "operationId": "initiateOAuthLogin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "authUrl": {
+                              "description": "OAuth authorization URL",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Authentication URL"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "OAuth authentication",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/commands": {
+      "get": {
+        "description": "Retrieve list of all available commands",
+        "operationId": "listCommands",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "items": {
+                            "properties": {
+                              "description": {
+                                "description": "Command description",
+                                "type": "string"
+                              },
+                              "name": {
+                                "description": "Command name",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "List of commands"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication required"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List available commands",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/api/commands/{name}": {
+      "get": {
+        "description": "Retrieve details about a specific command",
+        "operationId": "getCommand",
+        "parameters": [
+          {
+            "description": "Command name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "description": {
+                              "description": "Command description",
+                              "type": "string"
+                            },
+                            "name": {
+                              "description": "Command name",
+                              "type": "string"
+                            },
+                            "usage": {
+                              "description": "Command usage instructions",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Command details"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Command not found"
+          }
+        },
+        "summary": "Get specific command",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/api/mcp": {
+      "get": {
+        "description": "Retrieve list of available Model Context Protocol (MCP) servers",
+        "operationId": "listMcpServers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "items": {
+                            "properties": {
+                              "name": {
+                                "description": "MCP server name",
+                                "type": "string"
+                              },
+                              "status": {
+                                "description": "Server status",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "List of MCP servers"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication required"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List MCP servers",
+        "tags": [
+          "System"
+        ]
+      }
+    },
+    "/api/messages/history": {
+      "get": {
+        "description": "Retrieve message history across all sessions with optional pagination",
+        "operationId": "getMessageHistory",
+        "parameters": [
+          {
+            "description": "Maximum number of messages to return",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of messages to skip",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "items": {
+                            "$ref": "#/components/schemas/MessageData"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Message history"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication required"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get global message history",
+        "tags": [
+          "Messages"
+        ]
+      }
+    },
+    "/api/permissions/{id}/deny": {
+      "post": {
+        "description": "Deny a specific permission",
+        "operationId": "denyPermission",
+        "parameters": [
+          {
+            "description": "Permission ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "denied": {
+                              "description": "Whether permission was denied",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Permission deny status"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication required"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Permission not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Deny permission",
+        "tags": [
+          "Permissions"
+        ]
+      }
+    },
+    "/api/permissions/{id}/grant": {
+      "post": {
+        "description": "Grant a specific permission",
+        "operationId": "grantPermission",
+        "parameters": [
+          {
+            "description": "Permission ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "granted": {
+                              "description": "Whether permission was granted",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Permission grant status"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication required"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Permission not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Grant permission",
+        "tags": [
+          "Permissions"
+        ]
+      }
+    },
+    "/api/sessions": {
+      "get": {
+        "description": "Retrieve a list of all available sessions with their metadata",
+        "operationId": "listSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "items": {
+                            "$ref": "#/components/schemas/SessionData"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "List of sessions"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication required"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List all sessions",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "post": {
+        "description": "Create a new session with optional title and working directory",
+        "operationId": "createSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "title": {
+                    "description": "Optional title for the session",
+                    "type": "string"
+                  },
+                  "workingDirectory": {
+                    "description": "Optional working directory path",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/SessionData"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Created session"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Invalid request data"
+          }
+        },
+        "summary": "Create a new session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/sessions/{id}": {
+      "delete": {
+        "description": "Permanently delete a session and all its data",
+        "operationId": "deleteSession",
+        "parameters": [
+          {
+            "description": "Session ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session deleted successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          }
+        },
+        "summary": "Delete a session",
+        "tags": [
+          "Sessions"
+        ]
+      },
+      "get": {
+        "description": "Retrieve detailed information about a specific session",
+        "operationId": "getSession",
+        "parameters": [
+          {
+            "description": "Session ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/SessionData"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Session details"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          }
+        },
+        "summary": "Get a specific session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/sessions/{id}/cancel": {
+      "post": {
+        "description": "Cancel any ongoing agent processing in the specified session",
+        "operationId": "cancelSessionProcessing",
+        "parameters": [
+          {
+            "description": "Session ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "cancelled": {
+                              "description": "Whether cancellation was successful",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Cancellation status"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          }
+        },
+        "summary": "Cancel agent processing",
+        "tags": [
+          "Messages"
+        ]
+      }
+    },
+    "/api/sessions/{id}/fork": {
+      "post": {
+        "description": "Create a new session based on an existing session",
+        "operationId": "forkSession",
+        "parameters": [
+          {
+            "description": "Source session ID to fork from",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/SessionData"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Forked session"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Source session not found"
+          }
+        },
+        "summary": "Fork a session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/sessions/{id}/messages": {
+      "get": {
+        "description": "Retrieve all messages from a specific session",
+        "operationId": "getSessionMessages",
+        "parameters": [
+          {
+            "description": "Session ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "items": {
+                            "$ref": "#/components/schemas/MessageData"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "List of session messages"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          }
+        },
+        "summary": "List session messages",
+        "tags": [
+          "Messages"
+        ]
+      },
+      "post": {
+        "description": "Send a user message to a specific session for AI processing",
+        "operationId": "sendMessage",
+        "parameters": [
+          {
+            "description": "Session ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "content": {
+                    "description": "Message content to send",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "content"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/MessageData"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Message sent and processed"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Invalid message data"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          }
+        },
+        "summary": "Send a message to session",
+        "tags": [
+          "Messages"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Check server health and status",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RESTResponse"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "status": {
+                              "description": "Health status",
+                              "type": "string"
+                            },
+                            "timestamp": {
+                              "description": "Current timestamp",
+                              "type": "string"
+                            },
+                            "version": {
+                              "description": "Application version",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Health information"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RESTResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Health check",
+        "tags": [
+          "System"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MessageData": {
+        "properties": {
+          "content": {
+            "description": "Message content",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique message identifier",
+            "type": "string"
+          },
+          "reasoning": {
+            "description": "Reasoning process (optional)",
+            "type": "string"
+          },
+          "reasoningDuration": {
+            "description": "Reasoning duration in milliseconds (optional)",
+            "type": "integer"
+          },
+          "response": {
+            "description": "Assistant response (optional)",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MessageRole"
+          },
+          "sessionId": {
+            "description": "Session identifier",
+            "type": "string"
+          },
+          "toolCalls": {
+            "description": "Tool calls made during message processing",
+            "items": {
+              "$ref": "#/components/schemas/ToolCallData"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "role",
+          "content"
+        ],
+        "type": "object"
+      },
+      "MessageRole": {
+        "description": "Message role",
+        "enum": [
+          "user",
+          "assistant"
+        ],
+        "type": "string"
+      },
+      "RESTError": {
+        "properties": {
+          "code": {
+            "description": "HTTP status code",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Error message",
+            "type": "string"
+          },
+          "type": {
+            "description": "Error type",
+            "enum": [
+              "bad_request",
+              "not_found",
+              "internal_error",
+              "unauthorized",
+              "validation_error"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "type"
+        ],
+        "type": "object"
+      },
+      "RESTResponse": {
+        "properties": {
+          "data": {
+            "description": "Response data"
+          },
+          "error": {
+            "$ref": "#/components/schemas/RESTError"
+          },
+          "message": {
+            "description": "Optional message",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SessionData": {
+        "properties": {
+          "assistantMessageCount": {
+            "description": "Number of assistant messages in session",
+            "type": "integer"
+          },
+          "completionTokens": {
+            "description": "Total completion tokens used",
+            "type": "integer"
+          },
+          "cost": {
+            "description": "Total cost of session",
+            "format": "double",
+            "type": "number"
+          },
+          "createdAt": {
+            "description": "Session creation timestamp",
+            "format": "date-time",
+            "type": "string"
+          },
+          "firstUserMessage": {
+            "description": "First user message (optional)",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique session identifier",
+            "type": "string"
+          },
+          "promptTokens": {
+            "description": "Total prompt tokens used",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Session title",
+            "type": "string"
+          },
+          "toolCallCount": {
+            "description": "Number of tool calls made in session",
+            "type": "integer"
+          },
+          "userMessageCount": {
+            "description": "Number of user messages in session",
+            "type": "integer"
+          },
+          "workingDirectory": {
+            "description": "Working directory path (optional)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "userMessageCount",
+          "assistantMessageCount",
+          "toolCallCount",
+          "promptTokens",
+          "completionTokens",
+          "cost",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "ToolCallData": {
+        "properties": {
+          "finished": {
+            "description": "Whether tool call has finished",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique tool call identifier",
+            "type": "string"
+          },
+          "input": {
+            "description": "Tool input parameters",
+            "type": "string"
+          },
+          "isError": {
+            "description": "Whether tool call resulted in error (optional)",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Tool name",
+            "type": "string"
+          },
+          "result": {
+            "description": "Tool execution result (optional)",
+            "type": "string"
+          },
+          "type": {
+            "description": "Tool type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "input",
+          "type",
+          "finished"
+        ],
+        "type": "object"
+      }
+    }
+  }
+}
