@@ -15,6 +15,7 @@
     "testing",
     "---Usage---",
     "common-workflows",
+    "cli-mode",
     "http-stdio-modes",
     "desktop-app",
     "troubleshooting",

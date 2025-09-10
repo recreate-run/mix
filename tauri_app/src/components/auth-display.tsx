@@ -1,9 +1,8 @@
 import { AlertCircle, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { mix } from "@/lib/mix-sdk";
+import { useAuthFlow } from "@/hooks/useAuthFlow";
 
 interface AuthStatusResponse {
 	type: string;
@@ -40,62 +39,17 @@ type AuthDisplayProps =
 	| { data: MessageResponse };
 
 export function AuthDisplay({ data }: AuthDisplayProps) {
-	const [authCode, setAuthCode] = useState("");
-	const [apiKey, setApiKey] = useState("");
-	const [authMode, setAuthMode] = useState<"code" | "apikey">("code");
-	const [isLoading, setIsLoading] = useState(false);
-	const [showSuccess, setShowSuccess] = useState(false);
-
-	const handleSubmit = async () => {
-		const input = authMode === "code" ? authCode.trim() : apiKey.trim();
-		if (!input) return;
-
-		setIsLoading(true);
-		try {
-			let result;
-			
-			if (authMode === "code") {
-				// OAuth authentication flow
-				if (input.startsWith("sk-ant-")) {
-					// If it looks like an API key, switch to API key mode
-					result = await mix.auth.setApiKey({ apiKey: input });
-				} else {
-					// OAuth code authentication - though the backend RPC had authCode,
-					// the REST API just initiates OAuth without a code parameter
-					result = await mix.authentication.login();
-				}
-			} else {
-				// API key authentication
-				result = await mix.auth.setApiKey({ apiKey: input });
-			}
-
-			if (result.error) {
-				throw new Error(result.error.message || 'Authentication failed');
-			}
-
-			// Check for success in the response data structure
-			if (result.data?.success === true || result.data?.status === "success") {
-				setShowSuccess(true);
-			} else if (result.data?.step === "manual_fallback") {
-				setAuthMode("apikey");
-			}
-		} catch (error) {
-			const errorMsg =
-				error instanceof Error ? error.message : "Authentication failed";
-			if (
-				errorMsg.includes("Cloudflare") ||
-				errorMsg.includes("manual token") ||
-				errorMsg.includes("API key") ||
-				errorMsg.includes("OAuth")
-			) {
-				setAuthMode("apikey");
-			}
-		} finally {
-			setIsLoading(false);
-			setAuthCode("");
-			setApiKey("");
-		}
-	};
+	const {
+		authCode,
+		setAuthCode,
+		apiKey,
+		setApiKey,
+		authMode,
+		setAuthMode,
+		isLoading,
+		showSuccess,
+		handleSubmit,
+	} = useAuthFlow();
 
 	if (data.type === "error") {
 		const errorData = data as ErrorResponse;

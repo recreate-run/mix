@@ -1,11 +1,11 @@
 ---
-title: HTTP & Stdio Modes
-description: Complete guide to Mix's HTTP server and stdio JSON-RPC interfaces for programmatic integration and automation.
+title: HTTP API
+description: Complete guide to Mix's HTTP REST API for programmatic integration and automation.
 ---
 
-# HTTP & Stdio Modes
+# HTTP API
 
-Mix provides two powerful interfaces for programmatic integration: HTTP server mode for web APIs and stdio mode for command-line automation.
+Mix provides a REST API interface for programmatic integration and automation.
 
 ## HTTP Server Mode
 
@@ -22,104 +22,45 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 
 | Endpoint | Method | Purpose | Content Type |
 |----------|--------|---------|--------------|
-| `/` | GET | Display server info and current request details | `text/plain` |
-| `/health` | GET | Monitor server status, database connection, and service health | `application/json` |
-| `/rpc` | POST | Execute JSON-RPC commands (sessions, tools, MCP operations) | `application/json` |
-| `/stream` | GET | Establish real-time SSE connection for streaming responses | `text/event-stream` |
-| `/stream/*/message` | POST | Send messages to persistent SSE streams by ID | `application/json` |
-| `/api/video/export-url` | POST | Convert web page URLs to MP4 videos using Playwright | `application/json` |
-| `/api/file-types` | GET | Get supported file formats, extensions, and size limits | `application/json` |
-
-#### GSAP Animation Endpoints
-
-| Endpoint | Method | Purpose | Content Type |
-|----------|--------|---------|--------------|
-| `/api/gsap_animations` | GET | List all available GSAP animation templates | `application/json` |
-| `/api/gsap_animations/*` | GET | Get specific animation schema and configuration | `application/json` |
-| `/gsap_animations/*` | GET | Serve HTML, CSS, JS files for GSAP animations | `text/html` |
-
-#### Asset & Media Endpoints
-
-| Endpoint | Method | Purpose | Content Type |
-|----------|--------|---------|--------------|
-| `/input/*` | GET | Access uploaded input media files (images, videos, audio) | `various` |
-| `/output/*` | GET | Download generated output files and rendered content | `various` |
+| `/health` | GET | Monitor server status and service health | `application/json` |
+| `/api/sessions` | GET | List all sessions | `application/json` |
+| `/api/sessions` | POST | Create a new session | `application/json` |
+| `/api/sessions/{id}` | GET | Get session details | `application/json` |
+| `/api/sessions/{id}/messages` | GET | List session messages | `application/json` |
+| `/api/sessions/{id}/messages` | POST | Send message to session | `application/json` |
+| `/api/auth/login` | POST | OAuth authentication | `application/json` |
 
 ### Core Endpoints
 
-#### `/rpc` - JSON-RPC API
-Main endpoint for all AI operations and data management. Supports methods: `sessions.list`, `sessions.create`, `tools.list`, `mcp.list`, `commands.list`.
+#### Sessions API
+Manage chat sessions with stateless REST endpoints. All operations require explicit session IDs.
 
-#### `/health` - Health Check
-Monitor server status and dependencies. Returns JSON with status, timestamp, version, and service health information.
+#### Messages API  
+Send messages and retrieve conversation history from specific sessions.
 
-#### `/stream` - Server-Sent Events
-Real-time streaming for long-running operations using Server-Sent Events protocol.
+#### Authentication API
+OAuth-based authentication for secure API access.
 
-### Media & Asset Endpoints
+#### Health Check
+Monitor server status and dependencies at `/health` endpoint.
 
-#### GSAP Animations
-List available animations, get animation schemas, and serve animation files (HTML, CSS, JS).
+## Usage Examples
 
-#### Video Export
-Export URLs to video files using Playwright-based rendering system.
+### List Sessions
+```bash
+curl http://localhost:8088/api/sessions
+```
 
-#### Asset Management
-Access input files and download generated output content.
+### Create Session
+```bash
+curl -X POST http://localhost:8088/api/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"title": "My Session"}'
+```
 
-## Stdio Mode
-
-Process JSON-RPC requests via stdin/stdout for command-line automation and scripting.
-
-### Quick Start
-
-Single request: `echo '{"method": "sessions.list", "id": 1}' | ./mix --query json`  
-Multiple requests: `cat requests.jsonl | ./mix --query json`
-
-### Available Methods
-
-#### Session Management
-- `sessions.list` - List all sessions
-- `sessions.create` - Create new session (params: `{"title": "Session Name"}`)
-- `sessions.select` - Select active session (params: `{"id": "session-123"}`)
-- `sessions.delete` - Delete session (params: `{"id": "session-123"}`)
-
-#### Tool & MCP Management
-- `tools.list` - List available tools
-- `mcp.list` - List MCP servers and their tools
-- `commands.list` - List available commands
-
-### Automation Scripts
-
-Stdio mode is ideal for automation scripts in Bash, Python, or other languages that can process JSON-RPC over stdin/stdout.
-
-### Error Handling
-
-Stdio mode returns standard JSON-RPC error responses with common codes:
-- `-32700`: Parse error (invalid JSON)
-- `-32603`: Internal error  
-- `-32601`: Method not found
-
-## Choosing the Right Mode
-
-### Use HTTP Mode When:
-- Building web applications or services
-- Need real-time streaming (SSE)
-- Serving media files and assets
-- Multiple concurrent clients
-- CORS support required
-
-### Use Stdio Mode When:
-- Command-line automation scripts
-- CI/CD pipeline integration
-- Single-request operations
-- Piping data between tools
-- Lightweight programmatic access
-
-### Integration Patterns
-
-**HTTP for Web Apps**: Use fetch() or HTTP clients to call `/rpc` endpoint with JSON-RPC requests.
-
-**Stdio for Automation**: Pipe JSON-RPC requests through stdin for build scripts and command-line tools.
-
-Both modes provide full access to Mix's capabilities - choose based on your integration needs and architecture preferences.
+### Send Message  
+```bash
+curl -X POST http://localhost:8088/api/sessions/{id}/messages \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello, Mix!"}'
+```
