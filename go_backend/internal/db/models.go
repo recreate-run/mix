@@ -8,6 +8,14 @@ import (
 	"database/sql"
 )
 
+type ApiCredential struct {
+	ID        string `json:"id"`
+	Provider  string `json:"provider"`
+	ApiKey    string `json:"api_key"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
 type File struct {
 	ID        string `json:"id"`
 	SessionID string `json:"session_id"`

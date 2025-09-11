@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"mix/internal/credentials"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
 	"mix/internal/preferences"
@@ -176,6 +177,9 @@ var cfgMutex sync.RWMutex
 
 // Global user preferences service
 var userPreferencesService *preferences.UserPreferencesService
+
+// Global API credentials service
+var apiCredentialsService *credentials.APICredentialsService
 
 // Load initializes the configuration from environment variables and config files.
 // If debug is true, debug mode is enabled and log level is set to debug.
@@ -793,6 +797,30 @@ func GetUserPreferences() *preferences.UserPreferencesService {
 	cfgMutex.RLock()
 	defer cfgMutex.RUnlock()
 	return userPreferencesService
+}
+
+// InitAPICredentials initializes the API credentials service with database connection
+// This should be called after database connection is established
+func InitAPICredentials(database *sql.DB) error {
+	cfgMutex.Lock()
+	defer cfgMutex.Unlock()
+	
+	// Generate encryption key for API key storage
+	encryptionKey, err := credentials.GenerateEncryptionKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate encryption key: %w", err)
+	}
+	
+	apiCredentialsService = credentials.NewAPICredentialsService(database, encryptionKey)
+	logging.Info("API credentials service initialized")
+	return nil
+}
+
+// GetAPICredentials returns the API credentials service
+func GetAPICredentials() *credentials.APICredentialsService {
+	cfgMutex.RLock()
+	defer cfgMutex.RUnlock()
+	return apiCredentialsService
 }
 
 // GetAgentFromDatabase returns agent configuration from database instead of .mix.json

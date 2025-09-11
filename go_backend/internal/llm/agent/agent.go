@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -1062,6 +1063,23 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 	return allowedTools[toolName]
 }
 
+// getProviderAPIKeyFromEnv gets API key from environment variables
+func getProviderAPIKeyFromEnv(modelProvider models.ModelProvider) string {
+	switch modelProvider {
+	case models.ProviderAnthropic:
+		return os.Getenv("ANTHROPIC_API_KEY")
+	case models.ProviderOpenAI:
+		return os.Getenv("OPENAI_API_KEY")
+	case models.ProviderOpenRouter:
+		return os.Getenv("OPENROUTER_API_KEY")
+	case models.ProviderGemini:
+		return os.Getenv("GEMINI_API_KEY")
+	case models.ProviderGROQ:
+		return os.Getenv("GROQ_API_KEY")
+	}
+	return ""
+}
+
 func createAgentProvider(agentName config.AgentName) (provider.Provider, error) {
 	cfg := config.Get()
 	
@@ -1103,12 +1121,25 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	var providerCfg config.Provider
 	
 	if userPrefs != nil {
-		// Database-first approach: create provider config dynamically
-		providerCfg = config.Provider{
-			APIKey:   "", // Will be handled by provider authentication
-			Disabled: false,
+		// Database-only approach: only use credentials from database
+		apiKey := ""
+		credentialsService := config.GetAPICredentials()
+		if credentialsService != nil {
+			dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
+			if err == nil && dbKey != "" {
+				apiKey = dbKey
+				logging.Info("Using database-stored API key", "provider", model.Provider)
+			} else {
+				// No database key = not authenticated
+				logging.Warn("No API key found in database", "provider", model.Provider)
+			}
 		}
-		logging.Info("Using database-first provider configuration", "provider", model.Provider, "model", agentConfig.Model)
+		
+		providerCfg = config.Provider{
+			APIKey:   apiKey,
+			Disabled: apiKey == "", // Disable if no API key
+		}
+		logging.Info("Using database-only provider configuration", "provider", model.Provider, "authenticated", apiKey != "")
 	} else {
 		// Fallback to config file validation
 		var ok bool
