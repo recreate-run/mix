@@ -23,17 +23,7 @@ func TestRESTSessionCreation(t *testing.T) {
 	}
 
 	resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	restResponse := validateRESTResponse(t, resp, http.StatusCreated)
-
-	// Validate session data
-	if restResponse.Data == nil {
-		t.Fatalf("Expected session data in response, got nil")
-	}
-
-	sessionData, ok := restResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected session data to be object, got %T", restResponse.Data)
-	}
+	sessionData := validateObjectResponse(t, resp, http.StatusCreated)
 
 	sessionID, ok := sessionData["id"].(string)
 	if !ok || sessionID == "" {
@@ -67,28 +57,17 @@ func TestRESTSessionListing(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createResponse := validateRESTResponse(t, createResp, http.StatusCreated)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
-	createdSessionData := createResponse.Data.(map[string]interface{})
 	createdSessionID := createdSessionData["id"].(string)
 
 	// Now list sessions
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions", nil)
-	listResponse := validateRESTResponse(t, listResp, http.StatusOK)
-
-	// Validate sessions list
-	if listResponse.Data == nil {
-		t.Fatalf("Expected sessions data in response, got nil")
-	}
-
-	sessionsList, ok := listResponse.Data.([]interface{})
-	if !ok {
-		t.Fatalf("Expected sessions data to be array, got %T", listResponse.Data)
-	}
+	sessionsArray := validateArrayResponse(t, listResp, http.StatusOK)
 
 	// Find our created session in the list
 	found := false
-	for _, sessionItem := range sessionsList {
+	for _, sessionItem := range sessionsArray {
 		sessionObj, ok := sessionItem.(map[string]interface{})
 		if !ok {
 			continue
@@ -106,7 +85,7 @@ func TestRESTSessionListing(t *testing.T) {
 		t.Fatalf("Created session %s not found in sessions list", createdSessionID)
 	}
 
-	t.Logf("✅ Session listing test passed - Found %d sessions", len(sessionsList))
+	t.Logf("✅ Session listing test passed - Found %d sessions", len(sessionsArray))
 }
 
 // Test 4: Session Retrieval - GET /api/sessions/{id}
@@ -123,24 +102,13 @@ func TestRESTSessionRetrieval(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createResponse := validateRESTResponse(t, createResp, http.StatusCreated)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
-	createdSessionData := createResponse.Data.(map[string]interface{})
 	sessionID := createdSessionData["id"].(string)
 
 	// Retrieve the specific session
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID, nil)
-	getResponse := validateRESTResponse(t, getResp, http.StatusOK)
-
-	// Validate retrieved session data
-	if getResponse.Data == nil {
-		t.Fatalf("Expected session data in response, got nil")
-	}
-
-	retrievedSession, ok := getResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected session data to be object, got %T", getResponse.Data)
-	}
+	retrievedSession := validateObjectResponse(t, getResp, http.StatusOK)
 
 	retrievedID, ok := retrievedSession["id"].(string)
 	if !ok || retrievedID != sessionID {
@@ -169,9 +137,8 @@ func TestRESTMessageSending(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createResponse := validateRESTResponse(t, createResp, http.StatusCreated)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
-	createdSessionData := createResponse.Data.(map[string]interface{})
 	sessionID := createdSessionData["id"].(string)
 
 	// Send a message to the session
@@ -180,17 +147,7 @@ func TestRESTMessageSending(t *testing.T) {
 	}
 
 	msgResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
-	msgResponse := validateRESTResponse(t, msgResp, http.StatusOK)
-
-	// Validate message response
-	if msgResponse.Data == nil {
-		t.Fatalf("Expected message data in response, got nil")
-	}
-
-	messageData, ok := msgResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected message data to be object, got %T", msgResponse.Data)
-	}
+	messageData := validateObjectResponse(t, msgResp, http.StatusOK)
 
 	messageID, ok := messageData["id"].(string)
 	if !ok || messageID == "" {
@@ -224,9 +181,8 @@ func TestRESTMessageListing(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createResponse := validateRESTResponse(t, createResp, http.StatusCreated)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
-	createdSessionData := createResponse.Data.(map[string]interface{})
 	sessionID := createdSessionData["id"].(string)
 
 	// Add a test message directly to database (simpler than going through agent)
@@ -244,17 +200,7 @@ func TestRESTMessageListing(t *testing.T) {
 
 	// List messages for the session
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/messages", nil)
-	listResponse := validateRESTResponse(t, listResp, http.StatusOK)
-
-	// Validate messages list
-	if listResponse.Data == nil {
-		t.Fatalf("Expected messages data in response, got nil")
-	}
-
-	messagesList, ok := listResponse.Data.([]interface{})
-	if !ok {
-		t.Fatalf("Expected messages data to be array, got %T", listResponse.Data)
-	}
+	messagesList := validateArrayResponse(t, listResp, http.StatusOK)
 
 	if len(messagesList) == 0 {
 		t.Fatalf("Expected at least one message in list, got 0")
@@ -292,17 +238,7 @@ func TestRESTCommandsListing(t *testing.T) {
 
 	// List available commands
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/commands", nil)
-	listResponse := validateRESTResponse(t, listResp, http.StatusOK)
-
-	// Validate commands list
-	if listResponse.Data == nil {
-		t.Fatalf("Expected commands data in response, got nil")
-	}
-
-	commandsList, ok := listResponse.Data.([]interface{})
-	if !ok {
-		t.Fatalf("Expected commands data to be array, got %T", listResponse.Data)
-	}
+	commandsList := validateArrayResponse(t, listResp, http.StatusOK)
 
 	if len(commandsList) == 0 {
 		t.Fatalf("Expected at least one command in list, got 0")
@@ -348,9 +284,8 @@ func TestRESTSessionDeletion(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createResponse := validateRESTResponse(t, createResp, http.StatusCreated)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
-	createdSessionData := createResponse.Data.(map[string]interface{})
 	sessionID := createdSessionData["id"].(string)
 
 	// Delete the session
@@ -389,9 +324,8 @@ func TestRESTSessionForking(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createResponse := validateRESTResponse(t, createResp, http.StatusCreated)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
-	createdSessionData := createResponse.Data.(map[string]interface{})
 	sourceSessionID := createdSessionData["id"].(string)
 
 	// Add a test message to the source session directly to database
@@ -414,17 +348,7 @@ func TestRESTSessionForking(t *testing.T) {
 	}
 
 	forkResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sourceSessionID+"/fork", forkRequest)
-	forkResponse := validateRESTResponse(t, forkResp, http.StatusCreated)
-
-	// Validate forked session data
-	if forkResponse.Data == nil {
-		t.Fatalf("Expected forked session data in response, got nil")
-	}
-
-	forkedSessionData, ok := forkResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected forked session data to be object, got %T", forkResponse.Data)
-	}
+	forkedSessionData := validateObjectResponse(t, forkResp, http.StatusCreated)
 
 	forkedSessionID, ok := forkedSessionData["id"].(string)
 	if !ok || forkedSessionID == "" {
@@ -442,10 +366,10 @@ func TestRESTSessionForking(t *testing.T) {
 
 	// Verify both sessions exist independently
 	sourceGetResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sourceSessionID, nil)
-	validateRESTResponse(t, sourceGetResp, http.StatusOK)
+	validateObjectResponse(t, sourceGetResp, http.StatusOK)
 
 	forkedGetResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+forkedSessionID, nil)
-	validateRESTResponse(t, forkedGetResp, http.StatusOK)
+	validateObjectResponse(t, forkedGetResp, http.StatusOK)
 
 	t.Logf("✅ Session forking test passed - Source: %s, Forked: %s", sourceSessionID, forkedSessionID)
 }
@@ -464,24 +388,13 @@ func TestRESTAgentCancellation(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createResponse := validateRESTResponse(t, createResp, http.StatusCreated)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
-	createdSessionData := createResponse.Data.(map[string]interface{})
 	sessionID := createdSessionData["id"].(string)
 
 	// Cancel agent processing for the session
 	cancelResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/cancel", nil)
-	cancelResponse := validateRESTResponse(t, cancelResp, http.StatusOK)
-
-	// Validate cancellation response
-	if cancelResponse.Data == nil {
-		t.Fatalf("Expected cancellation data in response, got nil")
-	}
-
-	cancellationData, ok := cancelResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected cancellation data to be object, got %T", cancelResponse.Data)
-	}
+	cancellationData := validateObjectResponse(t, cancelResp, http.StatusOK)
 
 	status, ok := cancellationData["status"].(string)
 	if !ok || status != "cancelled" {
@@ -510,8 +423,7 @@ func TestRESTMessageHistory(t *testing.T) {
 	}
 
 	session1Resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session1Request)
-	session1Response := validateRESTResponse(t, session1Resp, http.StatusCreated)
-	session1Data := session1Response.Data.(map[string]interface{})
+	session1Data := validateObjectResponse(t, session1Resp, http.StatusCreated)
 	session1ID := session1Data["id"].(string)
 
 	session2Request := map[string]interface{}{
@@ -520,8 +432,7 @@ func TestRESTMessageHistory(t *testing.T) {
 	}
 
 	session2Resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session2Request)
-	session2Response := validateRESTResponse(t, session2Resp, http.StatusCreated)
-	session2Data := session2Response.Data.(map[string]interface{})
+	session2Data := validateObjectResponse(t, session2Resp, http.StatusCreated)
 	session2ID := session2Data["id"].(string)
 
 	// Add test messages to both sessions
@@ -550,17 +461,7 @@ func TestRESTMessageHistory(t *testing.T) {
 
 	// Test message history with default pagination
 	historyResp := makeJSONRequest(t, result.Server, "GET", "/api/messages/history", nil)
-	historyResponse := validateRESTResponse(t, historyResp, http.StatusOK)
-
-	// Validate message history response
-	if historyResponse.Data == nil {
-		t.Fatalf("Expected message history data in response, got nil")
-	}
-
-	messagesList, ok := historyResponse.Data.([]interface{})
-	if !ok {
-		t.Fatalf("Expected message history data to be array, got %T", historyResponse.Data)
-	}
+	messagesList := validateArrayResponse(t, historyResp, http.StatusOK)
 
 	if len(messagesList) == 0 {
 		t.Fatalf("Expected at least some messages in history, got 0")
@@ -602,12 +503,7 @@ func TestRESTMessageHistory(t *testing.T) {
 
 	// Test pagination with limit
 	paginatedResp := makeJSONRequest(t, result.Server, "GET", "/api/messages/history?limit=1&offset=0", nil)
-	paginatedResponse := validateRESTResponse(t, paginatedResp, http.StatusOK)
-
-	paginatedList, ok := paginatedResponse.Data.([]interface{})
-	if !ok {
-		t.Fatalf("Expected paginated message data to be array, got %T", paginatedResponse.Data)
-	}
+	paginatedList := validateArrayResponse(t, paginatedResp, http.StatusOK)
 
 	if len(paginatedList) > 1 {
 		t.Fatalf("Expected at most 1 message with limit=1, got %d", len(paginatedList))
@@ -625,17 +521,7 @@ func TestRESTMCPServersListing(t *testing.T) {
 
 	// List MCP servers
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/mcp", nil)
-	listResponse := validateRESTResponse(t, listResp, http.StatusOK)
-
-	// Validate MCP servers list
-	if listResponse.Data == nil {
-		t.Fatalf("Expected MCP servers data in response, got nil")
-	}
-
-	mcpServersList, ok := listResponse.Data.([]interface{})
-	if !ok {
-		t.Fatalf("Expected MCP servers data to be array, got %T", listResponse.Data)
-	}
+	mcpServersList := validateArrayResponse(t, listResp, http.StatusOK)
 
 	// MCP servers list can be empty, that's valid
 	t.Logf("✅ MCP servers listing test passed - Found %d MCP servers", len(mcpServersList))
@@ -667,17 +553,7 @@ func TestRESTHealthCheck(t *testing.T) {
 
 	// Check health endpoint
 	healthResp := makeJSONRequest(t, result.Server, "GET", "/health", nil)
-	healthResponse := validateRESTResponse(t, healthResp, http.StatusOK)
-
-	// Validate health response
-	if healthResponse.Data == nil {
-		t.Fatalf("Expected health data in response, got nil")
-	}
-
-	healthData, ok := healthResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected health data to be object, got %T", healthResponse.Data)
-	}
+	healthData := validateObjectResponse(t, healthResp, http.StatusOK)
 
 	// Validate basic health fields
 	status, ok := healthData["status"].(string)
@@ -818,17 +694,7 @@ func TestRESTPermissionGrant(t *testing.T) {
 
 	// Grant the permission
 	grantResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions/"+testPermissionID+"/grant", nil)
-	grantResponse := validateRESTResponse(t, grantResp, http.StatusOK)
-
-	// Validate grant response
-	if grantResponse.Data == nil {
-		t.Fatalf("Expected grant data in response, got nil")
-	}
-
-	grantData, ok := grantResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected grant data to be object, got %T", grantResponse.Data)
-	}
+	grantData := validateObjectResponse(t, grantResp, http.StatusOK)
 
 	status, ok := grantData["status"].(string)
 	if !ok || status != "granted" {
@@ -860,17 +726,7 @@ func TestRESTPermissionDeny(t *testing.T) {
 
 	// Deny the permission
 	denyResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions/"+testPermissionID+"/deny", nil)
-	denyResponse := validateRESTResponse(t, denyResp, http.StatusOK)
-
-	// Validate deny response
-	if denyResponse.Data == nil {
-		t.Fatalf("Expected deny data in response, got nil")
-	}
-
-	denyData, ok := denyResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected deny data to be object, got %T", denyResponse.Data)
-	}
+	denyData := validateObjectResponse(t, denyResp, http.StatusOK)
 
 	status, ok := denyData["status"].(string)
 	if !ok || status != "denied" {
@@ -921,12 +777,7 @@ func TestRESTCommandDetails(t *testing.T) {
 
 	// First, get the list of available commands to find a valid command name
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/commands", nil)
-	listResponse := validateRESTResponse(t, listResp, http.StatusOK)
-
-	commandsList, ok := listResponse.Data.([]interface{})
-	if !ok {
-		t.Fatalf("Expected commands data to be array, got %T", listResponse.Data)
-	}
+	commandsList := validateArrayResponse(t, listResp, http.StatusOK)
 
 	if len(commandsList) == 0 {
 		t.Skip("No commands available to test command details endpoint")
@@ -938,17 +789,7 @@ func TestRESTCommandDetails(t *testing.T) {
 
 	// Test getting valid command details
 	detailsResp := makeJSONRequest(t, result.Server, "GET", "/api/commands/"+commandName, nil)
-	detailsResponse := validateRESTResponse(t, detailsResp, http.StatusOK)
-
-	// Validate command details response
-	if detailsResponse.Data == nil {
-		t.Fatalf("Expected command details data in response, got nil")
-	}
-
-	commandDetails, ok := detailsResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected command details data to be object, got %T", detailsResponse.Data)
-	}
+	commandDetails := validateObjectResponse(t, detailsResp, http.StatusOK)
 
 	// Validate required fields in detailed response
 	name, ok := commandDetails["name"].(string)

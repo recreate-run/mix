@@ -18,18 +18,10 @@ const forkSession = async (params: ForkSessionParams): Promise<SessionData> => {
     }
   });
 
-  if (response.error) {
-    throw new Error(response.error.message || 'Failed to fork session');
-  }
-
-  if (!response.data) {
-    throw new Error('No session data returned from fork operation');
-  }
-
   // Transform SDK SessionData to match local interface (Date -> string)
   return {
-    ...response.data,
-    createdAt: response.data.createdAt instanceof Date ? response.data.createdAt.toISOString() : response.data.createdAt
+    ...response,
+    createdAt: response.createdAt instanceof Date ? response.createdAt.toISOString() : response.createdAt
   };
 };
 

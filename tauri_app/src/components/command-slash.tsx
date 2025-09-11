@@ -505,7 +505,7 @@ export function CommandSlash({
                           </div>
                         </div>
                         <div className="text-muted-foreground text-xs">
-                          {server.tools.length} tools available
+                          {server.tools?.length || 0} tools available
                         </div>
                       </div>
                     </CommandItem>

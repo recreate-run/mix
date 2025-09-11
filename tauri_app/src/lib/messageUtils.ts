@@ -98,7 +98,7 @@ const convertToolCallsToUI = (toolCalls: ToolCallData[]): ToolCall[] => {
 export const convertBackendMessageToUI = async (
   backendMessage: BackendMessage
 ): Promise<UIMessage> => {
-  const { text, media, apps } = extractContentData(backendMessage.content);
+  const { text, media, apps } = extractContentData(backendMessage.userInput);
 
   // Convert media paths to attachments
   const mediaAttachments = await convertMediaToAttachments(media);

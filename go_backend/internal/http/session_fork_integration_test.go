@@ -219,22 +219,8 @@ func TestSessionFork(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// Validate response
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("Expected status 201, got %d", resp.StatusCode)
-	}
-
-	// Decode response
-	var restResponse RESTResponse
-	if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	// Extract forked session data
-	sessionDataMap, ok := restResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected session data in response, got %T", restResponse.Data)
-	}
+	// Validate response and extract session data (flattened response)
+	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)
 
 	forkedSessionID, ok := sessionDataMap["id"].(string)
 	if !ok {
@@ -294,22 +280,8 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// Validate response
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("Expected status 201, got %d", resp.StatusCode)
-	}
-
-	// Decode response
-	var restResponse RESTResponse
-	if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	// Extract forked session data
-	sessionDataMap, ok := restResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected session data in response, got %T", restResponse.Data)
-	}
+	// Validate response and extract session data (flattened response)
+	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)
 
 	title, ok := sessionDataMap["title"].(string)
 	if !ok {
@@ -397,16 +369,11 @@ func TestSessionForkErrorHandling(t *testing.T) {
 			}
 
 			if tc.expectError {
-				// Decode error response
-				var restResponse RESTResponse
-				if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
-					t.Fatalf("Failed to decode error response: %v", err)
-				}
+				// Validate error response (enveloped)
+				errorResponse := validateErrorResponse(t, resp, tc.statusCode)
 
-				if restResponse.Error == nil {
-					t.Errorf("Expected error in response, but got none")
-				} else if restResponse.Error.Type != tc.errorType {
-					t.Errorf("Expected error type '%s', got '%s'", tc.errorType, restResponse.Error.Type)
+				if errorResponse.Error.Type != tc.errorType {
+					t.Errorf("Expected error type '%s', got '%s'", tc.errorType, errorResponse.Error.Type)
 				}
 			} else {
 				// Should be successful
@@ -462,21 +429,8 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("Expected status 201, got %d", resp.StatusCode)
-	}
-
-	// Decode response
-	var restResponse RESTResponse
-	if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	// Extract forked session data
-	sessionDataMap, ok := restResponse.Data.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected session data in response, got %T", restResponse.Data)
-	}
+	// Validate response and extract session data (flattened response)
+	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)
 
 	forkedSessionID, ok := sessionDataMap["id"].(string)
 	if !ok {

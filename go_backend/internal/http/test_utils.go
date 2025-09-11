@@ -28,6 +28,7 @@ type TestServerResult struct {
 	DataDir    string
 }
 
+
 // initMCPTools mock implementation for testing
 func initMCPTools(ctx context.Context, app *app.App) {
 	// Mock implementation - in real app this initializes MCP tools
@@ -212,21 +213,58 @@ func makeJSONRequest(t *testing.T, server *httptest.Server, method, path string,
 	return resp
 }
 
-// validateRESTResponse validates that response has proper structure and status
-func validateRESTResponse(t *testing.T, resp *http.Response, expectedStatus int) RESTResponse {
+// validateObjectResponse validates success response as object (flattened)
+func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
 	}
 
-	var restResponse RESTResponse
-	if err := json.NewDecoder(resp.Body).Decode(&restResponse); err != nil {
-		t.Fatalf("Failed to decode REST response: %v", err)
+	var responseData map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
+		t.Fatalf("Failed to decode object response: %v", err)
 	}
 
-	return restResponse
+	return responseData
 }
+
+// validateArrayResponse validates success response as array (flattened)  
+func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int) []interface{} {
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
+	}
+
+	var responseData []interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
+		t.Fatalf("Failed to decode array response: %v", err)
+	}
+
+	return responseData
+}
+
+// validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
+func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) ErrorResponse {
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
+	}
+
+	var errorResponse ErrorResponse
+	if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+		t.Fatalf("Failed to decode error response: %v", err)
+	}
+
+	if errorResponse.Error == nil {
+		t.Fatalf("Expected error response to have error field")
+	}
+
+	return errorResponse
+}
+
 
 // createJSONMessage creates a proper JSON message structure for testing
 func createJSONMessage(text string) string {

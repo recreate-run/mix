@@ -21,11 +21,7 @@ const sendMessage = async (
     }
   });
 
-  if (response.error) {
-    throw new Error(response.error.message || 'Failed to send message');
-  }
-
-  const assistantResponse = response.data?.response || 'No response from server';
+  const assistantResponse = response.assistantResponse || 'No response from server';
   return { response: assistantResponse };
 };
 

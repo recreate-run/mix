@@ -9,11 +9,9 @@ import (
 	"mix/internal/logging"
 )
 
-// REST Response wrapper for consistent JSON responses
-type RESTResponse struct {
-	Data    interface{} `json:"data,omitempty"`
-	Error   *RESTError  `json:"error,omitempty"`
-	Message string      `json:"message,omitempty"`
+// ErrorResponse wrapper for error responses only
+type ErrorResponse struct {
+	Error *RESTError `json:"error"`
 }
 
 // REST Error structure
@@ -41,18 +39,17 @@ var errorStatusMap = map[string]int{
 	ErrorTypeValidation:    http.StatusBadRequest,
 }
 
-// sendJSONResponse sends a standardized JSON response
+// sendJSONResponse sends a flattened JSON response (data directly, no envelope)
 func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	
-	response := RESTResponse{Data: data}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(data); err != nil {
 		logging.Error("Failed to encode JSON response", "error", err)
 	}
 }
 
-// sendErrorResponse sends a standardized error response
+// sendErrorResponse sends an enveloped error response
 func sendErrorResponse(w http.ResponseWriter, errorType string, message string) {
 	status := errorStatusMap[errorType]
 	if status == 0 {
@@ -62,7 +59,7 @@ func sendErrorResponse(w http.ResponseWriter, errorType string, message string) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	
-	response := RESTResponse{
+	response := ErrorResponse{
 		Error: &RESTError{
 			Code:    status,
 			Message: message,
