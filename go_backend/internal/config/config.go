@@ -2,6 +2,8 @@
 package config
 
 import (
+	"context"
+	"database/sql"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -14,6 +16,7 @@ import (
 
 	"mix/internal/llm/models"
 	"mix/internal/logging"
+	"mix/internal/preferences"
 
 	"github.com/spf13/viper"
 )
@@ -122,6 +125,34 @@ func getDefaultConfig() *Config {
 				APIKey:   "",
 				Disabled: false,
 			},
+			models.ProviderOpenAI: {
+				APIKey:   "",
+				Disabled: false,
+			},
+			models.ProviderGemini: {
+				APIKey:   "",
+				Disabled: false,
+			},
+			models.ProviderGROQ: {
+				APIKey:   "",
+				Disabled: false,
+			},
+			models.ProviderOpenRouter: {
+				APIKey:   "",
+				Disabled: false,
+			},
+			models.ProviderAzure: {
+				APIKey:   "",
+				Disabled: false,
+			},
+			models.ProviderVertexAI: {
+				APIKey:   "",
+				Disabled: false,
+			},
+			models.ProviderXAI: {
+				APIKey:   "",
+				Disabled: false,
+			},
 		},
 		Agents: map[AgentName]Agent{
 			AgentMain: {
@@ -142,6 +173,9 @@ var cfg *Config
 
 // Mutex to protect concurrent access to cfg
 var cfgMutex sync.RWMutex
+
+// Global user preferences service
+var userPreferencesService *preferences.UserPreferencesService
 
 // Load initializes the configuration from environment variables and config files.
 // If debug is true, debug mode is enabled and log level is set to debug.
@@ -702,6 +736,93 @@ func updateCfgFile(updateCfg func(config *Config)) error {
 // It's safe to call this function multiple times.
 func Get() *Config {
 	return cfg
+}
+
+// InitUserPreferences initializes the user preferences service with database connection
+// This should be called after database connection is established
+func InitUserPreferences(database *sql.DB) error {
+	cfgMutex.Lock()
+	defer cfgMutex.Unlock()
+	
+	userPreferencesService = preferences.NewUserPreferencesService(database)
+	
+	// Migrate existing .mix.json agent configs to database if needed
+	if cfg != nil && cfg.Agents != nil {
+		ctx := context.Background()
+		
+		// Determine preferred provider from existing config
+		preferredProvider := models.ProviderAnthropic // default
+		for provider, providerCfg := range cfg.Providers {
+			if !providerCfg.Disabled && providerCfg.APIKey != "" {
+				preferredProvider = provider
+				break
+			}
+		}
+		
+		// Convert config agents to preferences agents for migration
+		prefAgents := make(map[preferences.AgentName]preferences.Agent)
+		for agentName, agent := range cfg.Agents {
+			var prefAgentName preferences.AgentName
+			switch agentName {
+			case AgentMain:
+				prefAgentName = preferences.AgentMain
+			case AgentSub:
+				prefAgentName = preferences.AgentSub
+			default:
+				continue // Skip unknown agents
+			}
+			
+			prefAgents[prefAgentName] = preferences.Agent{
+				Model:           agent.Model,
+				MaxTokens:       agent.MaxTokens,
+				ReasoningEffort: agent.ReasoningEffort,
+			}
+		}
+		
+		err := userPreferencesService.MigrateFromConfig(ctx, prefAgents, preferredProvider)
+		if err != nil {
+			return fmt.Errorf("failed to migrate user preferences: %w", err)
+		}
+	}
+	
+	return nil
+}
+
+// GetUserPreferences returns the user preferences service
+func GetUserPreferences() *preferences.UserPreferencesService {
+	cfgMutex.RLock()
+	defer cfgMutex.RUnlock()
+	return userPreferencesService
+}
+
+// GetAgentFromDatabase returns agent configuration from database instead of .mix.json
+func GetAgentFromDatabase(ctx context.Context, agentName AgentName) (Agent, error) {
+	if userPreferencesService == nil {
+		return Agent{}, fmt.Errorf("user preferences service not initialized")
+	}
+	
+	// Convert config agent name to preferences agent name
+	var prefAgentName preferences.AgentName
+	switch agentName {
+	case AgentMain:
+		prefAgentName = preferences.AgentMain
+	case AgentSub:
+		prefAgentName = preferences.AgentSub
+	default:
+		return Agent{}, fmt.Errorf("unknown agent name: %s", agentName)
+	}
+	
+	prefAgent, err := userPreferencesService.GetAgentConfig(ctx, prefAgentName)
+	if err != nil {
+		return Agent{}, err
+	}
+	
+	// Convert preferences agent to config agent
+	return Agent{
+		Model:           prefAgent.Model,
+		MaxTokens:       prefAgent.MaxTokens,
+		ReasoningEffort: prefAgent.ReasoningEffort,
+	}, nil
 }
 
 // GetEmbeddedPrompts returns the embedded prompts filesystem

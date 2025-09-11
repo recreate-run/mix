@@ -141,3 +141,31 @@ func handleCORSPreflight(w http.ResponseWriter, r *http.Request) bool {
 	}
 	return false
 }
+
+// WriteJSONResponse writes a successful JSON response
+func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	
+	response := RESTResponse{
+		Data: data,
+	}
+	
+	json.NewEncoder(w).Encode(response)
+}
+
+// WriteErrorResponse writes a standardized error response
+func WriteErrorResponse(w http.ResponseWriter, status int, message string, errorType string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	
+	response := RESTResponse{
+		Error: &RESTError{
+			Code:    status,
+			Message: message,
+			Type:    errorType,
+		},
+	}
+	
+	json.NewEncoder(w).Encode(response)
+}

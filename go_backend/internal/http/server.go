@@ -21,6 +21,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	sessionHandler := NewSessionHandler(app)
 	messageHandler := NewMessageHandler(app)
 	systemHandler := NewSystemHandler(app)
+	preferencesHandler := NewPreferencesHandler(app)
 
 	// Create dedicated HTTP mux with CORS middleware
 	mux := http.NewServeMux()
@@ -135,6 +136,12 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/commands/{name}", systemHandler.HandleGetCommand)
 	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
+	
+	// User preferences endpoints
+	mux.HandleFunc("GET /api/preferences", preferencesHandler.HandleGetPreferences)
+	mux.HandleFunc("POST /api/preferences", preferencesHandler.HandleUpdatePreferences)
+	mux.HandleFunc("GET /api/preferences/providers", preferencesHandler.HandleGetAvailableProviders)
+	mux.HandleFunc("POST /api/preferences/reset", preferencesHandler.HandleResetPreferences)
 
 	addr := host + ":" + strconv.Itoa(port)
 	server := &http.Server{

@@ -4,7 +4,7 @@
     "": {
       "name": "mix_tauri_app",
       "dependencies": {
-        "mix-typescript-sdk": "/Users/sarathmenon/Documents/startup/image_generation/mix-typescript",
+        "mix-typescript-sdk": "/Users/vaibhavagarwal/Documents/recreate/mix-typescript-sdk",
         "@gsap/react": "^2.1.2",
         "@icons-pack/react-simple-icons": "^13.7.0",
         "@radix-ui/react-alert-dialog": "^1.1.15",

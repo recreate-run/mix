@@ -785,8 +785,31 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 		return models.Model{}, fmt.Errorf("cannot change model while processing requests")
 	}
 
-	if err := config.UpdateAgentModel(agentName, modelID); err != nil {
-		return models.Model{}, fmt.Errorf("failed to update config: %w", err)
+	// Update agent model in database instead of config file
+	userPrefs := config.GetUserPreferences()
+	if userPrefs == nil {
+		return models.Model{}, fmt.Errorf("user preferences service not available")
+	}
+	
+	model, ok := models.SupportedModels[modelID]
+	if !ok {
+		return models.Model{}, fmt.Errorf("model %s not supported", modelID)
+	}
+	
+	ctx := context.Background()
+	var err error
+	
+	switch agentName {
+	case config.AgentMain:
+		err = userPrefs.UpdateMainAgentPreferences(ctx, modelID, model.DefaultMaxTokens, "")
+	case config.AgentSub:
+		err = userPrefs.UpdateSubAgentPreferences(ctx, modelID, model.DefaultMaxTokens, "")
+	default:
+		return models.Model{}, fmt.Errorf("unknown agent name: %s", agentName)
+	}
+	
+	if err != nil {
+		return models.Model{}, fmt.Errorf("failed to update agent preferences in database: %w", err)
 	}
 
 	provider, err := createAgentProvider(agentName)
@@ -1041,21 +1064,61 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 
 func createAgentProvider(agentName config.AgentName) (provider.Provider, error) {
 	cfg := config.Get()
-	agentConfig, ok := cfg.Agents[agentName]
-	if !ok {
-		return nil, fmt.Errorf("agent %s not found", agentName)
+	
+	// Try to get agent config from database first
+	ctx := context.Background()
+	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
+	if err != nil {
+		// Fall back to config file if database not available
+		logging.Warn("Failed to get agent config from database, falling back to config file", "error", err, "agent", agentName)
+		var ok bool
+		agentConfig, ok = cfg.Agents[agentName]
+		if !ok {
+			return nil, fmt.Errorf("agent %s not found in config or database", agentName)
+		}
+	}
+	
+	// Check user's preferred provider if available
+	userPrefs := config.GetUserPreferences()
+	if userPrefs != nil {
+		preferredProvider, providerErr := userPrefs.GetPreferredProvider(ctx)
+		if providerErr == nil && preferredProvider != "" {
+			// Validate that the selected model is available on the preferred provider
+			model, modelExists := models.SupportedModels[agentConfig.Model]
+			if modelExists && model.Provider != preferredProvider {
+				logging.Info("Model not available on preferred provider, using model's default provider", 
+					"model", agentConfig.Model, 
+					"model_provider", model.Provider, 
+					"preferred_provider", preferredProvider)
+			}
+		}
 	}
 	model, ok := models.SupportedModels[agentConfig.Model]
 	if !ok {
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
 	}
 
-	providerCfg, ok := cfg.Providers[model.Provider]
-	if !ok {
-		return nil, fmt.Errorf("provider %s not supported", model.Provider)
-	}
-	if providerCfg.Disabled {
-		return nil, fmt.Errorf("provider %s is not enabled", model.Provider)
+	// Check if we have database preferences - if so, skip config provider validation
+	// userPrefs already declared above
+	var providerCfg config.Provider
+	
+	if userPrefs != nil {
+		// Database-first approach: create provider config dynamically
+		providerCfg = config.Provider{
+			APIKey:   "", // Will be handled by provider authentication
+			Disabled: false,
+		}
+		logging.Info("Using database-first provider configuration", "provider", model.Provider, "model", agentConfig.Model)
+	} else {
+		// Fallback to config file validation
+		var ok bool
+		providerCfg, ok = cfg.Providers[model.Provider]
+		if !ok {
+			return nil, fmt.Errorf("provider %s not supported", model.Provider)
+		}
+		if providerCfg.Disabled {
+			return nil, fmt.Errorf("provider %s is not enabled", model.Provider)
+		}
 	}
 	// Note: API key validation removed - let provider client handle authentication
 	// This allows providers to support multiple authentication methods (OAuth, API key, etc.)
