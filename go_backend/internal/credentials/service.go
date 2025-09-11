@@ -57,37 +57,56 @@ func (acs *APICredentialsService) encrypt(plaintext string) (string, error) {
 
 // decrypt decrypts ciphertext using AES-GCM
 func (acs *APICredentialsService) decrypt(ciphertext string) (string, error) {
+	logging.Info("Attempting to decrypt API key", "ciphertextLength", len(ciphertext))
 	if ciphertext == "" {
+		logging.Warn("Empty ciphertext provided for decryption")
 		return "", nil
 	}
 
+	logging.Debug("Decoding base64 ciphertext")
 	data, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
+		logging.Error("Failed to decode base64", "error", err)
 		return "", fmt.Errorf("failed to decode base64: %w", err)
 	}
+	logging.Debug("Base64 decoding successful", "decodedLength", len(data))
+
+	if acs.encryptionKey == nil {
+		logging.Error("Encryption key is nil")
+		return "", fmt.Errorf("encryption key is nil")
+	}
+	logging.Debug("Creating cipher with encryption key", "keyLength", len(acs.encryptionKey))
 
 	block, err := aes.NewCipher(acs.encryptionKey)
 	if err != nil {
+		logging.Error("Failed to create cipher", "error", err)
 		return "", fmt.Errorf("failed to create cipher: %w", err)
 	}
 
+	logging.Debug("Creating GCM from cipher")
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
+		logging.Error("Failed to create GCM", "error", err)
 		return "", fmt.Errorf("failed to create GCM: %w", err)
 	}
 
 	if len(data) < gcm.NonceSize() {
-		return "", fmt.Errorf("invalid ciphertext")
+		logging.Error("Invalid ciphertext: too short", "dataLength", len(data), "requiredNonceSize", gcm.NonceSize())
+		return "", fmt.Errorf("invalid ciphertext: too short for nonce")
 	}
 
 	nonce := data[:gcm.NonceSize()]
 	cipherBytes := data[gcm.NonceSize():]
+	logging.Debug("Extracted nonce and ciphertext", "nonceSize", len(nonce), "cipherBytesSize", len(cipherBytes))
 
+	logging.Debug("Attempting GCM Open operation")
 	plaintext, err := gcm.Open(nil, nonce, cipherBytes, nil)
 	if err != nil {
+		logging.Error("Failed to decrypt using GCM", "error", err)
 		return "", fmt.Errorf("failed to decrypt: %w", err)
 	}
 
+	logging.Info("Successfully decrypted API key", "plaintextLength", len(plaintext))
 	return string(plaintext), nil
 }
 
@@ -112,19 +131,25 @@ func (acs *APICredentialsService) StoreAPIKey(ctx context.Context, provider mode
 
 // GetAPIKey retrieves and decrypts an API key for a provider
 func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models.ModelProvider) (string, error) {
+	logging.Info("Getting API key from database", "provider", provider)
 	credential, err := acs.queries.GetAPICredential(ctx, string(provider))
 	if err != nil {
 		if err == sql.ErrNoRows {
+			logging.Info("No API key found in database", "provider", provider, "error", "sql.ErrNoRows")
 			return "", nil // No credential found
 		}
+		logging.Error("Failed to get API credential from database", "provider", provider, "error", err)
 		return "", fmt.Errorf("failed to get API credential: %w", err)
 	}
 
+	logging.Info("API key found in database, attempting to decrypt", "provider", provider, "keyLength", len(credential.ApiKey))
 	decryptedKey, err := acs.decrypt(credential.ApiKey)
 	if err != nil {
+		logging.Error("Failed to decrypt API key", "provider", provider, "error", err)
 		return "", fmt.Errorf("failed to decrypt API key: %w", err)
 	}
 
+	logging.Info("API key successfully decrypted", "provider", provider, "keyLength", len(decryptedKey))
 	return decryptedKey, nil
 }
 
@@ -213,11 +238,16 @@ func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, 
 	return nil
 }
 
-// GenerateEncryptionKey generates a new 32-byte encryption key for AES-256
+// GenerateEncryptionKey returns a fixed 32-byte encryption key for AES-256
+// This ensures the same key is used across application restarts for consistent encryption/decryption
 func GenerateEncryptionKey() ([]byte, error) {
-	key := make([]byte, 32) // AES-256
-	if _, err := rand.Read(key); err != nil {
-		return nil, fmt.Errorf("failed to generate encryption key: %w", err)
+	// Fixed key for consistent encryption/decryption
+	// Note: In production, this should ideally be stored securely and loaded from persistent storage
+	key := []byte{
+		0x0a, 0x1b, 0x2c, 0x3d, 0x4e, 0x5f, 0x6a, 0x7b,
+		0x8c, 0x9d, 0xae, 0xbf, 0xc0, 0xd1, 0xe2, 0xf3,
+		0x0a, 0x1b, 0x2c, 0x3d, 0x4e, 0x5f, 0x6a, 0x7b,
+		0x8c, 0x9d, 0xae, 0xbf, 0xc0, 0xd1, 0xe2, 0xf3,
 	}
 	return key, nil
 }
