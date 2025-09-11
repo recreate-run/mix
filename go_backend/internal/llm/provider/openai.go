@@ -54,7 +54,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 		logging.Warn("Failed to initialize OAuth credential storage: %v", err)
 	}
 
-	// Check for OAuth credentials first
+	// Check for OAuth credentials first - highest priority
 	var oauthCreds *OpenAICredentials
 	if credStorage != nil {
 		if creds, err := credStorage.GetOpenAICredentials("openai"); err == nil && creds != nil {
@@ -76,21 +76,42 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 		}
 	}
 
+	// API Key credential sources (in priority order):
+	// 1. OAuth API key (if valid)
+	// 2. Database API key (passed in opts.apiKey from caller)
+	// Note: We no longer use environment variables or config file
+	
 	openaiClientOptions := []option.RequestOption{}
 
 	// Set up authentication - prioritize OAuth over API key
 	if oauthCreds != nil && oauthCreds.APIKey != "" {
+		// Use OAuth API key
 		openaiOpts.useOAuth = true
 		openaiOpts.oauthCreds = oauthCreds
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(oauthCreds.APIKey))
 		logging.Info("Initialized OpenAI client with OAuth authentication")
 	} else if opts.apiKey != "" {
+		// Use database API key (passed in opts.apiKey from caller)
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
-		logging.Info("Initialized OpenAI client with API key authentication")
+		logging.Info("Initialized OpenAI client with database API key authentication")
 	} else {
-		logging.Warn("No authentication method available - neither OAuth nor API key")
+		// No auth available
+		logging.Warn("No authentication method available for OpenAI - neither OAuth nor database API key")
+		
+		// Check database directly as a last resort (double-check)
+		if config.GetAPICredentials() != nil {
+			ctx := context.Background()
+			dbKey, err := config.GetAPICredentials().GetAPIKey(ctx, models.ProviderOpenAI)
+			if err == nil && dbKey != "" {
+				openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(dbKey))
+				logging.Info("Initialized OpenAI client with database API key (direct lookup)")
+			} else {
+				logging.Info("No OpenAI API key in database, authentication will fail")
+			}
+		}
 	}
 
+	// Apply other options
 	if openaiOpts.baseURL != "" {
 		openaiClientOptions = append(openaiClientOptions, option.WithBaseURL(openaiOpts.baseURL))
 	}

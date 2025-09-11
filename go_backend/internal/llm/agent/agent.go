@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -1063,36 +1062,24 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 	return allowedTools[toolName]
 }
 
-// getProviderAPIKeyFromEnv gets API key from environment variables
+// This function has been deprecated - we're now using database only for credentials
+// Keeping the function signature to avoid breaking code elsewhere
 func getProviderAPIKeyFromEnv(modelProvider models.ModelProvider) string {
-	switch modelProvider {
-	case models.ProviderAnthropic:
-		return os.Getenv("ANTHROPIC_API_KEY")
-	case models.ProviderOpenAI:
-		return os.Getenv("OPENAI_API_KEY")
-	case models.ProviderOpenRouter:
-		return os.Getenv("OPENROUTER_API_KEY")
-	case models.ProviderGemini:
-		return os.Getenv("GEMINI_API_KEY")
-	case models.ProviderGROQ:
-		return os.Getenv("GROQ_API_KEY")
-	}
+	// Return empty string to force database-only credential lookup
 	return ""
 }
 
 func createAgentProvider(agentName config.AgentName) (provider.Provider, error) {
-	cfg := config.Get()
-	
 	// Try to get agent config from database first
 	ctx := context.Background()
 	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
 	if err != nil {
-		// Fall back to config file if database not available
-		logging.Warn("Failed to get agent config from database, falling back to config file", "error", err, "agent", agentName)
-		var ok bool
-		agentConfig, ok = cfg.Agents[agentName]
-		if !ok {
-			return nil, fmt.Errorf("agent %s not found in config or database", agentName)
+		// Fall back to default agent config
+		logging.Warn("Failed to get agent config from database, using default", "error", err, "agent", agentName)
+		// Use Claude as default model if database not available
+		agentConfig = config.Agent{
+			Model:     "claude-4-sonnet",
+			MaxTokens: 4096,
 		}
 	}
 	
@@ -1116,52 +1103,36 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
 	}
 
-	// Check if we have database preferences - if so, skip config provider validation
-	// userPrefs already declared above
-	var providerCfg config.Provider
+	// Get API key - ONLY from database, no fallbacks to config or env
+	var apiKey string
 	
-	if userPrefs != nil {
-		// Database-only approach: only use credentials from database
-		apiKey := ""
-		credentialsService := config.GetAPICredentials()
-		if credentialsService != nil {
-			dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
-			if err == nil && dbKey != "" {
-				apiKey = dbKey
-				logging.Info("Using database-stored API key", "provider", model.Provider)
-			} else {
-				// No database key = not authenticated
-				logging.Warn("No API key found in database", "provider", model.Provider)
+	credentialsService := config.GetAPICredentials()
+	if credentialsService != nil {
+		dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
+		if err == nil && dbKey != "" {
+			apiKey = dbKey
+			logging.Info("Using database-stored API key", "provider", model.Provider)
+		} else {
+			// No key in database, we won't use environment or config fallbacks
+			// For OAuth providers, we'll let the client check for OAuth tokens
+			if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
+				logging.Warn("No API key found in database for provider", "provider", model.Provider)
 			}
 		}
-		
-		providerCfg = config.Provider{
-			APIKey:   apiKey,
-			Disabled: apiKey == "", // Disable if no API key
-		}
-		logging.Info("Using database-only provider configuration", "provider", model.Provider, "authenticated", apiKey != "")
-	} else {
-		// Fallback to config file validation
-		var ok bool
-		providerCfg, ok = cfg.Providers[model.Provider]
-		if !ok {
-			return nil, fmt.Errorf("provider %s not supported", model.Provider)
-		}
-		if providerCfg.Disabled {
-			return nil, fmt.Errorf("provider %s is not enabled", model.Provider)
-		}
 	}
-	// Note: API key validation removed - let provider client handle authentication
-	// This allows providers to support multiple authentication methods (OAuth, API key, etc.)
+	
+	// Set up provider options
 	maxTokens := model.DefaultMaxTokens
 	if agentConfig.MaxTokens > 0 {
 		maxTokens = agentConfig.MaxTokens
 	}
+	
 	opts := []provider.ProviderClientOption{
-		provider.WithAPIKey(providerCfg.APIKey),
+		provider.WithAPIKey(apiKey),
 		provider.WithModel(model),
 		provider.WithMaxTokens(maxTokens),
 	}
+	
 	if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
 		opts = append(
 			opts,
@@ -1178,6 +1149,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			),
 		)
 	}
+	
 	agentProvider, err := provider.NewProvider(
 		model.Provider,
 		opts...,
@@ -1190,22 +1162,40 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 }
 
 func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session) (provider.Provider, error) {
-	cfg := config.Get()
-	agentConfig, ok := cfg.Agents[agentName]
-	if !ok {
-		return nil, fmt.Errorf("agent %s not found", agentName)
+	// Try to get agent config from database first
+	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
+	if err != nil {
+		// Fall back to default agent config
+		logging.Warn("Failed to get agent config from database for session, using default", "error", err, "agent", agentName)
+		// Use Claude as default model if database not available
+		agentConfig = config.Agent{
+			Model:     "claude-4-sonnet",
+			MaxTokens: 4096,
+		}
 	}
+	
 	model, ok := models.SupportedModels[agentConfig.Model]
 	if !ok {
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
 	}
 
-	providerCfg, ok := cfg.Providers[model.Provider]
-	if !ok {
-		return nil, fmt.Errorf("provider %s not supported", model.Provider)
-	}
-	if providerCfg.Disabled {
-		return nil, fmt.Errorf("provider %s is not enabled", model.Provider)
+	// Get API key - ONLY from database, no fallbacks to config or env
+	var apiKey string
+
+	// Get from database only
+	credentialsService := config.GetAPICredentials()
+	if credentialsService != nil {
+		dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
+		if err == nil && dbKey != "" {
+			apiKey = dbKey
+			logging.Info("Using database-stored API key for session provider", "provider", model.Provider)
+		} else {
+			// No key in database, we won't use environment or config fallbacks
+			// For OAuth providers, we'll let the client check for OAuth tokens
+			if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
+				logging.Warn("No API key found in database for provider in session provider", "provider", model.Provider)
+			}
+		}
 	}
 
 	maxTokens := model.DefaultMaxTokens
@@ -1227,7 +1217,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 	}
 
 	opts := []provider.ProviderClientOption{
-		provider.WithAPIKey(providerCfg.APIKey),
+		provider.WithAPIKey(apiKey),
 		provider.WithModel(model),
 		provider.WithSystemMessage(systemPrompt),
 		provider.WithMaxTokens(maxTokens),
