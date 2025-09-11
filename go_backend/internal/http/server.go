@@ -150,6 +150,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/auth/status", authHandler.HandleAuthStatus)
 	mux.HandleFunc("GET /api/auth/validate", authHandler.HandleValidatePreferredProvider)
 	mux.HandleFunc("POST /api/auth/oauth/{provider}", authHandler.HandleStartOAuth)
+	mux.HandleFunc("POST /api/auth/oauth-callback", authHandler.HandleOAuthCallback)
 
 	addr := host + ":" + strconv.Itoa(port)
 	server := &http.Server{

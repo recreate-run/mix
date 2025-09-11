@@ -105,7 +105,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 
 	// Check authentication status before processing the message
-	authenticated, _, authErr := provider.IsAuthenticated()
+	authenticated, _, authErr := provider.IsAuthenticated(ctx, "")
 	if authErr != nil {
 		sendInternalError(w, "checking authentication", authErr)
 		return

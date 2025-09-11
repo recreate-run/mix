@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bufio"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -21,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"mix/internal/config"
+	"mix/internal/llm/models"
 	"mix/internal/logging"
 )
 
@@ -678,29 +681,84 @@ func (cs *CredentialStorage) GetOpenAICredentials(provider string) (*OpenAICrede
 	return &cred, nil
 }
 
-// IsAuthenticated checks if there are valid authentication credentials available
-func IsAuthenticated() (bool, string, error) {
-	// Check API key from environment
-	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
-		return true, "API Key", nil
+// IsAuthenticated checks if there are valid authentication credentials available for a provider.
+// It returns:
+// - isAuthenticated: true if valid credentials exist
+// - authMethod: "api_key", "oauth", or "none"
+// - error: any error encountered during credential checking
+//
+// If provider is empty, it will try to use the user's preferred provider from database.
+func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, string, error) {
+	// Get API credentials service from config
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		return false, "none", fmt.Errorf("credentials service not available")
 	}
-	
-	// Check OAuth credentials
-	storage, err := NewCredentialStorage()
+
+	// If provider is empty, try to get the user's preferred provider
+	if provider == "" {
+		// Try to get user preferences service
+		userPrefs := config.GetUserPreferences()
+		if userPrefs != nil {
+			// Get preferred provider
+			if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
+				provider = pref
+				logging.Info("Using preferred provider from user preferences", "provider", provider)
+			}
+		}
+
+		// If still empty, check if there are any API keys available
+		if provider == "" {
+			providers, err := credentialsService.ListCredentials(ctx)
+			if err == nil && len(providers) > 0 {
+				// Use the first available provider as a fallback
+				provider = providers[0]
+				logging.Info("Using first available provider from credentials", "provider", provider)
+			} else {
+				// Default to Anthropic if no providers found
+				provider = models.ProviderAnthropic
+				logging.Info("No provider specified and none found in database, defaulting to Anthropic")
+			}
+		}
+	}
+
+	// First check for API key in database
+	hasAPIKey, err := credentialsService.HasAPIKey(ctx, provider)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to initialize credential storage: %w", err)
+		logging.Warn("Failed to check API credential", "error", err)
+	} else if hasAPIKey {
+		return true, "api_key", nil
 	}
-	
-	creds, err := storage.GetOAuthCredentials("anthropic")
-	if err != nil {
-		return false, "", fmt.Errorf("error checking OAuth credentials: %w", err)
+
+	// Check for OAuth credentials for supported providers
+	if provider == models.ProviderAnthropic || provider == models.ProviderOpenAI {
+		// Try to initialize credential storage
+		storage, err := NewCredentialStorage()
+		if err != nil {
+			logging.Warn("Failed to initialize credential storage", "error", err)
+			return false, "none", nil
+		}
+
+		// Different handling based on provider
+		switch provider {
+		case models.ProviderAnthropic:
+			// Check for valid Anthropic OAuth credentials
+			creds, err := storage.GetOAuthCredentials("anthropic")
+			if err == nil && creds != nil && !creds.IsTokenExpired() {
+				return true, "oauth", nil
+			}
+
+		case models.ProviderOpenAI:
+			// Check for valid OpenAI OAuth credentials
+			creds, err := storage.GetOpenAICredentials("openai")
+			if err == nil && creds != nil && !creds.IsTokenExpired() {
+				return true, "oauth", nil
+			}
+		}
 	}
-	
-	if creds != nil && !creds.IsTokenExpired() {
-		return true, "OAuth", nil
-	}
-	
-	return false, "", nil
+
+	// No valid credentials found
+	return false, "none", nil
 }
 
 // RefreshAccessToken refreshes an expired access token

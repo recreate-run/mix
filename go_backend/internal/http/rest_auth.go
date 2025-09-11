@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"mix/internal/app"
 	"mix/internal/config"
@@ -314,6 +315,101 @@ var supportedProviders = map[string]struct{}{
 	"anthropic":  {},
 	"openai":     {},
 	"openrouter": {},
+}
+
+// HandleOAuthCallback handles POST /api/auth/oauth/callback
+func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "POST" {
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		return
+	}
+
+	// Parse the request body
+	var req struct {
+		Provider string `json:"provider"`
+		Code     string `json:"code"`
+		State    string `json:"state"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid JSON request", "INVALID_JSON")
+		return
+	}
+
+	// Validate request
+	if req.Provider == "" {
+		WriteErrorResponse(w, http.StatusBadRequest, "Provider is required", "MISSING_PROVIDER")
+		return
+	}
+
+	if req.Code == "" {
+		WriteErrorResponse(w, http.StatusBadRequest, "Authorization code is required", "MISSING_CODE")
+		return
+	}
+
+	// Currently only Anthropic supports OAuth
+	if req.Provider != "anthropic" {
+		WriteErrorResponse(w, http.StatusBadRequest, "OAuth not supported for this provider", "OAUTH_NOT_SUPPORTED")
+		return
+	}
+
+	// Get the stored OAuth flow
+	oauthFlow := llmprovider.GetOAuthFlow(req.State)
+	if oauthFlow == nil {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or expired OAuth state", "INVALID_STATE")
+		return
+	}
+
+	// Format the code with state as expected by the ExchangeCodeForTokens method
+	authCode := fmt.Sprintf("%s#%s", req.Code, req.State)
+
+	// Exchange code for tokens
+	credentials, err := oauthFlow.ExchangeCodeForTokens(authCode)
+	if err != nil {
+		logging.Error("Failed to exchange authorization code for tokens", "error", err)
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to exchange authorization code for tokens", "OAUTH_ERROR")
+		return
+	}
+
+	// Initialize credential storage
+	storage, err := llmprovider.NewCredentialStorage()
+	if err != nil {
+		logging.Error("Failed to initialize credential storage", "error", err)
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to initialize credential storage", "STORAGE_ERROR")
+		return
+	}
+
+	// Store the credentials
+	err = storage.StoreOAuthCredentials(
+		"anthropic",
+		credentials.AccessToken,
+		credentials.RefreshToken,
+		credentials.ExpiresAt,
+		credentials.ClientID,
+	)
+	if err != nil {
+		logging.Error("Failed to store OAuth credentials", "error", err)
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to store OAuth credentials", "STORAGE_ERROR")
+		return
+	}
+
+	// Clean up the OAuth flow
+	llmprovider.CleanupOAuthFlow(req.State)
+
+	// Return success response
+	response := map[string]interface{}{
+		"status":     "success",
+		"provider":   req.Provider,
+		"message":    "OAuth authentication successful",
+		"expires_in": int64(credentials.ExpiresAt - time.Now().Unix()),
+	}
+
+	WriteJSONResponse(w, http.StatusOK, response)
 }
 
 // checkAllAuthenticationStatus checks authentication status for supported providers only

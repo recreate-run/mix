@@ -14,7 +14,6 @@ import (
 	"mix/internal/db"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
-	llmprovider "mix/internal/llm/provider"
 )
 
 // APICredentialsService handles encrypted API key storage and retrieval
@@ -223,72 +222,3 @@ func GenerateEncryptionKey() ([]byte, error) {
 	return key, nil
 }
 
-// IsAuthenticated checks if a provider has valid credentials in the database.
-// It returns:
-// - isAuthenticated: true if valid credentials exist
-// - authMethod: "api_key", "oauth", or "none"
-// - error: any error encountered during credential checking
-//
-// If provider is empty, it will try to use the user's preferred provider from database.
-func (acs *APICredentialsService) IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, string, error) {
-	// If provider is empty, try to get the user's preferred provider
-	if provider == "" {
-		// Get preferred provider from user preferences
-		// Since we can't import config package (to avoid circular dependency),
-		// we'll have to check if there are any API keys available
-		providers, err := acs.ListCredentials(ctx)
-		if err == nil && len(providers) > 0 {
-			// Use the first available provider as a fallback
-			provider = providers[0]
-			logging.Info("Using first available provider from credentials", "provider", provider)
-		} else {
-			// Default to Anthropic if no providers found
-			provider = models.ProviderAnthropic
-			logging.Info("No provider specified and none found in database, defaulting to Anthropic")
-		}
-	}
-
-	// Check if the provider is supported
-	if _, exists := supportedProviders[provider]; !exists {
-		return false, "none", fmt.Errorf("provider %s not supported", provider)
-	}
-
-	// First check for API key in database
-	hasAPIKey, err := acs.HasAPIKey(ctx, provider)
-	if err != nil {
-		return false, "none", fmt.Errorf("failed to check API credential: %w", err)
-	}
-	if hasAPIKey {
-		return true, "api_key", nil
-	}
-
-	// Check for OAuth credentials for supported providers
-	if provider == models.ProviderAnthropic || provider == models.ProviderOpenAI {
-		// Try to initialize credential storage
-		storage, err := llmprovider.NewCredentialStorage()
-		if err != nil {
-			logging.Warn("Failed to initialize credential storage", "error", err)
-			return false, "none", nil
-		}
-
-		// Different handling based on provider
-		switch provider {
-		case models.ProviderAnthropic:
-			// Check for valid Anthropic OAuth credentials
-			creds, err := storage.GetOAuthCredentials("anthropic")
-			if err == nil && creds != nil && !creds.IsTokenExpired() {
-				return true, "oauth", nil
-			}
-
-		case models.ProviderOpenAI:
-			// Check for valid OpenAI OAuth credentials
-			creds, err := storage.GetOpenAICredentials("openai")
-			if err == nil && creds != nil && !creds.IsTokenExpired() {
-				return true, "oauth", nil
-			}
-		}
-	}
-
-	// No valid credentials found
-	return false, "none", nil
-}
