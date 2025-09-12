@@ -287,6 +287,12 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 		)
 		// If there is an error we are going to see if we can retry the call
 		if err != nil {
+			// Check for quota exceeded errors
+			if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+				logging.Error("OpenAI API quota exceeded", "error", err, "errorMessage", err.Error())
+				return nil, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
+			}
+			
 			// Check for 401 and try OAuth token refresh
 			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
@@ -424,6 +430,14 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 				return
 			}
 
+			// Check for quota exceeded errors
+			if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+				logging.Error("OpenAI API quota exceeded in streaming request", "error", err, "errorMessage", err.Error())
+				eventChan <- ProviderEvent{Type: EventError, Error: fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)}
+				close(eventChan)
+				return
+			}
+
 			// Check for 401 and try OAuth token refresh
 			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
@@ -474,6 +488,12 @@ func (o *openaiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 	var apierr *openai.Error
 	if !errors.As(err, &apierr) {
 		return false, 0, err
+	}
+
+	// Check for quota exceeded specifically
+	if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+		logging.Error("OpenAI API quota exceeded, cannot retry", "error", err, "statusCode", apierr.StatusCode)
+		return false, 0, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
 	}
 
 	if apierr.StatusCode != 429 && apierr.StatusCode != 500 {
