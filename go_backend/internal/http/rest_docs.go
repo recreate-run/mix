@@ -729,44 +729,70 @@ func getOpenAPISpec() OpenAPISpec {
 						"200": createSuccessResponse("object", map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
-								"preferred_provider": map[string]interface{}{
-									"type":        "string",
-									"description": "Preferred AI provider (anthropic, openai, openrouter)",
+								"preferences": map[string]interface{}{
+									"type": "object",
+									"description": "User preferences (null if no preferences exist)",
+									"nullable": true,
+									"properties": map[string]interface{}{
+										"preferred_provider": map[string]interface{}{
+											"type":        "string",
+											"description": "Preferred AI provider (anthropic, openai, openrouter)",
+										},
+										"main_agent_model": map[string]interface{}{
+											"type":        "string",
+											"description": "Main agent model ID",
+										},
+										"main_agent_max_tokens": map[string]interface{}{
+											"type":        "integer",
+											"description": "Maximum tokens for main agent responses",
+										},
+										"main_agent_reasoning_effort": map[string]interface{}{
+											"type":        "string",
+											"description": "Reasoning effort setting for main agent",
+										},
+										"sub_agent_model": map[string]interface{}{
+											"type":        "string",
+											"description": "Sub agent model ID",
+										},
+										"sub_agent_max_tokens": map[string]interface{}{
+											"type":        "integer",
+											"description": "Maximum tokens for sub agent responses",
+										},
+										"sub_agent_reasoning_effort": map[string]interface{}{
+											"type":        "string",
+											"description": "Reasoning effort setting for sub agent",
+										},
+										"created_at": map[string]interface{}{
+											"type":        "integer",
+											"description": "Unix timestamp when preferences were created",
+										},
+										"updated_at": map[string]interface{}{
+											"type":        "integer",
+											"description": "Unix timestamp of last update",
+										},
+									},
 								},
-								"main_agent_model": map[string]interface{}{
-									"type":        "string",
-									"description": "Main agent model ID",
-								},
-								"main_agent_max_tokens": map[string]interface{}{
-									"type":        "integer",
-									"description": "Maximum tokens for main agent responses",
-								},
-								"main_agent_reasoning_effort": map[string]interface{}{
-									"type":        "string",
-									"description": "Reasoning effort setting for main agent",
-								},
-								"sub_agent_model": map[string]interface{}{
-									"type":        "string",
-									"description": "Sub agent model ID",
-								},
-								"sub_agent_max_tokens": map[string]interface{}{
-									"type":        "integer",
-									"description": "Maximum tokens for sub agent responses",
-								},
-								"sub_agent_reasoning_effort": map[string]interface{}{
-									"type":        "string",
-									"description": "Reasoning effort setting for sub agent",
-								},
-								"created_at": map[string]interface{}{
-									"type":        "integer",
-									"description": "Unix timestamp when preferences were created",
-								},
-								"updated_at": map[string]interface{}{
-									"type":        "integer",
-									"description": "Unix timestamp of last update",
+								"available_providers": map[string]interface{}{
+									"type": "object",
+									"description": "Map of available AI providers and their models",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"display_name": map[string]interface{}{
+												"type":        "string",
+												"description": "User-friendly provider name",
+											},
+											"models": map[string]interface{}{
+												"type":        "array",
+												"items":       map[string]interface{}{"type": "string"},
+												"description": "Available models from this provider",
+											},
+										},
+									},
 								},
 							},
-						}, "User preferences"),
+							"required": []string{"available_providers"},
+						}, "User preferences and available providers"),
 						"500": createErrorResponse("Internal server error"),
 					},
 				},

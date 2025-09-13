@@ -4,13 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"os"
 
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
 	"mix/internal/llm/models"
-	llmprovider "mix/internal/llm/provider"
 	"mix/internal/logging"
 )
 
@@ -52,36 +50,36 @@ func NewPreferencesHandler(app *app.App) *PreferencesHandler {
 
 // HandleGetPreferences handles GET /api/preferences
 func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http.Request) {
-	// First check if user has any authentication configured
-	authStatus := h.checkAuthenticationStatus()
+	// Get request context
+	ctx := r.Context()
 
-	if !authStatus.HasAnyAuth {
-		// No auth configured, return setup flow
-		response := map[string]interface{}{
-			"setup_required":      true,
-			"auth_status":         authStatus,
-			"available_providers": h.getAvailableProvidersForSetup(),
-			"message":             "No authentication configured. Please select a provider and complete OAuth flow.",
-		}
-		WriteJSONResponse(w, http.StatusOK, response)
-		return
-	}
-
-	// User has auth, check if preferences exist in database
+	// Get user preferences service
 	userPrefs := config.GetUserPreferences()
 	if userPrefs == nil {
 		WriteErrorResponse(w, http.StatusInternalServerError, "user preferences service not available", "PREFERENCES_SERVICE_UNAVAILABLE")
 		return
 	}
 
-	ctx := r.Context()
-	prefs, err := userPrefs.GetOrCreateUserPreferences(ctx)
+	// Only get preferences - don't create them if they don't exist
+	prefs, err := userPrefs.GetUserPreferences(ctx)
 	if err != nil {
+		// If preferences don't exist, return an empty response with available providers
+		if err == sql.ErrNoRows {
+			logging.Info("No user preferences found, returning empty preferences")
+			WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
+				"preferences":         nil,
+				"available_providers": models.GetProviders(),
+			})
+			return
+		}
+
+		// For any other error, log it and return an error response
 		logging.Error("Failed to get user preferences", "error", err)
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to get preferences", "DATABASE_ERROR")
 		return
 	}
 
+	// Convert database model to response model
 	response := UserPreferencesResponse{
 		PreferredProvider:        getStringValue(prefs.PreferredProvider),
 		MainAgentModel:           getStringValue(prefs.MainAgentModel),
@@ -94,7 +92,13 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 		UpdatedAt:                prefs.UpdatedAt,
 	}
 
-	WriteJSONResponse(w, http.StatusOK, response)
+	// Include additional information about available providers
+	responseWithProviders := map[string]interface{}{
+		"preferences":         response,
+		"available_providers": models.GetProviders(),
+	}
+
+	WriteJSONResponse(w, http.StatusOK, responseWithProviders)
 }
 
 // HandleUpdatePreferences handles POST /api/preferences
@@ -113,12 +117,24 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 
 	ctx := r.Context()
 
-	// Get current preferences
-	currentPrefs, err := userPrefs.GetOrCreateUserPreferences(ctx)
+	// Try to get existing preferences
+	currentPrefs, err := userPrefs.GetUserPreferences(ctx)
 	if err != nil {
-		logging.Error("Failed to get current user preferences", "error", err)
-		WriteErrorResponse(w, http.StatusInternalServerError, "failed to get current preferences", "DATABASE_ERROR")
-		return
+		// If preferences don't exist, create default ones
+		if err == sql.ErrNoRows {
+			logging.Info("No user preferences found, creating defaults")
+			currentPrefs, err = userPrefs.CreateDefaultUserPreferences(ctx)
+			if err != nil {
+				logging.Error("Failed to create default user preferences", "error", err)
+				WriteErrorResponse(w, http.StatusInternalServerError, "failed to create default preferences", "DATABASE_ERROR")
+				return
+			}
+		} else {
+			// For any other error, log it and return an error response
+			logging.Error("Failed to get current user preferences", "error", err)
+			WriteErrorResponse(w, http.StatusInternalServerError, "failed to get current preferences", "DATABASE_ERROR")
+			return
+		}
 	}
 
 	// Build update parameters using current values as defaults
@@ -201,7 +217,7 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 			return
 		}
 	}
-	
+
 	if request.SubAgentModel != nil {
 		modelID := models.ModelID(*request.SubAgentModel)
 		maxTokens := int64(2048) // default
@@ -219,7 +235,7 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 			return
 		}
 	}
-	
+
 	if request.PreferredProvider != nil {
 		err = userPrefs.UpdatePreferredProvider(ctx, models.ModelProvider(*request.PreferredProvider))
 		if err != nil {
@@ -228,7 +244,7 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 			return
 		}
 	}
-	
+
 	// Get updated preferences to return
 	updatedPrefs, err := userPrefs.GetOrCreateUserPreferences(ctx)
 	if err != nil {
@@ -290,7 +306,7 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to reset main agent", "DATABASE_ERROR")
 		return
 	}
-	
+
 	// Reset sub agent to defaults
 	err = userPrefs.UpdateSubAgentPreferences(ctx, "claude-4-sonnet", 2048, "")
 	if err != nil {
@@ -298,7 +314,7 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to reset sub agent", "DATABASE_ERROR")
 		return
 	}
-	
+
 	// Reset preferred provider to defaults
 	err = userPrefs.UpdatePreferredProvider(ctx, models.ProviderAnthropic)
 	if err != nil {
@@ -306,7 +322,7 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to reset provider", "DATABASE_ERROR")
 		return
 	}
-	
+
 	// Get reset preferences
 	resetPrefs, err := userPrefs.GetOrCreateUserPreferences(ctx)
 	if err != nil {
@@ -357,137 +373,18 @@ type ProviderStatus struct {
 	DisplayName   string `json:"display_name"`
 }
 
-// checkAuthenticationStatus checks what auth methods are available
-func (h *PreferencesHandler) checkAuthenticationStatus() AuthStatus {
-	status := AuthStatus{
-		HasAnyAuth: false,
-		Providers:  make(map[string]ProviderStatus),
-	}
-
-	// Check environment variables for API keys (Anthropic uses OAuth only)
-	openaiKey := os.Getenv("OPENAI_API_KEY")
-	geminiKey := os.Getenv("GEMINI_API_KEY")
-	groqKey := os.Getenv("GROQ_API_KEY")
-	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
-
-	// Check OAuth credentials for both Anthropic and OpenAI
-	anthropicOAuth := h.checkOAuthCredentials("anthropic")
-	openaiOAuth := h.checkOAuthCredentials("openai")
-
-	status.Providers["anthropic"] = ProviderStatus{
-		Authenticated: anthropicOAuth, // Anthropic: OAuth only
-		AuthMethod:    getAuthMethod(false, anthropicOAuth),
-		DisplayName:   "Anthropic (Claude)",
-	}
-
-	status.Providers["openai"] = ProviderStatus{
-		Authenticated: openaiKey != "" || openaiOAuth, // OpenAI: API key OR OAuth
-		AuthMethod:    getAuthMethod(openaiKey != "", openaiOAuth),
-		DisplayName:   "OpenAI (GPT)",
-	}
-
-	status.Providers["gemini"] = ProviderStatus{
-		Authenticated: geminiKey != "",
-		AuthMethod:    getAuthMethod(geminiKey != "", false),
-		DisplayName:   "Google Gemini",
-	}
-
-	status.Providers["groq"] = ProviderStatus{
-		Authenticated: groqKey != "",
-		AuthMethod:    getAuthMethod(groqKey != "", false),
-		DisplayName:   "GROQ",
-	}
-
-	status.Providers["openrouter"] = ProviderStatus{
-		Authenticated: openrouterKey != "",
-		AuthMethod:    getAuthMethod(openrouterKey != "", false),
-		DisplayName:   "OpenRouter",
-	}
-
-	// Check if any provider is authenticated
-	for _, provider := range status.Providers {
-		if provider.Authenticated {
-			status.HasAnyAuth = true
-			break
-		}
-	}
-
-	return status
-}
-
-// getAvailableProvidersForSetup returns providers available for initial setup
-func (h *PreferencesHandler) getAvailableProvidersForSetup() map[string]interface{} {
-	return map[string]interface{}{
-		"anthropic": map[string]interface{}{
-			"display_name":   "Anthropic (Claude)",
-			"auth_method":    "oauth",
-			"supports_oauth": true,
-			"models":         []string{"claude-4-sonnet", "claude-3.5-sonnet", "claude-3-haiku"},
-		},
-		"openai": map[string]interface{}{
-			"display_name":   "OpenAI (GPT)", 
-			"auth_method":    "api_key",
-			"supports_oauth": false,
-			"models":         []string{"gpt-4o", "gpt-4-turbo", "o1-preview"},
-		},
-		"gemini": map[string]interface{}{
-			"display_name":   "Google Gemini",
-			"auth_method":    "api_key",
-			"supports_oauth": false,
-			"models":         []string{"gemini-2.5-flash", "gemini-2.5-pro"},
-		},
-		"groq": map[string]interface{}{
-			"display_name":   "GROQ",
-			"auth_method":    "api_key",
-			"supports_oauth": false,
-			"models":         []string{"llama-3.3-70b", "qwen-qwq-32b"},
-		},
-		"openrouter": map[string]interface{}{
-			"display_name":   "OpenRouter",
-			"auth_method":    "api_key",
-			"supports_oauth": false,
-			"models":         []string{"claude-3.5-sonnet", "gpt-4o", "gemini-2.5-flash"},
-		},
-	}
-}
-
-// checkOAuthCredentials checks if OAuth credentials exist for a provider  
+// DEPRECATED: checkOAuthCredentials is replaced by functionality in AuthHandler
+// This method is kept for reference and will be removed in a future update.
 func (h *PreferencesHandler) checkOAuthCredentials(provider string) bool {
-	// Check both Anthropic and OpenAI OAuth for now since both are working
-	if provider != "anthropic" && provider != "openai" {
-		return false
-	}
-	
-	// Use the same credential storage system as the auth command
-	storage, err := llmprovider.NewCredentialStorage()
-	if err != nil {
-		logging.Warn("Failed to initialize credential storage", "error", err)
-		return false
-	}
-	
-	switch provider {
-	case "anthropic":
-		// Check for Anthropic OAuth credentials
-		creds, err := storage.GetOAuthCredentials("anthropic")
-		if err != nil {
-			return false
-		}
-		return creds != nil && !creds.IsTokenExpired()
-		
-	case "openai":
-		// Check for OpenAI OAuth credentials  
-		creds, err := storage.GetOpenAICredentials("openai")
-		if err != nil {
-			return false
-		}
-		return creds != nil && !creds.IsTokenExpired()
-		
-	default:
-		return false
-	}
+	// Create a temporary AuthHandler to use its OAuth checking function
+	authHandler := NewAuthHandler(h.app)
+
+	// Return the result from the proper implementation
+	return authHandler.checkOAuthCredentials(provider)
 }
 
-// Helper function for auth method determination
+// DEPRECATED: getAuthMethod is replaced by functionality in AuthHandler
+// This method is kept for reference and will be removed in a future update.
 func getAuthMethod(hasAPIKey, hasOAuth bool) string {
 	if hasOAuth {
 		return "oauth"

@@ -36,32 +36,49 @@ func NewUserPreferencesService(database *sql.DB) *UserPreferencesService {
 	}
 }
 
-// GetOrCreateUserPreferences gets user preferences from database or creates default ones
-func (ups *UserPreferencesService) GetOrCreateUserPreferences(ctx context.Context) (*db.UserPreference, error) {
+// GetUserPreferences gets user preferences from database without creating them
+func (ups *UserPreferencesService) GetUserPreferences(ctx context.Context) (*db.UserPreference, error) {
 	// Try to get existing preferences
 	prefs, err := ups.queries.GetUserPreferences(ctx)
 	if err == nil {
 		return &prefs, nil
 	}
 	
+	// Return error as is - including sql.ErrNoRows if preferences don't exist
+	return nil, err
+}
+
+// CreateDefaultUserPreferences creates default user preferences
+func (ups *UserPreferencesService) CreateDefaultUserPreferences(ctx context.Context) (*db.UserPreference, error) {
+	logging.Info("Creating default user preferences")
+	defaultPrefs := db.CreateUserPreferencesParams{
+		PreferredProvider:       sql.NullString{String: "anthropic", Valid: true},
+		MainAgentModel:          sql.NullString{String: "claude-4-sonnet", Valid: true},
+		MainAgentMaxTokens:      sql.NullInt64{Int64: 4096, Valid: true},
+		MainAgentReasoningEffort: sql.NullString{String: "", Valid: false},
+		SubAgentModel:           sql.NullString{String: "claude-4-sonnet", Valid: true},
+		SubAgentMaxTokens:       sql.NullInt64{Int64: 2048, Valid: true},
+		SubAgentReasoningEffort: sql.NullString{String: "", Valid: false},
+	}
+	
+	createdPrefs, err := ups.queries.CreateUserPreferences(ctx, defaultPrefs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create default user preferences: %w", err)
+	}
+	return &createdPrefs, nil
+}
+
+// GetOrCreateUserPreferences gets user preferences from database or creates default ones
+func (ups *UserPreferencesService) GetOrCreateUserPreferences(ctx context.Context) (*db.UserPreference, error) {
+	// Try to get existing preferences
+	prefs, err := ups.GetUserPreferences(ctx)
+	if err == nil {
+		return prefs, nil
+	}
+	
 	// If not found, create default preferences
 	if err == sql.ErrNoRows {
-		logging.Info("Creating default user preferences")
-		defaultPrefs := db.CreateUserPreferencesParams{
-			PreferredProvider:       sql.NullString{String: "anthropic", Valid: true},
-			MainAgentModel:          sql.NullString{String: "claude-4-sonnet", Valid: true},
-			MainAgentMaxTokens:      sql.NullInt64{Int64: 4096, Valid: true},
-			MainAgentReasoningEffort: sql.NullString{String: "", Valid: false},
-			SubAgentModel:           sql.NullString{String: "claude-4-sonnet", Valid: true},
-			SubAgentMaxTokens:       sql.NullInt64{Int64: 2048, Valid: true},
-			SubAgentReasoningEffort: sql.NullString{String: "", Valid: false},
-		}
-		
-		createdPrefs, createErr := ups.queries.CreateUserPreferences(ctx, defaultPrefs)
-		if createErr != nil {
-			return nil, fmt.Errorf("failed to create default user preferences: %w", createErr)
-		}
-		return &createdPrefs, nil
+		return ups.CreateDefaultUserPreferences(ctx)
 	}
 	
 	return nil, fmt.Errorf("failed to get user preferences: %w", err)
@@ -111,9 +128,18 @@ func (ups *UserPreferencesService) UpdatePreferredProvider(ctx context.Context, 
 
 // GetAgentConfig converts database preferences to Agent config format
 func (ups *UserPreferencesService) GetAgentConfig(ctx context.Context, agentName AgentName) (Agent, error) {
-	prefs, err := ups.GetOrCreateUserPreferences(ctx)
+	// Try to get existing preferences
+	prefs, err := ups.GetUserPreferences(ctx)
 	if err != nil {
-		return Agent{}, err
+		// If preferences don't exist, create default ones
+		if err == sql.ErrNoRows {
+			prefs, err = ups.CreateDefaultUserPreferences(ctx)
+			if err != nil {
+				return Agent{}, fmt.Errorf("failed to create default user preferences: %w", err)
+			}
+		} else {
+			return Agent{}, err
+		}
 	}
 	
 	switch agentName {
@@ -136,9 +162,18 @@ func (ups *UserPreferencesService) GetAgentConfig(ctx context.Context, agentName
 
 // GetPreferredProvider gets the user's preferred provider from database
 func (ups *UserPreferencesService) GetPreferredProvider(ctx context.Context) (models.ModelProvider, error) {
-	prefs, err := ups.GetOrCreateUserPreferences(ctx)
+	// Try to get existing preferences
+	prefs, err := ups.GetUserPreferences(ctx)
 	if err != nil {
-		return "", err
+		// If preferences don't exist, create default ones
+		if err == sql.ErrNoRows {
+			prefs, err = ups.CreateDefaultUserPreferences(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to create default user preferences: %w", err)
+			}
+		} else {
+			return "", err
+		}
 	}
 	
 	if !prefs.PreferredProvider.Valid || prefs.PreferredProvider.String == "" {
