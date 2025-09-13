@@ -488,6 +488,236 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/auth/api-key": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "storeApiKey",
+					"summary":     "Store API key",
+					"description": "Store API key for direct authentication with a specific provider",
+					"tags":        []string{"Authentication"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"provider", "api_key"},
+						"properties": map[string]interface{}{
+							"provider": map[string]interface{}{
+								"type":        "string",
+								"description": "Provider name (anthropic, openai, openrouter)",
+								"enum":        []string{"anthropic", "openai", "openrouter"},
+							},
+							"api_key": map[string]interface{}{
+								"type":        "string",
+								"description": "API key for authentication",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status (success)",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Success message",
+								},
+							},
+						}, "API key stored status"),
+						"400": createErrorResponse("Invalid request data or API key format"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/status": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getAuthStatus",
+					"summary":     "Get authentication status",
+					"description": "Get authentication status for all supported providers",
+					"tags":        []string{"Authentication"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"providers": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"authenticated": map[string]interface{}{
+												"type":        "boolean",
+												"description": "Whether provider is authenticated",
+											},
+											"auth_method": map[string]interface{}{
+												"type":        "string",
+												"description": "Authentication method (oauth, api_key, none)",
+												"enum":        []string{"oauth", "api_key", "none"},
+											},
+											"display_name": map[string]interface{}{
+												"type":        "string",
+												"description": "User-friendly provider name",
+											},
+										},
+									},
+									"description": "Map of provider authentication status",
+								},
+							},
+						}, "Authentication status for all providers"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/validate": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "validatePreferredProvider",
+					"summary":     "Validate preferred provider",
+					"description": "Check if the user's preferred provider is authenticated",
+					"tags":        []string{"Authentication"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"valid": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Whether preferred provider is authenticated",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Preferred provider name",
+								},
+								"auth_method": map[string]interface{}{
+									"type":        "string",
+									"description": "Authentication method used",
+									"enum":        []string{"oauth", "api_key", "none"},
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+								},
+							},
+						}, "Preferred provider validation status"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/oauth/{provider}": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "startOAuthFlow",
+					"summary":     "Start OAuth authentication",
+					"description": "Initiate OAuth authentication flow for a specific provider",
+					"tags":        []string{"Authentication"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("provider", "Provider name (currently only 'anthropic')"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"auth_url": map[string]interface{}{
+									"type":        "string",
+									"description": "OAuth authorization URL to redirect to",
+								},
+								"state": map[string]interface{}{
+									"type":        "string",
+									"description": "OAuth state token for verification",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Instructions for completing OAuth flow",
+								},
+							},
+						}, "OAuth authorization information"),
+						"400": createErrorResponse("Invalid provider or OAuth not supported"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/oauth-callback": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "handleOAuthCallback",
+					"summary":     "Handle OAuth callback",
+					"description": "Process OAuth callback and exchange code for access token",
+					"tags":        []string{"Authentication"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"provider", "code", "state"},
+						"properties": map[string]interface{}{
+							"provider": map[string]interface{}{
+								"type":        "string",
+								"description": "Provider name (anthropic)",
+							},
+							"code": map[string]interface{}{
+								"type":        "string",
+								"description": "Authorization code from OAuth provider",
+							},
+							"state": map[string]interface{}{
+								"type":        "string",
+								"description": "OAuth state for verification",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+								},
+								"expires_in": map[string]interface{}{
+									"type":        "integer",
+									"description": "Seconds until token expiration",
+								},
+							},
+						}, "OAuth completion status"),
+						"400": createErrorResponse("Invalid request parameters"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/{provider}": map[string]interface{}{
+				"delete": map[string]interface{}{
+					"operationId":  "deleteCredentials",
+					"summary":     "Delete provider credentials",
+					"description": "Delete stored API key and/or OAuth credentials for a provider",
+					"tags":        []string{"Authentication"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("provider", "Provider name (anthropic, openai, openrouter)"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+								},
+							},
+						}, "Credentials deletion status"),
+						"400": createErrorResponse("Invalid provider"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "healthCheck",
