@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+// Import shell to open URLs since opener plugin isn't properly exposed
+import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { AlertCircle, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +26,7 @@ interface LoginState {
   selectedProvider?: string;
   step: "provider_select" | "auth_method" | "api_key" | "oauth_flow" | "oauth_code";
   authUrl?: string;
+  state?: string; // Add state parameter for OAuth flow
   hasExistingPreferences?: boolean;
 }
 
@@ -39,6 +42,10 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
   const [authCode, setAuthCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<LoginState["step"]>(loginState.step);
+  const [oauthState, setOauthState] = useState<string>(""); // Store OAuth state
+  
+  // No automatic browser window opening on component mount
+  // This will only happen when the user explicitly clicks the OAuth button
   
   // Handle provider selection
   const handleProviderSelect = (provider: string) => {
@@ -83,8 +90,29 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
       const result = await startOAuthFlow(selectedProvider);
       
       if (result.login?.authUrl) {
-        // Don't try to open window automatically - let user click button instead
-        // This avoids popup blockers
+        // Store the state parameter from the OAuth flow initiation
+        if (result.login.state) {
+          setOauthState(result.login.state);
+          console.log("Stored OAuth state:", result.login.state);
+        }
+        
+        // Automatically open the browser window when OAuth flow is started
+        // Using Tauri's opener plugin instead of window.open for desktop apps
+        try {
+          // Use Tauri shell plugin to open URLs
+          await shellOpen(result.login.authUrl);
+          console.log("Browser window opened with Tauri shell plugin");
+        } catch (error) {
+          console.warn("Failed to open with Tauri shell, falling back to window.open:", error);
+          // Fallback to window.open
+          try {
+            window.open(result.login.authUrl, "_blank");
+          } catch (windowError) {
+            console.error("Both opener methods failed:", windowError);
+          }
+        }
+        
+        // Update UI step
         setStep("oauth_code");
       } else {
         onUpdate(result);
@@ -100,8 +128,24 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
     
     setIsLoading(true);
     try {
-      const result = await handleOAuthCallback(selectedProvider, authCode);
+      // Clean up the authorization code - remove any trailing whitespace
+      let cleanCode = authCode.trim();
+      
+      // Extract just the code part if it contains a hash - the backend will handle this properly
+      // Don't try to parse the code here - send it as is to the backend
+      
+      console.log("Submitting OAuth code with state:", oauthState);
+      
+      // Pass the stored state parameter to the callback handler
+      const result = await handleOAuthCallback(selectedProvider, cleanCode, oauthState);
       onUpdate(result);
+    } catch (error) {
+      console.error("OAuth callback error:", error);
+      onUpdate({
+        content: `❌ Authentication failed: ${error instanceof Error ? error.message : "Unknown error. If this is an OAuth issue, try using an API key instead."}`,
+        from: "assistant",
+        frontend_only: true
+      });
     } finally {
       setIsLoading(false);
     }
@@ -223,7 +267,7 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
     const provider = loginState.providers.find(p => p.id === selectedProvider);
     if (!provider) return null;
     
-    // Check if there's an auth URL in the login state that wasn't opened automatically
+    // Check if there's an auth URL in the login state
     const authUrl = loginState.authUrl;
     
     return (
@@ -316,9 +360,16 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
           {/* Authentication URL section */}
           {authUrl && (
             <div className="p-3 bg-amber-50 dark:bg-amber-900 border border-amber-200 dark:border-amber-800 rounded-md mb-4">
-              <p className="text-sm mb-2"><strong>Step 1:</strong> Click the button below to open the authorization page:</p>
+              <p className="text-sm mb-2"><strong>Browser window should have opened automatically.</strong> If not, click the button below:</p>
               <Button
-                onClick={() => window.open(authUrl, "_blank")}
+                onClick={async () => {
+                  try {
+                    await shellOpen(authUrl);
+                  } catch (error) {
+                    console.warn("Shell plugin failed, falling back to window.open", error);
+                    window.open(authUrl, "_blank");
+                  }
+                }}
                 className="w-full mb-2"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />

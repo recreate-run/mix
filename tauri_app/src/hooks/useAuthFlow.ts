@@ -12,6 +12,8 @@ interface UseAuthFlowReturn {
 	setAuthMode: (mode: AuthMode) => void;
 	isLoading: boolean;
 	showSuccess: boolean;
+	oauthState: string;
+	setOauthState: (state: string) => void;
 	handleSubmit: () => Promise<void>;
 }
 
@@ -21,9 +23,10 @@ export function useAuthFlow(): UseAuthFlowReturn {
 	const [authMode, setAuthMode] = useState<AuthMode>("code");
 	const [isLoading, setIsLoading] = useState(false);
 	const [showSuccess, setShowSuccess] = useState(false);
+	const [oauthState, setOauthState] = useState(""); // Add state parameter for OAuth
 
 	const handleSubmit = async () => {
-		const input = authMode === "code" ? authCode.trim() : apiKey.trim();
+		let input = authMode === "code" ? authCode.trim() : apiKey.trim();
 		if (!input) return;
 
 		setIsLoading(true);
@@ -31,10 +34,27 @@ export function useAuthFlow(): UseAuthFlowReturn {
 			let result;
 			
 			if (authMode === "code") {
+				// Check if it looks like an API key first
 				if (input.startsWith("sk-ant-")) {
 					result = await mix.auth.setApiKey({ apiKey: input });
 				} else {
-					result = await mix.authentication.login();
+					// Handle OAuth code with # character - we just need to handle it properly here
+					console.log("Processing OAuth code, length:", input.length, "state:", oauthState);
+					
+					try {
+						// Try to handle the OAuth callback with the stored state
+						result = await mix.authentication.handleOAuthCallback({
+							provider: "anthropic", // Default to anthropic for OAuth
+							code: input,
+							state: oauthState
+						});
+						setShowSuccess(true);
+						return; // Exit early on success
+					} catch (oauthError) {
+						console.error("OAuth callback failed:", oauthError);
+						// Fall back to regular login if OAuth fails
+						result = await mix.authentication.login();
+					}
 				}
 			} else {
 				result = await mix.auth.setApiKey({ apiKey: input });
@@ -84,6 +104,8 @@ export function useAuthFlow(): UseAuthFlowReturn {
 		setAuthMode,
 		isLoading,
 		showSuccess,
+		oauthState,
+		setOauthState,
 		handleSubmit,
 	};
 }

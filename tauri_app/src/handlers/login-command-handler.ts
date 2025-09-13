@@ -57,7 +57,9 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     
     // Determine the preferred provider from preferences if it exists
     const preferredProvider = response.preferences?.preferredProvider;
-    const selectedProviderValue = provider || preferredProvider;
+    // Don't auto-select a provider initially - let the user choose
+    // We'll only use the provided provider if it's explicitly passed in
+    const selectedProviderValue = provider || "";
     
     // Return message with login UI elements and provider info
     return {
@@ -149,7 +151,7 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
       };
     }
     
-    // Return success with auth URL
+    // Return success with auth URL - browser will be opened by the handleStartOAuth function in login-ui.tsx
     return {
       content: `If the browser doesn't open automatically, you can click or copy this URL: ${result.authUrl}`,
       from: "assistant",
@@ -157,7 +159,8 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
       login: {
         step: "oauth_flow",
         authUrl: result.authUrl,
-        provider
+        provider,
+        state: result.state // Include the state parameter from the API response
       }
     };
   } catch (error) {
@@ -187,14 +190,15 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
  */
 export async function handleOAuthCallback(
   provider: string,
-  code: string
+  code: string,
+  state: string
 ): Promise<UIMessage> {
   try {
     // Handle OAuth callback using the SDK
     await mix.authentication.handleOAuthCallback({
       provider,
       code,
-      state: ""  // State may be required by the SDK
+      state  // Pass the state parameter received from the initial OAuth response
     });
     
     // Update preferences to use this provider as the preferred one
