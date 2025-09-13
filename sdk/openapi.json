@@ -989,48 +989,78 @@
               "application/json": {
                 "schema": {
                   "properties": {
-                    "created_at": {
-                      "description": "Unix timestamp when preferences were created",
-                      "type": "integer"
+                    "available_providers": {
+                      "additionalProperties": {
+                        "properties": {
+                          "display_name": {
+                            "description": "User-friendly provider name",
+                            "type": "string"
+                          },
+                          "models": {
+                            "description": "Available models from this provider",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "description": "Map of available AI providers and their models",
+                      "type": "object"
                     },
-                    "main_agent_max_tokens": {
-                      "description": "Maximum tokens for main agent responses",
-                      "type": "integer"
-                    },
-                    "main_agent_model": {
-                      "description": "Main agent model ID",
-                      "type": "string"
-                    },
-                    "main_agent_reasoning_effort": {
-                      "description": "Reasoning effort setting for main agent",
-                      "type": "string"
-                    },
-                    "preferred_provider": {
-                      "description": "Preferred AI provider (anthropic, openai, openrouter)",
-                      "type": "string"
-                    },
-                    "sub_agent_max_tokens": {
-                      "description": "Maximum tokens for sub agent responses",
-                      "type": "integer"
-                    },
-                    "sub_agent_model": {
-                      "description": "Sub agent model ID",
-                      "type": "string"
-                    },
-                    "sub_agent_reasoning_effort": {
-                      "description": "Reasoning effort setting for sub agent",
-                      "type": "string"
-                    },
-                    "updated_at": {
-                      "description": "Unix timestamp of last update",
-                      "type": "integer"
+                    "preferences": {
+                      "description": "User preferences (null if no preferences exist)",
+                      "nullable": true,
+                      "properties": {
+                        "created_at": {
+                          "description": "Unix timestamp when preferences were created",
+                          "type": "integer"
+                        },
+                        "main_agent_max_tokens": {
+                          "description": "Maximum tokens for main agent responses",
+                          "type": "integer"
+                        },
+                        "main_agent_model": {
+                          "description": "Main agent model ID",
+                          "type": "string"
+                        },
+                        "main_agent_reasoning_effort": {
+                          "description": "Reasoning effort setting for main agent",
+                          "type": "string"
+                        },
+                        "preferred_provider": {
+                          "description": "Preferred AI provider (anthropic, openai, openrouter)",
+                          "type": "string"
+                        },
+                        "sub_agent_max_tokens": {
+                          "description": "Maximum tokens for sub agent responses",
+                          "type": "integer"
+                        },
+                        "sub_agent_model": {
+                          "description": "Sub agent model ID",
+                          "type": "string"
+                        },
+                        "sub_agent_reasoning_effort": {
+                          "description": "Reasoning effort setting for sub agent",
+                          "type": "string"
+                        },
+                        "updated_at": {
+                          "description": "Unix timestamp of last update",
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
+                  "required": [
+                    "available_providers"
+                  ],
                   "type": "object"
                 }
               }
             },
-            "description": "User preferences"
+            "description": "User preferences and available providers"
           },
           "500": {
             "content": {

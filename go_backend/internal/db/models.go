@@ -9,6 +9,7 @@ import (
 )
 
 type ApiCredential struct {
+	UserID    int64  `json:"user_id"`
 	ID        string `json:"id"`
 	Provider  string `json:"provider"`
 	ApiKey    string `json:"api_key"`

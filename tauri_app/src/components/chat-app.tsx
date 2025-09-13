@@ -48,7 +48,9 @@ import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
-import { handleStatusCommand } from '@/utils/auth-utils';
+import { handleStatusCommand as oldHandleStatusCommand } from '@/utils/auth-utils';
+import { handleStatusCommand } from '@/handlers/status-command-handler';
+import { handleLoginCommand } from '@/handlers/login-command-handler';
 
 // Helper function to check if a message contains show_media tool call
 const hasMediaShowcaseTool = (toolCalls: ToolCall[]) => {
@@ -204,7 +206,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         },
       ]);
       
-      // Execute the status command handler
+      // Execute the enhanced status command handler with UI
       const statusResult = await handleStatusCommand();
       
       // Add response message returned by the handler
@@ -218,6 +220,39 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         ...prev,
         {
           content: `Failed to check authentication status: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+  
+  // Handle the login command with our SDK implementation
+  const handleLoginCommandSpecial = async () => {
+    try {
+      // Add user message to show that the command was executed
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: "/login",
+          from: "user",
+        },
+      ]);
+      
+      // Execute the login command handler
+      const loginResult = await handleLoginCommand();
+      
+      // Add response message returned by the handler
+      setMessages((prev) => [
+        ...prev,
+        loginResult
+      ]);
+    } catch (error) {
+      console.error('Login command failed:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to start login flow: ${error}`,
           from: "assistant",
           frontend_only: true,
         },
@@ -348,6 +383,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         if (command === 'status') {
           // Handle status command using our SDK implementation
           handleStatusCommandSpecial();
+          return;
+        }
+        
+        if (command === 'login') {
+          // Handle login command using our SDK implementation
+          handleLoginCommandSpecial();
           return;
         }
         
@@ -687,6 +728,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             messages={messages}
             onForkMessage={handleForkMessage}
             onPlanAction={handlePlanAction}
+            onUpdateMessage={(index, updatedMessage) => {
+              setMessages(prev => [
+                ...prev.slice(0, index),
+                updatedMessage,
+                ...prev.slice(index + 1)
+              ]);
+            }}
             workingDirectory={session?.workingDirectory}
             setUserMessageRef={setUserMessageRef}
             sseStream={sseStream}
