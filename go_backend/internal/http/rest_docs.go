@@ -718,6 +718,223 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/preferences": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getPreferences",
+					"summary":     "Get user preferences",
+					"description": "Retrieve current user preferences including model and provider settings",
+					"tags":        []string{"Preferences"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"preferred_provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Preferred AI provider (anthropic, openai, openrouter)",
+								},
+								"main_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Main agent model ID",
+								},
+								"main_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Maximum tokens for main agent responses",
+								},
+								"main_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reasoning effort setting for main agent",
+								},
+								"sub_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Sub agent model ID",
+								},
+								"sub_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Maximum tokens for sub agent responses",
+								},
+								"sub_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reasoning effort setting for sub agent",
+								},
+								"created_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Unix timestamp when preferences were created",
+								},
+								"updated_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Unix timestamp of last update",
+								},
+							},
+						}, "User preferences"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+				"post": map[string]interface{}{
+					"operationId":  "updatePreferences",
+					"summary":     "Update user preferences",
+					"description": "Update user preferences including model and provider settings",
+					"tags":        []string{"Preferences"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"preferred_provider": map[string]interface{}{
+								"type":        "string",
+								"description": "Preferred AI provider (anthropic, openai, openrouter)",
+							},
+							"main_agent_model": map[string]interface{}{
+								"type":        "string",
+								"description": "Main agent model ID",
+							},
+							"main_agent_max_tokens": map[string]interface{}{
+								"type":        "integer",
+								"description": "Maximum tokens for main agent responses",
+							},
+							"main_agent_reasoning_effort": map[string]interface{}{
+								"type":        "string",
+								"description": "Reasoning effort setting for main agent",
+							},
+							"sub_agent_model": map[string]interface{}{
+								"type":        "string",
+								"description": "Sub agent model ID",
+							},
+							"sub_agent_max_tokens": map[string]interface{}{
+								"type":        "integer",
+								"description": "Maximum tokens for sub agent responses",
+							},
+							"sub_agent_reasoning_effort": map[string]interface{}{
+								"type":        "string",
+								"description": "Reasoning effort setting for sub agent",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"preferred_provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Preferred AI provider",
+								},
+								"main_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Main agent model ID",
+								},
+								"main_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Maximum tokens for main agent",
+								},
+								"main_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reasoning effort for main agent",
+								},
+								"sub_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Sub agent model ID",
+								},
+								"sub_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Maximum tokens for sub agent",
+								},
+								"sub_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reasoning effort for sub agent",
+								},
+								"created_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Creation timestamp",
+								},
+								"updated_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Last update timestamp",
+								},
+							},
+						}, "Updated preferences"),
+						"400": createErrorResponse("Invalid request parameters"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/preferences/providers": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getAvailableProviders",
+					"summary":     "Get available providers",
+					"description": "Retrieve list of available AI providers and their supported models",
+					"tags":        []string{"Preferences"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"additionalProperties": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"display_name": map[string]interface{}{
+										"type":        "string",
+										"description": "Provider display name",
+									},
+									"models": map[string]interface{}{
+										"type":        "array",
+										"items":       map[string]interface{}{"type": "string"},
+										"description": "Available models for this provider",
+									},
+								},
+							},
+							"description": "Map of available providers and their models",
+						}, "Available providers"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/preferences/reset": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "resetPreferences",
+					"summary":     "Reset preferences",
+					"description": "Reset user preferences to default values",
+					"tags":        []string{"Preferences"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"preferred_provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset preferred provider",
+								},
+								"main_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset main agent model",
+								},
+								"main_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Reset main agent max tokens",
+								},
+								"main_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset main agent reasoning effort",
+								},
+								"sub_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset sub agent model",
+								},
+								"sub_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Reset sub agent max tokens",
+								},
+								"sub_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset sub agent reasoning effort",
+								},
+								"created_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Creation timestamp",
+								},
+								"updated_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Reset timestamp",
+								},
+							},
+						}, "Reset preferences"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "healthCheck",
