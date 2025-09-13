@@ -27,12 +27,22 @@ When you use your own API keys, Mix collects:
 - **Assistant responses** (truncated to 10,000 characters if longer)
 - **Session ID** (anonymous identifier)
 - **AI model used**
+- **Provider-specific metrics** (for OpenRouter):
+  - **Thinking detection** (whether thinking patterns detected)
+  - **Response time** (milliseconds to generate response)
+  - **Token usage** (input and output tokens)
 
 ### 3. Tool Usage
 - **Tool names** (e.g., "Bash", "Read", "Write")
 - **Tool inputs** (command parameters)
 - **Success/failure status**
 - **Error messages** (if tools fail)
+
+### 4. Provider Authentication
+- **Provider name** (e.g., "anthropic", "openai", "openrouter")
+- **Authentication method** ("api_key", "oauth", "delete_credentials")
+- **Success/failure status**
+- **No API keys or credentials are ever collected**
 
 **Note**: All data uses anonymous session IDs - no personal information is collected.
 

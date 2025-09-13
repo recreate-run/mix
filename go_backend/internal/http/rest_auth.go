@@ -90,6 +90,10 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 
 	// Validate API key format
 	if err := credentialsService.ValidateAPIKey(provider, request.APIKey); err != nil {
+		// Track failed authentication attempt
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(r.Context(), string(provider), false, "api_key")
+		}
 		WriteErrorResponse(w, http.StatusBadRequest, err.Error(), "INVALID_API_KEY_FORMAT")
 		return
 	}
@@ -98,8 +102,18 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	if err := credentialsService.StoreAPIKey(ctx, provider, request.APIKey); err != nil {
 		logging.Error("Failed to store API key", "error", err, "provider", provider)
+		// Track failed storage attempt
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(ctx, string(provider), false, "api_key")
+		}
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to store API key", "STORAGE_ERROR")
 		return
+	}
+
+	// Track successful authentication
+	if h.app.Analytics != nil {
+		h.app.Analytics.TrackProviderAuth(ctx, string(provider), true, "api_key")
+		logging.Info("Tracked successful API key authentication", "provider", provider)
 	}
 
 	response := map[string]interface{}{
@@ -149,8 +163,17 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 	// Delete API key if it exists
 	if err := credentialsService.DeleteAPIKey(ctx, modelProvider); err != nil {
 		logging.Error("Failed to delete API key", "error", err, "provider", provider)
+		// Track failed deletion attempt
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(ctx, provider, false, "delete_credentials")
+		}
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to delete API key", "DELETION_ERROR")
 		return
+	}
+	
+	// Track successful credential deletion
+	if h.app.Analytics != nil {
+		h.app.Analytics.TrackProviderAuth(ctx, provider, true, "delete_credentials")
 	}
 
 	// Also clear OAuth credentials if this is Anthropic
@@ -354,6 +377,10 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 
 	// Currently only Anthropic supports OAuth
 	if req.Provider != "anthropic" {
+		// Track failed authentication attempt for unsupported provider
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
+		}
 		WriteErrorResponse(w, http.StatusBadRequest, "OAuth not supported for this provider", "OAUTH_NOT_SUPPORTED")
 		return
 	}
@@ -361,6 +388,10 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	// Get the stored OAuth flow
 	oauthFlow := llmprovider.GetOAuthFlow(req.State)
 	if oauthFlow == nil {
+		// Track failed authentication attempt due to invalid state
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
+		}
 		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or expired OAuth state", "INVALID_STATE")
 		return
 	}
@@ -372,6 +403,10 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	credentials, err := oauthFlow.ExchangeCodeForTokens(authCode)
 	if err != nil {
 		logging.Error("Failed to exchange authorization code for tokens", "error", err)
+		// Track failed token exchange
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
+		}
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to exchange authorization code for tokens", "OAUTH_ERROR")
 		return
 	}
@@ -380,6 +415,10 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	storage, err := llmprovider.NewCredentialStorage()
 	if err != nil {
 		logging.Error("Failed to initialize credential storage", "error", err)
+		// Track failure due to storage initialization
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
+		}
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to initialize credential storage", "STORAGE_ERROR")
 		return
 	}
@@ -394,12 +433,23 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	)
 	if err != nil {
 		logging.Error("Failed to store OAuth credentials", "error", err)
+		// Track failure due to storage error
+		if h.app.Analytics != nil {
+			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
+		}
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to store OAuth credentials", "STORAGE_ERROR")
 		return
 	}
 
 	// Clean up the OAuth flow
 	llmprovider.CleanupOAuthFlow(req.State)
+
+	// Track successful authentication
+	if h.app.Analytics != nil {
+		ctx := r.Context()
+		h.app.Analytics.TrackProviderAuth(ctx, req.Provider, true, "oauth")
+		logging.Info("Tracked successful OAuth authentication", "provider", req.Provider)
+	}
 
 	// Return success response
 	response := map[string]interface{}{
