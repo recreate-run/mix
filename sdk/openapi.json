@@ -27,6 +27,91 @@
     "strategy": "backoff"
   },
   "paths": {
+    "/api/auth/api-key": {
+      "post": {
+        "description": "Store API key for direct authentication with a specific provider",
+        "operationId": "storeApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "api_key": {
+                    "description": "API key for authentication",
+                    "type": "string"
+                  },
+                  "provider": {
+                    "description": "Provider name (anthropic, openai, openrouter)",
+                    "enum": [
+                      "anthropic",
+                      "openai",
+                      "openrouter"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "api_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "description": "Success message",
+                      "type": "string"
+                    },
+                    "provider": {
+                      "description": "Provider name",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Operation status (success)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "API key stored status"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request data or API key format"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Store API key",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
     "/api/auth/apikey": {
       "post": {
         "description": "Set API key for direct authentication",
@@ -147,6 +232,344 @@
           }
         },
         "summary": "OAuth authentication",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/oauth-callback": {
+      "post": {
+        "description": "Process OAuth callback and exchange code for access token",
+        "operationId": "handleOAuthCallback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "description": "Authorization code from OAuth provider",
+                    "type": "string"
+                  },
+                  "provider": {
+                    "description": "Provider name (anthropic)",
+                    "type": "string"
+                  },
+                  "state": {
+                    "description": "OAuth state for verification",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "code",
+                  "state"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "expires_in": {
+                      "description": "Seconds until token expiration",
+                      "type": "integer"
+                    },
+                    "message": {
+                      "description": "Status message",
+                      "type": "string"
+                    },
+                    "provider": {
+                      "description": "Provider name",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Operation status",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OAuth completion status"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request parameters"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Handle OAuth callback",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/oauth/{provider}": {
+      "post": {
+        "description": "Initiate OAuth authentication flow for a specific provider",
+        "operationId": "startOAuthFlow",
+        "parameters": [
+          {
+            "description": "Provider name (currently only 'anthropic')",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "auth_url": {
+                      "description": "OAuth authorization URL to redirect to",
+                      "type": "string"
+                    },
+                    "message": {
+                      "description": "Instructions for completing OAuth flow",
+                      "type": "string"
+                    },
+                    "state": {
+                      "description": "OAuth state token for verification",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OAuth authorization information"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid provider or OAuth not supported"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Start OAuth authentication",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/status": {
+      "get": {
+        "description": "Get authentication status for all supported providers",
+        "operationId": "getAuthStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "providers": {
+                      "additionalProperties": {
+                        "properties": {
+                          "auth_method": {
+                            "description": "Authentication method (oauth, api_key, none)",
+                            "enum": [
+                              "oauth",
+                              "api_key",
+                              "none"
+                            ],
+                            "type": "string"
+                          },
+                          "authenticated": {
+                            "description": "Whether provider is authenticated",
+                            "type": "boolean"
+                          },
+                          "display_name": {
+                            "description": "User-friendly provider name",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "description": "Map of provider authentication status",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Authentication status for all providers"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get authentication status",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/validate": {
+      "get": {
+        "description": "Check if the user's preferred provider is authenticated",
+        "operationId": "validatePreferredProvider",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "auth_method": {
+                      "description": "Authentication method used",
+                      "enum": [
+                        "oauth",
+                        "api_key",
+                        "none"
+                      ],
+                      "type": "string"
+                    },
+                    "message": {
+                      "description": "Status message",
+                      "type": "string"
+                    },
+                    "provider": {
+                      "description": "Preferred provider name",
+                      "type": "string"
+                    },
+                    "valid": {
+                      "description": "Whether preferred provider is authenticated",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Preferred provider validation status"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Validate preferred provider",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/auth/{provider}": {
+      "delete": {
+        "description": "Delete stored API key and/or OAuth credentials for a provider",
+        "operationId": "deleteCredentials",
+        "parameters": [
+          {
+            "description": "Provider name (anthropic, openai, openrouter)",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "description": "Status message",
+                      "type": "string"
+                    },
+                    "provider": {
+                      "description": "Provider name",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Operation status",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Credentials deletion status"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid provider"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Delete provider credentials",
         "tags": [
           "Authentication"
         ]
@@ -553,6 +976,313 @@
         "summary": "Grant permission",
         "tags": [
           "Permissions"
+        ]
+      }
+    },
+    "/api/preferences": {
+      "get": {
+        "description": "Retrieve current user preferences including model and provider settings",
+        "operationId": "getPreferences",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "created_at": {
+                      "description": "Unix timestamp when preferences were created",
+                      "type": "integer"
+                    },
+                    "main_agent_max_tokens": {
+                      "description": "Maximum tokens for main agent responses",
+                      "type": "integer"
+                    },
+                    "main_agent_model": {
+                      "description": "Main agent model ID",
+                      "type": "string"
+                    },
+                    "main_agent_reasoning_effort": {
+                      "description": "Reasoning effort setting for main agent",
+                      "type": "string"
+                    },
+                    "preferred_provider": {
+                      "description": "Preferred AI provider (anthropic, openai, openrouter)",
+                      "type": "string"
+                    },
+                    "sub_agent_max_tokens": {
+                      "description": "Maximum tokens for sub agent responses",
+                      "type": "integer"
+                    },
+                    "sub_agent_model": {
+                      "description": "Sub agent model ID",
+                      "type": "string"
+                    },
+                    "sub_agent_reasoning_effort": {
+                      "description": "Reasoning effort setting for sub agent",
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "description": "Unix timestamp of last update",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "User preferences"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get user preferences",
+        "tags": [
+          "Preferences"
+        ]
+      },
+      "post": {
+        "description": "Update user preferences including model and provider settings",
+        "operationId": "updatePreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "main_agent_max_tokens": {
+                    "description": "Maximum tokens for main agent responses",
+                    "type": "integer"
+                  },
+                  "main_agent_model": {
+                    "description": "Main agent model ID",
+                    "type": "string"
+                  },
+                  "main_agent_reasoning_effort": {
+                    "description": "Reasoning effort setting for main agent",
+                    "type": "string"
+                  },
+                  "preferred_provider": {
+                    "description": "Preferred AI provider (anthropic, openai, openrouter)",
+                    "type": "string"
+                  },
+                  "sub_agent_max_tokens": {
+                    "description": "Maximum tokens for sub agent responses",
+                    "type": "integer"
+                  },
+                  "sub_agent_model": {
+                    "description": "Sub agent model ID",
+                    "type": "string"
+                  },
+                  "sub_agent_reasoning_effort": {
+                    "description": "Reasoning effort setting for sub agent",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "created_at": {
+                      "description": "Creation timestamp",
+                      "type": "integer"
+                    },
+                    "main_agent_max_tokens": {
+                      "description": "Maximum tokens for main agent",
+                      "type": "integer"
+                    },
+                    "main_agent_model": {
+                      "description": "Main agent model ID",
+                      "type": "string"
+                    },
+                    "main_agent_reasoning_effort": {
+                      "description": "Reasoning effort for main agent",
+                      "type": "string"
+                    },
+                    "preferred_provider": {
+                      "description": "Preferred AI provider",
+                      "type": "string"
+                    },
+                    "sub_agent_max_tokens": {
+                      "description": "Maximum tokens for sub agent",
+                      "type": "integer"
+                    },
+                    "sub_agent_model": {
+                      "description": "Sub agent model ID",
+                      "type": "string"
+                    },
+                    "sub_agent_reasoning_effort": {
+                      "description": "Reasoning effort for sub agent",
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "description": "Last update timestamp",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Updated preferences"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request parameters"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Update user preferences",
+        "tags": [
+          "Preferences"
+        ]
+      }
+    },
+    "/api/preferences/providers": {
+      "get": {
+        "description": "Retrieve list of available AI providers and their supported models",
+        "operationId": "getAvailableProviders",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "properties": {
+                      "display_name": {
+                        "description": "Provider display name",
+                        "type": "string"
+                      },
+                      "models": {
+                        "description": "Available models for this provider",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "description": "Map of available providers and their models",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Available providers"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get available providers",
+        "tags": [
+          "Preferences"
+        ]
+      }
+    },
+    "/api/preferences/reset": {
+      "post": {
+        "description": "Reset user preferences to default values",
+        "operationId": "resetPreferences",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "created_at": {
+                      "description": "Creation timestamp",
+                      "type": "integer"
+                    },
+                    "main_agent_max_tokens": {
+                      "description": "Reset main agent max tokens",
+                      "type": "integer"
+                    },
+                    "main_agent_model": {
+                      "description": "Reset main agent model",
+                      "type": "string"
+                    },
+                    "main_agent_reasoning_effort": {
+                      "description": "Reset main agent reasoning effort",
+                      "type": "string"
+                    },
+                    "preferred_provider": {
+                      "description": "Reset preferred provider",
+                      "type": "string"
+                    },
+                    "sub_agent_max_tokens": {
+                      "description": "Reset sub agent max tokens",
+                      "type": "integer"
+                    },
+                    "sub_agent_model": {
+                      "description": "Reset sub agent model",
+                      "type": "string"
+                    },
+                    "sub_agent_reasoning_effort": {
+                      "description": "Reset sub agent reasoning effort",
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "description": "Reset timestamp",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Reset preferences"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Reset preferences",
+        "tags": [
+          "Preferences"
         ]
       }
     },
