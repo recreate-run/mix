@@ -50,7 +50,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: 'login',
     name: 'login',
-    description: 'Authenticate with Claude Code OAuth',
+    description: 'Authenticate with available providers',
     icon: LogIn,
   },
   {

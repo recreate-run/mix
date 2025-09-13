@@ -170,7 +170,7 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to delete API key", "DELETION_ERROR")
 		return
 	}
-	
+
 	// Track successful credential deletion
 	if h.app.Analytics != nil {
 		h.app.Analytics.TrackProviderAuth(ctx, provider, true, "delete_credentials")
@@ -381,6 +381,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		if h.app.Analytics != nil {
 			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
 		}
+		logging.Error("OAuth provider not supported", "provider", req.Provider)
 		WriteErrorResponse(w, http.StatusBadRequest, "OAuth not supported for this provider", "OAUTH_NOT_SUPPORTED")
 		return
 	}
@@ -392,6 +393,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		if h.app.Analytics != nil {
 			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
 		}
+		logging.Error("Invalid or expired OAuth state", "state", req.State)
 		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or expired OAuth state", "INVALID_STATE")
 		return
 	}
