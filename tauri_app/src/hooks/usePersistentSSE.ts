@@ -73,7 +73,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const connectedRef = useRef<boolean>(false);
   const currentSessionRef = useRef<string>('');
   const eventListenersRef = useRef<
-    Array<{ event: string; handler: (event: any) => void }>
+    Array<{ event: string; handler: (event: MessageEvent) => void }>
   >([]);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     // Helper function to add event listener and track it
     const addTrackedEventListener = (
       event: string,
-      handler: (event: any) => void
+      handler: (event: MessageEvent) => void
     ) => {
       eventSource.addEventListener(event, handler);
       eventListenersRef.current.push({ event, handler });
@@ -205,7 +205,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         toolCallsMap.current.set(toolCall.id, toolCall);
 
         // Add to timeline when tool is first seen (running or pending status)
-        if (!timelineRef.current.some(entry => entry.type === 'tool' && (entry.content as any).id === toolCall.id)) {
+        if (!timelineRef.current.some(entry => entry.type === 'tool' && entry.content.id === toolCall.id)) {
           const toolEntry: TimelineEntry = {
             type: 'tool',
             timestamp: Date.now(),
@@ -217,7 +217,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         } else {
           // Update existing tool entry
           timelineRef.current = timelineRef.current.map(entry =>
-            entry.type === 'tool' && (entry.content as any).id === toolCall.id
+            entry.type === 'tool' && entry.content.id === toolCall.id
               ? { ...entry, content: toolCall }
               : entry
           );
@@ -257,7 +257,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
           // Update timeline entry
           timelineRef.current = timelineRef.current.map(entry =>
-            entry.type === 'tool' && (entry.content as any).id === toolCallId
+            entry.type === 'tool' && entry.content.id === toolCallId
               ? { ...entry, content: updatedToolCall }
               : entry
           );
@@ -304,7 +304,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
           // Update timeline entry
           timelineRef.current = timelineRef.current.map(entry =>
-            entry.type === 'tool' && (entry.content as any).id === toolCallId
+            entry.type === 'tool' && entry.content.id === toolCallId
               ? { ...entry, content: updatedToolCall }
               : entry
           );
@@ -537,13 +537,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     setState((prev) => ({ ...prev, cancelling: true, error: null }));
 
     try {
-      const response = await mix.messages.cancelProcessing({ id: sessionId });
+      await mix.messages.cancelProcessing({ id: sessionId });
 
-      if (response.error) {
-        throw new Error(
-          response.error.message || 'Failed to cancel message processing'
-        );
-      }
 
       setState((prev) => ({
         ...prev,
@@ -569,13 +564,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
   const grantPermission = useCallback(async (id: string) => {
     try {
-      const response = await mix.permissions.grant({ id });
+      await mix.permissions.grant({ id });
 
-      if (response.error) {
-        throw new Error(
-          response.error.message || 'Failed to grant permission'
-        );
-      }
 
       // Remove the permission request from state
       setState((prev) => ({
@@ -592,13 +582,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
   const denyPermission = useCallback(async (id: string) => {
     try {
-      const response = await mix.permissions.deny({ id });
+      await mix.permissions.deny({ id });
 
-      if (response.error) {
-        throw new Error(
-          response.error.message || 'Failed to deny permission'
-        );
-      }
 
       // Remove the permission request from state
       setState((prev) => ({

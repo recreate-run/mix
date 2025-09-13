@@ -11,18 +11,10 @@ interface CreateSessionParams {
 const createSession = async (params: CreateSessionParams): Promise<Session> => {
   const response = await mix.sessions.create(params);
 
-  if (response.error) {
-    throw new Error(response.error.message || 'Failed to create session');
-  }
-
-  if (!response.data) {
-    throw new Error('No session data returned from server');
-  }
-
   return {
-    id: response.data.id,
-    title: response.data.title,
-    workingDirectory: response.data.workingDirectory,
+    id: response.id,
+    title: response.title,
+    workingDirectory: response.workingDirectory,
   };
 };
 
@@ -50,18 +42,10 @@ export const useActiveSession = (sessionId: string) => {
     queryFn: async (): Promise<Session | null> => {
       const response = await mix.sessions.get({ id: sessionId });
 
-      if (response.error) {
-        throw new Error(`Session not found (${sessionId}): ${response.error.message}`);
-      }
-
-      if (!response.data) {
-        throw new Error(`No session data returned for session: ${sessionId}`);
-      }
-
       return {
-        id: response.data.id,
-        title: response.data.title,
-        workingDirectory: response.data.workingDirectory,
+        id: response.id,
+        title: response.title,
+        workingDirectory: response.workingDirectory,
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - reduce from infinite to allow some updates

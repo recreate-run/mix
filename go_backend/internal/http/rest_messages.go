@@ -31,8 +31,8 @@ type MessageData struct {
 	ID                string         `json:"id"`
 	SessionID         string         `json:"sessionId"`
 	Role              string         `json:"role"`
-	Content           string         `json:"content"`
-	Response          string         `json:"response,omitempty"`
+	UserInput         string         `json:"userInput"`
+	AssistantResponse string         `json:"assistantResponse,omitempty"`
 	ToolCalls         []ToolCallData `json:"toolCalls,omitempty"`
 	Reasoning         string         `json:"reasoning,omitempty"`
 	ReasoningDuration int64          `json:"reasoningDuration,omitempty"`
@@ -120,10 +120,10 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			"3. Use the /login command to authenticate"
 
 		result := MessageData{
-			ID:       "system-auth-prompt",
-			Role:     "assistant",
-			Content:  req.Content,
-			Response: helpfulMsg,
+			ID:                "system-auth-prompt",
+			Role:              "assistant",
+			UserInput:         req.Content,
+			AssistantResponse: helpfulMsg,
 		}
 
 		sendJSONResponse(w, http.StatusOK, result)
@@ -166,10 +166,10 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 
 		// Return the command result immediately as a message
 		result := MessageData{
-			ID:       "cmd-" + parsed.Name,
-			Role:     "assistant",
-			Content:  req.Content,
-			Response: commandResult,
+			ID:                "cmd-" + parsed.Name,
+			Role:              "assistant",
+			UserInput:         req.Content,
+			AssistantResponse: commandResult,
 		}
 
 		sendJSONResponse(w, http.StatusOK, result)
@@ -194,10 +194,10 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		// Special handling for auth errors
 		if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
 			authResult := MessageData{
-				ID:       "system-auth-prompt",
-				Role:     "assistant",
-				Content:  req.Content,
-				Response: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+				ID:                "system-auth-prompt",
+				Role:              "assistant",
+				UserInput:         req.Content,
+				AssistantResponse: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
 			}
 
 			sendJSONResponse(w, http.StatusOK, authResult)
@@ -215,10 +215,10 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	messageData := MessageData{
-		ID:       result.Message.ID,
-		Role:     "user",
-		Content:  req.Content,
-		Response: response,
+		ID:                result.Message.ID,
+		Role:              "user",
+		UserInput:         req.Content,
+		AssistantResponse: response,
 	}
 
 	sendJSONResponse(w, http.StatusOK, messageData)
@@ -377,8 +377,16 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
-			Content:   msg.Content().String(),
 			ToolCalls: toolCallsData,
+		}
+		
+		// Assign content to appropriate field based on message role
+		content := msg.Content().String()
+		if msg.Role == message.User {
+			messageData.UserInput = content
+		} else {
+			messageData.UserInput = ""  // Assistant messages don't have user input
+			messageData.AssistantResponse = content
 		}
 		
 		// Add reasoning content if present

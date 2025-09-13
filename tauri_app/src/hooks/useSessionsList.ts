@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
 import type { SessionData } from '@/types/common';
+import type { SessionData as SDKSessionData } from 'mix-typescript-sdk/models';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import { invalidateSessionCaches } from '@/lib/session-cache';
 import { toast } from "sonner";
@@ -10,12 +11,8 @@ export const TITLE_TRUNCATE_LENGTH = 100;
 const loadSessionsList = async (): Promise<SessionData[]> => {
   const response = await mix.sessions.list();
 
-  if (response.error) {
-    throw new Error(response.error.message || 'Failed to load sessions');
-  }
-
   // Transform SDK SessionData to match local interface (Date -> string)
-  return (response.data || []).map(session => ({
+  return response.map((session: SDKSessionData) => ({
     ...session,
     createdAt: session.createdAt instanceof Date ? session.createdAt.toISOString() : session.createdAt
   }));

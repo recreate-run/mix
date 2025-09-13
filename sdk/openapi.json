@@ -55,25 +55,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "properties": {
-                            "success": {
-                              "description": "Whether API key was set successfully",
-                              "type": "boolean"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
+                  "properties": {
+                    "success": {
+                      "description": "Whether API key was set successfully",
+                      "type": "boolean"
                     }
-                  ]
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -83,7 +71,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -93,7 +81,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -103,7 +91,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -125,25 +113,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "properties": {
-                            "authUrl": {
-                              "description": "OAuth authorization URL",
-                              "type": "string"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
+                  "properties": {
+                    "authUrl": {
+                      "description": "OAuth authorization URL",
+                      "type": "string"
                     }
-                  ]
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -153,7 +129,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -163,7 +139,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -185,32 +161,20 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "items": {
-                            "properties": {
-                              "description": {
-                                "description": "Command description",
-                                "type": "string"
-                              },
-                              "name": {
-                                "description": "Command name",
-                                "type": "string"
-                              }
-                            },
-                            "type": "object"
-                          },
-                          "type": "array"
-                        }
+                  "items": {
+                    "properties": {
+                      "description": {
+                        "description": "Command description",
+                        "type": "string"
                       },
-                      "type": "object"
-                    }
-                  ]
+                      "name": {
+                        "description": "Command name",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -220,7 +184,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -230,7 +194,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -263,33 +227,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
+                  "properties": {
+                    "description": {
+                      "description": "Command description",
+                      "type": "string"
                     },
-                    {
-                      "properties": {
-                        "data": {
-                          "properties": {
-                            "description": {
-                              "description": "Command description",
-                              "type": "string"
-                            },
-                            "name": {
-                              "description": "Command name",
-                              "type": "string"
-                            },
-                            "usage": {
-                              "description": "Command usage instructions",
-                              "type": "string"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
+                    "name": {
+                      "description": "Command name",
+                      "type": "string"
+                    },
+                    "usage": {
+                      "description": "Command usage instructions",
+                      "type": "string"
                     }
-                  ]
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -299,7 +251,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -321,63 +273,51 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "items": {
-                            "properties": {
-                              "connected": {
-                                "description": "Whether the MCP server is currently connected",
-                                "type": "boolean"
-                              },
-                              "name": {
-                                "description": "MCP server name",
-                                "type": "string"
-                              },
-                              "status": {
-                                "description": "Server connection status (e.g., 'connected', 'failed', 'disconnected')",
-                                "type": "string"
-                              },
-                              "tools": {
-                                "description": "List of tools provided by this MCP server (null if server is not connected)",
-                                "items": {
-                                  "properties": {
-                                    "description": {
-                                      "description": "Tool description",
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "description": "Tool name",
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": [
-                                    "name",
-                                    "description"
-                                  ],
-                                  "type": "object"
-                                },
-                                "nullable": true,
-                                "type": "array"
-                              }
-                            },
-                            "required": [
-                              "name",
-                              "connected",
-                              "status"
-                            ],
-                            "type": "object"
-                          },
-                          "type": "array"
-                        }
+                  "items": {
+                    "properties": {
+                      "connected": {
+                        "description": "Whether the MCP server is currently connected",
+                        "type": "boolean"
                       },
-                      "type": "object"
-                    }
-                  ]
+                      "name": {
+                        "description": "MCP server name",
+                        "type": "string"
+                      },
+                      "status": {
+                        "description": "Server connection status (e.g., 'connected', 'failed', 'disconnected')",
+                        "type": "string"
+                      },
+                      "tools": {
+                        "description": "List of tools provided by this MCP server (null if server is not connected)",
+                        "items": {
+                          "properties": {
+                            "description": {
+                              "description": "Tool description",
+                              "type": "string"
+                            },
+                            "name": {
+                              "description": "Tool name",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "description"
+                          ],
+                          "type": "object"
+                        },
+                        "nullable": true,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "connected",
+                      "status"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -387,7 +327,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -397,7 +337,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -442,22 +382,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "items": {
-                            "$ref": "#/components/schemas/MessageData"
-                          },
-                          "type": "array"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "items": {
+                    "$ref": "#/components/schemas/MessageData"
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -467,7 +395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -477,7 +405,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -510,25 +438,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "properties": {
-                            "denied": {
-                              "description": "Whether permission was denied",
-                              "type": "boolean"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
+                  "properties": {
+                    "denied": {
+                      "description": "Whether permission was denied",
+                      "type": "boolean"
                     }
-                  ]
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -538,7 +454,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -548,7 +464,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -558,7 +474,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -591,25 +507,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "properties": {
-                            "granted": {
-                              "description": "Whether permission was granted",
-                              "type": "boolean"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
+                  "properties": {
+                    "granted": {
+                      "description": "Whether permission was granted",
+                      "type": "boolean"
                     }
-                  ]
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -619,7 +523,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -629,7 +533,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -639,7 +543,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -661,22 +565,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "items": {
-                            "$ref": "#/components/schemas/SessionData"
-                          },
-                          "type": "array"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "items": {
+                    "$ref": "#/components/schemas/SessionData"
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -686,7 +578,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -696,7 +588,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -709,7 +601,7 @@
         ]
       },
       "post": {
-        "description": "Create a new session with optional title and working directory",
+        "description": "Create a new session with required title and optional working directory",
         "operationId": "createSession",
         "requestBody": {
           "content": {
@@ -717,7 +609,7 @@
               "schema": {
                 "properties": {
                   "title": {
-                    "description": "Optional title for the session",
+                    "description": "Title for the session",
                     "type": "string"
                   },
                   "workingDirectory": {
@@ -725,6 +617,9 @@
                     "type": "string"
                   }
                 },
+                "required": [
+                  "title"
+                ],
                 "type": "object"
               }
             }
@@ -736,19 +631,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "$ref": "#/components/schemas/SessionData"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/SessionData"
                 }
               }
             },
@@ -758,7 +641,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -794,7 +677,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -825,19 +708,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "$ref": "#/components/schemas/SessionData"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/SessionData"
                 }
               }
             },
@@ -847,7 +718,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -880,25 +751,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "properties": {
-                            "cancelled": {
-                              "description": "Whether cancellation was successful",
-                              "type": "boolean"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
+                  "properties": {
+                    "cancelled": {
+                      "description": "Whether cancellation was successful",
+                      "type": "boolean"
                     }
-                  ]
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -908,7 +767,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -965,19 +824,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "$ref": "#/components/schemas/SessionData"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/SessionData"
                 }
               }
             },
@@ -987,7 +834,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -997,7 +844,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -1030,22 +877,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "items": {
-                            "$ref": "#/components/schemas/MessageData"
-                          },
-                          "type": "array"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "items": {
+                    "$ref": "#/components/schemas/MessageData"
+                  },
+                  "type": "array"
                 }
               }
             },
@@ -1055,7 +890,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -1105,19 +940,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "$ref": "#/components/schemas/MessageData"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/MessageData"
                 }
               }
             },
@@ -1127,7 +950,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -1137,7 +960,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -1159,33 +982,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/RESTResponse"
+                  "properties": {
+                    "status": {
+                      "description": "Health status",
+                      "type": "string"
                     },
-                    {
-                      "properties": {
-                        "data": {
-                          "properties": {
-                            "status": {
-                              "description": "Health status",
-                              "type": "string"
-                            },
-                            "timestamp": {
-                              "description": "Current timestamp",
-                              "type": "string"
-                            },
-                            "version": {
-                              "description": "Application version",
-                              "type": "string"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
+                    "timestamp": {
+                      "description": "Current timestamp",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Application version",
+                      "type": "string"
                     }
-                  ]
+                  },
+                  "type": "object"
                 }
               }
             },
@@ -1195,7 +1006,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RESTResponse"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
@@ -1211,10 +1022,21 @@
   },
   "components": {
     "schemas": {
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/RESTError"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
       "MessageData": {
         "properties": {
-          "content": {
-            "description": "Message content",
+          "assistantResponse": {
+            "description": "Assistant's response message (optional)",
             "type": "string"
           },
           "id": {
@@ -1229,10 +1051,6 @@
             "description": "Reasoning duration in milliseconds (optional)",
             "type": "integer"
           },
-          "response": {
-            "description": "Assistant response (optional)",
-            "type": "string"
-          },
           "role": {
             "$ref": "#/components/schemas/MessageRole"
           },
@@ -1246,13 +1064,17 @@
               "$ref": "#/components/schemas/ToolCallData"
             },
             "type": "array"
+          },
+          "userInput": {
+            "description": "User's input message",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "sessionId",
           "role",
-          "content"
+          "userInput"
         ],
         "type": "object"
       },
@@ -1292,21 +1114,6 @@
           "message",
           "type"
         ],
-        "type": "object"
-      },
-      "RESTResponse": {
-        "properties": {
-          "data": {
-            "description": "Response data"
-          },
-          "error": {
-            "$ref": "#/components/schemas/RESTError"
-          },
-          "message": {
-            "description": "Optional message",
-            "type": "string"
-          }
-        },
         "type": "object"
       },
       "SessionData": {

@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { mix } from '@/lib/mix-sdk';
+import type { MessageData } from 'mix-typescript-sdk/models';
 
 interface MessageHistoryItem {
   id: string;
@@ -47,17 +48,9 @@ const fetchMessages = async (params: { limit: number; offset: number }): Promise
   // Let SDK validation errors propagate - don't mask them with fallbacks
   const response = await mix.messages.getHistory(params);
 
-  if (response.error) {
-    throw new Error(response.error.message || 'Failed to fetch message history');
-  }
-
-  if (!response.data) {
-    throw new Error('No message history data returned from server');
-  }
-
-  // Don't use any type or fallback arrays - let type errors surface if schema doesn't match
-  return response.data.map((msg) => {
-    const messageData = extractMessageData(msg.content);
+  // Use proper SDK types for type safety
+  return response.map((msg: MessageData) => {
+    const messageData = extractMessageData(msg.userInput);
     return {
       id: msg.id,
       role: msg.role,

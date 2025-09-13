@@ -9,16 +9,7 @@ const loadSessionMessages = async (
 ): Promise<BackendMessage[]> => {
   const response = await mix.messages.getSession({ id: sessionId });
 
-  if (response.error) {
-    console.error('❌ SDK Error:', response.error);
-    throw new Error(response.error.message || 'Failed to load session messages');
-  }
-
-  if (!response.data) {
-    throw new Error('No message data returned from server');
-  }
-
-  return response.data;
+  return response;
 };
 
 const loadAndConvertMessages = async (

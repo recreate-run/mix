@@ -40,20 +40,16 @@ export function useAuthFlow(): UseAuthFlowReturn {
 				result = await mix.auth.setApiKey({ apiKey: input });
 			}
 
-			if (result.error) {
-				throw new Error(result.error.message || 'Authentication failed');
-			}
-
 			// Handle response based on the method used
-			if (authMode === "apikey" && result.data) {
+			if (authMode === "apikey") {
 				// For API key authentication, check success property
-				const apiKeyData = result.data as { success?: boolean };
+				const apiKeyData = result as { success?: boolean };
 				if (apiKeyData.success === true) {
 					setShowSuccess(true);
 				}
-			} else if (authMode === "code" && result.data) {
+			} else if (authMode === "code") {
 				// For OAuth authentication, check if we got an authUrl
-				const oauthData = result.data as { authUrl?: string };
+				const oauthData = result as { authUrl?: string };
 				if (oauthData.authUrl) {
 					// OAuth flow initiated successfully - this is handled in the UI
 				} else {

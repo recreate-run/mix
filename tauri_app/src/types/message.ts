@@ -32,7 +32,8 @@ export interface BackendMessage {
   id: string;
   sessionId: string;
   role: string;
-  content: string;
+  userInput: string;
+  assistantResponse?: string;
   toolCalls?: ToolCallData[];
   reasoning?: string;
   reasoningDuration?: number;

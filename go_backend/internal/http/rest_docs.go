@@ -98,14 +98,15 @@ func getOpenAPISpec() OpenAPISpec {
 				"post": map[string]interface{}{
 					"operationId":  "createSession",
 					"summary":     "Create a new session",
-					"description": "Create a new session with optional title and working directory",
+					"description": "Create a new session with required title and optional working directory",
 					"tags":        []string{"Sessions"},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
+						"required": []string{"title"},
 						"properties": map[string]interface{}{
 							"title": map[string]interface{}{
 								"type":        "string",
-								"description": "Optional title for the session",
+								"description": "Title for the session",
 							},
 							"workingDirectory": map[string]interface{}{
 								"type":        "string",
@@ -966,20 +967,14 @@ func getOpenAPISpec() OpenAPISpec {
 		},
 		Components: OpenAPIComponents{
 			Schemas: map[string]interface{}{
-				"RESTResponse": map[string]interface{}{
+				"ErrorResponse": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"data": map[string]interface{}{
-							"description": "Response data",
-						},
 						"error": map[string]interface{}{
 							"$ref": "#/components/schemas/RESTError",
 						},
-						"message": map[string]interface{}{
-							"type":        "string",
-							"description": "Optional message",
-						},
 					},
+					"required": []string{"error"},
 				},
 				"RESTError": map[string]interface{}{
 					"type": "object",
@@ -1071,13 +1066,13 @@ func getOpenAPISpec() OpenAPISpec {
 						"role": map[string]interface{}{
 							"$ref": "#/components/schemas/MessageRole",
 						},
-						"content": map[string]interface{}{
+						"userInput": map[string]interface{}{
 							"type":        "string",
-							"description": "Message content",
+							"description": "User's input message",
 						},
-						"response": map[string]interface{}{
+						"assistantResponse": map[string]interface{}{
 							"type":        "string",
-							"description": "Assistant response (optional)",
+							"description": "Assistant's response message (optional)",
 						},
 						"toolCalls": map[string]interface{}{
 							"type": "array",
@@ -1095,7 +1090,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "Reasoning duration in milliseconds (optional)",
 						},
 					},
-					"required": []string{"id", "sessionId", "role", "content"},
+					"required": []string{"id", "sessionId", "role", "userInput"},
 				},
 				"ToolCallData": map[string]interface{}{
 					"type": "object",
@@ -1161,33 +1156,21 @@ func createRequestBody(schema map[string]interface{}) map[string]interface{} {
 }
 
 func createSuccessResponse(dataType string, schema map[string]interface{}, description string) map[string]interface{} {
-	var dataSchema map[string]interface{}
+	var responseSchema map[string]interface{}
 	if dataType == "array" {
-		dataSchema = map[string]interface{}{
+		responseSchema = map[string]interface{}{
 			"type":  "array",
 			"items": schema,
 		}
 	} else {
-		dataSchema = schema
+		responseSchema = schema
 	}
 
 	return map[string]interface{}{
 		"description": description,
 		"content": map[string]interface{}{
 			"application/json": map[string]interface{}{
-				"schema": map[string]interface{}{
-					"allOf": []map[string]interface{}{
-						{
-							"$ref": "#/components/schemas/RESTResponse",
-						},
-						{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"data": dataSchema,
-							},
-						},
-					},
-				},
+				"schema": responseSchema,
 			},
 		},
 	}
@@ -1199,7 +1182,7 @@ func createErrorResponse(description string) map[string]interface{} {
 		"content": map[string]interface{}{
 			"application/json": map[string]interface{}{
 				"schema": map[string]interface{}{
-					"$ref": "#/components/schemas/RESTResponse",
+					"$ref": "#/components/schemas/ErrorResponse",
 				},
 			},
 		},
