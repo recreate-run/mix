@@ -48,6 +48,7 @@ import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
+import { handleStatusCommand } from '@/utils/auth-utils';
 
 // Helper function to check if a message contains show_media tool call
 const hasMediaShowcaseTool = (toolCalls: ToolCall[]) => {
@@ -191,6 +192,39 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   const fileRef = useFileReference(text, setText, session?.workingDirectory);
 
+  // Handle the status command with our SDK implementation
+  const handleStatusCommandSpecial = async () => {
+    try {
+      // Add user message to show that the command was executed
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: "/status",
+          from: "user",
+        },
+      ]);
+      
+      // Execute the status command handler
+      const statusResult = await handleStatusCommand();
+      
+      // Add response message returned by the handler
+      setMessages((prev) => [
+        ...prev,
+        statusResult
+      ]);
+    } catch (error) {
+      console.error('Status command failed:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to check authentication status: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+  
   // Initialize new hooks
   const historyNavigation = useMessageHistoryNavigation({
     text,
@@ -311,6 +345,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           return;
         }
 
+        if (command === 'status') {
+          // Handle status command using our SDK implementation
+          handleStatusCommandSpecial();
+          return;
+        }
+        
         submitMessage(`/${command}`);
         break;
       }

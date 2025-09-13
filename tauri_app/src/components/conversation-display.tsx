@@ -193,6 +193,7 @@ interface ConversationDisplayProps {
   onForkMessage?: (index: number) => void;
   setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
   workingDirectory?: string;
+  renderStatusDisplay?: (message: UIMessage) => React.ReactNode;
 }
 
 // Helper function to extract todos from todo_write tool calls
