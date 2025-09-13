@@ -23,6 +23,10 @@ const (
 	OpenRouterClaude35Haiku  ModelID = "openrouter.claude-3.5-haiku"
 	OpenRouterClaude3Opus    ModelID = "openrouter.claude-3-opus"
 	OpenRouterDeepSeekR1Free ModelID = "openrouter.deepseek-r1-free"
+	OpenRouterDeepSeekV31    ModelID = "openrouter.deepseek-v3.1"
+	OpenRouterZAIGLM45Air    ModelID = "openrouter.zai-glm-4.5-air"
+	OpenRouterSonomaDusk     ModelID = "openrouter.sonoma-dusk-alpha"
+	OpenRouterSonomaSky      ModelID = "openrouter.sonoma-sky-alpha"
 )
 
 var OpenRouterModels = map[ModelID]Model{
@@ -272,5 +276,61 @@ var OpenRouterModels = map[ModelID]Model{
 		CostPer1MOutCached: 0,
 		ContextWindow:      163_840,
 		DefaultMaxTokens:   10000,
+	},
+	OpenRouterDeepSeekV31: {
+		ID:                  OpenRouterDeepSeekV31,
+		Name:                "OpenRouter – DeepSeek V3.1",
+		Provider:            ProviderOpenRouter,
+		APIModel:            "deepseek/deepseek-chat-v3.1:free",
+		CostPer1MIn:         0,
+		CostPer1MInCached:   0,
+		CostPer1MOut:        0,
+		CostPer1MOutCached:  0,
+		ContextWindow:       128_000,
+		DefaultMaxTokens:    1000,
+		CanReason:           true,
+		SupportsAttachments: false,
+	},
+	OpenRouterZAIGLM45Air: {
+		ID:                  OpenRouterZAIGLM45Air,
+		Name:                "OpenRouter – Z.AI GLM 4.5 Air",
+		Provider:            ProviderOpenRouter,
+		APIModel:            "z-ai/glm-4.5-air:free",
+		CostPer1MIn:         0,
+		CostPer1MInCached:   0,
+		CostPer1MOut:        0,
+		CostPer1MOutCached:  0,
+		ContextWindow:       131_072,
+		DefaultMaxTokens:    1000,
+		CanReason:           true,
+		SupportsAttachments: false,
+	},
+	OpenRouterSonomaDusk: {
+		ID:                  OpenRouterSonomaDusk,
+		Name:                "OpenRouter – Sonoma Dusk Alpha",
+		Provider:            ProviderOpenRouter,
+		APIModel:            "openrouter/sonoma-dusk-alpha",
+		CostPer1MIn:         0,
+		CostPer1MInCached:   0,
+		CostPer1MOut:        0,
+		CostPer1MOutCached:  0,
+		ContextWindow:       2_000_000,
+		DefaultMaxTokens:    1000,
+		CanReason:           false,
+		SupportsAttachments: true,
+	},
+	OpenRouterSonomaSky: {
+		ID:                  OpenRouterSonomaSky,
+		Name:                "OpenRouter – Sonoma Sky Alpha",
+		Provider:            ProviderOpenRouter,
+		APIModel:            "openrouter/sonoma-sky-alpha",
+		CostPer1MIn:         0,
+		CostPer1MInCached:   0,
+		CostPer1MOut:        0,
+		CostPer1MOutCached:  0,
+		ContextWindow:       2_000_000,
+		DefaultMaxTokens:    1000,
+		CanReason:           false,
+		SupportsAttachments: true,
 	},
 }
