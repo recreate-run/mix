@@ -51,6 +51,8 @@ import { PermissionDialog } from './permission-dialog';
 import { handleStatusCommand as oldHandleStatusCommand } from '@/utils/auth-utils';
 import { handleStatusCommand } from '@/handlers/status-command-handler';
 import { handleLoginCommand } from '@/handlers/login-command-handler';
+import { handleProviderCommand } from '@/handlers/provider-command-handler';
+import { handleModelCommand } from '@/handlers/model-command-handler';
 
 // Helper function to check if a message contains show_media tool call
 const hasMediaShowcaseTool = (toolCalls: ToolCall[]) => {
@@ -259,6 +261,72 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
+
+  // Handle the provider command with our SDK implementation
+  const handleProviderCommandSpecial = async () => {
+    try {
+      // Add user message to show that the command was executed
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: "/provider",
+          from: "user",
+        },
+      ]);
+      
+      // Execute the provider command handler
+      const providerResult = await handleProviderCommand();
+      
+      // Add response message returned by the handler
+      setMessages((prev) => [
+        ...prev,
+        providerResult
+      ]);
+    } catch (error) {
+      console.error('Provider command failed:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to handle provider selection: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+
+  // Handle the model command with our SDK implementation
+  const handleModelCommandSpecial = async () => {
+    try {
+      // Add user message to show that the command was executed
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: "/model",
+          from: "user",
+        },
+      ]);
+      
+      // Execute the model command handler
+      const modelResult = await handleModelCommand();
+      
+      // Add response message returned by the handler
+      setMessages((prev) => [
+        ...prev,
+        modelResult
+      ]);
+    } catch (error) {
+      console.error('Model command failed:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to handle model selection: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
   
   // Initialize new hooks
   const historyNavigation = useMessageHistoryNavigation({
@@ -389,6 +457,18 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         if (command === 'login') {
           // Handle login command using our SDK implementation
           handleLoginCommandSpecial();
+          return;
+        }
+        
+        if (command === 'provider') {
+          // Handle provider command using our SDK implementation
+          handleProviderCommandSpecial();
+          return;
+        }
+        
+        if (command === 'model') {
+          // Handle model command using our SDK implementation
+          handleModelCommandSpecial();
           return;
         }
         
