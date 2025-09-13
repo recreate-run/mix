@@ -44,6 +44,28 @@ export interface UIMessage {
     }[];
     hasAuthenticatedProvider: boolean;
   };
+  provider?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+    currentProvider?: string;
+  };
+  model?: {
+    models: {
+      id: string;
+      displayName: string;
+      isSelected?: boolean;
+    }[];
+    currentModel?: string;
+    provider: {
+      id: string;
+      displayName: string;
+    };
+  };
 }
 
 export interface BackendMessage {

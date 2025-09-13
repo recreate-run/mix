@@ -51,6 +51,8 @@ import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { LoginUI } from './login-ui';
 import { StatusUI } from './status-ui';
+import { ProviderDisplay } from './provider-display';
+import { ModelDisplay } from './model-display';
 
 type StreamingState = {
   processing: boolean;
@@ -385,6 +387,22 @@ export function ConversationDisplay({
     setShowPlanOptions(null);
     onPlanAction?.('keep-planning', messageIndex);
   };
+
+  // Handle UI message updates from component responses
+  const handleMessageUpdate = (index: number, updatedMessage: UIMessage) => {
+    // Update local message state
+    setLocalMessages((prev) => [
+      ...prev.slice(0, index), 
+      updatedMessage,
+      ...prev.slice(index + 1)
+    ]);
+    
+    // Pass update to parent component
+    if (onUpdateMessage) {
+      onUpdateMessage(index, updatedMessage);
+    }
+  };
+  
   return (
     <div className="relative h-full flex-1 py-16">
       <div className="">
@@ -422,23 +440,22 @@ export function ConversationDisplay({
                       {message.login ? (
                         <LoginUI 
                           loginState={message.login}
-                          onUpdate={(updatedMessage) => {
-                            // Update local message first
-                            setLocalMessages((prev) => [
-                              ...prev.slice(0, index), // Keep all messages before this one
-                              updatedMessage,          // Replace this message with updated one
-                              ...prev.slice(index + 1) // Keep all messages after this one
-                            ]);
-                            
-                            // Notify parent component of the update
-                            if (onUpdateMessage) {
-                              onUpdateMessage(index, updatedMessage);
-                            }
-                          }}
+                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
                         />
                       ) : message.status ? (
                         <StatusUI 
                           statusState={message.status}
+                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
+                        />
+                      ) : message.provider ? (
+                        <ProviderDisplay 
+                          data={message.provider}
+                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
+                        />
+                      ) : message.model ? (
+                        <ModelDisplay
+                          data={message.model}
+                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
                         />
                       ) : messages && index > 0 && messages[index-1]?.from === 'user' && messages[index-1]?.content?.startsWith('/') ? (
                         <AIResponse>{`\`\`\`bash\n${message.content}\n\`\`\``}</AIResponse>
