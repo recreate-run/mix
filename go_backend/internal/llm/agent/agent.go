@@ -16,6 +16,7 @@ import (
 	"mix/internal/logging"
 	"mix/internal/message"
 	"mix/internal/permission"
+	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
 )
@@ -29,11 +30,11 @@ var (
 type AgentEventType string
 
 const (
-	AgentEventTypeError              AgentEventType = "error"
-	AgentEventTypeResponse           AgentEventType = "response"
-	AgentEventTypeSummarize          AgentEventType = "summarize"
-	AgentEventTypeThinking           AgentEventType = "thinking"
-	AgentEventTypeToolExecutionStart AgentEventType = "tool_execution_start"
+	AgentEventTypeError                 AgentEventType = "error"
+	AgentEventTypeResponse              AgentEventType = "response"
+	AgentEventTypeSummarize             AgentEventType = "summarize"
+	AgentEventTypeThinking              AgentEventType = "thinking"
+	AgentEventTypeToolExecutionStart    AgentEventType = "tool_execution_start"
 	AgentEventTypeToolExecutionComplete AgentEventType = "tool_execution_complete"
 )
 
@@ -64,6 +65,7 @@ type Service interface {
 	IsBusy() bool
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
 	Summarize(ctx context.Context, sessionID string) error
+	ClearAllSessionProviders()
 	Shutdown()
 }
 
@@ -790,15 +792,15 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 	if userPrefs == nil {
 		return models.Model{}, fmt.Errorf("user preferences service not available")
 	}
-	
+
 	model, ok := models.SupportedModels[modelID]
 	if !ok {
 		return models.Model{}, fmt.Errorf("model %s not supported", modelID)
 	}
-	
+
 	ctx := context.Background()
 	var err error
-	
+
 	switch agentName {
 	case config.AgentMain:
 		err = userPrefs.UpdateMainAgentPreferences(ctx, modelID, model.DefaultMaxTokens, "")
@@ -807,7 +809,7 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 	default:
 		return models.Model{}, fmt.Errorf("unknown agent name: %s", agentName)
 	}
-	
+
 	if err != nil {
 		return models.Model{}, fmt.Errorf("failed to update agent preferences in database: %w", err)
 	}
@@ -1082,7 +1084,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			MaxTokens: 4096,
 		}
 	}
-	
+
 	// Check user's preferred provider if available
 	userPrefs := config.GetUserPreferences()
 	if userPrefs != nil {
@@ -1091,9 +1093,9 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			// Validate that the selected model is available on the preferred provider
 			model, modelExists := models.SupportedModels[agentConfig.Model]
 			if modelExists && model.Provider != preferredProvider {
-				logging.Info("Model not available on preferred provider, using model's default provider", 
-					"model", agentConfig.Model, 
-					"model_provider", model.Provider, 
+				logging.Info("Model not available on preferred provider, using model's default provider",
+					"model", agentConfig.Model,
+					"model_provider", model.Provider,
 					"preferred_provider", preferredProvider)
 			}
 		}
@@ -1105,7 +1107,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 
 	// Get API key - ONLY from database, no fallbacks to config or env
 	var apiKey string
-	
+
 	credentialsService := config.GetAPICredentials()
 	if credentialsService != nil {
 		dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
@@ -1120,19 +1122,19 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			}
 		}
 	}
-	
+
 	// Set up provider options
 	maxTokens := model.DefaultMaxTokens
 	if agentConfig.MaxTokens > 0 {
 		maxTokens = agentConfig.MaxTokens
 	}
-	
+
 	opts := []provider.ProviderClientOption{
 		provider.WithAPIKey(apiKey),
 		provider.WithModel(model),
 		provider.WithMaxTokens(maxTokens),
 	}
-	
+
 	if model.Provider == models.ProviderOpenAI || model.Provider == models.ProviderLocal && model.CanReason {
 		opts = append(
 			opts,
@@ -1149,7 +1151,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			),
 		)
 	}
-	
+
 	agentProvider, err := provider.NewProvider(
 		model.Provider,
 		opts...,
@@ -1173,7 +1175,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 			MaxTokens: 4096,
 		}
 	}
-	
+
 	model, ok := models.SupportedModels[agentConfig.Model]
 	if !ok {
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
@@ -1250,20 +1252,76 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 }
 
 func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, session *session.Session) (provider.Provider, error) {
+	// Get user preferences to log current settings
+	userPrefs := config.GetUserPreferences()
+	var preferredProvider models.ModelProvider
+	var mainAgentModel models.ModelID
+	if userPrefs != nil {
+		pref, err := userPrefs.GetPreferredProvider(ctx)
+		if err == nil {
+			preferredProvider = pref
+		}
+		agentCfg, err := userPrefs.GetAgentConfig(ctx, preferences.AgentMain)
+		if err == nil {
+			mainAgentModel = agentCfg.Model
+		}
+	}
+	logging.Info("Current user preferences", "sessionID", sessionID, "preferredProvider", preferredProvider, "mainAgentModel", mainAgentModel)
+
+	// Check if we already have a cached provider
+	cached, exists := a.sessionProviders.Load(sessionID)
+	if exists {
+		cachedProvider := cached.(provider.Provider)
+		currentModel := cachedProvider.Model()
+		logging.Info("Found cached provider", "sessionID", sessionID, "provider", currentModel.Provider, "model", currentModel.ID)
+
+		// Important: Check if the cached provider matches current preferences
+		isMatch := true
+
+		// Only check for preferred provider if it's actually set
+		if preferredProvider != "" && currentModel.Provider != preferredProvider {
+			logging.Info("Cached provider does not match current preferred provider",
+				"sessionID", sessionID,
+				"cachedProvider", currentModel.Provider,
+				"preferredProvider", preferredProvider)
+			isMatch = false
+		}
+
+		// Only check for model match if using main agent (sub agents might use different models)
+		if a.agentName == config.AgentMain && mainAgentModel != "" && currentModel.ID != mainAgentModel {
+			logging.Info("Cached model does not match current preferred model",
+				"sessionID", sessionID,
+				"cachedModel", currentModel.ID,
+				"preferredModel", mainAgentModel)
+			isMatch = false
+		}
+
+		// If cache doesn't match current preferences, don't use it
+		if !isMatch {
+			logging.Info("Discarding outdated cached provider due to preference mismatch", "sessionID", sessionID)
+			// Remove the outdated provider from cache
+			a.sessionProviders.Delete(sessionID)
+		} else {
+			// Cache is valid, use it
+			return cachedProvider, nil
+		}
+	}
+
 	// Create new session provider
+	logging.Info("Creating new session provider", "sessionID", sessionID, "agent", a.agentName)
 	sessionProvider, err := createSessionProvider(ctx, a.agentName, session)
 	if err != nil {
+		logging.Error("Failed to create session provider", "sessionID", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to create session provider: %w", err)
 	}
 
-	// Atomically store if not exists, or load existing
-	actual, loaded := a.sessionProviders.LoadOrStore(sessionID, sessionProvider)
-	if loaded {
-		// Another goroutine already created one, use theirs
-		return actual.(provider.Provider), nil
-	}
+	// Log provider details
+	createdModel := sessionProvider.Model()
+	logging.Info("Created new provider", "sessionID", sessionID, "provider", createdModel.Provider, "model", createdModel.ID)
 
-	// We successfully stored our provider
+	// Store the new provider in cache
+	a.sessionProviders.Store(sessionID, sessionProvider)
+	logging.Info("Successfully stored new provider in cache", "sessionID", sessionID, "provider", createdModel.Provider, "model", createdModel.ID)
 	return sessionProvider, nil
 }
 
@@ -1282,5 +1340,57 @@ func (a *agent) handleSessionEvents() {
 				logging.Info("Cleaned up session provider cache", "sessionID", sessionID)
 			}
 		}
+	}
+}
+
+// ClearAllSessionProviders removes all cached providers from memory,
+// forcing them to be recreated with the latest preferences on next use
+func (a *agent) ClearAllSessionProviders() {
+	// Log the count of cached providers
+	cachedCount := 0
+	a.sessionProviders.Range(func(key, value interface{}) bool {
+		cachedCount++
+		return true
+	})
+
+	// Create a list of all keys to delete
+	keysToDelete := []string{}
+	a.sessionProviders.Range(func(key, value interface{}) bool {
+		if sessionID, ok := key.(string); ok {
+			keysToDelete = append(keysToDelete, sessionID)
+			// Log cached provider details for debugging
+			if provider, ok := value.(provider.Provider); ok {
+				logging.Debug("Found cached provider", "sessionID", sessionID,
+					"provider", provider.Model().Provider,
+					"model", provider.Model().ID)
+			}
+		}
+		return true // Continue iterating
+	})
+
+	// Delete all keys
+	for _, sessionID := range keysToDelete {
+		a.sessionProviders.Delete(sessionID)
+		logging.Info("Cleared provider cache for session", "sessionID", sessionID)
+	}
+
+	// Verify cache was cleared
+	remainCount := 0
+	a.sessionProviders.Range(func(key, value interface{}) bool {
+		remainCount++
+		return true
+	})
+
+	// Force a refresh of the main provider as well
+	// Try to update the main provider
+	newProvider, err := createAgentProvider(a.agentName)
+	if err == nil {
+		a.provider = newProvider
+		logging.Info("Updated main agent provider after preference change",
+			"agentName", a.agentName,
+			"newProvider", newProvider.Model().Provider,
+			"newModel", newProvider.Model().ID)
+	} else {
+		logging.Error("Failed to update main agent provider", "error", err)
 	}
 }
