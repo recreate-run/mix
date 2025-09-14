@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"mix/internal/db"
 	"mix/internal/llm/models"
@@ -20,14 +21,21 @@ import (
 type APICredentialsService struct {
 	queries       *db.Queries
 	encryptionKey []byte
+	credentialsCache sync.Map // Provider -> API Key cache
 }
 
 // NewAPICredentialsService creates a new API credentials service
 func NewAPICredentialsService(database *sql.DB, encryptionKey []byte) *APICredentialsService {
-	return &APICredentialsService{
+	service := &APICredentialsService{
 		queries:       db.New(database),
 		encryptionKey: encryptionKey,
+		credentialsCache: sync.Map{},
 	}
+
+	// Preload credentials in the background
+	go service.PreloadCredentials(context.Background())
+
+	return service
 }
 
 // encrypt encrypts plaintext using AES-GCM
@@ -125,17 +133,28 @@ func (acs *APICredentialsService) StoreAPIKey(ctx context.Context, provider mode
 		return fmt.Errorf("failed to store API credential: %w", err)
 	}
 
-	logging.Info("API key stored successfully", "provider", provider)
+	// Update the cache with the new API key
+	acs.credentialsCache.Store(provider, apiKey)
+
+	logging.Info("API key stored successfully and cached", "provider", provider)
 	return nil
 }
 
 // GetAPIKey retrieves and decrypts an API key for a provider
 func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models.ModelProvider) (string, error) {
-	logging.Info("Getting API key from database", "provider", provider)
+	// Check the cache first
+	if cachedValue, found := acs.credentialsCache.Load(provider); found {
+		logging.Info("Using cached API key", "provider", provider)
+		return cachedValue.(string), nil
+	}
+
+	logging.Info("API key not in cache, getting from database", "provider", provider)
 	credential, err := acs.queries.GetAPICredential(ctx, string(provider))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			logging.Info("No API key found in database", "provider", provider, "error", "sql.ErrNoRows")
+			// Cache the empty result to avoid repeated database lookups
+			acs.credentialsCache.Store(provider, "")
 			return "", nil // No credential found
 		}
 		logging.Error("Failed to get API credential from database", "provider", provider, "error", err)
@@ -149,16 +168,29 @@ func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models
 		return "", fmt.Errorf("failed to decrypt API key: %w", err)
 	}
 
-	logging.Info("API key successfully decrypted", "provider", provider, "keyLength", len(decryptedKey))
+	logging.Info("API key successfully decrypted, storing in cache", "provider", provider, "keyLength", len(decryptedKey))
+	// Store the decrypted key in the cache
+	acs.credentialsCache.Store(provider, decryptedKey)
 	return decryptedKey, nil
 }
 
 // HasAPIKey checks if a provider has a stored API key
 func (acs *APICredentialsService) HasAPIKey(ctx context.Context, provider models.ModelProvider) (bool, error) {
+	// Check the cache first
+	if cachedValue, found := acs.credentialsCache.Load(provider); found {
+		logging.Info("Using cached value for HasAPIKey check", "provider", provider)
+		// If we have a non-empty string in cache, the key exists
+		return cachedValue.(string) != "", nil
+	}
+
+	// Not in cache, check the database
+	logging.Info("Checking database for HasAPIKey", "provider", provider)
 	count, err := acs.queries.HasAPICredential(ctx, string(provider))
 	if err != nil {
 		return false, fmt.Errorf("failed to check API credential: %w", err)
 	}
+	
+	// Don't update the cache here - GetAPIKey will do that when the actual key is needed
 	return count > 0, nil
 }
 
@@ -169,7 +201,10 @@ func (acs *APICredentialsService) DeleteAPIKey(ctx context.Context, provider mod
 		return fmt.Errorf("failed to delete API credential: %w", err)
 	}
 
-	logging.Info("API key deleted successfully", "provider", provider)
+	// Remove from cache
+	acs.credentialsCache.Delete(provider)
+
+	logging.Info("API key deleted successfully and removed from cache", "provider", provider)
 	return nil
 }
 
@@ -197,7 +232,10 @@ func (acs *APICredentialsService) DeleteAllCredentials(ctx context.Context) erro
 		return fmt.Errorf("failed to delete all API credentials: %w", err)
 	}
 
-	logging.Info("All API credentials deleted successfully")
+	// Clear the entire cache
+	acs.ClearCache()
+
+	logging.Info("All API credentials deleted successfully and cache cleared")
 	return nil
 }
 
@@ -206,6 +244,51 @@ var supportedProviders = map[models.ModelProvider]struct{}{
 	models.ProviderAnthropic:  {},
 	models.ProviderOpenAI:     {},
 	models.ProviderOpenRouter: {},
+}
+
+// ClearCache removes all entries from the credentials cache
+func (acs *APICredentialsService) ClearCache() {
+	// Create a new empty map to replace the existing one
+	acs.credentialsCache = sync.Map{}
+	logging.Info("API credentials cache cleared")
+}
+
+// ClearProviderCache removes a specific provider's credentials from the cache
+func (acs *APICredentialsService) ClearProviderCache(provider models.ModelProvider) {
+	acs.credentialsCache.Delete(provider)
+	logging.Info("Cleared API credentials cache for provider", "provider", provider)
+}
+
+// PreloadCredentials loads all credentials into the cache to avoid database hits
+func (acs *APICredentialsService) PreloadCredentials(ctx context.Context) {
+	logging.Info("Preloading API credentials into cache")
+	
+	// List all credentials from the database
+	credentials, err := acs.queries.ListAPICredentials(ctx)
+	if err != nil {
+		logging.Error("Failed to preload API credentials", "error", err)
+		return
+	}
+
+	count := 0
+	for _, cred := range credentials {
+		if cred.ApiKey == "" {
+			continue
+		}
+		
+		provider := models.ModelProvider(cred.Provider)
+		decryptedKey, err := acs.decrypt(cred.ApiKey)
+		if err != nil {
+			logging.Error("Failed to decrypt API key during preload", "provider", provider, "error", err)
+			continue
+		}
+		
+		// Store in cache
+		acs.credentialsCache.Store(provider, decryptedKey)
+		count++
+	}
+	
+	logging.Info("Successfully preloaded API credentials into cache", "count", count)
 }
 
 // ValidateAPIKey performs basic validation on an API key for a provider
