@@ -237,11 +237,11 @@ export async function updateUserPreferences(
     
     // Prepare update with reasonable defaults if no preferences exist
     const update = {
-      preferred_provider: preferences.preferredProvider || currentPrefs.preferences?.preferredProvider || 'anthropic',
-      main_agent_model: preferences.mainAgentModel || currentPrefs.preferences?.mainAgentModel || '',
-      main_agent_max_tokens: preferences.mainAgentMaxTokens || currentPrefs.preferences?.mainAgentMaxTokens || 2000,
-      sub_agent_model: preferences.subAgentModel || currentPrefs.preferences?.subAgentModel || '',
-      sub_agent_max_tokens: preferences.subAgentMaxTokens || currentPrefs.preferences?.subAgentMaxTokens || 1000
+      preferredProvider: preferences.preferredProvider || currentPrefs.preferences?.preferredProvider || 'anthropic',
+      mainAgentModel: preferences.mainAgentModel || currentPrefs.preferences?.mainAgentModel || '',
+      mainAgentMaxTokens: preferences.mainAgentMaxTokens || currentPrefs.preferences?.mainAgentMaxTokens || 2000,
+      subAgentModel: preferences.subAgentModel || currentPrefs.preferences?.subAgentModel || '',
+      subAgentMaxTokens: preferences.subAgentMaxTokens || currentPrefs.preferences?.subAgentMaxTokens || 1000
     };
     
     // If a provider is specified but no models, try to set default models

@@ -132,7 +132,7 @@ export async function handleProviderSelection(providerId: string): Promise<UIMes
     
     // Update preferences to use this provider as the preferred one
     await mix.preferences.updatePreferences({
-      preferred_provider: providerId
+      preferredProvider: providerId
     });
     
     // Verify the update was successful
@@ -143,15 +143,56 @@ export async function handleProviderSelection(providerId: string): Promise<UIMes
       throw new Error("Failed to update provider preference");
     }
     
-    // Get provider display name from auth status
+    // Get provider display name and available models
     const authStatus = await mix.authentication.getAuthStatus();
     const providerName = authStatus.providers?.[providerId]?.displayName || providerId;
     
-    return {
-      content: `✅ Successfully set **${providerName}** as your default provider`,
-      from: "assistant",
-      frontend_only: true
-    };
+    // Get models for this provider
+    const preferences = await mix.preferences.getPreferences();
+    const providerData = preferences.availableProviders?.[providerId];
+    
+    if (providerData && providerData.models && providerData.models.length > 0) {
+      // Format models for UI
+      const currentModel = preferences.preferences?.mainAgentModel || "";
+      const formattedModels = providerData.models.map((modelId: string) => ({
+        id: modelId,
+        displayName: modelId,
+        isSelected: modelId === currentModel
+      }));
+      
+      // Sort models - selected first, then alphabetically
+      formattedModels.sort((a, b) => {
+        // Selected model first
+        if (a.isSelected !== b.isSelected) {
+          return a.isSelected ? -1 : 1;
+        }
+        
+        // Then alphabetically
+        return a.displayName.localeCompare(b.displayName);
+      });
+      
+      // Success message with model selection UI
+      return {
+        content: `✅ Successfully set **${providerName}** as your default provider\n\nNow select a model for this provider:`,
+        from: "assistant",
+        frontend_only: true,
+        model: {
+          models: formattedModels,
+          currentModel,
+          provider: {
+            id: providerId,
+            displayName: providerName
+          }
+        }
+      };
+    } else {
+      // No models available, just show success message
+      return {
+        content: `✅ Successfully set **${providerName}** as your default provider${!providerData?.models?.length ? "\n\nNo models available for this provider." : ""}`,
+        from: "assistant",
+        frontend_only: true
+      };
+    }
   } catch (error) {
     return {
       content: `Failed to update provider preference: ${error instanceof Error ? error.message : "Unknown error"}`,

@@ -114,9 +114,9 @@ export async function handleModelSelection(modelId: string): Promise<UIMessage> 
     
     // Update preferences with the selected model
     await mix.preferences.updatePreferences({
-      preferred_provider: providerId, // Keep the same provider
-      main_agent_model: modelId, // Update the model
-      sub_agent_model: modelId  // Also update the sub agent model for consistency
+      preferredProvider: providerId, // Keep the same provider
+      mainAgentModel: modelId, // Update the model
+      subAgentModel: modelId  // Also update the sub agent model for consistency
     });
     
     // Verify the update was successful
