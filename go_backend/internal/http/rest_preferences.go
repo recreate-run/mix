@@ -103,6 +103,8 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 
 // HandleUpdatePreferences handles POST /api/preferences
 func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *http.Request) {
+	// Get main agent service to clear cached providers after update
+	coderAgent := h.app.CoderAgent
 	userPrefs := config.GetUserPreferences()
 	if userPrefs == nil {
 		WriteErrorResponse(w, http.StatusInternalServerError, "user preferences service not available", "PREFERENCES_SERVICE_UNAVAILABLE")
@@ -251,6 +253,14 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 		logging.Error("Failed to update user preferences", "error", err)
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to update preferences", "DATABASE_ERROR")
 		return
+	}
+	
+	// Clear all cached session providers to ensure new sessions use updated preferences
+	if coderAgent != nil {
+		logging.Info("Clearing all session provider caches due to preference update")
+		coderAgent.ClearAllSessionProviders()
+	} else {
+		logging.Warn("Could not clear session provider cache: coderAgent is nil")
 	}
 
 	response := UserPreferencesResponse{

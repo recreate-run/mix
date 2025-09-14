@@ -6,6 +6,7 @@ const (
 	CreatedEvent EventType = "created"
 	UpdatedEvent EventType = "updated"
 	DeletedEvent EventType = "deleted"
+	PreferencesUpdatedEvent EventType = "preferences_updated"
 )
 
 type Suscriber[T any] interface {
