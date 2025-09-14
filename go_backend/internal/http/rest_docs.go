@@ -489,6 +489,479 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/auth/api-key": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "storeApiKey",
+					"summary":     "Store API key",
+					"description": "Store API key for direct authentication with a specific provider",
+					"tags":        []string{"Authentication"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"provider", "api_key"},
+						"properties": map[string]interface{}{
+							"provider": map[string]interface{}{
+								"type":        "string",
+								"description": "Provider name (anthropic, openai, openrouter)",
+								"enum":        []string{"anthropic", "openai", "openrouter"},
+							},
+							"api_key": map[string]interface{}{
+								"type":        "string",
+								"description": "API key for authentication",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status (success)",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Success message",
+								},
+							},
+						}, "API key stored status"),
+						"400": createErrorResponse("Invalid request data or API key format"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/status": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getAuthStatus",
+					"summary":     "Get authentication status",
+					"description": "Get authentication status for all supported providers",
+					"tags":        []string{"Authentication"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"providers": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"authenticated": map[string]interface{}{
+												"type":        "boolean",
+												"description": "Whether provider is authenticated",
+											},
+											"auth_method": map[string]interface{}{
+												"type":        "string",
+												"description": "Authentication method (oauth, api_key, none)",
+												"enum":        []string{"oauth", "api_key", "none"},
+											},
+											"display_name": map[string]interface{}{
+												"type":        "string",
+												"description": "User-friendly provider name",
+											},
+										},
+									},
+									"description": "Map of provider authentication status",
+								},
+							},
+						}, "Authentication status for all providers"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/validate": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "validatePreferredProvider",
+					"summary":     "Validate preferred provider",
+					"description": "Check if the user's preferred provider is authenticated",
+					"tags":        []string{"Authentication"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"valid": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Whether preferred provider is authenticated",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Preferred provider name",
+								},
+								"auth_method": map[string]interface{}{
+									"type":        "string",
+									"description": "Authentication method used",
+									"enum":        []string{"oauth", "api_key", "none"},
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+								},
+							},
+						}, "Preferred provider validation status"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/oauth/{provider}": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "startOAuthFlow",
+					"summary":     "Start OAuth authentication",
+					"description": "Initiate OAuth authentication flow for a specific provider",
+					"tags":        []string{"Authentication"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("provider", "Provider name (currently only 'anthropic')"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"auth_url": map[string]interface{}{
+									"type":        "string",
+									"description": "OAuth authorization URL to redirect to",
+								},
+								"state": map[string]interface{}{
+									"type":        "string",
+									"description": "OAuth state token for verification",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Instructions for completing OAuth flow",
+								},
+							},
+						}, "OAuth authorization information"),
+						"400": createErrorResponse("Invalid provider or OAuth not supported"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/oauth-callback": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "handleOAuthCallback",
+					"summary":     "Handle OAuth callback",
+					"description": "Process OAuth callback and exchange code for access token",
+					"tags":        []string{"Authentication"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"provider", "code", "state"},
+						"properties": map[string]interface{}{
+							"provider": map[string]interface{}{
+								"type":        "string",
+								"description": "Provider name (anthropic)",
+							},
+							"code": map[string]interface{}{
+								"type":        "string",
+								"description": "Authorization code from OAuth provider",
+							},
+							"state": map[string]interface{}{
+								"type":        "string",
+								"description": "OAuth state for verification",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+								},
+								"expires_in": map[string]interface{}{
+									"type":        "integer",
+									"description": "Seconds until token expiration",
+								},
+							},
+						}, "OAuth completion status"),
+						"400": createErrorResponse("Invalid request parameters"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/auth/{provider}": map[string]interface{}{
+				"delete": map[string]interface{}{
+					"operationId":  "deleteCredentials",
+					"summary":     "Delete provider credentials",
+					"description": "Delete stored API key and/or OAuth credentials for a provider",
+					"tags":        []string{"Authentication"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("provider", "Provider name (anthropic, openai, openrouter)"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+								},
+							},
+						}, "Credentials deletion status"),
+						"400": createErrorResponse("Invalid provider"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/preferences": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getPreferences",
+					"summary":     "Get user preferences",
+					"description": "Retrieve current user preferences including model and provider settings",
+					"tags":        []string{"Preferences"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"preferences": map[string]interface{}{
+									"type": "object",
+									"description": "User preferences (null if no preferences exist)",
+									"nullable": true,
+									"properties": map[string]interface{}{
+										"preferred_provider": map[string]interface{}{
+											"type":        "string",
+											"description": "Preferred AI provider (anthropic, openai, openrouter)",
+										},
+										"main_agent_model": map[string]interface{}{
+											"type":        "string",
+											"description": "Main agent model ID",
+										},
+										"main_agent_max_tokens": map[string]interface{}{
+											"type":        "integer",
+											"description": "Maximum tokens for main agent responses",
+										},
+										"main_agent_reasoning_effort": map[string]interface{}{
+											"type":        "string",
+											"description": "Reasoning effort setting for main agent",
+										},
+										"sub_agent_model": map[string]interface{}{
+											"type":        "string",
+											"description": "Sub agent model ID",
+										},
+										"sub_agent_max_tokens": map[string]interface{}{
+											"type":        "integer",
+											"description": "Maximum tokens for sub agent responses",
+										},
+										"sub_agent_reasoning_effort": map[string]interface{}{
+											"type":        "string",
+											"description": "Reasoning effort setting for sub agent",
+										},
+										"created_at": map[string]interface{}{
+											"type":        "integer",
+											"description": "Unix timestamp when preferences were created",
+										},
+										"updated_at": map[string]interface{}{
+											"type":        "integer",
+											"description": "Unix timestamp of last update",
+										},
+									},
+								},
+								"available_providers": map[string]interface{}{
+									"type": "object",
+									"description": "Map of available AI providers and their models",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"display_name": map[string]interface{}{
+												"type":        "string",
+												"description": "User-friendly provider name",
+											},
+											"models": map[string]interface{}{
+												"type":        "array",
+												"items":       map[string]interface{}{"type": "string"},
+												"description": "Available models from this provider",
+											},
+										},
+									},
+								},
+							},
+							"required": []string{"available_providers"},
+						}, "User preferences and available providers"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+				"post": map[string]interface{}{
+					"operationId":  "updatePreferences",
+					"summary":     "Update user preferences",
+					"description": "Update user preferences including model and provider settings",
+					"tags":        []string{"Preferences"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"preferred_provider": map[string]interface{}{
+								"type":        "string",
+								"description": "Preferred AI provider (anthropic, openai, openrouter)",
+							},
+							"main_agent_model": map[string]interface{}{
+								"type":        "string",
+								"description": "Main agent model ID",
+							},
+							"main_agent_max_tokens": map[string]interface{}{
+								"type":        "integer",
+								"description": "Maximum tokens for main agent responses",
+							},
+							"main_agent_reasoning_effort": map[string]interface{}{
+								"type":        "string",
+								"description": "Reasoning effort setting for main agent",
+							},
+							"sub_agent_model": map[string]interface{}{
+								"type":        "string",
+								"description": "Sub agent model ID",
+							},
+							"sub_agent_max_tokens": map[string]interface{}{
+								"type":        "integer",
+								"description": "Maximum tokens for sub agent responses",
+							},
+							"sub_agent_reasoning_effort": map[string]interface{}{
+								"type":        "string",
+								"description": "Reasoning effort setting for sub agent",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"preferred_provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Preferred AI provider",
+								},
+								"main_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Main agent model ID",
+								},
+								"main_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Maximum tokens for main agent",
+								},
+								"main_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reasoning effort for main agent",
+								},
+								"sub_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Sub agent model ID",
+								},
+								"sub_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Maximum tokens for sub agent",
+								},
+								"sub_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reasoning effort for sub agent",
+								},
+								"created_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Creation timestamp",
+								},
+								"updated_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Last update timestamp",
+								},
+							},
+						}, "Updated preferences"),
+						"400": createErrorResponse("Invalid request parameters"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/preferences/providers": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getAvailableProviders",
+					"summary":     "Get available providers",
+					"description": "Retrieve list of available AI providers and their supported models",
+					"tags":        []string{"Preferences"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"additionalProperties": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"display_name": map[string]interface{}{
+										"type":        "string",
+										"description": "Provider display name",
+									},
+									"models": map[string]interface{}{
+										"type":        "array",
+										"items":       map[string]interface{}{"type": "string"},
+										"description": "Available models for this provider",
+									},
+								},
+							},
+							"description": "Map of available providers and their models",
+						}, "Available providers"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/preferences/reset": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "resetPreferences",
+					"summary":     "Reset preferences",
+					"description": "Reset user preferences to default values",
+					"tags":        []string{"Preferences"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"preferred_provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset preferred provider",
+								},
+								"main_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset main agent model",
+								},
+								"main_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Reset main agent max tokens",
+								},
+								"main_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset main agent reasoning effort",
+								},
+								"sub_agent_model": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset sub agent model",
+								},
+								"sub_agent_max_tokens": map[string]interface{}{
+									"type":        "integer",
+									"description": "Reset sub agent max tokens",
+								},
+								"sub_agent_reasoning_effort": map[string]interface{}{
+									"type":        "string",
+									"description": "Reset sub agent reasoning effort",
+								},
+								"created_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Creation timestamp",
+								},
+								"updated_at": map[string]interface{}{
+									"type":        "integer",
+									"description": "Reset timestamp",
+								},
+							},
+						}, "Reset preferences"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "healthCheck",

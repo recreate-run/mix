@@ -11,7 +11,6 @@ import (
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
 
-	"mix/internal/config"
 	"mix/internal/logging"
 
 	"github.com/pressly/goose/v3"
@@ -25,8 +24,7 @@ const (
 	DBMigrationTimeout  = 5 * time.Minute
 )
 
-func Connect(ctx context.Context) (*sql.DB, error) {
-	dataDir := config.Get().Data.Directory
+func Connect(ctx context.Context, dataDir string) (*sql.DB, error) {
 	if dataDir == "" {
 		return nil, fmt.Errorf("data.dir is not set")
 	}

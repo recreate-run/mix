@@ -1,15 +1,5 @@
 {
   "$schema": "./mix-schema.json",
-  "agents": {
-    "main": {
-      "model": "claude-4-sonnet",
-      "maxTokens": 4096
-    },
-    "sub": {
-      "model": "claude-4-sonnet", 
-      "maxTokens": 2048
-    }
-  },
   "mcpServers": {
     "blender": { 
           "type": "stdio",

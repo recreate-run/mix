@@ -34,6 +34,18 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	q := db.New(conn)
 	sessions := session.NewService(q)
 
+	// Initialize user preferences with database connection
+	if err := config.InitUserPreferences(conn); err != nil {
+		logging.Error("Failed to initialize user preferences", "error", err)
+		return nil, fmt.Errorf("failed to initialize user preferences: %w", err)
+	}
+
+	// Initialize API credentials service with database connection
+	if err := config.InitAPICredentials(conn); err != nil {
+		logging.Error("Failed to initialize API credentials", "error", err)
+		return nil, fmt.Errorf("failed to initialize API credentials: %w", err)
+	}
+
 	// Create base message service
 	baseMessageService := message.NewService(q)
 

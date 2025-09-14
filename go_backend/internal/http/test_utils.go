@@ -88,7 +88,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 	// Connect to database
 	ctx := context.Background()
-	conn, err := db.Connect(ctx)
+	conn, err := db.Connect(ctx, ".mix")
 	if err != nil {
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}

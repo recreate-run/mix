@@ -21,6 +21,8 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	sessionHandler := NewSessionHandler(app)
 	messageHandler := NewMessageHandler(app)
 	systemHandler := NewSystemHandler(app)
+	preferencesHandler := NewPreferencesHandler(app)
+	authHandler := NewAuthHandler(app)
 
 	// Create dedicated HTTP mux with CORS middleware
 	mux := http.NewServeMux()
@@ -135,6 +137,20 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/commands/{name}", systemHandler.HandleGetCommand)
 	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
+	
+	// User preferences endpoints
+	mux.HandleFunc("GET /api/preferences", preferencesHandler.HandleGetPreferences)
+	mux.HandleFunc("POST /api/preferences", preferencesHandler.HandleUpdatePreferences)
+	mux.HandleFunc("GET /api/preferences/providers", preferencesHandler.HandleGetAvailableProviders)
+	mux.HandleFunc("POST /api/preferences/reset", preferencesHandler.HandleResetPreferences)
+	
+	// Authentication management endpoints
+	mux.HandleFunc("POST /api/auth/api-key", authHandler.HandleStoreAPIKey)
+	mux.HandleFunc("DELETE /api/auth/{provider}", authHandler.HandleDeleteCredentials)
+	mux.HandleFunc("GET /api/auth/status", authHandler.HandleAuthStatus)
+	mux.HandleFunc("GET /api/auth/validate", authHandler.HandleValidatePreferredProvider)
+	mux.HandleFunc("POST /api/auth/oauth/{provider}", authHandler.HandleStartOAuth)
+	mux.HandleFunc("POST /api/auth/oauth-callback", authHandler.HandleOAuthCallback)
 
 	addr := host + ":" + strconv.Itoa(port)
 	server := &http.Server{

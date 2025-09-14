@@ -276,7 +276,7 @@ func handleShellCommand(ctx context.Context, w http.ResponseWriter, flusher http
 func handleRegularMessage(ctx context.Context, app *app.App, w http.ResponseWriter, flusher http.Flusher, sessionID, text string, planMode bool) error {
 	
 	// Check authentication status before processing the message using the centralized function
-	authenticated, _, authErr := provider.IsAuthenticated()
+	authenticated, _, authErr := provider.IsAuthenticated(ctx, "")
 	if authErr != nil {
 		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Error checking authentication: %s", authErr.Error())})
 		flusher.Flush()

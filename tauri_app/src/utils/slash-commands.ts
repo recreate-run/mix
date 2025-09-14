@@ -7,6 +7,8 @@ import {
   RefreshCw,
   Shield,
   UserCheck,
+  Settings,
+  Cpu,
 } from 'lucide-react';
 
 interface SlashCommand {
@@ -50,7 +52,7 @@ export const slashCommands: SlashCommand[] = [
   {
     id: 'login',
     name: 'login',
-    description: 'Authenticate with Claude Code OAuth',
+    description: 'Authenticate with available providers',
     icon: LogIn,
   },
   {
@@ -70,6 +72,18 @@ export const slashCommands: SlashCommand[] = [
     name: 'permissions',
     description: 'System permissions and access',
     icon: Shield,
+  },
+  {
+    id: 'provider',
+    name: 'provider',
+    description: 'Select preferred provider',
+    icon: Settings,
+  },
+  {
+    id: 'model',
+    name: 'model',
+    description: 'Select model for current provider',
+    icon: Cpu,
   },
 ];
 

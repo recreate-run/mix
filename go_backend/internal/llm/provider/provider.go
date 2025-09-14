@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"mix/internal/config"
 	"mix/internal/llm/models"
 	"mix/internal/llm/tools"
+	"mix/internal/logging"
 	"mix/internal/message"
 )
 
@@ -35,11 +37,11 @@ type TokenUsage struct {
 }
 
 type ProviderResponse struct {
-	Content             string
-	ToolCalls           []message.ToolCall
-	Usage               TokenUsage
-	FinishReason        message.FinishReason
-	ThinkingBlocks      []message.ThinkingBlockContent
+	Content                string
+	ToolCalls              []message.ToolCall
+	Usage                  TokenUsage
+	FinishReason           message.FinishReason
+	ThinkingBlocks         []message.ThinkingBlockContent
 	RedactedThinkingBlocks []message.RedactedThinkingContent
 }
 
@@ -86,9 +88,33 @@ type baseProvider[C ProviderClient] struct {
 
 func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption) (Provider, error) {
 	clientOptions := providerClientOptions{}
+
+	// Apply passed options
 	for _, o := range opts {
 		o(&clientOptions)
 	}
+
+	// If no API key provided in options, try to get from database
+	if clientOptions.apiKey == "" {
+		// Only get database credentials if we haven't explicitly set apiKey
+		ctx := context.Background()
+		credentialsService := config.GetAPICredentials()
+		if credentialsService != nil {
+			// Try to get API key from database
+			apiKey, err := credentialsService.GetAPIKey(ctx, providerName)
+			if err == nil && apiKey != "" {
+				clientOptions.apiKey = apiKey
+				logging.Info("NewProvider: Using database-stored API key", "provider", providerName)
+			} else {
+				// No database key and not explicitly set - for non-OAuth providers, this is a potential issue
+				if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
+					logging.Warn("No API key found in database for provider", "provider", providerName)
+				}
+			}
+		}
+	}
+
+	// Create provider instance based on provider name
 	switch providerName {
 	case models.ProviderAnthropic:
 		return &baseProvider[AnthropicClient]{
@@ -153,8 +179,13 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderLocal:
+		// For local provider, we still need the endpoint from environment
+		localEndpoint := os.Getenv("LOCAL_ENDPOINT")
+		if localEndpoint == "" {
+			localEndpoint = "http://localhost:8000/v1" // Default local endpoint
+		}
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL(os.Getenv("LOCAL_ENDPOINT")),
+			WithOpenAIBaseURL(localEndpoint),
 		)
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,

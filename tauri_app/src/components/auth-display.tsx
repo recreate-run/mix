@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
+import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ interface AuthLoginResponse {
 	message: string;
 	authUrl?: string; // for OAuth flow
 	step?: string; // current step in flow
+	state?: string; // OAuth state parameter
 }
 
 interface ErrorResponse {
@@ -48,6 +50,8 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 		setAuthMode,
 		isLoading,
 		showSuccess,
+		oauthState,
+		setOauthState,
 		handleSubmit,
 	} = useAuthFlow();
 
@@ -157,7 +161,24 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 								<div className="space-y-3">
 									<Button
 										className="w-full"
-										onClick={() => window.open(loginData.authUrl, "_blank")}
+										onClick={async () => {
+											// Store the state parameter if available
+											if (loginData.state) {
+												setOauthState(loginData.state);
+												console.log("Stored OAuth state in auth-display:", loginData.state);
+											}
+											try {
+												await shellOpen(loginData.authUrl);
+											} catch (error) {
+												console.warn("Shell plugin failed, falling back to window.open", error);
+												try {
+													window.open(loginData.authUrl, "_blank");
+												} catch (windowError) {
+													console.error("Both browser opening methods failed:", windowError);
+													alert("Could not open browser automatically. Please copy and paste the URL manually.");
+												}
+											}
+										}}
 										variant="outline"
 									>
 										<ExternalLink className="mr-2 h-4 w-4" />

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"mix/internal/config"
 	"mix/internal/llm/models"
 	toolsPkg "mix/internal/llm/tools"
 	"mix/internal/logging"
@@ -53,7 +54,7 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 		logging.Warn("Failed to initialize OAuth credential storage: %v", err)
 	}
 
-	// Check for OAuth credentials first
+	// Check for OAuth credentials first (highest priority)
 	var oauthCreds *OAuthCredentials
 	if credStorage != nil {
 		if creds, err := credStorage.GetOAuthCredentials("anthropic"); err == nil && creds != nil {
@@ -76,26 +77,45 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 				}
 			} else if !creds.IsTokenExpired() {
 				oauthCreds = creds
+				logging.Info("Using valid Anthropic OAuth credentials")
 			}
 		}
 	}
 
 	anthropicClientOptions := []option.RequestOption{}
 
-	// Set up authentication
+	// Set up authentication - prioritize OAuth over database API key
 	if oauthCreds != nil {
 		anthropicOpts.useOAuth = true
 		anthropicOpts.oauthCreds = oauthCreds
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAuthToken(oauthCreds.AccessToken))
+		logging.Info("Initialized Anthropic client with OAuth authentication")
 	} else if opts.apiKey != "" {
+		// Use database API key (passed in opts.apiKey from caller)
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
-		logging.Info("Initialized Anthropic client with API key authentication")
+		logging.Info("Initialized Anthropic client with database API key authentication")
 	} else {
-		// Allow client creation even without auth for command handling
-		logging.Warn("No authentication method available - neither OAuth nor API key")
-		// Using a placeholder API key to allow the client to initialize
-		// This will allow /login and other non-API commands to work
-		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey("placeholder-for-initialization-only"))
+		// No authentication available - check database directly as last resort
+		if config.GetAPICredentials() != nil {
+			ctx := context.Background()
+			dbKey, err := config.GetAPICredentials().GetAPIKey(ctx, models.ProviderAnthropic)
+			if err == nil && dbKey != "" {
+				anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(dbKey))
+				logging.Info("Initialized Anthropic client with database API key (direct lookup)")
+			} else {
+				// No valid credentials found - use placeholder for command handling only
+				logging.Warn("No authentication method available for Anthropic - neither OAuth nor database API key")
+				// Using a placeholder API key to allow the client to initialize
+				// This will allow /login and other non-API commands to work
+				anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey("placeholder-for-initialization-only"))
+			}
+		} else {
+			// No credentials service available
+			logging.Warn("No authentication method available for Anthropic - credentials service not available")
+			// Using a placeholder API key to allow the client to initialize
+			// This will allow /login and other non-API commands to work
+			anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey("placeholder-for-initialization-only"))
+		}
 	}
 
 	if anthropicOpts.useBedrock {

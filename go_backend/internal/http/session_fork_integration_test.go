@@ -58,7 +58,7 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 
 	// Use the standard database connection method so everything is consistent
 	ctx := context.Background()
-	conn, err := db.Connect(ctx)
+	conn, err := db.Connect(ctx, ".mix")
 	if err != nil {
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}

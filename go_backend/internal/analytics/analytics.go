@@ -16,6 +16,7 @@ const (
 	EventUserMessage    = "user_message"
 	EventAgentResponse  = "agent_response"
 	EventToolCall       = "tool_call"
+	EventProviderAuth   = "provider_auth"
 
 	// Properties
 	PropSessionID      = "session_id"
@@ -27,6 +28,18 @@ const (
 	PropModel          = "model"
 	PropSuccess        = "success"
 	PropError          = "error"
+	
+	// Provider-specific properties
+	PropProvider           = "provider"
+	PropProviderModel      = "provider_model"
+	PropThinkingEnabled    = "thinking_enabled"
+	PropThinkingLength     = "thinking_length"
+	PropResponseTime       = "response_time_ms"
+	PropTokenUsageInput    = "token_usage_input"
+	PropTokenUsageOutput   = "token_usage_output"
+	PropTokenUsageCached   = "token_usage_cached"
+	PropCost               = "cost"
+	PropAuthMethod         = "auth_method"
 )
 
 // Service defines the analytics tracking interface
@@ -39,6 +52,14 @@ type Service interface {
 	
 	// TrackToolCall tracks a tool call
 	TrackToolCall(ctx context.Context, sessionID, messageID, toolName, toolInput, toolID string, success bool, errorMsg string) error
+	
+	// TrackAgentResponseWithProvider tracks an assistant's response with detailed provider information
+	TrackAgentResponseWithProvider(ctx context.Context, sessionID, messageID, content string, 
+		provider string, model string, thinkingEnabled bool, thinkingLength int, 
+		responseTimeMs int64, tokenUsage map[string]int64, cost float64) error
+	
+	// TrackProviderAuth tracks authentication events for providers
+	TrackProviderAuth(ctx context.Context, provider string, success bool, authMethod string) error
 	
 	// Close closes the analytics client
 	Close() error
@@ -202,6 +223,105 @@ func (s *analyticsService) TrackToolCall(ctx context.Context, sessionID, message
 		return fmt.Errorf("failed to track tool call: %w", err)
 	}
 
+	return nil
+}
+
+// TrackAgentResponseWithProvider tracks an assistant's response with detailed provider information
+func (s *analyticsService) TrackAgentResponseWithProvider(ctx context.Context, 
+	sessionID, messageID, content string, provider string, model string,
+	thinkingEnabled bool, thinkingLength int, responseTimeMs int64,
+	tokenUsage map[string]int64, cost float64) error {
+	
+	if !s.enabled {
+		return nil
+	}
+	
+	// Don't track empty content
+	if content == "" {
+		return nil
+	}
+	
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	// Truncate long content
+	trackedContent := content
+	if len(trackedContent) > 10000 {
+		trackedContent = trackedContent[:10000] + "... [truncated]"
+	}
+	
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropMessageID, messageID).
+		Set(PropContent, trackedContent).
+		Set(PropModel, model).
+		Set(PropProvider, provider).
+		Set(PropProviderModel, model).
+		Set(PropThinkingEnabled, thinkingEnabled).
+		Set(PropThinkingLength, thinkingLength).
+		Set(PropResponseTime, responseTimeMs).
+		Set("content_length", len(content)).
+		Set("is_truncated", len(trackedContent) < len(content))
+	
+	// Add token usage if available
+	if tokenUsage != nil {
+		if input, ok := tokenUsage["input"]; ok {
+			props = props.Set(PropTokenUsageInput, input)
+		}
+		if output, ok := tokenUsage["output"]; ok {
+			props = props.Set(PropTokenUsageOutput, output)
+		}
+		if cached, ok := tokenUsage["cached"]; ok {
+			props = props.Set(PropTokenUsageCached, cached)
+		}
+	}
+	
+	// Add cost if available
+	if cost > 0 {
+		props = props.Set(PropCost, cost)
+	}
+	
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventAgentResponse,
+		Properties: props,
+	})
+	
+	if err != nil {
+		logging.Error("Failed to track agent response with provider details: %v", err)
+		return fmt.Errorf("failed to track agent response with provider details: %w", err)
+	}
+	
+	return nil
+}
+
+// TrackProviderAuth tracks authentication events for providers
+func (s *analyticsService) TrackProviderAuth(ctx context.Context, 
+	provider string, success bool, authMethod string) error {
+	
+	if !s.enabled {
+		return nil
+	}
+	
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	props := posthog.NewProperties().
+		Set(PropProvider, provider).
+		Set(PropSuccess, success).
+		Set(PropAuthMethod, authMethod)
+	
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventProviderAuth,
+		Properties: props,
+	})
+	
+	if err != nil {
+		logging.Error("Failed to track provider auth: %v", err)
+		return fmt.Errorf("failed to track provider auth: %w", err)
+	}
+	
 	return nil
 }
 

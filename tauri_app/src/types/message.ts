@@ -26,6 +26,46 @@ export interface UIMessage {
   mediaOutputs?: MediaOutput[];
   reasoning?: string;
   reasoningDuration?: number;
+  login?: {
+    providers?: any[];
+    selectedProvider?: string;
+    step?: string;
+    authUrl?: string;
+    hasExistingPreferences?: boolean;
+    provider?: string; // Current provider for OAuth flow
+  };
+  status?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+    hasAuthenticatedProvider: boolean;
+  };
+  provider?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+    currentProvider?: string;
+  };
+  model?: {
+    models: {
+      id: string;
+      displayName: string;
+      isSelected?: boolean;
+    }[];
+    currentModel?: string;
+    provider: {
+      id: string;
+      displayName: string;
+    };
+  };
 }
 
 export interface BackendMessage {

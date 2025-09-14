@@ -86,7 +86,7 @@ and content creation workflows.`,
 			}
 		}
 
-		_, err := config.Load(cwd, debug, skipPermissions)
+		cfg, err := config.Load(cwd, debug, skipPermissions)
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ and content creation workflows.`,
 		// Connect DB with timeout, this will also run migrations
 		dbCtx, dbCancel := context.WithTimeout(ctx, db.DBConnectionTimeout)
 		defer dbCancel()
-		conn, err := db.Connect(dbCtx)
+		conn, err := db.Connect(dbCtx, cfg.Data.Directory)
 		if err != nil {
 			return err
 		}

@@ -46,6 +46,54 @@ var ProviderPopularity = map[ModelProvider]int{
 	ProviderVertexAI:   9,
 }
 
+// ProviderInfo represents information about a provider
+type ProviderInfo struct {
+	DisplayName string    `json:"display_name"`
+	Models      []ModelID `json:"models"`
+}
+
+// GetProviders returns a map of all providers with their information
+func GetProviders() map[ModelProvider]ProviderInfo {
+	providerModels := make(map[ModelProvider][]ModelID)
+
+	// Collect models for each provider
+	for modelID, model := range SupportedModels {
+		providerModels[model.Provider] = append(providerModels[model.Provider], modelID)
+	}
+
+	providers := make(map[ModelProvider]ProviderInfo)
+
+	// Create provider info with display names
+	for provider, models := range providerModels {
+		displayName := string(provider)
+		switch provider {
+		case ProviderAnthropic:
+			displayName = "Anthropic (Claude)"
+		case ProviderOpenAI:
+			displayName = "OpenAI (GPT)"
+		case ProviderGemini:
+			displayName = "Google Gemini"
+		case ProviderGROQ:
+			displayName = "GROQ"
+		case ProviderOpenRouter:
+			displayName = "OpenRouter"
+		case ProviderBedrock:
+			displayName = "AWS Bedrock"
+		case ProviderAzure:
+			displayName = "Azure OpenAI"
+		case ProviderVertexAI:
+			displayName = "Google Vertex AI"
+		}
+
+		providers[provider] = ProviderInfo{
+			DisplayName: displayName,
+			Models:      models,
+		}
+	}
+
+	return providers
+}
+
 var SupportedModels = map[ModelID]Model{
 	//
 	// // GEMINI
@@ -72,25 +120,25 @@ var SupportedModels = map[ModelID]Model{
 	// },
 	//
 	// // Bedrock
-	BedrockClaude37Sonnet: {
-		ID:                 BedrockClaude37Sonnet,
-		Name:               "Bedrock: Claude 3.7 Sonnet",
-		Provider:           ProviderBedrock,
-		APIModel:           "anthropic.claude-3-7-sonnet-20250219-v1:0",
-		CostPer1MIn:        3.0,
-		CostPer1MInCached:  3.75,
-		CostPer1MOutCached: 0.30,
-		CostPer1MOut:       15.0,
-	},
+	//BedrockClaude37Sonnet: {
+	//	ID:                 BedrockClaude37Sonnet,
+	//	Name:               "Bedrock: Claude 3.7 Sonnet",
+	//	Provider:           ProviderBedrock,
+	//	APIModel:           "anthropic.claude-3-7-sonnet-20250219-v1:0",
+	//	CostPer1MIn:        3.0,
+	//	CostPer1MInCached:  3.75,
+	//	CostPer1MOutCached: 0.30,
+	//	CostPer1MOut:       15.0,
+	//},
 }
 
 func init() {
 	maps.Copy(SupportedModels, AnthropicModels)
 	maps.Copy(SupportedModels, OpenAIModels)
-	maps.Copy(SupportedModels, GeminiModels)
-	maps.Copy(SupportedModels, GroqModels)
-	maps.Copy(SupportedModels, AzureModels)
+	//maps.Copy(SupportedModels, GeminiModels)
+	//maps.Copy(SupportedModels, GroqModels)
+	//maps.Copy(SupportedModels, AzureModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
-	maps.Copy(SupportedModels, XAIModels)
-	maps.Copy(SupportedModels, VertexAIGeminiModels)
+	//maps.Copy(SupportedModels, XAIModels)
+	//maps.Copy(SupportedModels, VertexAIGeminiModels)
 }

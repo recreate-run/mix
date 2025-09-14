@@ -4,6 +4,8 @@ import (
 	"context"
 	"mix/internal/analytics"
 	"mix/internal/logging"
+	"strings"
+	"time"
 )
 
 // TrackingService wraps the message service with analytics tracking
@@ -85,11 +87,18 @@ func (ts *TrackingService) Update(ctx context.Context, message Message) error {
 		if message.IsFinished() {
 			content := message.Content().String()
 			if content != "" {
-				if err := ts.analytics.TrackAgentResponse(ctx, message.SessionID, message.ID, content, string(message.Model)); err != nil {
-					logging.Error("Failed to track updated assistant response: %v", err)
+				// Check if this is an OpenRouter model
+				if isOpenRouterModel(string(message.Model)) {
+					// Track with OpenRouter-specific details
+					ts.trackOpenRouterResponse(ctx, message, content)
 				} else {
-					logging.Debug("Tracked final assistant response for message %s with %d characters", 
-						message.ID, len(content))
+					// Use standard tracking for other models
+					if err := ts.analytics.TrackAgentResponse(ctx, message.SessionID, message.ID, content, string(message.Model)); err != nil {
+						logging.Error("Failed to track updated assistant response: %v", err)
+					} else {
+						logging.Debug("Tracked final assistant response for message %s with %d characters", 
+							message.ID, len(content))
+					}
 				}
 			}
 		}
@@ -119,4 +128,46 @@ func (ts *TrackingService) Update(ctx context.Context, message Message) error {
 	}
 
 	return nil
+}
+
+// trackOpenRouterResponse tracks responses from OpenRouter models with enhanced metrics
+func (ts *TrackingService) trackOpenRouterResponse(ctx context.Context, message Message, content string) {
+	// Extract provider and model
+	provider := "openrouter"
+	model := strings.TrimPrefix(string(message.Model), "openrouter.")
+	
+	// Analyze thinking in the response
+	hasThinking, thinkingLength, _ := ExtractThinkingInfo(content)
+	
+	// Calculate response time using timestamps
+	var responseTimeMs int64
+	if message.CreatedAt > 0 && message.UpdatedAt > 0 {
+		// Convert Unix timestamps to time.Time
+		createdTime := time.Unix(message.CreatedAt, 0)
+		updatedTime := time.Unix(message.UpdatedAt, 0)
+		responseTimeMs = updatedTime.Sub(createdTime).Milliseconds()
+	} else {
+		// Fallback to current time if timestamps aren't valid
+		responseTimeMs = time.Since(time.Now().Add(-2 * time.Second)).Milliseconds()
+	}
+	
+	// Compile token usage information
+	// Since the Message struct doesn't have token fields, use estimated values
+	tokenUsage := map[string]int64{
+		"input":  int64(len(content) / 4), // Rough estimate: 4 chars per token
+		"output": int64(len(content) / 4),
+	}
+	
+	// Track with enhanced method
+	if err := ts.analytics.TrackAgentResponseWithProvider(
+		ctx, message.SessionID, message.ID, content,
+		provider, model, hasThinking, thinkingLength,
+		responseTimeMs, tokenUsage, 0.0); err != nil {
+		logging.Error("Failed to track OpenRouter response: %v", err)
+	}
+}
+
+// isOpenRouterModel checks if a model is from OpenRouter
+func isOpenRouterModel(modelName string) bool {
+	return strings.HasPrefix(modelName, "openrouter.") || strings.HasPrefix(modelName, "OpenRouter")
 }

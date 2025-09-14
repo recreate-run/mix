@@ -54,7 +54,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 		logging.Warn("Failed to initialize OAuth credential storage: %v", err)
 	}
 
-	// Check for OAuth credentials first
+	// Check for OAuth credentials first - highest priority
 	var oauthCreds *OpenAICredentials
 	if credStorage != nil {
 		if creds, err := credStorage.GetOpenAICredentials("openai"); err == nil && creds != nil {
@@ -76,21 +76,42 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 		}
 	}
 
+	// API Key credential sources (in priority order):
+	// 1. OAuth API key (if valid)
+	// 2. Database API key (passed in opts.apiKey from caller)
+	// Note: We no longer use environment variables or config file
+	
 	openaiClientOptions := []option.RequestOption{}
 
 	// Set up authentication - prioritize OAuth over API key
 	if oauthCreds != nil && oauthCreds.APIKey != "" {
+		// Use OAuth API key
 		openaiOpts.useOAuth = true
 		openaiOpts.oauthCreds = oauthCreds
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(oauthCreds.APIKey))
 		logging.Info("Initialized OpenAI client with OAuth authentication")
 	} else if opts.apiKey != "" {
+		// Use database API key (passed in opts.apiKey from caller)
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
-		logging.Info("Initialized OpenAI client with API key authentication")
+		logging.Info("Initialized OpenAI client with database API key authentication")
 	} else {
-		logging.Warn("No authentication method available - neither OAuth nor API key")
+		// No auth available
+		logging.Warn("No authentication method available for OpenAI - neither OAuth nor database API key")
+		
+		// Check database directly as a last resort (double-check)
+		if config.GetAPICredentials() != nil {
+			ctx := context.Background()
+			dbKey, err := config.GetAPICredentials().GetAPIKey(ctx, models.ProviderOpenAI)
+			if err == nil && dbKey != "" {
+				openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(dbKey))
+				logging.Info("Initialized OpenAI client with database API key (direct lookup)")
+			} else {
+				logging.Info("No OpenAI API key in database, authentication will fail")
+			}
+		}
 	}
 
+	// Apply other options
 	if openaiOpts.baseURL != "" {
 		openaiClientOptions = append(openaiClientOptions, option.WithBaseURL(openaiOpts.baseURL))
 	}
@@ -266,6 +287,12 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 		)
 		// If there is an error we are going to see if we can retry the call
 		if err != nil {
+			// Check for quota exceeded errors
+			if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+				logging.Error("OpenAI API quota exceeded", "error", err, "errorMessage", err.Error())
+				return nil, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
+			}
+			
 			// Check for 401 and try OAuth token refresh
 			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
@@ -403,6 +430,14 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 				return
 			}
 
+			// Check for quota exceeded errors
+			if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+				logging.Error("OpenAI API quota exceeded in streaming request", "error", err, "errorMessage", err.Error())
+				eventChan <- ProviderEvent{Type: EventError, Error: fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)}
+				close(eventChan)
+				return
+			}
+
 			// Check for 401 and try OAuth token refresh
 			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
@@ -453,6 +488,12 @@ func (o *openaiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 	var apierr *openai.Error
 	if !errors.As(err, &apierr) {
 		return false, 0, err
+	}
+
+	// Check for quota exceeded specifically
+	if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+		logging.Error("OpenAI API quota exceeded, cannot retry", "error", err, "statusCode", apierr.StatusCode)
+		return false, 0, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
 	}
 
 	if apierr.StatusCode != 429 && apierr.StatusCode != 500 {
