@@ -1,4 +1,4 @@
-import { Mix } from '../../../../mix-typescript-sdk';
+import { Mix } from 'mix-typescript-sdk';
 import { getBackendUrl } from '@/utils/backendUrl';
 
 
