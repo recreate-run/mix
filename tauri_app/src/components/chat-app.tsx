@@ -37,7 +37,7 @@ import { expandFileReferences } from '@/utils/attachmentUtils';
 import { invalidateMessageHistoryCache } from '@/lib/session-cache';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
-import type { MessageData, UIMessage } from '@/types/message';
+import type { MessageData, UIMessage, HierarchicalModelData } from '@/types/message';
 import {
   handleSlashCommandNavigation,
   shouldShowSlashCommands,
@@ -51,8 +51,7 @@ import { PermissionDialog } from './permission-dialog';
 import { handleStatusCommand as oldHandleStatusCommand } from '@/utils/auth-utils';
 import { handleStatusCommand } from '@/handlers/status-command-handler';
 import { handleLoginCommand } from '@/handlers/login-command-handler';
-import { handleProviderCommand } from '@/handlers/provider-command-handler';
-import { handleModelCommand } from '@/handlers/model-command-handler';
+import { handleUnifiedModelCommand, updateProviderPreference, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
 
 // Helper function to check if a message contains show_media tool call
 const hasMediaShowcaseTool = (toolCalls: ToolCall[]) => {
@@ -88,6 +87,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // UI Interaction Mode 2: Command Palette (full modal triggered by "/" alone)
   const [showCommands, setShowCommands] = useState(false);
+  
+  // Hierarchical model data for CMDK
+  const [hierarchicalModelData, setHierarchicalModelData] = useState<HierarchicalModelData | undefined>(undefined);
 
   // Input management and focus handling
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(
@@ -262,42 +264,29 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   };
 
-  // Handle the provider command with our SDK implementation
-  const handleProviderCommandSpecial = async () => {
+  // Handle the unified model command with our SDK implementation
+  const handleUnifiedModelCommandSpecial = async () => {
     try {
-      // Add user message to show that the command was executed
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "/provider",
-          from: "user",
-        },
-      ]);
+      // Execute the unified model command handler to get data
+      const modelData = await handleUnifiedModelCommand();
       
-      // Execute the provider command handler
-      const providerResult = await handleProviderCommand();
+      // If there's an error, show it as a message
+      if (modelData.error) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            content: "/model",
+            from: "user",
+          },
+          {
+            content: `❌ **${modelData.error}**`,
+            from: "assistant",
+            frontend_only: true,
+          },
+        ]);
+        return;
+      }
       
-      // Add response message returned by the handler
-      setMessages((prev) => [
-        ...prev,
-        providerResult
-      ]);
-    } catch (error) {
-      console.error('Provider command failed:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to handle provider selection: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
-    }
-  };
-
-  // Handle the model command with our SDK implementation
-  const handleModelCommandSpecial = async () => {
-    try {
       // Add user message to show that the command was executed
       setMessages((prev) => [
         ...prev,
@@ -307,20 +296,76 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         },
       ]);
       
-      // Execute the model command handler
-      const modelResult = await handleModelCommand();
+      // Set hierarchical model data and show commands (CMDK will detect the data and show hierarchical view)
+      setHierarchicalModelData({
+        providers: modelData.providers,
+        currentProvider: modelData.currentProvider,
+        currentModel: modelData.currentModel
+      });
+      setShowCommands(true);
       
-      // Add response message returned by the handler
-      setMessages((prev) => [
-        ...prev,
-        modelResult
-      ]);
     } catch (error) {
-      console.error('Model command failed:', error);
+      console.error('Unified model command failed:', error);
       setMessages((prev) => [
         ...prev,
         {
+          content: "/model",
+          from: "user",
+        },
+        {
           content: `Failed to handle model selection: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+
+  // Handle provider selection in hierarchical view
+  const handleProviderSelectionSpecial = async (providerId: string) => {
+    try {
+      // Just update the preferences, don't refresh the entire hierarchical data
+      // The CMDK component will handle the state transition from providers to models
+      await updateProviderPreference(providerId);
+    } catch (error) {
+      console.error('Provider selection failed:', error);
+      // Close CMDK and show error message
+      setShowCommands(false);
+      setHierarchicalModelData(undefined);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to update provider preference: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+
+  // Handle model selection in hierarchical view
+  const handleModelSelectionSpecial = async (providerId: string, modelId: string) => {
+    try {
+      const result = await handleModelSelectionInHierarchy(providerId, modelId);
+      
+      // Close CMDK and clear hierarchical data
+      setShowCommands(false);
+      setHierarchicalModelData(undefined);
+      
+      // Add success message
+      setMessages((prev) => [
+        ...prev,
+        result
+      ]);
+    } catch (error) {
+      console.error('Model selection failed:', error);
+      // Close CMDK and show error message
+      setShowCommands(false);
+      setHierarchicalModelData(undefined);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to update model preference: ${error}`,
           from: "assistant",
           frontend_only: true,
         },
@@ -460,15 +505,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           return;
         }
         
-        if (command === 'provider') {
-          // Handle provider command using our SDK implementation
-          handleProviderCommandSpecial();
-          return;
-        }
-        
         if (command === 'model') {
-          // Handle model command using our SDK implementation
-          handleModelCommandSpecial();
+          // Handle unified model command using our SDK implementation
+          handleUnifiedModelCommandSpecial();
           return;
         }
         
@@ -478,6 +517,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       case 'close': {
         setShowSlashCommands(false);
         setShowCommands(false);
+        setHierarchicalModelData(undefined); // Clear hierarchical data when closing
 
         break;
       }
@@ -887,9 +927,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {/* Unified Command System */}
           {showCommands && (
             <CommandSlash
-              onClose={() => handleCommand('close')}
+              onClose={() => {
+                handleCommand('close');
+                setHierarchicalModelData(undefined); // Clear hierarchical data when closing
+              }}
               onExecuteCommand={(command) => handleCommand('execute', command)}
               sessionId={sessionId}
+              hierarchicalModelData={hierarchicalModelData}
+              onProviderSelect={handleProviderSelectionSpecial}
+              onModelSelect={handleModelSelectionSpecial}
             />
           )}
 

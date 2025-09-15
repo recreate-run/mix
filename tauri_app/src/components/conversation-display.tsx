@@ -457,7 +457,7 @@ export function ConversationDisplay({
                           data={message.model}
                           onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
                         />
-                      ) : messages && index > 0 && messages[index-1]?.from === 'user' && messages[index-1]?.content?.startsWith('/') ? (
+                      ) : messages && index > 0 && messages[index-1]?.from === 'user' && messages[index-1]?.content?.startsWith('/') && !messages[index-1]?.content?.startsWith('/model') && !message.content.includes('Successfully set') ? (
                         <AIResponse>{`\`\`\`bash\n${message.content}\n\`\`\``}</AIResponse>
                       ) : (
                         <ResponseRenderer content={message.content} />

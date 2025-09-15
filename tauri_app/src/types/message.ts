@@ -1,6 +1,7 @@
 import type { Attachment } from '@/stores/attachmentSlice';
 import type { ToolCall, ToolCallData } from './common';
 import type { MediaOutput } from './media';
+import type { HierarchicalModelData } from './provider';
 
 export type TimelineEntry = 
   | {
@@ -66,6 +67,7 @@ export interface UIMessage {
       displayName: string;
     };
   };
+  hierarchicalModel?: HierarchicalModelData;
 }
 
 export interface BackendMessage {

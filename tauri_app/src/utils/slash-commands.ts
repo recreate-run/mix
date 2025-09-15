@@ -74,15 +74,9 @@ export const slashCommands: SlashCommand[] = [
     icon: Shield,
   },
   {
-    id: 'provider',
-    name: 'provider',
-    description: 'Select preferred provider',
-    icon: Settings,
-  },
-  {
     id: 'model',
     name: 'model',
-    description: 'Select model for current provider',
+    description: 'Select provider and model',
     icon: Cpu,
   },
 ];

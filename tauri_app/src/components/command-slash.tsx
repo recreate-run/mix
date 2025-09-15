@@ -33,18 +33,25 @@ import {
 } from '@/hooks/useSessionsList';
 import { slashCommands } from '@/utils/slash-commands';
 import { getDisplayTitle } from '@/utils/sessionUtils';
+import type { HierarchicalModelData } from '@/types';
 
 
 interface CommandSlashProps {
   onExecuteCommand: (command: string) => void;
   onClose: () => void;
   sessionId: string;
+  hierarchicalModelData?: HierarchicalModelData;
+  onProviderSelect?: (providerId: string) => void;
+  onModelSelect?: (providerId: string, modelId: string) => void;
 }
 
 export function CommandSlash({
   onExecuteCommand,
   onClose,
   sessionId,
+  hierarchicalModelData,
+  onProviderSelect,
+  onModelSelect,
 }: CommandSlashProps) {
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -54,13 +61,36 @@ export function CommandSlash({
   const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(
     null
   );
+  const [showingHierarchicalModel, setShowingHierarchicalModel] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const commandRef = useRef<HTMLDivElement>(null);
+  const hierarchicalModelInitializedRef = useRef(false);
   const navigate = useNavigate();
 
   // Reset selection when search query changes to prevent jumping
   useEffect(() => {
     setSelectedValue('');
   }, [searchQuery]);
+
+  // Show hierarchical model view when data is provided
+  useEffect(() => {
+    if (hierarchicalModelData) {
+      setShowingHierarchicalModel(true);
+      setShowingPermissions(false);
+      setShowingSessions(false);
+      setShowingMCP(false);
+      setSelectedMCPServer(null);
+      // Only reset selectedProvider on initial load, not on data updates
+      if (!hierarchicalModelInitializedRef.current) {
+        setSelectedProvider(null);
+        hierarchicalModelInitializedRef.current = true;
+      }
+    } else {
+      // Reset when hierarchical data is cleared
+      hierarchicalModelInitializedRef.current = false;
+      setSelectedProvider(null);
+    }
+  }, [hierarchicalModelData]);
 
   // Permission hooks - always initialized for simplicity
   const accessibility = useAccessibilityPermission(showingPermissions);
@@ -151,6 +181,25 @@ export function CommandSlash({
       )
     : selectedServerTools;
 
+  // Filter providers for hierarchical model selection
+  const filteredProviders = hierarchicalModelData?.providers.filter(
+    (provider) =>
+      !searchQuery.trim() ||
+      provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  // Get models for selected provider
+  const selectedProviderModels = selectedProvider
+    ? hierarchicalModelData?.providers.find((p) => p.id === selectedProvider)?.models || []
+    : [];
+
+  // Filter models based on search query
+  const filteredModels = searchQuery.trim()
+    ? selectedProviderModels.filter((model) =>
+        model.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : selectedProviderModels;
+
 
   const handleSelect = (value: string) => {
     setSearchQuery('');
@@ -160,8 +209,15 @@ export function CommandSlash({
       setShowingPermissions(false);
       setShowingSessions(false);
       setShowingMCP(false);
+      setShowingHierarchicalModel(false);
       setSelectedMCPServer(null);
+      setSelectedProvider(null);
 
+      return;
+    }
+
+    if (value === 'back-to-providers') {
+      setSelectedProvider(null);
       return;
     }
 
@@ -169,7 +225,9 @@ export function CommandSlash({
       setShowingPermissions(true);
       setShowingSessions(false);
       setShowingMCP(false);
+      setShowingHierarchicalModel(false);
       setSelectedMCPServer(null);
+      setSelectedProvider(null);
 
       return;
     }
@@ -178,7 +236,9 @@ export function CommandSlash({
       setShowingSessions(true);
       setShowingPermissions(false);
       setShowingMCP(false);
+      setShowingHierarchicalModel(false);
       setSelectedMCPServer(null);
+      setSelectedProvider(null);
 
       return;
     }
@@ -187,7 +247,9 @@ export function CommandSlash({
       setShowingMCP(true);
       setShowingPermissions(false);
       setShowingSessions(false);
+      setShowingHierarchicalModel(false);
       setSelectedMCPServer(null);
+      setSelectedProvider(null);
 
       return;
     }
@@ -214,6 +276,31 @@ export function CommandSlash({
       return;
     }
 
+    // Handle hierarchical provider selection
+    if (showingHierarchicalModel && !selectedProvider) {
+      const provider = hierarchicalModelData?.providers.find((p) => p.id === value);
+      if (provider) {
+        if (!provider.authenticated) {
+          // Don't allow selection of unauthenticated providers
+          return;
+        }
+        setSelectedProvider(provider.id);
+        onProviderSelect?.(provider.id);
+        return;
+      }
+    }
+
+    // Handle hierarchical model selection
+    if (showingHierarchicalModel && selectedProvider) {
+      const provider = hierarchicalModelData?.providers.find((p) => p.id === selectedProvider);
+      const model = provider?.models.find((m) => m.id === value);
+      if (model) {
+        onModelSelect?.(selectedProvider, model.id);
+        onClose(); // Close the command palette after model selection
+        return;
+      }
+    }
+
     // Handle permission toggles
     const permission = permissions.find((p) => p.id === value);
     if (permission && !permission.hook.isGranted) {
@@ -232,8 +319,12 @@ export function CommandSlash({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (selectedMCPServer) {
+      if (selectedProvider) {
+        setSelectedProvider(null);
+      } else if (selectedMCPServer) {
         setSelectedMCPServer(null);
+      } else if (showingHierarchicalModel) {
+        setShowingHierarchicalModel(false);
       } else if (showingMCP) {
         setShowingMCP(false);
       } else if (showingPermissions) {
@@ -259,15 +350,19 @@ export function CommandSlash({
           autoFocus
           onValueChange={setSearchQuery}
           placeholder={
-            selectedMCPServer
-              ? 'Search tools...'
-              : showingMCP
-                ? 'Search MCP servers...'
-                : showingPermissions
-                  ? 'Search permissions...'
-                  : showingSessions
-                    ? 'Search sessions...'
-                    : 'Search commands...'
+            selectedProvider
+              ? 'Search models...'
+              : selectedMCPServer
+                ? 'Search tools...'
+                : showingHierarchicalModel
+                  ? 'Search providers...'
+                  : showingMCP
+                    ? 'Search MCP servers...'
+                    : showingPermissions
+                      ? 'Search permissions...'
+                      : showingSessions
+                        ? 'Search sessions...'
+                        : 'Search commands...'
           }
           value={searchQuery}
         />
@@ -515,6 +610,110 @@ export function CommandSlash({
                 <CommandEmpty>No MCP servers found</CommandEmpty>
               )}
             </>
+          ) : selectedProvider ? (
+            // Hierarchical Model Selection - Models View
+            <>
+              {!filteredModels.length && searchQuery ? (
+                <CommandEmpty>No models match your search</CommandEmpty>
+              ) : filteredModels.length ? (
+                <CommandGroup
+                  heading={`${hierarchicalModelData?.providers.find(p => p.id === selectedProvider)?.displayName} Models (${filteredModels.length})`}
+                >
+                  {/* Back to Providers */}
+                  <CommandItem
+                    onSelect={() => handleSelect('back-to-providers')}
+                    value="back-to-providers"
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        Back to Providers
+                      </div>
+                    </div>
+                  </CommandItem>
+
+                  {/* Model Items */}
+                  {filteredModels.map((model) => (
+                    <CommandItem
+                      key={model.id}
+                      onSelect={() => handleSelect(model.id)}
+                      value={model.id}
+                    >
+                      <Settings className="size-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 font-medium text-sm">
+                          {model.displayName}
+                          {model.isSelected && (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
+                              current
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : (
+                <CommandEmpty>No models found</CommandEmpty>
+              )}
+            </>
+          ) : showingHierarchicalModel ? (
+            // Hierarchical Model Selection - Providers View
+            <>
+              {!filteredProviders.length && searchQuery ? (
+                <CommandEmpty>No providers match your search</CommandEmpty>
+              ) : filteredProviders.length ? (
+                <CommandGroup
+                  heading={`Providers (${filteredProviders.length})`}
+                >
+                  {/* Back to Commands */}
+                  <CommandItem
+                    onSelect={() => handleSelect('back-to-commands')}
+                    value="back-to-commands"
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        Back to Commands
+                      </div>
+                    </div>
+                  </CommandItem>
+
+                  {/* Provider Items */}
+                  {filteredProviders.map((provider) => (
+                    <CommandItem
+                      className={!provider.authenticated ? 'opacity-50 cursor-not-allowed' : ''}
+                      key={provider.id}
+                      onSelect={() => handleSelect(provider.id)}
+                      value={provider.id}
+                    >
+                      <Settings className="size-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 font-medium text-sm">
+                          {provider.displayName}
+                          {provider.isPreferred && (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
+                              preferred
+                            </span>
+                          )}
+                          {!provider.authenticated && (
+                            <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-red-800 text-xs dark:bg-red-800/20 dark:text-red-400">
+                              not authenticated
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {provider.models.length} models available
+                          {provider.authMethod && ` • ${provider.authMethod === 'oauth' ? 'OAuth' : 'API Key'}`}
+                        </div>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : (
+                <CommandEmpty>No providers found</CommandEmpty>
+              )}
+            </>
           ) : (
             // Commands View
             <>
@@ -567,7 +766,9 @@ export function CommandSlash({
                 esc
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">
-                {selectedMCPServer ||
+                {selectedProvider ||
+                selectedMCPServer ||
+                showingHierarchicalModel ||
                 showingMCP ||
                 showingPermissions ||
                 showingSessions
