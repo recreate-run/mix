@@ -46,6 +46,15 @@ export interface UIMessage {
     }[];
     hasAuthenticatedProvider: boolean;
   };
+  statusData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  };
   provider?: {
     providers: {
       id: string;

@@ -2,26 +2,23 @@ import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
 import { handleLoginCommand } from "./login-command-handler";
 
+// Provider info structure for status UI
+export interface StatusProviderInfo {
+  id: string;
+  displayName: string;
+  authenticated: boolean;
+  authMethod?: "api_key" | "oauth";
+  isPreferred?: boolean;
+}
+
 /**
  * Format provider information for the status UI
  */
 function formatStatusProviders(providers: Record<string, any>): {
-  formattedProviders: {
-    id: string;
-    displayName: string;
-    authenticated: boolean;
-    authMethod?: "api_key" | "oauth";
-    isPreferred?: boolean;
-  }[];
+  formattedProviders: StatusProviderInfo[];
   hasAuthenticatedProvider: boolean;
 } {
-  const formattedProviders: {
-    id: string;
-    displayName: string;
-    authenticated: boolean;
-    authMethod?: "api_key" | "oauth";
-    isPreferred?: boolean;
-  }[] = [];
+  const formattedProviders: StatusProviderInfo[] = [];
   
   let hasAuthenticatedProvider = false;
   
@@ -99,7 +96,7 @@ export async function handleStatusCommand(): Promise<UIMessage> {
         content += `\n\n${unauthenticatedCount} additional provider${unauthenticatedCount > 1 ? 's' : ''} available.`;
       }
       
-      // Return message with status UI
+      // Return message with status UI for command menu
       return {
         content,
         from: "assistant",
@@ -107,6 +104,9 @@ export async function handleStatusCommand(): Promise<UIMessage> {
         status: {
           providers: formattedProviders,
           hasAuthenticatedProvider
+        },
+        statusData: {
+          providers: formattedProviders
         }
       };
     } else {
@@ -118,6 +118,9 @@ export async function handleStatusCommand(): Promise<UIMessage> {
         status: {
           providers: formattedProviders,
           hasAuthenticatedProvider
+        },
+        statusData: {
+          providers: formattedProviders
         }
       };
     }

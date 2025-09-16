@@ -49,7 +49,7 @@ import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
-import { handleStatusCommand } from '@/handlers/status-command-handler';
+import { handleStatusCommand, handleProviderSelection } from '@/handlers/status-command-handler';
 import { handleLoginCommand } from '@/handlers/login-command-handler';
 import { handleLogoutCommand, logoutProvider } from '@/handlers/logout-command-handler';
 import { handleUnifiedModelCommand, updateProviderPreference, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
@@ -94,6 +94,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   
   // Logout provider data for CMDK
   const [logoutData, setLogoutData] = useState<{
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  } | undefined>(undefined);
+  
+  // Status provider data for CMDK
+  const [statusData, setStatusData] = useState<{
     providers: {
       id: string;
       displayName: string;
@@ -222,14 +233,24 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         },
       ]);
       
-      // Execute the enhanced status command handler with UI
-      const statusResult = await handleStatusCommand();
+      // Execute the enhanced status command handler to get data
+      const statusData = await handleStatusCommand();
       
-      // Add response message returned by the handler
-      setMessages((prev) => [
-        ...prev,
-        statusResult
-      ]);
+      // If there's no statusData, show the error message
+      if (!statusData.statusData) {
+        setMessages((prev) => [
+          ...prev,
+          statusData,
+        ]);
+        return;
+      }
+      
+      // Set status data and show commands (CMDK will detect the data and show status view)
+      setStatusData({
+        providers: statusData.statusData.providers
+      });
+      setShowCommands(true);
+      
     } catch (error) {
       console.error('Status command failed:', error);
       setMessages((prev) => [
@@ -448,6 +469,37 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         ...prev,
         {
           content: `Failed to log out: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+  
+  // Handle provider selection in status view
+  const handleStatusProviderSelectionSpecial = async (providerId: string) => {
+    try {
+      // Call handleProviderSelection to initiate login for the selected provider
+      const result = await handleProviderSelection(providerId);
+      
+      // Close CMDK and clear status data
+      setShowCommands(false);
+      setStatusData(undefined);
+      
+      // Add provider selection result message
+      setMessages((prev) => [
+        ...prev,
+        result
+      ]);
+    } catch (error) {
+      console.error('Provider selection failed:', error);
+      // Close CMDK and show error message
+      setShowCommands(false);
+      setStatusData(undefined);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to select provider: ${error}`,
           from: "assistant",
           frontend_only: true,
         },
@@ -1018,14 +1070,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                 handleCommand('close');
                 setHierarchicalModelData(undefined); // Clear hierarchical data when closing
                 setLogoutData(undefined); // Clear logout data when closing
+                setStatusData(undefined); // Clear status data when closing
               }}
               onExecuteCommand={(command) => handleCommand('execute', command)}
               sessionId={sessionId}
               hierarchicalModelData={hierarchicalModelData}
               logoutData={logoutData}
+              statusData={statusData}
               onProviderSelect={handleProviderSelectionSpecial}
               onModelSelect={handleModelSelectionSpecial}
               onLogoutProviderSelect={handleLogoutProviderSelectionSpecial}
+              onStatusProviderSelect={handleStatusProviderSelectionSpecial}
             />
           )}
 

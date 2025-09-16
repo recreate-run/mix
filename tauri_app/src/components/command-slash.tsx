@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import {
   Accessibility,
   ArrowLeft,
+  CheckCircle,
   Clock,
   Folder,
   Mic,
@@ -50,9 +51,19 @@ interface CommandSlashProps {
       isPreferred?: boolean;
     }[];
   };
+  statusData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  };
   onProviderSelect?: (providerId: string) => void;
   onModelSelect?: (providerId: string, modelId: string) => void;
   onLogoutProviderSelect?: (providerId: string) => void;
+  onStatusProviderSelect?: (providerId: string) => void;
 }
 
 export function CommandSlash({
@@ -61,9 +72,11 @@ export function CommandSlash({
   sessionId,
   hierarchicalModelData,
   logoutData,
+  statusData,
   onProviderSelect,
   onModelSelect,
   onLogoutProviderSelect,
+  onStatusProviderSelect,
 }: CommandSlashProps) {
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -75,6 +88,7 @@ export function CommandSlash({
   );
   const [showingHierarchicalModel, setShowingHierarchicalModel] = useState(false);
   const [showingLogout, setShowingLogout] = useState(false);
+  const [showingStatus, setShowingStatus] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const commandRef = useRef<HTMLDivElement>(null);
   const hierarchicalModelInitializedRef = useRef(false);
@@ -111,6 +125,7 @@ export function CommandSlash({
     if (logoutData) {
       setShowingLogout(true);
       setShowingHierarchicalModel(false);
+      setShowingStatus(false);
       setShowingPermissions(false);
       setShowingSessions(false);
       setShowingMCP(false);
@@ -118,6 +133,20 @@ export function CommandSlash({
       setSelectedProvider(null);
     }
   }, [logoutData]);
+  
+  // Show status view when data is provided
+  useEffect(() => {
+    if (statusData) {
+      setShowingStatus(true);
+      setShowingLogout(false);
+      setShowingHierarchicalModel(false);
+      setShowingPermissions(false);
+      setShowingSessions(false);
+      setShowingMCP(false);
+      setSelectedMCPServer(null);
+      setSelectedProvider(null);
+    }
+  }, [statusData]);
 
   // Permission hooks - always initialized for simplicity
   const accessibility = useAccessibilityPermission(showingPermissions);
@@ -233,6 +262,13 @@ export function CommandSlash({
       !searchQuery.trim() ||
       provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+  
+  // Filter providers for status
+  const filteredStatusProviders = statusData?.providers.filter(
+    (provider) =>
+      !searchQuery.trim() ||
+      provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
 
   const handleSelect = (value: string) => {
@@ -244,6 +280,8 @@ export function CommandSlash({
       setShowingSessions(false);
       setShowingMCP(false);
       setShowingHierarchicalModel(false);
+      setShowingLogout(false);
+      setShowingStatus(false);
       setSelectedMCPServer(null);
       setSelectedProvider(null);
 
@@ -260,6 +298,15 @@ export function CommandSlash({
       const provider = logoutData?.providers.find((p) => p.id === value);
       if (provider) {
         onLogoutProviderSelect?.(provider.id);
+        return;
+      }
+    }
+    
+    // Handle status provider selection
+    if (showingStatus) {
+      const provider = statusData?.providers.find((p) => p.id === value);
+      if (provider) {
+        onStatusProviderSelect?.(provider.id);
         return;
       }
     }
@@ -368,6 +415,8 @@ export function CommandSlash({
         setSelectedMCPServer(null);
       } else if (showingLogout) {
         setShowingLogout(false);
+      } else if (showingStatus) {
+        setShowingStatus(false);
       } else if (showingHierarchicalModel) {
         setShowingHierarchicalModel(false);
       } else if (showingMCP) {
@@ -655,6 +704,63 @@ export function CommandSlash({
                 <CommandEmpty>No MCP servers found</CommandEmpty>
               )}
             </>
+          ) : showingStatus ? (
+            // Status Provider Selection View
+            <>
+              {!filteredStatusProviders.length && searchQuery ? (
+                <CommandEmpty>No providers match your search</CommandEmpty>
+              ) : filteredStatusProviders.length ? (
+                <CommandGroup
+                  heading={`Providers (${filteredStatusProviders.length})`}
+                >
+                  {/* Back to Commands */}
+                  <CommandItem
+                    onSelect={() => handleSelect('back-to-commands')}
+                    value="back-to-commands"
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        Back to Commands
+                      </div>
+                    </div>
+                  </CommandItem>
+
+                  {/* Provider Items */}
+                  {filteredStatusProviders.map((provider) => (
+                    <CommandItem
+                      key={provider.id}
+                      onSelect={() => handleSelect(provider.id)}
+                      value={provider.id}
+                      className={!provider.authenticated ? 'opacity-50' : ''}
+                    >
+                      <Settings className="size-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 font-medium text-sm">
+                          {provider.displayName}
+                          {provider.authenticated && (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          )}
+                          {provider.isPreferred && (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
+                              preferred
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {provider.authenticated
+                            ? `Authenticated via ${provider.authMethod === 'oauth' ? 'OAuth' : 'API Key'}`
+                            : 'Not authenticated - select to authenticate'
+                          }
+                        </div>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : (
+                <CommandEmpty>No providers found</CommandEmpty>
+              )}
+            </>
           ) : showingLogout ? (
             // Logout Provider Selection View
             <>
@@ -867,7 +973,8 @@ export function CommandSlash({
                 showingMCP ||
                 showingPermissions ||
                 showingSessions ||
-                showingLogout
+                showingLogout ||
+                showingStatus
                   ? 'back'
                   : 'close'}
               </span>
