@@ -5,6 +5,7 @@ import {
   IconNotification,
   IconUserCircle,
 } from '@tabler/icons-react';
+import { handleLogoutCommand } from '@/handlers/logout-command-handler';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -92,7 +93,18 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={async () => {
+              try {
+                // Simply call the handleLogoutCommand function
+                const logoutResult = await handleLogoutCommand();
+                // If there are authenticated providers, show a notification to use /logout
+                if (logoutResult.logoutData) {
+                  alert("Please use /logout command to select a provider to log out from.");
+                }
+              } catch (error) {
+                console.error('Logout failed:', error);
+              }
+            }}>
               <IconLogout />
               Log out
             </DropdownMenuItem>

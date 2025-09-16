@@ -51,6 +51,7 @@ import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
 import { handleStatusCommand } from '@/handlers/status-command-handler';
 import { handleLoginCommand } from '@/handlers/login-command-handler';
+import { handleLogoutCommand, logoutProvider } from '@/handlers/logout-command-handler';
 import { handleUnifiedModelCommand, updateProviderPreference, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
 
 // Helper function to check if a message contains show_media tool call
@@ -90,6 +91,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   
   // Hierarchical model data for CMDK
   const [hierarchicalModelData, setHierarchicalModelData] = useState<HierarchicalModelData | undefined>(undefined);
+  
+  // Logout provider data for CMDK
+  const [logoutData, setLogoutData] = useState<{
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  } | undefined>(undefined);
 
   // Input management and focus handling
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(
@@ -263,6 +275,49 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
+  
+  // Handle the logout command with our SDK implementation
+  const handleLogoutCommandSpecial = async () => {
+    try {
+      // Add user message to show that the command was executed
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: "/logout",
+          from: "user",
+        },
+      ]);
+      
+      // Execute the logout command handler to get data
+      const logoutData = await handleLogoutCommand();
+      
+      // If there's no logoutData (no authenticated providers), show the error message
+      if (!logoutData.logoutData) {
+        setMessages((prev) => [
+          ...prev,
+          logoutData,
+        ]);
+        return;
+      }
+      
+      // Set logout data and show commands (CMDK will detect the data and show logout view)
+      setLogoutData({
+        providers: logoutData.logoutData.providers
+      });
+      setShowCommands(true);
+      
+    } catch (error) {
+      console.error('Logout command failed:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to start logout flow: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
 
   // Handle the unified model command with our SDK implementation
   const handleUnifiedModelCommandSpecial = async () => {
@@ -362,6 +417,37 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         ...prev,
         {
           content: `Failed to update model preference: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+  
+  // Handle provider selection in logout view
+  const handleLogoutProviderSelectionSpecial = async (providerId: string) => {
+    try {
+      // Call logoutProvider to log out from the selected provider
+      const result = await logoutProvider(providerId);
+      
+      // Close CMDK and clear logout data
+      setShowCommands(false);
+      setLogoutData(undefined);
+      
+      // Add success message
+      setMessages((prev) => [
+        ...prev,
+        result
+      ]);
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Close CMDK and show error message
+      setShowCommands(false);
+      setLogoutData(undefined);
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to log out: ${error}`,
           from: "assistant",
           frontend_only: true,
         },
@@ -498,6 +584,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         if (command === 'login') {
           // Handle login command using our SDK implementation
           handleLoginCommandSpecial();
+          return;
+        }
+        
+        if (command === 'logout') {
+          // Handle logout command using our SDK implementation
+          handleLogoutCommandSpecial();
           return;
         }
         
@@ -925,12 +1017,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               onClose={() => {
                 handleCommand('close');
                 setHierarchicalModelData(undefined); // Clear hierarchical data when closing
+                setLogoutData(undefined); // Clear logout data when closing
               }}
               onExecuteCommand={(command) => handleCommand('execute', command)}
               sessionId={sessionId}
               hierarchicalModelData={hierarchicalModelData}
+              logoutData={logoutData}
               onProviderSelect={handleProviderSelectionSpecial}
               onModelSelect={handleModelSelectionSpecial}
+              onLogoutProviderSelect={handleLogoutProviderSelectionSpecial}
             />
           )}
 

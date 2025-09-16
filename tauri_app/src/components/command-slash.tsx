@@ -41,8 +41,18 @@ interface CommandSlashProps {
   onClose: () => void;
   sessionId: string;
   hierarchicalModelData?: HierarchicalModelData;
+  logoutData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  };
   onProviderSelect?: (providerId: string) => void;
   onModelSelect?: (providerId: string, modelId: string) => void;
+  onLogoutProviderSelect?: (providerId: string) => void;
 }
 
 export function CommandSlash({
@@ -50,8 +60,10 @@ export function CommandSlash({
   onClose,
   sessionId,
   hierarchicalModelData,
+  logoutData,
   onProviderSelect,
   onModelSelect,
+  onLogoutProviderSelect,
 }: CommandSlashProps) {
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -62,6 +74,7 @@ export function CommandSlash({
     null
   );
   const [showingHierarchicalModel, setShowingHierarchicalModel] = useState(false);
+  const [showingLogout, setShowingLogout] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const commandRef = useRef<HTMLDivElement>(null);
   const hierarchicalModelInitializedRef = useRef(false);
@@ -79,6 +92,7 @@ export function CommandSlash({
       setShowingPermissions(false);
       setShowingSessions(false);
       setShowingMCP(false);
+      setShowingLogout(false);
       setSelectedMCPServer(null);
       // Only reset selectedProvider on initial load, not on data updates
       if (!hierarchicalModelInitializedRef.current) {
@@ -91,6 +105,19 @@ export function CommandSlash({
       setSelectedProvider(null);
     }
   }, [hierarchicalModelData]);
+  
+  // Show logout view when data is provided
+  useEffect(() => {
+    if (logoutData) {
+      setShowingLogout(true);
+      setShowingHierarchicalModel(false);
+      setShowingPermissions(false);
+      setShowingSessions(false);
+      setShowingMCP(false);
+      setSelectedMCPServer(null);
+      setSelectedProvider(null);
+    }
+  }, [logoutData]);
 
   // Permission hooks - always initialized for simplicity
   const accessibility = useAccessibilityPermission(showingPermissions);
@@ -199,6 +226,13 @@ export function CommandSlash({
         model.displayName.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : selectedProviderModels;
+    
+  // Filter providers for logout
+  const filteredLogoutProviders = logoutData?.providers.filter(
+    (provider) =>
+      !searchQuery.trim() ||
+      provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
 
   const handleSelect = (value: string) => {
@@ -219,6 +253,15 @@ export function CommandSlash({
     if (value === 'back-to-providers') {
       setSelectedProvider(null);
       return;
+    }
+
+    // Handle logout provider selection
+    if (showingLogout) {
+      const provider = logoutData?.providers.find((p) => p.id === value);
+      if (provider) {
+        onLogoutProviderSelect?.(provider.id);
+        return;
+      }
     }
 
     if (value === 'permissions') {
@@ -323,6 +366,8 @@ export function CommandSlash({
         setSelectedProvider(null);
       } else if (selectedMCPServer) {
         setSelectedMCPServer(null);
+      } else if (showingLogout) {
+        setShowingLogout(false);
       } else if (showingHierarchicalModel) {
         setShowingHierarchicalModel(false);
       } else if (showingMCP) {
@@ -610,6 +655,56 @@ export function CommandSlash({
                 <CommandEmpty>No MCP servers found</CommandEmpty>
               )}
             </>
+          ) : showingLogout ? (
+            // Logout Provider Selection View
+            <>
+              {!filteredLogoutProviders.length && searchQuery ? (
+                <CommandEmpty>No providers match your search</CommandEmpty>
+              ) : filteredLogoutProviders.length ? (
+                <CommandGroup
+                  heading={`Providers (${filteredLogoutProviders.length})`}
+                >
+                  {/* Back to Commands */}
+                  <CommandItem
+                    onSelect={() => handleSelect('back-to-commands')}
+                    value="back-to-commands"
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        Back to Commands
+                      </div>
+                    </div>
+                  </CommandItem>
+
+                  {/* Provider Items */}
+                  {filteredLogoutProviders.map((provider) => (
+                    <CommandItem
+                      key={provider.id}
+                      onSelect={() => handleSelect(provider.id)}
+                      value={provider.id}
+                    >
+                      <Settings className="size-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 font-medium text-sm">
+                          {provider.displayName}
+                          {provider.isPreferred && (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
+                              preferred
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {provider.authMethod && `Authenticated via ${provider.authMethod === 'oauth' ? 'OAuth' : 'API Key'}`}
+                        </div>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : (
+                <CommandEmpty>No authenticated providers found</CommandEmpty>
+              )}
+            </>
           ) : selectedProvider ? (
             // Hierarchical Model Selection - Models View
             <>
@@ -771,7 +866,8 @@ export function CommandSlash({
                 showingHierarchicalModel ||
                 showingMCP ||
                 showingPermissions ||
-                showingSessions
+                showingSessions ||
+                showingLogout
                   ? 'back'
                   : 'close'}
               </span>

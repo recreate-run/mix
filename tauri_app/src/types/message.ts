@@ -68,6 +68,24 @@ export interface UIMessage {
       displayName: string;
     };
   };
+  logout?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  };
+  logoutData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  };
   hierarchicalModel?: HierarchicalModelData;
 }
 
