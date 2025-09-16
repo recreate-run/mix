@@ -50,7 +50,7 @@ import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
 import { handleStatusCommand, handleProviderSelection } from '@/handlers/status-command-handler';
-import { handleLoginCommand } from '@/handlers/login-command-handler';
+import { handleLoginCommand, startOAuthFlow, authenticateWithApiKey, handleOAuthCallback } from '@/handlers/login-command-handler';
 import { handleLogoutCommand, logoutProvider } from '@/handlers/logout-command-handler';
 import { handleUnifiedModelCommand, updateProviderPreference, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
 
@@ -112,6 +112,20 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       authMethod?: 'api_key' | 'oauth';
       isPreferred?: boolean;
     }[];
+  } | undefined>(undefined);
+  
+  // Login provider data for CMDK
+  const [loginData, setLoginData] = useState<{
+    providers: {
+      id: string;
+      displayName: string;
+      authMethods: ("api_key" | "oauth")[];
+      authenticated: boolean;
+      apiKeyFormat?: string;
+      isPreferred?: boolean;
+    }[];
+    hasExistingPreferences?: boolean;
+    oauthState?: string; // Store the OAuth state parameter
   } | undefined>(undefined);
 
   // Input management and focus handling
@@ -276,14 +290,25 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         },
       ]);
       
-      // Execute the login command handler
-      const loginResult = await handleLoginCommand();
+      // Execute the login command handler to get data
+      const loginData = await handleLoginCommand();
       
-      // Add response message returned by the handler
-      setMessages((prev) => [
-        ...prev,
-        loginResult
-      ]);
+      // If there's no loginData, show the error message
+      if (!loginData.loginData) {
+        setMessages((prev) => [
+          ...prev,
+          loginData,
+        ]);
+        return;
+      }
+      
+      // Set login data and show commands (CMDK will detect the data and show login view)
+      setLoginData({
+        providers: loginData.loginData.providers,
+        hasExistingPreferences: loginData.loginData.hasExistingPreferences
+      });
+      setShowCommands(true);
+      
     } catch (error) {
       console.error('Login command failed:', error);
       setMessages((prev) => [
@@ -507,6 +532,151 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   };
   
+  // Handle login provider and auth method selection
+  const handleLoginProviderSelectionSpecial = async (providerId: string, authMethod: "api_key" | "oauth") => {
+    try {
+      // For API Key method, we keep the command menu open
+      // The actual API key entry will be handled in the CommandSlash component
+      
+      // For OAuth flow, we need to start it here
+      if (authMethod === "oauth") {
+        try {
+          // Start OAuth flow using the SDK
+          const result = await startOAuthFlow(providerId);
+          
+          // Keep command menu open and update loginData
+          // The CommandSlash component will handle the UI
+          
+          // Store OAuth state if provided
+          if (result.login?.state) {
+            // Update loginData with the state parameter
+            setLoginData(prevData => prevData ? {
+              ...prevData,
+              oauthState: result.login?.state
+            } : undefined);
+          }
+          
+          // If there was an error in the result, show it
+          if (result.content.startsWith("❌")) {
+            setMessages((prev) => [
+              ...prev,
+              result
+            ]);
+          } else {
+            // Show success message if there was no error
+            setMessages((prev) => [
+              ...prev,
+              {
+                content: `✅ OAuth flow started. Please authorize in your browser.`,
+                from: "assistant",
+                frontend_only: true,
+              }
+            ]);
+            
+            // Try to open the auth URL if available
+            if (result.login?.authUrl) {
+              try {
+                // Import shell plugin on demand
+                const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
+                
+                // Use Tauri's shell plugin to open the URL in the default browser
+                await shellOpen(result.login.authUrl);
+              } catch (shellError) {
+                console.error('Error opening with Tauri shell:', shellError);
+                
+                // Fallback to regular window.open if Tauri shell fails
+                try {
+                  window.open(result.login.authUrl, '_blank', 'noopener,noreferrer');
+                } catch (windowOpenError) {
+                  console.error('All browser open methods failed:', windowOpenError);
+                  
+                  // Show a message to the user about manually opening the URL
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      content: `⚠️ Browser popup was blocked. Please click the link below to authorize:\n\n[Open Authorization Page](${result.login.authUrl})\n\nOr copy this URL:\n\`${result.login.authUrl}\``,
+                      from: "assistant",
+                      frontend_only: true,
+                    }
+                  ]);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('OAuth flow failed:', error);
+          // Show error message but don't close command menu
+          setMessages((prev) => [
+            ...prev,
+            {
+              content: `Failed to start OAuth flow: ${error}`,
+              from: "assistant",
+              frontend_only: true,
+            },
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error('Login provider selection failed:', error);
+      // Show error message but don't close command menu
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: `Failed to handle login: ${error}`,
+          from: "assistant",
+          frontend_only: true,
+        },
+      ]);
+    }
+  };
+  
+  // Handle API key submission from command menu
+  const handleApiKeySubmitSpecial = async (providerId: string, apiKey: string) => {
+    try {
+      // Authenticate with the SDK
+      const result = await authenticateWithApiKey(providerId, apiKey);
+      
+      // Close command menu after authentication
+      setShowCommands(false);
+      setLoginData(undefined);
+      
+      // Add success/error message
+      setMessages((prev) => [
+        ...prev,
+        result
+      ]);
+      
+    } catch (error) {
+      console.error('API key authentication failed:', error);
+      // Let the CommandSlash component handle the error, since it manages the API key input
+      throw error;
+    }
+  };
+  
+  // Handle OAuth code submission from command menu
+  const handleOAuthCodeSubmitSpecial = async (providerId: string, code: string) => {
+    try {
+      // Process the OAuth code with the SDK - use the stored state parameter if available
+      const oauthState = loginData?.oauthState || '';
+      const result = await handleOAuthCallback(providerId, code, oauthState);
+      
+      // Close command menu after authentication
+      setShowCommands(false);
+      setLoginData(undefined);
+      
+      // Add success/error message
+      setMessages((prev) => [
+        ...prev,
+        result
+      ]);
+      
+    } catch (error) {
+      console.error('OAuth code processing failed:', error);
+      // Let the CommandSlash component handle the error
+      throw error;
+    }
+  };
+  
   // Initialize new hooks
   const historyNavigation = useMessageHistoryNavigation({
     text,
@@ -604,6 +774,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   };
 
   // Unified command handler
+  // Reset all command-related states
+  const resetCommandStates = () => {
+    setHierarchicalModelData(undefined);
+    setLogoutData(undefined);
+    setStatusData(undefined);
+    setLoginData(undefined);
+  };
+
   const handleCommand = (
     action: 'select' | 'execute' | 'close',
     data?: any
@@ -613,13 +791,25 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         setShowSlashCommands(false);
         setSelectedCommandIndex(0);
         setText(text.slice(0, -1));
+        // Clear any previous command data before showing commands
+        resetCommandStates();
         setShowCommands(true);
         break;
       }
       case 'execute': {
         const command = data as string;
+        
+        if (command === '__reset__') {
+          // Special internal command used by "Back to Commands" button
+          // Just reset all command data without closing the command palette
+          resetCommandStates();
+          return;
+        }
+        
         setShowSlashCommands(false);
         setShowCommands(false);
+        // Reset command data when executing any command
+        resetCommandStates();
 
         if (command === 'clear') {
           // Create a new session instead of just clearing UI
@@ -657,8 +847,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       case 'close': {
         setShowSlashCommands(false);
         setShowCommands(false);
-        setHierarchicalModelData(undefined); // Clear hierarchical data when closing
-
+        // Clear all command data when closing command palette
+        resetCommandStates();
         break;
       }
     }
@@ -1067,10 +1257,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {showCommands && (
             <CommandSlash
               onClose={() => {
-                handleCommand('close');
-                setHierarchicalModelData(undefined); // Clear hierarchical data when closing
-                setLogoutData(undefined); // Clear logout data when closing
-                setStatusData(undefined); // Clear status data when closing
+                // Reset all command data states to ensure clean slate without calling handleCommand('close')
+                setHierarchicalModelData(undefined);
+                setLogoutData(undefined);
+                setStatusData(undefined);
+                setLoginData(undefined);
+                
+                // Close the command palette UI
+                setShowCommands(false);
+                setShowSlashCommands(false);
               }}
               onExecuteCommand={(command) => handleCommand('execute', command)}
               sessionId={sessionId}
@@ -1081,6 +1276,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               onModelSelect={handleModelSelectionSpecial}
               onLogoutProviderSelect={handleLogoutProviderSelectionSpecial}
               onStatusProviderSelect={handleStatusProviderSelectionSpecial}
+              onLoginProviderSelect={handleLoginProviderSelectionSpecial}
+              onApiKeySubmit={handleApiKeySubmitSpecial}
+              onOAuthCodeSubmit={handleOAuthCodeSubmitSpecial}
+              loginData={loginData}
             />
           )}
 

@@ -36,6 +36,17 @@ export interface UIMessage {
     provider?: string; // Current provider for OAuth flow
     state?: string; // OAuth state parameter
   };
+  loginData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authMethods: ("api_key" | "oauth")[];
+      authenticated: boolean;
+      apiKeyFormat?: string;
+      isPreferred?: boolean;
+    }[];
+    hasExistingPreferences?: boolean;
+  };
   status?: {
     providers: {
       id: string;

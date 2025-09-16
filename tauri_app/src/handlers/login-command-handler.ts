@@ -2,12 +2,13 @@ import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
 
 // Provider type definition
-interface ProviderInfo {
+export interface LoginProviderInfo {
   id: string;
   displayName: string;
   authMethods: ("api_key" | "oauth")[];
   authenticated: boolean;
   apiKeyFormat?: string;
+  isPreferred?: boolean;
 }
 
 // Map of API key formats for different providers
@@ -44,19 +45,20 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
       throw new Error("Failed to fetch available providers");
     }
     
+    // Determine the preferred provider from preferences if it exists
+    const preferredProvider = response.preferences?.preferredProvider;
+    
     // Map available providers from API response
-    const providers: ProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
+    const providers: LoginProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
       return {
         id: providerId,
         displayName: data.displayName || providerId,
         authMethods: AUTH_METHODS[providerId] || ["api_key"], // Default to API key if not specified
         authenticated: status.providers?.[providerId]?.authenticated || false,
-        apiKeyFormat: API_KEY_FORMATS[providerId] || "API key"
+        apiKeyFormat: API_KEY_FORMATS[providerId] || "API key",
+        isPreferred: providerId === preferredProvider
       };
     });
-    
-    // Determine the preferred provider from preferences if it exists
-    const preferredProvider = response.preferences?.preferredProvider;
     // Don't auto-select a provider initially - let the user choose
     // We'll only use the provided provider if it's explicitly passed in
     const selectedProviderValue = provider || "";
@@ -72,6 +74,10 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
         providers,
         selectedProvider: selectedProviderValue,
         step: selectedProviderValue ? "auth_method" : "provider_select",
+        hasExistingPreferences: hasExistingPreferences
+      },
+      loginData: {
+        providers,
         hasExistingPreferences: hasExistingPreferences
       }
     };

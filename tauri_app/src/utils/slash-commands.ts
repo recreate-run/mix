@@ -60,12 +60,13 @@ export const slashCommands: SlashCommand[] = [
     description: 'Sign out from Claude Code',
     icon: LogOut,
   },
-  {
-    id: 'status',
-    name: 'status',
-    description: 'Check Claude Code authentication status',
-    icon: UserCheck,
-  },
+  // Status command hidden - /model can be used instead for provider/model selection
+  // {
+  //   id: 'status',
+  //   name: 'status',
+  //   description: 'Check Claude Code authentication status',
+  //   icon: UserCheck,
+  // },
   {
     id: 'permissions',
     name: 'permissions',
