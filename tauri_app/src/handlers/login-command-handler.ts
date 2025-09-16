@@ -1,14 +1,11 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
 
-// Provider type definition
-export interface LoginProviderInfo {
-  id: string;
-  displayName: string;
-  authMethods: ("api_key" | "oauth")[];
-  authenticated: boolean;
+import { ProviderInfo } from "@/types/provider";
+
+// Provider type definition with API key format
+export interface LoginProviderInfo extends ProviderInfo {
   apiKeyFormat?: string;
-  isPreferred?: boolean;
 }
 
 // Map of API key formats for different providers
@@ -49,7 +46,7 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     const preferredProvider = response.preferences?.preferredProvider;
     
     // Map available providers from API response
-    const providers: LoginProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
+    const providers: ProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
       return {
         id: providerId,
         displayName: data.displayName || providerId,
@@ -174,6 +171,7 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
       };
     });
 
+    
     return {
       content: `If the browser doesn't open automatically, you can click or copy this URL: ${result.authUrl}`,
       from: "assistant",
@@ -182,24 +180,29 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
         providers,
         step: "oauth_flow",
         authUrl: result.authUrl,
-        provider,
+        selectedProvider: provider, // Use selectedProvider instead of provider for consistency
         state: result.state // Include the state parameter from the API response
+      },
+      // Add loginData for menu palette integration
+      loginData: {
+        providers,
+        hasExistingPreferences: false
       }
     };
   } catch (error) {
-    // Check for specific error types from the backend
     let errorMessage = error instanceof Error ? error.message : "Unknown error";
     
     // Check for structured error response
     if (typeof error === 'object' && error !== null && 'type' in error) {
       const errorObj = error as {type?: string, message?: string, code?: number};
+      
       if (errorObj.type === 'OAUTH_NOT_SUPPORTED') {
         errorMessage = `OAuth is not supported for ${provider}. Please use API key authentication instead.`;
       } else if (errorObj.message) {
         errorMessage = errorObj.message;
       }
     }
-    
+
     return {
       content: `❌ ${errorMessage}`,
       from: "assistant",
