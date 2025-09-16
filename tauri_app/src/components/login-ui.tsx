@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 // Import shell to open URLs since opener plugin isn't properly exposed
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
-import { AlertCircle, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,8 +36,12 @@ interface LoginUIProps {
 }
 
 export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
+  // Validate required login state data
+  if (!loginState.providers || loginState.providers.length === 0) {
+    throw new Error("LoginUI: No providers available in login state");
+  }
+
   const [selectedProvider, setSelectedProvider] = useState<string>(loginState.selectedProvider || "");
-  const [selectedMethod, setSelectedMethod] = useState<"api_key" | "oauth">("api_key");
   const [apiKey, setApiKey] = useState("");
   const [authCode, setAuthCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -52,10 +56,12 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
     setSelectedProvider(provider);
     
     const providerInfo = loginState.providers.find(p => p.id === provider);
+    if (!providerInfo) {
+      throw new Error(`Provider ${provider} not found in available providers`);
+    }
     
     // If provider only has one auth method, skip method selection
-    if (providerInfo && providerInfo.authMethods.length === 1) {
-      setSelectedMethod(providerInfo.authMethods[0]);
+    if (providerInfo.authMethods.length === 1) {
       setStep(providerInfo.authMethods[0] === "api_key" ? "api_key" : "oauth_flow");
     } else {
       setStep("auth_method");
@@ -64,7 +70,6 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
   
   // Handle auth method selection
   const handleMethodSelect = (method: "api_key" | "oauth") => {
-    setSelectedMethod(method);
     setStep(method === "api_key" ? "api_key" : "oauth_flow");
   };
   
@@ -89,11 +94,16 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
     try {
       const result = await startOAuthFlow(selectedProvider);
       
-      if (result.login?.authUrl) {
+      if (!result.login) {
+        throw new Error("OAuth flow initiation failed: no login data returned");
+      }
+      if (!result.login.authUrl) {
+        throw new Error("OAuth flow initiation failed: no auth URL provided");
+      }
+      if (result.login.authUrl) {
         // Store the state parameter from the OAuth flow initiation
         if (result.login.state) {
           setOauthState(result.login.state);
-          console.log("Stored OAuth state:", result.login.state);
         }
         
         // Automatically open the browser window when OAuth flow is started
@@ -101,7 +111,6 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
         try {
           // Use Tauri shell plugin to open URLs
           await shellOpen(result.login.authUrl);
-          console.log("Browser window opened with Tauri shell plugin");
         } catch (error) {
           console.warn("Failed to open with Tauri shell, falling back to window.open:", error);
           // Fallback to window.open
@@ -134,7 +143,6 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
       // Extract just the code part if it contains a hash - the backend will handle this properly
       // Don't try to parse the code here - send it as is to the backend
       
-      console.log("Submitting OAuth code with state:", oauthState);
       
       // Pass the stored state parameter to the callback handler
       const result = await handleOAuthCallback(selectedProvider, cleanCode, oauthState);
@@ -183,7 +191,9 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
   // Auth method selection screen
   if (step === "auth_method") {
     const provider = loginState.providers.find(p => p.id === selectedProvider);
-    if (!provider) return null;
+    if (!provider) {
+      throw new Error(`Provider ${selectedProvider} not found for auth method selection`);
+    }
     
     return (
       <Card>
@@ -224,7 +234,9 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
   // API key input screen
   if (step === "api_key") {
     const provider = loginState.providers.find(p => p.id === selectedProvider);
-    if (!provider) return null;
+    if (!provider) {
+      throw new Error(`Provider ${selectedProvider} not found for auth method selection`);
+    }
     
     return (
       <Card>
@@ -265,7 +277,9 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
   // OAuth flow screen
   if (step === "oauth_flow") {
     const provider = loginState.providers.find(p => p.id === selectedProvider);
-    if (!provider) return null;
+    if (!provider) {
+      throw new Error(`Provider ${selectedProvider} not found for auth method selection`);
+    }
     
     // Check if there's an auth URL in the login state
     const authUrl = loginState.authUrl;
@@ -349,8 +363,10 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
   // OAuth code input screen
   if (step === "oauth_code") {
     const provider = loginState.providers.find(p => p.id === selectedProvider);
+    if (!provider) {
+      throw new Error(`Provider ${selectedProvider} not found for auth method selection`);
+    }
     const authUrl = loginState.authUrl;
-    if (!provider) return null;
     
     return (
       <Card>

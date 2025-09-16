@@ -14,8 +14,8 @@ const isLocalAssetServerURL = (path: string): boolean => {
 };
 
 // Helper function to get media source URL
-const getMediaSrc = (path: string, workingDirectory: string): string => {
-  return isURL(path) ? path : convertToAssetServerUrl(path, workingDirectory);
+const getMediaSrc = (path: string, sessionId: string): string => {
+  return isURL(path) ? path : convertToAssetServerUrl(path, sessionId);
 };
 
 // Helper function to extract YouTube video ID
@@ -53,14 +53,14 @@ interface PlaylistSidebarProps {
   mediaOutputs: MediaOutput[];
   selectedIndex: number;
   onSelect: (index: number) => void;
-  workingDirectory: string;
+  sessionId: string;
 }
 
 export const PlaylistSidebar = ({
   mediaOutputs,
   selectedIndex,
   onSelect,
-  workingDirectory,
+  sessionId,
 }: PlaylistSidebarProps) => {
   const getMediaIcon = (type: string) => {
     switch (type) {
@@ -78,7 +78,7 @@ export const PlaylistSidebar = ({
   const renderThumbnail = (media: MediaOutput) => {
 
     if (media.type === 'image') {
-      const imageUrl = getMediaSrc(media.path, workingDirectory);
+      const imageUrl = getMediaSrc(media.path, sessionId);
       // Only add thumbnail parameter for local files, use URL directly for remote images
       const thumbnailUrl = isURL(media.path) ? imageUrl : `${imageUrl}?thumb=100`;
 
@@ -92,7 +92,7 @@ export const PlaylistSidebar = ({
               console.error('Image thumbnail failed to load:', {
                 src: e.currentTarget.src,
                 media: media,
-                workingDirectory: workingDirectory,
+                sessionId: sessionId,
                 error: e
               });
             }}
@@ -105,7 +105,7 @@ export const PlaylistSidebar = ({
     if (media.type === 'video') {
       // Use sourceVideo for highlights, fallback to path for regular videos
       const videoPath = media.sourceVideo || media.path;
-      const videoUrl = getMediaSrc(videoPath, workingDirectory);
+      const videoUrl = getMediaSrc(videoPath, sessionId);
 
       // Add thumbnail and time parameters for local files (including localhost asset server URLs)
       let thumbnailUrl = videoUrl;
@@ -126,7 +126,7 @@ export const PlaylistSidebar = ({
               console.error('Video thumbnail failed to load:', JSON.stringify({
                 src: e.currentTarget.src,
                 media: media,
-                workingDirectory: workingDirectory,
+                sessionId: sessionId,
                 videoPath: media.sourceVideo || media.path,
                 startTime: media.startTime,
                 thumbnailUrl: thumbnailUrl,

@@ -185,7 +185,7 @@ var apiCredentialsService *credentials.APICredentialsService
 // If debug is true, debug mode is enabled and log level is set to debug.
 // If skipPermissions is true, all permission prompts will be bypassed.
 // It returns an error if configuration loading fails.
-func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) {
+func Load(sessionStorageDir string, debug bool, skipPermissions bool) (*Config, error) {
 	if cfg != nil {
 		return cfg, nil
 	}
@@ -204,7 +204,7 @@ func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) 
 	}
 
 	// Load and merge local config
-	mergeLocalConfig(workingDir)
+	mergeLocalConfig(sessionStorageDir)
 
 	// Get prompts directory from config with default expansion
 	promptsDir := viper.GetString("promptsDir")
@@ -224,7 +224,7 @@ func Load(workingDir string, debug bool, skipPermissions bool) (*Config, error) 
 	}
 
 	cfg = &Config{
-		WorkingDir:      workingDir,
+		WorkingDir:      sessionStorageDir,
 		PromptsDir:      promptsDir,
 		MCPServers:      make(map[string]MCPServer),
 		Providers:       make(map[models.ModelProvider]Provider),
@@ -488,11 +488,11 @@ func ensureConfigFile() error {
 }
 
 // mergeLocalConfig loads and merges configuration from the local directory.
-func mergeLocalConfig(workingDir string) {
+func mergeLocalConfig(sessionStorageDir string) {
 	local := viper.New()
 	local.SetConfigName(fmt.Sprintf(".%s", appName))
 	local.SetConfigType("json")
-	local.AddConfigPath(workingDir)
+	local.AddConfigPath(sessionStorageDir)
 
 	// Merge local config if it exists
 	if err := local.ReadInConfig(); err == nil {

@@ -15,5 +15,5 @@ export interface VideoPlayerProps {
   description?: string;
   startTime?: number;
   duration?: number;
-  workingDirectory: string;
+  sessionId: string;
 }

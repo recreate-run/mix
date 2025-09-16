@@ -18,7 +18,6 @@ type SessionData struct {
 	CompletionTokens      int64     `json:"completionTokens"`
 	Cost                  float64   `json:"cost"`
 	CreatedAt             time.Time `json:"createdAt"`
-	WorkingDirectory      string    `json:"workingDirectory,omitempty"`
 	FirstUserMessage      string    `json:"firstUserMessage,omitempty"`
 }
 
@@ -51,13 +50,9 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var result []SessionData
+	// Initialize as empty slice instead of nil to ensure JSON encodes as [] not null
+	result := make([]SessionData, 0)
 	for _, s := range sessions {
-		workingDir := ""
-		if s.WorkingDirectory.Valid {
-			workingDir = s.WorkingDirectory.String
-		}
-
 		result = append(result, SessionData{
 			ID:                    s.ID,
 			Title:                 s.Title,
@@ -68,7 +63,6 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 			CompletionTokens:      s.CompletionTokens,
 			Cost:                  s.Cost,
 			CreatedAt:             time.Unix(s.CreatedAt, 0),
-			WorkingDirectory:      workingDir,
 			FirstUserMessage:      s.FirstUserMessage,
 		})
 	}
@@ -111,7 +105,6 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 		CompletionTokens:      session.CompletionTokens,
 		Cost:                  session.Cost,
 		CreatedAt:             time.Unix(session.CreatedAt, 0),
-		WorkingDirectory:      session.WorkingDirectory,
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
@@ -119,8 +112,7 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 // CreateSessionRequest represents the request body for creating a session
 type CreateSessionRequest struct {
-	Title            string `json:"title"`
-	WorkingDirectory string `json:"workingDirectory,omitempty"`
+	Title string `json:"title"`
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -147,7 +139,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	ctx := r.Context()
-	session, err := h.app.Sessions.Create(ctx, req.Title, req.WorkingDirectory)
+	session, err := h.app.Sessions.Create(ctx, req.Title)
 	if err != nil {
 		sendInternalError(w, "creating session", err)
 		return
@@ -163,7 +155,6 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		CompletionTokens:      session.CompletionTokens,
 		Cost:                  session.Cost,
 		CreatedAt:             time.Unix(session.CreatedAt, 0),
-		WorkingDirectory:      session.WorkingDirectory,
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)
@@ -234,7 +225,6 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 		CompletionTokens:      newSession.CompletionTokens,
 		Cost:                  newSession.Cost,
 		CreatedAt:             time.Unix(newSession.CreatedAt, 0),
-		WorkingDirectory:      newSession.WorkingDirectory,
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)

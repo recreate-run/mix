@@ -108,9 +108,9 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	searchPath := params.Path
 	if searchPath == "" {
 		var err error
-		searchPath, err = GetWorkingDirectory(ctx)
+		searchPath, err = GetSessionStorageDirectory(ctx)
 		if err != nil {
-			return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+			return ToolResponse{}, fmt.Errorf("failed to get session storage directory: %w", err)
 		}
 	}
 

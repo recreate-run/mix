@@ -146,7 +146,6 @@ type SessionSwitchResponse struct {
 	Command               string  `json:"command,omitempty"`
 	SessionID             string  `json:"sessionId"`
 	SessionTitle          string  `json:"sessionTitle"`
-	WorkingDirectory      string  `json:"workingDirectory,omitempty"`
 }
 
 // BuiltinCommand represents a built-in command
@@ -193,7 +192,7 @@ func returnMessage(command, message string) (string, error) {
 }
 
 // returnSessionSwitch creates a structured session switch response
-func returnSessionSwitch(command, message, sessionID, sessionTitle, workingDirectory string) (string, error) {
+func returnSessionSwitch(command, message, sessionID, sessionTitle string) (string, error) {
 	response := SessionSwitchResponse{
 		Type:             "session_switch",
 		Action:           "switch", 
@@ -201,7 +200,6 @@ func returnSessionSwitch(command, message, sessionID, sessionTitle, workingDirec
 		Command:          command,
 		SessionID:        sessionID,
 		SessionTitle:     sessionTitle,
-		WorkingDirectory: workingDirectory,
 	}
 	jsonData, _ := json.Marshal(response)
 	return string(jsonData), nil
@@ -302,20 +300,14 @@ func createClearHandler(app *app.App) func(ctx context.Context, args string) (st
 			return returnError("clear", "Session context required")
 		}
 
-		// Get current session to inherit working directory
-		currentSession, err := app.Sessions.Get(ctx, sessionID)
-		if err != nil {
-			return returnError("clear", fmt.Sprintf("Failed to get current session: %v", err))
-		}
-
-		// Create new session inheriting working directory
-		session, err := app.Sessions.Create(ctx, "New Session", currentSession.WorkingDirectory)
+		// Create new session
+		session, err := app.Sessions.Create(ctx, "New Session")
 		if err != nil {
 			return returnError("clear", fmt.Sprintf("Failed to create new session: %v", err))
 		}
 
 		// Return session switch response
-		return returnSessionSwitch("clear", fmt.Sprintf("Started new session: %s", session.Title), session.ID, session.Title, currentSession.WorkingDirectory)
+		return returnSessionSwitch("clear", fmt.Sprintf("Started new session: %s", session.Title), session.ID, session.Title)
 	}
 }
 

@@ -8,7 +8,7 @@ const isURL = (path: string): boolean => {
 };
 
 // Helper function to get media source URL
-const getMediaSrc = (path: string, workingDirectory: string): string => {
+const getMediaSrc = (path: string, sessionId: string): string => {
   if (isURL(path)) {
     // For YouTube URLs, convert to embed format
     if (isYouTubeUrl(path)) {
@@ -16,7 +16,7 @@ const getMediaSrc = (path: string, workingDirectory: string): string => {
     }
     return path;
   }
-  return convertToAssetServerUrl(path, workingDirectory);
+  return convertToAssetServerUrl(path, sessionId);
 };
 import { Check, Copy, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -53,6 +53,7 @@ import { LoginUI } from './login-ui';
 import { StatusUI } from './status-ui';
 import { ProviderDisplay } from './provider-display';
 import { ModelDisplay } from './model-display';
+import { ErrorBoundary } from './error-boundary';
 
 type StreamingState = {
   processing: boolean;
@@ -70,7 +71,7 @@ type StreamingState = {
 };
 
 // Main Media Player Component
-const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; workingDirectory: string }) => {
+const MainMediaPlayer = ({ media, sessionId }: { media: MediaOutput; sessionId: string }) => {
   return (
     <div className="mb-2 space-y-2">
       <div>
@@ -92,14 +93,14 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
               .nextElementSibling as HTMLElement;
             if (fallback) fallback.style.display = 'block';
           }}
-          src={getMediaSrc(media.path, workingDirectory)}
+          src={getMediaSrc(media.path, sessionId)}
         />
       )}
 
       {media.type === 'video' && (
         <LazyVideoPlayer
           media={media}
-          workingDirectory={workingDirectory}
+          sessionId={sessionId}
         />
       )}
 
@@ -115,7 +116,7 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
               if (fallback) fallback.style.display = 'block';
             }}
             preload="metadata"
-            src={getMediaSrc(media.path, workingDirectory)}
+            src={getMediaSrc(media.path, sessionId)}
           >
             Your browser does not support the audio tag.
           </audio>
@@ -135,7 +136,7 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
       {media.type === 'youtube' && (
         <div className="overflow-hidden rounded-md">
           <iframe
-            src={getMediaSrc(media.path, workingDirectory)}
+            src={getMediaSrc(media.path, sessionId)}
             title={media.title}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -162,7 +163,7 @@ const MainMediaPlayer = ({ media, workingDirectory }: { media: MediaOutput; work
 };
 
 // Media Showcase Component
-const MediaShowcase = ({ mediaOutputs, workingDirectory }: { mediaOutputs: MediaOutput[]; workingDirectory: string }) => {
+const MediaShowcase = ({ mediaOutputs, sessionId }: { mediaOutputs: MediaOutput[]; sessionId: string }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
 
@@ -170,18 +171,18 @@ const MediaShowcase = ({ mediaOutputs, workingDirectory }: { mediaOutputs: Media
 
   // Single media file - show directly
   if (mediaOutputs.length === 1) {
-    return <MainMediaPlayer media={mediaOutputs[0]} workingDirectory={workingDirectory} />;
+    return <MainMediaPlayer media={mediaOutputs[0]} sessionId={sessionId} />;
   }
 
   // Multiple media files - show player + playlist
   return (
     <div className="space-y-4">
-      <MainMediaPlayer media={mediaOutputs[selectedIndex]} workingDirectory={workingDirectory} />
+      <MainMediaPlayer media={mediaOutputs[selectedIndex]} sessionId={sessionId} />
       <PlaylistSidebar
         mediaOutputs={mediaOutputs}
         onSelect={setSelectedIndex}
         selectedIndex={selectedIndex}
-        workingDirectory={workingDirectory}
+        sessionId={sessionId}
       />
     </div>
   );
@@ -197,8 +198,7 @@ interface ConversationDisplayProps {
   onForkMessage?: (index: number) => void;
   onUpdateMessage?: (index: number, updatedMessage: UIMessage) => void;
   setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
-  workingDirectory?: string;
-  renderStatusDisplay?: (message: UIMessage) => React.ReactNode;
+  sessionId?: string;
 }
 
 // Helper function to extract todos from todo_write tool calls
@@ -245,19 +245,6 @@ const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
   return toolCalls.filter(
     (tc) => tc.name !== 'todo_write' && tc.name !== 'exit_plan_mode'
   );
-};
-
-// Helper function to check if previous user message started with "!"
-const isPreviousUserMessageCommand = (
-  messages: UIMessage[],
-  currentIndex: number
-) => {
-  for (let i = currentIndex - 1; i >= 0; i--) {
-    if (messages[i].from === 'user') {
-      return messages[i].content.trim().startsWith('!');
-    }
-  }
-  return false;
 };
 
 // Helper function to render timeline entries chronologically
@@ -353,7 +340,7 @@ export function ConversationDisplay({
   onForkMessage,
   onUpdateMessage,
   setUserMessageRef,
-  workingDirectory,
+  sessionId,
 }: ConversationDisplayProps) {
   
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
@@ -429,33 +416,34 @@ export function ConversationDisplay({
               {message.from === 'assistant' ? (
                 <>
                   {/* Render media outputs as primary content */}
-                  {message.mediaOutputs && workingDirectory ? (
-                    <MediaShowcase mediaOutputs={message.mediaOutputs} workingDirectory={workingDirectory} />
+                  {message.mediaOutputs && sessionId ? (
+                    <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} />
                   ) : message.mediaOutputs ? (
-                    <div className="text-sm text-muted-foreground">Media content requires working directory</div>
+                    <div className="text-sm text-muted-foreground">Media content requires session ID</div>
                   ) : (
                     <AIMessageContent.Content>
                       {/* Render timeline-based interleaved thinking and tools */}
                       {message.timeline && renderTimelineEntries(message.timeline)}
                       {message.login ? (
-                        <LoginUI 
-                          loginState={message.login}
-                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
-                        />
+                        <ErrorBoundary>
+                          <LoginUI 
+                            loginState={message.login}
+                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                          />
+                        </ErrorBoundary>
                       ) : message.status ? (
                         <StatusUI 
                           statusState={message.status}
-                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
                         />
                       ) : message.provider ? (
                         <ProviderDisplay 
                           data={message.provider}
-                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
+                          onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
                         />
                       ) : message.model ? (
                         <ModelDisplay
                           data={message.model}
-                          onUpdate={(updatedMessage) => handleMessageUpdate(index, updatedMessage)}
+                          onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
                         />
                       ) : messages && index > 0 && messages[index-1]?.from === 'user' && messages[index-1]?.content?.startsWith('/') && !messages[index-1]?.content?.startsWith('/model') && !message.content.includes('Successfully set') ? (
                         <AIResponse>{`\`\`\`bash\n${message.content}\n\`\`\``}</AIResponse>
@@ -475,7 +463,7 @@ export function ConversationDisplay({
                   <AIMessageContent.Content>
                     <MessageAttachmentDisplay
                       attachments={message.attachments || []}
-                      workingDirectory={workingDirectory}
+                      sessionId={sessionId}
                     />
                     {message.content}
                   </AIMessageContent.Content>

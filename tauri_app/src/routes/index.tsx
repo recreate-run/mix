@@ -1,175 +1,76 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { open } from "@tauri-apps/plugin-dialog";
-import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-	IntroHeader,
-	IntroHeaderDescription,
-	IntroHeaderHeading,
-} from "@/components/intro-header";
-import { ProjectCard } from "@/components/project-card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionsList } from "@/hooks/useSessionsList";
-import type { SessionData } from "@/types/common";
-import { normalizePath } from "@/utils/pathUtils";
 
 export const Route = createFileRoute("/")({
-	component: ProjectSelector,
+	component: AutoRedirectHome,
 });
 
-interface Project {
-	name: string;
-	path: string;
-	lastUsed: string;
-}
+const LAST_SESSION_KEY = "mix-last-session-id";
 
-function ProjectSelector() {
+function AutoRedirectHome() {
 	const navigate = useNavigate();
 	const createSession = useCreateSession();
-	const { data: sessions = [] } = useSessionsList();
-	const [projects, setProjects] = useState<Project[]>([]);
-	const [error, setError] = useState<string | null>(null);
+	const { data: sessions, isLoading, error } = useSessionsList();
+	const [isHandling, setIsHandling] = useState(false);
 
-	// Helper function to find existing session by working directory
-	const findExistingSession = async (
-		workingDirectory: string,
-	): Promise<SessionData | null> => {
-		const normalizedInputPath = await normalizePath(workingDirectory);
-
-		for (const session of sessions) {
-			if (session.workingDirectory) {
-				const normalizedSessionPath = await normalizePath(
-					session.workingDirectory,
-				);
-				if (normalizedSessionPath === normalizedInputPath) {
-					return session;
-				}
-			}
-		}
-
-		return null;
-	};
-
-	// Load projects from localStorage
 	useEffect(() => {
-		const stored = localStorage.getItem("mix-projects");
-		if (stored) {
-			setProjects(JSON.parse(stored));
-		}
-	}, []);
+		// Prevent multiple simultaneous executions
+		if (isHandling || isLoading || error) return;
+		if (!sessions) return;
 
-	const addProject = async (project: Project) => {
-		const normalizedProjectPath = await normalizePath(project.path);
+		setIsHandling(true);
 
-		// Filter out any existing projects with the same normalized path
-		const filteredProjects = [];
-		for (const p of projects) {
-			const normalizedExistingPath = await normalizePath(p.path);
-			if (normalizedExistingPath !== normalizedProjectPath) {
-				filteredProjects.push(p);
+		const handleRedirect = async () => {
+			try {
+				// Try to use last session
+				const lastSessionId = localStorage.getItem(LAST_SESSION_KEY);
+				if (lastSessionId && sessions.some(s => s.id === lastSessionId)) {
+					navigate({ to: "/$sessionId", params: { sessionId: lastSessionId }, replace: true });
+					return;
+				}
+
+				// Use most recent session if available
+				if (sessions.length > 0) {
+					const mostRecent = sessions.reduce((latest, session) => 
+						new Date(session.createdAt) > new Date(latest.createdAt) ? session : latest
+					);
+					localStorage.setItem(LAST_SESSION_KEY, mostRecent.id);
+					navigate({ to: "/$sessionId", params: { sessionId: mostRecent.id }, replace: true });
+					return;
+				}
+
+				// Create first session for fresh database
+				const newSession = await createSession.mutateAsync({ title: "New Session" });
+				localStorage.setItem(LAST_SESSION_KEY, newSession.id);
+				navigate({ to: "/$sessionId", params: { sessionId: newSession.id }, replace: true });
+				
+			} catch (err) {
+				console.error("Failed to handle session redirect:", err);
+				setIsHandling(false);
 			}
-		}
-
-		const updated = [project, ...filteredProjects].slice(0, 6);
-		setProjects(updated);
-		localStorage.setItem("mix-projects", JSON.stringify(updated));
-	};
-
-	// Unified function to open any project by path and name
-	const openProject = async (projectPath: string, projectName: string) => {
-		setError(null);
-
-		try {
-			const existingSession = await findExistingSession(projectPath);
-
-			if (existingSession) {
-				navigate({
-					to: "/$sessionId",
-					params: { sessionId: existingSession.id },
-					replace: true,
-				});
-			} else {
-				const normalizedProjectPath = await normalizePath(projectPath);
-				const newSession = await createSession.mutateAsync({
-					title: projectName,
-					workingDirectory: normalizedProjectPath,
-				});
-
-				navigate({
-					to: "/$sessionId",
-					params: { sessionId: newSession.id },
-					replace: true,
-				});
-			}
-		} catch (error) {
-			setError(
-				`Failed to open project "${projectName}": ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
-		}
-	};
-
-	const handleNewProject = async () => {
-		const folder = await open({
-			directory: true,
-			multiple: false,
-		});
-		if (!folder || typeof folder !== "string") return;
-
-		const projectName = folder.split("/").pop() || "Untitled Project";
-		const project: Project = {
-			name: projectName,
-			path: folder,
-			lastUsed: new Date().toISOString(),
 		};
 
-		await addProject(project);
-		await openProject(folder, projectName);
-	};
+		handleRedirect();
+	}, [sessions, isLoading, error, isHandling, navigate, createSession]);
 
-	const handleOpenProject = async (project: Project) => {
-		const updatedProject = { ...project, lastUsed: new Date().toISOString() };
-		await addProject(updatedProject);
-		await openProject(project.path, project.name);
-	};
+	if (error) {
+		return (
+			<div className="flex min-h-screen items-center justify-center">
+				<div className="text-center">
+					<p className="text-red-500">Error loading sessions</p>
+				</div>
+			</div>
+		);
+	}
 
 	return (
-		<section className="flex min-h-screen flex-col items-center justify-center p-8 ">
-			<IntroHeader className="mb-16 max-w-4xl ">
-				<IntroHeaderHeading className="max-w-4xl">Mix</IntroHeaderHeading>
-				<IntroHeaderDescription>
-					Select a project to get started
-				</IntroHeaderDescription>
-			</IntroHeader>
-
-			{error && (
-				<Alert className="mx-auto mb-6 max-w-4xl" variant="destructive">
-					<AlertDescription>{error}</AlertDescription>
-				</Alert>
-			)}
-
-			<div className="mx-auto grid max-w-4xl grid-flow-col justify-items-center gap-4">
-				{/* New Project Card */}
-				<Card
-					className="cursor-pointer border-2 bg-transparent transition-shadow hover:shadow-md"
-					onClick={handleNewProject}
-				>
-					<CardContent className="min-h-[120px] grid  place-items-center p-6">
-						<Plus className="mb-2 h-8 w-8 text-muted-foreground" />
-						<p className="font-medium text-xl">Select project folder</p>
-					</CardContent>
-				</Card>
-
-				{/* Recent Projects */}
-				{projects.map((project) => (
-					<ProjectCard
-						key={project.path}
-						onClick={handleOpenProject}
-						project={project}
-					/>
-				))}
+		<div className="flex min-h-screen items-center justify-center">
+			<div className="text-center">
+				<div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+				<p className="text-muted-foreground">Loading...</p>
 			</div>
-		</section>
+		</div>
 	);
 }

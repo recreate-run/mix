@@ -1,0 +1,326 @@
+package http
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+
+	"mix/internal/app"
+	"mix/internal/storage"
+)
+
+// FileInfo represents information about a file in session storage
+type FileInfo struct {
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	Modified int64  `json:"modified"` // Unix timestamp
+	IsDir    bool   `json:"isDir"`
+}
+
+// FileHandler handles REST endpoints for session file operations
+type FileHandler struct {
+	app           *app.App
+	storageConfig storage.Config
+}
+
+// NewFileHandler creates a new file handler
+func NewFileHandler(app *app.App, storageConfig storage.Config) *FileHandler {
+	return &FileHandler{
+		app:           app,
+		storageConfig: storageConfig,
+	}
+}
+
+// HandleUploadFile handles POST /api/sessions/{id}/files/upload
+func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	// Validate session exists and session ID format
+	if !storage.ValidateSessionID(sessionID) {
+		sendValidationError(w, "id", "invalid session ID format")
+		return
+	}
+
+	ctx := r.Context()
+	_, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Parse multipart form
+	err = r.ParseMultipartForm(32 << 20) // 32MB max
+	if err != nil {
+		sendValidationError(w, "form", "failed to parse multipart form")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		sendValidationError(w, "file", "file upload required")
+		return
+	}
+	defer file.Close()
+
+	// Get filename from upload
+	filename := header.Filename
+	
+	// Use os.Root for secure file operations - prevents path traversal
+	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	if err != nil {
+		sendInternalError(w, "getting session root", err)
+		return
+	}
+	defer root.Close()
+
+	// Create file using Root - this prevents path traversal attacks
+	dst, err := root.Create(filename)
+	if err != nil {
+		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
+		return
+	}
+	defer dst.Close()
+
+	// Copy uploaded file to destination
+	_, err = io.Copy(dst, file)
+	if err != nil {
+		sendInternalError(w, "saving file", err)
+		return
+	}
+
+	// Get file info for response using Root
+	fileInfo, err := root.Stat(filename)
+	if err != nil {
+		sendInternalError(w, "getting file info", err)
+		return
+	}
+
+	result := FileInfo{
+		Name:     filename,
+		Size:     fileInfo.Size(),
+		Modified: fileInfo.ModTime().Unix(),
+		IsDir:    fileInfo.IsDir(),
+	}
+
+	sendJSONResponse(w, http.StatusCreated, result)
+}
+
+// HandleListFiles handles GET /api/sessions/{id}/files
+func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	// Validate session exists and session ID format
+	if !storage.ValidateSessionID(sessionID) {
+		sendValidationError(w, "id", "invalid session ID format")
+		return
+	}
+
+	ctx := r.Context()
+	_, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Get session storage directory
+	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+
+	// Read directory entries
+	entries, err := os.ReadDir(sessionDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Session directory doesn't exist yet, return empty list
+			sendJSONResponse(w, http.StatusOK, []FileInfo{})
+			return
+		}
+		sendInternalError(w, "reading session directory", err)
+		return
+	}
+
+	// Convert to FileInfo structs
+	var files []FileInfo
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			continue // Skip entries we can't get info for
+		}
+
+		files = append(files, FileInfo{
+			Name:     info.Name(),
+			Size:     info.Size(),
+			Modified: info.ModTime().Unix(),
+			IsDir:    info.IsDir(),
+		})
+	}
+
+	sendJSONResponse(w, http.StatusOK, files)
+}
+
+// HandleServeFile handles GET /api/sessions/{id}/files/{filename}
+func (h *FileHandler) HandleServeFile(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	filename := r.PathValue("filename")
+	if filename == "" {
+		sendValidationError(w, "filename", "filename is required")
+		return
+	}
+
+	// Validate session exists and session ID format
+	if !storage.ValidateSessionID(sessionID) {
+		sendValidationError(w, "id", "invalid session ID format")
+		return
+	}
+
+	ctx := r.Context()
+	_, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Use os.Root for secure file operations
+	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	if err != nil {
+		sendInternalError(w, "getting session root", err)
+		return
+	}
+	defer root.Close()
+
+	// Check if file exists using Root - prevents path traversal
+	fileInfo, err := root.Stat(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			sendNotFoundError(w, "File", filename)
+			return
+		}
+		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
+		return
+	}
+
+	// Don't serve directories
+	if fileInfo.IsDir() {
+		http.Error(w, "Cannot serve directory", http.StatusBadRequest)
+		return
+	}
+
+	// Open file using Root for secure serving
+	file, err := root.Open(filename)
+	if err != nil {
+		sendInternalError(w, "opening file", err)
+		return
+	}
+	defer file.Close()
+
+	// Set appropriate content type and serve
+	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)
+}
+
+// HandleDeleteFile handles DELETE /api/sessions/{id}/files/{filename}
+func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "DELETE" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	filename := r.PathValue("filename")
+	if filename == "" {
+		sendValidationError(w, "filename", "filename is required")
+		return
+	}
+
+	// Validate session exists and session ID format
+	if !storage.ValidateSessionID(sessionID) {
+		sendValidationError(w, "id", "invalid session ID format")
+		return
+	}
+
+	ctx := r.Context()
+	_, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Use os.Root for secure file operations
+	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	if err != nil {
+		sendInternalError(w, "getting session root", err)
+		return
+	}
+	defer root.Close()
+
+	// Check if file exists using Root - prevents path traversal
+	if _, err := root.Stat(filename); err != nil {
+		if os.IsNotExist(err) {
+			sendNotFoundError(w, "File", filename)
+			return
+		}
+		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
+		return
+	}
+
+	// Delete the file using Root
+	err = root.Remove(filename)
+	if err != nil {
+		sendInternalError(w, "deleting file", err)
+		return
+	}
+
+	// Return 204 No Content for successful deletion
+	w.WriteHeader(http.StatusNoContent)
+}

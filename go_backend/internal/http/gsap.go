@@ -15,21 +15,20 @@ import (
 	"mix/internal/logging"
 )
 
-
 // URLVideoExportRequest represents the request payload for URL video export
 type URLVideoExportRequest struct {
 	URL         string   `json:"url"`
-	OutputPath  string   `json:"outputPath"`             // Required absolute path where video will be saved
-	FPS         *int     `json:"fps,omitempty"`          // default: 30
-	AspectRatio *string  `json:"aspectRatio,omitempty"`  // default: "9/16" (format like "16/9", "4/3")
-	Height      *int     `json:"height,omitempty"`       // default: 640
-	Duration    *float64 `json:"duration,omitempty"`     // default: 3.0
+	OutputPath  string   `json:"outputPath"`            // Required absolute path where video will be saved
+	FPS         *int     `json:"fps,omitempty"`         // default: 30
+	AspectRatio *string  `json:"aspectRatio,omitempty"` // default: "9/16" (format like "16/9", "4/3")
+	Height      *int     `json:"height,omitempty"`      // default: 640
+	Duration    *float64 `json:"duration,omitempty"`    // default: 3.0
 }
 
 // URLVideoExportResponse represents the response for URL video export
 type URLVideoExportResponse struct {
 	Success    bool   `json:"success"`
-	OutputPath string `json:"outputPath,omitempty"`    // Path where video was saved
+	OutputPath string `json:"outputPath,omitempty"` // Path where video was saved
 	Message    string `json:"message,omitempty"`
 	Error      string `json:"error,omitempty"`
 }
@@ -68,8 +67,6 @@ func parseAspectRatio(aspectRatioStr string) (AspectRatio, error) {
 		Decimal: width / height,
 	}, nil
 }
-
-
 
 // HandleURLVideoExport handles POST /api/video/export-url
 // Exports a URL as a video using Playwright-based frame capture
@@ -133,17 +130,17 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	if req.FPS != nil {
 		fps = *req.FPS
 	}
-	
+
 	aspectRatioStr := "9/16"
 	if req.AspectRatio != nil {
 		aspectRatioStr = *req.AspectRatio
 	}
-	
+
 	height := 640
 	if req.Height != nil {
 		height = *req.Height
 	}
-	
+
 	duration := 3.0
 	if req.Duration != nil {
 		duration = *req.Duration
@@ -155,7 +152,7 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Invalid aspect ratio: %v", err), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Calculate width from height and aspect ratio
 	width := int(float64(height) * aspectRatio.Decimal)
 
@@ -179,7 +176,7 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get current working directory for script path
-	workingDir, err := os.Getwd()
+	sessionStorageDir, err := os.Getwd()
 	if err != nil {
 		http.Error(w, "Failed to get working directory", http.StatusInternalServerError)
 		return
@@ -195,7 +192,7 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 
 	// Create unique temporary directory for frames only
 	timestamp := time.Now().Format("20060102-150405")
-	framesDir := filepath.Join(workingDir, "go_backend", "temp", "video_frames", timestamp)
+	framesDir := filepath.Join(sessionStorageDir, "go_backend", "temp", "video_frames", timestamp)
 	if err := os.MkdirAll(framesDir, 0755); err != nil {
 		logging.Debug("Failed to create frames directory: %v", err)
 		http.Error(w, "Failed to create frames directory", http.StatusInternalServerError)
@@ -210,8 +207,8 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Path to Node.js capture script
-	scriptPath := filepath.Join(workingDir, "go_backend", "scripts", "capture-url.mjs")
-	
+	scriptPath := filepath.Join(sessionStorageDir, "go_backend", "scripts", "capture-url.mjs")
+
 	// Check if Node.js script exists
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		logging.Debug("Capture script not found at: %s", scriptPath)
@@ -233,35 +230,35 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 
 	// Execute Node.js capture script
 	cmd := exec.Command("node", args...)
-	cmd.Dir = workingDir
+	cmd.Dir = sessionStorageDir
 
 	logging.Debug("Executing video export: %s %v", cmd.Path, args)
-	
+
 	// Set reasonable timeout (5 minutes max)
 	timeout := time.Duration(300) * time.Second
-	
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, "node", args...)
-	cmd.Dir = workingDir
+	cmd.Dir = sessionStorageDir
 
 	// Capture output for debugging
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		logging.Debug("Video export failed: %v\nOutput: %s", err, string(output))
-		
+
 		// Check for specific error types
 		if ctx.Err() == context.DeadlineExceeded {
 			http.Error(w, "Video export timed out", http.StatusRequestTimeout)
 			return
 		}
-		
+
 		response := URLVideoExportResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Video export failed: %v", err),
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
@@ -277,7 +274,7 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 			Success: false,
 			Error:   "Video file was not generated",
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)

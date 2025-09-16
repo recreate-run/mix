@@ -50,7 +50,6 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 		setAuthMode,
 		isLoading,
 		showSuccess,
-		oauthState,
 		setOauthState,
 		handleSubmit,
 	} = useAuthFlow();
@@ -165,7 +164,9 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 											// Store the state parameter if available
 											if (loginData.state) {
 												setOauthState(loginData.state);
-												console.log("Stored OAuth state in auth-display:", loginData.state);
+											}
+											if (!loginData.authUrl) {
+												throw new Error("No authorization URL provided");
 											}
 											try {
 												await shellOpen(loginData.authUrl);
@@ -175,7 +176,7 @@ export function AuthDisplay({ data }: AuthDisplayProps) {
 													window.open(loginData.authUrl, "_blank");
 												} catch (windowError) {
 													console.error("Both browser opening methods failed:", windowError);
-													alert("Could not open browser automatically. Please copy and paste the URL manually.");
+													throw new Error("Failed to open browser for OAuth authentication");
 												}
 											}
 										}}

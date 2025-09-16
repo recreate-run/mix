@@ -176,7 +176,7 @@ sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &session)
 ### Context Propagation
 Every tool execution includes:
 - `SessionIDContextKey` - Message correlation
-- `WorkingDirectoryContextKey` - File operation boundaries
+- `SessionStorageContextKey` - Session storage directory boundaries
 - `MessageIDContextKey` - Response tracking
 
 ## Performance Features

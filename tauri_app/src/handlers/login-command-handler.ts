@@ -35,7 +35,7 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     const status = await mix.authentication.getAuthStatus();
     
     // Fetch available providers from API
-    const response = await mix.preferences.getPreferences();
+    const response = await mix.preferences.get();
     
     // Check if we have preferences already set
     const hasExistingPreferences = !!response.preferences;
@@ -45,7 +45,7 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     }
     
     // Map available providers from API response
-    const providers: ProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]) => {
+    const providers: ProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
       return {
         id: providerId,
         displayName: data.displayName || providerId,
@@ -94,7 +94,7 @@ export async function authenticateWithApiKey(
   try {
     // Store API key using the SDK
     await mix.authentication.storeApiKey({
-      provider,
+      provider: provider as any,
       apiKey
     });
     
@@ -152,11 +152,28 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
     }
     
     // Return success with auth URL - browser will be opened by the handleStartOAuth function in login-ui.tsx
+    // Get available providers to include in response
+    const preferencesResponse = await mix.preferences.get();
+    if (!preferencesResponse.availableProviders) {
+      throw new Error("Failed to fetch available providers for OAuth flow");
+    }
+
+    const providers: ProviderInfo[] = Object.entries(preferencesResponse.availableProviders).map(([providerId, data]: [string, any]) => {
+      return {
+        id: providerId,
+        displayName: data.displayName || providerId,
+        authMethods: AUTH_METHODS[providerId] || ["api_key"],
+        authenticated: false, // During OAuth flow, not yet authenticated
+        apiKeyFormat: API_KEY_FORMATS[providerId] || "API key"
+      };
+    });
+
     return {
       content: `If the browser doesn't open automatically, you can click or copy this URL: ${result.authUrl}`,
       from: "assistant",
       frontend_only: true,
       login: {
+        providers,
         step: "oauth_flow",
         authUrl: result.authUrl,
         provider,
@@ -233,7 +250,7 @@ export async function updateUserPreferences(
 ): Promise<UIMessage> {
   try {
     // Get current preferences
-    const currentPrefs = await mix.preferences.getPreferences();
+    const currentPrefs = await mix.preferences.get();
     
     // Prepare update with reasonable defaults if no preferences exist
     const update = {
@@ -249,16 +266,16 @@ export async function updateUserPreferences(
       const providerData = currentPrefs.availableProviders[preferences.preferredProvider];
       if (providerData && providerData.models && providerData.models.length > 0) {
         // Use the first model as default
-        update.main_agent_model = providerData.models[0];
-        update.sub_agent_model = providerData.models[0];
+        update.mainAgentModel = providerData.models[0];
+        update.subAgentModel = providerData.models[0];
       }
     }
     
     // Update preferences
-    await mix.preferences.updatePreferences(update);
+    await mix.preferences.update(update);
     
     // Verify the update was successful by reading back preferences
-    const verifyPrefs = await mix.preferences.getPreferences();
+    const verifyPrefs = await mix.preferences.get();
     const savedProvider = verifyPrefs.preferences?.preferredProvider;
     
     // If the preferred provider wasn't saved correctly and we have retries left, try again

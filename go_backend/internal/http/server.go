@@ -23,6 +23,10 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	systemHandler := NewSystemHandler(app)
 	preferencesHandler := NewPreferencesHandler(app)
 	authHandler := NewAuthHandler(app)
+	
+	// Create session-aware asset handler using app's storage config
+	fileHandler := NewFileHandler(app, app.StorageConfig)
+	sessionAssetHandler := NewSessionAssetHandler(app, app.StorageConfig)
 
 	// Create dedicated HTTP mux with CORS middleware
 	mux := http.NewServeMux()
@@ -91,28 +95,16 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	// Add URL video export endpoint (new Playwright-based export)
 	mux.HandleFunc("/api/video/export-url", HandleURLVideoExport)
 
-	// Add file types endpoint
-	mux.HandleFunc("/api/file-types", HandleFileTypes(app))
-
-	// Add asset serving endpoints for media files
-	mux.HandleFunc("/input/", HandleInputAssets(app))
-	mux.HandleFunc("/output/", HandleOutputAssets(app))
+	// NEW SESSION-BASED FILE ENDPOINTS (replaces /input/ and /output/)
 	
-	// Add GSAP animation endpoints with clean, explicit routing
-	mux.HandleFunc("/api/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
-		animationName := strings.TrimPrefix(r.URL.Path, "/api/gsap_animations/")
-		if animationName == "" {
-			app.AssetServer.ServeGSAPAnimationsList(w, r)
-		} else {
-			app.AssetServer.ServeGSAPAnimationSchema(w, r, animationName)
-		}
-	})
-	mux.HandleFunc("/api/gsap_animations", func(w http.ResponseWriter, r *http.Request) {
-		app.AssetServer.ServeGSAPAnimationsList(w, r)
-	})
-	mux.HandleFunc("/gsap_animations/", func(w http.ResponseWriter, r *http.Request) {
-		app.AssetServer.ServeGSAPAnimationFiles(w, r)
-	})
+	// Session file management endpoints
+	mux.HandleFunc("POST /api/sessions/{id}/files/upload", fileHandler.HandleUploadFile)
+	mux.HandleFunc("GET /api/sessions/{id}/files", fileHandler.HandleListFiles)
+	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
+	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
+	
+	// GSAP animation endpoints (kept separate from session storage)
+	mux.HandleFunc("GET /api/gsap_animations", sessionAssetHandler.HandleGSAPAnimationsList)
 
 	// REST API Endpoints
 	

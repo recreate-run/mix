@@ -1,7 +1,7 @@
 import type { Attachment } from '@/stores/attachmentSlice';
 import type { ToolCall, ToolCallData } from './common';
 import type { MediaOutput } from './media';
-import type { HierarchicalModelData } from './provider';
+import type { HierarchicalModelData, ProviderInfo } from './provider';
 
 export type TimelineEntry = 
   | {
@@ -28,12 +28,13 @@ export interface UIMessage {
   reasoning?: string;
   reasoningDuration?: number;
   login?: {
-    providers?: any[];
+    providers: ProviderInfo[];
     selectedProvider?: string;
-    step?: string;
+    step: "provider_select" | "auth_method" | "api_key" | "oauth_flow" | "oauth_code";
     authUrl?: string;
     hasExistingPreferences?: boolean;
     provider?: string; // Current provider for OAuth flow
+    state?: string; // OAuth state parameter
   };
   status?: {
     providers: {

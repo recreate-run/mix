@@ -98,7 +98,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"post": map[string]interface{}{
 					"operationId":  "createSession",
 					"summary":     "Create a new session",
-					"description": "Create a new session with required title and optional working directory",
+					"description": "Create a new session with required title. Session automatically gets isolated storage directory.",
 					"tags":        []string{"Sessions"},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
@@ -962,6 +962,126 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			// Session File Management Endpoints
+			"/api/sessions/{id}/files/upload": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "uploadSessionFile",
+					"summary":     "Upload file to session",
+					"description": "Upload a file to session-specific storage directory",
+					"tags":        []string{"Files"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+					},
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"multipart/form-data": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"file": map[string]interface{}{
+											"type":        "string",
+											"format":      "binary",
+											"description": "File to upload",
+										},
+									},
+									"required": []string{"file"},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"201": createSuccessResponse("object", getFileInfoSchema(), "File uploaded successfully"),
+						"400": createErrorResponse("Invalid file or session ID"),
+						"404": createErrorResponse("Session not found"),
+						"413": createErrorResponse("File too large (max 32MB)"),
+					},
+				},
+			},
+			"/api/sessions/{id}/files": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "listSessionFiles",
+					"summary":     "List session files",
+					"description": "List all files in session storage directory",
+					"tags":        []string{"Files"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("array", getFileInfoSchema(), "List of files in session"),
+						"404": createErrorResponse("Session not found"),
+					},
+				},
+			},
+			"/api/sessions/{id}/files/{filename}": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getSessionFile",
+					"summary":     "Get session file",
+					"description": "Download or serve a specific file from session storage. Supports thumbnail generation with ?thumb parameter.",
+					"tags":        []string{"Files"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+						createPathParameter("filename", "Filename to retrieve"),
+						{
+							"name":        "thumb",
+							"in":          "query",
+							"description": "Thumbnail specification: '100' (box), 'w100' (width), 'h100' (height)",
+							"schema": map[string]interface{}{
+								"type":    "string",
+								"pattern": "^(\\d+|w\\d+|h\\d+)$",
+							},
+						},
+						{
+							"name":        "time",
+							"in":          "query",
+							"description": "Time offset in seconds for video thumbnails (default: 1.0)",
+							"schema": map[string]interface{}{
+								"type":    "number",
+								"minimum": 0,
+								"maximum": 86400,
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "File content",
+							"content": map[string]interface{}{
+								"application/octet-stream": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type":   "string",
+										"format": "binary",
+									},
+								},
+								"image/jpeg": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type":        "string",
+										"format":      "binary",
+										"description": "Thumbnail image (when thumb parameter is used)",
+									},
+								},
+							},
+						},
+						"400": createErrorResponse("Invalid filename or thumbnail parameters"),
+						"404": createErrorResponse("Session or file not found"),
+					},
+				},
+				"delete": map[string]interface{}{
+					"operationId":  "deleteSessionFile",
+					"summary":     "Delete session file",
+					"description": "Delete a specific file from session storage",
+					"tags":        []string{"Files"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID"),
+						createPathParameter("filename", "Filename to delete"),
+					},
+					"responses": map[string]interface{}{
+						"204": map[string]interface{}{
+							"description": "File deleted successfully",
+						},
+						"404": createErrorResponse("Session or file not found"),
+					},
+				},
+			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "healthCheck",
@@ -1152,6 +1272,30 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"required": []string{"id", "name", "input", "type", "finished"},
 				},
+				"FileInfo": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"name": map[string]interface{}{
+							"type":        "string",
+							"description": "File name",
+						},
+						"size": map[string]interface{}{
+							"type":        "integer",
+							"format":      "int64",
+							"description": "File size in bytes",
+						},
+						"modified": map[string]interface{}{
+							"type":        "integer",
+							"format":      "int64",
+							"description": "Last modified timestamp (Unix time)",
+						},
+						"isDir": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether this is a directory",
+						},
+					},
+					"required": []string{"name", "size", "modified", "isDir"},
+				},
 			},
 		},
 	}
@@ -1230,5 +1374,11 @@ func getMessageDataSchema() map[string]interface{} {
 func getToolCallDataSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"$ref": "#/components/schemas/ToolCallData",
+	}
+}
+
+func getFileInfoSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"$ref": "#/components/schemas/FileInfo",
 	}
 }

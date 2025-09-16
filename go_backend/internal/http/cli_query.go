@@ -34,11 +34,6 @@ func (h *CLIQueryHandler) HandleQueryType(ctx context.Context, queryType string)
 		
 		var result []SessionData
 		for _, s := range sessions {
-			workingDir := ""
-			if s.WorkingDirectory.Valid {
-				workingDir = s.WorkingDirectory.String
-			}
-			
 			result = append(result, SessionData{
 				ID:                    s.ID,
 				Title:                 s.Title,
@@ -49,7 +44,6 @@ func (h *CLIQueryHandler) HandleQueryType(ctx context.Context, queryType string)
 				CompletionTokens:      s.CompletionTokens,
 				Cost:                  s.Cost,
 				CreatedAt:             time.Unix(s.CreatedAt, 0),
-				WorkingDirectory:      workingDir,
 				FirstUserMessage:      s.FirstUserMessage,
 			})
 		}

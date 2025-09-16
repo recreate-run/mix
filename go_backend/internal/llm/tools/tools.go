@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"mix/internal/storage"
 )
 
 type ToolInfo struct {
@@ -16,18 +18,18 @@ type ToolInfo struct {
 type toolResponseType string
 
 type (
-	sessionIDContextKey        string
-	messageIDContextKey        string
-	workingDirectoryContextKey string
+	sessionIDContextKey       string
+	messageIDContextKey       string
+	sessionStorageContextKey  string
 )
 
 const (
 	ToolResponseTypeText  toolResponseType = "text"
 	ToolResponseTypeImage toolResponseType = "image"
 
-	SessionIDContextKey        sessionIDContextKey        = "session_id"
-	MessageIDContextKey        messageIDContextKey        = "message_id"
-	WorkingDirectoryContextKey workingDirectoryContextKey = "working_directory"
+	SessionIDContextKey       sessionIDContextKey       = "session_id"
+	MessageIDContextKey       messageIDContextKey       = "message_id"
+	SessionStorageContextKey  sessionStorageContextKey  = "session_storage"
 )
 
 type ToolResponse struct {
@@ -86,18 +88,24 @@ func GetContextValues(ctx context.Context) (string, string) {
 	return sessionID.(string), messageID.(string)
 }
 
-// GetWorkingDirectory safely extracts the working directory from context
-func GetWorkingDirectory(ctx context.Context) (string, error) {
-	value := ctx.Value(WorkingDirectoryContextKey)
+// GetSessionStorageDirectory safely extracts the session storage directory from context
+func GetSessionStorageDirectory(ctx context.Context) (string, error) {
+	value := ctx.Value(SessionStorageContextKey)
 	if value == nil {
-		return "", fmt.Errorf("working directory not found in context")
+		return "", fmt.Errorf("session storage directory not found in context")
 	}
-	workingDir, ok := value.(string)
+	storageDir, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("working directory context value is not a string")
+		return "", fmt.Errorf("session storage directory context value is not a string")
 	}
-	if workingDir == "" {
-		return "", fmt.Errorf("working directory context value is empty")
+	if storageDir == "" {
+		return "", fmt.Errorf("session storage directory context value is empty")
 	}
-	return workingDir, nil
+	return storageDir, nil
+}
+
+// SetSessionStorageContext adds session storage directory to context for tools
+func SetSessionStorageContext(ctx context.Context, sessionID string, storageConfig storage.Config) context.Context {
+	sessionStorageDir := storage.GetSessionStoragePath(sessionID, storageConfig)
+	return context.WithValue(ctx, SessionStorageContextKey, sessionStorageDir)
 }

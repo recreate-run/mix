@@ -9,6 +9,7 @@ import (
 	"mix/internal/message"
 	"mix/internal/permission"
 	"mix/internal/session"
+	"mix/internal/storage"
 )
 
 type taskTool struct {
@@ -69,13 +70,13 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 		return tools.ToolResponse{}, fmt.Errorf("session_id and message_id are required")
 	}
 
-	agent, err := NewAgent("sub", b.sessions, b.messages, TaskAgentTools(b.permissions))
+	agent, err := NewAgent("sub", b.sessions, b.messages, TaskAgentTools(b.permissions), storage.DefaultConfig())
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}
 	defer agent.Shutdown()
 
-	session, err := b.sessions.Create(ctx, "New Agent Session", ctx.Value(tools.WorkingDirectoryContextKey).(string))
+	session, err := b.sessions.Create(ctx, "New Agent Session")
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}

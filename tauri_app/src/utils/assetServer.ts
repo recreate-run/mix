@@ -2,20 +2,22 @@ import type { Attachment } from '@/stores/attachmentSlice';
 import { getBackendUrl } from './backendUrl';
 
 /**
- * Convert absolute file path to HTTP asset server URL
- * Requires working directory - fails fast if not provided
+ * Convert filename to session-based HTTP asset server URL
+ * Files are served from /api/sessions/{sessionId}/files/{filename}
  */
-export const convertToAssetServerUrl = (absolutePath: string, workingDirectory: string): string => {
-  const workingDirNormalized = workingDirectory.endsWith('/')
-    ? workingDirectory.slice(0, -1)
-    : workingDirectory;
-
-  if (!absolutePath.startsWith(workingDirNormalized + '/')) {
-    throw new Error(`File path "${absolutePath}" is not within working directory "${workingDirectory}"`);
+export const convertToAssetServerUrl = (filename: string, sessionId: string): string => {
+  if (!sessionId) {
+    throw new Error('Session ID is required for asset server URL');
+  }
+  
+  if (!filename) {
+    throw new Error('Filename is required for asset server URL');
   }
 
-  const relativePath = absolutePath.substring(workingDirNormalized.length + 1);
-  return `${getBackendUrl()}/${relativePath}`;
+  // Extract filename from path if full path is provided
+  const cleanFilename = filename.includes('/') ? filename.split('/').pop()! : filename;
+  
+  return `${getBackendUrl()}/api/sessions/${sessionId}/files/${encodeURIComponent(cleanFilename)}`;
 };
 
 /**
@@ -24,13 +26,13 @@ export const convertToAssetServerUrl = (absolutePath: string, workingDirectory: 
  */
 export const generatePreviewUrl = (
   attachment: Attachment | { path?: string; type: string },
-  workingDirectory: string,
+  sessionId: string,
   thumbnailSize = 200
 ): string | undefined => {
-  if (!attachment.path) return undefined;
+  if (!attachment.path || !sessionId) return undefined;
 
   try {
-    const baseUrl = convertToAssetServerUrl(attachment.path, workingDirectory);
+    const baseUrl = convertToAssetServerUrl(attachment.path, sessionId);
     // For videos and images, request thumbnail with specified max dimension (maintains aspect ratio)
     if (attachment.type === 'video' || attachment.type === 'image') {
       return `${baseUrl}?thumb=${thumbnailSize}`;

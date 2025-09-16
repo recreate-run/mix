@@ -12,12 +12,12 @@ import {
 
 interface MessageAttachmentDisplayProps {
   attachments: Attachment[];
-  workingDirectory?: string;
+  sessionId?: string;
 }
 
 export function MessageAttachmentDisplay({
   attachments,
-  workingDirectory,
+  sessionId,
 }: MessageAttachmentDisplayProps) {
   if (!attachments || attachments.length === 0) return null;
 
@@ -29,12 +29,12 @@ export function MessageAttachmentDisplay({
             case 'image':
               return <ImagePreview 
                 attachment={attachment} 
-                previewUrl={workingDirectory ? generatePreviewUrl(attachment, workingDirectory) : undefined}
+                previewUrl={sessionId ? generatePreviewUrl(attachment, sessionId) : undefined}
               />;
             case 'video':
               return <VideoPreview 
                 attachment={attachment} 
-                previewUrl={workingDirectory ? generatePreviewUrl(attachment, workingDirectory) : undefined}
+                previewUrl={sessionId ? generatePreviewUrl(attachment, sessionId) : undefined}
               />;
             case 'audio':
               return <AudioPreview attachment={attachment} />;

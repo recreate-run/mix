@@ -13,7 +13,6 @@ export type ToolCall = {
 export interface Session {
   id: string;
   title: string;
-  workingDirectory?: string;
 }
 
 // Canonical SessionData interface - matches backend contract exactly
@@ -27,7 +26,6 @@ export interface SessionData {
   completionTokens: number;
   cost: number;
   createdAt: string; // RFC3339 date string from backend Go time.Time
-  workingDirectory?: string;
   firstUserMessage?: string;
   // Client-side only properties for UI state
   isDeleting?: boolean;

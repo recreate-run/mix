@@ -16,23 +16,31 @@ import (
 	"mix/internal/message"
 	"mix/internal/permission"
 	"mix/internal/session"
+	"mix/internal/storage"
 )
 
 type App struct {
-	Sessions    session.Service
-	Messages    message.Service
-	History     history.Service
-	Permissions permission.Service
-	Analytics   analytics.Service
-	AssetServer *session.AssetServer
-
+	Sessions      session.Service
+	Messages      message.Service
+	History       history.Service
+	Permissions   permission.Service
+	Analytics     analytics.Service
+	StorageConfig storage.Config
+	
 	CoderAgent agent.Service
-
 }
 
 func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	q := db.New(conn)
-	sessions := session.NewService(q)
+
+	// Initialize storage system
+	storageConfig := storage.DefaultConfig()
+	if err := storage.Initialize(storageConfig); err != nil {
+		return nil, fmt.Errorf("failed to initialize storage system: %w", err)
+	}
+
+	// Create session service with storage configuration
+	sessions := session.NewService(q, storageConfig)
 
 	// Initialize user preferences with database connection
 	if err := config.InitUserPreferences(conn); err != nil {
@@ -63,19 +71,16 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	}
 	analyticsService := analytics.NewAnalyticsService(posthogAPIKey)
 
-	// Initialize asset server for serving files
-	assetServer := session.NewAssetServer()
-
 	// Wrap message service with tracking
 	messages := message.NewTrackingService(baseMessageService, analyticsService)
 
 	app := &App{
-		Sessions:    sessions,
-		Messages:    messages,
-		History:     files,
-		Permissions: permission.NewPermissionService(sessions),
-		Analytics:   analyticsService,
-		AssetServer: assetServer,
+		Sessions:      sessions,
+		Messages:      messages,
+		History:       files,
+		Permissions:   permission.NewPermissionService(sessions, storageConfig),
+		Analytics:     analyticsService,
+		StorageConfig: storageConfig,
 	}
 
 	// Create MCP manager for this agent
@@ -93,6 +98,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 			app.History,
 			mcpManager,
 		),
+		storageConfig,
 	)
 	if err != nil {
 		logging.Error("Failed to create coder agent", err)
@@ -124,12 +130,7 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	}
 	title := titlePrefix + titleSuffix
 
-	launchDir, err := config.LaunchDirectory()
-	if err != nil {
-		return fmt.Errorf("failed to get launch directory: %w", err)
-	}
-
-	sess, err := a.Sessions.Create(ctx, title, launchDir)
+	sess, err := a.Sessions.Create(ctx, title)
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}

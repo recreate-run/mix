@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
 )
 
 type LSParams struct {
@@ -65,17 +64,17 @@ func (l *lsTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 		return NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
 
-	workingDir, err := GetWorkingDirectory(ctx)
+	sessionStorageDir, err := GetSessionStorageDirectory(ctx)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+		return ToolResponse{}, fmt.Errorf("failed to get session storage directory: %w", err)
 	}
 	searchPath := params.Path
 	if searchPath == "" {
-		searchPath = workingDir
+		searchPath = sessionStorageDir
 	}
 
 	if !filepath.IsAbs(searchPath) {
-		searchPath = filepath.Join(workingDir, searchPath)
+		searchPath = filepath.Join(sessionStorageDir, searchPath)
 	}
 
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {

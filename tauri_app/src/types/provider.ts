@@ -7,7 +7,7 @@ export interface ProviderInfo {
   authenticated: boolean;
   authMethod?: "api_key" | "oauth";
   isPreferred?: boolean;
-  authMethods?: ("api_key" | "oauth")[];
+  authMethods: ("api_key" | "oauth")[];
 }
 
 /**

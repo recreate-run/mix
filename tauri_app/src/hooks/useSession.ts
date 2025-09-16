@@ -5,7 +5,6 @@ import { CACHE_KEYS } from '@/lib/cache-keys';
 
 interface CreateSessionParams {
   title: string;
-  workingDirectory?: string;
 }
 
 const createSession = async (params: CreateSessionParams): Promise<Session> => {
@@ -14,7 +13,6 @@ const createSession = async (params: CreateSessionParams): Promise<Session> => {
   return {
     id: response.id,
     title: response.title,
-    workingDirectory: response.workingDirectory,
   };
 };
 
@@ -45,7 +43,6 @@ export const useActiveSession = (sessionId: string) => {
       return {
         id: response.id,
         title: response.title,
-        workingDirectory: response.workingDirectory,
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - reduce from infinite to allow some updates

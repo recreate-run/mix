@@ -48,15 +48,15 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 }
 
 func getContextFromPaths(ctx context.Context) (string, error) {
-	workingDir, ok := ctx.Value(tools.WorkingDirectoryContextKey).(string)
+	sessionStorageDir, ok := ctx.Value(tools.SessionStorageContextKey).(string)
 	if !ok {
-		return "", fmt.Errorf("no working directory found in context")
+		return "", fmt.Errorf("no session storage directory found in context")
 	}
 
 	cfg := config.Get()
 	contextPaths := cfg.ContextPaths
 
-	return processContextPaths(workingDir, contextPaths)
+	return processContextPaths(sessionStorageDir, contextPaths)
 }
 
 func processContextPaths(workDir string, paths []string) (string, error) {

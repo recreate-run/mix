@@ -39,7 +39,6 @@ export function useAuthFlow(): UseAuthFlowReturn {
 					result = await mix.auth.setApiKey({ apiKey: input });
 				} else {
 					// Handle OAuth code with # character - we just need to handle it properly here
-					console.log("Processing OAuth code, length:", input.length, "state:", oauthState);
 					
 					try {
 						// Try to handle the OAuth callback with the stored state

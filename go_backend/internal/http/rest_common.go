@@ -44,6 +44,16 @@ func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	
+	// Debug logging for message responses
+	if msgs, ok := data.([]MessageData); ok {
+		logging.Info("Sending JSON response - messages array", "status", status, "messageCount", len(msgs))
+		if len(msgs) > 0 {
+			logging.Info("First message sample", "id", msgs[0].ID, "role", msgs[0].Role, "hasUserInput", msgs[0].UserInput != "", "hasAssistantResponse", msgs[0].AssistantResponse != "")
+		}
+	} else {
+		logging.Info("Sending JSON response - other data", "status", status, "dataType", fmt.Sprintf("%T", data))
+	}
+	
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		logging.Error("Failed to encode JSON response", "error", err)
 	}

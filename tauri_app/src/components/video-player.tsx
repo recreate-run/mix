@@ -18,7 +18,7 @@ export const VideoPlayer = ({
   description,
   startTime,
   duration,
-  workingDirectory,
+  sessionId,
 }: VideoPlayerProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -80,7 +80,7 @@ export const VideoPlayer = ({
 
   // Simple URL without media fragments (more reliable)
   const getVideoSrc = () => {
-    return isURL(path) ? path : convertToAssetServerUrl(path, workingDirectory);
+    return isURL(path) ? path : convertToAssetServerUrl(path, sessionId);
   };
 
   // Format time for display

@@ -14,7 +14,7 @@ interface ModelInfo {
 export async function handleModelCommand(): Promise<UIMessage> {
   try {
     // Get current preferences including provider and model
-    const preferences = await mix.preferences.getPreferences();
+    const preferences = await mix.preferences.get();
     
     // Get authentication status to check if authenticated
     const authStatus = await mix.authentication.getAuthStatus();
@@ -105,7 +105,7 @@ export async function handleModelSelection(modelId: string): Promise<UIMessage> 
     }
     
     // Get current preferences
-    const preferences = await mix.preferences.getPreferences();
+    const preferences = await mix.preferences.get();
     if (!preferences.preferences?.preferredProvider) {
       throw new Error("No default provider set");
     }
@@ -113,14 +113,14 @@ export async function handleModelSelection(modelId: string): Promise<UIMessage> 
     const providerId = preferences.preferences.preferredProvider;
     
     // Update preferences with the selected model
-    await mix.preferences.updatePreferences({
+    await mix.preferences.update({
       preferredProvider: providerId, // Keep the same provider
       mainAgentModel: modelId, // Update the model
       subAgentModel: modelId  // Also update the sub agent model for consistency
     });
     
     // Verify the update was successful
-    const verifyPrefs = await mix.preferences.getPreferences();
+    const verifyPrefs = await mix.preferences.get();
     const savedModel = verifyPrefs.preferences?.mainAgentModel;
     
     if (savedModel !== modelId) {

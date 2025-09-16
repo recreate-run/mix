@@ -79,7 +79,7 @@ Based on the REST API migration plan, here's the complete RPC → REST mapping:
 
 **Current RPC Usage:**
 
-- Line 15: `rpcCall('sessions.create', {title, workingDirectory})`
+- Line 15: `rpcCall('sessions.create', {title, sessionStorageDirectory})`
 - Line 28: `rpcCall('sessions.get', {id: sessionId})`
 
 **Migration Changes:**

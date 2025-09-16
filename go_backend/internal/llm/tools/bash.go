@@ -121,16 +121,16 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for creating a new file")
 	}
 	startTime := time.Now()
-	workingDir, err := GetWorkingDirectory(ctx)
+	sessionStorageDir, err := GetSessionStorageDirectory(ctx)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+		return ToolResponse{}, fmt.Errorf("failed to get session storage directory: %w", err)
 	}
-	
+
 	if !isSafeReadOnly {
 		p := b.permissions.Request(
 			permission.CreatePermissionRequest{
 				SessionID:   sessionID,
-				Path:        workingDir,
+				Path:        sessionStorageDir,
 				ToolName:    BashToolName,
 				Action:      fmt.Sprintf("Execute command: %s", params.Command),
 				Description: fmt.Sprintf("Execute command: %s", params.Command),
@@ -143,8 +143,8 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 			return ToolResponse{}, permission.ErrorPermissionDenied
 		}
 	}
-	
-	shell := shell.GetPersistentShell(workingDir)
+
+	shell := shell.GetPersistentShell(sessionStorageDir)
 	stdout, stderr, exitCode, interrupted, err := shell.Exec(ctx, params.Command, params.Timeout)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error executing command: %w", err)

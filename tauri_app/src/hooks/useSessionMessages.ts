@@ -7,9 +7,20 @@ import { CACHE_KEYS } from '@/lib/cache-keys';
 const loadSessionMessages = async (
   sessionId: string
 ): Promise<BackendMessage[]> => {
-  const response = await mix.messages.getSession({ id: sessionId });
-
-  return response;
+  try {
+    console.log('Loading messages for session:', sessionId);
+    const response = await mix.messages.getSession({ id: sessionId });
+    console.log('Successfully loaded messages:', response);
+    return response;
+  } catch (error: any) {
+    console.error('Failed to load messages:', error);
+    console.error('Error details:', {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    throw error;
+  }
 };
 
 const loadAndConvertMessages = async (

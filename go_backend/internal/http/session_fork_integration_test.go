@@ -73,7 +73,7 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test Fork Session", "/tmp/test-workdir")
+	session, err := testApp.Sessions.Create(ctx, "Test Fork Session")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
@@ -132,16 +132,12 @@ func validateForkResult(t *testing.T, app *app.App, sourceSessionID, forkedSessi
 	}
 
 	// Validate source session still exists
-	sourceSession, err := app.Sessions.Get(ctx, sourceSessionID)
+	_, err = app.Sessions.Get(ctx, sourceSessionID)
 	if err != nil {
 		t.Fatalf("Failed to get source session: %v", err)
 	}
 
-	// Validate working directory inheritance
-	if forkedSession.WorkingDirectory != sourceSession.WorkingDirectory {
-		t.Errorf("Expected forked session to inherit working directory %s, got %s",
-			sourceSession.WorkingDirectory, forkedSession.WorkingDirectory)
-	}
+	// Note: Working directory validation removed - sessions now use centralized storage
 
 	// Validate message copying
 	forkedMessages, err := app.Messages.List(ctx, forkedSessionID)
@@ -242,10 +238,7 @@ func TestSessionFork(t *testing.T) {
 		t.Errorf("Expected title 'Forked Test Session', got '%s'", title)
 	}
 
-	workingDirectory, _ := sessionDataMap["workingDirectory"].(string)
-	if workingDirectory == "" {
-		t.Error("Expected forked session to have working directory")
-	}
+	// Note: Working directory field removed - sessions use session-based storage now
 }
 
 func TestSessionForkWithDefaultTitle(t *testing.T) {
@@ -273,7 +266,7 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 	}
 
 	// Make REST API call to fork session
-	url := server.URL + "/api/sessions/dummy/fork"
+	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
@@ -319,14 +312,14 @@ func TestSessionForkErrorHandling(t *testing.T) {
 		errorType   string
 	}{
 		{
-			name: "missing source session ID",
+			name: "non-existent source session ID",
 			request: ForkSessionRequest{
 				MessageIndex: int64(2),
-				// SourceSessionID missing
+				// Using dummy session ID that doesn't exist
 			},
 			expectError: true,
-			statusCode:  400,
-			errorType:   "validation_error",
+			statusCode:  500,
+			errorType:   "internal_error",
 		},
 		{
 			name: "invalid source session ID",

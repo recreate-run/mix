@@ -37,7 +37,8 @@ import { expandFileReferences } from '@/utils/attachmentUtils';
 import { invalidateMessageHistoryCache } from '@/lib/session-cache';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
-import type { MessageData, UIMessage, HierarchicalModelData } from '@/types/message';
+import type { MessageData, UIMessage } from '@/types/message';
+import type { HierarchicalModelData } from '@/types/provider';
 import {
   handleSlashCommandNavigation,
   shouldShowSlashCommands,
@@ -48,7 +49,6 @@ import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
 import { PermissionDialog } from './permission-dialog';
-import { handleStatusCommand as oldHandleStatusCommand } from '@/utils/auth-utils';
 import { handleStatusCommand } from '@/handlers/status-command-handler';
 import { handleLoginCommand } from '@/handlers/login-command-handler';
 import { handleUnifiedModelCommand, updateProviderPreference, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
@@ -196,7 +196,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       }));
   }, [openApps]);
 
-  const fileRef = useFileReference(text, setText, session?.workingDirectory);
+  const fileRef = useFileReference(text, setText, session?.id);
 
   // Handle the status command with our SDK implementation
   const handleStatusCommandSpecial = async () => {
@@ -270,19 +270,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Execute the unified model command handler to get data
       const modelData = await handleUnifiedModelCommand();
       
-      // If there's an error, show it as a message
-      if (modelData.error) {
+      // If there's an error (no hierarchicalModel), show the error message
+      if (!modelData.hierarchicalModel) {
         setMessages((prev) => [
           ...prev,
           {
             content: "/model",
             from: "user",
           },
-          {
-            content: `❌ **${modelData.error}**`,
-            from: "assistant",
-            frontend_only: true,
-          },
+          modelData,
         ]);
         return;
       }
@@ -298,9 +294,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       
       // Set hierarchical model data and show commands (CMDK will detect the data and show hierarchical view)
       setHierarchicalModelData({
-        providers: modelData.providers,
-        currentProvider: modelData.currentProvider,
-        currentModel: modelData.currentModel
+        providers: modelData.hierarchicalModel.providers,
+        currentProvider: modelData.hierarchicalModel.currentProvider,
+        currentModel: modelData.hierarchicalModel.currentModel
       });
       setShowCommands(true);
       
@@ -724,10 +720,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle new session creation
   const handleNewSession = async () => {
     try {
-      // Create a new session with the current working directory
+      // Create a new session
       const newSession = await createSession.mutateAsync({
         title: 'New Session',
-        workingDirectory: session?.workingDirectory,
       });
 
       // Navigate to the new session - this will automatically trigger UI updates
@@ -855,7 +850,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                 ...prev.slice(index + 1)
               ]);
             }}
-            workingDirectory={session?.workingDirectory}
+            sessionId={session?.id}
             setUserMessageRef={setUserMessageRef}
             sseStream={sseStream}
           />
@@ -865,13 +860,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       {/* AI Input Section - Fixed at bottom with sidebar awareness */}
       <div className="absolute right-0 bottom-0 left-0 z-50 p-4 before:pointer-events-none before:absolute before:top-[-60px] before:right-0 before:left-0 before:h-16 before:from-transparent before:to-black/50 before:content-[''] ">
         <div className="relative mx-auto max-w-4xl border-none">
-          {session?.workingDirectory && (
+          {session?.id && (
             <AttachmentPreview
               attachments={attachments}
               onTextChange={setText}
               referenceMap={referenceMap}
               text={text}
-              workingDirectory={session.workingDirectory}
+              sessionId={session.id}
             />
           )}
 
@@ -940,14 +935,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           )}
 
           {/* File Reference Dropdown with Command Component */}
-          {fileRef.show && session?.workingDirectory && (
+          {fileRef.show && session?.id && (
             <CommandFileReference
               apps={availableApps}
               fileRef={fileRef}
               onClose={fileRef.close}
               onTextUpdate={setText}
               text={text}
-              workingDirectory={session.workingDirectory}
+              sessionId={session.id}
             />
           )}
         </div>

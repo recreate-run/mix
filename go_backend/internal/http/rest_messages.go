@@ -242,14 +242,30 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
+	logging.Info("Loading messages for session", "sessionID", sessionID)
+
 	ctx := r.Context()
 	messages, err := h.app.Messages.List(ctx, sessionID)
 	if err != nil {
+		logging.Error("Failed to list session messages", "sessionID", sessionID, "error", err)
 		sendInternalError(w, "listing session messages", err)
 		return
 	}
 
+	logging.Info("Retrieved messages from database", "sessionID", sessionID, "count", len(messages))
+
 	result := h.convertMessagesToData(messages)
+	
+	logging.Info("Converted messages to API format", "sessionID", sessionID, "resultCount", len(result))
+	
+	// Log first few message IDs and roles for debugging
+	for i, msg := range result {
+		if i >= 3 { // Only log first 3 messages to avoid spam
+			break
+		}
+		logging.Info("Message details", "sessionID", sessionID, "index", i, "messageID", msg.ID, "role", msg.Role, "hasUserInput", msg.UserInput != "", "hasAssistantResponse", msg.AssistantResponse != "", "toolCallsCount", len(msg.ToolCalls))
+	}
+
 	sendJSONResponse(w, http.StatusOK, result)
 }
 
@@ -325,7 +341,7 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 
 // convertMessagesToData converts message objects to MessageData for REST response
 func (h *MessageHandler) convertMessagesToData(messages []message.Message) []MessageData {
-	var result []MessageData
+	result := []MessageData{}
 	for _, msg := range messages {
 		// Extract tool calls and match with tool results
 		toolCalls := msg.ToolCalls()
@@ -373,20 +389,24 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 			toolCallsData[i] = toolCallData
 		}
 
+		// Get message content
+		content := msg.Content().String()
+		
 		messageData := MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
-			ToolCalls: toolCallsData,
+			UserInput: content, // All messages put their content in userInput, frontend uses role to determine how to display
 		}
 		
-		// Assign content to appropriate field based on message role
-		content := msg.Content().String()
-		if msg.Role == message.User {
-			messageData.UserInput = content
-		} else {
-			messageData.UserInput = ""  // Assistant messages don't have user input
+		// For assistant messages, also set assistantResponse field
+		if msg.Role != message.User {
 			messageData.AssistantResponse = content
+		}
+		
+		// Only set tool calls if there are any
+		if len(toolCallsData) > 0 {
+			messageData.ToolCalls = toolCallsData
 		}
 		
 		// Add reasoning content if present

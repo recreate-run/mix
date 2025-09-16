@@ -78,13 +78,13 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		return NewTextErrorResponse("content is required"), nil
 	}
 
-	workingDir, err := GetWorkingDirectory(ctx)
+	sessionStorageDir, err := GetSessionStorageDirectory(ctx)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+		return ToolResponse{}, fmt.Errorf("failed to get session storage directory: %w", err)
 	}
 	filePath := params.FilePath
 	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Join(workingDir, filePath)
+		filePath = filepath.Join(sessionStorageDir, filePath)
 	}
 
 	fileInfo, err := os.Stat(filePath)
@@ -134,8 +134,8 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	removals := len(oldLines)
 
 	permissionPath := filepath.Dir(filePath)
-	if strings.HasPrefix(filePath, workingDir) {
-		permissionPath = workingDir
+	if strings.HasPrefix(filePath, sessionStorageDir) {
+		permissionPath = sessionStorageDir
 	}
 	p := w.permissions.Request(
 		permission.CreatePermissionRequest{

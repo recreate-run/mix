@@ -22,12 +22,12 @@ func LoadPrompt(name string) (string, error) {
 func loadEmbeddedPrompt(name string) (string, error) {
 	embeddedFS := config.GetEmbeddedPrompts()
 	promptPath := filepath.Join("prompts", name+".md")
-	
+
 	content, err := embeddedFS.ReadFile(promptPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read embedded prompt file '%s': %w", promptPath, err)
 	}
-	
+
 	return string(content), nil
 }
 
@@ -58,7 +58,7 @@ func LoadPromptWithVars(name string, vars map[string]string) (string, error) {
 
 // getStandardVars returns standard variables available to all prompts
 func getStandardVars(ctx context.Context) (map[string]string, error) {
-	workingDir := ctx.Value(tools.WorkingDirectoryContextKey).(string)
+	sessionStorageDir := ctx.Value(tools.SessionStorageContextKey).(string)
 
 	launchDir, err := config.LaunchDirectory()
 	if err != nil {
@@ -66,7 +66,7 @@ func getStandardVars(ctx context.Context) (map[string]string, error) {
 	}
 
 	return map[string]string{
-		"workdir":    workingDir,
+		"workdir":    sessionStorageDir,
 		"platform":   runtime.GOOS,
 		"launchdir":  launchDir,
 		"today_date": time.Now().Format("2006-01-02"),
@@ -110,12 +110,12 @@ func resolveMarkdownTemplates(content string, vars map[string]string) (string, e
 		embeddedFS := config.GetEmbeddedPrompts()
 		embeddedPath := filepath.Join("prompts", relativePath)
 		fileContent, err := embeddedFS.ReadFile(embeddedPath)
-		
+
 		if err != nil {
 			resolveErr = fmt.Errorf("failed to load embedded markdown template '%s': %w", relativePath, err)
 			return match
 		}
-		
+
 		fileResult := string(fileContent)
 
 		// Apply variable substitution to included markdown file

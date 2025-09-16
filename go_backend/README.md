@@ -261,7 +261,7 @@ eventSource.addEventListener('error', (event) => {
 # Create a new session
 curl -X POST http://localhost:8088/api/sessions \
   -H "Content-Type: application/json" \
-  -d '{"title": "New Analysis", "workingDirectory": "/path/to/project"}'
+  -d '{"title": "New Analysis", "sessionStorageDirectory": "/path/to/project"}'
 
 # Get specific session
 curl -X GET http://localhost:8088/api/sessions/{session-id}

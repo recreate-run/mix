@@ -39,7 +39,7 @@ function formatProvidersWithModels(
     }));
     
     // Sort models - selected first, then alphabetically
-    formattedModels.sort((a, b) => {
+    formattedModels.sort((a: any, b: any) => {
       if (a.isSelected !== b.isSelected) {
         return a.isSelected ? -1 : 1;
       }
@@ -52,6 +52,7 @@ function formatProvidersWithModels(
       displayName: cleanName,
       authenticated: authProvider.authenticated,
       authMethod: authProvider.authMethod,
+      authMethods: ["api_key"], // Default auth methods, could be enhanced to read from config
       isPreferred,
       models: formattedModels
     });
@@ -87,17 +88,12 @@ function formatProvidersWithModels(
 /**
  * Handles the unified model command - returns hierarchical data for CMDK
  */
-export async function handleUnifiedModelCommand(): Promise<{
-  providers: ProviderWithModels[];
-  currentProvider?: string;
-  currentModel?: string;
-  error?: string;
-}> {
+export async function handleUnifiedModelCommand(): Promise<UIMessage> {
   try {
     // Get authentication status and preferences
     const [authStatus, preferences] = await Promise.all([
       mix.authentication.getAuthStatus(),
-      mix.preferences.getPreferences()
+      mix.preferences.get()
     ]);
     
     // Format providers with their models
@@ -109,22 +105,29 @@ export async function handleUnifiedModelCommand(): Promise<{
     
     if (!hasAuthenticatedProvider) {
       return {
-        providers: [],
-        error: "Not authenticated with any provider. Try the /login command to authenticate with a provider."
+        content: "Not authenticated with any provider. Try the /login command to authenticate with a provider.",
+        from: "assistant",
+        frontend_only: true
       };
     }
     
-    // Return hierarchical data for CMDK
+    // Return hierarchical data for CMDK wrapped in UIMessage
     return {
-      providers,
-      currentProvider: preferredProvider,
-      currentModel: preferences.preferences?.mainAgentModel
+      content: "",
+      from: "assistant",
+      frontend_only: true,
+      hierarchicalModel: {
+        providers,
+        currentProvider: preferredProvider,
+        currentModel: preferences.preferences?.mainAgentModel
+      }
     };
     
   } catch (error) {
     return {
-      providers: [],
-      error: `Failed to get providers and models: ${error instanceof Error ? error.message : "Unknown error"}`
+      content: `Failed to get providers and models: ${error instanceof Error ? error.message : "Unknown error"}`,
+      from: "assistant",
+      frontend_only: true
     };
   }
 }
@@ -138,7 +141,7 @@ export async function updateProviderPreference(providerId: string): Promise<void
   }
   
   // Update preferences to use this provider as the preferred one
-  await mix.preferences.updatePreferences({
+  await mix.preferences.update({
     preferredProvider: providerId
   });
 }
@@ -153,7 +156,7 @@ export async function handleProviderSelectionInHierarchy(providerId: string): Pr
     // Get updated data to show models for selected provider
     const [authStatus, preferences] = await Promise.all([
       mix.authentication.getAuthStatus(),
-      mix.preferences.getPreferences()
+      mix.preferences.get()
     ]);
     
     const providerName = authStatus.providers?.[providerId]?.displayName || providerId;
@@ -189,14 +192,14 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
     }
     
     // Update preferences with the selected model and provider
-    await mix.preferences.updatePreferences({
+    await mix.preferences.update({
       preferredProvider: providerId,
       mainAgentModel: modelId,
       subAgentModel: modelId  // Also update the sub agent model for consistency
     });
     
     // Verify the update was successful
-    const verifyPrefs = await mix.preferences.getPreferences();
+    const verifyPrefs = await mix.preferences.get();
     const savedModel = verifyPrefs.preferences?.mainAgentModel;
     
     if (savedModel !== modelId) {

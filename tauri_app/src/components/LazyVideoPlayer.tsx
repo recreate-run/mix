@@ -4,12 +4,12 @@ import { VideoPlayer } from './video-player';
 
 interface LazyVideoPlayerProps {
   media: MediaOutput;
-  workingDirectory: string;
+  sessionId: string;
 }
 
 export const LazyVideoPlayer = ({ 
   media, 
-  workingDirectory 
+  sessionId 
 }: LazyVideoPlayerProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,7 +43,7 @@ export const LazyVideoPlayer = ({
           path={media.path}
           startTime={media.startTime}
           title=""
-          workingDirectory={workingDirectory}
+          sessionId={sessionId}
         />
       ) : (
         <div className="flex items-center justify-center h-48 bg-stone-700/30 rounded-md">

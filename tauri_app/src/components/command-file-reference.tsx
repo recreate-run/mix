@@ -32,22 +32,22 @@ interface CommandFileReferenceProps {
   text: string;
   onTextUpdate?: (newText: string) => void;
   onClose?: () => void;
-  workingDirectory: string;
+  sessionId: string;
 }
 
 // Media thumbnail component
 const MediaThumbnail = ({ 
   file, 
-  workingDirectory, 
+  sessionId, 
   supportedFileTypes 
 }: { 
   file: Attachment; 
-  workingDirectory: string; 
+  sessionId: string; 
   supportedFileTypes?: SupportedFileTypes;
 }) => {
   const fileType = getFileType(file.name, supportedFileTypes);
 
-  const previewUrl = generatePreviewUrl({ path: file.path, type: fileType || 'text' }, workingDirectory);
+  const previewUrl = generatePreviewUrl({ path: file.path, type: fileType || 'text' }, sessionId);
 
   if (fileType === 'image') {
     if (!previewUrl) {
@@ -116,7 +116,7 @@ export function CommandFileReference({
   text,
   onTextUpdate,
   onClose,
-  workingDirectory,
+  sessionId,
 }: CommandFileReferenceProps) {
   const addAttachment = useBoundStore((state) => state.addAttachment);
   const addReference = useBoundStore((state) => state.addReference);
@@ -309,7 +309,7 @@ export function CommandFileReference({
                         ) : (
                           <MediaThumbnail 
                             file={file} 
-                            workingDirectory={workingDirectory}
+                            sessionId={sessionId}
                             supportedFileTypes={supportedFileTypes}
                           />
                         )}

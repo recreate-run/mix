@@ -46,7 +46,7 @@ var (
 	shellMutex    sync.Mutex
 )
 
-func GetPersistentShell(workingDir string) *PersistentShell {
+func GetPersistentShell(sessionStorageDir string) *PersistentShell {
 	shellMutex.Lock()
 	defer shellMutex.Unlock()
 
@@ -56,7 +56,7 @@ func GetPersistentShell(workingDir string) *PersistentShell {
 		if shellInstance != nil {
 			shellInstance.Close()
 		}
-		shellInstance = newPersistentShell(workingDir)
+		shellInstance = newPersistentShell(sessionStorageDir)
 	}
 
 	return shellInstance
@@ -195,7 +195,7 @@ echo $EXEC_EXIT_CODE > %s
 	go func() {
 		ticker := time.NewTicker(10 * time.Millisecond)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ctx.Done():

@@ -81,9 +81,6 @@ export async function handleProviderCommand(): Promise<UIMessage> {
     // Get authentication status using the SDK
     const authStatus = await mix.authentication.getAuthStatus();
     
-    // Get preferences to know available providers and current preference
-    const preferences = await mix.preferences.getPreferences();
-    
     // Format providers for UI
     const { formattedProviders, hasAuthenticatedProvider, preferredProvider } = formatProviders(
       authStatus.providers || {}
@@ -131,12 +128,12 @@ export async function handleProviderSelection(providerId: string): Promise<UIMes
     }
     
     // Update preferences to use this provider as the preferred one
-    await mix.preferences.updatePreferences({
+    await mix.preferences.update({
       preferredProvider: providerId
     });
     
     // Verify the update was successful
-    const verifyPrefs = await mix.preferences.getPreferences();
+    const verifyPrefs = await mix.preferences.get();
     const savedProvider = verifyPrefs.preferences?.preferredProvider;
     
     if (savedProvider !== providerId) {
@@ -148,7 +145,7 @@ export async function handleProviderSelection(providerId: string): Promise<UIMes
     const providerName = authStatus.providers?.[providerId]?.displayName || providerId;
     
     // Get models for this provider
-    const preferences = await mix.preferences.getPreferences();
+    const preferences = await mix.preferences.get();
     const providerData = preferences.availableProviders?.[providerId];
     
     if (providerData && providerData.models && providerData.models.length > 0) {
@@ -161,7 +158,7 @@ export async function handleProviderSelection(providerId: string): Promise<UIMes
       }));
       
       // Sort models - selected first, then alphabetically
-      formattedModels.sort((a, b) => {
+      formattedModels.sort((a: any, b: any) => {
         // Selected model first
         if (a.isSelected !== b.isSelected) {
           return a.isSelected ? -1 : 1;

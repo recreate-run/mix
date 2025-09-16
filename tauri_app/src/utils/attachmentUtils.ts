@@ -64,7 +64,7 @@ export const createFileAttachment = (
     name: fileName,
     type: fileType,
     path: filePath,
-    // Note: Preview URL will be generated when workingDirectory is available
+    // Note: Preview URL will be generated when sessionStorageDirectory is available
     extension: fileName.split('.').pop()?.toLowerCase(),
   };
 };
@@ -88,7 +88,7 @@ export const createFolderAttachment = async (
 
 const IGNORED_DIRECTORIES = [
   'node_modules',
-  '.git', 
+  '.git',
   '.next',
   '.nuxt',
   'dist',
@@ -138,7 +138,7 @@ export const filterAndSortEntries = (
         type: entry.isDirectory ? ('folder' as const) : fileType!,
         isDirectory: entry.isDirectory,
         extension,
-        // Note: Preview URL will be generated when workingDirectory is available
+        // Note: Preview URL will be generated when sessionStorageDirectory is available
       };
     })
     .sort((a, b) => {

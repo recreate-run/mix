@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Shield,
   UserCheck,
-  Settings,
   Cpu,
 } from 'lucide-react';
 

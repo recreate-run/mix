@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -47,7 +48,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 	os.Setenv("_CONFIG_DIR", testConfigDir)
 	os.Setenv("_DATA_DIR", testDataDir)
-	os.Setenv("WORKING_DIR", testDataDir)                        // Set WORKING_DIR for asset server
 	os.Setenv("GSAP_GLOBAL_DIR", testDataDir+"/gsap_animations") // Set GSAP_GLOBAL_DIR for animations
 
 	// Create test directories
@@ -102,8 +102,8 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	// Initialize MCP tools
 	initMCPTools(ctx, testApp)
 
-	// Create test session with default working directory
-	session, err := testApp.Sessions.Create(ctx, "Test Integration Session", testDataDir)
+	// Create test session
+	session, err := testApp.Sessions.Create(ctx, "Test Integration Session")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
@@ -112,6 +112,10 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	sessionHandler := NewSessionHandler(testApp)
 	messageHandler := NewMessageHandler(testApp)
 	systemHandler := NewSystemHandler(testApp)
+	
+	// Create file management handlers
+	fileHandler := NewFileHandler(testApp, testApp.StorageConfig)
+	sessionAssetHandler := NewSessionAssetHandler(testApp, testApp.StorageConfig)
 
 	// Set up HTTP multiplexer with all REST endpoints
 	mux := http.NewServeMux()
@@ -137,6 +141,12 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("POST /api/auth/apikey", systemHandler.HandleSetAPIKey)
 	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
+
+	// File management endpoints
+	mux.HandleFunc("POST /api/sessions/{id}/files/upload", fileHandler.HandleUploadFile)
+	mux.HandleFunc("GET /api/sessions/{id}/files", fileHandler.HandleListFiles)
+	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
+	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
 
 	// SSE endpoints (always enabled)
 	// SSE endpoint
@@ -273,4 +283,46 @@ func createJSONMessage(text string) string {
 	}
 	jsonData, _ := json.Marshal(msgContent)
 	return string(jsonData)
+}
+
+// makeMultipartFileRequest creates and sends a multipart file upload request
+func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filename, content string) *http.Response {
+	// Create multipart form
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	
+	// Create file part
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatalf("Failed to create form file: %v", err)
+	}
+	
+	// Write file content
+	_, err = part.Write([]byte(content))
+	if err != nil {
+		t.Fatalf("Failed to write file content: %v", err)
+	}
+	
+	// Close writer to finalize multipart form
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("Failed to close multipart writer: %v", err)
+	}
+	
+	// Create request
+	req, err := http.NewRequest("POST", server.URL+path, &body)
+	if err != nil {
+		t.Fatalf("Failed to create multipart request: %v", err)
+	}
+	
+	// Set proper content type for multipart
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	
+	// Send request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send multipart request: %v", err)
+	}
+	
+	return resp
 }

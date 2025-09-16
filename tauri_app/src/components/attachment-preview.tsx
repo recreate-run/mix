@@ -22,7 +22,7 @@ interface AttachmentPreviewProps {
   attachments: Attachment[];
   text: string;
   referenceMap: Map<string, string>;
-  workingDirectory: string;
+  sessionId: string;
   onTextChange?: (newText: string) => void;
 }
 
@@ -30,7 +30,7 @@ export const AttachmentPreview = ({
   attachments,
   text,
   referenceMap,
-  workingDirectory,
+  sessionId,
   onTextChange,
 }: AttachmentPreviewProps) => {
   const removeAttachment = useBoundStore((state) => state.removeAttachment);
@@ -95,9 +95,9 @@ export const AttachmentPreview = ({
               <TooltipTrigger asChild>
                 <div className="relative">
                   {attachment.type === 'image' ? (
-                    <ImagePreview attachment={attachment} previewUrl={generatePreviewUrl(attachment, workingDirectory)} />
+                    <ImagePreview attachment={attachment} previewUrl={generatePreviewUrl(attachment, sessionId)} />
                   ) : attachment.type === 'video' ? (
-                    <VideoPreview attachment={attachment} previewUrl={attachment.url ? undefined : generatePreviewUrl(attachment, workingDirectory)} />
+                    <VideoPreview attachment={attachment} previewUrl={attachment.url ? undefined : generatePreviewUrl(attachment, sessionId)} />
                   ) : attachment.type === 'audio' ? (
                     <AudioPreview attachment={attachment} />
                   ) : attachment.type === 'text' ? (

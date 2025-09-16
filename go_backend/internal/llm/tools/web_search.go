@@ -48,15 +48,15 @@ type ImageSearchResponse struct {
 }
 
 type ImageResult struct {
-	Type        string                 `json:"type"`
-	Title       string                 `json:"title"`
-	URL         string                 `json:"url"`          // Source page URL
-	Source      string                 `json:"source"`
-	PageFetched string                 `json:"page_fetched"`
-	Thumbnail   ImageResultThumbnail   `json:"thumbnail"`
-	Properties  ImageResultProperties  `json:"properties"`
-	MetaURL     *ImageResultMetaURL    `json:"meta_url,omitempty"`
-	Confidence  string                 `json:"confidence"`
+	Type        string                `json:"type"`
+	Title       string                `json:"title"`
+	URL         string                `json:"url"` // Source page URL
+	Source      string                `json:"source"`
+	PageFetched string                `json:"page_fetched"`
+	Thumbnail   ImageResultThumbnail  `json:"thumbnail"`
+	Properties  ImageResultProperties `json:"properties"`
+	MetaURL     *ImageResultMetaURL   `json:"meta_url,omitempty"`
+	Confidence  string                `json:"confidence"`
 }
 
 type ImageResultThumbnail struct {
@@ -64,7 +64,7 @@ type ImageResultThumbnail struct {
 }
 
 type ImageResultProperties struct {
-	URL         string `json:"url"`         // Actual image URL
+	URL         string `json:"url"` // Actual image URL
 	Placeholder string `json:"placeholder"`
 }
 
@@ -83,15 +83,15 @@ type VideoSearchResponse struct {
 }
 
 type VideoResult struct {
-	Type        string                 `json:"type"`
-	Title       string                 `json:"title"`
-	URL         string                 `json:"url"`          // Source page URL
-	Source      string                 `json:"source"`
-	PageFetched string                 `json:"page_fetched"`
-	Thumbnail   VideoResultThumbnail   `json:"thumbnail"`
-	Properties  VideoResultProperties  `json:"properties"`
-	MetaURL     *VideoResultMetaURL    `json:"meta_url,omitempty"`
-	Confidence  string                 `json:"confidence"`
+	Type        string                `json:"type"`
+	Title       string                `json:"title"`
+	URL         string                `json:"url"` // Source page URL
+	Source      string                `json:"source"`
+	PageFetched string                `json:"page_fetched"`
+	Thumbnail   VideoResultThumbnail  `json:"thumbnail"`
+	Properties  VideoResultProperties `json:"properties"`
+	MetaURL     *VideoResultMetaURL   `json:"meta_url,omitempty"`
+	Confidence  string                `json:"confidence"`
 }
 
 type VideoResultThumbnail struct {
@@ -206,7 +206,7 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	if params.SearchType == "" {
 		params.SearchType = "web"
 	}
-	
+
 	// Validate search type
 	if params.SearchType != "web" && params.SearchType != "images" && params.SearchType != "videos" {
 		return NewTextErrorResponse("search_type must be 'web', 'images', or 'videos'"), nil
@@ -234,9 +234,9 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for web search")
 	}
 
-	workingDir, err := GetWorkingDirectory(ctx)
+	sessionStorageDir, err := GetSessionStorageDirectory(ctx)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to get working directory: %w", err)
+		return ToolResponse{}, fmt.Errorf("failed to get session storage directory: %w", err)
 	}
 
 	// Request permission for search
@@ -252,7 +252,7 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	p := t.permissions.Request(
 		permission.CreatePermissionRequest{
 			SessionID:   sessionID,
-			Path:        workingDir,
+			Path:        sessionStorageDir,
 			ToolName:    SearchToolName,
 			Action:      searchType + "_search",
 			Description: fmt.Sprintf("Search for %s: %s", searchType, params.Query),
@@ -274,7 +274,7 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	default:
 		baseURL = "https://api.search.brave.com/res/v1/web/search"
 	}
-	
+
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to parse Brave API URL: %w", err)
@@ -428,47 +428,47 @@ func (t *searchTool) formatVideoResults(body []byte, query string) (ToolResponse
 	for i := 0; i < resultsToShow; i++ {
 		result := videoResponse.Results[i]
 		formattedOutput.WriteString(fmt.Sprintf("%d. %s\n", i+1, result.Title))
-		
+
 		// Show actual video URL (from properties)
 		if result.Properties.URL != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Video URL: %s\n", result.Properties.URL))
 		}
-		
+
 		// Show duration if available
 		if result.Properties.Duration != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Duration: %s\n", result.Properties.Duration))
 		}
-		
+
 		// Show view count if available
 		if result.Properties.Views != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Views: %s\n", result.Properties.Views))
 		}
-		
+
 		// Show upload date if available
 		if result.Properties.UploadDate != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Upload Date: %s\n", result.Properties.UploadDate))
 		}
-		
+
 		// Show thumbnail URL
 		if result.Thumbnail.Src != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Thumbnail: %s\n", result.Thumbnail.Src))
 		}
-		
+
 		// Show source information
 		if result.Source != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Source: %s\n", result.Source))
 		}
-		
+
 		// Show source page URL
 		if result.URL != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Source Page: %s\n", result.URL))
 		}
-		
+
 		// Show confidence if available
 		if result.Confidence != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Confidence: %s\n", result.Confidence))
 		}
-		
+
 		if i < resultsToShow-1 {
 			formattedOutput.WriteString("\n---\n\n")
 		}
@@ -500,32 +500,32 @@ func (t *searchTool) formatImageResults(body []byte, query string) (ToolResponse
 	for i := 0; i < resultsToShow; i++ {
 		result := imageResponse.Results[i]
 		formattedOutput.WriteString(fmt.Sprintf("%d. %s\n", i+1, result.Title))
-		
+
 		// Show actual image URL (from properties)
 		if result.Properties.URL != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Image URL: %s\n", result.Properties.URL))
 		}
-		
+
 		// Show thumbnail URL
 		if result.Thumbnail.Src != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Thumbnail: %s\n", result.Thumbnail.Src))
 		}
-		
+
 		// Show source information
 		if result.Source != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Source: %s\n", result.Source))
 		}
-		
+
 		// Show source page URL
 		if result.URL != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Source Page: %s\n", result.URL))
 		}
-		
+
 		// Show confidence if available
 		if result.Confidence != "" {
 			formattedOutput.WriteString(fmt.Sprintf("   Confidence: %s\n", result.Confidence))
 		}
-		
+
 		if i < resultsToShow-1 {
 			formattedOutput.WriteString("\n---\n\n")
 		}

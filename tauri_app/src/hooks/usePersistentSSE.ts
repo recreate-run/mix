@@ -366,7 +366,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     addTrackedEventListener('rate_limit_error', (event) => {
       if (event.data) {
         try {
-          console.log('Rate limit error received:', event.data);
           const data = JSON.parse(event.data);
           setState((prev) => ({
             ...prev,

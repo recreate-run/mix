@@ -19,6 +19,7 @@ import (
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
+	"mix/internal/storage"
 )
 
 // Common errors
@@ -71,8 +72,9 @@ type Service interface {
 
 type agent struct {
 	*pubsub.Broker[AgentEvent]
-	sessions session.Service
-	messages message.Service
+	sessions      session.Service
+	messages      message.Service
+	storageConfig storage.Config
 
 	agentName config.AgentName
 	tools     []tools.BaseTool
@@ -93,6 +95,7 @@ func NewAgent(
 	sessions session.Service,
 	messages message.Service,
 	agentTools []tools.BaseTool,
+	storageConfig storage.Config,
 ) (Service, error) {
 	agentProvider, err := createAgentProvider(agentName)
 	if err != nil {
@@ -122,6 +125,7 @@ func NewAgent(
 		provider:          agentProvider,
 		messages:          messages,
 		sessions:          sessions,
+		storageConfig:     storageConfig,
 		tools:             agentTools,
 		titleProvider:     titleProvider,
 		summarizeProvider: summarizeProvider,
@@ -191,8 +195,8 @@ func (a *agent) generateTitle(ctx context.Context, sessionID string, content str
 	}
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 
-	// Add session working directory to context
-	ctx = context.WithValue(ctx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
+	// Add session storage directory to context
+	ctx = tools.SetSessionStorageContext(ctx, session.ID, a.storageConfig)
 
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	response, err := a.titleProvider.SendMessages(
@@ -432,8 +436,8 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	if err != nil {
 		return message.Message{}, nil, fmt.Errorf("failed to load session %s: %w", sessionID, err)
 	}
-	// Add session working directory to context
-	ctx = context.WithValue(ctx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
+	// Add session storage directory to context
+	ctx = tools.SetSessionStorageContext(ctx, session.ID, a.storageConfig)
 
 	// Get cached session-specific provider
 	sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &session)
@@ -869,7 +873,7 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 		// Get session working directory and add to context
 		session, err := a.sessions.Get(summarizeCtx, sessionID)
 		if err == nil {
-			summarizeCtx = context.WithValue(summarizeCtx, tools.WorkingDirectoryContextKey, session.WorkingDirectory)
+			summarizeCtx = tools.SetSessionStorageContext(summarizeCtx, session.ID, a.storageConfig)
 		}
 
 		if len(msgs) == 0 {
@@ -1163,7 +1167,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	return agentProvider, nil
 }
 
-func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session) (provider.Provider, error) {
+func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig storage.Config) (provider.Provider, error) {
 	// Try to get agent config from database first
 	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
 	if err != nil {
@@ -1209,7 +1213,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 	sessionVars := map[string]string{}
 	if sess != nil {
 		sessionVars["session_id"] = sess.ID
-		sessionVars["session_workdir"] = sess.WorkingDirectory
+		sessionVars["session_workdir"] = storage.GetSessionStoragePath(sess.ID, storageConfig)
 	}
 
 	// Get system prompt with session variables
@@ -1309,7 +1313,7 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 
 	// Create new session provider
 	logging.Info("Creating new session provider", "sessionID", sessionID, "agent", a.agentName)
-	sessionProvider, err := createSessionProvider(ctx, a.agentName, session)
+	sessionProvider, err := createSessionProvider(ctx, a.agentName, session, a.storageConfig)
 	if err != nil {
 		logging.Error("Failed to create session provider", "sessionID", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to create session provider: %w", err)

@@ -11,11 +11,24 @@ export const TITLE_TRUNCATE_LENGTH = 100;
 const loadSessionsList = async (): Promise<SessionData[]> => {
   const response = await mix.sessions.list();
 
+  // Handle null response from API
+  if (!response) {
+    return [];
+  }
+
+  // Ensure response is an array
+  if (!Array.isArray(response)) {
+    console.error("❌ API response is not an array:", typeof response, response);
+    return [];
+  }
+
   // Transform SDK SessionData to match local interface (Date -> string)
-  return response.map((session: SDKSessionData) => ({
+  const transformedSessions = response.map((session: SDKSessionData) => ({
     ...session,
     createdAt: session.createdAt instanceof Date ? session.createdAt.toISOString() : session.createdAt
   }));
+
+  return transformedSessions;
 };
 
 export const useSessionsList = () => {

@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useActiveSession, useCreateSession } from '@/hooks/useSession';
+import { useCreateSession } from '@/hooks/useSession';
 import { useSessionsList } from '@/hooks/useSessionsList';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -25,7 +25,6 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
   const navigate = useNavigate();
   const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
   const createSession = useCreateSession();
-  const { data: currentSession } = useActiveSession(sessionId || '');
 
   // Sort sessions chronologically (most recent first)
   const sortedSessions = sessions.sort(
@@ -43,13 +42,9 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 
   const handleNewSession = async () => {
     try {
-      // NOTE: currentSession?.workingDirectory should always be defined here because:
-      // 1. New users must select a project before accessing chat (enforced by routing)
-      // 2. Backend now requires working directory for all session creation
-      // 3. If currentSession is null/undefined, this will fail gracefully with backend validation
+      // Create a new session
       const newSession = await createSession.mutateAsync({
         title: 'Chat Session',
-        workingDirectory: currentSession?.workingDirectory,
       });
       navigate({
         to: '/$sessionId',

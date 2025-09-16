@@ -7,7 +7,6 @@ INSERT INTO sessions (
     completion_tokens,
     cost,
     summary_message_id,
-    working_directory,
     updated_at,
     created_at
 ) VALUES (
@@ -18,7 +17,6 @@ INSERT INTO sessions (
     ?,
     ?,
     null,
-    ?,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING 
@@ -30,8 +28,7 @@ INSERT INTO sessions (
     cost, 
     created_at, 
     updated_at,
-    summary_message_id,
-    working_directory;
+    summary_message_id;
 
 -- name: GetSessionByID :one
 SELECT 
@@ -44,7 +41,6 @@ SELECT
     s.created_at, 
     s.updated_at,
     s.summary_message_id,
-    s.working_directory,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
     COALESCE(counts.tool_call_count, 0) as tool_call_count
@@ -69,7 +65,6 @@ SELECT
     s.created_at, 
     s.updated_at,
     s.summary_message_id,
-    s.working_directory,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
     COALESCE(counts.tool_call_count, 0) as tool_call_count
@@ -94,7 +89,6 @@ SELECT
     s.created_at, 
     s.updated_at,
     s.summary_message_id,
-    s.working_directory,
     COALESCE(first_msg.parts, '') as first_user_message,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count, 
@@ -136,8 +130,7 @@ RETURNING
     cost, 
     created_at, 
     updated_at,
-    summary_message_id,
-    working_directory;
+    summary_message_id;
 
 
 -- name: DeleteSession :exec

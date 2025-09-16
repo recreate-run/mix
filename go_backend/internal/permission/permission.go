@@ -13,6 +13,7 @@ import (
 	"mix/internal/logging"
 	"mix/internal/pubsub"
 	"mix/internal/session"
+	"mix/internal/storage"
 
 	"github.com/google/uuid"
 )
@@ -52,6 +53,7 @@ type permissionService struct {
 	sessionPermissions []PermissionRequest
 	pendingRequests    sync.Map
 	sessions          session.Service
+	storageConfig     storage.Config
 }
 
 func (s *permissionService) GrantPersistant(permission PermissionRequest) {
@@ -76,24 +78,27 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 	}
 }
 
-// isPathWithinSessionRoot checks if the given path is accessible within the session working directory using os.Root
-func (s *permissionService) isPathWithinSessionRoot(sessionID, requestedPath string) bool {
-	// Get session working directory
-	sess, err := s.sessions.Get(context.Background(), sessionID)
-	if err != nil {
-		logging.Error("Failed to get session", "sessionID", sessionID, "error", err)
+// isPathWithinSessionStorage checks if the given path is accessible within the session storage directory
+func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath string) bool {
+	// Validate session ID format
+	if !storage.ValidateSessionID(sessionID) {
+		logging.Error("Invalid session ID format", "sessionID", sessionID)
 		return false
 	}
 
-	if sess.WorkingDirectory == "" {
-		logging.Info("Session has no working directory", "sessionID", sessionID)
+	// Get session storage directory
+	sessionStorageDir := storage.GetSessionStoragePath(sessionID, s.storageConfig)
+	
+	// Check if session storage directory exists
+	if _, err := os.Stat(sessionStorageDir); os.IsNotExist(err) {
+		logging.Debug("Session storage directory does not exist", "sessionID", sessionID, "path", sessionStorageDir)
 		return false
 	}
 
 	// Clean and make absolute paths for comparison
-	absSessionDir, err := filepath.Abs(filepath.Clean(sess.WorkingDirectory))
+	absSessionDir, err := filepath.Abs(filepath.Clean(sessionStorageDir))
 	if err != nil {
-		logging.Error("Failed to get absolute path for session working dir", "workingDirectory", sess.WorkingDirectory, "error", err)
+		logging.Error("Failed to get absolute path for session storage dir", "sessionStorageDir", sessionStorageDir, "error", err)
 		return false
 	}
 
@@ -112,14 +117,14 @@ func (s *permissionService) isPathWithinSessionRoot(sessionID, requestedPath str
 
 	// If relative path starts with "..", then absRequestedPath is outside absSessionDir
 	if filepath.IsAbs(relPath) || relPath == ".." || filepath.HasPrefix(relPath, ".."+string(filepath.Separator)) {
-		logging.Debug("Path is outside session working directory", "relPath", relPath)
+		logging.Debug("Path is outside session storage directory", "relPath", relPath)
 		return false
 	}
 
-	// Create root filesystem view for session working directory
-	rootFS, err := os.OpenRoot(sess.WorkingDirectory)
+	// Create root filesystem view for session storage directory
+	rootFS, err := os.OpenRoot(sessionStorageDir)
 	if err != nil {
-		logging.Error("Failed to create root filesystem for session directory", "workingDirectory", sess.WorkingDirectory, "error", err)
+		logging.Error("Failed to create root filesystem for session storage directory", "sessionStorageDir", sessionStorageDir, "error", err)
 		return false
 	}
 	defer rootFS.Close()
@@ -128,11 +133,11 @@ func (s *permissionService) isPathWithinSessionRoot(sessionID, requestedPath str
 	// This will fail if the path involves path traversal or doesn't exist
 	_, err = rootFS.Stat(relPath)
 	if err != nil {
-		logging.Debug("Path not accessible within session root", "relPath", relPath, "error", err)
+		logging.Debug("Path not accessible within session storage root", "relPath", relPath, "error", err)
 		return false
 	}
 
-	return true // Path is accessible within session working directory
+	return true // Path is accessible within session storage directory
 }
 
 
@@ -147,31 +152,26 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	}
 	// For directories (existing or not) and non-existent paths, use the path as-is
 	if dir == "." {
-		// Get session working directory for relative paths
-		sess, err := s.sessions.Get(context.Background(), opts.SessionID)
-		if err != nil {
-			logging.Error("Failed to get session for relative path resolution", "sessionID", opts.SessionID, "error", err)
-			return false // Deny if we can't get session info
+		// Get session storage directory for relative paths
+		if !storage.ValidateSessionID(opts.SessionID) {
+			logging.Error("Invalid session ID format for relative path resolution", "sessionID", opts.SessionID)
+			return false // Deny if invalid session ID
 		}
-		if sess.WorkingDirectory == "" {
-			logging.Error("Session has no working directory for relative path resolution", "sessionID", opts.SessionID)
-			return false // Deny if no working directory set
-		}
-		dir = sess.WorkingDirectory
+		dir = storage.GetSessionStoragePath(opts.SessionID, s.storageConfig)
 	}
 
-	// Check if path is within session working directory using os.Root
-	if s.isPathWithinSessionRoot(opts.SessionID, dir) {
-		// Path is within session working directory
+	// Check if path is within session storage directory
+	if s.isPathWithinSessionStorage(opts.SessionID, dir) {
+		// Path is within session storage directory
 		if config.Get().SkipPermissions {
-			logging.Info("Path is within session working directory, permissions skipped", "path", dir)
+			logging.Info("Path is within session storage directory, permissions skipped", "path", dir)
 			return true
 		}
 		// Still require permission even within session directory if not skipped
-		logging.Info("Path is within session working directory, requesting permission", "path", dir)
+		logging.Info("Path is within session storage directory, requesting permission", "path", dir)
 	} else {
-		// Path is outside session working directory - always require permission
-		logging.Info("Path is outside session working directory, requiring permission", "path", dir)
+		// Path is outside session storage directory - always require permission
+		logging.Info("Path is outside session storage directory, requiring permission", "path", dir)
 		// Continue to permission request flow below
 	}
 	permission := PermissionRequest{
@@ -215,10 +215,11 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	}
 }
 
-func NewPermissionService(sessions session.Service) Service {
+func NewPermissionService(sessions session.Service, storageConfig storage.Config) Service {
 	return &permissionService{
 		Broker:             pubsub.NewBroker[PermissionRequest](),
 		sessionPermissions: make([]PermissionRequest, 0),
 		sessions:          sessions,
+		storageConfig:     storageConfig,
 	}
 }

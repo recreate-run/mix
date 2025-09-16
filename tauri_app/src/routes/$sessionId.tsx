@@ -11,10 +11,19 @@ export const Route = createFileRoute('/$sessionId')({
   component: SessionApp,
 });
 
+const LAST_SESSION_KEY = "mix-last-session-id";
+
 function SessionApp() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
   const { data: session, isLoading, error } = useActiveSession(sessionId);
+
+  // Track the current session as the last used session
+  useEffect(() => {
+    if (session && sessionId) {
+      localStorage.setItem(LAST_SESSION_KEY, sessionId);
+    }
+  }, [session, sessionId]);
 
   // Redirect to home if session doesn't exist, but only after we're sure it failed
   useEffect(() => {
