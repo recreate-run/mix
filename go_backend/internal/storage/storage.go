@@ -34,7 +34,6 @@ func Initialize(config Config) error {
 		return fmt.Errorf("failed to create storage directory: %w", err)
 	}
 	
-	logging.Info("Storage system initialized", "basePath", config.BasePath)
 	return nil
 }
 
@@ -76,9 +75,11 @@ func GetSessionRoot(sessionID string, config Config) (*os.Root, error) {
 	
 	sessionDir := GetSessionStoragePath(sessionID, config)
 	
-	// Ensure session directory exists
+	// Ensure session directory exists - create it if it doesn't
 	if _, err := os.Stat(sessionDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("session directory does not exist: %s", sessionDir)
+		if err := os.MkdirAll(sessionDir, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create session directory: %w", err)
+		}
 	}
 	
 	// Open root for session directory - provides path traversal protection

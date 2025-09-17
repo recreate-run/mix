@@ -251,11 +251,19 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Execute the enhanced status command handler with UI
       const statusResult = await handleStatusCommand();
 
-      // Add response message returned by the handler
-      setMessages((prev) => [
-        ...prev,
-        statusResult
-      ]);
+      // If there's statusData, show the command menu (CMDK will detect the data and show status view)
+      if (statusResult.statusData) {
+        setStatusData({
+          providers: statusResult.statusData.providers
+        });
+        setShowCommands(true);
+      } else {
+        // Add response message if no statusData (error case)
+        setMessages((prev) => [
+          ...prev,
+          statusResult
+        ]);
+      }
     } catch (error) {
       console.error('Status command failed:', error);
       setMessages((prev) => [
@@ -284,11 +292,20 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Execute the login command handler
       const loginResult = await handleLoginCommand();
 
-      // Add response message returned by the handler
-      setMessages((prev) => [
-        ...prev,
-        loginResult
-      ]);
+      // If there's loginData, show the command menu (CMDK will detect the data and show login view)
+      if (loginResult.loginData) {
+        setLoginData({
+          providers: loginResult.loginData.providers,
+          hasExistingPreferences: loginResult.loginData.hasExistingPreferences
+        });
+        setShowCommands(true);
+      } else {
+        // Add response message if no loginData (error case)
+        setMessages((prev) => [
+          ...prev,
+          loginResult
+        ]);
+      }
     } catch (error) {
       console.error('Login command failed:', error);
       setMessages((prev) => [

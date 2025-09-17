@@ -3,15 +3,12 @@
 ## Development Commands
 
 <bash_commands>
-make dev          # Install dependencies + start both frontend and backend (autoreloads and auto compiles)
-make install-deps # Install all project dependencies only
-make build        # Production build (we rarely need this)
-make clean        # Clean build artifacts (we rarely need this)
+make dev          # start both frontend and backend (autoreloads and auto compiles)
 make tail-log     # Reads the current log file (last 100 lines of code)
-make test-env     # Validate environment variables and configuration
-make test-connection # Test connection between frontend and backend
-make test-all     # Run all validation tests
-make help         # Show all available commands
+make clean
+make help
+make frontend-typecheck     # Always use this for frontend typechecking
+
 </bash_commands>
 
 - Do NOT build the program yourself to check for errors—ever. All output is written to `dev.log`. Run `make tail-log` to view it.
