@@ -76,6 +76,7 @@ fumadocs-dev/
 
 **/*mix/
 .mix.json
+storage/
 
 planning/
 speakeasy_docs/

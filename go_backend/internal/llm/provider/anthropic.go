@@ -71,13 +71,11 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 						refreshedCreds.ClientID,
 					)
 					oauthCreds = refreshedCreds
-					logging.Info("OAuth token refreshed successfully")
 				} else {
 					logging.Warn("Failed to refresh OAuth token: %v", err)
 				}
 			} else if !creds.IsTokenExpired() {
 				oauthCreds = creds
-				logging.Info("Using valid Anthropic OAuth credentials")
 			}
 		}
 	}
@@ -89,7 +87,6 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 		anthropicOpts.useOAuth = true
 		anthropicOpts.oauthCreds = oauthCreds
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAuthToken(oauthCreds.AccessToken))
-		logging.Info("Initialized Anthropic client with OAuth authentication")
 	} else if opts.apiKey != "" {
 		// Use database API key (passed in opts.apiKey from caller)
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
@@ -101,7 +98,6 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 			dbKey, err := config.GetAPICredentials().GetAPIKey(ctx, models.ProviderAnthropic)
 			if err == nil && dbKey != "" {
 				anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(dbKey))
-				logging.Info("Initialized Anthropic client with database API key (direct lookup)")
 			} else {
 				// No valid credentials found - use placeholder for command handling only
 				logging.Warn("No authentication method available for Anthropic - neither OAuth nor database API key")
@@ -165,17 +161,17 @@ func (a *anthropicClient) convertMessages(messages []message.Message) (anthropic
 
 		case message.Assistant:
 			blocks := []anthropic.ContentBlockParamUnion{}
-			
+
 			// Add thinking blocks first (must be in sequence)
 			for _, thinkingBlock := range msg.ThinkingBlocks() {
 				blocks = append(blocks, anthropic.NewThinkingBlock(thinkingBlock.Signature, thinkingBlock.Thinking))
 			}
-			
+
 			// Add redacted thinking blocks
 			for _, redactedBlock := range msg.RedactedThinkingBlocks() {
 				blocks = append(blocks, anthropic.NewRedactedThinkingBlock(redactedBlock.Data))
 			}
-			
+
 			// Add text content
 			if msg.Content().String() != "" {
 				content := anthropic.NewTextBlock(msg.Content().String())
@@ -260,7 +256,7 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 	isUser := lastMessage.Role == anthropic.MessageParamRoleUser
 	messageContent := ""
 	temperature := anthropic.Float(0)
-	
+
 	// Extract message content for thinking budget calculation
 	if isUser {
 		for _, m := range lastMessage.Content {
@@ -269,14 +265,14 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 			}
 		}
 	}
-	
+
 	// Enable thinking based on budget function - but ensure API compatibility
 	if a.options.thinkingBudget != nil {
 		tokenBudget := 0 // Default to disabled
 		if messageContent != "" {
 			tokenBudget = a.options.thinkingBudget(messageContent)
 		}
-		
+
 		// Check if conversation history contains thinking blocks
 		hasThinkingInHistory := false
 		for _, msg := range messages {
@@ -292,7 +288,7 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 				}
 			}
 		}
-		
+
 		if tokenBudget > 0 {
 			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(tokenBudget))
 			temperature = anthropic.Float(1)
@@ -745,7 +741,7 @@ func (a *anthropicClient) usage(msg anthropic.Message) TokenUsage {
 // extractThinkingBlocks extracts thinking blocks from Anthropic response
 func (a *anthropicClient) extractThinkingBlocks(msg anthropic.Message) []message.ThinkingBlockContent {
 	var thinkingBlocks []message.ThinkingBlockContent
-	
+
 	for _, block := range msg.Content {
 		switch variant := block.AsAny().(type) {
 		case anthropic.ThinkingBlock:
@@ -755,14 +751,14 @@ func (a *anthropicClient) extractThinkingBlocks(msg anthropic.Message) []message
 			})
 		}
 	}
-	
+
 	return thinkingBlocks
 }
 
 // extractRedactedThinkingBlocks extracts redacted thinking blocks from Anthropic response
 func (a *anthropicClient) extractRedactedThinkingBlocks(msg anthropic.Message) []message.RedactedThinkingContent {
 	var redactedBlocks []message.RedactedThinkingContent
-	
+
 	for _, block := range msg.Content {
 		switch variant := block.AsAny().(type) {
 		case anthropic.RedactedThinkingBlock:
@@ -771,7 +767,7 @@ func (a *anthropicClient) extractRedactedThinkingBlocks(msg anthropic.Message) [
 			})
 		}
 	}
-	
+
 	return redactedBlocks
 }
 

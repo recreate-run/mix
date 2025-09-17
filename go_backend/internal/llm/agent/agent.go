@@ -149,7 +149,7 @@ func (a *agent) Cancel(sessionID string) {
 	// Cancel regular requests
 	if cancelFunc, exists := a.activeRequests.LoadAndDelete(sessionID); exists {
 		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			logging.Info("Request cancellation initiated for session", "sessionID", sessionID)
+			// Request cancellation initiated
 			cancel()
 		}
 	}
@@ -157,7 +157,7 @@ func (a *agent) Cancel(sessionID string) {
 	// Also check for summarize requests
 	if cancelFunc, exists := a.activeRequests.LoadAndDelete(sessionID + "-summarize"); exists {
 		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			logging.Info("Summarize cancellation initiated for session", "sessionID", sessionID)
+			// Summarize cancellation initiated
 			cancel()
 		}
 	}
@@ -307,7 +307,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 }
 
 func (a *agent) processGeneration(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) AgentEvent {
-	logging.Info("[Agent] Starting message processing for session", "sessionID", sessionID, "contentPreview", fmt.Sprintf("%.100s...", content))
+	// Starting message processing for session
 	_ = config.Get()
 	// List existing messages; if none, start title generation asynchronously.
 	msgs, err := a.messages.List(ctx, sessionID)
@@ -360,14 +360,11 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			// Continue processing
 		}
 
-		logging.Info("Starting conversation turn",
-			"sessionID", sessionID,
-			"turn", conversationTurn,
-			"messageHistoryLength", len(msgHistory))
+		// Starting conversation turn
 
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
-			logging.Info("[Agent] Stream processing failed for session", "sessionID", sessionID, "error", err)
+			// Stream processing failed for session
 			if errors.Is(err, context.Canceled) {
 				agentMessage.AddFinish(message.FinishReasonCanceled)
 				a.messages.Update(context.Background(), agentMessage)
@@ -378,17 +375,11 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 
 		// Enhanced tool results logging for debugging
 		if toolResults != nil {
-			for i, result := range toolResults.ToolCalls() {
-				logging.Info("[Agent] Detailed tool result", "sessionID", sessionID, "toolIndex", i, "toolCallID", result.ID, "toolName", result.Name, "inputLength", len(result.Input), "input", result.Input)
-			}
+			// Tool results processed
 		}
 		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
 			// We are not done, we need to respond with the tool response
-			logging.Info("Tool execution completed, continuing conversation",
-				"sessionID", sessionID,
-				"turn", conversationTurn,
-				"toolResultsCount", len(toolResults.ToolResults()),
-				"nextTurn", conversationTurn+1)
+			// Tool execution completed, continuing conversation
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
 			conversationTurn++
 			continue
@@ -494,29 +485,14 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 	// Debug logging: Show all requested tool calls for analysis
 	if len(toolCalls) > 1 {
-		logging.Info("LLM requested MULTIPLE tools - will process sequentially",
-			"sessionID", sessionID,
-			"totalTools", len(toolCalls),
-			"toolNames", func() []string {
-				names := make([]string, len(toolCalls))
-				for i, tc := range toolCalls {
-					names[i] = tc.Name
-				}
-				return names
-			}())
+		// LLM requested multiple tools - will process sequentially
 	} else {
-		logging.Info("LLM requested SINGLE tool",
-			"sessionID", sessionID,
-			"toolName", toolCalls[0].Name)
+		// LLM requested single tool
 	}
 
 	// Execute ONLY the first tool call - let main loop handle processing
 	toolCall := toolCalls[0]
-	logging.Info("Processing tool",
-		"sessionID", sessionID,
-		"toolName", toolCall.Name,
-		"toolIndex", "1 of "+fmt.Sprintf("%d", len(toolCalls)),
-		"remainingTools", len(toolCalls)-1)
+	// Processing tool
 
 	// Check for context cancellation
 	select {
@@ -569,7 +545,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		return assistantMsg, &msg, nil
 	}
 
-	logging.Info("[Agent] Executing tool", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "inputSize", len(toolCall.Input), "inputContent", toolCall.Input)
+	// Executing tool
 
 	// Publish tool execution start event
 	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
@@ -591,7 +567,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	})
 	toolDuration := time.Since(toolStartTime)
 
-	logging.Info("[Agent] Tool execution result", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "duration", toolDuration, "error", toolErr, "resultLength", len(toolResult.Content), "resultContent", toolResult.Content, "resultIsError", toolResult.IsError)
+	// Tool execution completed
 
 	// Publish tool execution completion event
 	completionProgress := fmt.Sprintf("Completed %s tool in %v", toolCall.Name, toolDuration)
@@ -611,7 +587,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 	// Handle permission denied - exit early for security
 	if toolErr != nil && errors.Is(toolErr, permission.ErrorPermissionDenied) {
-		logging.Info("[Agent] TOOL PERMISSION DENIED", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID)
+		// Tool permission denied
 		a.finishMessage(ctx, &assistantMsg, message.FinishReasonPermissionDenied)
 		result := message.ToolResult{
 			ToolCallID: toolCall.ID,
@@ -678,15 +654,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 	switch event.Type {
 	case provider.EventThinkingDelta:
-		logging.Info("Claude thinking delta received",
-			"sessionID", sessionID,
-			"thinkingLength", len(event.Thinking),
-			"thinkingPreview", func() string {
-				if len(event.Thinking) > 50 {
-					return event.Thinking[:50] + "..."
-				}
-				return event.Thinking
-			}())
+		// Claude thinking delta received
 		assistantMsg.AppendReasoningContent(event.Thinking)
 		// Publish thinking event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
@@ -738,7 +706,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		return a.messages.Update(ctx, *assistantMsg)
 	case provider.EventError:
 		if errors.Is(event.Error, context.Canceled) {
-			logging.Info("Event processing canceled for session", "sessionID", sessionID)
+			// Event processing canceled for session
 			return context.Canceled
 		}
 		logging.Error(event.Error.Error())
@@ -1097,10 +1065,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			// Validate that the selected model is available on the preferred provider
 			model, modelExists := models.SupportedModels[agentConfig.Model]
 			if modelExists && model.Provider != preferredProvider {
-				logging.Info("Model not available on preferred provider, using model's default provider",
-					"model", agentConfig.Model,
-					"model_provider", model.Provider,
-					"preferred_provider", preferredProvider)
+				// Model not available on preferred provider, using model's default provider
 			}
 		}
 	}
@@ -1117,7 +1082,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 		dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
 		if err == nil && dbKey != "" {
 			apiKey = dbKey
-			logging.Info("Using database-stored API key", "provider", model.Provider)
+			// Using database-stored API key
 		} else {
 			// No key in database, we won't use environment or config fallbacks
 			// For OAuth providers, we'll let the client check for OAuth tokens
@@ -1194,7 +1159,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
 		if err == nil && dbKey != "" {
 			apiKey = dbKey
-			logging.Info("Using database-stored API key for session provider", "provider", model.Provider)
+			// Using database-stored API key for session provider
 		} else {
 			// No key in database, we won't use environment or config fallbacks
 			// For OAuth providers, we'll let the client check for OAuth tokens
@@ -1270,39 +1235,33 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 			mainAgentModel = agentCfg.Model
 		}
 	}
-	logging.Info("Current user preferences", "sessionID", sessionID, "preferredProvider", preferredProvider, "mainAgentModel", mainAgentModel)
+	// Current user preferences logged
 
 	// Check if we already have a cached provider
 	cached, exists := a.sessionProviders.Load(sessionID)
 	if exists {
 		cachedProvider := cached.(provider.Provider)
 		currentModel := cachedProvider.Model()
-		logging.Info("Found cached provider", "sessionID", sessionID, "provider", currentModel.Provider, "model", currentModel.ID)
+		// Found cached provider
 
 		// Important: Check if the cached provider matches current preferences
 		isMatch := true
 
 		// Only check for preferred provider if it's actually set
 		if preferredProvider != "" && currentModel.Provider != preferredProvider {
-			logging.Info("Cached provider does not match current preferred provider",
-				"sessionID", sessionID,
-				"cachedProvider", currentModel.Provider,
-				"preferredProvider", preferredProvider)
+			// Cached provider does not match current preferred provider
 			isMatch = false
 		}
 
 		// Only check for model match if using main agent (sub agents might use different models)
 		if a.agentName == config.AgentMain && mainAgentModel != "" && currentModel.ID != mainAgentModel {
-			logging.Info("Cached model does not match current preferred model",
-				"sessionID", sessionID,
-				"cachedModel", currentModel.ID,
-				"preferredModel", mainAgentModel)
+			// Cached model does not match current preferred model
 			isMatch = false
 		}
 
 		// If cache doesn't match current preferences, don't use it
 		if !isMatch {
-			logging.Info("Discarding outdated cached provider due to preference mismatch", "sessionID", sessionID)
+			// Discarding outdated cached provider due to preference mismatch
 			// Remove the outdated provider from cache
 			a.sessionProviders.Delete(sessionID)
 		} else {
@@ -1312,20 +1271,18 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 	}
 
 	// Create new session provider
-	logging.Info("Creating new session provider", "sessionID", sessionID, "agent", a.agentName)
+	// Creating new session provider
 	sessionProvider, err := createSessionProvider(ctx, a.agentName, session, a.storageConfig)
 	if err != nil {
 		logging.Error("Failed to create session provider", "sessionID", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to create session provider: %w", err)
 	}
 
-	// Log provider details
-	createdModel := sessionProvider.Model()
-	logging.Info("Created new provider", "sessionID", sessionID, "provider", createdModel.Provider, "model", createdModel.ID)
+	// Created new provider
 
 	// Store the new provider in cache
 	a.sessionProviders.Store(sessionID, sessionProvider)
-	logging.Info("Successfully stored new provider in cache", "sessionID", sessionID, "provider", createdModel.Provider, "model", createdModel.ID)
+	// Successfully stored new provider in cache
 	return sessionProvider, nil
 }
 
@@ -1341,7 +1298,7 @@ func (a *agent) handleSessionEvents() {
 			sessionID := event.Payload.ID
 			// Remove cached provider for deleted session
 			if _, existed := a.sessionProviders.LoadAndDelete(sessionID); existed {
-				logging.Info("Cleaned up session provider cache", "sessionID", sessionID)
+				// Cleaned up session provider cache
 			}
 		}
 	}
@@ -1375,7 +1332,7 @@ func (a *agent) ClearAllSessionProviders() {
 	// Delete all keys
 	for _, sessionID := range keysToDelete {
 		a.sessionProviders.Delete(sessionID)
-		logging.Info("Cleared provider cache for session", "sessionID", sessionID)
+		// Cleared provider cache for session
 	}
 
 	// Verify cache was cleared
@@ -1390,10 +1347,7 @@ func (a *agent) ClearAllSessionProviders() {
 	newProvider, err := createAgentProvider(a.agentName)
 	if err == nil {
 		a.provider = newProvider
-		logging.Info("Updated main agent provider after preference change",
-			"agentName", a.agentName,
-			"newProvider", newProvider.Model().Provider,
-			"newModel", newProvider.Model().ID)
+		// Updated main agent provider after preference change
 	} else {
 		logging.Error("Failed to update main agent provider", "error", err)
 	}

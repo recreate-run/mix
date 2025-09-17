@@ -1,9 +1,10 @@
-package http
+package integration_tests
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
+	httphandlers "mix/internal/http"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -109,14 +111,14 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	}
 
 	// Create REST handlers
-	sessionHandler := NewSessionHandler(testApp)
-	messageHandler := NewMessageHandler(testApp)
-	systemHandler := NewSystemHandler(testApp)
-	preferencesHandler := NewPreferencesHandler(testApp)
-	
+	sessionHandler := httphandlers.NewSessionHandler(testApp)
+	messageHandler := httphandlers.NewMessageHandler(testApp)
+	systemHandler := httphandlers.NewSystemHandler(testApp)
+	preferencesHandler := httphandlers.NewPreferencesHandler(testApp)
+
 	// Create file management handlers
-	fileHandler := NewFileHandler(testApp, testApp.StorageConfig)
-	sessionAssetHandler := NewSessionAssetHandler(testApp, testApp.StorageConfig)
+	fileHandler := httphandlers.NewFileHandler(testApp, testApp.StorageConfig)
+	sessionAssetHandler := httphandlers.NewSessionAssetHandler(testApp, testApp.StorageConfig)
 
 	// Set up HTTP multiplexer with all REST endpoints
 	mux := http.NewServeMux()
@@ -159,17 +161,17 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	// SSE endpoint
 	mux.HandleFunc("/stream", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Stream request received: %s %s", r.Method, r.URL.String())
-		HandleSSEStream(ctx, testApp, w, r)
+		httphandlers.HandleSSEStream(ctx, testApp, w, r)
 	})
 	
 	// Stream sub-path endpoint for SSE with paths
 	mux.HandleFunc("/stream/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Stream sub-path request received: %s %s", r.Method, r.URL.String())
 		if strings.HasSuffix(r.URL.Path, "/message") {
-			HandleMessageQueue(w, r)
+			httphandlers.HandleMessageQueue(w, r)
 		} else {
 			// Handle other stream sub-paths by streaming events
-			HandleSSEStream(ctx, testApp, w, r)
+			httphandlers.HandleSSEStream(ctx, testApp, w, r)
 		}
 	})
 	
@@ -230,6 +232,16 @@ func makeJSONRequest(t *testing.T, server *httptest.Server, method, path string,
 	return resp
 }
 
+// sendJSONResponse sends a JSON response (local implementation for tests)
+func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// For tests, we can just log to stderr
+		panic(fmt.Sprintf("Failed to encode JSON response: %v", err))
+	}
+}
+
 // validateObjectResponse validates success response as object (flattened)
 func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
 	defer resp.Body.Close()
@@ -263,14 +275,14 @@ func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int
 }
 
 // validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
-func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) ErrorResponse {
+func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) httphandlers.ErrorResponse {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
 	}
 
-	var errorResponse ErrorResponse
+	var errorResponse httphandlers.ErrorResponse
 	if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
 		t.Fatalf("Failed to decode error response: %v", err)
 	}

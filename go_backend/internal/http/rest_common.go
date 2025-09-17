@@ -23,11 +23,11 @@ type RESTError struct {
 
 // Standard error types
 const (
-	ErrorTypeBadRequest     = "bad_request"
-	ErrorTypeNotFound       = "not_found"
-	ErrorTypeInternalError  = "internal_error"
-	ErrorTypeUnauthorized   = "unauthorized"
-	ErrorTypeValidation     = "validation_error"
+	ErrorTypeBadRequest    = "bad_request"
+	ErrorTypeNotFound      = "not_found"
+	ErrorTypeInternalError = "internal_error"
+	ErrorTypeUnauthorized  = "unauthorized"
+	ErrorTypeValidation    = "validation_error"
 )
 
 // HTTP status code mapping for different error types
@@ -43,17 +43,7 @@ var errorStatusMap = map[string]int{
 func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
-	// Debug logging for message responses
-	if msgs, ok := data.([]MessageData); ok {
-		logging.Info("Sending JSON response - messages array", "status", status, "messageCount", len(msgs))
-		if len(msgs) > 0 {
-			logging.Info("First message sample", "id", msgs[0].ID, "role", msgs[0].Role, "hasUserInput", msgs[0].UserInput != "", "hasAssistantResponse", msgs[0].AssistantResponse != "")
-		}
-	} else {
-		logging.Info("Sending JSON response - other data", "status", status, "dataType", fmt.Sprintf("%T", data))
-	}
-	
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		logging.Error("Failed to encode JSON response", "error", err)
 	}
@@ -65,10 +55,10 @@ func sendErrorResponse(w http.ResponseWriter, errorType string, message string) 
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	response := ErrorResponse{
 		Error: &RESTError{
 			Code:    status,
@@ -76,7 +66,7 @@ func sendErrorResponse(w http.ResponseWriter, errorType string, message string) 
 			Type:    errorType,
 		},
 	}
-	
+
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		logging.Error("Failed to encode error response", "error", err)
 	}
@@ -111,12 +101,12 @@ func parseIntParam(param string, paramName string) (int64, error) {
 	if param == "" {
 		return 0, fmt.Errorf("%s is required", paramName)
 	}
-	
+
 	value, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be a valid integer", paramName)
 	}
-	
+
 	return value, nil
 }
 
@@ -125,10 +115,10 @@ func parseJSONBody(r *http.Request, target interface{}) error {
 	if r.Body == nil {
 		return fmt.Errorf("request body is required")
 	}
-	
+
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields() // Strict parsing
-	
+
 	return decoder.Decode(target)
 }
 
@@ -153,7 +143,7 @@ func handleCORSPreflight(w http.ResponseWriter, r *http.Request) bool {
 func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	// Send data directly (no envelope)
 	json.NewEncoder(w).Encode(data)
 }
@@ -162,7 +152,7 @@ func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 func WriteErrorResponse(w http.ResponseWriter, status int, message string, errorType string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	response := ErrorResponse{
 		Error: &RESTError{
 			Code:    status,
@@ -170,6 +160,6 @@ func WriteErrorResponse(w http.ResponseWriter, status int, message string, error
 			Type:    errorType,
 		},
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }

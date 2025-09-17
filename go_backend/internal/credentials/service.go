@@ -19,16 +19,16 @@ import (
 
 // APICredentialsService handles encrypted API key storage and retrieval
 type APICredentialsService struct {
-	queries       *db.Queries
-	encryptionKey []byte
+	queries          *db.Queries
+	encryptionKey    []byte
 	credentialsCache sync.Map // Provider -> API Key cache
 }
 
 // NewAPICredentialsService creates a new API credentials service
 func NewAPICredentialsService(database *sql.DB, encryptionKey []byte) *APICredentialsService {
 	service := &APICredentialsService{
-		queries:       db.New(database),
-		encryptionKey: encryptionKey,
+		queries:          db.New(database),
+		encryptionKey:    encryptionKey,
 		credentialsCache: sync.Map{},
 	}
 
@@ -65,7 +65,7 @@ func (acs *APICredentialsService) encrypt(plaintext string) (string, error) {
 
 // decrypt decrypts ciphertext using AES-GCM
 func (acs *APICredentialsService) decrypt(ciphertext string) (string, error) {
-	logging.Info("Attempting to decrypt API key", "ciphertextLength", len(ciphertext))
+	// Attempting to decrypt API key
 	if ciphertext == "" {
 		logging.Warn("Empty ciphertext provided for decryption")
 		return "", nil
@@ -114,7 +114,7 @@ func (acs *APICredentialsService) decrypt(ciphertext string) (string, error) {
 		return "", fmt.Errorf("failed to decrypt: %w", err)
 	}
 
-	logging.Info("Successfully decrypted API key", "plaintextLength", len(plaintext))
+	// API key successfully decrypted
 	return string(plaintext), nil
 }
 
@@ -136,7 +136,7 @@ func (acs *APICredentialsService) StoreAPIKey(ctx context.Context, provider mode
 	// Update the cache with the new API key
 	acs.credentialsCache.Store(provider, apiKey)
 
-	logging.Info("API key stored successfully and cached", "provider", provider)
+	// API key stored and cached
 	return nil
 }
 
@@ -144,15 +144,14 @@ func (acs *APICredentialsService) StoreAPIKey(ctx context.Context, provider mode
 func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models.ModelProvider) (string, error) {
 	// Check the cache first
 	if cachedValue, found := acs.credentialsCache.Load(provider); found {
-		logging.Info("Using cached API key", "provider", provider)
 		return cachedValue.(string), nil
 	}
 
-	logging.Info("API key not in cache, getting from database", "provider", provider)
+	// API key not in cache, retrieving from database
 	credential, err := acs.queries.GetAPICredential(ctx, string(provider))
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logging.Info("No API key found in database", "provider", provider, "error", "sql.ErrNoRows")
+			// No API key found in database
 			// Cache the empty result to avoid repeated database lookups
 			acs.credentialsCache.Store(provider, "")
 			return "", nil // No credential found
@@ -161,14 +160,14 @@ func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models
 		return "", fmt.Errorf("failed to get API credential: %w", err)
 	}
 
-	logging.Info("API key found in database, attempting to decrypt", "provider", provider, "keyLength", len(credential.ApiKey))
+	// API key found in database, attempting decryption
 	decryptedKey, err := acs.decrypt(credential.ApiKey)
 	if err != nil {
 		logging.Error("Failed to decrypt API key", "provider", provider, "error", err)
 		return "", fmt.Errorf("failed to decrypt API key: %w", err)
 	}
 
-	logging.Info("API key successfully decrypted, storing in cache", "provider", provider, "keyLength", len(decryptedKey))
+	// API key decrypted and cached
 	// Store the decrypted key in the cache
 	acs.credentialsCache.Store(provider, decryptedKey)
 	return decryptedKey, nil
@@ -178,18 +177,17 @@ func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models
 func (acs *APICredentialsService) HasAPIKey(ctx context.Context, provider models.ModelProvider) (bool, error) {
 	// Check the cache first
 	if cachedValue, found := acs.credentialsCache.Load(provider); found {
-		logging.Info("Using cached value for HasAPIKey check", "provider", provider)
+		// Using cached value for HasAPIKey check
 		// If we have a non-empty string in cache, the key exists
 		return cachedValue.(string) != "", nil
 	}
 
 	// Not in cache, check the database
-	logging.Info("Checking database for HasAPIKey", "provider", provider)
 	count, err := acs.queries.HasAPICredential(ctx, string(provider))
 	if err != nil {
 		return false, fmt.Errorf("failed to check API credential: %w", err)
 	}
-	
+
 	// Don't update the cache here - GetAPIKey will do that when the actual key is needed
 	return count > 0, nil
 }
@@ -204,7 +202,7 @@ func (acs *APICredentialsService) DeleteAPIKey(ctx context.Context, provider mod
 	// Remove from cache
 	acs.credentialsCache.Delete(provider)
 
-	logging.Info("API key deleted successfully and removed from cache", "provider", provider)
+	// API key deleted and cache updated
 	return nil
 }
 
@@ -235,7 +233,7 @@ func (acs *APICredentialsService) DeleteAllCredentials(ctx context.Context) erro
 	// Clear the entire cache
 	acs.ClearCache()
 
-	logging.Info("All API credentials deleted successfully and cache cleared")
+	// All API credentials deleted and cache cleared
 	return nil
 }
 
@@ -250,19 +248,18 @@ var supportedProviders = map[models.ModelProvider]struct{}{
 func (acs *APICredentialsService) ClearCache() {
 	// Create a new empty map to replace the existing one
 	acs.credentialsCache = sync.Map{}
-	logging.Info("API credentials cache cleared")
+	// API credentials cache cleared
 }
 
 // ClearProviderCache removes a specific provider's credentials from the cache
 func (acs *APICredentialsService) ClearProviderCache(provider models.ModelProvider) {
 	acs.credentialsCache.Delete(provider)
-	logging.Info("Cleared API credentials cache for provider", "provider", provider)
+	// Provider cache cleared
 }
 
 // PreloadCredentials loads all credentials into the cache to avoid database hits
 func (acs *APICredentialsService) PreloadCredentials(ctx context.Context) {
-	logging.Info("Preloading API credentials into cache")
-	
+
 	// List all credentials from the database
 	credentials, err := acs.queries.ListAPICredentials(ctx)
 	if err != nil {
@@ -275,20 +272,18 @@ func (acs *APICredentialsService) PreloadCredentials(ctx context.Context) {
 		if cred.ApiKey == "" {
 			continue
 		}
-		
+
 		provider := models.ModelProvider(cred.Provider)
 		decryptedKey, err := acs.decrypt(cred.ApiKey)
 		if err != nil {
 			logging.Error("Failed to decrypt API key during preload", "provider", provider, "error", err)
 			continue
 		}
-		
+
 		// Store in cache
 		acs.credentialsCache.Store(provider, decryptedKey)
 		count++
 	}
-	
-	logging.Info("Successfully preloaded API credentials into cache", "count", count)
 }
 
 // ValidateAPIKey performs basic validation on an API key for a provider
@@ -334,4 +329,3 @@ func GenerateEncryptionKey() ([]byte, error) {
 	}
 	return key, nil
 }
-

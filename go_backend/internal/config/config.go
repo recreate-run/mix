@@ -539,11 +539,7 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 			APIKey: apiKey,
 		}
 		cfgMutex.Unlock()
-		if apiKey != "" {
-			logging.Info("added provider from environment", "provider", provider)
-		} else {
-			logging.Info("added provider without API key (OAuth-supported)", "provider", provider)
-		}
+		// Provider added from environment or as OAuth-supported
 	} else if providerCfg.Disabled {
 		return fmt.Errorf("provider %s is disabled for agent %s (model %s)", provider, name, agent.Model)
 	} else if providerCfg.APIKey == "" && provider != "anthropic" && provider != "openai" {
@@ -587,9 +583,6 @@ func validateAgent(cfg *Config, name AgentName, agent Agent) error {
 	if model.CanReason && provider == models.ProviderOpenAI || provider == models.ProviderLocal {
 		if agent.ReasoningEffort == "" {
 			// Set default reasoning effort for models that support it
-			logging.Info("setting default reasoning effort for model that supports reasoning",
-				"agent", name,
-				"model", agent.Model)
 
 			// Update the agent with default reasoning effort
 			cfgMutex.Lock()
@@ -704,7 +697,7 @@ func updateCfgFile(updateCfg func(config *Config)) error {
 			return fmt.Errorf("failed to get home directory: %w", err)
 		}
 		configFile = filepath.Join(homeDir, fmt.Sprintf(".%s.json", appName))
-		logging.Info("config file not found, creating new one", "path", configFile)
+		// Config file not found, creating new one
 		configData = []byte(`{}`)
 	} else {
 		// Read the existing config file
@@ -812,7 +805,6 @@ func InitAPICredentials(database *sql.DB) error {
 	}
 	
 	apiCredentialsService = credentials.NewAPICredentialsService(database, encryptionKey)
-	logging.Info("API credentials service initialized")
 	return nil
 }
 

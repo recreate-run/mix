@@ -174,10 +174,26 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 	}
 
 	if request.MainAgentMaxTokens != nil {
-		updateParams.MainAgentMaxTokens = sql.NullInt64{Int64: *request.MainAgentMaxTokens, Valid: *request.MainAgentMaxTokens > 0}
+		if *request.MainAgentMaxTokens <= 0 {
+			WriteErrorResponse(w, http.StatusBadRequest, "main agent max tokens must be positive", "INVALID_TOKEN_COUNT")
+			return
+		}
+		updateParams.MainAgentMaxTokens = sql.NullInt64{Int64: *request.MainAgentMaxTokens, Valid: true}
 	}
 
 	if request.MainAgentReasoningEffort != nil {
+		// Validate reasoning effort - allow empty string or valid values
+		if *request.MainAgentReasoningEffort != "" {
+			validEfforts := map[string]bool{
+				"low":    true,
+				"medium": true,
+				"high":   true,
+			}
+			if !validEfforts[*request.MainAgentReasoningEffort] {
+				WriteErrorResponse(w, http.StatusBadRequest, "invalid main agent reasoning effort: must be 'low', 'medium', 'high', or empty", "INVALID_REASONING_EFFORT")
+				return
+			}
+		}
 		updateParams.MainAgentReasoningEffort = sql.NullString{String: *request.MainAgentReasoningEffort, Valid: *request.MainAgentReasoningEffort != ""}
 	}
 
@@ -193,10 +209,26 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 	}
 
 	if request.SubAgentMaxTokens != nil {
-		updateParams.SubAgentMaxTokens = sql.NullInt64{Int64: *request.SubAgentMaxTokens, Valid: *request.SubAgentMaxTokens > 0}
+		if *request.SubAgentMaxTokens <= 0 {
+			WriteErrorResponse(w, http.StatusBadRequest, "sub agent max tokens must be positive", "INVALID_TOKEN_COUNT")
+			return
+		}
+		updateParams.SubAgentMaxTokens = sql.NullInt64{Int64: *request.SubAgentMaxTokens, Valid: true}
 	}
 
 	if request.SubAgentReasoningEffort != nil {
+		// Validate reasoning effort - allow empty string or valid values
+		if *request.SubAgentReasoningEffort != "" {
+			validEfforts := map[string]bool{
+				"low":    true,
+				"medium": true,
+				"high":   true,
+			}
+			if !validEfforts[*request.SubAgentReasoningEffort] {
+				WriteErrorResponse(w, http.StatusBadRequest, "invalid sub agent reasoning effort: must be 'low', 'medium', 'high', or empty", "INVALID_REASONING_EFFORT")
+				return
+			}
+		}
 		updateParams.SubAgentReasoningEffort = sql.NullString{String: *request.SubAgentReasoningEffort, Valid: *request.SubAgentReasoningEffort != ""}
 	}
 

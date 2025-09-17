@@ -104,7 +104,7 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			apiKey, err := credentialsService.GetAPIKey(ctx, providerName)
 			if err == nil && apiKey != "" {
 				clientOptions.apiKey = apiKey
-				logging.Info("NewProvider: Using database-stored API key", "provider", providerName)
+				// Using database-stored API key for provider
 			} else {
 				// No database key and not explicitly set - for non-OAuth providers, this is a potential issue
 				if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {

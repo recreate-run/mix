@@ -7,7 +7,6 @@ import (
 
 	"mix/internal/db"
 	"mix/internal/llm/models"
-	"mix/internal/logging"
 )
 
 // Agent types to avoid import cycle
@@ -50,7 +49,7 @@ func (ups *UserPreferencesService) GetUserPreferences(ctx context.Context) (*db.
 
 // CreateDefaultUserPreferences creates default user preferences
 func (ups *UserPreferencesService) CreateDefaultUserPreferences(ctx context.Context) (*db.UserPreference, error) {
-	logging.Info("Creating default user preferences")
+	// Creating default user preferences
 	defaultPrefs := db.CreateUserPreferencesParams{
 		PreferredProvider:       sql.NullString{String: "anthropic", Valid: true},
 		MainAgentModel:          sql.NullString{String: "claude-4-sonnet", Valid: true},
@@ -188,7 +187,7 @@ func (ups *UserPreferencesService) MigrateFromConfig(ctx context.Context, agents
 	// Check if preferences already exist
 	_, err := ups.queries.GetUserPreferences(ctx)
 	if err == nil {
-		logging.Info("User preferences already exist in database, skipping migration")
+		// User preferences already exist in database, skipping migration
 		return nil
 	}
 	
@@ -233,6 +232,6 @@ func (ups *UserPreferencesService) MigrateFromConfig(ctx context.Context, agents
 		return fmt.Errorf("failed to migrate preferences to database: %w", err)
 	}
 	
-	logging.Info("Successfully migrated user preferences from .mix.json to database")
+	// Successfully migrated user preferences from .mix.json to database
 	return nil
 }
