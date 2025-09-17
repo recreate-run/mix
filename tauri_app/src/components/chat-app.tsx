@@ -678,6 +678,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // Handle file upload success
   const handleFileUploadSuccess = (fileName: string) => {
+    // Add file reference to text input (same behavior as "@" menu)
+    const displayReference = `@${fileName}`;
+    const newText = text ? `${text} ${displayReference} ` : `${displayReference} `;
+    setText(newText);
+    
+    // Add reference mapping (same as "@" menu)
+    useBoundStore.getState().addReference(displayReference, fileName);
+    
     setMessages((prev) => [
       ...prev,
       {
