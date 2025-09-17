@@ -1,4 +1,4 @@
-.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint generate-sdk
+.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint go-test generate-sdk
 
 # Variables
 BINARY_NAME=mix
@@ -37,6 +37,7 @@ help:
 	@echo "  test-all    - Run all validation tests"
 	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
 	@echo "  go_lint     - Run golangci-lint on Go backend code"
+	@echo "  go-test     - Run Go tests with coverage"
 	@echo "  generate-openapi - Generate JSON OpenAPI spec"
 	@echo "  help        - Show this help message"
 	@echo ""
@@ -106,6 +107,11 @@ test-installation:
 
 test-all: test-env test-dev-env test-connection test-installation
 	@echo "All validation tests completed."
+
+# Run Go tests with coverage
+go-test:
+	@echo "Running Go tests..."
+	@./scripts/tests/run_go_tests.sh
 
 # Run TypeScript typecheck on frontend code
 frontend-typecheck:
