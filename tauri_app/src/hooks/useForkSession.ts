@@ -9,7 +9,7 @@ interface ForkSessionParams {
   title?: string;
 }
 
-const forkSession = async (params: ForkSessionParams): Promise<SessionData> => {
+async function forkSession(params: ForkSessionParams): Promise<SessionData> {
   const response = await mix.sessions.fork({ 
     id: params.sourceSessionId,
     requestBody: {
@@ -23,9 +23,9 @@ const forkSession = async (params: ForkSessionParams): Promise<SessionData> => {
     ...response,
     createdAt: response.createdAt instanceof Date ? response.createdAt.toISOString() : response.createdAt
   };
-};
+}
 
-export const useForkSession = () => {
+export function useForkSession() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -34,4 +34,4 @@ export const useForkSession = () => {
       invalidateSessionCaches(queryClient, newSession.id);
     },
   });
-};
+}

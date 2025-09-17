@@ -11,9 +11,9 @@ interface MessageResponse {
   response: string;
 }
 
-const sendMessage = async (
+async function sendMessage(
   params: SendMessageParams
-): Promise<MessageResponse> => {
+): Promise<MessageResponse> {
   const response = await mix.messages.send({
     id: params.sessionId,
     requestBody: {
@@ -23,9 +23,9 @@ const sendMessage = async (
 
   const assistantResponse = response.assistantResponse || 'No response from server';
   return { response: assistantResponse };
-};
+}
 
-export const useSendMessage = () => {
+export function useSendMessage() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -34,4 +34,4 @@ export const useSendMessage = () => {
       invalidateSessionCaches(queryClient, variables.sessionId);
     },
   });
-};
+}

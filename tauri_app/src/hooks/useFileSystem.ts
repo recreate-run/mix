@@ -65,7 +65,7 @@ const fetchDirectoryContents = async (
   }
 };
 
-export const useFileSystem = (customBasePath?: string) => {
+export function useFileSystem(customBasePath?: string) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['fileSystem', customBasePath],
     queryFn: () => fetchFileSystemData(customBasePath),

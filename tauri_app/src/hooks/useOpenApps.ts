@@ -9,14 +9,14 @@ export interface AppMetadata {
   path: string;
 }
 
-export const fetchAppList = async (): Promise<AppMetadata[]> => {
+export async function fetchAppList(): Promise<AppMetadata[]> {
   try {
     const apps = await invoke<AppMetadata[]>('get_app_list');
     return apps;
   } catch (error) {
     throw error;
   }
-};
+}
 
 export function useAppList() {
   const queryClient = useQueryClient();

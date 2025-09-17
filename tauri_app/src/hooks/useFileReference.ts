@@ -58,11 +58,11 @@ const reducer = (state: State, action: Action): State => {
   }
 };
 
-export const useFileReference = (
+export function useFileReference(
   text: string,
   setText: (text: string) => void,
   customBasePath?: string
-) => {
+) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { currentFiles, fetchFiles, fetchDirectoryContents } =
     useFileSystem(customBasePath);
@@ -247,4 +247,4 @@ export const useFileReference = (
     close: handleEscape,
     closeDropdown,
   };
-};
+}

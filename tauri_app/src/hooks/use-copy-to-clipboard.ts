@@ -11,7 +11,7 @@ export function useCopyToClipboard({
 } = {}) {
   const [isCopied, setIsCopied] = React.useState(false);
 
-  const copyToClipboard = (value: string) => {
+  function copyToClipboard(value: string) {
     if (typeof window === 'undefined' || !navigator.clipboard.writeText) {
       return;
     }
@@ -31,7 +31,7 @@ export function useCopyToClipboard({
         }, timeout);
       }
     }, console.error);
-  };
+  }
 
   return { isCopied, copyToClipboard };
 }

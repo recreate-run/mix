@@ -7,16 +7,16 @@ interface CreateSessionParams {
   title: string;
 }
 
-const createSession = async (params: CreateSessionParams): Promise<Session> => {
+async function createSession(params: CreateSessionParams): Promise<Session> {
   const response = await mix.sessions.create(params);
 
   return {
     id: response.id,
     title: response.title,
   };
-};
+}
 
-export const useCreateSession = () => {
+export function useCreateSession() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -31,10 +31,10 @@ export const useCreateSession = () => {
       queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
     },
   });
-};
+}
 
 // Fetch actual session data from backend
-export const useActiveSession = (sessionId: string) => {
+export function useActiveSession(sessionId: string) {
   return useQuery({
     queryKey: CACHE_KEYS.session(sessionId),
     queryFn: async (): Promise<Session | null> => {
@@ -51,4 +51,4 @@ export const useActiveSession = (sessionId: string) => {
     refetchOnMount: false, // Don't refetch if we have cached data
     enabled: !!sessionId, // Only run when sessionId exists
   });
-};
+}

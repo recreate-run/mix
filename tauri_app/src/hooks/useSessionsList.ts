@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 export const TITLE_TRUNCATE_LENGTH = 100;
 
-const loadSessionsList = async (): Promise<SessionData[]> => {
+async function loadSessionsList(): Promise<SessionData[]> {
   const response = await mix.sessions.list();
 
   // Handle null response from API
@@ -29,26 +29,26 @@ const loadSessionsList = async (): Promise<SessionData[]> => {
   }));
 
   return transformedSessions;
-};
+}
 
-export const useSessionsList = () => {
+export function useSessionsList() {
   return useQuery({
     queryKey: CACHE_KEYS.sessions,
     queryFn: loadSessionsList,
     refetchOnWindowFocus: false,
   });
-};
+}
 
 // REMOVED: useSelectSession - part of stateless design migration
 // Sessions are now selected explicitly via sessionId parameters instead of global state
 
-const deleteSession = async (sessionId: string): Promise<void> => {
+async function deleteSession(sessionId: string): Promise<void> {
   await mix.sessions.delete({ id: sessionId });
-};
+}
 
 
 // Simple utility to find next session for navigation
-const findNextSession = (sessions: SessionData[], deletedSessionId: string): string | null => {
+function findNextSession(sessions: SessionData[], deletedSessionId: string): string | null {
   if (sessions.length <= 1) return null;
   
   const currentIndex = sessions.findIndex(s => s.id === deletedSessionId);
@@ -62,7 +62,7 @@ const findNextSession = (sessions: SessionData[], deletedSessionId: string): str
   }
   
   return null;
-};
+}
 
 interface UseDeleteSessionOptions {
   /**
@@ -82,7 +82,7 @@ interface UseDeleteSessionOptions {
 /**
  * Enhanced useDeleteSession with simple navigation support
  */
-export const useDeleteSession = (options: UseDeleteSessionOptions = {}) => {
+export function useDeleteSession(options: UseDeleteSessionOptions = {}) {
   const { allSessions = [], currentSessionId, onNavigate } = options;
   const queryClient = useQueryClient();
 
@@ -134,4 +134,4 @@ export const useDeleteSession = (options: UseDeleteSessionOptions = {}) => {
       });
     },
   });
-};
+}

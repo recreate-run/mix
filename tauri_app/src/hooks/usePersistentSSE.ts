@@ -474,7 +474,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   }, []);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async function(content: string) {
       if (!(sessionId && connectedRef.current)) {
         throw new Error('No active SSE connection');
       }
@@ -528,7 +528,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     [sessionId]
   );
 
-  const cancelMessage = useCallback(async () => {
+  const cancelMessage = useCallback(async function() {
     if (!sessionId) {
       throw new Error('No session ID available');
     }
@@ -557,11 +557,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     }
   }, [sessionId]);
 
-  const resetCancelledState = useCallback(() => {
+  const resetCancelledState = useCallback(function() {
     setState((prev) => ({ ...prev, cancelled: false }));
   }, []);
 
-  const grantPermission = useCallback(async (id: string) => {
+  const grantPermission = useCallback(async function(id: string) {
     try {
       await mix.permissions.grant({ id });
 
@@ -579,7 +579,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     }
   }, []);
 
-  const denyPermission = useCallback(async (id: string) => {
+  const denyPermission = useCallback(async function(id: string) {
     try {
       await mix.permissions.deny({ id });
 

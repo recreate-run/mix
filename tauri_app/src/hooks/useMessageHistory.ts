@@ -27,7 +27,7 @@ interface UseMessageHistoryReturn {
   hasMoreHistory: boolean;
 }
 
-const extractMessageData = (content: string) => {
+function extractMessageData(content: string) {
   try {
     const parsed = JSON.parse(content);
     return {
@@ -42,9 +42,9 @@ const extractMessageData = (content: string) => {
       apps: [],
     };
   }
-};
+}
 
-const fetchMessages = async (params: { limit: number; offset: number }): Promise<MessageHistoryItem[]> => {
+async function fetchMessages(params: { limit: number; offset: number }): Promise<MessageHistoryItem[]> {
   // Let SDK validation errors propagate - don't mask them with fallbacks
   const response = await mix.messages.getHistory(params);
 
@@ -60,7 +60,7 @@ const fetchMessages = async (params: { limit: number; offset: number }): Promise
       apps: messageData.apps,
     };
   });
-};
+}
 
 export function useMessageHistory({
   batchSize = 50,

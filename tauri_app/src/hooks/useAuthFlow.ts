@@ -25,7 +25,7 @@ export function useAuthFlow(): UseAuthFlowReturn {
 	const [showSuccess, setShowSuccess] = useState(false);
 	const [oauthState, setOauthState] = useState(""); // Add state parameter for OAuth
 
-	const handleSubmit = async () => {
+	async function handleSubmit() {
 		let input = authMode === "code" ? authCode.trim() : apiKey.trim();
 		if (!input) return;
 
@@ -92,7 +92,7 @@ export function useAuthFlow(): UseAuthFlowReturn {
 			setAuthCode("");
 			setApiKey("");
 		}
-	};
+	}
 
 	return {
 		authCode,
