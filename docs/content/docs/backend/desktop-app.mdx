@@ -13,6 +13,11 @@ description: Learn about Mix's interactive mode for real-time workflow automatio
 | `/help`        | Get assistance and guidance                                                    |
 | `/mcp`         | Model Context Protocol                                                         |
 | `/permissions` | System permissions and access                                                  |
+| `/models`      | Select and switch AI model and provider                                         |
+| `/login`       | Authenticate with various provider options                                     |
+| `/logout`      | Sign out from authentication providers                                          |
+| `/status`      | Check authentication status                                                    |
+| `/auth-code`   | Exchange authorization code for OAuth tokens                                   |
 
 ## Custom slash commands
 
@@ -48,6 +53,21 @@ Use the `/mcp` command to:
 * Authenticate with OAuth-enabled servers
 * Clear authentication tokens
 * View available tools and prompts from each server
+
+### Authentication Commands
+
+Use authentication commands to manage your API credentials:
+
+* `/login` - Start authentication flow with choice of providers (Anthropic, OpenAI, OpenRouter)
+* `/logout` - Sign out and clear credentials
+* `/status` - Check authentication status for all configured providers
+* `/auth-code` - Process OAuth authorization code
+
+### Model Selection Commands
+
+Manage your AI model preferences:
+
+* `/models` - View and select from available models and providers
 
 ## See also
 

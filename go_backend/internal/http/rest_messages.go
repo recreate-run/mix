@@ -138,7 +138,6 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		logging.Info("Executing command", "name", parsed.Name, "args", parsed.Arguments)
 
 		// Add session context for commands that need session information
 		cmdCtx := context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
@@ -152,7 +151,6 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 				// List available commands for debugging
 				allCommands := h.commandRegistry.GetAllCommands()
 				commandNames := getCommandNames(allCommands)
-				logging.Info("Available commands", "commands", commandNames)
 
 				sendErrorResponse(w, ErrorTypeNotFound, fmt.Sprintf("Command '%s' not found. Available commands: %v", parsed.Name, commandNames))
 				return
@@ -162,7 +160,6 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		logging.Info("Command executed successfully", "name", parsed.Name, "result_length", len(commandResult))
 
 		// Return the command result immediately as a message
 		result := MessageData{
@@ -242,7 +239,6 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-	logging.Info("Loading messages for session", "sessionID", sessionID)
 
 	ctx := r.Context()
 	messages, err := h.app.Messages.List(ctx, sessionID)
@@ -252,19 +248,10 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-	logging.Info("Retrieved messages from database", "sessionID", sessionID, "count", len(messages))
 
 	result := h.convertMessagesToData(messages)
 	
-	logging.Info("Converted messages to API format", "sessionID", sessionID, "resultCount", len(result))
 	
-	// Log first few message IDs and roles for debugging
-	for i, msg := range result {
-		if i >= 3 { // Only log first 3 messages to avoid spam
-			break
-		}
-		logging.Info("Message details", "sessionID", sessionID, "index", i, "messageID", msg.ID, "role", msg.Role, "hasUserInput", msg.UserInput != "", "hasAssistantResponse", msg.AssistantResponse != "", "toolCallsCount", len(msg.ToolCalls))
-	}
 
 	sendJSONResponse(w, http.StatusOK, result)
 }

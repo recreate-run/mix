@@ -11,18 +11,17 @@ import {
   startOAuthFlow
 } from "@/handlers/login-command-handler";
 
-// Provider info structure 
-interface ProviderInfo {
-  id: string;
-  displayName: string;
-  authMethods: ("api_key" | "oauth")[];
-  authenticated: boolean;
+// Import provider types
+import { ProviderInfo } from "@/types/provider";
+
+// Extended provider info with API key format
+interface LoginProviderInfo extends ProviderInfo {
   apiKeyFormat?: string;
 }
 
 // Login state from command handler
 interface LoginState {
-  providers: ProviderInfo[];
+  providers: LoginProviderInfo[];
   selectedProvider?: string;
   step: "provider_select" | "auth_method" | "api_key" | "oauth_flow" | "oauth_code";
   authUrl?: string;
@@ -276,9 +275,11 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
   
   // OAuth flow screen
   if (step === "oauth_flow") {
-    const provider = loginState.providers.find(p => p.id === selectedProvider);
+    // Use the selected provider
+    const providerIdToUse = selectedProvider;
+    const provider = loginState.providers.find(p => p.id === providerIdToUse);
     if (!provider) {
-      throw new Error(`Provider ${selectedProvider} not found for auth method selection`);
+      throw new Error(`Provider ${providerIdToUse} not found for auth method selection`);
     }
     
     // Check if there's an auth URL in the login state

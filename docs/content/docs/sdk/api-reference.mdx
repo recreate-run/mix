@@ -1,0 +1,240 @@
+---
+title: "API Reference"
+description: "Comprehensive reference for the Mix SDK API endpoints"
+---
+
+# API Reference
+
+The Mix SDK provides access to all API endpoints through a set of modules. Each module contains methods that correspond to specific API operations.
+
+## Available Modules
+
+The SDK is organized into the following modules:
+
+- `sessions` - Session management
+- `messages` - Message handling
+- `auth` - Authentication operations
+- `authentication` - Authentication status
+- `files` - File operations
+- `permissions` - Permission management
+- `preferences` - User preferences
+- `system` - System operations
+
+## Sessions
+
+Methods for managing sessions.
+
+### List Sessions
+
+```typescript
+client.sessions.list(): Promise<Array<SessionData>>
+```
+
+Retrieves a list of all available sessions with their metadata.
+
+### Create Session
+
+```typescript
+client.sessions.create(request: CreateSessionRequest): Promise<SessionData>
+```
+
+Creates a new session with the required title. Each session gets an isolated storage directory.
+
+### Get Session
+
+```typescript
+client.sessions.get(request: GetSessionRequest): Promise<SessionData>
+```
+
+Retrieves detailed information about a specific session.
+
+### Delete Session
+
+```typescript
+client.sessions.delete(request: DeleteSessionRequest): Promise<void>
+```
+
+Permanently deletes a session and all its data.
+
+### Fork Session
+
+```typescript
+client.sessions.fork(request: ForkSessionRequest): Promise<SessionData>
+```
+
+Creates a new session based on an existing session, copying messages up to a specified index.
+
+## Messages
+
+Methods for handling messages within sessions.
+
+### Send Message
+
+```typescript
+client.messages.send(request: SendMessageRequest): Promise<MessageData>
+```
+
+Sends a new message to a session.
+
+### Get Session Messages
+
+```typescript
+client.messages.getSession(request: GetSessionMessagesRequest): Promise<Array<MessageData>>
+```
+
+Retrieves all messages for a specific session.
+
+### Cancel Processing
+
+```typescript
+client.messages.cancelProcessing(request: CancelProcessingRequest): Promise<void>
+```
+
+Cancels the processing of a message.
+
+## System
+
+Methods for system operations.
+
+### List MCP Servers
+
+```typescript
+client.system.listMcpServers(): Promise<Array<MCPServer>>
+```
+
+Lists all available MCP (Model Control Protocol) servers.
+
+## Authentication
+
+Methods for managing authentication.
+
+### Get Status
+
+```typescript
+client.authentication.getStatus(): Promise<AuthenticationStatus>
+```
+
+Gets the current authentication status.
+
+### Store API Key
+
+```typescript
+client.auth.storeApiKey(request: StoreApiKeyRequest): Promise<void>
+```
+
+Stores an API key for a specific provider.
+
+### Delete Credentials
+
+```typescript
+client.auth.deleteCredentials(request: DeleteCredentialsRequest): Promise<void>
+```
+
+Deletes credentials for a specific provider.
+
+### Validate Provider
+
+```typescript
+client.auth.validatePreferredProvider(): Promise<ValidateProviderResponse>
+```
+
+Validates whether the current preferred provider is properly authenticated.
+
+## Permissions
+
+Methods for managing permissions.
+
+### Grant Permission
+
+```typescript
+client.permissions.grant(request: GrantPermissionRequest): Promise<void>
+```
+
+Grants a permission.
+
+### Deny Permission
+
+```typescript
+client.permissions.deny(request: DenyPermissionRequest): Promise<void>
+```
+
+Denies a permission.
+
+## Preferences
+
+Methods for managing user preferences.
+
+### Get Preferences
+
+```typescript
+client.preferences.getPreferences(): Promise<UserPreferencesResponse>
+```
+
+Returns the current user preferences including provider and model settings.
+
+### Update Preferences
+
+```typescript
+client.preferences.updatePreferences(request: UpdatePreferencesRequest): Promise<UserPreferencesResponse>
+```
+
+Updates the user preferences.
+
+### Get Available Providers
+
+```typescript
+client.preferences.getAvailableProviders(): Promise<Record<string, ProviderInfo>>
+```
+
+Returns information about all available providers and their models.
+
+### Reset Preferences
+
+```typescript
+client.preferences.resetPreferences(): Promise<UserPreferencesResponse>
+```
+
+Resets all user preferences to their default values.
+
+## Common Request Types
+
+Most API methods require a request object that follows this pattern:
+
+```typescript
+interface GetSessionRequest {
+  id: string; // The ID of the session to retrieve
+}
+```
+
+```typescript
+interface SendMessageRequest {
+  sessionId: string; // The ID of the session to send the message to
+  content: string; // The message content
+  // Additional options...
+}
+```
+
+## Response Types
+
+API responses are strongly typed:
+
+```typescript
+interface SessionData {
+  id: string;
+  title: string;
+  createdAt: string;
+  // Additional fields...
+}
+```
+
+```typescript
+interface MessageData {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+  // Additional fields...
+}
+```
+
+For detailed information about request and response types, refer to the TypeScript definitions in the SDK.

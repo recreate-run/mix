@@ -36,6 +36,17 @@ export interface UIMessage {
     provider?: string; // Current provider for OAuth flow
     state?: string; // OAuth state parameter
   };
+  loginData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authMethods: ("api_key" | "oauth")[];
+      authenticated: boolean;
+      apiKeyFormat?: string;
+      isPreferred?: boolean;
+    }[];
+    hasExistingPreferences?: boolean;
+  };
   status?: {
     providers: {
       id: string;
@@ -45,6 +56,15 @@ export interface UIMessage {
       isPreferred?: boolean;
     }[];
     hasAuthenticatedProvider: boolean;
+  };
+  statusData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
   };
   provider?: {
     providers: {
@@ -67,6 +87,24 @@ export interface UIMessage {
       id: string;
       displayName: string;
     };
+  };
+  logout?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
+  };
+  logoutData?: {
+    providers: {
+      id: string;
+      displayName: string;
+      authenticated: boolean;
+      authMethod?: 'api_key' | 'oauth';
+      isPreferred?: boolean;
+    }[];
   };
   hierarchicalModel?: HierarchicalModelData;
 }

@@ -8,9 +8,7 @@ async function loadSessionMessages(
   sessionId: string
 ): Promise<BackendMessage[]> {
   try {
-    console.log('Loading messages for session:', sessionId);
     const response = await mix.messages.getSession({ id: sessionId });
-    console.log('Successfully loaded messages:', response);
     return response;
   } catch (error: any) {
     console.error('Failed to load messages:', error);

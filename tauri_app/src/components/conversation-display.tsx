@@ -50,6 +50,7 @@ import { LazyVideoPlayer } from './LazyVideoPlayer';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
 import { LoginUI } from './login-ui';
+import { LogoutUI } from './logout-ui';
 import { StatusUI } from './status-ui';
 import { ProviderDisplay } from './provider-display';
 import { ModelDisplay } from './model-display';
@@ -428,6 +429,13 @@ export function ConversationDisplay({
                         <ErrorBoundary>
                           <LoginUI 
                             loginState={message.login}
+                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                          />
+                        </ErrorBoundary>
+                      ) : message.logout ? (
+                        <ErrorBoundary>
+                          <LogoutUI 
+                            logoutState={message.logout}
                             onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
                           />
                         </ErrorBoundary>

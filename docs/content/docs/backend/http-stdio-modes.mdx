@@ -9,7 +9,7 @@ Mix provides a REST API interface for programmatic integration and automation.
 
 ## HTTP Server Mode
 
-Start Mix as an HTTP server to expose JSON-RPC APIs and media endpoints.
+Start Mix as an HTTP server to expose REST APIs and media endpoints.
 
 ### Quick Start
 
@@ -21,46 +21,109 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 #### Core API Endpoints
 
 | Endpoint | Method | Purpose | Content Type |
-|----------|--------|---------|--------------|
+|----------|--------|---------|--------------| 
 | `/health` | GET | Monitor server status and service health | `application/json` |
+| `/doc` | GET | View OpenAPI documentation | `application/json` |
+| `/stream` | GET | Server-sent events streaming endpoint | `text/event-stream` |
+| `/stream/message` | GET | Message queue endpoint for persistent SSE | `text/event-stream` |
+| `/api/video/export-url` | GET | URL video export endpoint | `application/json` |
+| `/api/file-types` | GET | Get supported file types | `application/json` |
+| `/input/` | GET | Serve input asset files | `*/*` |
+| `/output/` | GET | Serve output asset files | `*/*` |
+| `/api/gsap_animations/` | GET | Get GSAP animations | `application/json` |
+
+#### Sessions API
+
+| Endpoint | Method | Purpose | Content Type |
+|----------|--------|---------|--------------|
 | `/api/sessions` | GET | List all sessions | `application/json` |
 | `/api/sessions` | POST | Create a new session | `application/json` |
 | `/api/sessions/{id}` | GET | Get session details | `application/json` |
+| `/api/sessions/{id}` | DELETE | Delete a session | `application/json` |
+| `/api/sessions/{id}/fork` | POST | Fork an existing session | `application/json` |
+
+#### Messages API
+
+| Endpoint | Method | Purpose | Content Type |
+|----------|--------|---------|--------------|
 | `/api/sessions/{id}/messages` | GET | List session messages | `application/json` |
 | `/api/sessions/{id}/messages` | POST | Send message to session | `application/json` |
-| `/api/auth/login` | POST | OAuth authentication | `application/json` |
-
-### Core Endpoints
-
-#### Sessions API
-Manage chat sessions with stateless REST endpoints. All operations require explicit session IDs.
-
-#### Messages API  
-Send messages and retrieve conversation history from specific sessions.
+| `/api/messages/history` | GET | Get global message history | `application/json` |
+| `/api/sessions/{id}/cancel` | POST | Cancel agent processing | `application/json` |
 
 #### Authentication API
-OAuth-based authentication for secure API access.
 
-#### Health Check
-Monitor server status and dependencies at `/health` endpoint.
+| Endpoint | Method | Purpose | Content Type |
+|----------|--------|---------|--------------|
+| `/api/auth/login` | POST | OAuth authentication | `application/json` |
+| `/api/auth/apikey` | POST | Set API key | `application/json` |
+| `/api/auth/api-key` | POST | Store API key for a specific provider | `application/json` |
+| `/api/auth/{provider}` | DELETE | Delete provider credentials | `application/json` |
+| `/api/auth/status` | GET | Get authentication status | `application/json` |
+| `/api/auth/validate` | GET | Validate preferred provider | `application/json` |
+| `/api/auth/oauth/{provider}` | POST | Start OAuth authentication | `application/json` |
+| `/api/auth/oauth-callback` | POST | Handle OAuth callback | `application/json` |
 
-## Usage Examples
+#### Preferences API
 
-### List Sessions
+| Endpoint | Method | Purpose | Content Type |
+|----------|--------|---------|--------------|
+| `/api/preferences` | GET | Get user preferences | `application/json` |
+| `/api/preferences` | POST | Update user preferences | `application/json` |
+| `/api/preferences/providers` | GET | Get available providers | `application/json` |
+| `/api/preferences/reset` | POST | Reset preferences to defaults | `application/json` |
+
+#### System API
+
+| Endpoint | Method | Purpose | Content Type |
+|----------|--------|---------|--------------|
+| `/api/mcp` | GET | List MCP servers | `application/json` |
+| `/api/commands` | GET | List available commands | `application/json` |
+| `/api/commands/{name}` | GET | Get specific command | `application/json` |
+| `/api/permissions/{id}/grant` | POST | Grant permission | `application/json` |
+| `/api/permissions/{id}/deny` | POST | Deny permission | `application/json` |
+
+### Usage Examples
+
+#### List Sessions
 ```bash
 curl http://localhost:8088/api/sessions
 ```
 
-### Create Session
+#### Create Session
 ```bash
 curl -X POST http://localhost:8088/api/sessions \
   -H "Content-Type: application/json" \
   -d '{"title": "My Session"}'
 ```
 
-### Send Message  
+#### Send Message  
 ```bash
 curl -X POST http://localhost:8088/api/sessions/{id}/messages \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello, Mix!"}'
+```
+
+#### Get User Preferences
+```bash
+curl http://localhost:8088/api/preferences
+```
+
+#### Update Preferences
+```bash
+curl -X POST http://localhost:8088/api/preferences \
+  -H "Content-Type: application/json" \
+  -d '{"preferred_provider": "anthropic", "main_agent_model": "claude-4-sonnet"}'
+```
+
+#### Authenticate with API Key
+```bash
+curl -X POST http://localhost:8088/api/auth/api-key \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "anthropic", "api_key": "sk-ant-YOUR-API-KEY"}'
+```
+
+#### List Available Commands
+```bash
+curl http://localhost:8088/api/commands
 ```
