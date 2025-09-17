@@ -41,7 +41,13 @@ function Footer({
                 <Link href="/docs/backend" className="text-muted-foreground hover:text-primary">Documentation</Link>
               </li>
               <li>
-                <Link href={config.links.github} className="text-muted-foreground hover:text-primary">GitHub</Link>
+                <Link href="/docs/sdk" className="text-muted-foreground hover:text-primary">SDK</Link>
+              </li>
+              <li>
+                <Link href={config.links.github} className="text-muted-foreground hover:text-primary">GitHub (Main)</Link>
+              </li>
+              <li>
+                <Link href={config.links.sdkGithub} className="text-muted-foreground hover:text-primary">GitHub (SDK)</Link>
               </li>
               <li>
                 <Link href="/docs/backend/quickstart" className="text-muted-foreground hover:text-primary">Quickstart</Link>
