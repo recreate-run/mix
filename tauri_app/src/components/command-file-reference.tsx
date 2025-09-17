@@ -1,12 +1,10 @@
-import { readDir } from '@tauri-apps/plugin-fs';
 import {
   AudioLines,
-  FolderIcon,
   ImageIcon,
   NotebookPen,
   VideoIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Command,
   CommandEmpty,
@@ -19,12 +17,9 @@ import type { useFileReference } from '@/hooks/useFileReference';
 import { useFileTypes } from '@/hooks/useFileTypes';
 import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { filterAndSortEntries } from '@/utils/attachmentUtils';
 import { getFileType, type SupportedFileTypes } from '@/utils/fileTypes';
 import { generatePreviewUrl } from '@/utils/assetServer';
 import { AppIcon } from './app-icon';
-
-const RECURSIVE_SEARCH_DEPTH = 3;
 
 interface CommandFileReferenceProps {
   fileRef: ReturnType<typeof useFileReference>;
@@ -132,88 +127,22 @@ export function CommandFileReference({
     addReference(displayReference, `app:${app.name}`);
     onTextUpdate?.(newText);
   };
+
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [allFiles, setAllFiles] = useState<Attachment[]>([]);
-  const [isLoadingAllFiles, setIsLoadingAllFiles] = useState(false);
-  const commandRef = useRef<HTMLDivElement>(null);
 
-  // Recursive fetch function - loads all files upfront
-  const recursiveFetch = useCallback(
-    async (basePath: string, depth = 0): Promise<Attachment[]> => {
-      if (depth >= RECURSIVE_SEARCH_DEPTH) {
-        return [];
-      }
-
-      try {
-        const entries = await readDir(basePath);
-        const fileEntries = filterAndSortEntries(entries, basePath, supportedFileTypes);
-        const results: Attachment[] = [];
-
-        // Add all files/folders from current directory
-        results.push(...fileEntries);
-
-        // Recursively fetch subdirectories
-        const directoryEntries = fileEntries.filter((file) => file.isDirectory);
-        const recursivePromises = directoryEntries.map(async (dir) => {
-          try {
-            return await recursiveFetch(dir.path || '', depth + 1);
-          } catch (error) {
-            // Skip directories we can't access
-            return [];
-          }
-        });
-
-        const recursiveResults = await Promise.all(recursivePromises);
-        recursiveResults.forEach((result) => results.push(...result));
-
-        return results;
-      } catch (error) {
-        console.error('Error in recursive fetch:', error);
-        return [];
-      }
-    },
-    []
-  );
-
-  // Load all files recursively on component mount
-  useEffect(() => {
-    const loadAllFiles = async () => {
-      const basePath =
-        fileRef.currentFolder ||
-        (fileRef.files.length > 0
-          ? fileRef.files[0].path?.split('/').slice(0, -1).join('/')
-          : '');
-      if (!basePath) {
-        return;
-      }
-
-      setIsLoadingAllFiles(true);
-      try {
-        const allFileResults = await recursiveFetch(basePath);
-        setAllFiles(allFileResults);
-      } catch (error) {
-        console.error('Failed to load all files:', error);
-      } finally {
-        setIsLoadingAllFiles(false);
-      }
-    };
-
-    loadAllFiles();
-  }, [fileRef.currentFolder, fileRef.files, recursiveFetch]);
-
-  // Filter files based on search query - client-side filtering of preloaded files
+  // Filter files based on search query
   const filteredFiles = searchQuery.trim()
-    ? allFiles.filter((file) =>
-      file.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    ? fileRef.files.filter((file) =>
+        file.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     : fileRef.files;
 
   // Filter apps based on search query
   const filteredApps = searchQuery.trim()
     ? apps.filter((app) =>
-      app.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+        app.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     : apps;
 
   const handleSelect = (value: string) => {
@@ -223,10 +152,7 @@ export function CommandFileReference({
 
     if (value.startsWith('file:')) {
       const fileName = value.substring(5);
-      // Look in both current files and all files for the selection
-      const file =
-        filteredFiles.find((f) => f.name === fileName) ||
-        fileRef.files.find((f) => f.name === fileName);
+      const file = filteredFiles.find((f) => f.name === fileName);
       if (file) {
         fileRef.selectFile(file);
       }
@@ -240,19 +166,7 @@ export function CommandFileReference({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft' && fileRef.currentFolder && fileRef.goBack) {
-      e.preventDefault();
-      fileRef.goBack();
-    } else if (e.key === 'ArrowRight') {
-      if (selectedValue.startsWith('file:')) {
-        const fileName = selectedValue.substring(5);
-        const selectedFile = filteredFiles.find((f) => f.name === fileName);
-        if (selectedFile?.isDirectory && fileRef.enterSelectedFolder) {
-          e.preventDefault();
-          fileRef.enterSelectedFolder(selectedFile);
-        }
-      }
-    } else if (e.key === 'Escape' && onClose) {
+    if (e.key === 'Escape' && onClose) {
       e.preventDefault();
       onClose();
     }
@@ -264,34 +178,25 @@ export function CommandFileReference({
         className="max-h-64"
         onKeyDown={handleKeyDown}
         onValueChange={setSelectedValue}
-        ref={commandRef}
         value={selectedValue}
       >
         <CommandInput
           autoFocus
           onValueChange={setSearchQuery}
-          placeholder="Search files and folders..."
+          placeholder="Search session files..."
           value={searchQuery}
         />
 
         <CommandList>
-          {fileRef.isLoadingFolder || isLoadingAllFiles ? (
+          {fileRef.isLoadingFolder ? (
             <div className="px-3 py-2 text-muted-foreground text-xs">
-              {isLoadingAllFiles
-                ? 'Loading all files...'
-                : 'Loading folder contents...'}
+              Loading session files...
             </div>
           ) : filteredFiles.length || filteredApps.length ? (
             <>
-              {/* Files & Folders Section */}
+              {/* Session Files Section */}
               {filteredFiles.length > 0 && (
-                <CommandGroup
-                  heading={
-                    fileRef.currentFolder
-                      ? 'Files & Folders'
-                      : 'Media & Folders'
-                  }
-                >
+                <CommandGroup heading="Session Files">
                   {filteredFiles.map((file) => {
                     const fileType = getFileType(file.name);
                     const typeLabel = fileType
@@ -300,25 +205,20 @@ export function CommandFileReference({
 
                     return (
                       <CommandItem
-                        key={file.path}
+                        key={file.id}
                         onSelect={() => handleSelect(`file:${file.name}`)}
                         value={`file:${file.name}`}
                       >
-                        {file.isDirectory ? (
-                          <FolderIcon className="size-4 text-blue-500" />
-                        ) : (
-                          <MediaThumbnail 
-                            file={file} 
-                            sessionId={sessionId}
-                            supportedFileTypes={supportedFileTypes}
-                          />
-                        )}
+                        <MediaThumbnail 
+                          file={file} 
+                          sessionId={sessionId}
+                          supportedFileTypes={supportedFileTypes}
+                        />
                         <div className="flex-1">
                           <div className="font-medium text-sm">{file.name}</div>
                           {file.extension && (
                             <div className="text-muted-foreground text-xs">
-                              {file.isDirectory ? 'Folder' : typeLabel} • .
-                              {file.extension}
+                              {typeLabel} • .{file.extension}
                             </div>
                           )}
                         </div>
@@ -359,20 +259,16 @@ export function CommandFileReference({
             <CommandEmpty>
               {searchQuery
                 ? 'No files or apps match your search'
-                : fileRef.currentFolder
-                  ? 'No files found in folder'
-                  : 'No files or apps found'}
+                : 'No session files found'}
             </CommandEmpty>
           )}
         </CommandList>
 
-        {/* Bottom Toolbar - Raycast Style */}
+        {/* Bottom Toolbar - Simplified */}
         <div className="flex h-6 items-center justify-between border-gray-200/50 border-t bg-gray-50/80 px-3 py-1 text-xs dark:border-gray-700/50 dark:bg-gray-800/80">
-          {/* Left side - Selection context */}
+          {/* Left side - Context */}
           <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-            {fileRef.currentFolder && (
-              <span className="font-medium">{fileRef.currentFolder}</span>
-            )}
+            <span className="font-medium">Session Files</span>
           </div>
 
           {/* Right side - Keyboard shortcuts */}
@@ -383,35 +279,6 @@ export function CommandFileReference({
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">select</span>
             </div>
-
-            {selectedValue.startsWith('file:') &&
-              (() => {
-                const fileName = selectedValue.substring(5);
-                const selectedFile = filteredFiles.find(
-                  (f) => f.name === fileName
-                );
-                return (
-                  selectedFile?.isDirectory && (
-                    <div className="flex items-center gap-0.5">
-                      <kbd className="rounded border border-gray-300 bg-white px-1 py-0 font-mono text-gray-600 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        →
-                      </kbd>
-                      <span className="text-gray-500 dark:text-gray-400">
-                        open
-                      </span>
-                    </div>
-                  )
-                );
-              })()}
-
-            {fileRef.currentFolder && (
-              <div className="flex items-center gap-0.5">
-                <kbd className="rounded border border-gray-300 bg-white px-1 py-0 font-mono text-gray-600 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                  ←
-                </kbd>
-                <span className="text-gray-500 dark:text-gray-400">back</span>
-              </div>
-            )}
 
             {onClose && (
               <div className="flex items-center gap-0.5">

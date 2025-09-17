@@ -48,6 +48,7 @@ import { AttachmentPreview } from './attachment-preview';
 import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
+import { FileUploadButton } from './file-upload-button';
 import { PermissionDialog } from './permission-dialog';
 import { handleStatusCommand } from '@/handlers/status-command-handler';
 import { handleLoginCommand } from '@/handlers/login-command-handler';
@@ -87,7 +88,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // UI Interaction Mode 2: Command Palette (full modal triggered by "/" alone)
   const [showCommands, setShowCommands] = useState(false);
-  
+
   // Hierarchical model data for CMDK
   const [hierarchicalModelData, setHierarchicalModelData] = useState<HierarchicalModelData | undefined>(undefined);
 
@@ -209,10 +210,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           from: "user",
         },
       ]);
-      
+
       // Execute the enhanced status command handler with UI
       const statusResult = await handleStatusCommand();
-      
+
       // Add response message returned by the handler
       setMessages((prev) => [
         ...prev,
@@ -230,7 +231,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
-  
+
   // Handle the login command with our SDK implementation
   const handleLoginCommandSpecial = async () => {
     try {
@@ -242,10 +243,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           from: "user",
         },
       ]);
-      
+
       // Execute the login command handler
       const loginResult = await handleLoginCommand();
-      
+
       // Add response message returned by the handler
       setMessages((prev) => [
         ...prev,
@@ -269,7 +270,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     try {
       // Execute the unified model command handler to get data
       const modelData = await handleUnifiedModelCommand();
-      
+
       // If there's an error (no hierarchicalModel), show the error message
       if (!modelData.hierarchicalModel) {
         setMessages((prev) => [
@@ -282,7 +283,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         ]);
         return;
       }
-      
+
       // Add user message to show that the command was executed
       setMessages((prev) => [
         ...prev,
@@ -291,7 +292,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           from: "user",
         },
       ]);
-      
+
       // Set hierarchical model data and show commands (CMDK will detect the data and show hierarchical view)
       setHierarchicalModelData({
         providers: modelData.hierarchicalModel.providers,
@@ -299,7 +300,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         currentModel: modelData.hierarchicalModel.currentModel
       });
       setShowCommands(true);
-      
+
     } catch (error) {
       console.error('Unified model command failed:', error);
       setMessages((prev) => [
@@ -343,11 +344,11 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const handleModelSelectionSpecial = async (providerId: string, modelId: string) => {
     try {
       const result = await handleModelSelectionInHierarchy(providerId, modelId);
-      
+
       // Close CMDK and clear hierarchical data
       setShowCommands(false);
       setHierarchicalModelData(undefined);
-      
+
       // Add success message
       setMessages((prev) => [
         ...prev,
@@ -368,7 +369,31 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
-  
+
+  // Handle file upload success
+  const handleFileUploadSuccess = (fileName: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        content: `File uploaded successfully: ${fileName}`,
+        from: "assistant",
+        frontend_only: true,
+      },
+    ]);
+  };
+
+  // Handle file upload error
+  const handleFileUploadError = (error: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        content: `File upload failed: ${error}`,
+        from: "assistant",
+        frontend_only: true,
+      },
+    ]);
+  };
+
   // Initialize new hooks
   const historyNavigation = useMessageHistoryNavigation({
     text,
@@ -403,19 +428,19 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle paste events to detect video URLs
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pastedText = e.clipboardData.getData('text');
-    
+
     // Only process if pasted content might contain URLs
     if (pastedText.includes('http') || pastedText.includes('youtu') || pastedText.includes('vimeo')) {
       const textarea = e.currentTarget;
       const selectionStart = textarea.selectionStart;
       const selectionEnd = textarea.selectionEnd;
       const currentText = text; // Use React state for reliability
-      
+
       // Calculate what the text will be after paste operation
-      const finalText = currentText.substring(0, selectionStart) + 
-                       pastedText + 
-                       currentText.substring(selectionEnd);
-      
+      const finalText = currentText.substring(0, selectionStart) +
+        pastedText +
+        currentText.substring(selectionEnd);
+
       // Use setTimeout to avoid blocking the paste operation
       setTimeout(() => {
         useBoundStore.getState().addUrlAttachments(finalText);
@@ -494,19 +519,19 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           handleStatusCommandSpecial();
           return;
         }
-        
+
         if (command === 'login') {
           // Handle login command using our SDK implementation
           handleLoginCommandSpecial();
           return;
         }
-        
+
         if (command === 'model') {
           // Handle unified model command using our SDK implementation
           handleUnifiedModelCommandSpecial();
           return;
         }
-        
+
         submitMessage(`/${command}`);
         break;
       }
@@ -685,7 +710,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
       };
       await sseStream.sendMessage(JSON.stringify(messageData));
-      
+
       // Invalidate message history cache to ensure fresh data on next navigation
       invalidateMessageHistoryCache(queryClient);
     } catch (error) {
@@ -837,7 +862,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               </div>
             </div>
           )}
-          
+
           {/* Conversation Display */}
           <ConversationDisplay
             messages={messages}
@@ -893,7 +918,18 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             />
             <AIInputToolbar>
               <AIInputTools>
-                <div className="absolute bottom-1 left-1">
+                <div className="absolute bottom-1 left-1 flex">
+
+                  {/* File Upload Button */}
+                  {session?.id && (
+                    <FileUploadButton
+                      sessionId={session.id}
+                      onUploadSuccess={handleFileUploadSuccess}
+                      onUploadError={handleFileUploadError}
+                      className="ml-1"
+                    />
+                  )}
+
                   <Select
                     onValueChange={(value) => setIsPlanMode(value === 'plan')}
                     value={isPlanMode ? 'plan' : 'edit'}
@@ -909,7 +945,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                       <SelectItem value="plan">plan</SelectItem>
                     </SelectContent>
                   </Select>
+
+
+
                 </div>
+
+
               </AIInputTools>
               <AIInputSubmit
                 disabled={isSubmitDisabled}
