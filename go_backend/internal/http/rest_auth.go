@@ -490,8 +490,8 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 		displayName   string
 		supportsOAuth bool
 	}{
-		{"anthropic", models.ProviderAnthropic, "Anthropic (Claude)", true},
-		{"openai", models.ProviderOpenAI, "OpenAI (GPT)", false},
+		{"anthropic", models.ProviderAnthropic, "Anthropic", true},
+		{"openai", models.ProviderOpenAI, "OpenAI", false},
 		{"openrouter", models.ProviderOpenRouter, "OpenRouter", false},
 	}
 

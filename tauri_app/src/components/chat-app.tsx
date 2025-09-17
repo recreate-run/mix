@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   type FormEventHandler,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -469,17 +468,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
-  
+
   // Handle provider selection in logout view
   const handleLogoutProviderSelectionSpecial = async (providerId: string) => {
     try {
       // Call logoutProvider to log out from the selected provider
       const result = await logoutProvider(providerId);
-      
+
       // Close CMDK and clear logout data
       setShowCommands(false);
       setLogoutData(undefined);
-      
+
       // Add success message
       setMessages((prev) => [
         ...prev,
@@ -500,17 +499,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
-  
+
   // Handle provider selection in status view
   const handleStatusProviderSelectionSpecial = async (providerId: string) => {
     try {
       // Call handleProviderSelection to initiate login for the selected provider
       const result = await handleProviderSelection(providerId);
-      
+
       // Close CMDK and clear status data
       setShowCommands(false);
       setStatusData(undefined);
-      
+
       // Add provider selection result message
       setMessages((prev) => [
         ...prev,
@@ -531,22 +530,22 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
-  
+
   // Handle login provider and auth method selection
   const handleLoginProviderSelectionSpecial = async (providerId: string, authMethod: "api_key" | "oauth") => {
     try {
       // For API Key method, we keep the command menu open
       // The actual API key entry will be handled in the CommandSlash component
-      
+
       // For OAuth flow, we need to start it here
       if (authMethod === "oauth") {
         try {
           // Start OAuth flow using the SDK
           const result = await startOAuthFlow(providerId);
-          
+
           // Keep command menu open and update loginData
           // The CommandSlash component will handle the UI
-          
+
           // Store OAuth state if provided
           if (result.login?.state) {
             // Update loginData with the state parameter
@@ -555,7 +554,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               oauthState: result.login?.state
             } : undefined);
           }
-          
+
           // If there was an error in the result, show it
           if (result.content.startsWith("❌")) {
             setMessages((prev) => [
@@ -572,24 +571,24 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                 frontend_only: true,
               }
             ]);
-            
+
             // Try to open the auth URL if available
             if (result.login?.authUrl) {
               try {
                 // Import shell plugin on demand
                 const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
-                
+
                 // Use Tauri's shell plugin to open the URL in the default browser
                 await shellOpen(result.login.authUrl);
               } catch (shellError) {
                 console.error('Error opening with Tauri shell:', shellError);
-                
+
                 // Fallback to regular window.open if Tauri shell fails
                 try {
                   window.open(result.login.authUrl, '_blank', 'noopener,noreferrer');
                 } catch (windowOpenError) {
                   console.error('All browser open methods failed:', windowOpenError);
-                  
+
                   // Show a message to the user about manually opening the URL
                   setMessages((prev) => [
                     ...prev,
@@ -629,47 +628,47 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     }
   };
-  
+
   // Handle API key submission from command menu
   const handleApiKeySubmitSpecial = async (providerId: string, apiKey: string) => {
     try {
       // Authenticate with the SDK
       const result = await authenticateWithApiKey(providerId, apiKey);
-      
+
       // Close command menu after authentication
       setShowCommands(false);
       setLoginData(undefined);
-      
+
       // Add success/error message
       setMessages((prev) => [
         ...prev,
         result
       ]);
-      
+
     } catch (error) {
       console.error('API key authentication failed:', error);
       // Let the CommandSlash component handle the error, since it manages the API key input
       throw error;
     }
   };
-  
+
   // Handle OAuth code submission from command menu
   const handleOAuthCodeSubmitSpecial = async (providerId: string, code: string) => {
     try {
       // Process the OAuth code with the SDK - use the stored state parameter if available
       const oauthState = loginData?.oauthState || '';
       const result = await handleOAuthCallback(providerId, code, oauthState);
-      
+
       // Close command menu after authentication
       setShowCommands(false);
       setLoginData(undefined);
-      
+
       // Add success/error message
       setMessages((prev) => [
         ...prev,
         result
       ]);
-      
+
     } catch (error) {
       console.error('OAuth code processing failed:', error);
       // Let the CommandSlash component handle the error
@@ -683,10 +682,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     const displayReference = `@${fileName}`;
     const newText = text ? `${text} ${displayReference} ` : `${displayReference} `;
     setText(newText);
-    
+
     // Add reference mapping (same as "@" menu)
     useBoundStore.getState().addReference(displayReference, fileName);
-    
+
     setMessages((prev) => [
       ...prev,
       {

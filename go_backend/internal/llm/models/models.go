@@ -68,13 +68,13 @@ func GetProviders() map[ModelProvider]ProviderInfo {
 		displayName := string(provider)
 		switch provider {
 		case ProviderAnthropic:
-			displayName = "Anthropic (Claude)"
+			displayName = "Anthropic"
 		case ProviderOpenAI:
-			displayName = "OpenAI (GPT)"
+			displayName = "OpenAI"
 		case ProviderGemini:
-			displayName = "Google Gemini"
+			displayName = "Gemini"
 		case ProviderGROQ:
-			displayName = "GROQ"
+			displayName = "Groq"
 		case ProviderOpenRouter:
 			displayName = "OpenRouter"
 		case ProviderBedrock:
