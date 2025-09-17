@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
+	"unicode"
 
 	"mix/internal/app"
 	"mix/internal/storage"
@@ -12,10 +14,11 @@ import (
 
 // FileInfo represents information about a file in session storage
 type FileInfo struct {
-	Name     string `json:"name"`
-	Size     int64  `json:"size"`
-	Modified int64  `json:"modified"` // Unix timestamp
-	IsDir    bool   `json:"isDir"`
+	Name         string  `json:"name"`         // The stored filename (sanitized)
+	OriginalName *string `json:"originalName,omitempty"` // The original filename if different from stored name
+	Size         int64   `json:"size"`
+	Modified     int64   `json:"modified"` // Unix timestamp
+	IsDir        bool    `json:"isDir"`
 }
 
 // FileHandler handles REST endpoints for session file operations
@@ -30,6 +33,24 @@ func NewFileHandler(app *app.App, storageConfig storage.Config) *FileHandler {
 		app:           app,
 		storageConfig: storageConfig,
 	}
+}
+
+// sanitizeFilename removes spaces and other problematic characters from filenames
+func sanitizeFilename(filename string) string {
+	// Use unicode.IsSpace to catch ALL Unicode whitespace characters
+	// This includes U+202F (narrow no-break space) used in macOS screenshots
+	var result []rune
+	for _, r := range filename {
+		if unicode.IsSpace(r) {
+			result = append(result, '_')
+		} else {
+			result = append(result, r)
+		}
+	}
+	
+	// Collapse multiple consecutive underscores into a single underscore
+	sanitized := regexp.MustCompile(`_+`).ReplaceAllString(string(result), "_")
+	return sanitized
 }
 
 // HandleUploadFile handles POST /api/sessions/{id}/files/upload
@@ -77,8 +98,9 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Get filename from upload
-	filename := header.Filename
+	// Get filename from upload and sanitize it
+	originalFilename := header.Filename
+	filename := sanitizeFilename(originalFilename)
 	
 	// Use os.Root for secure file operations - prevents path traversal
 	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
@@ -115,6 +137,11 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		Size:     fileInfo.Size(),
 		Modified: fileInfo.ModTime().Unix(),
 		IsDir:    fileInfo.IsDir(),
+	}
+	
+	// Include original filename if it was different from stored name
+	if originalFilename != filename {
+		result.OriginalName = &originalFilename
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)
