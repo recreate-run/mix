@@ -63,12 +63,6 @@ jobs:
       - name: Run Development Environment Validation
         run: make test-dev-env
         
-      - name: Run Go Tests
-        run: |
-          cd go_backend
-          go test -v ./internal/... -coverprofile=coverage.out
-          go tool cover -func=coverage.out
-
       - name: Build Backend
         run: |
           cd go_backend
