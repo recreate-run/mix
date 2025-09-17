@@ -30,12 +30,6 @@ export const slashCommands: SlashCommand[] = [
     icon: Clock,
   },
   {
-    id: 'context',
-    name: 'context',
-    description: 'Show context usage breakdown',
-    icon: Command,
-  },
-  {
     id: 'help',
     name: 'help',
     description: 'Get assistance and guidance',

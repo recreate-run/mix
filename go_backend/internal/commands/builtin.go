@@ -16,24 +16,6 @@ import (
 	"mix/internal/llm/tools"
 )
 
-// ContextResponse represents the JSON response for the /context command
-type ContextResponse struct {
-	Model          string               `json:"model"`
-	MaxTokens      int64                `json:"maxTokens"`
-	TotalTokens    int64                `json:"totalTokens"`
-	UsagePercent   float64              `json:"usagePercent"`
-	Components     []ComponentBreakdown `json:"components"`
-	WarningLevel   string               `json:"warningLevel,omitempty"`
-	WarningMessage string               `json:"warningMessage,omitempty"`
-}
-
-// ComponentBreakdown represents individual context component usage
-type ComponentBreakdown struct {
-	Name       string  `json:"name"`
-	Tokens     int64   `json:"tokens"`
-	Percentage float64 `json:"percentage"`
-	IsTotal    bool    `json:"isTotal,omitempty"`
-}
 
 // HelpResponse represents the JSON response for the /help command
 type HelpResponse struct {
@@ -227,11 +209,6 @@ func GetBuiltinCommands(registry *Registry, app *app.App) map[string]Command {
 			name:        "mcp",
 			description: "List configured MCP servers",
 			handler:     createMcpHandler(),
-		},
-		"context": &BuiltinCommand{
-			name:        "context",
-			description: "Show context usage breakdown with percentages",
-			handler:     createContextHandler(app),
 		},
 		"login": &BuiltinCommand{
 			name:        "login",
@@ -447,11 +424,6 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 	}
 }
 
-func createContextHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
-	return func(ctx context.Context, args string) (string, error) {
-		return returnMessage("context", "Context command requires session ID: /context <session-id>. Use /sessions to list available sessions.")
-	}
-}
 
 // Authentication command handlers
 
