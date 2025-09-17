@@ -190,8 +190,8 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if req.MessageIndex <= 0 {
-		sendValidationError(w, "messageIndex", "message index must be > 0")
+	if req.MessageIndex < 0 {
+		sendValidationError(w, "messageIndex", "message index must be >= 0")
 		return
 	}
 

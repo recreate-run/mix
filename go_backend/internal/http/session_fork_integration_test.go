@@ -331,9 +331,9 @@ func TestSessionForkErrorHandling(t *testing.T) {
 			errorType:   "internal_error",
 		},
 		{
-			name: "zero message index",
+			name: "negative message index",
 			request: ForkSessionRequest{
-				MessageIndex:    int64(0),
+				MessageIndex:    int64(-1),
 			},
 			expectError: true,
 			statusCode:  400,
@@ -432,4 +432,48 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 
 	// Should copy exactly 5 messages
 	validateForkResult(t, app, sourceSessionID, forkedSessionID, 5)
+}
+
+func TestSessionForkWithZeroMessages(t *testing.T) {
+	app, sourceSessionID := setupTestServerForFork(t)
+
+	// Create test messages
+	createTestMessages(t, app, sourceSessionID, 2) // Creates 4 messages
+
+	// Create REST handler and test server
+	sessionHandler := NewSessionHandler(app)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Test forking at message index 0 (should copy 0 messages, empty session)
+	forkParams := ForkSessionRequest{
+		MessageIndex:    int64(0),
+		Title:          "Empty Fork Test",
+	}
+
+	paramsJSON, err := json.Marshal(forkParams)
+	if err != nil {
+		t.Fatalf("Failed to marshal fork params: %v", err)
+	}
+
+	// Make REST API call
+	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to make fork request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Validate response and extract session data (flattened response)
+	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)
+
+	forkedSessionID, ok := sessionDataMap["id"].(string)
+	if !ok {
+		t.Fatalf("Expected session ID in response data")
+	}
+
+	// Should copy exactly 0 messages (empty session)
+	validateForkResult(t, app, sourceSessionID, forkedSessionID, 0)
 }
