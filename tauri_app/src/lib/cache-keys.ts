@@ -4,4 +4,5 @@ export const CACHE_KEYS = {
   sessionMessages: (id: string) => ['sessions', 'messages', id] as const,
   sessionFiles: (id: string) => ['sessions', 'files', id] as const,
   messageHistory: ['messageHistory'] as const,
+  preferences: ['preferences'] as const,
 } as const;

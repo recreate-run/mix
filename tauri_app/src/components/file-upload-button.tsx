@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useBoundStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { getFileTypeFromExtension, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, AUDIO_EXTENSIONS } from '@/utils/fileTypes';
 
 interface FileUploadButtonProps {
   sessionId: string;
@@ -34,15 +35,15 @@ export function FileUploadButton({
           },
           {
             name: 'Images',
-            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff']
+            extensions: [...IMAGE_EXTENSIONS]
           },
           {
             name: 'Videos',
-            extensions: ['mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v']
+            extensions: [...VIDEO_EXTENSIONS]
           },
           {
             name: 'Audio',
-            extensions: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg']
+            extensions: [...AUDIO_EXTENSIONS]
           },
           {
             name: 'Documents',
@@ -81,7 +82,7 @@ export function FileUploadButton({
           addAttachment({
             id: `file:${result.name}`,
             name: result.name,
-            type: getAttachmentType(result.name),
+            type: getFileTypeFromExtension(result.name),
             path: `/api/sessions/${sessionId}/files/${result.name}`,
             extension: result.name.split('.').pop(),
             isDirectory: false,
@@ -125,29 +126,6 @@ export function FileUploadButton({
       )}
     </Button>
   );
-}
-
-// Helper function to determine attachment type from file extension
-function getAttachmentType(fileName: string): 'image' | 'video' | 'audio' | 'text' | 'folder' | 'app' {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  
-  // Image files
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff'].includes(extension || '')) {
-    return 'image';
-  }
-  
-  // Video files
-  if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v'].includes(extension || '')) {
-    return 'video';
-  }
-  
-  // Audio files
-  if (['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(extension || '')) {
-    return 'audio';
-  }
-  
-  // Default to text for all other files (documents, code, etc.)
-  return 'text';
 }
 
 // Helper function to determine MIME type from file extension

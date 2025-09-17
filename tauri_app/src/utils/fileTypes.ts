@@ -13,8 +13,27 @@ export interface SupportedFileTypes {
 
 export type FileType = 'image' | 'video' | 'audio' | 'text';
 
-// Text extensions are still frontend-only for now
-const TEXT_EXTENSIONS = ['md', 'txt'] as const;
+// Static extension arrays - single source of truth
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff'] as const;
+export const VIDEO_EXTENSIONS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v'] as const;
+export const AUDIO_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'] as const;
+export const TEXT_EXTENSIONS = ['md', 'txt'] as const;
+
+/**
+ * Simple file type detection based on extension only (no backend dependency)
+ * Use this when supportedTypes data isn't available yet
+ */
+export function getFileTypeFromExtension(fileName: string): FileType {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  if (!extension) return 'text';
+
+  if (IMAGE_EXTENSIONS.includes(extension as any)) return 'image';
+  if (VIDEO_EXTENSIONS.includes(extension as any)) return 'video';
+  if (AUDIO_EXTENSIONS.includes(extension as any)) return 'audio';
+  if (TEXT_EXTENSIONS.includes(extension as any)) return 'text';
+  
+  return 'text'; // Default fallback
+}
 
 export function getFileType(fileName: string, supportedTypes?: SupportedFileTypes): FileType | null {
   const extension = '.' + fileName.split('.').pop()?.toLowerCase();
@@ -24,8 +43,10 @@ export function getFileType(fileName: string, supportedTypes?: SupportedFileType
   const textExt = fileName.split('.').pop()?.toLowerCase();
   if (textExt && TEXT_EXTENSIONS.includes(textExt as any)) return 'text';
 
-  // Return null if no supported types provided (loading state)
-  if (!supportedTypes) return null;
+  // If no supported types provided, use fallback detection
+  if (!supportedTypes) {
+    return getFileTypeFromExtension(fileName);
+  }
 
   if (supportedTypes.image.extensions.includes(extension)) return 'image';
   if (supportedTypes.video.extensions.includes(extension)) return 'video';  

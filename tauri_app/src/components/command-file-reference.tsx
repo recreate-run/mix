@@ -17,7 +17,7 @@ import type { useFileReference } from '@/hooks/useFileReference';
 import { useFileTypes } from '@/hooks/useFileTypes';
 import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { getFileType, type SupportedFileTypes } from '@/utils/fileTypes';
+import { getFileType, getFileTypeFromExtension, type SupportedFileTypes } from '@/utils/fileTypes';
 import { generatePreviewUrl } from '@/utils/assetServer';
 import { AppIcon } from './app-icon';
 
@@ -40,9 +40,24 @@ const MediaThumbnail = ({
   sessionId: string; 
   supportedFileTypes?: SupportedFileTypes;
 }) => {
-  const fileType = getFileType(file.name, supportedFileTypes);
+  // Safety checks
+  if (!file || !file.name || !sessionId) {
+    console.error('MediaThumbnail: Missing required props', { file, sessionId });
+    return <ImageIcon className="size-4 text-red-500" />;
+  }
 
-  const previewUrl = generatePreviewUrl({ path: file.path, type: fileType || 'text' }, sessionId);
+  const fileType = getFileType(file.name, supportedFileTypes) || getFileTypeFromExtension(file.name);
+
+  const previewUrl = generatePreviewUrl({ path: file.name, type: fileType }, sessionId);
+  
+  // Log errors if generatePreviewUrl failed for media files
+  if (!previewUrl && (fileType === 'image' || fileType === 'video')) {
+    console.error('❌ Preview URL generation failed for media file:', {
+      name: file.name,
+      type: fileType,
+      sessionId
+    });
+  }
 
   if (fileType === 'image') {
     if (!previewUrl) {
@@ -55,6 +70,7 @@ const MediaThumbnail = ({
           alt={file.name}
           className="size-10 rounded-xs object-cover"
           onError={(e) => {
+            console.error('Failed to load image thumbnail:', previewUrl);
             e.currentTarget.style.display = 'none';
             const fallback = e.currentTarget.nextElementSibling as HTMLElement;
             if (fallback) fallback.style.display = 'block';
@@ -80,6 +96,7 @@ const MediaThumbnail = ({
           alt={`${file.name} thumbnail`}
           className="size-10 aspect-auto rounded-xs object-cover"
           onError={(e) => {
+            console.error('Failed to load video thumbnail:', previewUrl);
             e.currentTarget.style.display = 'none';
             const fallback = e.currentTarget.nextElementSibling as HTMLElement;
             if (fallback) fallback.style.display = 'block';

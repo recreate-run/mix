@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import type { Attachment } from '@/stores/attachmentSlice';
+import { getFileTypeFromExtension } from '@/utils/fileTypes';
 
 interface FileInfo {
   name: string;
@@ -14,18 +15,8 @@ interface FileInfo {
 const transformFileInfoToAttachment = (fileInfo: FileInfo): Attachment => {
   const extension = fileInfo.name.split('.').pop()?.toLowerCase();
   
-  // Determine attachment type based on file extension
-  let type: Attachment['type'] = 'text';
-  
-  if (fileInfo.isDir) {
-    type = 'folder';
-  } else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff'].includes(extension || '')) {
-    type = 'image';
-  } else if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v'].includes(extension || '')) {
-    type = 'video';
-  } else if (['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(extension || '')) {
-    type = 'audio';
-  }
+  // Determine attachment type - handle folders first, then use centralized detection
+  const type: Attachment['type'] = fileInfo.isDir ? 'folder' : getFileTypeFromExtension(fileInfo.name);
 
   return {
     id: `session-file:${fileInfo.name}`,

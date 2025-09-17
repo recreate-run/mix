@@ -28,6 +28,7 @@ import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
 import { useActiveSession, useCreateSession } from '@/hooks/useSession';
 import { useSessionMessages } from '@/hooks/useSessionMessages';
+import { usePreferences, formatCurrentModel } from '@/hooks/usePreferences';
 import { useBoundStore } from '@/stores';
 import {
   type Attachment,
@@ -164,6 +165,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const createSession = useCreateSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: preferences } = usePreferences();
 
   // Handle session changes: fork text loading and UI state clearing
   useEffect(() => {
@@ -1280,6 +1282,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
                 </div>
 
+                {/* Current Model Display */}
+                <div className="absolute bottom-1 right-14 text-xs text-muted-foreground">
+                  {formatCurrentModel(preferences)}
+                </div>
 
               </AIInputTools>
               <AIInputSubmit
