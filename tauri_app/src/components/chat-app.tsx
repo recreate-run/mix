@@ -24,7 +24,7 @@ import {
 import { useFileReference } from '@/hooks/useFileReference';
 import { useForkSession } from '@/hooks/useForkSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
-import { useAppList } from '@/hooks/useOpenApps';
+// import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
 import { useActiveSession, useCreateSession } from '@/hooks/useSession';
 import { useSessionMessages } from '@/hooks/useSessionMessages';
@@ -160,7 +160,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     useActiveSession(sessionId);
   const sessionMessages = useSessionMessages(sessionId);
   const sseStream = usePersistentSSE(session?.id || '');
-  const { apps: openApps } = useAppList();
+  // const { apps: openApps } = useAppList();
   const forkSession = useForkSession();
   const createSession = useCreateSession();
   const navigate = useNavigate();
@@ -211,30 +211,31 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   }, [sessionMessages.data, sessionMessages.error, sessionMessages.isLoading, sessionId]);
 
-  // Transform open apps to Attachment format and filter allowed apps
-  const allowedApps = [
-    'Notes',
-    'Obsidian',
-    'Blender',
-    'Pixelmator Pro',
-    'Final Cut Pro',
-  ];
-  const availableApps = useMemo(() => {
-    return openApps
-      .filter((app) =>
-        allowedApps.some((allowed) =>
-          app.name.toLowerCase().includes(allowed.toLowerCase())
-        )
-      )
-      .map((app) => ({
-        id: `app:${app.bundle_id}`,
-        name: app.name,
-        type: 'app' as const,
-        icon: 'placeholder', // Icons loaded on-demand for performance
-        isOpen: true,
-        bundleId: app.bundle_id,
-      }));
-  }, [openApps]);
+  // // Transform open apps to Attachment format and filter allowed apps
+  // const allowedApps = [
+  //   'Notes',
+  //   'Obsidian',
+  //   'Blender',
+  //   'Pixelmator Pro',
+  //   'Final Cut Pro',
+  // ];
+  // const availableApps = useMemo(() => {
+  //   return openApps
+  //     .filter((app) =>
+  //       allowedApps.some((allowed) =>
+  //         app.name.toLowerCase().includes(allowed.toLowerCase())
+  //       )
+  //     )
+  //     .map((app) => ({
+  //       id: `app:${app.bundle_id}`,
+  //       name: app.name,
+  //       type: 'app' as const,
+  //       icon: 'placeholder', // Icons loaded on-demand for performance
+  //       isOpen: true,
+  //       bundleId: app.bundle_id,
+  //     }));
+  // }, [openApps]);
+  const availableApps: any[] = [];
 
   const fileRef = useFileReference(text, setText, session?.id);
 

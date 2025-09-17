@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
-	_ "image/gif"
 	"io"
 	"net/http"
 	"os"
@@ -22,9 +22,9 @@ import (
 	"mix/internal/storage"
 
 	"github.com/nfnt/resize"
-	_ "golang.org/x/image/webp"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp"
 )
 
 // SessionAssetHandler handles session-aware asset serving
@@ -51,9 +51,9 @@ type ThumbnailSpec struct {
 
 // Thumbnail parameter validation
 var (
-	boxSizeRegex    = regexp.MustCompile(`^(\d+)$`)         // "100"
-	widthSizeRegex  = regexp.MustCompile(`^w(\d+)$`)        // "w100"
-	heightSizeRegex = regexp.MustCompile(`^h(\d+)$`)        // "h100"
+	boxSizeRegex    = regexp.MustCompile(`^(\d+)$`)  // "100"
+	widthSizeRegex  = regexp.MustCompile(`^w(\d+)$`) // "w100"
+	heightSizeRegex = regexp.MustCompile(`^h(\d+)$`) // "h100"
 )
 
 const (
@@ -153,24 +153,17 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 
 	// Check if thumbnail is requested
 	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
-		logging.Info("Thumbnail requested", 
-			"sessionID", sessionID,
-			"filePath", filePath,
-			"thumbParam", thumbParam,
-			"timeParam", r.URL.Query().Get("time"),
-			"isVideoFile", isVideoFile(filePath),
-			"isImageFile", isImageFile(filePath))
-		
+
 		// Generate thumbnails for video and image files
 		if !isVideoFile(filePath) && !isImageFile(filePath) {
 			logging.Error("Thumbnail request rejected: file type not supported", "filePath", filePath)
 			http.Error(w, "Thumbnails only supported for video and image files", http.StatusBadRequest)
 			return
 		}
-		
+
 		// Parse optional time parameter for video segments
 		timeParam := r.URL.Query().Get("time")
-		
+
 		if err := h.serveThumbnail(w, r, sessionID, filePath, thumbParam, timeParam); err != nil {
 			logging.Error("Thumbnail generation failed", "filePath", filePath, "error", err)
 			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
@@ -183,7 +176,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
-	
+
 	// Serve the file using Root for security
 	file, err := root.Open(filename)
 	if err != nil {
@@ -191,7 +184,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 		return
 	}
 	defer file.Close()
-	
+
 	// Serve content with proper headers
 	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)
 }
@@ -209,7 +202,7 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 		}
 		return &ThumbnailSpec{Type: "box", Size: size, Width: size, Height: size}, nil
 	}
-	
+
 	// Try width format: "w100" (width 100, height auto)
 	if matches := widthSizeRegex.FindStringSubmatch(thumbParam); len(matches) == 2 {
 		size, err := strconv.Atoi(matches[1])
@@ -221,7 +214,7 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 		}
 		return &ThumbnailSpec{Type: "width", Size: size, Width: size, Height: 0}, nil
 	}
-	
+
 	// Try height format: "h100" (height 100, width auto)
 	if matches := heightSizeRegex.FindStringSubmatch(thumbParam); len(matches) == 2 {
 		size, err := strconv.Atoi(matches[1])
@@ -233,7 +226,7 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 		}
 		return &ThumbnailSpec{Type: "height", Size: size, Width: 0, Height: size}, nil
 	}
-	
+
 	return nil, fmt.Errorf("invalid thumbnail format, use: 100 (box), w100 (width), or h100 (height)")
 }
 
@@ -241,10 +234,10 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
 	sessionStorageDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
 	thumbnailDir := filepath.Join(sessionStorageDir, ".thumbnails")
-	
+
 	// Create hash of original path for consistent naming
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(originalPath)))
-	
+
 	// Generate filename based on thumbnail type and time offset
 	var filename string
 	timeSuffix := ""
@@ -252,7 +245,7 @@ func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath stri
 		// Use 1 decimal place precision to avoid cache collisions
 		timeSuffix = fmt.Sprintf("_t%.1f", timeOffset)
 	}
-	
+
 	switch spec.Type {
 	case "box":
 		filename = fmt.Sprintf("%s_box%d%s.jpg", hash, spec.Size, timeSuffix)
@@ -263,7 +256,7 @@ func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath stri
 	default:
 		filename = fmt.Sprintf("%s_unknown%s.jpg", hash, timeSuffix)
 	}
-	
+
 	return filepath.Join(thumbnailDir, filename)
 }
 
@@ -274,7 +267,7 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
-	
+
 	// Parse and validate time offset for video segments (default to 1 second)
 	timeOffset := 1.0
 	if timeParam != "" {
@@ -286,10 +279,10 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 			// Invalid time values fall back to default 1 second
 		}
 	}
-	
+
 	// Generate thumbnail path with time offset
 	thumbnailPath := h.generateThumbnailPath(sessionID, mediaPath, spec, timeOffset)
-	
+
 	// Check if thumbnail already exists
 	if _, err := os.Stat(thumbnailPath); err == nil {
 		// Serve existing thumbnail
@@ -297,13 +290,13 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 		http.ServeFile(w, r, thumbnailPath)
 		return nil
 	}
-	
+
 	// Create thumbnails directory if it doesn't exist
 	thumbnailDir := filepath.Dir(thumbnailPath)
 	if err := os.MkdirAll(thumbnailDir, 0755); err != nil {
 		return fmt.Errorf("failed to create thumbnail directory: %v", err)
 	}
-	
+
 	// Generate thumbnail using FFmpeg based on file type
 	if isVideoFile(mediaPath) {
 		if err := h.generateVideoThumbnail(mediaPath, thumbnailPath, spec, timeOffset); err != nil {
@@ -316,7 +309,7 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	} else {
 		return fmt.Errorf("unsupported file type for thumbnail generation")
 	}
-	
+
 	// Serve the generated thumbnail
 	w.Header().Set("Content-Type", "image/jpeg")
 	http.ServeFile(w, r, thumbnailPath)
@@ -340,12 +333,12 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 	default:
 		return fmt.Errorf("unknown thumbnail type: %s", spec.Type)
 	}
-	
+
 	// Format time offset for FFmpeg with fractional seconds
 	timeStr := fmt.Sprintf("%.2f", timeOffset)
-	
+
 	// FFmpeg command to extract frame at specified time, scale maintaining aspect ratio, and save as JPEG
-	cmd := exec.Command("ffmpeg", 
+	cmd := exec.Command("ffmpeg",
 		"-i", videoPath,
 		"-ss", timeStr,
 		"-frames:v", "1",
@@ -354,7 +347,7 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 		"-y", // Overwrite output file
 		thumbnailPath,
 	)
-	
+
 	// Execute FFmpeg command
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -369,7 +362,7 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 			"ffmpegOutput", string(output))
 		return fmt.Errorf("ffmpeg failed: %v, output: %s", err, string(output))
 	}
-	
+
 	// Verify thumbnail was created
 	if _, err := os.Stat(thumbnailPath); err != nil {
 		logging.Error("FFmpeg thumbnail verification failed",
@@ -377,12 +370,7 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 			"verificationError", err)
 		return fmt.Errorf("thumbnail file not created: %v", err)
 	}
-	
-	logging.Info("FFmpeg thumbnail generation successful",
-		"videoPath", videoPath,
-		"thumbnailPath", thumbnailPath,
-		"timeOffset", timeOffset)
-	
+
 	return nil
 }
 
@@ -394,21 +382,21 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 		return fmt.Errorf("failed to open source image: %v", err)
 	}
 	defer sourceFile.Close()
-	
+
 	// Decode image (supports JPEG, PNG, GIF automatically via imported decoders)
 	sourceImage, _, err := image.Decode(sourceFile)
 	if err != nil {
 		return fmt.Errorf("failed to decode image: %v", err)
 	}
-	
+
 	// Get original dimensions
 	bounds := sourceImage.Bounds()
 	originalWidth := bounds.Dx()
 	originalHeight := bounds.Dy()
-	
+
 	// Calculate target dimensions based on thumbnail specification
 	var targetWidth, targetHeight uint
-	
+
 	switch spec.Type {
 	case "box":
 		// Fit within box while maintaining aspect ratio
@@ -424,29 +412,29 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 		targetWidth = uint(spec.Size)
 		targetHeight = 0
 	case "height":
-		// Fixed height, auto width (maintains aspect ratio)  
+		// Fixed height, auto width (maintains aspect ratio)
 		targetWidth = 0
 		targetHeight = uint(spec.Size)
 	default:
 		return fmt.Errorf("unknown thumbnail type: %s", spec.Type)
 	}
-	
+
 	// Resize image using high-quality Lanczos resampling
 	resizedImage := resize.Resize(targetWidth, targetHeight, sourceImage, resize.Lanczos3)
-	
+
 	// Create output file
 	outputFile, err := os.Create(thumbnailPath)
 	if err != nil {
 		return fmt.Errorf("failed to create thumbnail file: %v", err)
 	}
 	defer outputFile.Close()
-	
+
 	// Encode as JPEG with high quality (quality 90 out of 100)
 	jpegOptions := &jpeg.Options{Quality: 90}
 	if err := jpeg.Encode(outputFile, resizedImage, jpegOptions); err != nil {
 		return fmt.Errorf("failed to encode JPEG: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -459,18 +447,18 @@ func (h *SessionAssetHandler) HandleGSAPAnimationsList(w http.ResponseWriter, r 
 	if handleCORSPreflight(w, r) {
 		return
 	}
-	
+
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	globalDir, err := h.getGSAPGlobalDirectory()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get GSAP global directory: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// For now, only return global animations
 	// Session-specific GSAP animations can be added later if needed
 	globalAnimations, err := h.scanAnimationDirectory(globalDir, "global")
@@ -478,13 +466,13 @@ func (h *SessionAssetHandler) HandleGSAPAnimationsList(w http.ResponseWriter, r 
 		http.Error(w, fmt.Sprintf("Failed to scan global animations: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Convert to array for JSON response
 	allAnimations := make([]map[string]interface{}, 0, len(globalAnimations))
 	for _, animation := range globalAnimations {
 		allAnimations = append(allAnimations, animation)
 	}
-	
+
 	// Set JSON content type and send response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -498,7 +486,7 @@ func (h *SessionAssetHandler) getGSAPGlobalDirectory() (string, error) {
 	if globalAnimationsDir == "" {
 		return "", fmt.Errorf("GSAP_GLOBAL_DIR environment variable is required but not set")
 	}
-	
+
 	// Validate global directory exists
 	if _, err := os.Stat(globalAnimationsDir); err != nil {
 		if os.IsNotExist(err) {
@@ -506,7 +494,7 @@ func (h *SessionAssetHandler) getGSAPGlobalDirectory() (string, error) {
 		}
 		return "", fmt.Errorf("GSAP_GLOBAL_DIR directory is not accessible: %s. Error: %v", globalAnimationsDir, err)
 	}
-	
+
 	return globalAnimationsDir, nil
 }
 
@@ -516,54 +504,54 @@ func (h *SessionAssetHandler) scanAnimationDirectory(animationsDir string, sourc
 	if _, err := os.Stat(animationsDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("animation directory does not exist: %s", animationsDir)
 	}
-	
+
 	animations := make(map[string]map[string]interface{})
-	
+
 	// Read animations directory
 	entries, err := os.ReadDir(animationsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read animations directory '%s': %w", animationsDir, err)
 	}
-	
+
 	for _, entry := range entries {
 		// Skip non-directories and shared directory
 		if !entry.IsDir() || entry.Name() == "shared" {
 			continue
 		}
-		
+
 		// Read schema.json for this animation
 		schemaPath := filepath.Join(animationsDir, entry.Name(), "schema.json")
 		schemaFile, err := os.Open(schemaPath)
 		if err != nil {
 			return nil, fmt.Errorf("animation '%s' missing required schema.json file in directory '%s': %w", entry.Name(), animationsDir, err)
 		}
-		
+
 		schemaBytes, err := io.ReadAll(schemaFile)
 		schemaFile.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read schema.json for animation '%s' in directory '%s': %w", entry.Name(), animationsDir, err)
 		}
-		
+
 		// Parse schema JSON
 		var schema map[string]interface{}
 		if err := json.Unmarshal(schemaBytes, &schema); err != nil {
 			return nil, fmt.Errorf("invalid JSON in schema.json for animation '%s' in directory '%s': %w", entry.Name(), animationsDir, err)
 		}
-		
+
 		// Validate required schema fields
 		if schema["name"] == nil || schema["description"] == nil {
 			return nil, fmt.Errorf("animation '%s' schema missing required fields (name and/or description) in directory '%s'", entry.Name(), animationsDir)
 		}
-		
+
 		// Create animation summary with source information
 		animationSummary := map[string]interface{}{
 			"name":        schema["name"],
 			"description": schema["description"],
 			"source":      source, // "global"
 		}
-		
+
 		animations[entry.Name()] = animationSummary
 	}
-	
+
 	return animations, nil
 }
