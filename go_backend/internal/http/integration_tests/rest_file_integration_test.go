@@ -358,3 +358,244 @@ func TestRESTFileSessionIsolation(t *testing.T) {
 
 	t.Logf("✅ File session isolation test passed - Sessions properly isolated")
 }
+
+// Test 24: File Deletion - DELETE /api/sessions/{id}/files/{filename}
+func TestRESTFileDeletion(t *testing.T) {
+	result := setupIntegrationTestServer(t)
+	defer result.Server.Close()
+
+	t.Log("Testing file deletion functionality")
+
+	// Create a session first
+	sessionRequest := map[string]interface{}{
+		"title": "File Deletion Test Session",
+	}
+
+	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
+	sessionID := createdSessionData["id"].(string)
+
+	// Upload a test file
+	testContent := "This is test content for deletion testing"
+	testFilename := "test-delete.txt"
+
+	uploadResp := makeMultipartFileRequest(t, result.Server,
+		"/api/sessions/"+sessionID+"/files/upload",
+		testFilename,
+		testContent)
+
+	validateObjectResponse(t, uploadResp, http.StatusCreated)
+
+	// Verify file exists before deletion
+	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	filesList := validateArrayResponse(t, listResp, http.StatusOK)
+
+	fileExists := false
+	for _, fileItem := range filesList {
+		fileObj := fileItem.(map[string]interface{})
+		if fileObj["name"].(string) == testFilename {
+			fileExists = true
+			break
+		}
+	}
+	if !fileExists {
+		t.Fatalf("File %s should exist before deletion", testFilename)
+	}
+
+	// Delete the file
+	deleteResp := makeJSONRequest(t, result.Server, "DELETE",
+		"/api/sessions/"+sessionID+"/files/"+testFilename, nil)
+
+	if deleteResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("Expected status code %d for file deletion, got %d", http.StatusNoContent, deleteResp.StatusCode)
+	}
+
+	// Verify file is gone from file list
+	listAfterDeleteResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp, http.StatusOK)
+
+	for _, fileItem := range filesAfterDelete {
+		fileObj := fileItem.(map[string]interface{})
+		if fileObj["name"].(string) == testFilename {
+			t.Fatalf("File %s should not exist after deletion", testFilename)
+		}
+	}
+
+	// Verify file cannot be accessed directly (should return 404)
+	accessResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionID+"/files/"+testFilename, nil)
+
+	if accessResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected status code %d when accessing deleted file, got %d", http.StatusNotFound, accessResp.StatusCode)
+	}
+
+	// Test deleting non-existent file (should return 404)
+	nonExistentDeleteResp := makeJSONRequest(t, result.Server, "DELETE",
+		"/api/sessions/"+sessionID+"/files/non-existent-file.txt", nil)
+
+	if nonExistentDeleteResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected status code %d when deleting non-existent file, got %d", http.StatusNotFound, nonExistentDeleteResp.StatusCode)
+	}
+
+	// Test deleting from non-existent session (should return 400)
+	invalidSessionDeleteResp := makeJSONRequest(t, result.Server, "DELETE",
+		"/api/sessions/invalid-session-id/files/"+testFilename, nil)
+
+	if invalidSessionDeleteResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d when deleting from invalid session, got %d", http.StatusBadRequest, invalidSessionDeleteResp.StatusCode)
+	}
+
+	t.Logf("✅ File deletion test passed - File properly deleted: %s", testFilename)
+}
+
+// Test 25: Thumbnail Generation - GET /api/sessions/{id}/files/{filename}?thumb=...
+func TestRESTFileThumbnailGeneration(t *testing.T) {
+	result := setupIntegrationTestServer(t)
+	defer result.Server.Close()
+
+	t.Log("Testing thumbnail generation functionality")
+
+	// Create a session first
+	sessionRequest := map[string]interface{}{
+		"title": "Thumbnail Test Session",
+	}
+
+	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
+	sessionID := createdSessionData["id"].(string)
+
+	// Upload a text file and test thumbnail on non-image (should return 400)
+	textContent := "This is not an image file"
+	textFilename := "test-text.txt"
+
+	textUploadResp := makeMultipartFileRequest(t, result.Server,
+		"/api/sessions/"+sessionID+"/files/upload",
+		textFilename,
+		textContent)
+
+	validateObjectResponse(t, textUploadResp, http.StatusCreated)
+
+	// Try to generate thumbnail from text file (should fail)
+	textThumbResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionID+"/files/"+textFilename+"?thumb=100", nil)
+
+	if textThumbResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d for thumbnail on non-image, got %d", http.StatusBadRequest, textThumbResp.StatusCode)
+	}
+	textThumbResp.Body.Close()
+
+	// Test invalid thumbnail parameter on text file (should return 400)
+	invalidThumbResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionID+"/files/"+textFilename+"?thumb=invalid", nil)
+
+	if invalidThumbResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d for invalid thumbnail param, got %d", http.StatusBadRequest, invalidThumbResp.StatusCode)
+	}
+	invalidThumbResp.Body.Close()
+
+	// Test accessing file without thumbnail params (should work normally)
+	normalResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionID+"/files/"+textFilename, nil)
+
+	if normalResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status code %d for normal file access, got %d", http.StatusOK, normalResp.StatusCode)
+	}
+	normalResp.Body.Close()
+
+	t.Logf("✅ Thumbnail generation test passed - Thumbnail parameter validation working")
+}
+
+// Test 26: Large File Handling - Test large file operations
+func TestRESTLargeFileHandling(t *testing.T) {
+	result := setupIntegrationTestServer(t)
+	defer result.Server.Close()
+
+	t.Log("Testing large file handling functionality")
+
+	// Create a session first
+	sessionRequest := map[string]interface{}{
+		"title": "Large File Test Session",
+	}
+
+	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
+	sessionID := createdSessionData["id"].(string)
+
+	// Test uploading a reasonably large file (1MB)
+	// Create 1MB of data for testing
+	largeContent := make([]byte, 1024*1024) // 1MB
+	for i := range largeContent {
+		largeContent[i] = byte(i % 256) // Fill with varying data
+	}
+	largeFilename := "large-test-file.bin"
+
+	t.Logf("Testing upload of %d KB file", len(largeContent)/1024)
+
+	largeUploadResp := makeMultipartFileRequestFromBytes(t, result.Server,
+		"/api/sessions/"+sessionID+"/files/upload",
+		largeFilename,
+		largeContent)
+
+	if largeUploadResp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status code %d for large file upload, got %d", http.StatusCreated, largeUploadResp.StatusCode)
+	}
+
+	uploadData := validateObjectResponse(t, largeUploadResp, http.StatusCreated)
+
+	// Verify upload response contains correct size
+	uploadedSize, ok := uploadData["size"].(float64)
+	if !ok || int(uploadedSize) != len(largeContent) {
+		t.Fatalf("Expected uploaded file size %d, got %v", len(largeContent), uploadedSize)
+	}
+
+	// Verify the large file appears in file list
+	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	filesList := validateArrayResponse(t, listResp, http.StatusOK)
+
+	found := false
+	for _, fileItem := range filesList {
+		fileObj := fileItem.(map[string]interface{})
+		if fileObj["name"].(string) == largeFilename {
+			found = true
+			// Verify size in list matches
+			if int(fileObj["size"].(float64)) != len(largeContent) {
+				t.Fatalf("Expected file size %d in list, got %v", len(largeContent), fileObj["size"])
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("Large file '%s' not found in session file list", largeFilename)
+	}
+
+	// Try to access the large file (verify headers, don't download full content)
+	accessResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionID+"/files/"+largeFilename, nil)
+
+	if accessResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status code %d when accessing large file, got %d", http.StatusOK, accessResp.StatusCode)
+	}
+	accessResp.Body.Close()
+
+	// Verify we can delete the large file
+	deleteResp := makeJSONRequest(t, result.Server, "DELETE",
+		"/api/sessions/"+sessionID+"/files/"+largeFilename, nil)
+
+	if deleteResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("Expected status code %d for large file deletion, got %d", http.StatusNoContent, deleteResp.StatusCode)
+	}
+
+	// Verify file is gone after deletion
+	listAfterDeleteResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp, http.StatusOK)
+
+	for _, fileItem := range filesAfterDelete {
+		fileObj := fileItem.(map[string]interface{})
+		if fileObj["name"].(string) == largeFilename {
+			t.Fatalf("Large file %s should not exist after deletion", largeFilename)
+		}
+	}
+
+	t.Logf("✅ Large file handling test passed - 1MB file uploaded, listed, accessed, and deleted successfully")
+}

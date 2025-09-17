@@ -345,3 +345,45 @@ func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filen
 	
 	return resp
 }
+
+// makeMultipartFileRequestFromBytes creates and sends a multipart file upload request with byte data
+func makeMultipartFileRequestFromBytes(t *testing.T, server *httptest.Server, path, filename string, content []byte) *http.Response {
+	// Create multipart form
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	
+	// Create file part
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatalf("Failed to create form file: %v", err)
+	}
+	
+	// Write file content
+	_, err = part.Write(content)
+	if err != nil {
+		t.Fatalf("Failed to write file content: %v", err)
+	}
+	
+	// Close writer to finalize multipart form
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("Failed to close multipart writer: %v", err)
+	}
+	
+	// Create request
+	req, err := http.NewRequest("POST", server.URL+path, &body)
+	if err != nil {
+		t.Fatalf("Failed to create multipart request: %v", err)
+	}
+	
+	// Set proper content type for multipart
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	
+	// Send request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send multipart request: %v", err)
+	}
+	
+	return resp
+}

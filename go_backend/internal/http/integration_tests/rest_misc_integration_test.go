@@ -379,6 +379,9 @@ func TestRESTAPIIntegration(t *testing.T) {
 	t.Run("FileServing", TestRESTFileServing)
 	t.Run("FilePathSecurity", TestRESTFilePathSecurity) // Now using os.Root for robust security
 	t.Run("FileSessionIsolation", TestRESTFileSessionIsolation)
+	t.Run("FileDeletion", TestRESTFileDeletion)
+	t.Run("FileThumbnailGeneration", TestRESTFileThumbnailGeneration)
+	t.Run("LargeFileHandling", TestRESTLargeFileHandling)
 
 	t.Log("🎉 All REST API integration tests completed successfully!")
 }
