@@ -1,0 +1,14 @@
+{
+  "title": "TypeScript SDK",
+  "description": "Documentation for the Mix TypeScript SDK",
+  "icon": "FileJs",
+  "pages": [
+    "installation",
+    "client",
+    
+   "---Reference---",
+
+    "api-reference",
+    "examples"
+  ]
+}

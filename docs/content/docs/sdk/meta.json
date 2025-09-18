@@ -1,16 +1,11 @@
 {
   "title": "SDK",
-  "description": "Documentation for the Mix TypeScript SDK",
-  "icon": "FileText",
+  "description": "Creative AI platform documentation",
+  "icon": "BookOpen",
   "root": true,
   "pages": [
-    "---Getting Started---",
     "index",
-    "installation",
-    "client",
-    "---Reference---",
-    "api-reference",
-    "examples",
-    "errors"
+    "typescript-sdk",
+    "python-sdk"
   ]
 }
