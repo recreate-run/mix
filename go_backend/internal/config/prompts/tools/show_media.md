@@ -43,15 +43,15 @@ Skip using this tool when:
 ## Examples of When to Use Media Showcase
 
 <example>
-User: Show me /Users/project/assets/logo.png
+User: Show me https://example.com/assets/logo.png
 Assistant: Let me display that image for you.
 
 *Uses show_media tool with:*
 
-- Path: /Users/project/assets/logo.png
+- Path: <https://example.com/assets/logo.png>
 - Type: image
 - Title: Project Logo
-- Description: Current logo file from assets folder
+- Description: Logo image from remote assets
 </example>
 
 <example>
@@ -60,7 +60,7 @@ Assistant: I'll display that image from the URL for you.
 
 *Uses show_media tool with:*
 
-- Path: https://example.com/images/banner.jpg
+- Path: <https://example.com/images/banner.jpg>
 - Type: image
 - Title: Banner Image
 - Description: Remote banner image from example.com
@@ -74,7 +74,7 @@ I've successfully created your marketing video. Let me showcase the final result
 
 *Uses show_media tool with:*
 
-- Path: /output/video/product_marketing_20241201_143022.mp4
+- Path: <https://example.com/outputs/product_marketing_20241201_143022.mp4>
 - Type: video
 - Title: Product Marketing Video
 - Description: 30-second promotional video with product highlights and call-to-action
@@ -86,7 +86,7 @@ Assistant: I'll display the reference audio file so you can review it.
 
 *Uses show_media tool with:*
 
-- Path: /Users/project/references/background_music.mp3
+- Path: <https://example.com/references/background_music.mp3>
 - Type: audio
 - Title: Reference Background Music
 - Description: Original audio file for editing reference
@@ -98,7 +98,7 @@ Assistant: I'll show you that YouTube video as an embedded player.
 
 *Uses show_media tool with:*
 
-- Path: https://www.youtube.com/watch?v=example123
+- Path: <https://www.youtube.com/watch?v=example123>
 - Type: youtube
 - Title: YouTube Reference Video
 - Description: External video content for reference
@@ -110,7 +110,7 @@ Assistant: I'll display that audio track from the URL.
 
 *Uses show_media tool with:*
 
-- Path: https://soundcloud.com/artist/track
+- Path: <https://soundcloud.com/artist/track>
 - Type: audio
 - Title: SoundCloud Track
 - Description: Remote audio content from SoundCloud
@@ -139,16 +139,16 @@ Assistant: I've identified key segments from your demo video.
 
 *Uses show_media tool with:*
 
-- Type: video, Title: "Product Overview", Path: /Users/project/demo.mp4, StartTime: 15, Duration: 5
-- Type: video, Title: "UI Walkthrough", Path: /Users/project/demo.mp4, StartTime: 85, Duration: 5  
-- Type: video, Title: "Results", Path: /Users/project/demo.mp4, StartTime: 130, Duration: 5
+- Type: video, Title: "Product Overview", Path: <https://example.com/videos/demo.mp4>, StartTime: 15, Duration: 5
+- Type: video, Title: "UI Walkthrough", Path: <https://example.com/videos/demo.mp4>, StartTime: 85, Duration: 5
+- Type: video, Title: "Results", Path: <https://example.com/videos/demo.mp4>, StartTime: 130, Duration: 5
 </example>
 
 ## Parameters
 
 outputs (required): Array of media outputs to showcase
 
-- path: Absolute file path or HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media file
+- path: HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media URL
 - type: "image", "video", "audio", "gsap_animation", or "youtube"
 - title: Display title
 - description: Project context (optional)
@@ -164,21 +164,18 @@ outputs (required): Array of media outputs to showcase
 
 ## Tool Behavior
 
-1. Validates all file paths - Ensures files exist and are accessible
-2. Checks file extensions - Verifies extensions match the specified media type
-3. Groups video highlights from same source into unified playback with timestamp navigation
-4. Frontend Integration - Media outputs are displayed prominently with large previews
+1. Validates all URLs - Ensures URLs are valid HTTP/HTTPS format
+2. Groups video highlights from same source into unified playback with timestamp navigation
+3. Frontend Integration - Media outputs are displayed prominently with large previews
 
 ## Usage Notes
 
-- Always use absolute paths or URLs - Relative paths will be rejected
+- Always use HTTP/HTTPS URLs - Local file paths are not supported
 - URLs supported - HTTP/HTTPS URLs work for image, video, and audio types
-- File extension validation skipped for URLs - URLs don't need specific extensions
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
 - Use for any media display - Not limited to creative outputs; great for previews and references
 - **YouTube URLs** - Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
-- For `gsap_animation` type, the config MUST include a `url` field with the complete iframe URL in the format: `"http://localhost:8088/gsap_animations/<animation_name>?param1=value1&param2=value2"`
 
 This tool transforms file paths into beautiful media displays in the conversation interface.

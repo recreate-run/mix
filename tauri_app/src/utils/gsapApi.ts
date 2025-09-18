@@ -18,14 +18,14 @@ export interface ParameterSchema {
 
 // Accept any configuration format from the endpoint
 
-import { getBackendUrl } from './backendUrl';
+import { getGsapUrl } from './backendUrl';
 
-const DEFAULT_GSAP_SERVER = getBackendUrl();
+const DEFAULT_GSAP_SERVER = getGsapUrl();
 
 // Fetch list of available animations
 export async function fetchAnimationList(serverUrl: string = DEFAULT_GSAP_SERVER): Promise<string[]> {
   try {
-    const response = await fetch(`${serverUrl}/api/gsap_animations`);
+    const response = await fetch(`${serverUrl}/animations`);
     if (!response.ok) {
       throw new Error(`Failed to fetch animations: ${response.statusText}`);
     }
@@ -43,12 +43,16 @@ export async function fetchAnimationSchema(
   serverUrl: string
 ): Promise<AnimationSchema | null> {
   try {
-    const url = `${serverUrl}/api/gsap_animations/${encodeURIComponent(animationName)}`;
+    // Use the correct GSAP server endpoint format
+    const url = `${serverUrl}/animations/${encodeURIComponent(animationName)}/schema`;
+
     const response = await fetch(url);
+
     if (!response.ok) {
       console.error(`[GSAP API] Failed to fetch animation schema: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch animation schema: ${response.statusText}`);
     }
+
     const schema = await response.json();
     return schema;
   } catch (error) {
@@ -92,7 +96,7 @@ export function buildAnimationUrl(
 // Check if GSAP server is available
 export async function checkGsapServerHealth(serverUrl: string = DEFAULT_GSAP_SERVER): Promise<boolean> {
   try {
-    const response = await fetch(`${serverUrl}/api/gsap_animations`, {
+    const response = await fetch(`${serverUrl}/animations`, {
       method: 'GET',
       // Add timeout
       signal: AbortSignal.timeout(3000)

@@ -2,13 +2,11 @@ package http
 
 import (
 	"crypto/md5"
-	"encoding/json"
 	"fmt"
 	"image"
 	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -31,7 +29,6 @@ import (
 type SessionAssetHandler struct {
 	app           *app.App
 	storageConfig storage.Config
-	gsapGlobalRoot *os.Root // Cached root for GSAP global directory
 }
 
 // NewSessionAssetHandler creates a new session asset handler
@@ -41,41 +38,10 @@ func NewSessionAssetHandler(app *app.App, storageConfig storage.Config) *Session
 		storageConfig: storageConfig,
 	}
 
-	// Initialize and validate GSAP global directory at startup
-	if err := handler.initializeGSAPGlobalRoot(); err != nil {
-		// Log error but don't fail server startup - GSAP functionality will be disabled
-		logging.Error("Failed to initialize GSAP global directory", "error", err)
-	}
 
 	return handler
 }
 
-// initializeGSAPGlobalRoot validates and caches the GSAP global directory root
-func (h *SessionAssetHandler) initializeGSAPGlobalRoot() error {
-	// Get GSAP global directory from environment
-	globalAnimationsDir := os.Getenv("GSAP_GLOBAL_DIR")
-	if globalAnimationsDir == "" {
-		return fmt.Errorf("GSAP_GLOBAL_DIR environment variable is required but not set")
-	}
-
-	// Validate directory exists and is accessible
-	if _, err := os.Stat(globalAnimationsDir); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("GSAP_GLOBAL_DIR points to non-existent directory: %s", globalAnimationsDir)
-		}
-		return fmt.Errorf("GSAP_GLOBAL_DIR directory is not accessible: %s. Error: %v", globalAnimationsDir, err)
-	}
-
-	// Create and cache the root for secure operations
-	root, err := os.OpenRoot(globalAnimationsDir)
-	if err != nil {
-		return fmt.Errorf("failed to open GSAP global directory as root: %s. Error: %v", globalAnimationsDir, err)
-	}
-
-	h.gsapGlobalRoot = root
-	logging.Info("GSAP global directory initialized", "path", globalAnimationsDir)
-	return nil
-}
 
 // Thumbnail specification types
 type ThumbnailSpec struct {
@@ -168,11 +134,37 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 
 	// Check file existence using Root - prevents path traversal
 	fileInfo, err := root.Stat(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
+	isFromCommon := false
+
+	// If file not found in session, try common storage as fallback
+	if err != nil && os.IsNotExist(err) {
+		// Try common storage
+		commonRoot, commonErr := storage.GetCommonRoot(h.storageConfig)
+		if commonErr != nil {
+			// If we can't access common storage, return original not found error
 			sendNotFoundError(w, "File", filename)
 			return
 		}
+		defer commonRoot.Close()
+
+		// Check if file exists in common storage
+		commonFileInfo, commonStatErr := commonRoot.Stat(filename)
+		if commonStatErr != nil {
+			if os.IsNotExist(commonStatErr) {
+				sendNotFoundError(w, "File", filename)
+				return
+			}
+			sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", commonStatErr.Error()))
+			return
+		}
+
+		// File found in common storage - switch to use common root
+		root.Close() // Close session root
+		root = commonRoot
+		fileInfo = commonFileInfo
+		isFromCommon = true
+	} else if err != nil {
+		// Other error (not "not found")
 		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
 		return
 	}
@@ -184,8 +176,14 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get the actual file path for thumbnail generation and serving
-	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
-	filePath := filepath.Join(sessionDir, filename)
+	var filePath string
+	if isFromCommon {
+		commonDir := storage.GetCommonStoragePath(h.storageConfig)
+		filePath = filepath.Join(commonDir, filename)
+	} else {
+		sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+		filePath = filepath.Join(sessionDir, filename)
+	}
 
 	// Check if thumbnail is requested
 	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
@@ -474,11 +472,8 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	return nil
 }
 
-// GSAP Animation Support - Keep separate from session-based file storage
-// GSAP animations remain in their global and session-specific directories
-
-// HandleGSAPAnimationsList handles GET /api/gsap_animations
-func (h *SessionAssetHandler) HandleGSAPAnimationsList(w http.ResponseWriter, r *http.Request) {
+// HandleListCommonFiles handles GET /api/common - returns a flat list of all files in common storage
+func (h *SessionAssetHandler) HandleListCommonFiles(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 	if handleCORSPreflight(w, r) {
 		return
@@ -489,286 +484,20 @@ func (h *SessionAssetHandler) HandleGSAPAnimationsList(w http.ResponseWriter, r 
 		return
 	}
 
-	root, err := h.getGSAPGlobalRoot()
+	// Get flat list of all files in common storage
+	files, err := storage.ListCommonFiles(h.storageConfig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("GSAP functionality unavailable: %v", err), http.StatusServiceUnavailable)
+		sendInternalError(w, "listing common files", err)
 		return
 	}
 
-	// For now, only return global animations
-	// Session-specific GSAP animations can be added later if needed
-	globalAnimations, err := h.scanAnimationDirectoryWithRoot(root, "global")
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to scan global animations: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Convert to array for JSON response
-	allAnimations := make([]map[string]interface{}, 0, len(globalAnimations))
-	for _, animation := range globalAnimations {
-		allAnimations = append(allAnimations, animation)
-	}
-
-	// Set JSON content type and send response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(allAnimations)
+	// Return JSON response
+	sendJSONResponse(w, http.StatusOK, files)
 }
 
-// getGSAPGlobalRoot returns the cached GSAP global directory root
-func (h *SessionAssetHandler) getGSAPGlobalRoot() (*os.Root, error) {
-	if h.gsapGlobalRoot == nil {
-		return nil, fmt.Errorf("GSAP global directory not initialized - check server startup logs")
-	}
-	return h.gsapGlobalRoot, nil
-}
-
-// scanAnimationDirectoryWithRoot scans animations using a pre-opened Root for efficiency
-func (h *SessionAssetHandler) scanAnimationDirectoryWithRoot(root *os.Root, source string) (map[string]map[string]interface{}, error) {
-	animations := make(map[string]map[string]interface{})
-
-	// Read animations directory using cached Root - we need to get the actual path for ReadDir
-	// Since os.Root doesn't expose ReadDir directly, we'll need to handle this differently
-	// For now, let's iterate through known animation directories by attempting to stat them
-	// This is a limitation of the current os.Root API
-
-	// Get list of potential animation names by reading the underlying directory
-	// We'll need to read the actual directory path for this
-	globalAnimationsDir := os.Getenv("GSAP_GLOBAL_DIR")
-	if globalAnimationsDir == "" {
-		return nil, fmt.Errorf("GSAP_GLOBAL_DIR environment variable not set")
-	}
-
-	entries, err := os.ReadDir(globalAnimationsDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read animations directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		// Skip non-directories and shared directory
-		if !entry.IsDir() || entry.Name() == "shared" {
-			continue
-		}
-
-		// Verify directory exists using Root for security
-		animationInfo, err := root.Stat(entry.Name())
-		if err != nil {
-			continue // Skip if we can't stat the directory
-		}
-		if !animationInfo.IsDir() {
-			continue // Skip if it's not a directory
-		}
-
-		// Open animation subdirectory using Root
-		animationRoot, err := root.OpenRoot(entry.Name())
-		if err != nil {
-			return nil, fmt.Errorf("failed to open animation directory '%s': %w", entry.Name(), err)
-		}
-
-		// Read schema.json using Root for secure access
-		schemaFile, err := animationRoot.Open("schema.json")
-		if err != nil {
-			animationRoot.Close()
-			return nil, fmt.Errorf("animation '%s' missing required schema.json file: %w", entry.Name(), err)
-		}
-
-		schemaBytes, err := io.ReadAll(schemaFile)
-		schemaFile.Close()
-		animationRoot.Close()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read schema.json for animation '%s': %w", entry.Name(), err)
-		}
-
-		// Parse schema JSON
-		var schema map[string]interface{}
-		if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-			return nil, fmt.Errorf("invalid JSON in schema.json for animation '%s': %w", entry.Name(), err)
-		}
-
-		// Validate required schema fields
-		if schema["name"] == nil || schema["description"] == nil {
-			return nil, fmt.Errorf("animation '%s' schema missing required fields (name and/or description)", entry.Name())
-		}
-
-		// Create animation summary with source information
-		animationSummary := map[string]interface{}{
-			"name":        schema["name"],
-			"description": schema["description"],
-			"source":      source, // "global"
-		}
-
-		animations[entry.Name()] = animationSummary
-	}
-
-	return animations, nil
-}
-
-// HandleGetAnimationParameters handles GET /api/gsap_animations/{animation_name}/parameters
-func (h *SessionAssetHandler) HandleGetAnimationParameters(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	animationName := r.PathValue("animation_name")
-	if animationName == "" {
-		sendValidationError(w, "animation_name", "animation name is required")
-		return
-	}
-
-	root, err := h.getGSAPGlobalRoot()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("GSAP functionality unavailable: %v", err), http.StatusServiceUnavailable)
-		return
-	}
-
-	// Check if animation directory exists using cached Root
-	animationInfo, err := root.Stat(animationName)
-	if err != nil {
-		if os.IsNotExist(err) {
-			sendNotFoundError(w, "Animation", animationName)
-			return
-		}
-		sendValidationError(w, "animation_name", fmt.Sprintf("invalid animation name or path traversal attempt: %s", err.Error()))
-		return
-	}
-
-	// Verify it's a directory
-	if !animationInfo.IsDir() {
-		sendValidationError(w, "animation_name", "animation name must refer to a directory")
-		return
-	}
-
-	// Open animation subdirectory using cached Root
-	animationRoot, err := root.OpenRoot(animationName)
-	if err != nil {
-		sendInternalError(w, "opening animation directory", err)
-		return
-	}
-	defer animationRoot.Close()
-
-	// Read schema.json using Root for secure access
-	schemaFile, err := animationRoot.Open("schema.json")
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.Error(w, fmt.Sprintf("Animation '%s' is missing required schema.json file", animationName), http.StatusNotFound)
-			return
-		}
-		sendInternalError(w, "opening schema file", err)
-		return
-	}
-	defer schemaFile.Close()
-
-	schemaBytes, err := io.ReadAll(schemaFile)
-	if err != nil {
-		sendInternalError(w, "reading schema file", err)
-		return
-	}
-
-	// Parse schema JSON to validate it's valid JSON
-	var schema map[string]interface{}
-	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON in schema.json for animation '%s': %v", animationName, err), http.StatusInternalServerError)
-		return
-	}
-
-	// Validate required schema fields
-	if schema["name"] == nil || schema["description"] == nil || schema["parameters"] == nil {
-		http.Error(w, fmt.Sprintf("Animation '%s' schema missing required fields (name, description, and/or parameters)", animationName), http.StatusInternalServerError)
-		return
-	}
-
-	// Set JSON content type and send the full schema
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(schemaBytes)
-}
-
-// HandleGetAnimationPreview handles GET /api/gsap_animations/{animation_name}/preview
-func (h *SessionAssetHandler) HandleGetAnimationPreview(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	animationName := r.PathValue("animation_name")
-	if animationName == "" {
-		sendValidationError(w, "animation_name", "animation name is required")
-		return
-	}
-
-	root, err := h.getGSAPGlobalRoot()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("GSAP functionality unavailable: %v", err), http.StatusServiceUnavailable)
-		return
-	}
-
-	// Check if animation directory exists using cached Root
-	animationInfo, err := root.Stat(animationName)
-	if err != nil {
-		if os.IsNotExist(err) {
-			sendNotFoundError(w, "Animation", animationName)
-			return
-		}
-		sendValidationError(w, "animation_name", fmt.Sprintf("invalid animation name or path traversal attempt: %s", err.Error()))
-		return
-	}
-
-	// Verify it's a directory
-	if !animationInfo.IsDir() {
-		sendValidationError(w, "animation_name", "animation name must refer to a directory")
-		return
-	}
-
-	// Open animation subdirectory using cached Root
-	animationRoot, err := root.OpenRoot(animationName)
-	if err != nil {
-		sendInternalError(w, "opening animation directory", err)
-		return
-	}
-	defer animationRoot.Close()
-
-	// Read index.html using Root for secure access
-	indexFile, err := animationRoot.Open("index.html")
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.Error(w, fmt.Sprintf("Animation '%s' is missing required index.html file", animationName), http.StatusNotFound)
-			return
-		}
-		sendInternalError(w, "opening index.html file", err)
-		return
-	}
-	defer indexFile.Close()
-
-	indexBytes, err := io.ReadAll(indexFile)
-	if err != nil {
-		sendInternalError(w, "reading index.html file", err)
-		return
-	}
-
-	// Update relative paths to use our API endpoints
-	htmlContent := string(indexBytes)
-	htmlContent = strings.ReplaceAll(htmlContent, `href="../shared/`, `href="/api/gsap/shared/`)
-	htmlContent = strings.ReplaceAll(htmlContent, `src="../shared/`, `src="/api/gsap/shared/`)
-
-	// Set HTML content type and send the file
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(htmlContent))
-}
-
-// HandleGetSharedAsset handles GET /api/gsap_animations/shared/{filepath}
-func (h *SessionAssetHandler) HandleGetSharedAsset(w http.ResponseWriter, r *http.Request) {
+// HandleServeCommonFile serves files from the common storage directory
+// URL format: /api/common/{filepath}
+func (h *SessionAssetHandler) HandleServeCommonFile(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 	if handleCORSPreflight(w, r) {
 		return
@@ -785,53 +514,50 @@ func (h *SessionAssetHandler) HandleGetSharedAsset(w http.ResponseWriter, r *htt
 		return
 	}
 
-	root, err := h.getGSAPGlobalRoot()
+	// Use os.Root for secure file operations
+	root, err := storage.GetCommonRoot(h.storageConfig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("GSAP functionality unavailable: %v", err), http.StatusServiceUnavailable)
+		sendInternalError(w, "getting common root", err)
 		return
 	}
+	defer root.Close()
 
-	// Open shared subdirectory using cached Root
-	sharedRoot, err := root.OpenRoot("shared")
-	if err != nil {
-		sendInternalError(w, "opening shared directory", err)
-		return
-	}
-	defer sharedRoot.Close()
-
-	// Read the requested file using Root for secure access
-	file, err := sharedRoot.Open(filepath)
+	// Check file existence using Root - prevents path traversal
+	fileInfo, err := root.Stat(filepath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			sendNotFoundError(w, "Shared asset", filepath)
+			sendNotFoundError(w, "File", filepath)
 			return
 		}
-		sendInternalError(w, "opening shared asset file", err)
+		sendValidationError(w, "filepath", fmt.Sprintf("invalid filepath or path traversal attempt: %s", err.Error()))
+		return
+	}
+
+	// Don't serve directories
+	if fileInfo.IsDir() {
+		http.Error(w, "Cannot serve directory", http.StatusBadRequest)
+		return
+	}
+
+	// Disable caching for development - ensures file changes are immediately visible
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// Serve the file using Root for security
+	file, err := root.Open(filepath)
+	if err != nil {
+		sendInternalError(w, "opening file", err)
 		return
 	}
 	defer file.Close()
 
-	// Get file info for content type detection
-	fileInfo, err := sharedRoot.Stat(filepath)
-	if err != nil {
-		sendInternalError(w, "getting shared asset info", err)
-		return
-	}
-
-	// Set appropriate content type based on file extension
-	contentType := "application/octet-stream" // default
-	switch {
-	case strings.HasSuffix(filepath, ".js"):
-		contentType = "application/javascript"
-	case strings.HasSuffix(filepath, ".css"):
-		contentType = "text/css"
-	case strings.HasSuffix(filepath, ".json"):
-		contentType = "application/json"
-	case strings.HasSuffix(filepath, ".html"):
-		contentType = "text/html"
-	}
-
 	// Serve content with proper headers
-	w.Header().Set("Content-Type", contentType)
 	http.ServeContent(w, r, filepath, fileInfo.ModTime(), file)
 }
+
+
+
+
+
+

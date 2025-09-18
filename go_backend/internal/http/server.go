@@ -87,7 +87,6 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	})
 
 	// Add URL video export endpoint (new Playwright-based export)
-	mux.HandleFunc("/api/video/export-url", HandleURLVideoExport)
 
 	// NEW SESSION-BASED FILE ENDPOINTS (replaces /input/ and /output/)
 
@@ -97,11 +96,11 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
 	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
 
+	// Common file endpoints
+	mux.HandleFunc("GET /api/common", sessionAssetHandler.HandleListCommonFiles)
+	mux.HandleFunc("GET /api/common/{filepath...}", sessionAssetHandler.HandleServeCommonFile)
+
 	// GSAP animation endpoints (kept separate from session storage)
-	mux.HandleFunc("GET /api/gsap_animations", sessionAssetHandler.HandleGSAPAnimationsList)
-	mux.HandleFunc("GET /api/gsap_animations/{animation_name}/parameters", sessionAssetHandler.HandleGetAnimationParameters)
-	mux.HandleFunc("GET /api/gsap_animations/{animation_name}/preview", sessionAssetHandler.HandleGetAnimationPreview)
-	mux.HandleFunc("GET /api/gsap/shared/{filepath}", sessionAssetHandler.HandleGetSharedAsset)
 
 	// REST API Endpoints
 

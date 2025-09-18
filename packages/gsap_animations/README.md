@@ -1,8 +1,74 @@
 # GSAP Animations
 
-Standardized parametric GSAP animations with video capture support.
+Standardized parametric GSAP animations with video capture support and standalone server.
 
-## Structure
+## Server
+
+### Running the Server
+
+```bash
+# Run with hot reloading (recommended for development)
+make dev              # Default port 8089
+make dev PORT=8081    # Custom port
+
+# Run without hot reloading
+make run              # Default port 8089
+make run PORT=8081    # Custom port
+
+# Build the server binary
+make build            # Creates build/gsap-server
+
+# Run from project root
+make gsap-server      # Runs on port 8089
+
+# Clean build artifacts
+make clean
+```
+
+### API Endpoints
+
+- `GET /animations` - List all available animations
+- `GET /animations/{name}/schema` - Get animation parameters
+- `GET /animations/{name}/preview` - Get animation HTML preview
+- `GET /shared/{file}` - Serve shared assets (JS, CSS files)
+
+### Server Features
+
+- Zero dependencies on main application
+- Simple static file serving (~200 lines of Go)
+- Makefile for easy management
+- Automatic CORS headers for cross-origin requests
+- Content-type detection for shared assets
+- Path rewriting for animation previews
+
+### Example Usage
+
+```bash
+# List all animations
+curl http://localhost:8089/animations
+
+# Get animation schema
+curl http://localhost:8089/animations/bounce-overlay/schema
+
+# Preview animation in browser
+open http://localhost:8089/animations/bounce-overlay/preview
+```
+
+### Architecture Benefits
+
+The server is completely standalone with:
+- No session management
+- No authentication
+- No complex storage logic
+- Direct filesystem access
+
+This design makes it easy to:
+- Deploy independently
+- Scale separately from main app
+- Test animations in isolation
+- Develop new animations without main app running
+
+## Animation Structure
 
 ```
 animation-name/
@@ -158,5 +224,9 @@ video.addEventListener('timeupdate', () => {
 
 ## Testing
 
-- **Preview**: Open `index.html?param=value`
-- **Capture**: `node go_backend/scripts/capture-url.mjs http://localhost:3000/animation-name/`
+### Local Development
+- **Direct Preview**: Open `index.html?param=value`
+- **Server Preview**: `http://localhost:8089/animations/{name}/preview?param=value`
+
+### Video Capture
+- **Capture**: `node go_backend/scripts/capture-url.mjs http://localhost:8089/animations/{name}/preview`

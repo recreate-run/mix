@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
 import { useSessionFiles } from './useSessionFiles';
+import { buildSessionFileUrl } from '@/utils/attachmentUtils';
 
 export function useFileReference(
   text: string,
@@ -39,15 +40,19 @@ export function useFileReference(
     words[words.length - 1] = `${displayReference} `;
     const newText = words.join(' ');
 
+    // Build full URL using centralized utility
+    const sessionFilePath = `/api/sessions/${sessionId}/files/${file.name}`;
+    const fullUrl = buildSessionFileUrl(sessionId!, file.name);
+
     // Add to attachment store
     addAttachment({
       ...file,
       // Ensure proper session file path for serving
-      path: `/api/sessions/${sessionId}/files/${file.name}`,
+      path: sessionFilePath,
     });
-    
-    // Add reference mapping
-    addReference(displayReference, file.name);
+
+    // Add reference mapping with full URL to ensure consistency with media array
+    addReference(displayReference, fullUrl);
     setText(newText);
   };
 

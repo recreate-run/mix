@@ -1,9 +1,10 @@
-package http
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -11,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"mix/internal/logging"
 )
 
 // URLVideoExportRequest represents the request payload for URL video export
@@ -68,20 +67,9 @@ func parseAspectRatio(aspectRatioStr string) (AspectRatio, error) {
 	}, nil
 }
 
-// HandleURLVideoExport handles POST /api/video/export-url
+// handleExport handles POST /export
 // Exports a URL as a video using Playwright-based frame capture
-func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	// Handle preflight OPTIONS request
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
+func handleExport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -176,25 +164,21 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get current working directory for script path
-	sessionStorageDir, err := os.Getwd()
-	if err != nil {
-		http.Error(w, "Failed to get working directory", http.StatusInternalServerError)
-		return
-	}
+	serverDir := getAnimationsDir()
 
 	// Create parent directory for output file if it doesn't exist
 	outputDir := filepath.Dir(req.OutputPath)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		logging.Debug("Failed to create output directory: %v", err)
+		log.Printf("Failed to create output directory: %v", err)
 		http.Error(w, "Failed to create output directory", http.StatusInternalServerError)
 		return
 	}
 
 	// Create unique temporary directory for frames only
 	timestamp := time.Now().Format("20060102-150405")
-	framesDir := filepath.Join(sessionStorageDir, "go_backend", "temp", "video_frames", timestamp)
+	framesDir := filepath.Join(serverDir, "temp", "video_frames", timestamp)
 	if err := os.MkdirAll(framesDir, 0755); err != nil {
-		logging.Debug("Failed to create frames directory: %v", err)
+		log.Printf("Failed to create frames directory: %v", err)
 		http.Error(w, "Failed to create frames directory", http.StatusInternalServerError)
 		return
 	}
@@ -202,16 +186,16 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	// Cleanup function for temporary frames directory
 	defer func() {
 		if err := os.RemoveAll(framesDir); err != nil {
-			logging.Debug("Failed to cleanup frames directory %s: %v", framesDir, err)
+			log.Printf("Failed to cleanup frames directory %s: %v", framesDir, err)
 		}
 	}()
 
 	// Path to Node.js capture script
-	scriptPath := filepath.Join(sessionStorageDir, "go_backend", "scripts", "capture-url.mjs")
+	scriptPath := filepath.Join(serverDir, "scripts", "capture-url.mjs")
 
 	// Check if Node.js script exists
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		logging.Debug("Capture script not found at: %s", scriptPath)
+		log.Printf("Capture script not found at: %s", scriptPath)
 		http.Error(w, "Video capture script not found", http.StatusInternalServerError)
 		return
 	}
@@ -230,9 +214,9 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 
 	// Execute Node.js capture script
 	cmd := exec.Command("node", args...)
-	cmd.Dir = sessionStorageDir
+	cmd.Dir = serverDir
 
-	logging.Debug("Executing video export: %s %v", cmd.Path, args)
+	log.Printf("Executing video export: %s %v", cmd.Path, args)
 
 	// Set reasonable timeout (5 minutes max)
 	timeout := time.Duration(300) * time.Second
@@ -241,12 +225,12 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, "node", args...)
-	cmd.Dir = sessionStorageDir
+	cmd.Dir = serverDir
 
 	// Capture output for debugging
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logging.Debug("Video export failed: %v\nOutput: %s", err, string(output))
+		log.Printf("Video export failed: %v\nOutput: %s", err, string(output))
 
 		// Check for specific error types
 		if ctx.Err() == context.DeadlineExceeded {
@@ -265,11 +249,11 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logging.Debug("Video export completed successfully\nOutput: %s", string(output))
+	log.Printf("Video export completed successfully\nOutput: %s", string(output))
 
 	// Check if output file was created
 	if _, err := os.Stat(req.OutputPath); os.IsNotExist(err) {
-		logging.Debug("Output file not found: %s", req.OutputPath)
+		log.Printf("Output file not found: %s", req.OutputPath)
 		response := URLVideoExportResponse{
 			Success: false,
 			Error:   "Video file was not generated",

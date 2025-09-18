@@ -154,21 +154,45 @@ export const getParentPath = (path: string): string | null => {
   return parts.length > 0 ? parts.join('/') : null;
 };
 
+// URL building utilities
+export const buildSessionFileUrl = (sessionId: string, fileName: string): string => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  return `${backendUrl}/api/sessions/${sessionId}/files/${fileName}`;
+};
+
+export const buildFullUrlFromPath = (path: string): string => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  return `${backendUrl}${path}`;
+};
+
 // Text reference utilities
 export const expandFileReferences = (
   text: string,
-  referenceMap: Map<string, string>
+  referenceMap: Map<string, string>,
+  mediaUrls?: string[]
 ): string => {
   let expandedText = text;
 
-  for (const [displayName, fullPath] of referenceMap) {
+  // Create a set of media URLs for quick lookup
+  const mediaUrlSet = mediaUrls ? new Set(mediaUrls) : null;
+
+  for (const [displayName, fullUrl] of referenceMap) {
     // Handle app references by just using the app name
-    if (fullPath.startsWith('app:')) {
-      const appName = fullPath.substring(4); // Remove 'app:' prefix
+    if (fullUrl.startsWith('app:')) {
+      const appName = fullUrl.substring(4); // Remove 'app:' prefix
       expandedText = expandedText.replace(displayName, appName);
     } else {
-      // Handle file/folder references as before
-      expandedText = expandedText.replace(displayName, fullPath);
+      // Handle file/folder references
+      // If mediaUrls is provided, ensure we use the exact URL from media array
+      let urlToUse = fullUrl;
+      if (mediaUrlSet) {
+        // Find the matching URL in media array (should be exact match)
+        const matchingMediaUrl = mediaUrls?.find(mediaUrl => mediaUrl === fullUrl);
+        if (matchingMediaUrl) {
+          urlToUse = matchingMediaUrl;
+        }
+      }
+      expandedText = expandedText.replace(displayName, urlToUse);
     }
   }
 

@@ -11,7 +11,7 @@ import {
   AnimationSchema,
   fetchAnimationSchema
 } from '@/utils/gsapApi';
-import { getBackendUrl } from '@/utils/backendUrl';
+import { getGsapUrl } from '@/utils/backendUrl';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 
 interface GsapAnimationPreviewProps {
@@ -31,21 +31,37 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { isCopied, copyToClipboard } = useCopyToClipboard();
 
-  // Use proper backend URL for schema fetching (not derived from iframe URL)
-  const baseServerUrl = getBackendUrl();
+  // Use GSAP server URL from environment variable
+  const baseServerUrl = getGsapUrl();
   const animationName = config.url ? (() => {
-    const path = new URL(config.url).pathname.substring(1).split('?')[0];
-    const cleanPath = path.replace('gsap_animations/', '');
-    // Extract just the animation directory name (first part before any file)
-    return cleanPath.split('/')[0];
+    try {
+      const url = new URL(config.url);
+      const path = url.pathname.substring(1).split('?')[0];
+
+      // Handle format: 'animations/name/preview'
+      if (path.startsWith('animations/')) {
+        const parts = path.split('/');
+        return parts[1]; // Get the animation name (second part)
+      }
+
+      console.error(`[GsapAnimationPreview] Unsupported URL format: ${path}`);
+      return null;
+    } catch (error) {
+      console.error(`[GsapAnimationPreview] Error parsing URL:`, error);
+      return null;
+    }
   })() : null;
 
 
   // Load animation schema
   useEffect(() => {
-
     if (!animationName) {
       console.error(`[GsapAnimationPreview] Missing animationName, skipping schema fetch`);
+      return;
+    }
+
+    if (!baseServerUrl) {
+      console.error(`[GsapAnimationPreview] Missing baseServerUrl, skipping schema fetch`);
       return;
     }
 
@@ -53,6 +69,10 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
     fetchAnimationSchema(animationName, baseServerUrl)
       .then((fetchedSchema) => {
         setSchema(fetchedSchema);
+      })
+      .catch((error) => {
+        console.error(`[GsapAnimationPreview] Schema fetch error:`, error);
+        setSchema(null);
       })
       .finally(() => {
         setIsLoadingSchema(false);

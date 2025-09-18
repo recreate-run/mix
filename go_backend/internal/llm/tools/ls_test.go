@@ -8,9 +8,38 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	
+	"mix/internal/storage"
 )
+
+// setupToolTestContext creates a properly configured context for tool testing
+// with session storage directory setup
+func setupToolTestContext(t *testing.T) (context.Context, func()) {
+	// Create a temporary directory for test storage
+	tempStorageDir, err := os.MkdirTemp("", "tool_test_storage")
+	require.NoError(t, err)
+	
+	// Generate a test session ID
+	sessionID := uuid.New().String()
+	
+	// Create storage config pointing to temp directory
+	storageConfig := storage.Config{
+		BasePath: tempStorageDir,
+	}
+	
+	// Set up context with session storage
+	ctx := SetSessionStorageContext(context.Background(), sessionID, storageConfig)
+	
+	// Return cleanup function
+	cleanup := func() {
+		os.RemoveAll(tempStorageDir)
+	}
+	
+	return ctx, cleanup
+}
 
 func TestLsTool_Info(t *testing.T) {
 	tool := NewLsTool()
@@ -68,6 +97,9 @@ func TestLsTool_Run(t *testing.T) {
 	}
 
 	t.Run("lists directory successfully", func(t *testing.T) {
+		ctx, cleanup := setupToolTestContext(t)
+		defer cleanup()
+		
 		tool := NewLsTool()
 		params := LSParams{
 			Path: tempDir,
@@ -81,7 +113,7 @@ func TestLsTool_Run(t *testing.T) {
 			Input: string(paramsJSON),
 		}
 
-		response, err := tool.Run(context.Background(), call)
+		response, err := tool.Run(ctx, call)
 		require.NoError(t, err)
 
 		// Check that visible directories and files are included
@@ -101,6 +133,9 @@ func TestLsTool_Run(t *testing.T) {
 	})
 
 	t.Run("handles non-existent path", func(t *testing.T) {
+		ctx, cleanup := setupToolTestContext(t)
+		defer cleanup()
+		
 		tool := NewLsTool()
 		params := LSParams{
 			Path: filepath.Join(tempDir, "non_existent_dir"),
@@ -114,7 +149,7 @@ func TestLsTool_Run(t *testing.T) {
 			Input: string(paramsJSON),
 		}
 
-		response, err := tool.Run(context.Background(), call)
+		response, err := tool.Run(ctx, call)
 		require.NoError(t, err)
 		assert.Contains(t, response.Content, "path does not exist")
 	})
@@ -138,6 +173,9 @@ func TestLsTool_Run(t *testing.T) {
 	})
 
 	t.Run("respects ignore patterns", func(t *testing.T) {
+		ctx, cleanup := setupToolTestContext(t)
+		defer cleanup()
+		
 		tool := NewLsTool()
 		params := LSParams{
 			Path:   tempDir,
@@ -152,7 +190,7 @@ func TestLsTool_Run(t *testing.T) {
 			Input: string(paramsJSON),
 		}
 
-		response, err := tool.Run(context.Background(), call)
+		response, err := tool.Run(ctx, call)
 		require.NoError(t, err)
 
 		// The output format is a tree, so we need to check for specific patterns

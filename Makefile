@@ -1,4 +1,4 @@
-.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint go-test generate-sdk
+.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint go-test generate-sdk gsap-server
 
 # Variables
 BINARY_NAME=mix
@@ -22,7 +22,7 @@ OPENAPI_ENDPOINT=http://localhost:8088/doc
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  dev         - Install dependencies and run development servers"
+	@echo "  dev         - Install dependencies and run all development servers (backend, frontend, GSAP)"
 	@echo "  docs        - Run documentation development server"
 	@echo "  install     - Install system dependencies (one-time setup)"
 	@echo "  install-deps - Install project dependencies"
@@ -44,7 +44,8 @@ help:
 
 
 # Run development server with hot reloading (installs deps first)
-dev: install-deps 
+# This starts backend, frontend, and GSAP server together
+dev: install-deps
 	@ENV=development ./scripts/shoreman.sh
 
 # Run documentation development server

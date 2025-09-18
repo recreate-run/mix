@@ -4,7 +4,7 @@ When users request animated titles, create them using the show_media tool with `
 
 ## Animation Workflow
 
-- To get Available Animations, call `http://localhost:8088/api/gsap_animations` to get the full list of available animations.
+- To get Available Animations, call `http://localhost:8089/animations` to get the full list of available animations.
 
 Response schema:
 
@@ -12,23 +12,24 @@ Response schema:
 [
   {
     "name": <animation_name>,
-    "description": <animation_description>
+    "description": <animation_description>,
+    "directory": <animation_directory>
   },
 ]
 </json_schema>
 
-- For any specific animation you want to use, you MUST call `http://localhost:8088/api/gsap_animations/{animation_name}/parameters` to get its parameter schema. Response includes the name, type and default value for each parameter.
+- For any specific animation you want to use, you MUST call `http://localhost:8089/animations/{animation_name}/schema` to get its parameter schema. Response includes the name, type and default value for each parameter.
 
 - Use the bash tool to make these CURL requests
 
 ## Video Export
 
-**POST** `/api/video/export-url`
+**POST** `/api/video/export`
 
 Request Body (JSON)
 
 <sample_request>{
-  "url": "<http://localhost:8088/gsap_animations/bounce-overlay/index.html?overlayText=Hello&textSizeRem=3>",
+  "url": "<http://localhost:8089/animations/bounce-overlay/preview?overlayText=Hello&textSizeRem=3>",
   "outputPath": "/tmp/animation.mp4",
   "aspectRatio": "9/16",
   "height": 640,

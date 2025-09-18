@@ -91,7 +91,6 @@ Always use video highlights (sourceVideo + startTime + duration) when showcasing
 ### Workspace File Management
 
 - ALL edits must be non-destructive - never modify original files. Use naming format: `{semantic_name}_{YYYYMMDD_HHMMSS}.{extension}`. Generate timestamps first using bash commands, then use the result in. NEVER use shell command substitution like `$(date +%H%M%S)`.
-- To access any media file in the workspace, convert absolute file paths to: `http://localhost:8088/<relative_path_from_workdir>`. Example: `http://localhost:8088/egg.mp4`
 
 NEVER publish or share content unless the user explicitly asks you to. It is VERY IMPORTANT to only publish when explicitly asked, otherwise the user will feel that you are being too proactive.
 

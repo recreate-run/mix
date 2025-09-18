@@ -33,7 +33,7 @@ import {
   type Attachment,
   reconstructAttachmentsFromHistory,
 } from '@/stores/attachmentSlice';
-import { expandFileReferences } from '@/utils/attachmentUtils';
+import { expandFileReferences, buildSessionFileUrl, buildFullUrlFromPath } from '@/utils/attachmentUtils';
 import { invalidateMessageHistoryCache } from '@/lib/session-cache';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
@@ -683,8 +683,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     const newText = text ? `${text} ${displayReference} ` : `${displayReference} `;
     setText(newText);
 
-    // Add reference mapping (same as "@" menu)
-    useBoundStore.getState().addReference(displayReference, fileName);
+    // Add reference mapping with full URL to ensure consistency with media array
+    const fullUrl = buildSessionFileUrl(session!.id, fileName);
+    useBoundStore.getState().addReference(displayReference, fullUrl);
 
     setMessages((prev) => [
       ...prev,
@@ -1037,18 +1038,22 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
     // Send message via persistent SSE
     try {
-      // Expand file references from display format to full paths
-      const expandedText = expandFileReferences(messageText, referenceMap);
+      // Build media URLs array first to ensure consistency
+      const mediaUrls = attachments.filter((a) => a.path).map((a) => buildFullUrlFromPath(a.path!));
+
+      // Expand file references using the exact media URLs for consistency
+      const expandedText = expandFileReferences(messageText, referenceMap, mediaUrls);
 
       const messageData: MessageData = {
         text: expandedText,
-        media: attachments.filter((a) => a.path).map((a) => a.path!),
+        media: mediaUrls,
         apps: attachments
           .filter((a) => a.type === 'app')
           .map((app) => app.name),
         plan_mode:
           overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
       };
+
       await sseStream.sendMessage(JSON.stringify(messageData));
 
       // Invalidate message history cache to ensure fresh data on next navigation

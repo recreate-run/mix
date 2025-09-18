@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"unicode"
 
 	"mix/internal/app"
+	"mix/internal/logging"
 	"mix/internal/storage"
 )
 
@@ -19,6 +21,7 @@ type FileInfo struct {
 	Size         int64   `json:"size"`
 	Modified     int64   `json:"modified"` // Unix timestamp
 	IsDir        bool    `json:"isDir"`
+	IsCommon     bool    `json:"isCommon"` // Whether file is from common storage
 }
 
 // FileHandler handles REST endpoints for session file operations
@@ -181,32 +184,67 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	// Get session storage directory
 	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
 
-	// Read directory entries
+	// Create a map to track files (session files override common files)
+	filesMap := make(map[string]FileInfo)
+
+	// First, add common files to the map
+	commonFiles, err := storage.ListCommonFiles(h.storageConfig)
+	if err != nil {
+		// Log but don't fail - session files should still be listed
+		logging.Error("Failed to list common files", "error", err)
+	} else {
+		commonDir := storage.GetCommonStoragePath(h.storageConfig)
+		for _, cf := range commonFiles {
+			// Get file info for size and modified time
+			fullPath := filepath.Join(commonDir, cf.Path)
+			if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
+				filesMap[cf.Path] = FileInfo{
+					Name:     cf.Path,  // Use the path as the name for common files
+					Size:     info.Size(),
+					Modified: info.ModTime().Unix(),
+					IsDir:    false,
+					IsCommon: true,
+				}
+			}
+		}
+	}
+
+	// Then, add session files (these override any common files with same name)
 	entries, err := os.ReadDir(sessionDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Session directory doesn't exist yet, return empty list
-			sendJSONResponse(w, http.StatusOK, []FileInfo{})
+			// Session directory doesn't exist yet, return only common files
+			files := make([]FileInfo, 0, len(filesMap))
+			for _, file := range filesMap {
+				files = append(files, file)
+			}
+			sendJSONResponse(w, http.StatusOK, files)
 			return
 		}
 		sendInternalError(w, "reading session directory", err)
 		return
 	}
 
-	// Convert to FileInfo structs
-	var files []FileInfo
+	// Add session files to the map (overriding common files if names match)
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
 			continue // Skip entries we can't get info for
 		}
 
-		files = append(files, FileInfo{
+		filesMap[info.Name()] = FileInfo{
 			Name:     info.Name(),
 			Size:     info.Size(),
 			Modified: info.ModTime().Unix(),
 			IsDir:    info.IsDir(),
-		})
+			IsCommon: false,  // Session files are not common
+		}
+	}
+
+	// Convert map to slice for response
+	files := make([]FileInfo, 0, len(filesMap))
+	for _, file := range filesMap {
+		files = append(files, file)
 	}
 
 	sendJSONResponse(w, http.StatusOK, files)
