@@ -36,6 +36,7 @@ import {
 import { expandFileReferences } from '@/utils/attachmentUtils';
 import { invalidateMessageHistoryCache } from '@/lib/session-cache';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import { toast } from 'sonner';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
 import type { MessageData, UIMessage } from '@/types/message';
@@ -83,6 +84,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Core conversation state
   const [text, setText] = useState<string>('');
   const [messages, setMessages] = useState<UIMessage[]>([]);
+  
+  // Feedback notification state
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   // UI Interaction Mode 1: Slash Commands (dropdown when typing "/help", "/clear" etc.)
   const [showSlashCommands, setShowSlashCommands] = useState(false);
@@ -424,6 +428,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Check if we should invalidate preferences cache
       if (result.shouldInvalidatePreferencesCache) {
         queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
+        
+        // Show feedback message in the UI
+        setFeedbackMessage(`Model updated successfully: ${result.content.replace("✅ Successfully set ", "").replace(" as your default model for", " for")}`);
+        
+        // Auto-hide the message after 3 seconds
+        setTimeout(() => {
+          setFeedbackMessage(null);
+        }, 3000);
       }
 
       // Only add message to chat if not suppressed
@@ -458,6 +470,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Close CMDK and clear logout data
       setShowCommands(false);
       setLogoutData(undefined);
+      
+      // Show feedback for logout action
+      setFeedbackMessage(`Logged out from ${providerId} successfully`);
+      
+      // Auto-hide the message after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
 
       // Only add message to chat if not suppressed
       if (!result.suppressChatMessage) {
@@ -623,6 +643,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setLoginData(undefined);
 
+      // Show feedback for login action
+      setFeedbackMessage(`Successfully authenticated with ${providerId} using API key`);
+      
+      // Auto-hide the message after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+
       // Only add message to chat if not suppressed
       if (!result.suppressChatMessage) {
         setMessages((prev) => [
@@ -648,6 +676,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Close command menu after authentication
       setShowCommands(false);
       setLoginData(undefined);
+      
+      // Show feedback for OAuth login
+      setFeedbackMessage(`Successfully authenticated with ${providerId} using OAuth`);
+      
+      // Auto-hide the message after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
 
       // Only add message to chat if not suppressed
       if (!result.suppressChatMessage) {
@@ -1180,6 +1216,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   return (
     <div className="fl flex h-full w-full p-8">
       <div className="flex-1 overflow-y-auto">
+        {/* Feedback message notification */}
+        {feedbackMessage && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-5 duration-300">
+            {feedbackMessage}
+          </div>
+        )}
+        
         <div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
           {/* Loading indicator for messages */}
           {sessionMessages.isLoading && (

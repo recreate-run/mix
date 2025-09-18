@@ -1,7 +1,7 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
-
 import { ProviderInfo } from "@/types/provider";
+import { toast } from "sonner"; // Import directly from package
 
 // Provider type definition with API key format
 export interface LoginProviderInfo extends ProviderInfo {
@@ -113,6 +113,17 @@ export async function authenticateWithApiKey(
     } catch (prefError) {
       console.error('Failed to update preferences:', prefError);
       // Continue even if preference update fails - the key is stored
+    }
+    
+    // Show success toast notification
+    try {
+      toast.success("Authentication successful", {
+        description: `Successfully authenticated with ${provider}`,
+        duration: 3000
+      });
+      console.log("Toast notification triggered for API key login");
+    } catch (toastError) {
+      console.error("Failed to show toast:", toastError);
     }
     
     return {
@@ -230,6 +241,12 @@ export async function handleOAuthCallback(
     
     // Update preferences to use this provider as the preferred one
     await updateUserPreferences({ preferredProvider: provider });
+    
+    // Show success toast notification
+    toast.success("OAuth authentication successful", {
+      description: `Successfully authenticated with ${provider}`,
+      duration: 3000
+    });
     
     return {
       content: `✅ Successfully authenticated with ${provider} using OAuth`,

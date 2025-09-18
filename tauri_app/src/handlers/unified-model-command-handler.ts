@@ -1,5 +1,6 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage, ProviderWithModels } from "@/types";
+import { toast } from "sonner";
 
 /**
  * Format providers with their models for the hierarchical UI
@@ -213,6 +214,21 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
     
     // This function is called directly from the chat-app component
     // The caller needs to invalidate the preferences cache to show updated model info
+    
+    // Show success toast notification 
+    try {
+      // Use a simple toast first to see if it works
+      toast("Model updated");
+      
+      // Then try the more complex version
+      toast.success("Model updated", {
+        description: `${modelId} is now your default model for ${providerName}`,
+        duration: 3000
+      });
+      console.log("Toast notifications triggered for model update");
+    } catch (toastError) {
+      console.error("Failed to show toast:", toastError);
+    }
     
     return {
       content: `✅ Successfully set ${modelId} as your default model for ${providerName}`,

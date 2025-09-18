@@ -1,5 +1,6 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
+import { toast } from "sonner";
 
 // Provider info structure for logout UI
 export interface LogoutProviderInfo {
@@ -116,6 +117,12 @@ export async function logoutProvider(provider: string): Promise<UIMessage> {
         frontend_only: true
       };
     }
+    
+    // Show success toast notification
+    toast.success("Logged out successfully", {
+      description: `You have been logged out from ${provider}`,
+      duration: 3000
+    });
     
     return {
       content: `✅ Successfully logged out from ${provider}`,
