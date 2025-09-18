@@ -1,13 +1,15 @@
-import { ChevronDownIcon, ClockIcon, XCircleIcon } from 'lucide-react';
+import { ChevronDownIcon, ClockIcon, XCircleIcon, CopyIcon, CheckIcon } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 
-const TOOL_CONTENT_TRUNCATE_LIMIT = 60;
+const TOOL_CONTENT_TRUNCATE_LIMIT = 80;
 
 export type AIToolStatus = 'pending' | 'running' | 'completed' | 'error';
 
@@ -27,8 +29,110 @@ export const AITool = ({
   />
 );
 
-// Helper function to extract and format tool content for display
+// Helper function to safely stringify any value (handles objects, arrays, primitives)
+const safeStringify = (value: unknown): string => {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+};
+
+// Unified function to format tool content - used by both header and popover
+const formatToolContent = (
+  content: string | Record<string, unknown>,
+  toolName?: string,
+  options: { truncate?: boolean; limit?: number } = {}
+): string => {
+  const { truncate = false, limit = TOOL_CONTENT_TRUNCATE_LIMIT } = options;
+
+  // Only apply special key-value formatting for "barch" tool
+  const shouldApplyKeyValueFormatting = toolName?.toLowerCase() === 'bash';
+
+  let processedContent = '';
+
+  if (shouldApplyKeyValueFormatting) {
+    // Handle object input for barch tool
+    if (typeof content === 'object' && content !== null) {
+      const entries = Object.entries(content);
+      if (entries.length === 0) return '{}';
+
+      // Extract only values, safely stringified
+      const values = entries.map(([, value]) => safeStringify(value));
+      processedContent = values.length === 1 ? values[0] : values.join(', ');
+    } else {
+      // Handle string input for barch tool
+      const stringContent = String(content);
+      const trimmed = stringContent.trim();
+
+      // Check for JSON object format
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+            const values = Object.values(parsed).map(safeStringify);
+            processedContent = values.length === 1 ? values[0] : values.join(', ');
+          } else {
+            processedContent = stringContent;
+          }
+        } catch {
+          processedContent = stringContent;
+        }
+      } else {
+        // Check for simple key:value or key=value patterns
+        const keyValueMatches = trimmed.match(/[:=]\s*([^,:=]+)/g);
+        if (keyValueMatches && keyValueMatches.length > 0) {
+          const values = keyValueMatches.map(match => match.replace(/^[:=]\s*/, '').trim());
+          processedContent = values.length === 1 ? values[0] : values.join(', ');
+        } else {
+          processedContent = stringContent;
+        }
+      }
+    }
+
+    // Remove outer brackets if they exist (only for barch tool)
+    const trimmed = processedContent.trim();
+    const withoutBrackets = (() => {
+      if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+        return trimmed.slice(1, -1);
+      }
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        return trimmed.slice(1, -1);
+      }
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        return trimmed.slice(1, -1);
+      }
+      return trimmed;
+    })();
+
+    processedContent = withoutBrackets;
+  } else {
+    // For all other tools, show content as-is
+    if (typeof content === 'object' && content !== null) {
+      processedContent = JSON.stringify(content, null, 2);
+    } else {
+      processedContent = String(content);
+    }
+  }
+
+  // Apply truncation if requested
+  if (truncate && processedContent.length > limit) {
+    return `${processedContent.substring(0, limit)}...`;
+  }
+
+  return processedContent;
+};
+
+// Helper function to extract and format tool content for header display (truncated)
 const extractToolContent = (toolCall?: {
+  name: string;
   parameters: Record<string, unknown>;
   result?: string;
   error?: string;
@@ -36,36 +140,18 @@ const extractToolContent = (toolCall?: {
   if (!toolCall) return '';
 
   // Priority: result > parameters > error
-  let content = '';
+  let content: string | Record<string, unknown> = '';
   if (toolCall.result) {
     content = toolCall.result;
   } else if (toolCall.parameters && Object.keys(toolCall.parameters).length > 0) {
-    content = JSON.stringify(toolCall.parameters);
+    content = toolCall.parameters;
   } else if (toolCall.error) {
     content = toolCall.error;
   }
 
   if (!content) return '';
 
-  // Remove outer brackets if they exist (parentheses, curly brackets, square brackets)
-  const trimmed = content.trim();
-  const withoutBrackets = (() => {
-    if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
-      return trimmed.slice(1, -1);
-    }
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-      return trimmed.slice(1, -1);
-    }
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-      return trimmed.slice(1, -1);
-    }
-    return trimmed;
-  })();
-
-  // Truncate to configured limit
-  return withoutBrackets.length > TOOL_CONTENT_TRUNCATE_LIMIT
-    ? `${withoutBrackets.substring(0, TOOL_CONTENT_TRUNCATE_LIMIT)}...`
-    : withoutBrackets;
+  return formatToolContent(content, toolCall.name, { truncate: true });
 };
 
 export type AIToolHeaderProps = ComponentProps<typeof CollapsibleTrigger> & {
@@ -137,9 +223,9 @@ export const AIToolContent = ({
   >
     {toolCall && (
       <>
-        <AIToolParameters parameters={toolCall.parameters} />
+        <AIToolParameters parameters={toolCall.parameters} toolName={toolCall.name} />
         {(toolCall.result || toolCall.error) && (
-          <AIToolResult error={toolCall.error} result={toolCall.result} />
+          <AIToolResult error={toolCall.error} result={toolCall.result} toolName={toolCall.name} />
         )}
       </>
     )}
@@ -154,16 +240,36 @@ export type AIToolParametersProps = ComponentProps<'div'> & {
 export const AIToolParameters = ({
   className,
   parameters,
+  toolName,
   ...props
-}: AIToolParametersProps) => (
-  <div className={cn('space-y-2', className)} {...props}>
-    <div className="rounded-md">
+}: AIToolParametersProps & { toolName?: string }) => {
+  const formattedContent = formatToolContent(parameters, toolName);
+  const { isCopied, copyToClipboard } = useCopyToClipboard();
+
+  const handleCopy = () => {
+    copyToClipboard(formattedContent);
+  };
+
+  return (
+    <div className={cn('flex items-center gap-2', className)} {...props}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleCopy}
+        title={isCopied ? "Copied!" : "Copy parameters"}
+      >
+        {isCopied ? (
+          <CheckIcon />
+        ) : (
+          <CopyIcon />
+        )}
+      </Button>
       <pre className="overflow-x-scroll whitespace-pre text-muted-foreground text-xs">
-        {JSON.stringify(parameters, null, 2)}
+        {formattedContent}
       </pre>
     </div>
-  </div>
-);
+  );
+};
 
 export type AIToolResultProps = ComponentProps<'div'> & {
   result?: ReactNode;
@@ -174,11 +280,26 @@ export const AIToolResult = ({
   className,
   result,
   error,
+  toolName,
   ...props
-}: AIToolResultProps) => {
+}: AIToolResultProps & { toolName?: string }) => {
   if (!(result || error)) {
     return null;
   }
+
+  const displayContent = error || result;
+  const formattedContent = typeof displayContent === 'string'
+    ? formatToolContent(displayContent, toolName)
+    : displayContent;
+
+  const { isCopied, copyToClipboard } = useCopyToClipboard();
+
+  const handleCopy = () => {
+    const contentToCopy = typeof formattedContent === 'string'
+      ? formattedContent
+      : String(formattedContent);
+    copyToClipboard(contentToCopy);
+  };
 
   return (
     <div className={cn('space-y-2', className)} {...props}>
@@ -187,13 +308,26 @@ export const AIToolResult = ({
       </h4>
       <div
         className={cn(
-          'overflow-x-scroll whitespace-pre-wrap rounded-md p-3 text-xs',
+          'relative overflow-x-scroll whitespace-pre-wrap rounded-md p-3 text-xs',
           error
             ? 'bg-destructive/10 text-destructive'
             : 'bg-muted/50 text-foreground'
         )}
       >
-        {error ? <div>{error}</div> : <div>{result}</div>}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCopy}
+          className="absolute left-1 top-1 z-10 size-6"
+          title={isCopied ? "Copied!" : "Copy result"}
+        >
+          {isCopied ? (
+            <CheckIcon className="size-3 text-green-600" />
+          ) : (
+            <CopyIcon className="size-3" />
+          )}
+        </Button>
+        <div className="pl-6">{formattedContent}</div>
       </div>
     </div>
   );
