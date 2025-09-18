@@ -242,15 +242,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle the status command with our SDK implementation
   const handleStatusCommandSpecial = async () => {
     try {
-      // Add user message to show that the command was executed
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "/status",
-          from: "user",
-        },
-      ]);
-
       // Execute the enhanced status command handler with UI
       const statusResult = await handleStatusCommand();
 
@@ -285,15 +276,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle the login command with our SDK implementation
   const handleLoginCommandSpecial = async () => {
     try {
-      // Add user message to show that the command was executed
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "/login",
-          from: "user",
-        },
-      ]);
-
       // Execute the login command handler
       const loginResult = await handleLoginCommand();
 
@@ -329,15 +311,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle the logout command with our SDK implementation
   const handleLogoutCommandSpecial = async () => {
     try {
-      // Add user message to show that the command was executed
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "/logout",
-          from: "user",
-        },
-      ]);
-
       // Execute the logout command handler to get data
       const logoutData = await handleLogoutCommand();
 
@@ -379,13 +352,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
       // If there's an error (no hierarchicalModel), show the error message
       if (!modelData.hierarchicalModel) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            content: "/model",
-            from: "user",
-          },
-        ]);
+        // Model command error encountered (not adding command to message history)
         
         if (!modelData.suppressChatMessage) {
           setMessages((prev) => [
@@ -396,14 +363,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         return;
       }
 
-      // Add user message to show that the command was executed
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "/model",
-          from: "user",
-        },
-      ]);
+      // Model command executed (not adding to message history)
 
       // Set hierarchical model data and show commands (CMDK will detect the data and show hierarchical view)
       setHierarchicalModelData({
