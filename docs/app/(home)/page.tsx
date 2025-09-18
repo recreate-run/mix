@@ -90,19 +90,20 @@ export default function HomePage() {
 									</div>
 								</div>
 								
-								{/* TypeScript SDK Card */}
+								{/* SDKs Card */}
 								<div className="relative border rounded-lg p-4 shadow-md bg-card hover:shadow-lg transition-all overflow-hidden group">
 									<div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-transparent opacity-50 group-hover:opacity-70 transition-opacity"></div>
 									<div className="relative z-10">
-										<h3 className="text-lg font-semibold mb-1">TypeScript SDK</h3>
+										<h3 className="text-lg font-semibold mb-1">SDKs</h3>
 										<p className="mb-2 text-xs text-muted-foreground leading-tight">
-											Integrate Mix into your applications with our type-safe JavaScript/TypeScript SDK.
-											Build custom integrations and workflows programmatically.
+											Integrate Mix into your applications with our type-safe SDKs for TypeScript and Python.
+											Build custom integrations and workflows programmatically in your preferred language.
 										</p>
 										<div className="flex flex-wrap gap-1 mb-3">
+											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">TypeScript</span>
+											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Python</span>
 											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Type-Safe</span>
 											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Open Source</span>
-											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Full API Access</span>
 										</div>
 										<div className="flex flex-col sm:flex-row gap-2">
 											<Button size="sm">
@@ -116,7 +117,16 @@ export default function HomePage() {
 													target="_blank"
 													rel="noopener noreferrer"
 												>
-													GitHub
+													TS GitHub
+												</Link>
+											</Button>
+											<Button variant="outline" size="sm">
+												<Link 
+													href={config.links.pythonSdkGithub}
+													target="_blank"
+													rel="noopener noreferrer"
+												>
+													PY GitHub
 												</Link>
 											</Button>
 										</div>

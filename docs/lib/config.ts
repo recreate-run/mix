@@ -2,7 +2,9 @@ export const config = {
   links: {
     github: "https://github.com/recreate-run/mix.git",
     sdkGithub: "https://github.com/recreate-run/mix-typescript-sdk",
-    npm: "https://www.npmjs.com/package/mix-typescript-sdk"
+    pythonSdkGithub: "https://github.com/recreate-run/mix-python-sdk",
+    npm: "https://www.npmjs.com/package/mix-typescript-sdk",
+    pypi: "https://pypi.org/project/mix-python-sdk/"
   },
   site: {
     name: "Mix",
