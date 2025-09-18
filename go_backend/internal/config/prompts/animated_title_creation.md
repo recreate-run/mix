@@ -2,8 +2,6 @@
 
 When users request animated titles, create them using the show_media tool with `type: "gsap_animation"`.
 
-## Configuration Structure
-
 ## Animation Workflow
 
 - To get Available Animations, call `http://localhost:8088/api/gsap_animations` to get the full list of available animations.
@@ -14,12 +12,12 @@ Response schema:
 [
   {
     "name": <animation_name>,
-    "description": <animation_description>,
+    "description": <animation_description>
   },
 ]
 </json_schema>
 
-- For any specific animation you want to use, you MUST call `http://localhost:8088/api/gsap_animations/{name}` to get its parameter schema. Response includes the name, type and default value for each parameter.
+- For any specific animation you want to use, you MUST call `http://localhost:8088/api/gsap_animations/{animation_name}/parameters` to get its parameter schema. Response includes the name, type and default value for each parameter.
 
 - Use the bash tool to make these CURL requests
 
@@ -84,7 +82,7 @@ $<workdir>/gsap_animations/
   "parameters": [
     {
       "name": "parameterName",
-      "type": "string|number|boolean",
+      "type": "string|number|boolean|color",
       "default": "defaultValue"
     }
   ]
