@@ -35,6 +35,7 @@ import {
 } from '@/stores/attachmentSlice';
 import { expandFileReferences } from '@/utils/attachmentUtils';
 import { invalidateMessageHistoryCache } from '@/lib/session-cache';
+import { CACHE_KEYS } from '@/lib/cache-keys';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
 import type { MessageData, UIMessage } from '@/types/message';
@@ -447,6 +448,11 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Close CMDK and clear hierarchical data
       setShowCommands(false);
       setHierarchicalModelData(undefined);
+
+      // Check if we should invalidate preferences cache
+      if (result.shouldInvalidatePreferencesCache) {
+        queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
+      }
 
       // Add success message
       setMessages((prev) => [

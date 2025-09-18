@@ -211,10 +211,14 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
     const rawProviderName = authStatus.providers?.[providerId]?.displayName || providerId;
     const providerName = rawProviderName.replace(" ⭐", "");
     
+    // This function is called directly from the chat-app component
+    // The caller needs to invalidate the preferences cache to show updated model info
+    
     return {
       content: `✅ Successfully set ${modelId} as your default model for ${providerName}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      shouldInvalidatePreferencesCache: true  // Signal to invalidate preferences cache
     };
   } catch (error) {
     return {

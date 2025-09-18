@@ -107,6 +107,7 @@ export interface UIMessage {
     }[];
   };
   hierarchicalModel?: HierarchicalModelData;
+  shouldInvalidatePreferencesCache?: boolean; // Signal to the UI to invalidate the preferences cache
 }
 
 export interface BackendMessage {
