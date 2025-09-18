@@ -1,7 +1,7 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
-
 import { ProviderInfo } from "@/types/provider";
+import { toast } from "sonner"; // Import directly from package
 
 // Provider type definition with API key format
 export interface LoginProviderInfo extends ProviderInfo {
@@ -82,7 +82,8 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     return {
       content: `Failed to initialize login: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -115,10 +116,22 @@ export async function authenticateWithApiKey(
       // Continue even if preference update fails - the key is stored
     }
     
+    // Show success toast notification
+    try {
+      toast.success("Authentication successful", {
+        description: `Successfully authenticated with ${provider}`,
+        duration: 3000
+      });
+      console.log("Toast notification triggered for API key login");
+    } catch (toastError) {
+      console.error("Failed to show toast:", toastError);
+    }
+    
     return {
       content: `✅ Successfully authenticated with ${provider} using API key`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     // Try to delete the API key if authentication failed
@@ -131,7 +144,8 @@ export async function authenticateWithApiKey(
     return {
       content: `❌ Failed to authenticate: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -206,7 +220,8 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
     return {
       content: `❌ ${errorMessage}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -230,16 +245,24 @@ export async function handleOAuthCallback(
     // Update preferences to use this provider as the preferred one
     await updateUserPreferences({ preferredProvider: provider });
     
+    // Show success toast notification
+    toast.success("OAuth authentication successful", {
+      description: `Successfully authenticated with ${provider}`,
+      duration: 3000
+    });
+    
     return {
       content: `✅ Successfully authenticated with ${provider} using OAuth`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     return {
       content: `❌ Failed to complete OAuth: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -300,7 +323,8 @@ export async function updateUserPreferences(
     return {
       content: "✅ Preferences updated successfully",
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     if (retryCount > 0) {
@@ -313,7 +337,8 @@ export async function updateUserPreferences(
     return {
       content: `❌ Failed to update preferences after multiple attempts: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }

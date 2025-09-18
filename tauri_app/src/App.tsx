@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { AutoUpdater } from '@/components/auto-updater';
 import { ChatApp } from '@/components/chat-app';
 import { ThemeProvider } from '@/components/ui/theme-provider';
+import { Toaster } from '@/components/ui/sonner';
 import { fetchAppList } from '@/hooks/useOpenApps';
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <Toaster richColors position="top-center" closeButton />
         {showUpdater && (
           <div className="fixed top-4 right-4 z-50">
             <AutoUpdater />

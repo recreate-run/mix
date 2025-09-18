@@ -1,47 +1,71 @@
 ---
 title: "SDK"
-description: "Type-safe JavaScript/TypeScript client for the Mix server"
+description: "Official SDKs for the Mix server"
 ---
 
 import { Github, Package as PackageIcon } from "lucide-react";
 
-# SDK
+# Mix SDKs
 
-Type-safe JS/TS client for Mix server.
+Official client libraries for interacting with Mix server.
 
-The Mix JavaScript/TypeScript SDK provides a type-safe client for interacting with the Mix server. Use it to build integrations and control Mix programmatically.
+Mix provides official SDKs in TypeScript and Python to build integrations and control Mix programmatically. Choose the SDK that best fits your development environment.
 
-<div className="flex items-center gap-2 mt-4 mb-8">
-  <a 
-    href="https://github.com/recreate-run/mix-typescript-sdk" 
-    target="_blank" 
-    rel="noopener noreferrer"
-    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-  >
-    <Github className="w-4 h-4" /> View on GitHub
-  </a>
-  <a 
-    href="https://www.npmjs.com/package/mix-typescript-sdk" 
-    target="_blank" 
-    rel="noopener noreferrer" 
-    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
-  >
-    <PackageIcon className="w-4 h-4" /> NPM Package
-  </a>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 mb-10">
+  <div className="border rounded-lg p-6">
+    <h3 className="text-xl font-bold mb-4">TypeScript SDK</h3>
+    <p className="mb-4">Type-safe JavaScript/TypeScript client for building web applications and Node.js integrations.</p>
+    <div className="flex items-center gap-2 mt-4">
+      <a 
+        href="/docs/sdk/typescript-sdk" 
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+      >
+        Documentation
+      </a>
+      <a 
+        href="https://github.com/recreate-run/mix-typescript-sdk" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+      >
+        <Github className="w-4 h-4" /> GitHub
+      </a>
+    </div>
+  </div>
+  <div className="border rounded-lg p-6">
+    <h3 className="text-xl font-bold mb-4">Python SDK</h3>
+    <p className="mb-4">Type-safe Python client with both synchronous and asynchronous APIs for Python applications.</p>
+    <div className="flex items-center gap-2 mt-4">
+      <a 
+        href="/docs/sdk/python-sdk" 
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+      >
+        Documentation
+      </a>
+      <a 
+        href="https://github.com/recreate-run/mix-python-sdk" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+      >
+        <Github className="w-4 h-4" /> GitHub
+      </a>
+    </div>
+  </div>
 </div>
 
-## Features
+## Common Features
 
-- Full type-safety with TypeScript
-- Access to all Mix API endpoints
-- Simplified error handling
-- Built-in request/response processing
-- [Open source](https://github.com/recreate-run/mix-typescript-sdk) with MIT license
+Both SDKs provide:
 
-## Quick Links
+- Full API coverage for Mix server
+- Type-safe interfaces
+- Session and message management
+- Authentication and permission handling
+- User preference configuration
+- File operations support
+- Comprehensive error handling
 
-- [Installation](/docs/sdk/installation)
-- [Client Creation](/docs/sdk/client)
-- [API Reference](/docs/sdk/api-reference)
-- [Examples](/docs/sdk/examples)
-- [GitHub Repository](https://github.com/recreate-run/mix-typescript-sdk)
+## REST API
+
+Both SDKs communicate with the Mix server using a RESTful API. If you need to develop integrations in other languages, you can interact directly with the REST API endpoints that the SDKs use internally.

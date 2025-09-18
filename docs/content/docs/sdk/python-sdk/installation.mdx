@@ -1,0 +1,54 @@
+---
+title: "Installation"
+description: "How to install the Mix Python SDK"
+---
+
+import { Github } from "lucide-react";
+
+# Installation
+
+Installing the Mix Python SDK is straightforward. You can use pip or poetry to add it to your project. The SDK is [open source on GitHub](https://github.com/recreate-run/mix-python-sdk).
+
+## Install with pip
+
+```bash
+pip install mix-python-sdk
+```
+
+## Install with poetry
+
+```bash
+poetry add mix-python-sdk
+```
+
+## Install from source
+
+You can also install the SDK directly from the source repository:
+
+```bash
+pip install git+https://github.com/recreate-run/mix-python-sdk.git
+```
+
+## Source Code
+
+You can find the source code and contribute to the SDK on GitHub:
+
+<a 
+  href="https://github.com/recreate-run/mix-python-sdk" 
+  target="_blank" 
+  rel="noopener noreferrer"
+  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors mt-2"
+>
+  <Github className="w-4 h-4" /> recreate-run/mix-python-sdk
+</a>
+
+## Dependencies
+
+The SDK has minimal dependencies and is designed to work with Python 3.8 and later. It includes:
+- Type annotations for improved IDE experience
+- HTTP request management
+- JSON serialization/deserialization
+
+## Next Steps
+
+Once you've installed the SDK, you can start using it by creating a client. See [Client Creation](/docs/sdk/python-sdk/client) for more details.

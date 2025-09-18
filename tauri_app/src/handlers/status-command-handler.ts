@@ -128,7 +128,8 @@ export async function handleStatusCommand(): Promise<UIMessage> {
     return {
       content: `Failed to check authentication status: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -145,7 +146,8 @@ export async function handleProviderSelection(provider: string): Promise<UIMessa
     return {
       content: `Failed to initiate login for ${provider}: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }

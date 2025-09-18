@@ -11,26 +11,26 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
 	httphandlers "mix/internal/http"
+	_ "mix/internal/llm/models"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
-
 // TestServerResult contains the initialized test server components
 type TestServerResult struct {
-	Server     *httptest.Server
-	App        *app.App
-	SessionID  string
-	ConfigDir  string
-	DataDir    string
+	Server    *httptest.Server
+	App       *app.App
+	SessionID string
+	ConfigDir string
+	DataDir   string
 }
-
 
 // initMCPTools mock implementation for testing
 func initMCPTools(ctx context.Context, app *app.App) {
@@ -104,6 +104,10 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	// Initialize MCP tools
 	initMCPTools(ctx, testApp)
 
+	// Ensure credentials service is fully initialized
+	// This is needed because credentials are preloaded in a background goroutine
+	time.Sleep(100 * time.Millisecond)
+
 	// Create test session
 	session, err := testApp.Sessions.Create(ctx, "Test Integration Session")
 	if err != nil {
@@ -115,6 +119,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	messageHandler := httphandlers.NewMessageHandler(testApp)
 	systemHandler := httphandlers.NewSystemHandler(testApp)
 	preferencesHandler := httphandlers.NewPreferencesHandler(testApp)
+	authHandler := httphandlers.NewAuthHandler(testApp)
 
 	// Create file management handlers
 	fileHandler := httphandlers.NewFileHandler(testApp, testApp.StorageConfig)
@@ -145,6 +150,14 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
 
+	// Auth endpoints
+	mux.HandleFunc("POST /api/auth/api-key", authHandler.HandleStoreAPIKey)
+	mux.HandleFunc("DELETE /api/auth/{provider}", authHandler.HandleDeleteCredentials)
+	mux.HandleFunc("GET /api/auth/status", authHandler.HandleAuthStatus)
+	mux.HandleFunc("GET /api/auth/validate", authHandler.HandleValidatePreferredProvider)
+	mux.HandleFunc("POST /api/auth/oauth/{provider}", authHandler.HandleStartOAuth)
+	mux.HandleFunc("POST /api/auth/oauth-callback", authHandler.HandleOAuthCallback)
+
 	// User preferences endpoints
 	mux.HandleFunc("GET /api/preferences", preferencesHandler.HandleGetPreferences)
 	mux.HandleFunc("POST /api/preferences", preferencesHandler.HandleUpdatePreferences)
@@ -167,7 +180,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 		t.Logf("Stream request received: %s %s", r.Method, r.URL.String())
 		httphandlers.HandleSSEStream(ctx, testApp, w, r)
 	})
-	
+
 	// Stream sub-path endpoint for SSE with paths
 	mux.HandleFunc("/stream/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Stream sub-path request received: %s %s", r.Method, r.URL.String())
@@ -178,7 +191,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 			httphandlers.HandleSSEStream(ctx, testApp, w, r)
 		}
 	})
-	
+
 	// Health check endpoint (always enabled)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		healthData := map[string]interface{}{
@@ -186,7 +199,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 		}
 		sendJSONResponse(w, http.StatusOK, healthData)
 	})
-	
+
 	// Default handler for debugging
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Unhandled request received: %s %s", r.Method, r.URL.String())
@@ -262,7 +275,7 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 	return responseData
 }
 
-// validateArrayResponse validates success response as array (flattened)  
+// validateArrayResponse validates success response as array (flattened)
 func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int) []interface{} {
 	defer resp.Body.Close()
 
@@ -276,6 +289,16 @@ func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int
 	}
 
 	return responseData
+}
+
+// mockOAuthFlow creates a mock OAuth flow for testing purposes
+func mockOAuthFlow(t *testing.T, server *httptest.Server, provider string) (string, string) {
+	// Generate a state token and auth URL
+	stateToken := "mock-oauth-state-" + provider
+	authURL := "https://example.com/oauth/authorize?client_id=mock&state=" + stateToken
+
+	// Return the mock state token and auth URL
+	return stateToken, authURL
 }
 
 // validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
@@ -298,7 +321,6 @@ func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int
 	return errorResponse
 }
 
-
 // createJSONMessage creates a proper JSON message structure for testing
 func createJSONMessage(text string) string {
 	msgContent := map[string]interface{}{
@@ -313,40 +335,40 @@ func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filen
 	// Create multipart form
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	
+
 	// Create file part
 	part, err := writer.CreateFormFile("file", filename)
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	
+
 	// Write file content
 	_, err = part.Write([]byte(content))
 	if err != nil {
 		t.Fatalf("Failed to write file content: %v", err)
 	}
-	
+
 	// Close writer to finalize multipart form
 	err = writer.Close()
 	if err != nil {
 		t.Fatalf("Failed to close multipart writer: %v", err)
 	}
-	
+
 	// Create request
 	req, err := http.NewRequest("POST", server.URL+path, &body)
 	if err != nil {
 		t.Fatalf("Failed to create multipart request: %v", err)
 	}
-	
+
 	// Set proper content type for multipart
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	
+
 	// Send request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to send multipart request: %v", err)
 	}
-	
+
 	return resp
 }
 
@@ -355,39 +377,39 @@ func makeMultipartFileRequestFromBytes(t *testing.T, server *httptest.Server, pa
 	// Create multipart form
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	
+
 	// Create file part
 	part, err := writer.CreateFormFile("file", filename)
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	
+
 	// Write file content
 	_, err = part.Write(content)
 	if err != nil {
 		t.Fatalf("Failed to write file content: %v", err)
 	}
-	
+
 	// Close writer to finalize multipart form
 	err = writer.Close()
 	if err != nil {
 		t.Fatalf("Failed to close multipart writer: %v", err)
 	}
-	
+
 	// Create request
 	req, err := http.NewRequest("POST", server.URL+path, &body)
 	if err != nil {
 		t.Fatalf("Failed to create multipart request: %v", err)
 	}
-	
+
 	// Set proper content type for multipart
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	
+
 	// Send request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to send multipart request: %v", err)
 	}
-	
+
 	return resp
 }
