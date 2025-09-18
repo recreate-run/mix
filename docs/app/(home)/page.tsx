@@ -43,8 +43,8 @@ export const metadata: Metadata = {
 export default function HomePage() {
 	return (
 		<>
-			<div className="flex flex-col min-h-[100vh]">
-				<div className="flex items-center justify-center py-4 flex-none">
+			<div className="flex flex-col">
+				<div className="flex items-center justify-center py-4 flex-none min-h-screen">
 					<div className="container px-4 pb-8">
 						<PageHeader className="mb-6">
 							<Announcement />
@@ -137,9 +137,7 @@ export default function HomePage() {
 					</div>
 				</div>
 
-				<div className="mt-auto">
-					<Footer />
-				</div>
+				<Footer />
 			</div>
 		</>
 	);

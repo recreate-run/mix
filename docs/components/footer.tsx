@@ -8,8 +8,8 @@ function Footer({
   ...props
 }: React.ComponentProps<"footer">) {
   return (
-    <footer className={cn("border-t mt-auto", className)} {...props}>
-      <div className="container mx-auto px-4 py-12">
+    <footer className={cn("border-t bg-background shadow-lg", className)} {...props}>
+      <div className="container mx-auto px-4 py-12 overflow-y-auto">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3 lg:grid-cols-4">
           {/* About */}
           <div className="flex flex-col space-y-4">
