@@ -120,7 +120,8 @@ export async function logoutProvider(provider: string): Promise<UIMessage> {
     return {
       content: `✅ Successfully logged out from ${provider}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     return {

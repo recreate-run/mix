@@ -218,7 +218,8 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
       content: `✅ Successfully set ${modelId} as your default model for ${providerName}`,
       from: "assistant",
       frontend_only: true,
-      shouldInvalidatePreferencesCache: true  // Signal to invalidate preferences cache
+      shouldInvalidatePreferencesCache: true,  // Signal to invalidate preferences cache
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     return {

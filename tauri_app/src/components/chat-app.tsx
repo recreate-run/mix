@@ -261,11 +261,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         });
         setShowCommands(true);
       } else {
-        // Add response message if no statusData (error case)
-        setMessages((prev) => [
-          ...prev,
-          statusResult
-        ]);
+        // Add response message if no statusData (error case) and not suppressed
+        if (!statusResult.suppressChatMessage) {
+          setMessages((prev) => [
+            ...prev,
+            statusResult
+          ]);
+        }
       }
     } catch (error) {
       console.error('Status command failed:', error);
@@ -303,11 +305,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         });
         setShowCommands(true);
       } else {
-        // Add response message if no loginData (error case)
-        setMessages((prev) => [
-          ...prev,
-          loginResult
-        ]);
+        // Add response message if no loginData (error case) and not suppressed
+        if (!loginResult.suppressChatMessage) {
+          setMessages((prev) => [
+            ...prev,
+            loginResult
+          ]);
+        }
       }
     } catch (error) {
       console.error('Login command failed:', error);
@@ -339,10 +343,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
       // If there's no logoutData (no authenticated providers), show the error message
       if (!logoutData.logoutData) {
-        setMessages((prev) => [
-          ...prev,
-          logoutData,
-        ]);
+        if (!logoutData.suppressChatMessage) {
+          setMessages((prev) => [
+            ...prev,
+            logoutData,
+          ]);
+        }
         return;
       }
 
@@ -379,8 +385,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             content: "/model",
             from: "user",
           },
-          modelData,
         ]);
+        
+        if (!modelData.suppressChatMessage) {
+          setMessages((prev) => [
+            ...prev,
+            modelData,
+          ]);
+        }
         return;
       }
 
@@ -454,11 +466,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
       }
 
-      // Add success message
-      setMessages((prev) => [
-        ...prev,
-        result
-      ]);
+      // Only add message to chat if not suppressed
+      if (!result.suppressChatMessage) {
+        setMessages((prev) => [
+          ...prev,
+          result
+        ]);
+      }
     } catch (error) {
       console.error('Model selection failed:', error);
       // Close CMDK and show error message
@@ -485,11 +499,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setLogoutData(undefined);
 
-      // Add success message
-      setMessages((prev) => [
-        ...prev,
-        result
-      ]);
+      // Only add message to chat if not suppressed
+      if (!result.suppressChatMessage) {
+        setMessages((prev) => [
+          ...prev,
+          result
+        ]);
+      }
     } catch (error) {
       console.error('Logout failed:', error);
       // Close CMDK and show error message
@@ -516,11 +532,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setStatusData(undefined);
 
-      // Add provider selection result message
-      setMessages((prev) => [
-        ...prev,
-        result
-      ]);
+      // Only add message to chat if not suppressed
+      if (!result.suppressChatMessage) {
+        setMessages((prev) => [
+          ...prev,
+          result
+        ]);
+      }
     } catch (error) {
       console.error('Provider selection failed:', error);
       // Close CMDK and show error message
@@ -645,11 +663,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setLoginData(undefined);
 
-      // Add success/error message
-      setMessages((prev) => [
-        ...prev,
-        result
-      ]);
+      // Only add message to chat if not suppressed
+      if (!result.suppressChatMessage) {
+        setMessages((prev) => [
+          ...prev,
+          result
+        ]);
+      }
 
     } catch (error) {
       console.error('API key authentication failed:', error);
@@ -669,11 +689,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setLoginData(undefined);
 
-      // Add success/error message
-      setMessages((prev) => [
-        ...prev,
-        result
-      ]);
+      // Only add message to chat if not suppressed
+      if (!result.suppressChatMessage) {
+        setMessages((prev) => [
+          ...prev,
+          result
+        ]);
+      }
 
     } catch (error) {
       console.error('OAuth code processing failed:', error);

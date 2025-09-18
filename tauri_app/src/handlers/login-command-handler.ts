@@ -118,7 +118,8 @@ export async function authenticateWithApiKey(
     return {
       content: `✅ Successfully authenticated with ${provider} using API key`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     // Try to delete the API key if authentication failed
@@ -233,7 +234,8 @@ export async function handleOAuthCallback(
     return {
       content: `✅ Successfully authenticated with ${provider} using OAuth`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     return {
@@ -300,7 +302,8 @@ export async function updateUserPreferences(
     return {
       content: "✅ Preferences updated successfully",
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     if (retryCount > 0) {
