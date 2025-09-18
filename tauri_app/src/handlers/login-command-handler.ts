@@ -82,7 +82,8 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     return {
       content: `Failed to initialize login: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -143,7 +144,8 @@ export async function authenticateWithApiKey(
     return {
       content: `❌ Failed to authenticate: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -218,7 +220,8 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
     return {
       content: `❌ ${errorMessage}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -258,7 +261,8 @@ export async function handleOAuthCallback(
     return {
       content: `❌ Failed to complete OAuth: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -333,7 +337,8 @@ export async function updateUserPreferences(
     return {
       content: `❌ Failed to update preferences after multiple attempts: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }

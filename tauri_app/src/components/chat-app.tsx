@@ -262,18 +262,38 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             ...prev,
             statusResult
           ]);
+        } else {
+          // Show error feedback if it's suppressed
+          if (statusResult.content.includes("Failed") || statusResult.content.includes("❌")) {
+            setFeedbackMessage(`Error: ${statusResult.content.replace("❌", "").trim()}`);
+            
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+              setFeedbackMessage(null);
+            }, 3000);
+          } else if (statusResult.content.includes("✅")) {
+            // Show success feedback
+            setFeedbackMessage(statusResult.content.replace("✅", "").trim());
+            
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+              setFeedbackMessage(null);
+            }, 3000);
+          }
         }
       }
     } catch (error) {
       console.error('Status command failed:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to check authentication status: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to check authentication status`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -301,14 +321,16 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       }
     } catch (error) {
       console.error('Login command failed:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to start login flow: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to start login flow`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -325,6 +347,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             ...prev,
             logoutData,
           ]);
+        } else {
+          // Show error feedback
+          setFeedbackMessage(`Error: No authenticated providers to log out from`);
+          
+          // Auto-hide after 3 seconds
+          setTimeout(() => {
+            setFeedbackMessage(null);
+          }, 3000);
         }
         return;
       }
@@ -337,14 +367,16 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
     } catch (error) {
       console.error('Logout command failed:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to start logout flow: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to start logout flow`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -379,18 +411,16 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
     } catch (error) {
       console.error('Unified model command failed:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: "/model",
-          from: "user",
-        },
-        {
-          content: `Failed to handle model selection: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to handle model selection`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -405,14 +435,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Close CMDK and show error message
       setShowCommands(false);
       setHierarchicalModelData(undefined);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to update provider preference: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to update provider preference`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -429,8 +460,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       if (result.shouldInvalidatePreferencesCache) {
         queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
         
-        // Show feedback message in the UI
-        setFeedbackMessage(`Model updated successfully: ${result.content.replace("✅ Successfully set ", "").replace(" as your default model for", " for")}`);
+        // Check if this is a success or error message
+        if (result.content.includes("❌") || result.content.includes("Failed")) {
+          // Show error message
+          setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
+        } else {
+          // Show success message
+          setFeedbackMessage(`Model updated successfully: ${result.content.replace("✅ Successfully set ", "").replace(" as your default model for", " for")}`);
+        }
         
         // Auto-hide the message after 3 seconds
         setTimeout(() => {
@@ -447,17 +484,20 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       }
     } catch (error) {
       console.error('Model selection failed:', error);
-      // Close CMDK and show error message
+      // Close CMDK and clear data
       setShowCommands(false);
       setHierarchicalModelData(undefined);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to update model preference: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to update model preference`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error message to chat interface
+      // Just log the error and show the notification
     }
   };
 
@@ -471,8 +511,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setLogoutData(undefined);
       
-      // Show feedback for logout action
-      setFeedbackMessage(`Logged out from ${providerId} successfully`);
+      // Check if this is a success or error message
+      if (result.content.includes("❌") || result.content.includes("Failed")) {
+        // Show error message
+        setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
+      } else {
+        // Show success message
+        setFeedbackMessage(`Logged out successfully`);
+      }
       
       // Auto-hide the message after 3 seconds
       setTimeout(() => {
@@ -488,17 +534,20 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       }
     } catch (error) {
       console.error('Logout failed:', error);
-      // Close CMDK and show error message
+      // Close CMDK and clear data
       setShowCommands(false);
       setLogoutData(undefined);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to log out: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to log out from provider`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error message to chat interface
+      // Just log the error and show the notification
     }
   };
 
@@ -524,14 +573,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Close CMDK and show error message
       setShowCommands(false);
       setStatusData(undefined);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to select provider: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to select provider`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -608,28 +658,28 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           }
         } catch (error) {
           console.error('OAuth flow failed:', error);
-          // Show error message but don't close command menu
-          setMessages((prev) => [
-            ...prev,
-            {
-              content: `Failed to start OAuth flow: ${error}`,
-              from: "assistant",
-              frontend_only: true,
-            },
-          ]);
+          // Show error feedback but don't close command menu
+          setFeedbackMessage(`Error: Failed to start OAuth flow`);
+          
+          // Auto-hide after 3 seconds
+          setTimeout(() => {
+            setFeedbackMessage(null);
+          }, 3000);
+          
+          // Don't add error to chat - handled by notification
         }
       }
     } catch (error) {
       console.error('Login provider selection failed:', error);
-      // Show error message but don't close command menu
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to handle login: ${error}`,
-          from: "assistant",
-          frontend_only: true,
-        },
-      ]);
+      // Show error feedback but don't close command menu
+      setFeedbackMessage(`Error: Failed to handle login`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -643,8 +693,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setLoginData(undefined);
 
-      // Show feedback for login action
-      setFeedbackMessage(`Successfully authenticated with ${providerId} using API key`);
+      // Check if this is a success or error message
+      if (result.content.includes("❌") || result.content.includes("Failed")) {
+        // Show error message
+        setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
+      } else {
+        // Show success message
+        setFeedbackMessage(`Successfully authenticated with ${providerId} using API key`);
+      }
       
       // Auto-hide the message after 3 seconds
       setTimeout(() => {
@@ -661,6 +717,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
     } catch (error) {
       console.error('API key authentication failed:', error);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to authenticate with API key`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
       // Let the CommandSlash component handle the error, since it manages the API key input
       throw error;
     }
@@ -677,8 +742,14 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
       setLoginData(undefined);
       
-      // Show feedback for OAuth login
-      setFeedbackMessage(`Successfully authenticated with ${providerId} using OAuth`);
+      // Check if this is a success or error message
+      if (result.content.includes("❌") || result.content.includes("Failed")) {
+        // Show error message
+        setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
+      } else {
+        // Show success message
+        setFeedbackMessage(`Successfully authenticated with ${providerId} using OAuth`);
+      }
       
       // Auto-hide the message after 3 seconds
       setTimeout(() => {
@@ -695,6 +766,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
     } catch (error) {
       console.error('OAuth code processing failed:', error);
+      
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to complete OAuth authentication`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
       // Let the CommandSlash component handle the error
       throw error;
     }
@@ -722,14 +802,16 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // Handle file upload error
   const handleFileUploadError = (error: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        content: `File upload failed: ${error}`,
-        from: "assistant",
-        frontend_only: true,
-      },
-    ]);
+    // Show error feedback with specific error message
+    setFeedbackMessage(`Error: File upload failed - ${error}`);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setFeedbackMessage(null);
+    }, 3000);
+    
+    // Don't add error message to chat interface
+    // Just show the notification
   };
 
   // Initialize new hooks
@@ -1180,14 +1262,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       });
     } catch (error) {
       console.error('Failed to fork conversation:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: `Failed to fork conversation: ${error}`,
-          from: 'assistant',
-          frontend_only: true,
-        },
-      ]);
+      // Show error feedback
+      setFeedbackMessage(`Error: Failed to fork conversation`);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 3000);
+      
+      // Don't add error to chat - handled by notification
     }
   };
 
@@ -1218,7 +1301,11 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       <div className="flex-1 overflow-y-auto">
         {/* Feedback message notification */}
         {feedbackMessage && (
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-5 duration-300">
+          <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-5 duration-300 ${
+            feedbackMessage.startsWith("Error:") 
+              ? "bg-destructive text-destructive-foreground" 
+              : "bg-primary text-primary-foreground"
+          }`}>
             {feedbackMessage}
           </div>
         )}

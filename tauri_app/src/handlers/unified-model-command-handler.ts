@@ -128,7 +128,8 @@ export async function handleUnifiedModelCommand(): Promise<UIMessage> {
     return {
       content: `Failed to get providers and models: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -178,7 +179,8 @@ export async function handleProviderSelectionInHierarchy(providerId: string): Pr
     return {
       content: `Failed to update provider preference: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -241,7 +243,8 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
     return {
       content: `Failed to update model preference: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }

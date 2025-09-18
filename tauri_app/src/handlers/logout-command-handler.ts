@@ -93,7 +93,8 @@ export async function handleLogoutCommand(): Promise<UIMessage> {
     return {
       content: `Failed to check authentication status: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -114,7 +115,8 @@ export async function logoutProvider(provider: string): Promise<UIMessage> {
       return {
         content: `❌ Failed to log out from ${provider}. Please try again.`,
         from: "assistant",
-        frontend_only: true
+        frontend_only: true,
+        suppressChatMessage: true
       };
     }
     
@@ -134,7 +136,8 @@ export async function logoutProvider(provider: string): Promise<UIMessage> {
     return {
       content: `❌ Failed to log out: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
