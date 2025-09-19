@@ -13,8 +13,6 @@ import (
 const (
 	// StorageRootDir is the centralized storage directory name
 	StorageRootDir = "storage"
-	// CommonStorageDir is the directory name for common files
-	CommonStorageDir = "common"
 )
 
 // Config holds storage configuration
@@ -35,16 +33,10 @@ func DefaultConfig() Config {
 	}
 }
 
-// Initialize creates the storage root directory and common directory if they don't exist
+// Initialize creates the storage root directory if it doesn't exist
 func Initialize(config Config) error {
 	if err := os.MkdirAll(config.BasePath, 0o755); err != nil {
 		return fmt.Errorf("failed to create storage directory: %w", err)
-	}
-
-	// Create common storage directory
-	commonDir := GetCommonStoragePath(config)
-	if err := os.MkdirAll(commonDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create common storage directory: %w", err)
 	}
 
 	return nil
@@ -56,11 +48,6 @@ func GetSessionStoragePath(sessionID string, config Config) string {
 	return filepath.Join(config.BasePath, sessionID)
 }
 
-// GetCommonStoragePath returns the storage path for common files
-// Returns /storage/common/
-func GetCommonStoragePath(config Config) string {
-	return filepath.Join(config.BasePath, CommonStorageDir)
-}
 
 // ValidateSessionID validates that a session ID is a valid UUID format
 func ValidateSessionID(sessionID string) bool {
@@ -110,26 +97,6 @@ func GetSessionRoot(sessionID string, config Config) (*os.Root, error) {
 	return root, nil
 }
 
-// GetCommonRoot returns an os.Root for the common storage directory
-// This provides OS-level protection against path traversal attacks
-func GetCommonRoot(config Config) (*os.Root, error) {
-	commonDir := GetCommonStoragePath(config)
-
-	// Ensure common directory exists - create it if it doesn't
-	if _, err := os.Stat(commonDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(commonDir, 0o755); err != nil {
-			return nil, fmt.Errorf("failed to create common directory: %w", err)
-		}
-	}
-
-	// Open root for common directory - provides path traversal protection
-	root, err := os.OpenRoot(commonDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open common root: %w", err)
-	}
-
-	return root, nil
-}
 
 // GetSessionFilePath returns the full path to a file within a session
 // DEPRECATED: Use GetSessionRoot and Root operations for better security
@@ -205,54 +172,3 @@ func DeleteSessionDirectory(sessionID string, config Config) error {
 	return nil
 }
 
-// CommonFileInfo represents a file in common storage with minimal information
-type CommonFileInfo struct {
-	Filename string `json:"filename"` // Just the filename (e.g., "logo.png")
-	Path     string `json:"path"`     // Relative path from common directory (e.g., "images/logo.png")
-}
-
-// ListCommonFiles returns a flat list of all files in the common storage directory
-func ListCommonFiles(config Config) ([]CommonFileInfo, error) {
-	commonDir := GetCommonStoragePath(config)
-
-	// Check if common directory exists
-	if _, err := os.Stat(commonDir); os.IsNotExist(err) {
-		return []CommonFileInfo{}, nil // Return empty list if directory doesn't exist
-	}
-
-	var files []CommonFileInfo
-
-	// Use filepath.WalkDir for efficient recursive traversal
-	err := filepath.WalkDir(commonDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip directories, only include files
-		if d.IsDir() {
-			return nil
-		}
-
-		// Get relative path from common directory
-		relPath, err := filepath.Rel(commonDir, path)
-		if err != nil {
-			return err
-		}
-
-		// Get just the filename
-		filename := filepath.Base(path)
-
-		files = append(files, CommonFileInfo{
-			Filename: filename,
-			Path:     relPath,
-		})
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk common directory: %w", err)
-	}
-
-	return files, nil
-}

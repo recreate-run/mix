@@ -134,37 +134,11 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 
 	// Check file existence using Root - prevents path traversal
 	fileInfo, err := root.Stat(filename)
-	isFromCommon := false
-
-	// If file not found in session, try common storage as fallback
-	if err != nil && os.IsNotExist(err) {
-		// Try common storage
-		commonRoot, commonErr := storage.GetCommonRoot(h.storageConfig)
-		if commonErr != nil {
-			// If we can't access common storage, return original not found error
+	if err != nil {
+		if os.IsNotExist(err) {
 			sendNotFoundError(w, "File", filename)
 			return
 		}
-		defer commonRoot.Close()
-
-		// Check if file exists in common storage
-		commonFileInfo, commonStatErr := commonRoot.Stat(filename)
-		if commonStatErr != nil {
-			if os.IsNotExist(commonStatErr) {
-				sendNotFoundError(w, "File", filename)
-				return
-			}
-			sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", commonStatErr.Error()))
-			return
-		}
-
-		// File found in common storage - switch to use common root
-		root.Close() // Close session root
-		root = commonRoot
-		fileInfo = commonFileInfo
-		isFromCommon = true
-	} else if err != nil {
-		// Other error (not "not found")
 		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
 		return
 	}
@@ -176,14 +150,8 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get the actual file path for thumbnail generation and serving
-	var filePath string
-	if isFromCommon {
-		commonDir := storage.GetCommonStoragePath(h.storageConfig)
-		filePath = filepath.Join(commonDir, filename)
-	} else {
-		sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
-		filePath = filepath.Join(sessionDir, filename)
-	}
+	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+	filePath := filepath.Join(sessionDir, filename)
 
 	// Check if thumbnail is requested
 	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
@@ -472,89 +440,6 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	return nil
 }
 
-// HandleListCommonFiles handles GET /api/common - returns a flat list of all files in common storage
-func (h *SessionAssetHandler) HandleListCommonFiles(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Get flat list of all files in common storage
-	files, err := storage.ListCommonFiles(h.storageConfig)
-	if err != nil {
-		sendInternalError(w, "listing common files", err)
-		return
-	}
-
-	// Return JSON response
-	sendJSONResponse(w, http.StatusOK, files)
-}
-
-// HandleServeCommonFile serves files from the common storage directory
-// URL format: /api/common/{filepath}
-func (h *SessionAssetHandler) HandleServeCommonFile(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	filepath := r.PathValue("filepath")
-	if filepath == "" {
-		sendValidationError(w, "filepath", "filepath is required")
-		return
-	}
-
-	// Use os.Root for secure file operations
-	root, err := storage.GetCommonRoot(h.storageConfig)
-	if err != nil {
-		sendInternalError(w, "getting common root", err)
-		return
-	}
-	defer root.Close()
-
-	// Check file existence using Root - prevents path traversal
-	fileInfo, err := root.Stat(filepath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			sendNotFoundError(w, "File", filepath)
-			return
-		}
-		sendValidationError(w, "filepath", fmt.Sprintf("invalid filepath or path traversal attempt: %s", err.Error()))
-		return
-	}
-
-	// Don't serve directories
-	if fileInfo.IsDir() {
-		http.Error(w, "Cannot serve directory", http.StatusBadRequest)
-		return
-	}
-
-	// Disable caching for development - ensures file changes are immediately visible
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
-
-	// Serve the file using Root for security
-	file, err := root.Open(filepath)
-	if err != nil {
-		sendInternalError(w, "opening file", err)
-		return
-	}
-	defer file.Close()
-
-	// Serve content with proper headers
-	http.ServeContent(w, r, filepath, fileInfo.ModTime(), file)
-}
 
 
 

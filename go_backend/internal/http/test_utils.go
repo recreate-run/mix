@@ -155,9 +155,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
 	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
 
-	// Common file endpoints
-	mux.HandleFunc("GET /api/common", sessionAssetHandler.HandleListCommonFiles)
-	mux.HandleFunc("GET /api/common/{filepath...}", sessionAssetHandler.HandleServeCommonFile)
 
 	// SSE endpoints (always enabled)
 	// SSE endpoint

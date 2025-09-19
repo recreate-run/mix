@@ -96,9 +96,6 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
 	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
 
-	// Common file endpoints
-	mux.HandleFunc("GET /api/common", sessionAssetHandler.HandleListCommonFiles)
-	mux.HandleFunc("GET /api/common/{filepath...}", sessionAssetHandler.HandleServeCommonFile)
 
 	// GSAP animation endpoints (kept separate from session storage)
 

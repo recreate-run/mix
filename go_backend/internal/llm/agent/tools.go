@@ -44,7 +44,6 @@ func TaskAgentTools(permissions permission.Service) []tools.BaseTool {
 	return []tools.BaseTool{
 		tools.NewGlobTool(),
 		tools.NewGrepTool(permissions),
-		tools.NewLsTool(),
 		tools.NewViewTool(permissions),
 	}
 }
