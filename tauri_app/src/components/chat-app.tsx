@@ -1052,42 +1052,26 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   };
 
-  // Handle completion of streaming
+  // Handle completion of streaming - invalidate cache to refresh from backend
   useEffect(() => {
     if (
       sseStream.completed &&
       (sseStream.finalContent || sseStream.toolCalls.length > 0) &&
       !sseStream.processing
     ) {
-      // SSE tool calls are already in ToolCall format
-      const convertedToolCalls: ToolCall[] = sseStream.toolCalls;
-
-      setMessages((prev) => {
-        const mediaOutputs = hasMediaShowcaseTool(convertedToolCalls)
-          ? getMediaShowcaseOutputs(convertedToolCalls)
-          : undefined;
-
-        return [
-          ...prev,
-          {
-            content: sseStream.finalContent!,
-            from: 'assistant',
-            toolCalls:
-              convertedToolCalls.length > 0 ? convertedToolCalls : undefined,
-            timeline: sseStream.timeline && sseStream.timeline.length > 0 ? sseStream.timeline : undefined,
-            mediaOutputs,
-          },
-        ];
-      });
-
       // Reset interrupted message guard when processing completes
       interruptedMessageAddedRef.current = false;
+      
+      // Invalidate cache immediately to refresh messages from backend
+      console.log('🔄 Streaming completed, invalidating cache immediately');
+      queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessionMessages(session?.id || '') });
     }
   }, [
     sseStream.completed,
     sseStream.finalContent,
     sseStream.processing,
     session?.id,
+    queryClient,
   ]);
 
   // Handle streaming errors
@@ -1161,8 +1145,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
       await sseStream.sendMessage(JSON.stringify(messageData));
 
-      // Invalidate message history cache to ensure fresh data on next navigation
-      invalidateMessageHistoryCache(queryClient);
+      // Don't invalidate immediately - will be done when streaming completes
+      // invalidateMessageHistoryCache(queryClient);
     } catch (error) {
       console.error('Failed to send message:', error);
       // Error will be handled by the error useEffect

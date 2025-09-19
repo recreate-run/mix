@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -146,11 +148,15 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		}
 	}
 
-	// Check for multimodal analyzer auth before execution
+	// Check for multimodal analyzer commands and handle them specially
 	if strings.Contains(params.Command, "multimodal-analyzer") {
+		// Check auth first
 		if authResponse := b.checkMultimodalAnalyzerAuth(); authResponse != nil {
 			return *authResponse, nil
 		}
+
+		// Convert any session URLs to local paths
+		params.Command = b.convertSessionURLsToLocalPaths(ctx, params.Command)
 	}
 
 	shell := shell.GetPersistentShell(sessionStorageDir)
@@ -246,4 +252,33 @@ Once the API key is set, you can use the multimodal analyzer to analyze images, 
 
 	response := NewTextErrorResponse(errorMsg)
 	return &response
+}
+
+// convertSessionURLsToLocalPaths converts localhost session URLs to local storage paths
+func (b *bashTool) convertSessionURLsToLocalPaths(ctx context.Context, command string) string {
+	// Regex to match localhost session file URLs
+	// Pattern: http://localhost:8088/api/sessions/{sessionId}/files/{filename}
+	urlPattern := regexp.MustCompile(`http://localhost:8088/api/sessions/([^/]+)/files/([^"\s]+)`)
+
+	return urlPattern.ReplaceAllStringFunc(command, func(match string) string {
+		matches := urlPattern.FindStringSubmatch(match)
+		if len(matches) != 3 {
+			return match // Return original if parsing fails
+		}
+
+		filename := matches[2]
+
+		// Get session storage directory for this session
+		sessionStorageDir, err := GetSessionStorageDirectory(ctx)
+		if err != nil {
+			logging.Warn("Failed to get session storage directory for URL conversion", "error", err)
+			return match // Return original URL if can't get storage dir
+		}
+
+		// Construct local file path
+		localPath := filepath.Join(sessionStorageDir, filename)
+
+		logging.Info("Converted session URL to local path", "url", match, "localPath", localPath)
+		return localPath
+	})
 }

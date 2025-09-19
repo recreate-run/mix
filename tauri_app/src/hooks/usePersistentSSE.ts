@@ -368,7 +368,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         const data = JSON.parse(event.data);
         setState((prev) => ({
           ...prev,
-          finalContent: data.content || '',
+          // Don't update finalContent - it was already built from content deltas during streaming
+          // finalContent: data.content || '', // ← REMOVED - this was causing duplication
           reasoning: data.reasoning || null,
           reasoningDuration: data.reasoningDuration || null,
           completed: true,

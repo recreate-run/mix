@@ -555,7 +555,7 @@ export function ConversationDisplay({
           </AIMessage>
           );
         })}
-        {sseStream.processing && (
+        {sseStream.processing && !sseStream.completed && (
           <AIMessage from="assistant">
             <AIMessageContent>
               {/* Show timeline-based interleaved thinking and tools during streaming */}
