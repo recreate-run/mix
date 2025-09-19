@@ -252,7 +252,11 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
   if (!timeline || timeline.length === 0) return null;
 
   // Group consecutive thinking entries together for better UX
-  const groupedEntries: Array<{ type: 'thinking', entries: string[], timestamps: number[] } | { type: 'tool', entry: TimelineEntry }> = [];
+  const groupedEntries: Array<
+    | { type: 'thinking', entries: string[], timestamps: number[] } 
+    | { type: 'tool', entry: TimelineEntry }
+    | { type: 'content', entry: TimelineEntry }
+  > = [];
 
   for (const entry of timeline) {
     if (entry.type === 'thinking') {
@@ -270,9 +274,9 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
         });
       }
     } else {
-      // Tool entry - always separate
+      // Tool or content entry - always separate
       groupedEntries.push({
-        type: 'tool',
+        type: entry.type,
         entry
       });
     }
@@ -295,6 +299,13 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
           <AIReasoningTrigger />
           <AIReasoningContent>{totalContent}</AIReasoningContent>
         </AIReasoning>
+      );
+    } else if (group.type === 'content') {
+      const contentText = group.entry.content as string;
+      return (
+        <div key={`content-${group.entry.id}`} className="mb-4">
+          <ResponseRenderer content={contentText} />
+        </div>
       );
     } else {
       const toolCall = group.entry.content as ToolCall;
@@ -417,9 +428,21 @@ export function ConversationDisplay({
                 <>
                   {/* Render media outputs as primary content */}
                   {message.mediaOutputs && sessionId ? (
-                    <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} />
+                    <>
+                      <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} />
+                      <AIMessageContent.Content>
+                        {/* Render timeline-based interleaved thinking and tools */}
+                        {message.timeline && renderTimelineEntries(message.timeline)}
+                      </AIMessageContent.Content>
+                    </>
                   ) : message.mediaOutputs ? (
-                    <div className="text-sm text-muted-foreground">Media content requires session ID</div>
+                    <>
+                      <div className="text-sm text-muted-foreground">Media content requires session ID</div>
+                      <AIMessageContent.Content>
+                        {/* Render timeline-based interleaved thinking and tools */}
+                        {message.timeline && renderTimelineEntries(message.timeline)}
+                      </AIMessageContent.Content>
+                    </>
                   ) : (
                     <AIMessageContent.Content>
                       {/* Render timeline-based interleaved thinking and tools */}

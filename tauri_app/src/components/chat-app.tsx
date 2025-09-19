@@ -36,7 +36,6 @@ import {
 import { expandFileReferences, buildSessionFileUrl, buildFullUrlFromPath } from '@/utils/attachmentUtils';
 import { invalidateMessageHistoryCache } from '@/lib/session-cache';
 import { CACHE_KEYS } from '@/lib/cache-keys';
-import { toast } from 'sonner';
 import type { ToolCall } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
 import type { MessageData, UIMessage } from '@/types/message';
