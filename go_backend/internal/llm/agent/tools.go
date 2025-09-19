@@ -28,7 +28,6 @@ func CoderAgentTools(
 			tools.NewEditTool(permissions, history),
 			tools.NewGlobTool(),
 			tools.NewGrepTool(permissions),
-			tools.NewLsTool(),
 			tools.NewViewTool(permissions),
 			tools.NewWebSearchTool(permissions),
 			tools.NewWriteTool(permissions, history),
