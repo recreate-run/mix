@@ -25,6 +25,11 @@ func main() {
 
 // startServer starts the GSAP server with graceful shutdown support
 func startServer(ctx context.Context) error {
+	// Initialize storage directory
+	if err := InitializeStorage(); err != nil {
+		return fmt.Errorf("failed to initialize storage: %w", err)
+	}
+
 	port := os.Getenv("GSAP_PORT")
 	if port == "" {
 		port = "8089"
@@ -39,6 +44,7 @@ func startServer(ctx context.Context) error {
 	mux.HandleFunc("/animations", listAnimations)
 	mux.HandleFunc("/animations/", handleAnimationRequest)
 	mux.HandleFunc("/shared/", serveSharedAsset)
+	mux.HandleFunc("/storage/", ServeStorageFiles)
 	mux.HandleFunc("/export", handleExport)
 
 	server := &http.Server{
@@ -48,17 +54,26 @@ func startServer(ctx context.Context) error {
 
 	log.Printf("GSAP server starting on port %s", port)
 	log.Printf("Serving animations from: %s", getAnimationsDir())
+	log.Printf("Storage directory: %s", getStoragePath())
 	log.Printf("Video export available at: POST /export")
 
 	// Start server in goroutine
+	errChan := make(chan error, 1)
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("Server error: %v", err)
+			errChan <- err
 		}
 	}()
 
-	// Wait for context cancellation
-	<-ctx.Done()
+	// Wait for either context cancellation or server error
+	select {
+	case <-ctx.Done():
+		// Normal shutdown requested
+	case err := <-errChan:
+		// Server failed to start
+		return err
+	}
 
 	// Graceful shutdown with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

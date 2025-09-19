@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,7 +62,10 @@ func TestMain(m *testing.M) {
 	select {
 	case err := <-serverDone:
 		if err != nil {
-			panic(fmt.Sprintf("Server shutdown error: %v", err))
+			// Don't panic on port binding errors, which are common in tests
+			if !strings.Contains(err.Error(), "bind: address already in use") {
+				panic(fmt.Sprintf("Server shutdown error: %v", err))
+			}
 		}
 	case <-time.After(10 * time.Second):
 		panic("Server shutdown timeout")
@@ -428,17 +432,11 @@ func TestExport(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir) // Clean up after test
 
-	// Create output file path
-	outputPath := filepath.Join(tempDir, "test-export.mp4")
-	absOutputPath, err := filepath.Abs(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to get absolute path: %v", err)
-	}
+	// Storage path will be automatically created by the API
 
 	// Create request payload
 	payload := URLVideoExportRequest{
 		URL:         baseURL + "/animations/liquid-words/preview",
-		OutputPath:  absOutputPath,
 		FPS:         ptr(30),
 		Duration:    ptr(2.0), // Short duration for test
 		Height:      ptr(480),
@@ -476,8 +474,48 @@ func TestExport(t *testing.T) {
 		t.Errorf("Export response indicated failure: %s", response.Error)
 	}
 
+	// Verify URL in response
+	if response.URL == "" {
+		t.Fatalf("Response does not contain URL")
+	}
+
+	// Verify URL format is correct
+	u, err := url.Parse(response.URL)
+	if err != nil {
+		t.Fatalf("Failed to parse URL: %v", err)
+	}
+
+	// Check URL path starts with /storage/
+	if !strings.HasPrefix(u.Path, "/storage/") {
+		t.Errorf("URL path should start with /storage/, got: %s", u.Path)
+	}
+
+	// Check URL has MP4 extension
+	if !strings.HasSuffix(u.Path, ".mp4") {
+		t.Errorf("URL should end with .mp4 extension, got: %s", u.Path)
+	}
+
+	// Test accessibility of the URL
+	resp2, err := http.Get(response.URL)
+	if err != nil {
+		t.Fatalf("Failed to access the exported video URL: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200 OK when accessing the video URL, got: %d", resp2.StatusCode)
+	}
+
+	if resp2.Header.Get("Content-Type") != "video/mp4" {
+		t.Errorf("Expected Content-Type: video/mp4, got: %s", resp2.Header.Get("Content-Type"))
+	}
+
+	// Extract filename from URL and construct local path
+	filename := filepath.Base(u.Path)
+	localPath := filepath.Join(getStoragePath(), filename)
+
 	// Check that file exists
-	if _, err := os.Stat(absOutputPath); os.IsNotExist(err) {
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
 		t.Fatalf("Output video file was not created: %v", err)
 	}
 
@@ -487,7 +525,7 @@ func TestExport(t *testing.T) {
 		"-select_streams", "v:0",
 		"-show_entries", "stream=width,height,codec_name,duration",
 		"-of", "default=noprint_wrappers=1",
-		absOutputPath)
+		localPath)
 	ffprobeOutput, err := ffprobe.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run ffprobe: %v\nOutput: %s", err, string(ffprobeOutput))
@@ -512,7 +550,7 @@ func TestExport(t *testing.T) {
 	}
 
 	// Check file size
-	fileInfo, err := os.Stat(absOutputPath)
+	fileInfo, err := os.Stat(localPath)
 	if err != nil {
 		t.Fatalf("Failed to get file stats: %v", err)
 	}
@@ -523,5 +561,5 @@ func TestExport(t *testing.T) {
 	}
 
 	// Cleanup video file explicitly for certainty
-	os.Remove(absOutputPath)
+	os.Remove(localPath)
 }
