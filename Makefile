@@ -64,7 +64,7 @@ install-deps: install
 	@echo "Installing Go dependencies..."
 	cd go_backend && go mod download
 	@echo "Installing capture script dependencies..."
-	cd go_backend && bun install
+	# cd go_backend && bun install
 	@echo "Installing Tauri app dependencies..."
 	cd tauri_app && bun i
 	@echo "✅ All dependencies installed!"
