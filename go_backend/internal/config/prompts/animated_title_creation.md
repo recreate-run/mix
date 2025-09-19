@@ -24,7 +24,7 @@ Response schema:
 
 ## Video Export
 
-**POST** `/api/video/export`
+**POST** `/export`
 
 Request Body (JSON)
 

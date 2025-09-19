@@ -43,27 +43,27 @@ Skip using this tool when:
 ## Examples of When to Use Media Showcase
 
 <example>
-User: Show me https://example.com/assets/logo.png
+User: Show me http://localhost:3000/assets/logo.png
 Assistant: Let me display that image for you.
 
 *Uses show_media tool with:*
 
-- Path: <https://example.com/assets/logo.png>
+- Path: <http://localhost:3000/assets/logo.png>
 - Type: image
 - Title: Project Logo
-- Description: Logo image from remote assets
+- Description: Logo image from local development server
 </example>
 
 <example>
-User: Show me this image: https://example.com/images/banner.jpg
+User: Show me this image: http://localhost:8080/images/banner.jpg
 Assistant: I'll display that image from the URL for you.
 
 *Uses show_media tool with:*
 
-- Path: <https://example.com/images/banner.jpg>
+- Path: <http://localhost:8080/images/banner.jpg>
 - Type: image
 - Title: Banner Image
-- Description: Remote banner image from example.com
+- Description: Banner image from local development server
 </example>
 
 <example>
@@ -170,12 +170,12 @@ outputs (required): Array of media outputs to showcase
 
 ## Usage Notes
 
-- Always use HTTP/HTTPS URLs - Local file paths are not supported
+- Always use HTTP/HTTPS URLs - Local file paths are not supported. Use `http://` (not https) for localhost URLs to avoid SSL certificate issues
 - URLs supported - HTTP/HTTPS URLs work for image, video, and audio types
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
 - Use for any media display - Not limited to creative outputs; great for previews and references
-- **YouTube URLs** - Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
+- Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
 
 This tool transforms file paths into beautiful media displays in the conversation interface.

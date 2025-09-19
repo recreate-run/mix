@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -59,17 +58,19 @@ func GetStorageFilePath(filename string) string {
 
 // GetStorageURL returns the URL to access a file in storage
 func GetStorageURL(r *http.Request, filename string) string {
-	// Build URL using the request's host
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-
-	return fmt.Sprintf("%s://%s/storage/%s", scheme, r.Host, filename)
+	// Use path-relative URL to avoid http/https scheme issues
+	// This ensures the browser uses the same protocol as the parent page
+	return fmt.Sprintf("/storage/%s", filename)
 }
 
 // ServeStorageFiles serves files from the storage directory
 func ServeStorageFiles(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -95,6 +96,13 @@ func ServeStorageFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	// Get file info for Content-Length and Last-Modified headers
+	fileInfo, err := file.Stat()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get file info: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Set content type based on extension
 	contentType := "application/octet-stream"
 	switch {
@@ -104,8 +112,14 @@ func ServeStorageFiles(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/json"
 	}
 
+	// Set content headers
 	w.Header().Set("Content-Type", contentType)
-	io.Copy(w, file)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
+	w.Header().Set("Last-Modified", fileInfo.ModTime().UTC().Format(http.TimeFormat))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filepath.Base(filePath)))
+
+	// Use http.ServeContent for better range support (needed for videos)
+	http.ServeContent(w, r, filePath, fileInfo.ModTime(), file)
 }
 
 // UploadToS3 uploads a file to an S3-compatible storage service
@@ -187,4 +201,37 @@ func UploadToS3(ctx context.Context, s3URL string, localFilePath string) (string
 
 	// Return S3 URL of the uploaded file
 	return fmt.Sprintf("%s://%s/%s", parsedURL.Scheme, parsedURL.Host, key), nil
+}
+
+// setCORSHeaders sets CORS headers for endpoints
+func setCORSHeaders(w http.ResponseWriter) {
+	// Allow requests from any origin
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Allow common HTTP methods
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
+	// Allow common headers
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Expose headers that clients might need to access
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Content-Disposition")
+
+	// Set cache control headers for better browser compatibility
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// Set Cross-Origin-Resource-Policy to allow embedding in any site
+	w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
+}
+
+// handleCORSPreflight handles OPTIONS requests for CORS
+func handleCORSPreflight(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method == "OPTIONS" {
+		setCORSHeaders(w)
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
+	return false
 }
