@@ -125,9 +125,9 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	// Use os.Root for secure file operations
-	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	root, err := storage.GetUploadsRoot(h.storageConfig)
 	if err != nil {
-		sendInternalError(w, "getting session root", err)
+		sendInternalError(w, "getting uploads root", err)
 		return
 	}
 	defer root.Close()
@@ -150,8 +150,8 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get the actual file path for thumbnail generation and serving
-	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
-	filePath := filepath.Join(sessionDir, filename)
+	uploadsDir := storage.GetUploadsStoragePath(h.storageConfig)
+	filePath := filepath.Join(uploadsDir, filename)
 
 	// Check if thumbnail is requested
 	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
@@ -232,10 +232,10 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 	return nil, fmt.Errorf("invalid thumbnail format, use: 100 (box), w100 (width), or h100 (height)")
 }
 
-// generateThumbnailPath creates a consistent cache path for thumbnails in session directory
+// generateThumbnailPath creates a consistent cache path for thumbnails in uploads directory
 func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
-	sessionStorageDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
-	thumbnailDir := filepath.Join(sessionStorageDir, ".thumbnails")
+	uploadsStorageDir := storage.GetUploadsStoragePath(h.storageConfig)
+	thumbnailDir := filepath.Join(uploadsStorageDir, ".thumbnails")
 
 	// Create hash of original path for consistent naming
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(originalPath)))

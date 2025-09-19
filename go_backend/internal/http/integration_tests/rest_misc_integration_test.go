@@ -378,7 +378,7 @@ func TestRESTAPIIntegration(t *testing.T) {
 	t.Run("FileUploadAndList", TestRESTFileUploadAndList)
 	t.Run("FileServing", TestRESTFileServing)
 	t.Run("FilePathSecurity", TestRESTFilePathSecurity) // Now using os.Root for robust security
-	t.Run("FileSessionIsolation", TestRESTFileSessionIsolation)
+	t.Run("FileSharedStorage", TestRESTFileSharedStorage)
 	t.Run("FileDeletion", TestRESTFileDeletion)
 	t.Run("FileThumbnailGeneration", TestRESTFileThumbnailGeneration)
 	t.Run("LargeFileHandling", TestRESTLargeFileHandling)

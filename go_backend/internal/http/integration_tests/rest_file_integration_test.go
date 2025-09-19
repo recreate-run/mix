@@ -243,19 +243,19 @@ func TestRESTFilePathSecurity(t *testing.T) {
 	t.Logf("✅ File path security test passed - All dangerous paths properly rejected")
 }
 
-// Test 23: File Session Isolation - Verify files are isolated between sessions
-func TestRESTFileSessionIsolation(t *testing.T) {
+// Test 23: File Shared Storage - Verify files are shared between sessions via uploads directory
+func TestRESTFileSharedStorage(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing file session isolation")
+	t.Log("Testing file shared storage via uploads directory")
 
 	// Create two separate sessions
 	session1Request := map[string]interface{}{
-		"title": "Isolation Test Session 1",
+		"title": "Shared Storage Test Session 1",
 	}
 	session2Request := map[string]interface{}{
-		"title": "Isolation Test Session 2",
+		"title": "Shared Storage Test Session 2",
 	}
 
 	// Create session 1
@@ -268,86 +268,89 @@ func TestRESTFileSessionIsolation(t *testing.T) {
 	session2Data := validateObjectResponse(t, createResp2, http.StatusCreated)
 	session2ID := session2Data["id"].(string)
 
-	// Upload a file to session 1
-	session1FileName := "session1-private.txt"
-	session1Content := "This file belongs to session 1 and should not be accessible from session 2"
+	// Upload a file via session 1
+	sharedFileName := "shared-file.txt"
+	sharedContent := "This file is uploaded via session 1 but should be accessible from session 2"
 
 	uploadResp1 := makeMultipartFileRequest(t, result.Server,
 		"/api/sessions/"+session1ID+"/files/upload",
-		session1FileName,
-		session1Content)
+		sharedFileName,
+		sharedContent)
 
 	validateObjectResponse(t, uploadResp1, http.StatusCreated)
 
-	// Upload a file to session 2 (different file, same name to test isolation)
-	session2FileName := "session1-private.txt" // Same filename as session 1
-	session2Content := "This file belongs to session 2 with the same filename"
-
-	uploadResp2 := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+session2ID+"/files/upload",
-		session2FileName,
-		session2Content)
-
-	validateObjectResponse(t, uploadResp2, http.StatusCreated)
-
-	// Verify session 1 can access its own file
+	// Verify session 1 can access the uploaded file
 	access1Resp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+session1ID+"/files/"+session1FileName, nil)
+		"/api/sessions/"+session1ID+"/files/"+sharedFileName, nil)
 
 	if access1Resp.StatusCode != http.StatusOK {
-		t.Fatalf("Session 1 should be able to access its own file, got status %d", access1Resp.StatusCode)
+		t.Fatalf("Session 1 should be able to access uploaded file, got status %d", access1Resp.StatusCode)
 	}
 
-	// Read content to verify it's session 1's file
-	content1 := make([]byte, len(session1Content)+10)
+	// Read content to verify it's correct
+	content1 := make([]byte, len(sharedContent)+10)
 	n1, _ := access1Resp.Body.Read(content1)
 	access1Resp.Body.Close()
 	actualContent1 := string(content1[:n1])
 
-	if actualContent1 != session1Content {
-		t.Fatalf("Session 1 file content mismatch. Expected: %q, Got: %q", session1Content, actualContent1)
+	if actualContent1 != sharedContent {
+		t.Fatalf("Session 1 file content mismatch. Expected: %q, Got: %q", sharedContent, actualContent1)
 	}
 
-	// Verify session 2 can access its own file
+	// Verify session 2 can also access the same file (since it's in shared uploads)
 	access2Resp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+session2ID+"/files/"+session2FileName, nil)
+		"/api/sessions/"+session2ID+"/files/"+sharedFileName, nil)
 
 	if access2Resp.StatusCode != http.StatusOK {
-		t.Fatalf("Session 2 should be able to access its own file, got status %d", access2Resp.StatusCode)
+		t.Fatalf("Session 2 should be able to access shared file, got status %d", access2Resp.StatusCode)
 	}
 
-	// Read content to verify it's session 2's file
-	content2 := make([]byte, len(session2Content)+10)
+	// Read content to verify it's the same file
+	content2 := make([]byte, len(sharedContent)+10)
 	n2, _ := access2Resp.Body.Read(content2)
 	access2Resp.Body.Close()
 	actualContent2 := string(content2[:n2])
 
-	if actualContent2 != session2Content {
-		t.Fatalf("Session 2 file content mismatch. Expected: %q, Got: %q", session2Content, actualContent2)
+	if actualContent2 != sharedContent {
+		t.Fatalf("Session 2 file content mismatch. Expected: %q, Got: %q", sharedContent, actualContent2)
 	}
 
-	// Test file listing isolation - session 1 should only see its own files
+	// Test file listing - both sessions should see the same files from uploads directory
 	list1Resp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+session1ID+"/files", nil)
 	files1List := validateArrayResponse(t, list1Resp, http.StatusOK)
 
-	// Session 1 should see exactly 1 file
-	if len(files1List) != 1 {
-		t.Fatalf("Session 1 should see exactly 1 file, got %d", len(files1List))
-	}
-
-	// Test file listing isolation - session 2 should only see its own files
 	list2Resp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+session2ID+"/files", nil)
 	files2List := validateArrayResponse(t, list2Resp, http.StatusOK)
 
-	// Session 2 should see exactly 1 file
-	if len(files2List) != 1 {
-		t.Fatalf("Session 2 should see exactly 1 file, got %d", len(files2List))
+	// Both sessions should see the same number of files (from shared uploads directory)
+	if len(files1List) != len(files2List) {
+		t.Fatalf("Both sessions should see same file count, got %d vs %d", len(files1List), len(files2List))
 	}
 
-	// Test cross-session access attempt (using wrong session IDs)
-	// This tests the session validation, not just file existence
+	// Both should see at least the file we uploaded
+	found1, found2 := false, false
+	for _, fileItem := range files1List {
+		fileObj := fileItem.(map[string]interface{})
+		if fileObj["name"].(string) == sharedFileName {
+			found1 = true
+			break
+		}
+	}
+	for _, fileItem := range files2List {
+		fileObj := fileItem.(map[string]interface{})
+		if fileObj["name"].(string) == sharedFileName {
+			found2 = true
+			break
+		}
+	}
+
+	if !found1 || !found2 {
+		t.Fatalf("Both sessions should see the shared file in listings, found1=%t, found2=%t", found1, found2)
+	}
+
+	// Test cross-session access attempt with invalid session ID (should still fail validation)
 	wrongSessionResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/wrong-session-id/files/"+session1FileName, nil)
+		"/api/sessions/wrong-session-id/files/"+sharedFileName, nil)
 
 	// Should fail with validation error (invalid session ID format returns 400 Bad Request)
 	if wrongSessionResp.StatusCode != http.StatusBadRequest {
@@ -356,7 +359,7 @@ func TestRESTFileSessionIsolation(t *testing.T) {
 	}
 	wrongSessionResp.Body.Close()
 
-	t.Logf("✅ File session isolation test passed - Sessions properly isolated")
+	t.Logf("✅ File shared storage test passed - Files properly shared via uploads directory")
 }
 
 // Test 24: File Deletion - DELETE /api/sessions/{id}/files/{filename}

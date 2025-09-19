@@ -32,7 +32,7 @@ func CoderAgentTools(
 			tools.NewWebSearchTool(permissions),
 			tools.NewWriteTool(permissions, history),
 			tools.NewPythonExecutionTool(permissions),
-			// tools.NewTodoWriteTool(),
+			tools.NewTodoWriteTool(),
 			tools.NewExitPlanModeTool(),
 			tools.NewMediaShowcaseTool(),
 			NewTaskTool(sessions, messages, permissions),

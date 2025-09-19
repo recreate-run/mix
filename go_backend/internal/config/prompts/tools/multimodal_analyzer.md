@@ -16,7 +16,7 @@ AI-powered media analysis tool (CLI interface) using multiple LLM providers thro
 - You MUST ALWAYS use Multimodal Analyzer to analyze media files, NEVER read images directly
 - ALWAYS Use with the `bash` tool.
 - ALWAYS use batch processing for analyzing multiple files
-- ALWAYS use absolute paths with respect to when specifying file and directory paths.
+- ALWAYS use absolute paths with respect to when specifying file and directory paths. DO NOT use URL's
 
 ## When to Use This Tool
 
@@ -94,7 +94,7 @@ multimodal-analyzer --type audio  \
 multimodal-analyzer --type image  --path photo.jpg
 
 # Batch process directory
-multimodal-analyzer --type image --model azure/gpt-4.1-mini --path /Users/.../mix/photos/ --output markdown
+multimodal-analyzer --type image --path /Users/.../mix/photos/ --output markdown
 
 # Development installation (prefix with uv run)
 uv run multimodal-analyzer --type image  --path photo.jpg
@@ -104,15 +104,15 @@ uv run multimodal-analyzer --type image  --path photo.jpg
 
 ```bash
 # Custom prompt with word count
-multimodal-analyzer --type image --model claude-3-sonnet-20240229 --path chart.jpg \
+multimodal-analyzer --type image --path chart.jpg \
   --prompt "Analyze this chart focusing on data insights" --word-count 300
 
 # Recursive batch processing
-multimodal-analyzer --type image --model gpt-4o-mini --path /Users/.../mix/dataset/ \
+multimodal-analyzer --type image --path /Users/.../mix/dataset/ \
   --recursive --concurrency 5 --output json --output-file results.json
 
 # Analyze specific images from multiple directories
-multimodal-analyzer --type image --model gpt-4o-mini \
+multimodal-analyzer --type image \
   --files /Users/.../mix/screenshots/chart1.png \
   --files /Users/.../mix/photos/diagram.jpg \
   --files /Users/.../mix/temp/analysis_image.png \
@@ -125,25 +125,25 @@ multimodal-analyzer --type image --model gpt-4o-mini \
 
 ```bash
 # Transcribe audio
-multimodal-analyzer --type audio --model whisper-1 --path audio.mp3 --audio-mode transcript
+multimodal-analyzer --type audio --path audio.mp3 --audio-mode transcript
 
 # Analyze audio content
-multimodal-analyzer --type audio --model gpt-4o-mini --path podcast.wav --audio-mode description
+multimodal-analyzer --type audio --path podcast.wav --audio-mode description
 ```
 
 ### Advanced Audio Processing
 
 ```bash
 # Batch transcription
-multimodal-analyzer --type audio --model whisper-1 --path /Users/.../mix/audio/ \
+multimodal-analyzer --type audio --path /Users/.../mix/audio/ \
   --audio-mode transcript --output text --output-file transcripts.txt
 
 # Content analysis with custom prompts
-multimodal-analyzer --type audio --model gpt-4o-mini --path podcast.wav \
+multimodal-analyzer --type audio --path podcast.wav \
   --audio-mode description --prompt "Summarize key insights" --word-count 200
 
 # Transcribe specific audio files from different locations
-multimodal-analyzer --type audio --model whisper-1 \
+multimodal-analyzer --type audio \
   --files /Users/.../mix/meetings/standup.mp3 \
   --files /Users/.../mix/interviews/candidate1.wav \
   --files /Users/.../mix/recordings/conference_call.m4a \

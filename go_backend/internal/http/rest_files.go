@@ -103,9 +103,9 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	filename := sanitizeFilename(originalFilename)
 	
 	// Use os.Root for secure file operations - prevents path traversal
-	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	root, err := storage.GetUploadsRoot(h.storageConfig)
 	if err != nil {
-		sendInternalError(w, "getting session root", err)
+		sendInternalError(w, "getting uploads root", err)
 		return
 	}
 	defer root.Close()
@@ -178,22 +178,22 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get session storage directory
-	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+	// Get uploads storage directory
+	uploadsDir := storage.GetUploadsStoragePath(h.storageConfig)
 
-	// Read session files
-	entries, err := os.ReadDir(sessionDir)
+	// Read uploads files
+	entries, err := os.ReadDir(uploadsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Session directory doesn't exist yet, return empty list
+			// Uploads directory doesn't exist yet, return empty list
 			sendJSONResponse(w, http.StatusOK, []FileInfo{})
 			return
 		}
-		sendInternalError(w, "reading session directory", err)
+		sendInternalError(w, "reading uploads directory", err)
 		return
 	}
 
-	// Build file list from session files only
+	// Build file list from uploads files
 	files := make([]FileInfo, 0, len(entries))
 	for _, entry := range entries {
 		info, err := entry.Info()
@@ -324,9 +324,9 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use os.Root for secure file operations
-	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	root, err := storage.GetUploadsRoot(h.storageConfig)
 	if err != nil {
-		sendInternalError(w, "getting session root", err)
+		sendInternalError(w, "getting uploads root", err)
 		return
 	}
 	defer root.Close()

@@ -33,10 +33,16 @@ func DefaultConfig() Config {
 	}
 }
 
-// Initialize creates the storage root directory if it doesn't exist
+// Initialize creates the storage root directory and uploads directory if they don't exist
 func Initialize(config Config) error {
 	if err := os.MkdirAll(config.BasePath, 0o755); err != nil {
 		return fmt.Errorf("failed to create storage directory: %w", err)
+	}
+
+	// Create uploads directory
+	uploadsPath := GetUploadsStoragePath(config)
+	if err := os.MkdirAll(uploadsPath, 0o755); err != nil {
+		return fmt.Errorf("failed to create uploads directory: %w", err)
 	}
 
 	return nil
@@ -46,6 +52,12 @@ func Initialize(config Config) error {
 // Returns /storage/{session-id}/
 func GetSessionStoragePath(sessionID string, config Config) string {
 	return filepath.Join(config.BasePath, sessionID)
+}
+
+// GetUploadsStoragePath returns the storage path for uploads
+// Returns /storage/uploads/
+func GetUploadsStoragePath(config Config) string {
+	return filepath.Join(config.BasePath, "uploads")
 }
 
 
@@ -92,6 +104,27 @@ func GetSessionRoot(sessionID string, config Config) (*os.Root, error) {
 	root, err := os.OpenRoot(sessionDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open session root: %w", err)
+	}
+
+	return root, nil
+}
+
+// GetUploadsRoot returns an os.Root for the uploads directory
+// This provides OS-level protection against path traversal attacks
+func GetUploadsRoot(config Config) (*os.Root, error) {
+	uploadsDir := GetUploadsStoragePath(config)
+
+	// Ensure uploads directory exists - create it if it doesn't
+	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create uploads directory: %w", err)
+		}
+	}
+
+	// Open root for uploads directory - provides path traversal protection
+	root, err := os.OpenRoot(uploadsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open uploads root: %w", err)
 	}
 
 	return root, nil

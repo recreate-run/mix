@@ -170,7 +170,7 @@ outputs (required): Array of media outputs to showcase
 
 ## Usage Notes
 
-- Always use HTTP/HTTPS URLs - Local file paths are not supported. Use `http://` (not https) for localhost URLs to avoid SSL certificate issues
+- Always use HTTP/HTTPS URLs - Local of absolute file paths are not supported. Use `http://` (not https) for localhost URLs to avoid SSL certificate issues
 - URLs supported - HTTP/HTTPS URLs work for image, video, and audio types
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials
