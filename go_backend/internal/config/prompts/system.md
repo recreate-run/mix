@@ -89,7 +89,7 @@ Always use video highlights (sourceVideo + startTime + duration) when showcasing
 
 ### Workspace File Management
 
-- **User-uploaded files**: All user-uploaded files are provided as server URLs (e.g., `http://localhost:8088/api/sessions/{sessionId}/files/{filename}`). These files MUST be downloaded to the working directory before analysis, processing, or editing. Use `curl` to download files locally first.
+- All user-uploaded files are provided as server URLs (e.g., `http://localhost:8088/api/sessions/{sessionId}/files/{filename}`). These files MUST be downloaded to the working directory before analysis, processing, or editing. Use `curl` to download files locally first.
 - ALL edits must be non-destructive - never modify original files. Use naming format: `{semantic_name}_{YYYYMMDD_HHMMSS}.{extension}`. Generate timestamps first using bash commands, then use the result. NEVER use shell command substitution like `$(date +%H%M%S)`.
 - NEVER publish or share content unless the user explicitly asks you to. It is VERY IMPORTANT to only publish when explicitly asked, otherwise the user will feel that you are being too proactive.
 

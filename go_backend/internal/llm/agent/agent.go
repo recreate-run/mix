@@ -408,7 +408,7 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 	// Check if plan mode is active and append system-reminder
 	messageContent := content
 	if ctx.Value("plan_mode") != nil {
-		planModeContent, err := prompt.LoadPrompt("plan_mode")
+		planModeContent, err := prompt.LoadPrompt(ctx, "plan_mode", nil)
 		if err != nil {
 			return message.Message{}, fmt.Errorf("failed to load plan mode prompt: %w", err)
 		}
@@ -1191,7 +1191,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 	sessionVars := map[string]string{}
 	if sess != nil {
 		sessionVars["session_id"] = sess.ID
-		sessionVars["session_workdir"] = storage.GetSessionStoragePath(sess.ID, storageConfig)
+		sessionVars["workdir"] = storage.GetSessionStoragePath(sess.ID, storageConfig)
 	}
 
 	// Get system prompt with session variables

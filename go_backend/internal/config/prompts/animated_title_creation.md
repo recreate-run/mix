@@ -66,7 +66,7 @@ Response (Success - HTTP 200)
 
 When existing animations fail to meet user requirements, create new animations in $<workdir>/gsap_animations/
 
-Use the standardized template at $<launchdir>/packages/gsap_animations/gsap_starter_template/ as your starting point to ensure consistency with existing patterns. Simply copy the template directory and customize the marked sections for your specific animation requirements.
+Use the standardized template at $<workdir>/packages/gsap_animations/gsap_starter_template/ as your starting point to ensure consistency with existing patterns. Simply copy the template directory and customize the marked sections for your specific animation requirements.
 
 <folder_structure>
 $<workdir>/gsap_animations/

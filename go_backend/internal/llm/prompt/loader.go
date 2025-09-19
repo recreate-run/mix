@@ -13,13 +13,9 @@ import (
 	"mix/internal/llm/tools"
 )
 
-// LoadPrompt loads a prompt from embedded filesystem markdown files
-func LoadPrompt(name string) (string, error) {
-	return LoadPromptWithVars(name, nil)
-}
-
-// loadEmbeddedPrompt loads a prompt from the embedded filesystem
-func loadEmbeddedPrompt(name string) (string, error) {
+// LoadPrompt loads a prompt from embedded filesystem with automatic standard variables
+func LoadPrompt(ctx context.Context, name string, customVars map[string]string) (string, error) {
+	// Load from embedded filesystem
 	embeddedFS := config.GetEmbeddedPrompts()
 	promptPath := filepath.Join("prompts", name+".md")
 
@@ -28,63 +24,43 @@ func loadEmbeddedPrompt(name string) (string, error) {
 		return "", fmt.Errorf("failed to read embedded prompt file '%s': %w", promptPath, err)
 	}
 
-	return string(content), nil
-}
+	result := string(content)
 
-// LoadPromptWithVars loads a prompt from embedded filesystem only and replaces $<name> placeholders
-func LoadPromptWithVars(name string, vars map[string]string) (string, error) {
-	// Load from embedded filesystem only
-	result, err := loadEmbeddedPrompt(name)
-	if err != nil {
-		return "", fmt.Errorf("failed to load embedded prompt '%s': %w", name, err)
-	}
+	// Build variables starting with standard ones (if context available)
+	allVars := make(map[string]string)
 
-	// Replace $<name> placeholders with values
-	if vars != nil {
-		for key, value := range vars {
-			placeholder := "$<" + key + ">"
-			result = strings.ReplaceAll(result, placeholder, value)
+	// Add standard variables if context is available
+	if ctx != nil {
+		// Add platform and date (always available)
+		allVars["platform"] = runtime.GOOS
+		allVars["today_date"] = time.Now().Format("2006-01-02")
+
+		// Add session working directory if available
+		if sessionStorageDir := ctx.Value(tools.SessionStorageContextKey); sessionStorageDir != nil {
+			if workdir, ok := sessionStorageDir.(string); ok {
+				allVars["workdir"] = workdir
+			}
 		}
 	}
 
+	// Merge with custom vars (custom vars override standard ones)
+	for k, v := range customVars {
+		allVars[k] = v
+	}
+
+	// Replace $<name> placeholders with values
+	for key, value := range allVars {
+		placeholder := "$<" + key + ">"
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+
 	// Resolve markdown file templates
-	result, err = resolveMarkdownTemplates(result, vars)
+	result, err = resolveMarkdownTemplates(result, allVars)
 	if err != nil {
 		return "", err
 	}
 
 	return strings.TrimSpace(result), nil
-}
-
-// getStandardVars returns standard variables available to all prompts
-func getStandardVars(ctx context.Context) (map[string]string, error) {
-	sessionStorageDir := ctx.Value(tools.SessionStorageContextKey).(string)
-
-	launchDir, err := config.LaunchDirectory()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get launch directory: %w", err)
-	}
-
-	return map[string]string{
-		"workdir":    sessionStorageDir,
-		"platform":   runtime.GOOS,
-		"launchdir":  launchDir,
-		"today_date": time.Now().Format("2006-01-02"),
-	}, nil
-}
-
-// LoadPromptWithStandardVars loads a prompt with standard environment variables plus custom vars
-func LoadPromptWithStandardVars(ctx context.Context, name string, customVars map[string]string) (string, error) {
-	// Merge standard vars with custom vars
-	allVars, err := getStandardVars(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get standard vars for prompt '%s': %w", name, err)
-	}
-	for k, v := range customVars {
-		allVars[k] = v
-	}
-
-	return LoadPromptWithVars(name, allVars)
 }
 
 // resolveMarkdownTemplates resolves {markdown:path} templates in content
