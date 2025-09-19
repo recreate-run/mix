@@ -78,6 +78,11 @@ type ToolExecutionCompleteEvent struct {
 	ToolCallID string `json:"toolCallId"`
 }
 
+type ContentEvent struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
 // WriteSSE serializes and writes an SSE event to the response writer
 func WriteSSE(w http.ResponseWriter, eventType string, data interface{}) error {
 	jsonData, err := json.Marshal(data)

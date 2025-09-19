@@ -15,6 +15,12 @@ export type TimelineEntry =
       timestamp: number;
       content: ToolCall;
       id: string;
+    }
+  | {
+      type: 'content';
+      timestamp: number;
+      content: string;
+      id: string;
     };
 
 export interface UIMessage {

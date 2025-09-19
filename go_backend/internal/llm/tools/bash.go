@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"mix/internal/llm/tools/shell"
+	"mix/internal/logging"
 	"mix/internal/permission"
 )
 
@@ -144,6 +146,13 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		}
 	}
 
+	// Check for multimodal analyzer auth before execution
+	if strings.Contains(params.Command, "multimodal-analyzer") {
+		if authResponse := b.checkMultimodalAnalyzerAuth(); authResponse != nil {
+			return *authResponse, nil
+		}
+	}
+
 	shell := shell.GetPersistentShell(sessionStorageDir)
 	stdout, stderr, exitCode, interrupted, err := shell.Exec(ctx, params.Command, params.Timeout)
 	if err != nil {
@@ -204,4 +213,37 @@ func countLines(s string) int {
 		return 0
 	}
 	return len(strings.Split(s, "\n"))
+}
+
+// checkMultimodalAnalyzerAuth checks if the multimodal analyzer can authenticate with Gemini API
+func (b *bashTool) checkMultimodalAnalyzerAuth() *ToolResponse {
+	logging.Info("Checking if i am getting called")
+	// Check if GEMINI_API_KEY environment variable is set
+	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
+		return nil // API key is available, proceed with execution
+	}
+
+	// Create helpful error message with instructions
+	errorMsg := `❌ Multimodal Analyzer Authentication Required
+
+The multimodal analyzer needs a Gemini API key to analyze media files.
+
+🔧 How to fix this:
+
+1. Get a Gemini API key from Google AI Studio:
+   https://makersuite.google.com/app/apikey
+
+2. Set the environment variable:
+   export GEMINI_API_KEY="your_api_key_here"
+
+3. Or add it to your shell profile (~/.bashrc, ~/.zshrc):
+   echo 'export GEMINI_API_KEY="your_api_key_here"' >> ~/.bashrc
+
+4. Restart your terminal or run:
+   source ~/.bashrc
+
+Once the API key is set, you can use the multimodal analyzer to analyze images, audio, and video files.`
+
+	response := NewTextErrorResponse(errorMsg)
+	return &response
 }

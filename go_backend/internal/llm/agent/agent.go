@@ -35,6 +35,7 @@ const (
 	AgentEventTypeResponse              AgentEventType = "response"
 	AgentEventTypeSummarize             AgentEventType = "summarize"
 	AgentEventTypeThinking              AgentEventType = "thinking"
+	AgentEventTypeContentDelta          AgentEventType = "content_delta"
 	AgentEventTypeToolExecutionStart    AgentEventType = "tool_execution_start"
 	AgentEventTypeToolExecutionComplete AgentEventType = "tool_execution_complete"
 )
@@ -51,6 +52,9 @@ type AgentEvent struct {
 
 	// When thinking
 	Thinking string
+
+	// When streaming content
+	Content string
 
 	// When executing tools
 	ToolCallID string
@@ -669,7 +673,16 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		return a.messages.Update(ctx, *assistantMsg)
 	case provider.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
-		// Content delta streaming removed - only final content will be sent
+		// Publish content delta event for real-time streaming
+		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
+			Type:      AgentEventTypeContentDelta,
+			Message:   *assistantMsg,
+			SessionID: sessionID,
+			Content:   event.Content, // Send only the delta, not accumulated content
+		})
+		if err != nil {
+			return err
+		}
 		return a.messages.Update(ctx, *assistantMsg)
 	case provider.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)

@@ -165,6 +165,47 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       }
     });
 
+    addTrackedEventListener('content', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const contentDelta = data.content || '';
+
+        // Find the last entry in timeline
+        const lastEntry = timelineRef.current[timelineRef.current.length - 1];
+        
+        // If the last entry is a content entry, append to it
+        // If it's a tool or thinking entry, create a new content entry
+        if (lastEntry && lastEntry.type === 'content') {
+          // Append delta to existing content entry
+          const existingContent = lastEntry.content;
+          timelineRef.current[timelineRef.current.length - 1] = {
+            ...lastEntry,
+            content: existingContent + contentDelta,
+            timestamp: Date.now()
+          };
+        } else {
+          // Create new content entry (after tool call or thinking)
+          const contentEntry: TimelineEntry = {
+            type: 'content',
+            timestamp: Date.now(),
+            content: contentDelta,
+            id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          };
+          timelineRef.current = [...timelineRef.current, contentEntry];
+        }
+
+        // Also update finalContent by accumulating deltas
+        setState((prev) => ({
+          ...prev,
+          finalContent: (prev.finalContent || '') + contentDelta,
+          timeline: [...timelineRef.current],
+          processing: true,
+        }));
+      } catch (err) {
+        console.error('Failed to parse content event:', err, 'Raw event data:', event.data);
+      }
+    });
+
     addTrackedEventListener('tool', (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -484,7 +525,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         error: null,
         toolCalls: [],
         startTime: Date.now(),
-        finalContent: null,
+        finalContent: '', // Reset to empty string for delta accumulation
         completed: false,
         processing: true,
         cancelling: false,
