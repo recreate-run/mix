@@ -34,11 +34,12 @@ type CompleteEvent struct {
 }
 
 type ToolEvent struct {
-	Type   string `json:"type"`
-	Name   string `json:"name"`
-	Input  string `json:"input"`
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	Type          string `json:"type"`
+	Name          string `json:"name"`
+	Input         string `json:"input"`
+	ID            string `json:"id"`
+	Status        string `json:"status"`
+	MessageContent string `json:"messageContent,omitempty"` // Added field to include current message content
 }
 
 type SummarizeEvent struct {

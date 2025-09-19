@@ -63,6 +63,8 @@ type StreamingState = {
   completed: boolean;
   error?: string | null;
   timeline?: TimelineEntry[];
+  currentContent?: string | null; // Added to support streaming content display
+  mediaOutputs?: MediaOutput[]; // Added to support media outputs during streaming
   rateLimit?: {
     retryAfter: number;
     attempt: number;
@@ -252,9 +254,22 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
   if (!timeline || timeline.length === 0) return null;
 
   // Group consecutive thinking entries together for better UX
-  const groupedEntries: Array<{ type: 'thinking', entries: string[], timestamps: number[] } | { type: 'tool', entry: TimelineEntry }> = [];
+  const groupedEntries: Array<{ type: 'thinking', entries: string[], timestamps: number[] } | { type: 'tool', entry: TimelineEntry } | { type: 'content', content: string }> = [];
 
+  // First find and process the content entry (if any) to display at the top
+  const contentEntry = timeline.find(entry => entry.type === 'content');
+  if (contentEntry && contentEntry.type === 'content') {
+    groupedEntries.push({
+      type: 'content',
+      content: contentEntry.content
+    });
+  }
+
+  // Then process the rest of the entries
   for (const entry of timeline) {
+    // Skip content entries as we've already handled them
+    if (entry.type === 'content') continue;
+    
     if (entry.type === 'thinking') {
       const lastGroup = groupedEntries[groupedEntries.length - 1];
       if (lastGroup && lastGroup.type === 'thinking') {
@@ -269,7 +284,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
           timestamps: [entry.timestamp]
         });
       }
-    } else {
+    } else if (entry.type === 'tool') {
       // Tool entry - always separate
       groupedEntries.push({
         type: 'tool',
@@ -295,6 +310,13 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
           <AIReasoningTrigger />
           <AIReasoningContent>{totalContent}</AIReasoningContent>
         </AIReasoning>
+      );
+    } else if (group.type === 'content') {
+      // Render the message content
+      return (
+        <div key={`content-${index}`} className="mb-4">
+          <ResponseRenderer content={group.content} />
+        </div>
       );
     } else {
       const toolCall = group.entry.content as ToolCall;
@@ -538,6 +560,18 @@ export function ConversationDisplay({
               {/* Show timeline-based interleaved thinking and tools during streaming */}
               {sseStream.timeline && renderTimelineEntries(sseStream.timeline)}
               {/* Show rate limit message when rate limiting is detected */}
+              {/* First display any media outputs if available */}
+              {sseStream.mediaOutputs && sseStream.mediaOutputs.length > 0 && sessionId && (
+                <MediaShowcase mediaOutputs={sseStream.mediaOutputs} sessionId={sessionId} />
+              )}
+              
+              {/* Then display the current message content if available */}
+              {sseStream.currentContent && (
+                <AIMessageContent.Content>
+                  <ResponseRenderer content={sseStream.currentContent} />
+                </AIMessageContent.Content>
+              )}
+              
               {sseStream.rateLimit ? (
                 <div className="mt-4">
                   <RateLimitDisplay

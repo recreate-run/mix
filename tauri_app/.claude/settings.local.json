@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find ../go_backend -type f -name \"*.go\")"
+    ],
+    "deny": []
+  }
+}

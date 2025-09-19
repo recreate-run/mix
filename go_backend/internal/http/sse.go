@@ -469,6 +469,11 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 	case agent.AgentEventTypeResponse:
 		// Stream tool calls - detect new tool calls by checking completion status
 		toolCalls := event.Message.ToolCalls()
+		
+		// Extract current message content
+		messageContent := event.Message.Content().String()
+		
+		// Send tool calls with associated message content
 		for _, toolCall := range toolCalls {
 			// Determine tool status - tools start with complete parameters
 			status := "running"
@@ -476,7 +481,44 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 				status = "completed"
 			}
 
-			if err := WriteSSE(w, "tool", ToolEvent{Type: "tool", Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status}); err != nil {
+			if err := WriteSSE(w, "tool", ToolEvent{
+				Type: "tool", 
+				Name: toolCall.Name, 
+				Input: toolCall.Input, 
+				ID: toolCall.ID, 
+				Status: status,
+				MessageContent: messageContent, // Include current message content
+			}); err != nil {
+				return err
+			}
+		}
+		
+		// If there are no tool calls but we have content, send a special "content_update" tool event
+		// This ensures content is sent even when there are no tool calls
+		if len(toolCalls) == 0 && messageContent != "" {
+			contentID := fmt.Sprintf("content-%d", time.Now().UnixNano())
+			if err := WriteSSE(w, "tool", ToolEvent{
+				Type: "tool", 
+				Name: "content_update", // Special tool name to indicate this is just a content update
+				Input: "",
+				ID: contentID,
+				Status: "running",
+				MessageContent: messageContent,
+			}); err != nil {
+				return err
+			}
+		}
+		
+		// Also send a message event specifically for content updates
+		// This helps ensure content is properly displayed even without tool calls
+		if messageContent != "" {
+			if err := WriteSSE(w, "message", struct {
+				Type    string `json:"type"`
+				Content string `json:"content"`
+			}{
+				Type:    "message",
+				Content: messageContent,
+			}); err != nil {
 				return err
 			}
 		}

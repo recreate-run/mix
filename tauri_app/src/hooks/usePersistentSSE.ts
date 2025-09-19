@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TimelineEntry } from '@/types/message';
 import type { ToolCall } from '@/types/common';
+import type { MediaOutput } from '@/types/media';
 
 export type SSEPermissionRequest = {
   id: string;
@@ -18,6 +19,8 @@ export type PersistentSSEState = {
   error: string | null;
   toolCalls: ToolCall[];
   finalContent: string | null;
+  currentContent: string | null; // Added to track the message content during streaming
+  mediaOutputs?: MediaOutput[]; // Added to track media outputs during streaming
   completed: boolean;
   processing: boolean;
   isPaused: boolean;
@@ -47,6 +50,20 @@ export type PersistentSSEHook = PersistentSSEState & {
 import { getBackendUrl } from '@/utils/backendUrl';
 import { mix } from '@/lib/mix-sdk';
 
+// Helper function to extract media outputs from show_media tool call
+const getMediaOutputsFromToolCalls = (toolCalls: ToolCall[]): MediaOutput[] => {
+  const mediaShowcaseTool = toolCalls?.find(tc => tc.name === 'show_media');
+  if (!mediaShowcaseTool?.parameters?.outputs) return [];
+
+  try {
+    return Array.isArray(mediaShowcaseTool.parameters.outputs) ? 
+      mediaShowcaseTool.parameters.outputs as MediaOutput[] : 
+      [];
+  } catch {
+    return [];
+  }
+};
+
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const [state, setState] = useState<PersistentSSEState>({
     connected: false,
@@ -54,6 +71,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     error: null,
     toolCalls: [],
     finalContent: null,
+    currentContent: null, // Initialize the current message content
+    mediaOutputs: [], // Initialize media outputs
     completed: false,
     processing: false,
     isPaused: false,
@@ -106,6 +125,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       error: null,
       toolCalls: [],
       finalContent: null,
+      currentContent: null, // Reset current content
+      mediaOutputs: [], // Reset media outputs
       completed: false,
       processing: false,
       isPaused: false,
@@ -204,6 +225,34 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
         toolCallsMap.current.set(toolCall.id, toolCall);
 
+        // Extract message content from the tool event
+        const messageContent = data.messageContent || '';
+
+        // Update content timeline entry if message content is provided
+        if (messageContent) {
+          // Check if we already have a content entry
+          const contentEntryIndex = timelineRef.current.findIndex(entry => entry.type === 'content');
+          
+          if (contentEntryIndex === -1) {
+            // Add new content entry to timeline
+            const contentEntry: TimelineEntry = {
+              type: 'content',
+              timestamp: Date.now(),
+              content: messageContent,
+              id: `content-${Date.now()}`
+            };
+            timelineRef.current = [...timelineRef.current, contentEntry];
+          } else {
+            // Update existing content entry with new content
+            // This ensures we're not losing any content between tool calls
+            timelineRef.current = timelineRef.current.map((entry, index) =>
+              index === contentEntryIndex && entry.type === 'content'
+                ? { ...entry, content: messageContent }
+                : entry
+            );
+          }
+        }
+
         // Add to timeline when tool is first seen (running or pending status)
         if (!timelineRef.current.some(entry => entry.type === 'tool' && entry.content.id === toolCall.id)) {
           const toolEntry: TimelineEntry = {
@@ -223,11 +272,19 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           );
         }
 
+        // Check for media outputs from show_media tool call
+        const updatedToolCalls = Array.from(toolCallsMap.current.values());
+        const mediaOutputs = getMediaOutputsFromToolCalls(updatedToolCalls);
+        
         setState((prev) => ({
           ...prev,
-          toolCalls: Array.from(toolCallsMap.current.values()),
+          toolCalls: updatedToolCalls,
           timeline: [...timelineRef.current],
           processing: true,
+          // Update currentContent if messageContent is present
+          currentContent: messageContent || prev.currentContent,
+          // Update mediaOutputs if found
+          mediaOutputs: mediaOutputs.length > 0 ? mediaOutputs : prev.mediaOutputs,
         }));
       } catch (err) {
         console.error('Failed to parse tool event:', err, 'Raw event data:', event.data);
@@ -325,9 +382,13 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     addTrackedEventListener('complete', (event) => {
       try {
         const data = JSON.parse(event.data);
+        const content = data.content || '';
+        
+        // On completion, update the final content and mark as completed
         setState((prev) => ({
           ...prev,
-          finalContent: data.content || '',
+          finalContent: content,
+          currentContent: content, // Ensure current content matches final content
           reasoning: data.reasoning || null,
           reasoningDuration: data.reasoningDuration || null,
           completed: true,
@@ -485,6 +546,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         toolCalls: [],
         startTime: Date.now(),
         finalContent: null,
+        currentContent: null, // Reset current content when sending a new message
+        mediaOutputs: [], // Reset media outputs when sending a new message
         completed: false,
         processing: true,
         cancelling: false,
