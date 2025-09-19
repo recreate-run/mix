@@ -52,41 +52,80 @@ type ProviderInfo struct {
 	Models      []ModelID `json:"models"`
 }
 
+// getProviderDisplayName returns a user-friendly display name for a provider
+func getProviderDisplayName(provider ModelProvider) string {
+	switch provider {
+	case ProviderOpenAI:
+		return "OpenAI"
+	case ProviderOpenRouter:
+		return "OpenRouter"
+	case ProviderAnthropic:
+		return "Anthropic (Claude)"
+	default:
+		return string(provider)
+	}
+}
+
+// GetSupportedProviders returns a slice of supported providers in a specific order
+func GetSupportedProviders() []ModelProvider {
+	// Return providers in a specific, consistent order
+	return []ModelProvider{
+		ProviderOpenAI,
+		ProviderOpenRouter,
+		ProviderAnthropic, // Claude
+	}
+}
+
+// GetModelsForProvider returns models for a specific provider in a consistent order
+func GetModelsForProvider(provider ModelProvider) []ModelID {
+	switch provider {
+	case ProviderOpenAI:
+		return []ModelID{
+			GPT4oMini,
+			GPT4o,
+			GPT41,
+			GPT41Mini,
+			GPT41Nano,
+			O1,
+			O1Mini,
+			O1Pro,
+			O3,
+			O3Mini,
+			O4Mini,
+		}
+	case ProviderOpenRouter:
+		return []ModelID{
+			OpenRouterDeepSeekV31,
+			OpenRouterZAIGLM45Air,
+		}
+	case ProviderAnthropic:
+		return []ModelID{
+			Claude4Sonnet,
+			Claude37Sonnet,
+			Claude35Haiku,
+			Claude3Opus,
+			Claude4Opus,
+		}
+	default:
+		return []ModelID{}
+	}
+}
+
 // GetProviders returns a map of all providers with their information
 func GetProviders() map[ModelProvider]ProviderInfo {
-	providerModels := make(map[ModelProvider][]ModelID)
-
-	// Collect models for each provider
-	for modelID, model := range SupportedModels {
-		providerModels[model.Provider] = append(providerModels[model.Provider], modelID)
-	}
-
 	providers := make(map[ModelProvider]ProviderInfo)
 
-	// Create provider info with display names
-	for provider, models := range providerModels {
-		displayName := string(provider)
-		switch provider {
-		case ProviderAnthropic:
-			displayName = "Anthropic"
-		case ProviderOpenAI:
-			displayName = "OpenAI"
-		case ProviderGemini:
-			displayName = "Gemini"
-		case ProviderGROQ:
-			displayName = "Groq"
-		case ProviderOpenRouter:
-			displayName = "OpenRouter"
-		case ProviderBedrock:
-			displayName = "AWS Bedrock"
-		case ProviderAzure:
-			displayName = "Azure OpenAI"
-		case ProviderVertexAI:
-			displayName = "Google Vertex AI"
-		}
+	// Get providers in a fixed order
+	orderedProviders := GetSupportedProviders()
 
+	// Process providers in that specific order
+	for _, provider := range orderedProviders {
+		// Get models for this provider in a specific order
+		models := GetModelsForProvider(provider)
+
+		// Create provider info
 		providers[provider] = ProviderInfo{
-			DisplayName: displayName,
+			DisplayName: getProviderDisplayName(provider),
 			Models:      models,
 		}
 	}
