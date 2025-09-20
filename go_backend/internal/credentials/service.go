@@ -242,6 +242,7 @@ var supportedProviders = map[models.ModelProvider]struct{}{
 	models.ProviderAnthropic:  {},
 	models.ProviderOpenAI:     {},
 	models.ProviderOpenRouter: {},
+	models.ProviderGemini:     {},
 }
 
 // ClearCache removes all entries from the credentials cache
@@ -294,7 +295,7 @@ func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, 
 
 	// Check if provider is supported
 	if _, exists := supportedProviders[provider]; !exists {
-		return fmt.Errorf("provider %s not supported. Supported providers: anthropic, openai, openrouter", provider)
+		return fmt.Errorf("provider %s not supported. Supported providers: anthropic, openai, openrouter, gemini", provider)
 	}
 
 	// Basic format validation per provider
@@ -310,6 +311,10 @@ func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, 
 	case models.ProviderOpenRouter:
 		if len(apiKey) < 40 {
 			return fmt.Errorf("invalid OpenRouter API key format")
+		}
+	case models.ProviderGemini:
+		if len(apiKey) < 30 {
+			return fmt.Errorf("invalid Gemini API key format")
 		}
 	}
 
