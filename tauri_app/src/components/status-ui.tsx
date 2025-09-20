@@ -1,15 +1,7 @@
 import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-// Provider info structure
-interface ProviderInfo {
-  id: string;
-  displayName: string;
-  authenticated: boolean;
-  authMethod?: "api_key" | "oauth";
-  isPreferred?: boolean;
-}
+import { ProviderInfo } from "@/types/provider";
 
 // Status state
 interface StatusState {

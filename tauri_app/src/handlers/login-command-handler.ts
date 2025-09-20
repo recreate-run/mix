@@ -1,12 +1,8 @@
 import { mix } from "@/lib/mix-sdk";
-import { UIMessage } from "@/types/message";
-import { ProviderInfo } from "@/types/provider";
+import { UIMessage, LoginProviderInfo } from "@/types/message";
 import { toast } from "sonner"; // Import directly from package
 
-// Provider type definition with API key format
-export interface LoginProviderInfo extends ProviderInfo {
-  apiKeyFormat?: string;
-}
+// Note: LoginProviderInfo is now imported from @/types/message
 
 // Map of API key formats for different providers
 const API_KEY_FORMATS: Record<string, string> = {
@@ -45,12 +41,12 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     // Determine the preferred provider from preferences if it exists
     const preferredProvider = response.preferences?.preferredProvider;
     
-    // Map available providers from API response
-    const providers: ProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
+    // Map available providers from API response for login
+    const providers: LoginProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
       return {
         id: providerId,
         displayName: data.displayName || providerId,
-        authMethods: AUTH_METHODS[providerId] || ["api_key"], // Default to API key if not specified
+        authMethods: AUTH_METHODS[providerId] || ["api_key"], // Required for login
         authenticated: status.providers?.[providerId]?.authenticated || false,
         apiKeyFormat: API_KEY_FORMATS[providerId] || "API key",
         isPreferred: providerId === preferredProvider
@@ -175,11 +171,11 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
       throw new Error("Failed to fetch available providers for OAuth flow");
     }
 
-    const providers: ProviderInfo[] = Object.entries(preferencesResponse.availableProviders).map(([providerId, data]: [string, any]) => {
+    const providers: LoginProviderInfo[] = Object.entries(preferencesResponse.availableProviders).map(([providerId, data]: [string, any]) => {
       return {
         id: providerId,
         displayName: data.displayName || providerId,
-        authMethods: AUTH_METHODS[providerId] || ["api_key"],
+        authMethods: AUTH_METHODS[providerId] || ["api_key"], // Required for login
         authenticated: false, // During OAuth flow, not yet authenticated
         apiKeyFormat: API_KEY_FORMATS[providerId] || "API key"
       };

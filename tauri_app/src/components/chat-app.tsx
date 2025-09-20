@@ -34,10 +34,9 @@ import {
   reconstructAttachmentsFromHistory,
 } from '@/stores/attachmentSlice';
 import { expandFileReferences, buildSessionFileUrl, buildFullUrlFromPath } from '@/utils/attachmentUtils';
-import { invalidateMessageHistoryCache } from '@/lib/session-cache';
 import { CACHE_KEYS } from '@/lib/cache-keys';
-import type { ToolCall } from '@/types/common';
-import type { MediaOutput } from '@/types/media';
+// import type { ToolCall } from '@/types/common';
+// import type { MediaOutput } from '@/types/media';
 import type { MessageData, UIMessage } from '@/types/message';
 import type { HierarchicalModelData } from '@/types/provider';
 import {
@@ -56,24 +55,18 @@ import { handleLoginCommand, startOAuthFlow, authenticateWithApiKey, handleOAuth
 import { handleLogoutCommand, logoutProvider } from '@/handlers/logout-command-handler';
 import { handleUnifiedModelCommand, updateProviderPreference, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
 
-// Helper function to check if a message contains show_media tool call
-const hasMediaShowcaseTool = (toolCalls: ToolCall[]) => {
-  return toolCalls?.some((tc) => tc.name === 'show_media');
-};
-
 // Helper function to extract media outputs from show_media tool call
-const getMediaShowcaseOutputs = (toolCalls: ToolCall[]): MediaOutput[] => {
-  const mediaShowcaseTool = toolCalls?.find(
-    (tc) => tc.name === 'show_media'
-  );
-  if (!mediaShowcaseTool?.parameters?.outputs) return [];
-
-  try {
-    return mediaShowcaseTool.parameters.outputs as MediaOutput[];
-  } catch {
-    return [];
-  }
-};
+// const getMediaShowcaseOutputs = (toolCalls: ToolCall[]): MediaOutput[] => {
+//   const mediaShowcaseTool = toolCalls?.find(
+//     (tc) => tc.name === 'show_media'
+//   );
+//   if (!mediaShowcaseTool?.parameters?.outputs) return [];
+//   try {
+//     return mediaShowcaseTool.parameters.outputs as MediaOutput[];
+//   } catch {
+//     return [];
+//   }
+// };
 
 interface ChatAppProps {
   sessionId: string;

@@ -2,24 +2,7 @@ import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { handleModelSelection } from "@/handlers/model-command-handler";
-
-interface ModelInfo {
-  id: string;
-  displayName: string;
-  isSelected?: boolean;
-}
-
-interface ModelDisplayProps {
-  data: {
-    models: ModelInfo[];
-    currentModel?: string;
-    provider: {
-      id: string;
-      displayName: string;
-    };
-  };
-  onUpdate: (message: any) => void;
-}
+import { ModelDisplayProps } from "@/types/provider";
 
 export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
   const handleSelect = async (modelId: string) => {

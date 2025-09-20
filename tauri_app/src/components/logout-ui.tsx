@@ -3,15 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { logoutProvider } from "@/handlers/logout-command-handler";
-
-// Provider info structure 
-interface ProviderInfo {
-  id: string;
-  displayName: string;
-  authenticated: boolean;
-  authMethod?: "api_key" | "oauth";
-  isPreferred?: boolean;
-}
+import { ProviderInfo } from "@/types/provider";
 
 // Logout state from command handler
 interface LogoutState {

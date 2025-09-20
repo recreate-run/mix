@@ -1,24 +1,16 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
+import { ProviderInfo } from "@/types/provider";
 import { toast } from "sonner";
-
-// Provider info structure for logout UI
-export interface LogoutProviderInfo {
-  id: string;
-  displayName: string;
-  authenticated: boolean;
-  authMethod?: "api_key" | "oauth";
-  isPreferred?: boolean;
-}
 
 /**
  * Format provider information for the logout UI
  */
 function formatLogoutProviders(providers: Record<string, any>): {
-  formattedProviders: LogoutProviderInfo[];
+  formattedProviders: ProviderInfo[];
   hasAuthenticatedProvider: boolean;
 } {
-  const formattedProviders: LogoutProviderInfo[] = [];
+  const formattedProviders: ProviderInfo[] = [];
   
   let hasAuthenticatedProvider = false;
   
@@ -35,7 +27,8 @@ function formatLogoutProviders(providers: Record<string, any>): {
         displayName: cleanName,
         authenticated: true,
         authMethod: provider.auth_method,
-        isPreferred
+        isPreferred,
+        authMethods: ["api_key", "oauth"] // Standard auth methods
       });
       
       hasAuthenticatedProvider = true;

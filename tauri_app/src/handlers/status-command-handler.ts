@@ -1,24 +1,16 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
+import { ProviderInfo } from "@/types/provider";
 import { handleLoginCommand } from "./login-command-handler";
-
-// Provider info structure for status UI
-export interface StatusProviderInfo {
-  id: string;
-  displayName: string;
-  authenticated: boolean;
-  authMethod?: "api_key" | "oauth";
-  isPreferred?: boolean;
-}
 
 /**
  * Format provider information for the status UI
  */
 function formatStatusProviders(providers: Record<string, any>): {
-  formattedProviders: StatusProviderInfo[];
+  formattedProviders: ProviderInfo[];
   hasAuthenticatedProvider: boolean;
 } {
-  const formattedProviders: StatusProviderInfo[] = [];
+  const formattedProviders: ProviderInfo[] = [];
   
   let hasAuthenticatedProvider = false;
   
@@ -34,7 +26,8 @@ function formatStatusProviders(providers: Record<string, any>): {
       displayName: cleanName,
       authenticated: provider.authenticated,
       authMethod: provider.authMethod,
-      isPreferred
+      isPreferred,
+      authMethods: ["api_key", "oauth"] // Standard auth methods for all providers
     });
     
     if (provider.authenticated) {

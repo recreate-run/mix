@@ -1,7 +1,17 @@
 import type { Attachment } from '@/stores/attachmentSlice';
 import type { ToolCall, ToolCallData } from './common';
 import type { MediaOutput } from './media';
-import type { HierarchicalModelData, ProviderInfo } from './provider';
+import type { HierarchicalModelData, ProviderInfo, ModelInfo } from './provider';
+
+// Login-specific provider info that requires authMethods
+export interface LoginProviderInfo {
+  id: string;
+  displayName: string;
+  authMethods: ("api_key" | "oauth")[];
+  authenticated: boolean;
+  apiKeyFormat?: string;
+  isPreferred?: boolean;
+}
 
 export type TimelineEntry = 
   | {
@@ -43,51 +53,22 @@ export interface UIMessage {
     state?: string; // OAuth state parameter
   };
   loginData?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authMethods: ("api_key" | "oauth")[];
-      authenticated: boolean;
-      apiKeyFormat?: string;
-      isPreferred?: boolean;
-    }[];
+    providers: LoginProviderInfo[];
     hasExistingPreferences?: boolean;
   };
   status?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
+    providers: ProviderInfo[];
     hasAuthenticatedProvider: boolean;
   };
   statusData?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
+    providers: ProviderInfo[];
   };
   provider?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
+    providers: ProviderInfo[];
     currentProvider?: string;
   };
   model?: {
-    models: {
-      id: string;
-      displayName: string;
-      isSelected?: boolean;
-    }[];
+    models: ModelInfo[];
     currentModel?: string;
     provider: {
       id: string;
@@ -95,22 +76,10 @@ export interface UIMessage {
     };
   };
   logout?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
+    providers: ProviderInfo[];
   };
   logoutData?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
+    providers: ProviderInfo[];
   };
   hierarchicalModel?: HierarchicalModelData;
   shouldInvalidatePreferencesCache?: boolean; // Signal to the UI to invalidate the preferences cache

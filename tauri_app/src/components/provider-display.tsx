@@ -2,22 +2,7 @@ import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { handleProviderSelection } from "@/handlers/provider-command-handler";
-
-interface ProviderInfo {
-  id: string;
-  displayName: string;
-  authenticated: boolean;
-  authMethod?: "api_key" | "oauth";
-  isPreferred?: boolean;
-}
-
-interface ProviderDisplayProps {
-  data: {
-    providers: ProviderInfo[];
-    currentProvider?: string;
-  };
-  onUpdate: (message: any) => void;
-}
+import { ProviderDisplayProps } from "@/types/provider";
 
 export function ProviderDisplay({ data, onUpdate }: ProviderDisplayProps) {
   const handleSelect = async (providerId: string) => {

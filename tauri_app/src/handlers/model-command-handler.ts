@@ -1,11 +1,6 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
-
-interface ModelInfo {
-  id: string;
-  displayName: string;
-  isSelected?: boolean;
-}
+import { ModelInfo } from "@/types/provider";
 
 /**
  * Handles the model command by fetching available models for the current provider

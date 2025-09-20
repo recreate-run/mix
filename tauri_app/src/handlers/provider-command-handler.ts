@@ -1,27 +1,16 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
+import { ProviderInfo } from "@/types/provider";
 
 /**
  * Format provider information for the provider UI
  */
 function formatProviders(providers: Record<string, any>): {
-  formattedProviders: {
-    id: string;
-    displayName: string;
-    authenticated: boolean;
-    authMethod?: "api_key" | "oauth";
-    isPreferred?: boolean;
-  }[];
+  formattedProviders: ProviderInfo[];
   hasAuthenticatedProvider: boolean;
   preferredProvider?: string;
 } {
-  const formattedProviders: {
-    id: string;
-    displayName: string;
-    authenticated: boolean;
-    authMethod?: "api_key" | "oauth";
-    isPreferred?: boolean;
-  }[] = [];
+  const formattedProviders: ProviderInfo[] = [];
   
   let hasAuthenticatedProvider = false;
   let preferredProvider: string | undefined = undefined;
@@ -42,7 +31,8 @@ function formatProviders(providers: Record<string, any>): {
       displayName: cleanName,
       authenticated: provider.authenticated,
       authMethod: provider.authMethod,
-      isPreferred
+      isPreferred,
+      authMethods: ["api_key", "oauth"] // Standard auth methods
     });
     
     if (provider.authenticated) {
