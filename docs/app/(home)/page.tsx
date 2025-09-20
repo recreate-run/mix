@@ -67,9 +67,9 @@ export default function HomePage() {
 											Perfect for rapid workflows and AI-powered task automation.
 										</p>
 										<div className="flex flex-wrap gap-1 mb-3">
-											<span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Command Palette</span>
+											{/* <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Command Palette</span>
 											<span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Slash Commands</span>
-											<span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">App Integration</span>
+											<span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">App Integration</span> */}
 										</div>
 										<div className="flex flex-col sm:flex-row gap-2">
 											<Button size="sm">
@@ -100,10 +100,10 @@ export default function HomePage() {
 											Build custom integrations and workflows programmatically in your preferred language.
 										</p>
 										<div className="flex flex-wrap gap-1 mb-3">
-											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">TypeScript</span>
+											{/* <span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">TypeScript</span>
 											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Python</span>
 											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Type-Safe</span>
-											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Open Source</span>
+											<span className="px-1.5 py-0.5 bg-secondary/10 text-secondary text-xs rounded-full">Open Source</span> */}
 										</div>
 										<div className="flex flex-col sm:flex-row gap-2">
 											<Button size="sm">
