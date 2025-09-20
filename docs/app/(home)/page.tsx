@@ -53,6 +53,20 @@ export default function HomePage() {
 						</PageHeader>
 						
 						<div className="max-w-6xl mx-auto">
+							{/* Mix Interface Preview */}
+							<div className="mb-8 flex justify-center">
+								<div className="relative max-w-2xl mx-auto">
+									<div className="relative rounded-xl overflow-hidden shadow-2xl border border-border/50">
+										<img 
+											src="/images/Area.gif" 
+											alt="Mix interface showing animated creative workflow commands"
+											className="w-full h-auto"
+										/>
+									</div>
+									<div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-xl blur-xl -z-10"></div>
+								</div>
+							</div>
+							
 							<p className="text-center text-muted-foreground mb-4 max-w-3xl mx-auto text-sm">
 								Choose how you want to interact with Mix:
 							</p>
