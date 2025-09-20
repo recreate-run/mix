@@ -126,6 +126,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     oauthState?: string; // Store the OAuth state parameter
   } | undefined>(undefined);
 
+  // Help menu data for CMDK
+  const [helpData, setHelpData] = useState<{
+    menuItems: {
+      id: string;
+      name: string;
+      description: string;
+      action: string;
+      url?: string;
+    }[];
+  } | undefined>(undefined);
+
   // Input management and focus handling
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(
     null
@@ -370,6 +381,33 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
       // Don't add error to chat - handled by notification
     }
+  };
+
+  // Handle the help command special case - show menu modal
+  const handleHelpCommandSpecial = () => {
+    // Hardcoded help menu items - no API call needed
+    const helpMenuItems = [
+      {
+        id: 'sdk-docs',
+        name: 'SDK Documentation',
+        description: 'View Python and TypeScript SDK documentation',
+        action: 'link',
+        url: 'https://recreate.run/docs/sdk'
+      },
+      {
+        id: 'backend-docs',
+        name: 'Backend Documentation', 
+        description: 'View backend API and architecture documentation',
+        action: 'link',
+        url: 'https://recreate.run/docs/backend'
+      }
+    ];
+
+    // Set help data and show commands modal
+    setHelpData({
+      menuItems: helpMenuItems
+    });
+    setShowCommands(true);
   };
 
   // Handle the unified model command with our SDK implementation
@@ -910,6 +948,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     setLogoutData(undefined);
     setStatusData(undefined);
     setLoginData(undefined);
+    setHelpData(undefined);
   };
 
   const handleCommand = (
@@ -968,6 +1007,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         if (command === 'model') {
           // Handle unified model command using our SDK implementation
           handleUnifiedModelCommandSpecial();
+          return;
+        }
+
+        if (command === 'help') {
+          // Handle help command using our special modal implementation
+          handleHelpCommandSpecial();
           return;
         }
 
@@ -1367,7 +1412,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                     />
                   )}
 
-                  <Select
+                  {/* Mode selection temporarily hidden */}
+                  {/* <Select
                     onValueChange={(value) => setIsPlanMode(value === 'plan')}
                     value={isPlanMode ? 'plan' : 'edit'}
                   >
@@ -1381,7 +1427,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                       <SelectItem value="edit">create</SelectItem>
                       <SelectItem value="plan">plan</SelectItem>
                     </SelectContent>
-                  </Select>
+                  </Select> */}
 
 
 
@@ -1410,6 +1456,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                 setLogoutData(undefined);
                 setStatusData(undefined);
                 setLoginData(undefined);
+                setHelpData(undefined);
 
                 // Close the command palette UI
                 setShowCommands(false);
@@ -1428,6 +1475,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               onApiKeySubmit={handleApiKeySubmitSpecial}
               onOAuthCodeSubmit={handleOAuthCodeSubmitSpecial}
               loginData={loginData}
+              helpData={helpData}
             />
           )}
 

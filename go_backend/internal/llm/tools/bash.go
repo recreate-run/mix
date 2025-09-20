@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"mix/internal/config"
+	"mix/internal/llm/models"
 	"mix/internal/llm/tools/shell"
 	"mix/internal/logging"
 	"mix/internal/permission"
@@ -164,6 +166,11 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return ToolResponse{}, fmt.Errorf("failed to get shell for session: %w", err)
 	}
 
+	// For multimodal analyzer commands, ensure Gemini API key is available in environment
+	if strings.Contains(params.Command, "multimodal-analyzer") {
+		b.ensureGeminiAPIKeyInEnvironment(ctx, shell)
+	}
+
 	stdout, stderr, exitCode, interrupted, err := shell.Exec(ctx, params.Command, params.Timeout)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error executing command: %w", err)
@@ -227,10 +234,23 @@ func countLines(s string) int {
 
 // checkMultimodalAnalyzerAuth checks if the multimodal analyzer can authenticate with Gemini API
 func (b *bashTool) checkMultimodalAnalyzerAuth() *ToolResponse {
-	logging.Info("Checking if i am getting called")
-	// Check if GEMINI_API_KEY environment variable is set
+	logging.Info("Checking multimodal analyzer authentication")
+
+	// First check database for Gemini API key
+	credentialsService := config.GetAPICredentials()
+	if credentialsService != nil {
+		ctx := context.Background()
+		apiKey, err := credentialsService.GetAPIKey(ctx, models.ProviderGemini)
+		if err == nil && apiKey != "" {
+			logging.Info("Found Gemini API key in database for multimodal analyzer")
+			return nil // API key is available from database, proceed with execution
+		}
+	}
+
+	// Fallback: Check if GEMINI_API_KEY environment variable is set
 	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
-		return nil // API key is available, proceed with execution
+		logging.Info("Found Gemini API key in environment for multimodal analyzer")
+		return nil // API key is available from environment, proceed with execution
 	}
 
 	// Create helpful error message with instructions
@@ -240,22 +260,58 @@ The multimodal analyzer needs a Gemini API key to analyze media files.
 
 🔧 How to fix this:
 
+Option 1 - Set API key through the UI (Recommended):
 1. Get a Gemini API key from Google AI Studio:
    https://makersuite.google.com/app/apikey
 
-2. Set the environment variable:
+2. Use the login command in the chat:
+   /login gemini
+
+3. Enter your Gemini API key when prompted
+
+Option 2 - Set environment variable:
+1. Set the environment variable:
    export GEMINI_API_KEY="your_api_key_here"
 
-3. Or add it to your shell profile (~/.bashrc, ~/.zshrc):
+2. Or add it to your shell profile (~/.bashrc, ~/.zshrc):
    echo 'export GEMINI_API_KEY="your_api_key_here"' >> ~/.bashrc
 
-4. Restart your terminal or run:
+3. Restart your terminal or run:
    source ~/.bashrc
 
 Once the API key is set, you can use the multimodal analyzer to analyze images, audio, and video files.`
 
 	response := NewTextErrorResponse(errorMsg)
 	return &response
+}
+
+// ensureGeminiAPIKeyInEnvironment sets the GEMINI_API_KEY environment variable in the shell
+// if it's available in the database but not in the current environment
+func (b *bashTool) ensureGeminiAPIKeyInEnvironment(ctx context.Context, shell *shell.PersistentShell) {
+	// Check if GEMINI_API_KEY is already set in environment
+	if os.Getenv("GEMINI_API_KEY") != "" {
+		return // Already set, nothing to do
+	}
+
+	// Try to get API key from database
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		return
+	}
+
+	apiKey, err := credentialsService.GetAPIKey(ctx, models.ProviderGemini)
+	if err != nil || apiKey == "" {
+		return // No key in database
+	}
+
+	// Set the environment variable in the shell
+	exportCmd := fmt.Sprintf("export GEMINI_API_KEY='%s'", apiKey)
+	_, _, _, _, execErr := shell.Exec(ctx, exportCmd, 5000) // 5 second timeout
+	if execErr != nil {
+		logging.Error("Failed to set GEMINI_API_KEY in shell environment", "error", execErr)
+	} else {
+		logging.Info("Set Gemini API key from database in shell environment for multimodal analyzer")
+	}
 }
 
 // convertSessionURLsToLocalPaths converts localhost session URLs to local storage paths
