@@ -466,7 +466,16 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 			return err
 		}
 
+	case agent.AgentEventTypeContentDelta:
+		// Stream content deltas for text between tool calls
+		if event.Content != "" {
+			if err := WriteSSE(w, "content", ContentEvent{Type: "content", Content: event.Content}); err != nil {
+				return err
+			}
+		}
+
 	case agent.AgentEventTypeResponse:
+
 		// Stream tool calls - detect new tool calls by checking completion status
 		toolCalls := event.Message.ToolCalls()
 		for _, toolCall := range toolCalls {

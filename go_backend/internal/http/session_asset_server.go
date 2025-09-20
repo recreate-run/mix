@@ -2,13 +2,11 @@ package http
 
 import (
 	"crypto/md5"
-	"encoding/json"
 	"fmt"
 	"image"
 	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -35,11 +33,15 @@ type SessionAssetHandler struct {
 
 // NewSessionAssetHandler creates a new session asset handler
 func NewSessionAssetHandler(app *app.App, storageConfig storage.Config) *SessionAssetHandler {
-	return &SessionAssetHandler{
+	handler := &SessionAssetHandler{
 		app:           app,
 		storageConfig: storageConfig,
 	}
+
+
+	return handler
 }
+
 
 // Thumbnail specification types
 type ThumbnailSpec struct {
@@ -122,10 +124,21 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Use os.Root for secure file operations
-	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	// Try session-specific storage first
+	served, err := h.tryServeFromSessionStorage(w, r, sessionID, filename)
 	if err != nil {
-		sendInternalError(w, "getting session root", err)
+		sendInternalError(w, "checking session storage", err)
+		return
+	}
+	if served {
+		return // File was found and served from session storage
+	}
+
+	// Fall back to shared uploads storage
+	// Use os.Root for secure file operations
+	root, err := storage.GetUploadsRoot(h.storageConfig)
+	if err != nil {
+		sendInternalError(w, "getting uploads root", err)
 		return
 	}
 	defer root.Close()
@@ -148,8 +161,8 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get the actual file path for thumbnail generation and serving
-	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
-	filePath := filepath.Join(sessionDir, filename)
+	uploadsDir := storage.GetUploadsStoragePath(h.storageConfig)
+	filePath := filepath.Join(uploadsDir, filename)
 
 	// Check if thumbnail is requested
 	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
@@ -230,10 +243,10 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 	return nil, fmt.Errorf("invalid thumbnail format, use: 100 (box), w100 (width), or h100 (height)")
 }
 
-// generateThumbnailPath creates a consistent cache path for thumbnails in session directory
+// generateThumbnailPath creates a consistent cache path for thumbnails in uploads directory
 func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
-	sessionStorageDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
-	thumbnailDir := filepath.Join(sessionStorageDir, ".thumbnails")
+	uploadsStorageDir := storage.GetUploadsStoragePath(h.storageConfig)
+	thumbnailDir := filepath.Join(uploadsStorageDir, ".thumbnails")
 
 	// Create hash of original path for consistent naming
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(originalPath)))
@@ -438,120 +451,75 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	return nil
 }
 
-// GSAP Animation Support - Keep separate from session-based file storage
-// GSAP animations remain in their global and session-specific directories
-
-// HandleGSAPAnimationsList handles GET /api/gsap_animations
-func (h *SessionAssetHandler) HandleGSAPAnimationsList(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	globalDir, err := h.getGSAPGlobalDirectory()
+// tryServeFromSessionStorage attempts to serve a file from session-specific storage
+// Returns true if file was found and served, false if file doesn't exist in session storage
+func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, r *http.Request, sessionID, filename string) (bool, error) {
+	// Try to get session-specific storage root
+	sessionRoot, err := storage.GetSessionRoot(sessionID, h.storageConfig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get GSAP global directory: %v", err), http.StatusInternalServerError)
-		return
+		return false, fmt.Errorf("getting session root: %v", err)
 	}
+	defer sessionRoot.Close()
 
-	// For now, only return global animations
-	// Session-specific GSAP animations can be added later if needed
-	globalAnimations, err := h.scanAnimationDirectory(globalDir, "global")
+	// Check if file exists in session storage
+	fileInfo, err := sessionRoot.Stat(filename)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to scan global animations: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Convert to array for JSON response
-	allAnimations := make([]map[string]interface{}, 0, len(globalAnimations))
-	for _, animation := range globalAnimations {
-		allAnimations = append(allAnimations, animation)
-	}
-
-	// Set JSON content type and send response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(allAnimations)
-}
-
-// getGSAPGlobalDirectory returns the global GSAP animations directory
-func (h *SessionAssetHandler) getGSAPGlobalDirectory() (string, error) {
-	// Use environment variable for global animations directory
-	globalAnimationsDir := os.Getenv("GSAP_GLOBAL_DIR")
-	if globalAnimationsDir == "" {
-		return "", fmt.Errorf("GSAP_GLOBAL_DIR environment variable is required but not set")
-	}
-
-	// Validate global directory exists
-	if _, err := os.Stat(globalAnimationsDir); err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("GSAP_GLOBAL_DIR points to non-existent directory: %s", globalAnimationsDir)
+			return false, nil // File doesn't exist in session storage, try shared storage
 		}
-		return "", fmt.Errorf("GSAP_GLOBAL_DIR directory is not accessible: %s. Error: %v", globalAnimationsDir, err)
+		return false, fmt.Errorf("invalid filename or path traversal attempt: %s", err.Error())
 	}
 
-	return globalAnimationsDir, nil
-}
-
-// scanAnimationDirectory scans a directory for animations and returns them with directory info
-func (h *SessionAssetHandler) scanAnimationDirectory(animationsDir string, source string) (map[string]map[string]interface{}, error) {
-	// Check if directory exists
-	if _, err := os.Stat(animationsDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("animation directory does not exist: %s", animationsDir)
+	// Don't serve directories
+	if fileInfo.IsDir() {
+		http.Error(w, "Cannot serve directory", http.StatusBadRequest)
+		return true, nil // We handled the request (with error)
 	}
 
-	animations := make(map[string]map[string]interface{})
+	// Get the actual file path for thumbnail generation
+	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+	filePath := filepath.Join(sessionDir, filename)
 
-	// Read animations directory
-	entries, err := os.ReadDir(animationsDir)
+	// Check if thumbnail is requested
+	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
+		// Generate thumbnails for video and image files
+		if !isVideoFile(filePath) && !isImageFile(filePath) {
+			logging.Error("Thumbnail request rejected: file type not supported", "filePath", filePath)
+			http.Error(w, "Thumbnails only supported for video and image files", http.StatusBadRequest)
+			return true, nil
+		}
+
+		// Parse optional time parameter for video segments
+		timeParam := r.URL.Query().Get("time")
+
+		if err := h.serveThumbnail(w, r, sessionID, filePath, thumbParam, timeParam); err != nil {
+			logging.Error("Thumbnail generation failed", "filePath", filePath, "error", err)
+			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
+			return true, nil
+		}
+		return true, nil
+	}
+
+	// Disable caching for development - ensures media changes are immediately visible
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// Serve the file using session storage Root for security
+	file, err := sessionRoot.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read animations directory '%s': %w", animationsDir, err)
+		return false, fmt.Errorf("opening session file: %v", err)
 	}
+	defer file.Close()
 
-	for _, entry := range entries {
-		// Skip non-directories and shared directory
-		if !entry.IsDir() || entry.Name() == "shared" {
-			continue
-		}
-
-		// Read schema.json for this animation
-		schemaPath := filepath.Join(animationsDir, entry.Name(), "schema.json")
-		schemaFile, err := os.Open(schemaPath)
-		if err != nil {
-			return nil, fmt.Errorf("animation '%s' missing required schema.json file in directory '%s': %w", entry.Name(), animationsDir, err)
-		}
-
-		schemaBytes, err := io.ReadAll(schemaFile)
-		schemaFile.Close()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read schema.json for animation '%s' in directory '%s': %w", entry.Name(), animationsDir, err)
-		}
-
-		// Parse schema JSON
-		var schema map[string]interface{}
-		if err := json.Unmarshal(schemaBytes, &schema); err != nil {
-			return nil, fmt.Errorf("invalid JSON in schema.json for animation '%s' in directory '%s': %w", entry.Name(), animationsDir, err)
-		}
-
-		// Validate required schema fields
-		if schema["name"] == nil || schema["description"] == nil {
-			return nil, fmt.Errorf("animation '%s' schema missing required fields (name and/or description) in directory '%s'", entry.Name(), animationsDir)
-		}
-
-		// Create animation summary with source information
-		animationSummary := map[string]interface{}{
-			"name":        schema["name"],
-			"description": schema["description"],
-			"source":      source, // "global"
-		}
-
-		animations[entry.Name()] = animationSummary
-	}
-
-	return animations, nil
+	// Serve content with proper headers
+	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)
+	return true, nil
 }
+
+
+
+
+
+
+

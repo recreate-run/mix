@@ -1,5 +1,6 @@
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage, ProviderWithModels } from "@/types";
+import { toast } from "sonner";
 
 /**
  * Format providers with their models for the hierarchical UI
@@ -127,7 +128,8 @@ export async function handleUnifiedModelCommand(): Promise<UIMessage> {
     return {
       content: `Failed to get providers and models: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -177,7 +179,8 @@ export async function handleProviderSelectionInHierarchy(providerId: string): Pr
     return {
       content: `Failed to update provider preference: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }
@@ -211,16 +214,37 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
     const rawProviderName = authStatus.providers?.[providerId]?.displayName || providerId;
     const providerName = rawProviderName.replace(" ⭐", "");
     
+    // This function is called directly from the chat-app component
+    // The caller needs to invalidate the preferences cache to show updated model info
+    
+    // Show success toast notification 
+    try {
+      // Use a simple toast first to see if it works
+      toast("Model updated");
+      
+      // Then try the more complex version
+      toast.success("Model updated", {
+        description: `${modelId} is now your default model for ${providerName}`,
+        duration: 3000
+      });
+      console.log("Toast notifications triggered for model update");
+    } catch (toastError) {
+      console.error("Failed to show toast:", toastError);
+    }
+    
     return {
       content: `✅ Successfully set ${modelId} as your default model for ${providerName}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      shouldInvalidatePreferencesCache: true,  // Signal to invalidate preferences cache
+      suppressChatMessage: true  // Hide this success message from the chat UI
     };
   } catch (error) {
     return {
       content: `Failed to update model preference: ${error instanceof Error ? error.message : "Unknown error"}`,
       from: "assistant",
-      frontend_only: true
+      frontend_only: true,
+      suppressChatMessage: true
     };
   }
 }

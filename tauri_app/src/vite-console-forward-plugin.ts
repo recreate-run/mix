@@ -103,7 +103,9 @@ function createLogEntry(level, args) {
   
   const message = args.map((arg) => {
     if (arg === undefined) return "undefined";
+    if (arg === null) return "null";
     if (typeof arg === "string") return arg;
+    if (typeof arg === "number" || typeof arg === "boolean") return String(arg);
     if (arg instanceof Error || typeof arg.stack === "string") {
       let stringifiedError = arg.toString();
       if (arg.stack) {
@@ -118,7 +120,12 @@ function createLogEntry(level, args) {
       return stringifiedError;
     }
     if (typeof arg === "object" && arg !== null) {
-      return String(arg);
+      try {
+        return JSON.stringify(arg, null, 2);
+      } catch (e) {
+        // Fallback for objects that can't be stringified (circular refs, etc.)
+        return String(arg);
+      }
     }
     return String(arg);
   }).join(" ");

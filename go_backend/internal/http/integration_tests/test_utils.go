@@ -50,7 +50,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 	os.Setenv("_CONFIG_DIR", testConfigDir)
 	os.Setenv("_DATA_DIR", testDataDir)
-	os.Setenv("GSAP_GLOBAL_DIR", testDataDir+"/gsap_animations") // Set GSAP_GLOBAL_DIR for animations
 
 	// Create test directories
 	if err := os.MkdirAll(testConfigDir, 0755); err != nil {

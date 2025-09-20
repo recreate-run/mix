@@ -103,9 +103,9 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	filename := sanitizeFilename(originalFilename)
 	
 	// Use os.Root for secure file operations - prevents path traversal
-	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	root, err := storage.GetUploadsRoot(h.storageConfig)
 	if err != nil {
-		sendInternalError(w, "getting session root", err)
+		sendInternalError(w, "getting uploads root", err)
 		return
 	}
 	defer root.Close()
@@ -178,23 +178,23 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get session storage directory
-	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+	// Get uploads storage directory
+	uploadsDir := storage.GetUploadsStoragePath(h.storageConfig)
 
-	// Read directory entries
-	entries, err := os.ReadDir(sessionDir)
+	// Read uploads files
+	entries, err := os.ReadDir(uploadsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Session directory doesn't exist yet, return empty list
+			// Uploads directory doesn't exist yet, return empty list
 			sendJSONResponse(w, http.StatusOK, []FileInfo{})
 			return
 		}
-		sendInternalError(w, "reading session directory", err)
+		sendInternalError(w, "reading uploads directory", err)
 		return
 	}
 
-	// Convert to FileInfo structs
-	var files []FileInfo
+	// Build file list from uploads files
+	files := make([]FileInfo, 0, len(entries))
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
@@ -212,79 +212,6 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	sendJSONResponse(w, http.StatusOK, files)
 }
 
-// HandleServeFile handles GET /api/sessions/{id}/files/{filename}
-func (h *FileHandler) HandleServeFile(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	sessionID := r.PathValue("id")
-	if sessionID == "" {
-		sendValidationError(w, "id", "session ID is required")
-		return
-	}
-
-	filename := r.PathValue("filename")
-	if filename == "" {
-		sendValidationError(w, "filename", "filename is required")
-		return
-	}
-
-	// Validate session exists and session ID format
-	if !storage.ValidateSessionID(sessionID) {
-		sendValidationError(w, "id", "invalid session ID format")
-		return
-	}
-
-	ctx := r.Context()
-	_, err := h.app.Sessions.Get(ctx, sessionID)
-	if err != nil {
-		sendNotFoundError(w, "Session", sessionID)
-		return
-	}
-
-	// Use os.Root for secure file operations
-	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
-	if err != nil {
-		sendInternalError(w, "getting session root", err)
-		return
-	}
-	defer root.Close()
-
-	// Check if file exists using Root - prevents path traversal
-	fileInfo, err := root.Stat(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			sendNotFoundError(w, "File", filename)
-			return
-		}
-		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
-		return
-	}
-
-	// Don't serve directories
-	if fileInfo.IsDir() {
-		http.Error(w, "Cannot serve directory", http.StatusBadRequest)
-		return
-	}
-
-	// Open file using Root for secure serving
-	file, err := root.Open(filename)
-	if err != nil {
-		sendInternalError(w, "opening file", err)
-		return
-	}
-	defer file.Close()
-
-	// Set appropriate content type and serve
-	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)
-}
 
 // HandleDeleteFile handles DELETE /api/sessions/{id}/files/{filename}
 func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
@@ -324,9 +251,9 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use os.Root for secure file operations
-	root, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	root, err := storage.GetUploadsRoot(h.storageConfig)
 	if err != nil {
-		sendInternalError(w, "getting session root", err)
+		sendInternalError(w, "getting uploads root", err)
 		return
 	}
 	defer root.Close()

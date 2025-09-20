@@ -19,13 +19,13 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 
 	if agentName == config.AgentSub {
 		// Load task agent system prompt (uses same system.md as main agent)
-		basePrompt, err = LoadPromptWithStandardVars(ctx, "system", sessionVars)
+		basePrompt, err = LoadPrompt(ctx, "system", sessionVars)
 		if err != nil {
 			return "", fmt.Errorf("failed to load system prompt for sub agent: %w", err)
 		}
 	} else {
 		// Load main agent prompt with standard environment variables
-		basePrompt, err = LoadPromptWithStandardVars(ctx, "system", sessionVars)
+		basePrompt, err = LoadPrompt(ctx, "system", sessionVars)
 		if err != nil {
 			return "", fmt.Errorf("failed to load system prompt for main agent: %w", err)
 		}

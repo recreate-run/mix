@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -116,35 +114,11 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 			return NewTextErrorResponse(fmt.Sprintf("Invalid media type '%s' for output %d", output.Type, i)), nil
 		}
 
-		// Check if file exists (skip for gsap_animation, youtube, and URLs)
-		if output.Type != "gsap_animation" && output.Type != "youtube" && !isURL(output.Path) {
-			if !filepath.IsAbs(output.Path) {
-				return NewTextErrorResponse(fmt.Sprintf("Path must be absolute for output %d: %s", i, output.Path)), nil
-			}
-
-			if _, err := os.Stat(output.Path); err != nil {
-				return NewTextErrorResponse(fmt.Sprintf("Media file not found for output %d: %s", i, output.Path)), nil
-			}
+		// Require HTTP/HTTPS URLs for all types except gsap_animation
+		if output.Type != "gsap_animation" && !isURL(output.Path) {
+			return NewTextErrorResponse(fmt.Sprintf("Path must be a valid HTTP/HTTPS URL for output %d: %s", i, output.Path)), nil
 		}
 
-		// Validate file extension matches type (skip for gsap_animation, youtube, and URLs)
-		if output.Type != "gsap_animation" && output.Type != "youtube" && !isURL(output.Path) {
-			ext := strings.ToLower(filepath.Ext(output.Path))
-			switch output.Type {
-			case "image":
-				if !isImageExtension(ext) {
-					return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match image type for output %d", ext, i)), nil
-				}
-			case "video":
-				if !isVideoExtension(ext) {
-					return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match video type for output %d", ext, i)), nil
-				}
-			case "audio":
-				if !isAudioExtension(ext) {
-					return NewTextErrorResponse(fmt.Sprintf("File extension '%s' doesn't match audio type for output %d", ext, i)), nil
-				}
-			}
-		}
 
 		// For gsap_animation, validate that config is provided
 		if output.Type == "gsap_animation" {
@@ -202,32 +176,6 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 	}, nil
 }
 
-func isImageExtension(ext string) bool {
-	imageExts := map[string]bool{
-		".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
-		".bmp": true, ".tiff": true, ".tif": true, ".webp": true,
-		".svg": true, ".ico": true, ".heic": true, ".heif": true,
-	}
-	return imageExts[ext]
-}
-
-func isVideoExtension(ext string) bool {
-	videoExts := map[string]bool{
-		".mp4": true, ".avi": true, ".mov": true, ".wmv": true,
-		".flv": true, ".webm": true, ".mkv": true, ".m4v": true,
-		".3gp": true, ".ogv": true, ".ts": true, ".mts": true,
-	}
-	return videoExts[ext]
-}
-
-func isAudioExtension(ext string) bool {
-	audioExts := map[string]bool{
-		".mp3": true, ".wav": true, ".flac": true, ".aac": true,
-		".ogg": true, ".wma": true, ".m4a": true, ".opus": true,
-		".aiff": true, ".au": true, ".ra": true,
-	}
-	return audioExts[ext]
-}
 
 func isURL(path string) bool {
 	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://")

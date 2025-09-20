@@ -52,8 +52,8 @@ type permissionService struct {
 
 	sessionPermissions []PermissionRequest
 	pendingRequests    sync.Map
-	sessions          session.Service
-	storageConfig     storage.Config
+	sessions           session.Service
+	storageConfig      storage.Config
 }
 
 func (s *permissionService) GrantPersistant(permission PermissionRequest) {
@@ -88,7 +88,7 @@ func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath 
 
 	// Get session storage directory
 	sessionStorageDir := storage.GetSessionStoragePath(sessionID, s.storageConfig)
-	
+
 	// Check if session storage directory exists
 	if _, err := os.Stat(sessionStorageDir); os.IsNotExist(err) {
 		logging.Debug("Session storage directory does not exist", "sessionID", sessionID, "path", sessionStorageDir)
@@ -140,10 +140,7 @@ func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath 
 	return true // Path is accessible within session storage directory
 }
 
-
 func (s *permissionService) Request(opts CreatePermissionRequest) bool {
-	logging.Info("Permission request", "sessionID", opts.SessionID, "toolName", opts.ToolName, "action", opts.Action, "path", opts.Path)
-
 	dir := opts.Path
 	// Only apply filepath.Dir() for actual existing files
 	if info, err := os.Stat(opts.Path); err == nil && !info.IsDir() {
@@ -164,7 +161,6 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	if s.isPathWithinSessionStorage(opts.SessionID, dir) {
 		// Path is within session storage directory
 		if config.Get().SkipPermissions {
-			logging.Info("Path is within session storage directory, permissions skipped", "path", dir)
 			return true
 		}
 		// Still require permission even within session directory if not skipped
@@ -219,7 +215,7 @@ func NewPermissionService(sessions session.Service, storageConfig storage.Config
 	return &permissionService{
 		Broker:             pubsub.NewBroker[PermissionRequest](),
 		sessionPermissions: make([]PermissionRequest, 0),
-		sessions:          sessions,
-		storageConfig:     storageConfig,
+		sessions:           sessions,
+		storageConfig:      storageConfig,
 	}
 }

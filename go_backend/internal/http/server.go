@@ -23,14 +23,14 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	systemHandler := NewSystemHandler(app)
 	preferencesHandler := NewPreferencesHandler(app)
 	authHandler := NewAuthHandler(app)
-	
+
 	// Create session-aware asset handler using app's storage config
 	fileHandler := NewFileHandler(app, app.StorageConfig)
 	sessionAssetHandler := NewSessionAssetHandler(app, app.StorageConfig)
 
 	// Create dedicated HTTP mux with CORS middleware
 	mux := http.NewServeMux()
-	
+
 	// CORS middleware wrapper
 	corsMiddleware := func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,24 +39,18 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 			w.Header().Set("Access-Control-Max-Age", "86400")
-			
+
 			// Handle preflight requests
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			
+
 			// Continue with the actual handler
 			handler.ServeHTTP(w, r)
 		})
 	}
 
-	// Add debug endpoint
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "Mix HTTP REST API Server\\nPath: %s\\nMethod: %s\\n", r.URL.Path, r.Method)
-	})
-	
 	// Add health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -74,7 +68,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 		json.NewEncoder(w).Encode(health)
 	})
 
-	// Add documentation endpoint  
+	// Add documentation endpoint
 	mux.HandleFunc("GET /doc", HandleDocumentation)
 
 	// Add SSE streaming endpoint
@@ -93,34 +87,33 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	})
 
 	// Add URL video export endpoint (new Playwright-based export)
-	mux.HandleFunc("/api/video/export-url", HandleURLVideoExport)
 
 	// NEW SESSION-BASED FILE ENDPOINTS (replaces /input/ and /output/)
-	
+
 	// Session file management endpoints
 	mux.HandleFunc("POST /api/sessions/{id}/files/upload", fileHandler.HandleUploadFile)
 	mux.HandleFunc("GET /api/sessions/{id}/files", fileHandler.HandleListFiles)
 	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
 	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
-	
+
+
 	// GSAP animation endpoints (kept separate from session storage)
-	mux.HandleFunc("GET /api/gsap_animations", sessionAssetHandler.HandleGSAPAnimationsList)
 
 	// REST API Endpoints
-	
+
 	// Session endpoints
 	mux.HandleFunc("GET /api/sessions", sessionHandler.HandleListSessions)
 	mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.HandleGetSession)
 	mux.HandleFunc("POST /api/sessions", sessionHandler.HandleCreateSession)
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 	mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.HandleDeleteSession)
-	
+
 	// Message endpoints
 	mux.HandleFunc("POST /api/sessions/{id}/messages", messageHandler.HandleSendMessage)
 	mux.HandleFunc("GET /api/sessions/{id}/messages", messageHandler.HandleListSessionMessages)
 	mux.HandleFunc("GET /api/messages/history", messageHandler.HandleMessageHistory)
 	mux.HandleFunc("POST /api/sessions/{id}/cancel", messageHandler.HandleCancelAgent)
-	
+
 	// System endpoints
 	mux.HandleFunc("POST /api/auth/login", systemHandler.HandleAuthLogin)
 	mux.HandleFunc("POST /api/auth/apikey", systemHandler.HandleSetAPIKey)
@@ -129,13 +122,13 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/commands/{name}", systemHandler.HandleGetCommand)
 	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
-	
+
 	// User preferences endpoints
 	mux.HandleFunc("GET /api/preferences", preferencesHandler.HandleGetPreferences)
 	mux.HandleFunc("POST /api/preferences", preferencesHandler.HandleUpdatePreferences)
 	mux.HandleFunc("GET /api/preferences/providers", preferencesHandler.HandleGetAvailableProviders)
 	mux.HandleFunc("POST /api/preferences/reset", preferencesHandler.HandleResetPreferences)
-	
+
 	// Authentication management endpoints
 	mux.HandleFunc("POST /api/auth/api-key", authHandler.HandleStoreAPIKey)
 	mux.HandleFunc("DELETE /api/auth/{provider}", authHandler.HandleDeleteCredentials)

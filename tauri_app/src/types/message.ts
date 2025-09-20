@@ -15,6 +15,12 @@ export type TimelineEntry =
       timestamp: number;
       content: ToolCall;
       id: string;
+    }
+  | {
+      type: 'content';
+      timestamp: number;
+      content: string;
+      id: string;
     };
 
 export interface UIMessage {
@@ -107,6 +113,8 @@ export interface UIMessage {
     }[];
   };
   hierarchicalModel?: HierarchicalModelData;
+  shouldInvalidatePreferencesCache?: boolean; // Signal to the UI to invalidate the preferences cache
+  suppressChatMessage?: boolean; // When true, message won't be shown in the chat interface
 }
 
 export interface BackendMessage {

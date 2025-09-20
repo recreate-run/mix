@@ -850,13 +850,6 @@ func GetEmbeddedPrompts() embed.FS {
 	return embeddedPrompts
 }
 
-// LaunchDirectory returns the current launch directory from the configuration.
-func LaunchDirectory() (string, error) {
-	if cfg == nil {
-		return "", fmt.Errorf("config not loaded")
-	}
-	return cfg.WorkingDir, nil
-}
 
 // PromptsDirectory returns the prompts directory from the configuration.
 func PromptsDirectory() (string, error) {

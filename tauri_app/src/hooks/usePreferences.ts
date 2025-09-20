@@ -12,9 +12,6 @@ export function usePreferences() {
   return useQuery({
     queryKey: CACHE_KEYS.preferences,
     queryFn: getPreferences,
-    staleTime: 30 * 1000, // 30 seconds - preferences don't change often
-    gcTime: 5 * 60 * 1000, // 5 minutes - keep in cache
-    refetchOnWindowFocus: false,
     retry: 2,
   });
 }
@@ -26,16 +23,16 @@ export function formatCurrentModel(preferences: GetPreferencesResponse | undefin
   }
 
   const { preferredProvider, mainAgentModel } = preferences.preferences;
-  
+
   if (!preferredProvider || !mainAgentModel) {
     return 'No model selected';
   }
 
   // Get the display name for the provider
   const providerDisplayName = preferences.availableProviders[preferredProvider]?.displayName || preferredProvider;
-  
+
   // Shorten long model names for better display
-  const shortModelName = mainAgentModel.length > 25 
+  const shortModelName = mainAgentModel.length > 25
     ? `${mainAgentModel.substring(0, 22)}...`
     : mainAgentModel;
 

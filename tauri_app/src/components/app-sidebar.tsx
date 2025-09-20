@@ -1,6 +1,5 @@
 import { IconClock, IconPlus } from '@tabler/icons-react';
-import { Link, useNavigate } from '@tanstack/react-router';
-import { Home } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import type * as React from 'react';
 import { SessionItem } from '@/components/session-item';
 import {
@@ -9,7 +8,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -58,21 +56,6 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader className="border-b">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <Link className="flex items-center gap-2" to="/">
-                <Home className="!size-4 text-muted-foreground" />
-                <span className="">Home</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Sessions</SidebarGroupLabel>

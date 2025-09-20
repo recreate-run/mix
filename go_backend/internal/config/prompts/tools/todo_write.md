@@ -1,25 +1,21 @@
 Use this tool to create and manage a structured task list for your current creative
 session. This helps you track progress, organize complex tasks, and demonstrate
-thoroughness to the user.
-It also helps the user understand the progress of the task and overall progress of
-their requests.
+thoroughness to the user. It also helps the user understand the progress of the task and overall progress of their requests. Focus on how you would execute it technically as an AI agen using tools and processes (yt-dlp, ffmpeg, bash tool, etc.)
 
 ## When to Use This Tool
 
 Use this tool proactively in these scenarios:
 
-1. Complex multi-step tasks - When a task requires 3 or more distinct steps or
-actions
-2. Non-trivial and complex tasks - Tasks that require careful planning or multiple
+1. Non-trivial and complex tasks - Tasks that require careful planning or multiple
 operations
-3. User explicitly requests todo list - When the user directly asks you to use the
+2. User explicitly requests todo list - When the user directly asks you to use the
 todo list
-4. User provides multiple tasks - When users provide a list of things to be done
+3. User provides multiple tasks - When users provide a list of things to be done
 (numbered or comma-separated)
-5. After receiving new instructions - Immediately capture user requirements as todos
-6. When you start working on a task - Mark it as in_progress BEFORE beginning work.
+4. After receiving new instructions - Immediately capture user requirements as todos
+5. When you start working on a task - Mark it as in_progress BEFORE beginning work.
 Ideally you should only have one todo as in_progress at a time
-7. After completing a task - Mark it as completed and add any new follow-up tasks
+6. After completing a task - Mark it as completed and add any new follow-up tasks
 discovered during implementation
 
 ## When NOT to Use This Tool
@@ -28,71 +24,8 @@ Skip using this tool when:
 
 1. There is only a single, straightforward task
 2. The task is trivial and tracking it provides no organizational benefit
-3. The task can be completed in less than 3 trivial steps
+3. The task requires fewer than 3 steps
 4. The task is purely conversational or informational
-
-NOTE that you should not use this tool if there is only one trivial task to do. In
-this case you are better off just doing the task directly.
-
-## Examples of When to Use the Todo List
-
-<example>
-User: Analyze these 20 user session recordings to identify friction points and create a summary report
-Assistant: I'll help analyze your user session recordings to identify UX friction points. First, let me examine the
-recordings to categorize user behaviors and interaction patterns.
-*Reviews session recordings, noting navigation patterns, hesitation points, and abandonment locations*
-Assistant: After analyzing the sessions, I've identified several friction patterns across different user journeys.
-Let me create a todo list to track our analysis and reporting process.
-*Creates todo list with items like: 1) Categorize sessions by user type and journey stage, 2) Document specific friction points with timestamps, 3)
-Identify common abandonment patterns, 4) Create visual heatmaps of problem areas, 5) Generate actionable UX recommendations report*
-Let's start by categorizing the sessions to understand different user behavior patterns.
-
-<reasoning>
-The assistant used the todo list because:
-1. First, the assistant examined the recordings to identify specific friction patterns
-2. Based on this analysis, it identified multiple categorization and documentation tasks
-3. Session analysis is a complex task requiring systematic review of multiple data sources
-4. The todo list helps methodically track analysis across different user types and journey stages
-5. This systematic approach ensures all friction points are documented and actionable insights are generated
-</reasoning>
-</example>
-
-## Examples of When NOT to Use the Todo List
-
-<example>
-User: What aspect ratio should I use for Instagram posts?
-Assistant: For Instagram posts, use 1:1 (square) aspect ratio. This is 1080x1080 pixels for optimal quality.
-
-<reasoning>
-The assistant did not use the todo list because this is a single, informational query that
-can be answered in one step. There's no creative work to track or multiple tasks to organize for
-such a straightforward question.
-</reasoning>
-</example>
-
-<example>
-User: What resolution should I use for 4K video export?
-Assistant: For 4K video export, use 3840x2160 pixels (UHD). This provides high quality for
-professional distribution while maintaining compatibility with most 4K displays and platforms.
-
-<reasoning>
-The assistant did not use the todo list because this is an informational request with
-no actual creative task to complete. The user is simply asking for technical specifications, not
-for the assistant to perform multiple steps or creative work.
-</reasoning>
-</example>
-
-<example>
-User: Can you add a watermark to this single image?
-Assistant: Sure, let me add a watermark to your image.
-* Uses image editing tools to apply the watermark to the specified image *
-
-<reasoning>
-The assistant did not use the todo list because this is a single, straightforward
-task applied to one image. Adding a watermark doesn't require tracking
-multiple steps or systematic organization.
-</reasoning>
-</example>
 
 ## Task States and Management
 
@@ -120,9 +53,7 @@ in_progress
       - You couldn't find necessary source materials or assets
 
 4. **Task Breakdown**:
-   - Create specific, actionable items
-   - Break complex tasks into smaller, manageable steps
-   - Use clear, descriptive task names
+   - Todo lists MUST contain between 3-8 tasks maximum. If you have fewer than 3 tasks, the work is too simple for a todo list. If you have more than 8 tasks, break them into logical phases or sub-tasks.
 
 When in doubt, use this tool. Being proactive with task management demonstrates
 attentiveness and ensures you complete all requirements successfully.

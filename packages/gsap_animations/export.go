@@ -1,9 +1,10 @@
-package http
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -11,14 +12,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"mix/internal/logging"
 )
 
 // URLVideoExportRequest represents the request payload for URL video export
 type URLVideoExportRequest struct {
-	URL         string   `json:"url"`
-	OutputPath  string   `json:"outputPath"`            // Required absolute path where video will be saved
+	URL         string   `json:"url"`                  // URL to capture
+	S3URL       string   `json:"s3Url,omitempty"`      // Optional S3 URL to upload the video to
 	FPS         *int     `json:"fps,omitempty"`         // default: 30
 	AspectRatio *string  `json:"aspectRatio,omitempty"` // default: "9/16" (format like "16/9", "4/3")
 	Height      *int     `json:"height,omitempty"`      // default: 640
@@ -27,10 +26,11 @@ type URLVideoExportRequest struct {
 
 // URLVideoExportResponse represents the response for URL video export
 type URLVideoExportResponse struct {
-	Success    bool   `json:"success"`
-	OutputPath string `json:"outputPath,omitempty"` // Path where video was saved
-	Message    string `json:"message,omitempty"`
-	Error      string `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	URL     string `json:"url,omitempty"`      // URL to access the video (local server)
+	S3URL   string `json:"s3Url,omitempty"`    // S3 URL where video was uploaded (if requested)
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // AspectRatio represents parsed aspect ratio values
@@ -68,20 +68,9 @@ func parseAspectRatio(aspectRatioStr string) (AspectRatio, error) {
 	}, nil
 }
 
-// HandleURLVideoExport handles POST /api/video/export-url
+// handleExport handles POST /export
 // Exports a URL as a video using Playwright-based frame capture
-func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	// Handle preflight OPTIONS request
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
+func handleExport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -98,30 +87,6 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	// Validate required fields
 	if req.URL == "" {
 		http.Error(w, "URL is required", http.StatusBadRequest)
-		return
-	}
-
-	if req.OutputPath == "" {
-		http.Error(w, "outputPath is required", http.StatusBadRequest)
-		return
-	}
-
-	// Validate output path is absolute
-	if !filepath.IsAbs(req.OutputPath) {
-		http.Error(w, "outputPath must be an absolute path", http.StatusBadRequest)
-		return
-	}
-
-	// Security check: ensure output path doesn't contain dangerous patterns
-	cleanPath := filepath.Clean(req.OutputPath)
-	if cleanPath != req.OutputPath {
-		http.Error(w, "Invalid characters in outputPath", http.StatusBadRequest)
-		return
-	}
-
-	// Ensure the file extension is .mp4
-	if !strings.HasSuffix(strings.ToLower(req.OutputPath), ".mp4") {
-		http.Error(w, "outputPath must end with .mp4", http.StatusBadRequest)
 		return
 	}
 
@@ -169,32 +134,40 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Duration must be between 0.1 and 60 seconds", http.StatusBadRequest)
 		return
 	}
-	// Width is calculated from height and aspect ratio, so validate the calculated result
 	if width <= 0 || width > 8192 {
 		http.Error(w, fmt.Sprintf("Calculated width (%d) is invalid for height %d and aspect ratio %s", width, height, aspectRatioStr), http.StatusBadRequest)
 		return
 	}
 
-	// Get current working directory for script path
-	sessionStorageDir, err := os.Getwd()
-	if err != nil {
-		http.Error(w, "Failed to get working directory", http.StatusInternalServerError)
-		return
+	// H.264 codec requires even dimensions for proper encoding
+	// Auto-round odd dimensions to ensure compatibility
+	if width%2 != 0 || height%2 != 0 {
+		originalWidth, originalHeight := width, height
+
+		// Round up to next even number
+		if width%2 != 0 {
+			width = width + 1
+		}
+		if height%2 != 0 {
+			height = height + 1
+		}
+
+		log.Printf("Auto-adjusted dimensions from %dx%d to %dx%d for H.264 compatibility",
+			originalWidth, originalHeight, width, height)
 	}
 
-	// Create parent directory for output file if it doesn't exist
-	outputDir := filepath.Dir(req.OutputPath)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		logging.Debug("Failed to create output directory: %v", err)
-		http.Error(w, "Failed to create output directory", http.StatusInternalServerError)
-		return
-	}
+	// Generate unique filename for the export
+	filename := GenerateUniqueFilename()
+	outputPath := GetStorageFilePath(filename)
+
+	// Get current working directory for script path
+	serverDir := getAnimationsDir()
 
 	// Create unique temporary directory for frames only
 	timestamp := time.Now().Format("20060102-150405")
-	framesDir := filepath.Join(sessionStorageDir, "go_backend", "temp", "video_frames", timestamp)
+	framesDir := filepath.Join(serverDir, "temp", "video_frames", timestamp)
 	if err := os.MkdirAll(framesDir, 0755); err != nil {
-		logging.Debug("Failed to create frames directory: %v", err)
+		log.Printf("Failed to create frames directory: %v", err)
 		http.Error(w, "Failed to create frames directory", http.StatusInternalServerError)
 		return
 	}
@@ -202,21 +175,21 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	// Cleanup function for temporary frames directory
 	defer func() {
 		if err := os.RemoveAll(framesDir); err != nil {
-			logging.Debug("Failed to cleanup frames directory %s: %v", framesDir, err)
+			log.Printf("Failed to cleanup frames directory %s: %v", framesDir, err)
 		}
 	}()
 
 	// Path to Node.js capture script
-	scriptPath := filepath.Join(sessionStorageDir, "go_backend", "scripts", "capture-url.mjs")
+	scriptPath := filepath.Join(serverDir, "scripts", "capture-url.mjs")
 
 	// Check if Node.js script exists
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		logging.Debug("Capture script not found at: %s", scriptPath)
+		log.Printf("Capture script not found at: %s", scriptPath)
 		http.Error(w, "Video capture script not found", http.StatusInternalServerError)
 		return
 	}
 
-	// Prepare command arguments - use user's outputPath directly
+	// Prepare command arguments with our storage output path
 	args := []string{
 		scriptPath,
 		req.URL,
@@ -224,15 +197,15 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 		"--width=" + strconv.Itoa(width),
 		"--height=" + strconv.Itoa(height),
 		"--duration=" + fmt.Sprintf("%.1f", duration),
-		"--output=" + req.OutputPath,
+		"--output=" + outputPath,
 		"--tempDir=" + framesDir,
 	}
 
 	// Execute Node.js capture script
 	cmd := exec.Command("node", args...)
-	cmd.Dir = sessionStorageDir
+	cmd.Dir = serverDir
 
-	logging.Debug("Executing video export: %s %v", cmd.Path, args)
+	log.Printf("Executing video export: %s %v", cmd.Path, args)
 
 	// Set reasonable timeout (5 minutes max)
 	timeout := time.Duration(300) * time.Second
@@ -241,12 +214,12 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, "node", args...)
-	cmd.Dir = sessionStorageDir
+	cmd.Dir = serverDir
 
 	// Capture output for debugging
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logging.Debug("Video export failed: %v\nOutput: %s", err, string(output))
+		log.Printf("Video export failed: %v\nOutput: %s", err, string(output))
 
 		// Check for specific error types
 		if ctx.Err() == context.DeadlineExceeded {
@@ -265,11 +238,11 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logging.Debug("Video export completed successfully\nOutput: %s", string(output))
+	log.Printf("Video export completed successfully\nOutput: %s", string(output))
 
 	// Check if output file was created
-	if _, err := os.Stat(req.OutputPath); os.IsNotExist(err) {
-		logging.Debug("Output file not found: %s", req.OutputPath)
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		log.Printf("Output file not found: %s", outputPath)
 		response := URLVideoExportResponse{
 			Success: false,
 			Error:   "Video file was not generated",
@@ -281,11 +254,27 @@ func HandleURLVideoExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response with output path
+	// Generate URL for accessing the file
+	fileURL := GetStorageURL(r, filename)
+
+	// Initialize response
 	response := URLVideoExportResponse{
-		Success:    true,
-		OutputPath: req.OutputPath,
-		Message:    "Video exported successfully",
+		Success: true,
+		URL:     fileURL,
+		Message: "Video exported successfully",
+	}
+
+	// Upload to S3 if requested
+	if req.S3URL != "" {
+		s3URL, err := UploadToS3(r.Context(), req.S3URL, outputPath)
+		if err != nil {
+			log.Printf("S3 upload failed: %v", err)
+			// Still return success since the local export worked
+			response.Message = fmt.Sprintf("Video exported successfully, but S3 upload failed: %v", err)
+		} else {
+			response.S3URL = s3URL
+			response.Message = "Video exported successfully and uploaded to S3"
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

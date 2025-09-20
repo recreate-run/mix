@@ -19,16 +19,14 @@ import (
 	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
-
 // TestServerResult contains the initialized test server components
 type TestServerResult struct {
-	Server     *httptest.Server
-	App        *app.App
-	SessionID  string
-	ConfigDir  string
-	DataDir    string
+	Server    *httptest.Server
+	App       *app.App
+	SessionID string
+	ConfigDir string
+	DataDir   string
 }
-
 
 // initMCPTools mock implementation for testing
 func initMCPTools(ctx context.Context, app *app.App) {
@@ -48,7 +46,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 	os.Setenv("_CONFIG_DIR", testConfigDir)
 	os.Setenv("_DATA_DIR", testDataDir)
-	os.Setenv("GSAP_GLOBAL_DIR", testDataDir+"/gsap_animations") // Set GSAP_GLOBAL_DIR for animations
 
 	// Create test directories
 	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
@@ -113,7 +110,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	messageHandler := NewMessageHandler(testApp)
 	systemHandler := NewSystemHandler(testApp)
 	preferencesHandler := NewPreferencesHandler(testApp)
-	
+
 	// Create file management handlers
 	fileHandler := NewFileHandler(testApp, testApp.StorageConfig)
 	sessionAssetHandler := NewSessionAssetHandler(testApp, testApp.StorageConfig)
@@ -161,7 +158,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 		t.Logf("Stream request received: %s %s", r.Method, r.URL.String())
 		HandleSSEStream(ctx, testApp, w, r)
 	})
-	
+
 	// Stream sub-path endpoint for SSE with paths
 	mux.HandleFunc("/stream/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Stream sub-path request received: %s %s", r.Method, r.URL.String())
@@ -172,7 +169,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 			HandleSSEStream(ctx, testApp, w, r)
 		}
 	})
-	
+
 	// Health check endpoint (always enabled)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		healthData := map[string]interface{}{
@@ -180,7 +177,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 		}
 		sendJSONResponse(w, http.StatusOK, healthData)
 	})
-	
+
 	// Default handler for debugging
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Unhandled request received: %s %s", r.Method, r.URL.String())
@@ -246,7 +243,7 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 	return responseData
 }
 
-// validateArrayResponse validates success response as array (flattened)  
+// validateArrayResponse validates success response as array (flattened)
 func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int) []interface{} {
 	defer resp.Body.Close()
 
@@ -282,7 +279,6 @@ func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int
 	return errorResponse
 }
 
-
 // createJSONMessage creates a proper JSON message structure for testing
 func createJSONMessage(text string) string {
 	msgContent := map[string]interface{}{
@@ -297,39 +293,39 @@ func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filen
 	// Create multipart form
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	
+
 	// Create file part
 	part, err := writer.CreateFormFile("file", filename)
 	if err != nil {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
-	
+
 	// Write file content
 	_, err = part.Write([]byte(content))
 	if err != nil {
 		t.Fatalf("Failed to write file content: %v", err)
 	}
-	
+
 	// Close writer to finalize multipart form
 	err = writer.Close()
 	if err != nil {
 		t.Fatalf("Failed to close multipart writer: %v", err)
 	}
-	
+
 	// Create request
 	req, err := http.NewRequest("POST", server.URL+path, &body)
 	if err != nil {
 		t.Fatalf("Failed to create multipart request: %v", err)
 	}
-	
+
 	// Set proper content type for multipart
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	
+
 	// Send request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to send multipart request: %v", err)
 	}
-	
+
 	return resp
 }
