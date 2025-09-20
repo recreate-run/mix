@@ -81,7 +81,7 @@ function Footer({
             <p className="text-sm text-muted-foreground">
               For collaborations, partnerships and business inquiries:
               <br />
-              <a href="mailto:info@recreate.run" className="text-primary hover:underline">info@recreate.run</a>
+              <a href="mailto:team@recreate.run" className="text-primary hover:underline">team@recreate.run</a>
             </p>
           </div>
         </div>
