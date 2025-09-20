@@ -54,17 +54,21 @@ export default function HomePage() {
 						
 						<div className="max-w-6xl mx-auto">
 							{/* Mix Interface Preview */}
-							<div className="mb-8 flex justify-center">
-								<div className="relative max-w-2xl mx-auto">
-									<div className="relative rounded-xl overflow-hidden shadow-2xl border border-border/50">
+							<div className="mb-12">
+								<div className="relative w-full max-w-4xl mx-auto">
+									<div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-gradient-to-br from-gray-900 to-black">
 										<img 
 											src="/images/Area.gif" 
 											alt="Mix interface showing animated creative workflow commands"
-											className="w-full h-auto"
+											className="w-full h-auto object-contain"
+											style={{ aspectRatio: '16/10' }}
 										/>
 									</div>
-									<div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-xl blur-xl -z-10"></div>
+									<div className="absolute -inset-2 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-2xl blur-2xl -z-10"></div>
 								</div>
+								<p className="text-center text-muted-foreground/70 text-xs mt-4 max-w-2xl mx-auto">
+									Mix's intuitive interface showcases creative workflow capabilities with animated visual previews
+								</p>
 							</div>
 							
 							<p className="text-center text-muted-foreground mb-4 max-w-3xl mx-auto text-sm">
