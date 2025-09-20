@@ -1,0 +1,42 @@
+name: Sync Dev with Main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: write
+
+jobs:
+  sync-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Sync dev with main
+        run: |
+          echo "Fetching latest changes..."
+          git fetch origin main
+          git fetch origin dev
+          
+          echo "Checking out dev branch..."
+          git checkout dev
+          
+          echo "Merging main into dev..."
+          git merge origin/main --no-edit
+          
+          echo "Pushing updated dev branch..."
+          git push origin dev
+          
+          echo "Dev branch synced with main successfully!"
