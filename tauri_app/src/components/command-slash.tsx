@@ -72,6 +72,15 @@ interface CommandSlashProps {
     hasExistingPreferences?: boolean;
     oauthState?: string;
   };
+  helpData?: {
+    menuItems: {
+      id: string;
+      name: string;
+      description: string;
+      action: string;
+      url?: string;
+    }[];
+  };
   onProviderSelect?: (providerId: string) => void;
   onModelSelect?: (providerId: string, modelId: string) => void;
   onLogoutProviderSelect?: (providerId: string) => void;
@@ -89,6 +98,7 @@ export function CommandSlash({
   logoutData,
   statusData,
   loginData,
+  helpData,
   onProviderSelect,
   onModelSelect,
   onLogoutProviderSelect,
@@ -109,6 +119,7 @@ export function CommandSlash({
   const [showingLogout, setShowingLogout] = useState(false);
   const [showingStatus, setShowingStatus] = useState(false);
   const [showingLogin, setShowingLogin] = useState(false);
+  const [showingHelp, setShowingHelp] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedAuthMethod, setSelectedAuthMethod] = useState<"api_key" | "oauth" | "oauth_code" | null>(null);
   const [apiKey, setApiKey] = useState<string>('');
@@ -255,6 +266,23 @@ export function CommandSlash({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loginData, showingLogin]);
+
+  // Show help view when data is provided
+  useEffect(() => {
+    if (helpData) {
+      setShowingHelp(true);
+      setShowingLogin(false);
+      setShowingStatus(false);
+      setShowingLogout(false);
+      setShowingHierarchicalModel(false);
+      setShowingPermissions(false);
+      setShowingSessions(false);
+      setShowingMCP(false);
+      setSelectedMCPServer(null);
+      setSelectedProvider(null);
+      setSelectedAuthMethod(null);
+    }
+  }, [helpData, showingHelp]);
 
   // Permission hooks - always initialized for simplicity
   const accessibility = useAccessibilityPermission(showingPermissions);
@@ -422,6 +450,7 @@ export function CommandSlash({
       setShowingLogout(false);
       setShowingStatus(false);
       setShowingLogin(false);
+      setShowingHelp(false);
       
       return;
     }
@@ -612,6 +641,8 @@ export function CommandSlash({
         setShowingPermissions(false);
       } else if (showingSessions) {
         setShowingSessions(false);
+      } else if (showingHelp) {
+        setShowingHelp(false);
       } else {
         onClose();
       }
@@ -649,7 +680,9 @@ export function CommandSlash({
                             ? 'Search sessions...'
                             : showingLogin
                               ? 'Search providers...'
-                              : 'Search commands...'
+                              : showingHelp
+                                ? 'Search help topics...'
+                                : 'Search commands...'
           }
           value={searchQuery}
         />
@@ -789,6 +822,69 @@ export function CommandSlash({
                       </CommandItem>
                     );
                   })}
+                </CommandGroup>
+              )}
+            </>
+          ) : showingHelp ? (
+            // Help Menu View
+            <>
+              {!helpData?.menuItems.length ? (
+                <CommandEmpty>No help items available</CommandEmpty>
+              ) : (
+                <CommandGroup heading="Help & Documentation">
+                  {/* Back to Commands */}
+                  <CommandItem
+                    onSelect={() => handleSelect('back-to-commands')}
+                    value="back-to-commands"
+                  >
+                    <ArrowLeft className="size-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        Back to Commands
+                      </div>
+                    </div>
+                  </CommandItem>
+
+                  {/* Help Menu Items */}
+                  {helpData?.menuItems.map((item) => (
+                    <CommandItem
+                      key={item.id}
+                      onSelect={async () => {
+                        if (item.action === 'link' && item.url) {
+                          // Open external link using Tauri shell with fallback
+                          try {
+                            const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
+                            await shellOpen(item.url);
+                          } catch (shellError) {
+                            console.warn('Tauri shell failed, falling back to window.open:', shellError);
+                            try {
+                              window.open(item.url, '_blank', 'noopener,noreferrer');
+                            } catch (windowError) {
+                              console.error('Both browser opening methods failed:', windowError);
+                            }
+                          }
+                          onClose();
+                        } else if (item.action === 'commands') {
+                          // Show available commands - trigger the original help command
+                          onExecuteCommand('help-commands');
+                          onClose();
+                        }
+                      }}
+                      value={item.id}
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{item.name}</div>
+                        <div className="text-muted-foreground text-xs">
+                          {item.description}
+                        </div>
+                      </div>
+                      {item.action === 'link' && (
+                        <div className="text-xs text-muted-foreground">
+                          external
+                        </div>
+                      )}
+                    </CommandItem>
+                  ))}
                 </CommandGroup>
               )}
             </>
@@ -1398,7 +1494,8 @@ export function CommandSlash({
                 showingPermissions ||
                 showingSessions ||
                 showingLogout ||
-                showingStatus
+                showingStatus ||
+                showingHelp
                   ? 'back'
                   : 'close'}
               </span>
