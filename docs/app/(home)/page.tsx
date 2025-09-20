@@ -53,7 +53,7 @@ export default function HomePage() {
 						</PageHeader>
 						
 						<div className="max-w-6xl mx-auto">
-							{/* Mix Interface Preview */}
+							{/* Mix Interface Preview - Commented out for now, will enable later 
 							<div className="mb-12">
 								<div className="relative w-full max-w-4xl mx-auto">
 									<div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-gradient-to-br from-gray-900 to-black">
@@ -70,6 +70,7 @@ export default function HomePage() {
 									Mix's intuitive interface showcases creative workflow capabilities with animated visual previews
 								</p>
 							</div>
+							*/}
 							
 							<p className="text-center text-muted-foreground mb-4 max-w-3xl mx-auto text-sm">
 								Choose how you want to interact with Mix:
