@@ -28,20 +28,33 @@ Response schema:
 
 Request Body (JSON)
 
+**Required Fields:**
+
+- `url`: string - URL to capture/record
+
+**Optional Fields:**
+
+- `s3Url`: string - S3 presigned URL for upload
+- `fps`: integer - Frame rate (default: 30, range: 1-120)
+- `aspectRatio`: string - Format like "16/9", "4/3" (default: "9/16")
+- `height`: integer - Video height in pixels (default: 640, range: 1-4096)
+- `duration`: float - Recording duration in seconds (default: 3.0, range: 0.1-60)
+
 <sample_request>{
   "url": "<http://localhost:8089/animations/bounce-overlay/preview?overlayText=Hello&textSizeRem=3>",
-  "outputPath": "/tmp/animation.mp4",
+  "s3Url": "<https://presigned-s3-url.com/upload>" // Optional: for S3 upload
   "aspectRatio": "9/16",
   "height": 640,
   "duration": 3.0,
   "fps": 30
 }</sample_request>
 
-Response (Success - HTTP 200)
+**Success Response (HTTP 200):**
 
 <sample_response>{
   "success": true,
-  "outputPath": "/tmp/animation.mp4",
+  "url": "<http://localhost:8089/storage/video_20240315_143022_abc123.mp4>",
+  "s3Url": "<https://s3.amazonaws.com/bucket/video.mp4>", // Only if S3 upload requested
   "message": "Video exported successfully"
 }</sample_response>
 
@@ -59,35 +72,5 @@ Response (Success - HTTP 200)
 - Use clean, readable typography with sufficient contrast
 - Prefer 3rem title font size for "9/16" aspect ratio
 - Standard duration: 2-4 seconds
-- CRITICAL: Never create multiple text elements with overlapping timeframes at the same layout position - use different layouts or stagger timing to prevent visual overlap
+- Never create multiple text elements with overlapping timeframes at the same layout position - use different layouts or stagger timing to prevent visual overlap
 - Choose the aspect ratio based on platform: 9/16 for vertical social (TikTok, Stories), 16/9 for YouTube/landscape content, 1/1 for Instagram posts
-
-## Creating New Animations
-
-When existing animations fail to meet user requirements, create new animations in $<workdir>/gsap_animations/
-
-Use the standardized template at $<workdir>/packages/gsap_animations/gsap_starter_template/ as your starting point to ensure consistency with existing patterns. Simply copy the template directory and customize the marked sections for your specific animation requirements.
-
-<folder_structure>
-$<workdir>/gsap_animations/
-└── animation-name/
-    ├── index.html    # Complete HTML animation page
-    └── schema.json   # Animation metadata and parameters
-</folder_structure>
-
-<schema_format>
-{
-  "name": "animation-name",
-  "description": "Brief description of the animation",
-  "version": "1.0.0",
-  "parameters": [
-    {
-      "name": "parameterName",
-      "type": "string|number|boolean|color",
-      "default": "defaultValue"
-    }
-  ]
-}
-</schema_format>
-
-New animations become immediately available via the API and can be used exactly like existing animations.

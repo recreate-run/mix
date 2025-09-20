@@ -139,6 +139,23 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// H.264 codec requires even dimensions for proper encoding
+	// Auto-round odd dimensions to ensure compatibility
+	if width%2 != 0 || height%2 != 0 {
+		originalWidth, originalHeight := width, height
+
+		// Round up to next even number
+		if width%2 != 0 {
+			width = width + 1
+		}
+		if height%2 != 0 {
+			height = height + 1
+		}
+
+		log.Printf("Auto-adjusted dimensions from %dx%d to %dx%d for H.264 compatibility",
+			originalWidth, originalHeight, width, height)
+	}
+
 	// Generate unique filename for the export
 	filename := GenerateUniqueFilename()
 	outputPath := GetStorageFilePath(filename)
