@@ -338,6 +338,7 @@ var supportedProviders = map[string]struct{}{
 	"anthropic":  {},
 	"openai":     {},
 	"openrouter": {},
+	"gemini":     {},
 }
 
 // HandleOAuthCallback handles POST /api/auth/oauth/callback
