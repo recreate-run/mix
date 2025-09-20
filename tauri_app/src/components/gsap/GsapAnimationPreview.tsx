@@ -7,12 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Copy, Check, RefreshCw } from 'lucide-react';
-import {
-  AnimationSchema,
-  fetchAnimationSchema
-} from '@/utils/gsapApi';
-import { getGsapUrl } from '@/utils/backendUrl';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
+import { useAnimationSchema } from '@/hooks/useAnimationSchema';
 
 interface GsapAnimationPreviewProps {
   config: any; // Accept any configuration format from the endpoint
@@ -24,15 +20,11 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 }) => {
   // Use configuration directly as received from the endpoint
   const [config, setConfig] = useState(initialConfig);
-  const [schema, setSchema] = useState<AnimationSchema | null>(null);
-  const [isLoadingSchema, setIsLoadingSchema] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(true);
   const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { isCopied, copyToClipboard } = useCopyToClipboard();
 
-  // Use GSAP server URL from environment variable
-  const baseServerUrl = getGsapUrl();
   const animationName = config.url ? (() => {
     try {
       const url = new URL(config.url);
@@ -53,31 +45,16 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
   })() : null;
 
 
-  // Load animation schema
-  useEffect(() => {
-    if (!animationName) {
-      console.error(`[GsapAnimationPreview] Missing animationName, skipping schema fetch`);
-      return;
-    }
+  // Load animation schema using TanStack Query
+  const { data: schema, isLoading: isLoadingSchema, error: schemaError } = useAnimationSchema({
+    animationName,
+    enabled: !!animationName
+  });
 
-    if (!baseServerUrl) {
-      console.error(`[GsapAnimationPreview] Missing baseServerUrl, skipping schema fetch`);
-      return;
-    }
-
-    setIsLoadingSchema(true);
-    fetchAnimationSchema(animationName, baseServerUrl)
-      .then((fetchedSchema) => {
-        setSchema(fetchedSchema);
-      })
-      .catch((error) => {
-        console.error(`[GsapAnimationPreview] Schema fetch error:`, error);
-        setSchema(null);
-      })
-      .finally(() => {
-        setIsLoadingSchema(false);
-      });
-  }, [animationName, baseServerUrl, config.url]);
+  // Log schema errors for debugging
+  if (schemaError) {
+    console.error(`[GsapAnimationPreview] Schema fetch error:`, schemaError);
+  }
 
   // Intersection Observer to track iframe visibility
   useEffect(() => {

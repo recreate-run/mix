@@ -14,7 +14,7 @@ interface FileInfo {
 // Transform SDK FileInfo to Attachment format
 const transformFileInfoToAttachment = (fileInfo: FileInfo): Attachment => {
   const extension = fileInfo.name.split('.').pop()?.toLowerCase();
-  
+
   // Determine attachment type - handle folders first, then use centralized detection
   const type: Attachment['type'] = fileInfo.isDir ? 'folder' : getFileTypeFromExtension(fileInfo.name);
 
@@ -38,8 +38,6 @@ export const useSessionFiles = (sessionId?: string) => {
     queryKey: CACHE_KEYS.sessionFiles(sessionId!),
     queryFn: () => fetchSessionFiles(sessionId!),
     enabled: !!sessionId,
-    staleTime: 30000, // 30 seconds
-    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 

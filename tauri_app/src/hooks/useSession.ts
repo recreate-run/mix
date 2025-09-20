@@ -25,7 +25,7 @@ export function useCreateSession() {
       // Set both session metadata and empty messages immediately
       queryClient.setQueryData(CACHE_KEYS.session(data.id), data);
       queryClient.setQueryData(CACHE_KEYS.sessionMessages(data.id), []);
-      
+
       // Only invalidate sessions list to show the new session in sidebar
       // No need to invalidate specific session data since we just set it
       queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
@@ -45,8 +45,6 @@ export function useActiveSession(sessionId: string) {
         title: response.title,
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - reduce from infinite to allow some updates
-    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
     refetchOnWindowFocus: false,
     refetchOnMount: false, // Don't refetch if we have cached data
     enabled: !!sessionId, // Only run when sessionId exists

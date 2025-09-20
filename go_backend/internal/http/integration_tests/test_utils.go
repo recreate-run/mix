@@ -50,7 +50,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 	os.Setenv("_CONFIG_DIR", testConfigDir)
 	os.Setenv("_DATA_DIR", testDataDir)
-	os.Setenv("GSAP_GLOBAL_DIR", testDataDir+"/gsap_animations") // Set GSAP_GLOBAL_DIR for animations
 
 	// Create test directories
 	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
@@ -169,7 +168,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("GET /api/sessions/{id}/files", fileHandler.HandleListFiles)
 	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
 	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
-
 
 	// SSE endpoints (always enabled)
 	// SSE endpoint
