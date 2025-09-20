@@ -159,7 +159,11 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		params.Command = b.convertSessionURLsToLocalPaths(ctx, params.Command)
 	}
 
-	shell := shell.GetPersistentShell(sessionStorageDir)
+	shell, err := shell.GetPersistentShell(sessionStorageDir)
+	if err != nil {
+		return ToolResponse{}, fmt.Errorf("failed to get shell for session: %w", err)
+	}
+
 	stdout, stderr, exitCode, interrupted, err := shell.Exec(ctx, params.Command, params.Timeout)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error executing command: %w", err)

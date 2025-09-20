@@ -42,24 +42,71 @@ type commandResult struct {
 }
 
 var (
-	shellInstance *PersistentShell
-	shellMutex    sync.Mutex
+	sessionShells = make(map[string]*PersistentShell)
+	shellsMutex   sync.Mutex
 )
 
-func GetPersistentShell(sessionStorageDir string) *PersistentShell {
-	shellMutex.Lock()
-	defer shellMutex.Unlock()
+func GetPersistentShell(sessionStorageDir string) (*PersistentShell, error) {
+	shellsMutex.Lock()
+	defer shellsMutex.Unlock()
 
-	// Check if we need a new shell
-	if shellInstance == nil || !shellInstance.IsAlive() {
-		// Clean up old shell if it exists
-		if shellInstance != nil {
-			shellInstance.Close()
-		}
-		shellInstance = newPersistentShell(sessionStorageDir)
+	// Validate input
+	if sessionStorageDir == "" {
+		return nil, fmt.Errorf("session storage directory cannot be empty")
 	}
 
-	return shellInstance
+	// Extract and validate session ID from storage directory path
+	sessionID := filepath.Base(sessionStorageDir)
+	if sessionID == "" || sessionID == "." || sessionID == ".." {
+		return nil, fmt.Errorf("invalid session storage directory path: %s", sessionStorageDir)
+	}
+
+	// Return existing live shell for this session if available
+	if shell, exists := sessionShells[sessionID]; exists {
+		if shell != nil && shell.IsAlive() {
+			return shell, nil
+		}
+		// Clean up dead or nil shell
+		if shell != nil {
+			shell.Close()
+		}
+		delete(sessionShells, sessionID)
+	}
+
+	// Create new shell for this session
+	shell := newPersistentShell(sessionStorageDir)
+	if shell == nil {
+		return nil, fmt.Errorf("failed to create shell for session %s in directory %s", sessionID, sessionStorageDir)
+	}
+
+	sessionShells[sessionID] = shell
+	return shell, nil
+}
+
+// CleanupSessionShell explicitly cleans up a shell for a given session
+// This can be called when sessions are deleted to ensure proper cleanup
+func CleanupSessionShell(sessionStorageDir string) error {
+	shellsMutex.Lock()
+	defer shellsMutex.Unlock()
+
+	// Validate input
+	if sessionStorageDir == "" {
+		return fmt.Errorf("session storage directory cannot be empty for cleanup")
+	}
+
+	sessionID := filepath.Base(sessionStorageDir)
+	if sessionID == "" || sessionID == "." || sessionID == ".." {
+		return fmt.Errorf("invalid session storage directory path for cleanup: %s", sessionStorageDir)
+	}
+
+	if shell, exists := sessionShells[sessionID]; exists {
+		if shell != nil {
+			shell.Close()
+		}
+		delete(sessionShells, sessionID)
+	}
+
+	return nil
 }
 
 func newPersistentShell(cwd string) *PersistentShell {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"mix/internal/db"
+	"mix/internal/llm/tools/shell"
 	"mix/internal/pubsub"
 	"mix/internal/storage"
 
@@ -123,6 +124,12 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	err = s.q.DeleteSession(ctx, session.ID)
 	if err != nil {
 		return err
+	}
+
+	// Clean up session shell first (before deleting storage directory)
+	sessionStorageDir := storage.GetSessionStoragePath(session.ID, s.storageConfig)
+	if err := shell.CleanupSessionShell(sessionStorageDir); err != nil {
+		return fmt.Errorf("failed to cleanup session shell for %s: %w", session.ID, err)
 	}
 
 	// Delete session storage directory and all files
