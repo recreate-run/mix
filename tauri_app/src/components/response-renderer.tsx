@@ -39,6 +39,15 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
       return <HelpDisplay data={parsedData} />;
     }
 
+    // Skip rendering for new help menu responses (they should trigger modal instead)
+    if (
+      parsedData.type === 'help' &&
+      parsedData.menuItems &&
+      Array.isArray(parsedData.menuItems)
+    ) {
+      return null; // Don't render anything - modal handles this
+    }
+
     // Check if it's a session response by looking for type field
     if (parsedData.type === 'session' && parsedData.id) {
       return <SessionDisplay data={parsedData} />;
