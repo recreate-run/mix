@@ -1374,7 +1374,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                     />
                   )}
 
-                  <Select
+                  {/* Mode selection temporarily hidden */}
+                  {/* <Select
                     onValueChange={(value) => setIsPlanMode(value === 'plan')}
                     value={isPlanMode ? 'plan' : 'edit'}
                   >
@@ -1388,7 +1389,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                       <SelectItem value="edit">create</SelectItem>
                       <SelectItem value="plan">plan</SelectItem>
                     </SelectContent>
-                  </Select>
+                  </Select> */}
 
 
 
