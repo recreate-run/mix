@@ -3,6 +3,8 @@ package integration_tests
 import (
 	"net/http"
 	"testing"
+
+	"mix/internal/storage"
 )
 
 // Test 20: File Upload and List - POST /api/sessions/{id}/files/upload + GET /api/sessions/{id}/files
@@ -71,12 +73,12 @@ func TestRESTFileUploadAndList(t *testing.T) {
 	t.Logf("✅ File upload and list test passed - Uploaded and listed file: %s", testFilename)
 }
 
-// Test 21: File Serving - Upload and download file, verify content
-func TestRESTFileServing(t *testing.T) {
+// Test 21: File Upload and Serving - Upload and download file, verify content (round-trip test)
+func TestRESTFileUploadAndServing(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing file serving functionality")
+	t.Log("Testing file upload and serving round-trip functionality")
 
 	// Create a session first
 	sessionRequest := map[string]interface{}{
@@ -135,7 +137,7 @@ func TestRESTFileServing(t *testing.T) {
 		t.Fatalf("Expected status code %d for non-existent file, got %d", http.StatusNotFound, nonExistentResp.StatusCode)
 	}
 
-	t.Logf("✅ File serving test passed - Downloaded file content matches: %s", testFilename)
+	t.Logf("✅ File upload and serving round-trip test passed - Downloaded file content matches: %s", testFilename)
 }
 
 // Test 22: File Path Security - Test path traversal prevention
@@ -601,4 +603,111 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	}
 
 	t.Logf("✅ Large file handling test passed - 1MB file uploaded, listed, accessed, and deleted successfully")
+}
+
+// Test 27: Session Isolated File Serving - Test session-specific storage access
+func TestRESTSessionIsolatedFileServing(t *testing.T) {
+	result := setupIntegrationTestServer(t)
+	defer result.Server.Close()
+
+	t.Log("Testing session-isolated file serving functionality")
+
+	// Create two sessions
+	sessionARequest := map[string]interface{}{
+		"title": "Session A for File Isolation Test",
+	}
+	sessionBRequest := map[string]interface{}{
+		"title": "Session B for File Isolation Test",
+	}
+
+	// Create session A
+	createARsep := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionARequest)
+	sessionAData := validateObjectResponse(t, createARsep, http.StatusCreated)
+	sessionAID := sessionAData["id"].(string)
+
+	// Create session B
+	createBResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionBRequest)
+	sessionBData := validateObjectResponse(t, createBResp, http.StatusCreated)
+	sessionBID := sessionBData["id"].(string)
+
+	// Manually create a file in session A's storage directory
+	testContent := "This is session A's private file content.\nIt should only be accessible by session A."
+	testFilename := "session-private.txt"
+
+	// Get session A's storage root and create the file
+	sessionARoot, err := storage.GetSessionRoot(sessionAID, result.App.StorageConfig)
+	if err != nil {
+		t.Fatalf("Failed to get session A storage root: %v", err)
+	}
+	defer sessionARoot.Close()
+
+	// Create the file in session A's directory
+	file, err := sessionARoot.Create(testFilename)
+	if err != nil {
+		t.Fatalf("Failed to create file in session A storage: %v", err)
+	}
+	_, err = file.WriteString(testContent)
+	file.Close()
+	if err != nil {
+		t.Fatalf("Failed to write content to session A file: %v", err)
+	}
+
+	// Test 1: Session A should be able to access its own file
+	accessAResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionAID+"/files/"+testFilename, nil)
+
+	if accessAResp.StatusCode != http.StatusOK {
+		t.Fatalf("Session A should be able to access its own file, got status %d", accessAResp.StatusCode)
+	}
+
+	// Verify content integrity
+	content := make([]byte, len(testContent)+10)
+	n, err := accessAResp.Body.Read(content)
+	accessAResp.Body.Close()
+	if err != nil && err.Error() != "EOF" {
+		t.Fatalf("Failed to read session A file content: %v", err)
+	}
+
+	actualContent := string(content[:n])
+	if actualContent != testContent {
+		t.Fatalf("Session A file content mismatch.\nExpected: %q\nActual: %q", testContent, actualContent)
+	}
+
+	// Test 2: Session B should NOT be able to access session A's file
+	accessBResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionBID+"/files/"+testFilename, nil)
+
+	if accessBResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Session B should not be able to access session A's file, got status %d", accessBResp.StatusCode)
+	}
+	accessBResp.Body.Close()
+
+	// Test 3: Verify shared uploads still work for both sessions
+	// Upload a file to shared storage via session A
+	sharedContent := "This is shared content accessible by all sessions"
+	sharedFilename := "shared-test.txt"
+
+	uploadResp := makeMultipartFileRequest(t, result.Server,
+		"/api/sessions/"+sessionAID+"/files/upload",
+		sharedFilename,
+		sharedContent)
+
+	validateObjectResponse(t, uploadResp, http.StatusCreated)
+
+	// Both sessions should be able to access the shared file
+	sharedAccessAResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionAID+"/files/"+sharedFilename, nil)
+	if sharedAccessAResp.StatusCode != http.StatusOK {
+		t.Fatalf("Session A should access shared file, got status %d", sharedAccessAResp.StatusCode)
+	}
+	sharedAccessAResp.Body.Close()
+
+	sharedAccessBResp := makeJSONRequest(t, result.Server, "GET",
+		"/api/sessions/"+sessionBID+"/files/"+sharedFilename, nil)
+	if sharedAccessBResp.StatusCode != http.StatusOK {
+		t.Fatalf("Session B should access shared file, got status %d", sharedAccessBResp.StatusCode)
+	}
+	sharedAccessBResp.Body.Close()
+
+	t.Logf("✅ Session isolated file serving test passed - Session isolation working correctly")
 }

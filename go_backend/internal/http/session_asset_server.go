@@ -124,6 +124,17 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Try session-specific storage first
+	served, err := h.tryServeFromSessionStorage(w, r, sessionID, filename)
+	if err != nil {
+		sendInternalError(w, "checking session storage", err)
+		return
+	}
+	if served {
+		return // File was found and served from session storage
+	}
+
+	// Fall back to shared uploads storage
 	// Use os.Root for secure file operations
 	root, err := storage.GetUploadsRoot(h.storageConfig)
 	if err != nil {
@@ -438,6 +449,72 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	}
 
 	return nil
+}
+
+// tryServeFromSessionStorage attempts to serve a file from session-specific storage
+// Returns true if file was found and served, false if file doesn't exist in session storage
+func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, r *http.Request, sessionID, filename string) (bool, error) {
+	// Try to get session-specific storage root
+	sessionRoot, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	if err != nil {
+		return false, fmt.Errorf("getting session root: %v", err)
+	}
+	defer sessionRoot.Close()
+
+	// Check if file exists in session storage
+	fileInfo, err := sessionRoot.Stat(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil // File doesn't exist in session storage, try shared storage
+		}
+		return false, fmt.Errorf("invalid filename or path traversal attempt: %s", err.Error())
+	}
+
+	// Don't serve directories
+	if fileInfo.IsDir() {
+		http.Error(w, "Cannot serve directory", http.StatusBadRequest)
+		return true, nil // We handled the request (with error)
+	}
+
+	// Get the actual file path for thumbnail generation
+	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+	filePath := filepath.Join(sessionDir, filename)
+
+	// Check if thumbnail is requested
+	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
+		// Generate thumbnails for video and image files
+		if !isVideoFile(filePath) && !isImageFile(filePath) {
+			logging.Error("Thumbnail request rejected: file type not supported", "filePath", filePath)
+			http.Error(w, "Thumbnails only supported for video and image files", http.StatusBadRequest)
+			return true, nil
+		}
+
+		// Parse optional time parameter for video segments
+		timeParam := r.URL.Query().Get("time")
+
+		if err := h.serveThumbnail(w, r, sessionID, filePath, thumbParam, timeParam); err != nil {
+			logging.Error("Thumbnail generation failed", "filePath", filePath, "error", err)
+			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
+			return true, nil
+		}
+		return true, nil
+	}
+
+	// Disable caching for development - ensures media changes are immediately visible
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// Serve the file using session storage Root for security
+	file, err := sessionRoot.Open(filename)
+	if err != nil {
+		return false, fmt.Errorf("opening session file: %v", err)
+	}
+	defer file.Close()
+
+	// Serve content with proper headers
+	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)
+	return true, nil
 }
 
 
