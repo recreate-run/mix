@@ -137,6 +137,8 @@ type StreamingState = {
   reasoningDuration: number | null;
   toolCalls: ToolCall[];
   completed: boolean;
+  cancelled: boolean;
+  finalContent: string | null;
   error?: string | null;
   timeline?: TimelineEntry[];
   rateLimit?: {
@@ -648,7 +650,7 @@ export function ConversationDisplay({
           </AIMessage>
           );
         })}
-        {sseStream.processing && !sseStream.completed && (
+        {(sseStream.processing && !sseStream.completed) || (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length)) ? (
           <AIMessage from="assistant">
             <AIMessageContent>
               {/* Show timeline-based interleaved thinking and tools during streaming */}
@@ -701,14 +703,14 @@ export function ConversationDisplay({
                       </AIToolStep>
                     </AIToolLadder>
                   ))}
-                  {!sseStream.completed && <ConversationLoader />}
+                  {!sseStream.completed && !sseStream.cancelled && <ConversationLoader />}
                 </>
               ) : (
-                <ConversationLoader />
+                !sseStream.cancelled && <ConversationLoader />
               )}
             </AIMessageContent>
           </AIMessage>
-        )}
+        ) : null}
       </div>
     </div>
   );

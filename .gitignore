@@ -83,3 +83,5 @@ speakeasy_docs/
 
 # SDK generation temporary files
 sdk/openapi-spec.json
+plans/marketing
+marketing/
