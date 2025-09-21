@@ -31,7 +31,7 @@
     {
       "name": "backgroundVideoUrl",
       "type": "string",
-      "default": "http://localhost:8089/shared/videos/lays.mp4"
+      "default": ""
     },
     {
       "name": "characterBounceHeightPixels",
