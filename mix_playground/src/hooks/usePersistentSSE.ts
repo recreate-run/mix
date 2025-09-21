@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { TimelineEntry } from '@/types/message';
+import { useQueryClient } from '@tanstack/react-query';
+import type { TimelineEntry, MessageData, UIMessage } from '@/types/message';
 import type { ToolCall } from '@/types/common';
+import type { Attachment } from '@/stores/attachmentSlice';
+import { expandFileReferences, buildFullUrlFromPath } from '@/utils/attachmentUtils';
+import { CACHE_KEYS } from '@/lib/cache-keys';
 
 export type SSEPermissionRequest = {
   id: string;
@@ -36,7 +40,18 @@ export type PersistentSSEState = {
 };
 
 export type PersistentSSEHook = PersistentSSEState & {
-  sendMessage: (content: string) => Promise<void>;
+  submitMessage: (params: {
+    text: string;
+    attachments?: Attachment[];
+    referenceMap?: Map<string, string>;
+    planMode?: boolean;
+    onUserMessage?: (message: UIMessage) => void;
+    onCancelledContentPersist?: (message: UIMessage) => void;
+  }) => Promise<void>;
+
+  buttonStatus: 'ready' | 'streaming' | 'paused' | 'error';
+  isSubmitDisabled: boolean;
+
   cancelMessage: () => Promise<void>;
   resetCancelledState: () => void;
   grantPermission: (id: string) => Promise<void>;
@@ -48,6 +63,7 @@ import { getBackendUrl } from '@/utils/backendUrl';
 import { mix } from '@/lib/mix-sdk';
 
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<PersistentSSEState>({
     connected: false,
     connecting: false,
@@ -639,9 +655,94 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     }
   }, []);
 
+  // Clean submitMessage implementation - fixes race condition
+  const submitMessage = useCallback(
+    async (params: {
+      text: string;
+      attachments?: Attachment[];
+      referenceMap?: Map<string, string>;
+      planMode?: boolean;
+      onUserMessage?: (message: UIMessage) => void;
+      onCancelledContentPersist?: (message: UIMessage) => void;
+    }) => {
+      const { text, attachments = [], referenceMap = new Map(), planMode = false, onUserMessage, onCancelledContentPersist } = params;
+
+      if (!(text && sessionId && state.connected)) {
+        return;
+      }
+
+      // Persist cancelled streaming content before it gets cleared
+      if (state.cancelled && (state.finalContent || state.timeline?.length || state.toolCalls?.length)) {
+        const cancelledMessage: UIMessage = {
+          content: state.finalContent || '',
+          from: 'assistant',
+          timeline: state.timeline?.length ? state.timeline : undefined,
+          toolCalls: state.toolCalls?.length ? state.toolCalls : undefined,
+          frontend_only: true,
+        };
+
+        onCancelledContentPersist?.(cancelledMessage);
+        resetCancelledState();
+      }
+
+      try {
+        // Build media URLs array
+        const mediaUrls = attachments.filter((a) => a.path).map((a) => buildFullUrlFromPath(a.path!));
+
+        // Expand file references
+        const expandedText = expandFileReferences(text, referenceMap, mediaUrls);
+
+        const messageData: MessageData = {
+          text: expandedText,
+          media: mediaUrls,
+          apps: attachments.filter((a) => a.type === 'app').map((app) => app.name),
+          plan_mode: planMode,
+        };
+
+        // Send to backend FIRST
+        await sendMessage(JSON.stringify(messageData));
+
+        // Only add to UI AFTER successful backend request
+        const userMessage: UIMessage = {
+          content: text,
+          from: 'user',
+          attachments: attachments.length > 0 ? attachments : undefined,
+        };
+        onUserMessage?.(userMessage);
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        throw error; // Re-throw so parent can handle
+      }
+    },
+    [sessionId, state.cancelled, state.finalContent, state.timeline, state.toolCalls, state.connected, resetCancelledState, sendMessage]
+  );
+
+  // Simple button status computation
+  const buttonStatus = state.cancelling
+    ? 'paused'
+    : state.cancelled
+      ? 'streaming'
+      : state.processing
+        ? 'streaming'
+        : state.error
+          ? 'error'
+          : 'ready';
+
+  // Simple submit button disabled state
+  const isSubmitDisabled = buttonStatus === 'paused' || !state.connected;
+
+  // Stream completion handling - invalidate cache when streaming completes
+  useEffect(() => {
+    if (state.completed && (state.finalContent || state.toolCalls.length > 0) && !state.processing) {
+      queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessionMessages(sessionId) });
+    }
+  }, [state.completed, state.finalContent, state.processing, state.toolCalls.length, sessionId, queryClient]);
+
   return {
     ...state,
-    sendMessage,
+    submitMessage,
+    buttonStatus,
+    isSubmitDisabled,
     cancelMessage,
     resetCancelledState,
     grantPermission,

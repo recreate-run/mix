@@ -26,11 +26,10 @@ import {
   type Attachment,
   reconstructAttachmentsFromHistory,
 } from '@/stores/attachmentSlice';
-import { expandFileReferences, buildSessionFileUrl, buildFullUrlFromPath } from '@/utils/attachmentUtils';
-import { CACHE_KEYS } from '@/lib/cache-keys';
+import { buildSessionFileUrl } from '@/utils/attachmentUtils';
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
-import type { MessageData, UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/message';
 import {
   handleSlashCommandNavigation,
   shouldShowSlashCommands,
@@ -394,7 +393,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   };
 
-  // Handle completion of streaming - invalidate cache to refresh from backend
+  // Handle completion of streaming - now handled by enhanced hook
   useEffect(() => {
     if (
       sseStream.completed &&
@@ -403,39 +402,26 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     ) {
       // Reset interrupted message guard when processing completes
       interruptedMessageAddedRef.current = false;
-
-      // Invalidate cache immediately to refresh messages from backend
-      queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessionMessages(session?.id || '') });
     }
   }, [
     sseStream.completed,
     sseStream.finalContent,
     sseStream.processing,
-    session?.id,
-    queryClient,
   ]);
 
-  // Handle streaming errors
+  // Handle streaming errors - simple and clean
   useEffect(() => {
-    if (sseStream.error) {
-      // Don't show error messages for user-initiated cancellations
-      if (sseStream.error.includes('request cancelled by user') || 
-          sseStream.error.includes('cancelled') ||
-          sseStream.cancelled) {
-        return;
-      }
-      
-      const errorMessage = `Failed to send prompt: ${sseStream.error}`;
+    if (sseStream.error && !sseStream.error.includes('cancelled') && !sseStream.cancelled) {
       setMessages((prev) => [
         ...prev,
         {
-          content: errorMessage,
+          content: `Failed to send prompt: ${sseStream.error}`,
           from: 'assistant',
           frontend_only: true,
         },
       ]);
     }
-  }, [sseStream.error, sseStream.cancelled, session?.id]);
+  }, [sseStream.error, sseStream.cancelled]);
 
   // Declarative focus management - refocus chat input when all popups are closed
   useEffect(() => {
@@ -458,63 +444,32 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     // Exit history mode if active
     historyNavigation.resetHistoryMode();
 
-    // Persist cancelled streaming content before it gets cleared
-    if (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length)) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: sseStream.finalContent || '',
-          from: 'assistant',
-          timeline: sseStream.timeline?.length ? sseStream.timeline : undefined,
-          toolCalls: sseStream.toolCalls?.length ? sseStream.toolCalls : undefined,
-          frontend_only: true, // Mark as frontend-only to distinguish from backend messages
-        },
-      ]);
-      
-      // Now reset the cancelled state since we've persisted the content
-      sseStream.resetCancelledState();
-    }
-
-    // Add user message to conversation and clear input immediately
-    setMessages((prev) => [
-      ...prev,
-      {
-        content: messageText,
-        from: 'user',
-        attachments: attachments.length > 0 ? attachments : undefined,
-      },
-    ]);
-    setText('');
-    clearAttachments();
-
     // Reset interrupted message guard for new message
     interruptedMessageAddedRef.current = false;
 
-    // Send message via persistent SSE
+    // Clear input immediately - optimistic UI update
+    setText('');
+    clearAttachments();
+
     try {
-      // Build media URLs array first to ensure consistency
-      const mediaUrls = attachments.filter((a) => a.path).map((a) => buildFullUrlFromPath(a.path!));
-
-      // Expand file references using the exact media URLs for consistency
-      const expandedText = expandFileReferences(messageText, referenceMap, mediaUrls);
-
-      const messageData: MessageData = {
-        text: expandedText,
-        media: mediaUrls,
-        apps: attachments
-          .filter((a) => a.type === 'app')
-          .map((app) => app.name),
-        plan_mode:
-          overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
-      };
-
-      await sseStream.sendMessage(JSON.stringify(messageData));
-
-      // Don't invalidate immediately - will be done when streaming completes
-      // invalidateMessageHistoryCache(queryClient);
+      // Use clean submitMessage method
+      await sseStream.submitMessage({
+        text: messageText,
+        attachments,
+        referenceMap,
+        planMode: overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
+        onUserMessage: (userMessage) => {
+          setMessages((prev) => [...prev, userMessage]);
+        },
+        onCancelledContentPersist: (cancelledMessage) => {
+          setMessages((prev) => [...prev, cancelledMessage]);
+        },
+      });
     } catch (error) {
-      console.error('Failed to send message:', error);
-      // Error will be handled by the error useEffect
+      // Restore input on error
+      setText(messageText);
+      // Note: attachments are already cleared, would need more complex state management to restore them
+      console.error('Failed to submit message:', error);
     }
   };
 
@@ -620,27 +575,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   };
 
-  // Calculate submit button status and disabled state
-  const buttonStatus = sseStream.cancelling
-    ? 'paused'
-    : sseStream.cancelled
-      ? 'streaming'
-      : sseStream.processing
-        ? 'streaming'
-        : sseStream.error
-          ? 'error'
-          : 'ready';
-
-  // Ready state: need text/attachments and connection. Other states: only need connection for pause/resume
-  const isSubmitDisabled =
-    buttonStatus === 'ready'
-      ? (!text && attachments.length === 0) ||
+  // Button status and disabled state now computed by enhanced hook
+  const isSubmitDisabled = sseStream.buttonStatus === 'ready'
+    ? (!text && attachments.length === 0) ||
       !session?.id ||
       sessionLoading ||
-      !sseStream.connected
-      : buttonStatus === 'paused'
-        ? true // Disable button completely during cancellation
-        : !session?.id || sessionLoading || !sseStream.connected;
+      sseStream.isSubmitDisabled
+    : sseStream.buttonStatus === 'paused'
+      ? true // Disable button completely during cancellation
+      : !session?.id || sessionLoading || sseStream.isSubmitDisabled;
 
   return (
     <div className="fl flex h-full w-full p-8">
@@ -763,7 +706,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               <AIInputSubmit
                 disabled={isSubmitDisabled}
                 onPauseClick={handleCancelClick}
-                status={buttonStatus}
+                status={sseStream.buttonStatus}
               />
             </AIInputToolbar>
           </AIInput>
