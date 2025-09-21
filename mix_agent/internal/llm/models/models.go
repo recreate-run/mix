@@ -111,8 +111,10 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 		}
 	case ProviderGemini:
 		return []ModelID{
-			Gemini25Flash,
 			Gemini25,
+			Gemini15Pro,
+			Gemini20Flash,
+			Gemini25Flash,
 		}
 	default:
 		return []ModelID{}
