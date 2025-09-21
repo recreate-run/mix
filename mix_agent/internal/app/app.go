@@ -16,7 +16,6 @@ import (
 	"mix/internal/message"
 	"mix/internal/permission"
 	"mix/internal/session"
-	"mix/internal/storage"
 )
 
 type App struct {
@@ -25,7 +24,7 @@ type App struct {
 	History       history.Service
 	Permissions   permission.Service
 	Analytics     analytics.Service
-	StorageConfig storage.Config
+	StorageConfig session.Config
 	
 	CoderAgent agent.Service
 }
@@ -34,8 +33,8 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	q := db.New(conn)
 
 	// Initialize storage system
-	storageConfig := storage.DefaultConfig()
-	if err := storage.Initialize(storageConfig); err != nil {
+	storageConfig := session.DefaultConfig()
+	if err := session.Initialize(storageConfig); err != nil {
 		return nil, fmt.Errorf("failed to initialize storage system: %w", err)
 	}
 

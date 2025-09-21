@@ -8,7 +8,6 @@ import (
 	"mix/internal/db"
 	"mix/internal/llm/tools/shell"
 	"mix/internal/pubsub"
-	"mix/internal/storage"
 
 	"github.com/google/uuid"
 )
@@ -43,7 +42,7 @@ type Service interface {
 type service struct {
 	*pubsub.Broker[Session]
 	q             db.Querier
-	storageConfig storage.Config
+	storageConfig Config
 }
 
 func (s *service) Create(ctx context.Context, title string) (Session, error) {
@@ -51,7 +50,7 @@ func (s *service) Create(ctx context.Context, title string) (Session, error) {
 	
 	// FAIL IMMEDIATELY if we cannot create storage directory
 	// This prevents database inconsistency where session exists but has no storage
-	if err := storage.CreateSessionDirectory(sessionID, s.storageConfig); err != nil {
+	if err := CreateSessionDirectory(sessionID, s.storageConfig); err != nil {
 		return Session{}, fmt.Errorf("CRITICAL: session storage directory creation failed, aborting session creation: %w", err)
 	}
 
@@ -88,7 +87,7 @@ func (s *service) Fork(ctx context.Context, sourceSessionID string, title string
 	sessionID := uuid.New().String()
 	
 	// FAIL IMMEDIATELY if we cannot create storage directory for forked session
-	if err := storage.CreateSessionDirectory(sessionID, s.storageConfig); err != nil {
+	if err := CreateSessionDirectory(sessionID, s.storageConfig); err != nil {
 		return Session{}, fmt.Errorf("CRITICAL: forked session storage directory creation failed, aborting fork: %w", err)
 	}
 
@@ -127,13 +126,13 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	}
 
 	// Clean up session shell first (before deleting storage directory)
-	sessionStorageDir := storage.GetSessionStoragePath(session.ID, s.storageConfig)
+	sessionStorageDir := GetSessionStoragePath(session.ID, s.storageConfig)
 	if err := shell.CleanupSessionShell(sessionStorageDir); err != nil {
 		return fmt.Errorf("failed to cleanup session shell for %s: %w", session.ID, err)
 	}
 
 	// Delete session storage directory and all files
-	if err := storage.DeleteSessionDirectory(session.ID, s.storageConfig); err != nil {
+	if err := DeleteSessionDirectory(session.ID, s.storageConfig); err != nil {
 		// Log error but don't fail the operation - database cleanup succeeded
 		fmt.Printf("Failed to delete session storage directory for %s: %v\n", session.ID, err)
 	}
@@ -278,7 +277,7 @@ func (s *service) fromUpdateSessionRowWithCounts(ctx context.Context, item db.Up
 	}, nil
 }
 
-func NewService(q db.Querier, storageConfig storage.Config) Service {
+func NewService(q db.Querier, storageConfig Config) Service {
 	broker := pubsub.NewBroker[Session]()
 	return &service{
 		Broker:        broker,

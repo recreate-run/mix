@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"mix/internal/storage"
+	"mix/internal/session"
 )
 
 // Test 20: File Upload and List - POST /api/sessions/{id}/files/upload + GET /api/sessions/{id}/files
@@ -635,7 +635,7 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	testFilename := "session-private.txt"
 
 	// Get session A's storage root and create the file
-	sessionARoot, err := storage.GetSessionRoot(sessionAID, result.App.StorageConfig)
+	sessionARoot, err := session.GetSessionRoot(sessionAID, result.App.StorageConfig)
 	if err != nil {
 		t.Fatalf("Failed to get session A storage root: %v", err)
 	}

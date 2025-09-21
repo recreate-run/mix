@@ -19,7 +19,6 @@ import (
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
-	"mix/internal/storage"
 )
 
 // Common errors
@@ -78,7 +77,7 @@ type agent struct {
 	*pubsub.Broker[AgentEvent]
 	sessions      session.Service
 	messages      message.Service
-	storageConfig storage.Config
+	storageConfig session.Config
 
 	agentName config.AgentName
 	tools     []tools.BaseTool
@@ -99,7 +98,7 @@ func NewAgent(
 	sessions session.Service,
 	messages message.Service,
 	agentTools []tools.BaseTool,
-	storageConfig storage.Config,
+	storageConfig session.Config,
 ) (Service, error) {
 	agentProvider, err := createAgentProvider(agentName)
 	if err != nil {
@@ -1145,7 +1144,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	return agentProvider, nil
 }
 
-func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig storage.Config) (provider.Provider, error) {
+func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig session.Config) (provider.Provider, error) {
 	// Try to get agent config from database first
 	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
 	if err != nil {
@@ -1191,7 +1190,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 	sessionVars := map[string]string{}
 	if sess != nil {
 		sessionVars["session_id"] = sess.ID
-		sessionVars["workdir"] = storage.GetSessionStoragePath(sess.ID, storageConfig)
+		sessionVars["workdir"] = session.GetSessionStoragePath(sess.ID, storageConfig)
 	}
 
 	// Get system prompt with session variables

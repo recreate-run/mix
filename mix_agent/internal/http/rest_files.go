@@ -9,7 +9,7 @@ import (
 	"unicode"
 
 	"mix/internal/app"
-	"mix/internal/storage"
+	"mix/internal/session"
 )
 
 // FileInfo represents information about a file in session storage
@@ -24,11 +24,11 @@ type FileInfo struct {
 // FileHandler handles REST endpoints for session file operations
 type FileHandler struct {
 	app           *app.App
-	storageConfig storage.Config
+	storageConfig session.Config
 }
 
 // NewFileHandler creates a new file handler
-func NewFileHandler(app *app.App, storageConfig storage.Config) *FileHandler {
+func NewFileHandler(app *app.App, storageConfig session.Config) *FileHandler {
 	return &FileHandler{
 		app:           app,
 		storageConfig: storageConfig,
@@ -72,7 +72,7 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate session exists and session ID format
-	if !storage.ValidateSessionID(sessionID) {
+	if !session.ValidateSessionID(sessionID) {
 		sendValidationError(w, "id", "invalid session ID format")
 		return
 	}
@@ -103,7 +103,7 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	filename := sanitizeFilename(originalFilename)
 	
 	// Use os.Root for secure file operations - prevents path traversal
-	root, err := storage.GetUploadsRoot(h.storageConfig)
+	root, err := session.GetUploadsRoot(h.storageConfig)
 	if err != nil {
 		sendInternalError(w, "getting uploads root", err)
 		return
@@ -166,7 +166,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate session exists and session ID format
-	if !storage.ValidateSessionID(sessionID) {
+	if !session.ValidateSessionID(sessionID) {
 		sendValidationError(w, "id", "invalid session ID format")
 		return
 	}
@@ -179,7 +179,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get uploads storage directory
-	uploadsDir := storage.GetUploadsStoragePath(h.storageConfig)
+	uploadsDir := session.GetUploadsStoragePath(h.storageConfig)
 
 	// Read uploads files
 	entries, err := os.ReadDir(uploadsDir)
@@ -238,7 +238,7 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate session exists and session ID format
-	if !storage.ValidateSessionID(sessionID) {
+	if !session.ValidateSessionID(sessionID) {
 		sendValidationError(w, "id", "invalid session ID format")
 		return
 	}
@@ -251,7 +251,7 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use os.Root for secure file operations
-	root, err := storage.GetUploadsRoot(h.storageConfig)
+	root, err := session.GetUploadsRoot(h.storageConfig)
 	if err != nil {
 		sendInternalError(w, "getting uploads root", err)
 		return

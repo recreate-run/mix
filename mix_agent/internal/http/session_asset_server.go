@@ -17,7 +17,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/logging"
-	"mix/internal/storage"
+	"mix/internal/session"
 
 	"github.com/nfnt/resize"
 	_ "golang.org/x/image/bmp"
@@ -28,11 +28,11 @@ import (
 // SessionAssetHandler handles session-aware asset serving
 type SessionAssetHandler struct {
 	app           *app.App
-	storageConfig storage.Config
+	storageConfig session.Config
 }
 
 // NewSessionAssetHandler creates a new session asset handler
-func NewSessionAssetHandler(app *app.App, storageConfig storage.Config) *SessionAssetHandler {
+func NewSessionAssetHandler(app *app.App, storageConfig session.Config) *SessionAssetHandler {
 	handler := &SessionAssetHandler{
 		app:           app,
 		storageConfig: storageConfig,
@@ -112,7 +112,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	// Validate session exists and session ID format
-	if !storage.ValidateSessionID(sessionID) {
+	if !session.ValidateSessionID(sessionID) {
 		sendValidationError(w, "id", "invalid session ID format")
 		return
 	}
@@ -136,7 +136,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 
 	// Fall back to shared uploads storage
 	// Use os.Root for secure file operations
-	root, err := storage.GetUploadsRoot(h.storageConfig)
+	root, err := session.GetUploadsRoot(h.storageConfig)
 	if err != nil {
 		sendInternalError(w, "getting uploads root", err)
 		return
@@ -161,7 +161,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get the actual file path for thumbnail generation and serving
-	uploadsDir := storage.GetUploadsStoragePath(h.storageConfig)
+	uploadsDir := session.GetUploadsStoragePath(h.storageConfig)
 	filePath := filepath.Join(uploadsDir, filename)
 
 	// Check if thumbnail is requested
@@ -245,7 +245,7 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 
 // generateThumbnailPath creates a consistent cache path for thumbnails in uploads directory
 func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
-	uploadsStorageDir := storage.GetUploadsStoragePath(h.storageConfig)
+	uploadsStorageDir := session.GetUploadsStoragePath(h.storageConfig)
 	thumbnailDir := filepath.Join(uploadsStorageDir, ".thumbnails")
 
 	// Create hash of original path for consistent naming
@@ -455,7 +455,7 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 // Returns true if file was found and served, false if file doesn't exist in session storage
 func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, r *http.Request, sessionID, filename string) (bool, error) {
 	// Try to get session-specific storage root
-	sessionRoot, err := storage.GetSessionRoot(sessionID, h.storageConfig)
+	sessionRoot, err := session.GetSessionRoot(sessionID, h.storageConfig)
 	if err != nil {
 		return false, fmt.Errorf("getting session root: %v", err)
 	}
@@ -477,7 +477,7 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 	}
 
 	// Get the actual file path for thumbnail generation
-	sessionDir := storage.GetSessionStoragePath(sessionID, h.storageConfig)
+	sessionDir := session.GetSessionStoragePath(sessionID, h.storageConfig)
 	filePath := filepath.Join(sessionDir, filename)
 
 	// Check if thumbnail is requested

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"mix/internal/storage"
+	"mix/internal/session"
 )
 
 type ToolInfo struct {
@@ -105,7 +105,7 @@ func GetSessionStorageDirectory(ctx context.Context) (string, error) {
 }
 
 // SetSessionStorageContext adds session storage directory to context for tools
-func SetSessionStorageContext(ctx context.Context, sessionID string, storageConfig storage.Config) context.Context {
-	sessionStorageDir := storage.GetSessionStoragePath(sessionID, storageConfig)
+func SetSessionStorageContext(ctx context.Context, sessionID string, storageConfig session.Config) context.Context {
+	sessionStorageDir := session.GetSessionStoragePath(sessionID, storageConfig)
 	return context.WithValue(ctx, SessionStorageContextKey, sessionStorageDir)
 }

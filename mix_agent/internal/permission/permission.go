@@ -13,7 +13,6 @@ import (
 	"mix/internal/logging"
 	"mix/internal/pubsub"
 	"mix/internal/session"
-	"mix/internal/storage"
 
 	"github.com/google/uuid"
 )
@@ -53,7 +52,7 @@ type permissionService struct {
 	sessionPermissions []PermissionRequest
 	pendingRequests    sync.Map
 	sessions           session.Service
-	storageConfig      storage.Config
+	storageConfig      session.Config
 }
 
 func (s *permissionService) GrantPersistant(permission PermissionRequest) {
@@ -81,13 +80,13 @@ func (s *permissionService) Deny(permission PermissionRequest) {
 // isPathWithinSessionStorage checks if the given path is accessible within the session storage directory
 func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath string) bool {
 	// Validate session ID format
-	if !storage.ValidateSessionID(sessionID) {
+	if !session.ValidateSessionID(sessionID) {
 		logging.Error("Invalid session ID format", "sessionID", sessionID)
 		return false
 	}
 
 	// Get session storage directory
-	sessionStorageDir := storage.GetSessionStoragePath(sessionID, s.storageConfig)
+	sessionStorageDir := session.GetSessionStoragePath(sessionID, s.storageConfig)
 
 	// Check if session storage directory exists
 	if _, err := os.Stat(sessionStorageDir); os.IsNotExist(err) {
@@ -150,11 +149,11 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	// For directories (existing or not) and non-existent paths, use the path as-is
 	if dir == "." {
 		// Get session storage directory for relative paths
-		if !storage.ValidateSessionID(opts.SessionID) {
+		if !session.ValidateSessionID(opts.SessionID) {
 			logging.Error("Invalid session ID format for relative path resolution", "sessionID", opts.SessionID)
 			return false // Deny if invalid session ID
 		}
-		dir = storage.GetSessionStoragePath(opts.SessionID, s.storageConfig)
+		dir = session.GetSessionStoragePath(opts.SessionID, s.storageConfig)
 	}
 
 	// Check if path is within session storage directory
@@ -211,7 +210,7 @@ func (s *permissionService) Request(opts CreatePermissionRequest) bool {
 	}
 }
 
-func NewPermissionService(sessions session.Service, storageConfig storage.Config) Service {
+func NewPermissionService(sessions session.Service, storageConfig session.Config) Service {
 	return &permissionService{
 		Broker:             pubsub.NewBroker[PermissionRequest](),
 		sessionPermissions: make([]PermissionRequest, 0),
