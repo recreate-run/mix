@@ -1104,6 +1104,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle streaming errors
   useEffect(() => {
     if (sseStream.error) {
+      // Don't show error messages for user-initiated cancellations
+      if (sseStream.error.includes('request cancelled by user') || 
+          sseStream.error.includes('cancelled') ||
+          sseStream.cancelled) {
+        return;
+      }
+      
       const errorMessage = `Failed to send prompt: ${sseStream.error}`;
       setMessages((prev) => [
         ...prev,
@@ -1114,7 +1121,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         },
       ]);
     }
-  }, [sseStream.error, session?.id]);
+  }, [sseStream.error, sseStream.cancelled, session?.id]);
 
   // Declarative focus management - refocus chat input when all popups are closed
   useEffect(() => {
@@ -1189,15 +1196,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const handleCancelClick = async () => {
     try {
       await sseStream.cancelMessage();
-      // Add cancellation message to conversation
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: 'Execution paused',
-          from: 'assistant',
-          frontend_only: true,
-        },
-      ]);
+      // Note: "Execution paused" will be shown in the streaming section
+      // Don't add it to permanent messages to avoid ordering conflicts
     } catch (error) {
       console.error('Failed to cancel message:', error);
     }
