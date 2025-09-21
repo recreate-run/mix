@@ -85,3 +85,4 @@ speakeasy_docs/
 sdk/openapi-spec.json
 plans/marketing
 marketing/
+debug_logs/
