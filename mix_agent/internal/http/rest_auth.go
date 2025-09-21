@@ -75,7 +75,7 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 
 	// Validate provider - only allow supported providers
 	if _, exists := supportedProviders[request.Provider]; !exists {
-		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter", "INVALID_PROVIDER")
+		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter, gemini", "INVALID_PROVIDER")
 		return
 	}
 
@@ -145,7 +145,7 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 
 	// Validate provider - only allow supported providers
 	if _, exists := supportedProviders[provider]; !exists {
-		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter", "INVALID_PROVIDER")
+		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter, gemini", "INVALID_PROVIDER")
 		return
 	}
 
@@ -233,7 +233,7 @@ func (h *AuthHandler) HandleStartOAuth(w http.ResponseWriter, r *http.Request) {
 
 	// Validate provider - only allow supported providers
 	if _, exists := supportedProviders[provider]; !exists {
-		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter", "INVALID_PROVIDER")
+		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter, gemini", "INVALID_PROVIDER")
 		return
 	}
 
@@ -494,6 +494,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 		{"anthropic", models.ProviderAnthropic, "Anthropic", true},
 		{"openai", models.ProviderOpenAI, "OpenAI", false},
 		{"openrouter", models.ProviderOpenRouter, "OpenRouter", false},
+		{"gemini", models.ProviderGemini, "Google Gemini", false},
 	}
 
 	for _, p := range providers {

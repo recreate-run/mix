@@ -61,6 +61,8 @@ func getProviderDisplayName(provider ModelProvider) string {
 		return "OpenRouter"
 	case ProviderAnthropic:
 		return "Anthropic"
+	case ProviderGemini:
+		return "Google Gemini"
 	default:
 		return string(provider)
 	}
@@ -73,6 +75,7 @@ func GetSupportedProviders() []ModelProvider {
 		ProviderOpenAI,
 		ProviderOpenRouter,
 		ProviderAnthropic, // Claude
+		ProviderGemini,
 	}
 }
 
@@ -105,6 +108,13 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 			Claude35Haiku,
 			Claude3Opus,
 			Claude4Opus,
+		}
+	case ProviderGemini:
+		return []ModelID{
+			Gemini25,
+			Gemini15Pro,
+			Gemini20Flash,
+			Gemini25Flash,
 		}
 	default:
 		return []ModelID{}
@@ -174,7 +184,7 @@ var SupportedModels = map[ModelID]Model{
 func init() {
 	maps.Copy(SupportedModels, AnthropicModels)
 	maps.Copy(SupportedModels, OpenAIModels)
-	//maps.Copy(SupportedModels, GeminiModels)
+	maps.Copy(SupportedModels, GeminiModels)
 	//maps.Copy(SupportedModels, GroqModels)
 	//maps.Copy(SupportedModels, AzureModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
