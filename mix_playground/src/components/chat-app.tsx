@@ -13,13 +13,6 @@ import {
   AIInputToolbar,
   AIInputTools,
 } from '@/components/ui/kibo-ui/ai/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useFileReference } from '@/hooks/useFileReference';
 import { useForkSession } from '@/hooks/useForkSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';

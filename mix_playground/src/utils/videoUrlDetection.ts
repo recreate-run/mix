@@ -12,7 +12,8 @@ export interface VideoUrlInfo {
 const VIDEO_URL_PATTERNS = {
   youtube: [
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
-    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/
   ],
   vimeo: [
     /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/,
