@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -262,6 +261,13 @@ func serveSharedAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	// Get file info for Content-Length and Last-Modified headers
+	fileInfo, err := file.Stat()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get file info: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Set content type based on extension
 	contentType := "application/octet-stream"
 	switch {
@@ -273,8 +279,22 @@ func serveSharedAsset(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/json"
 	case strings.HasSuffix(filePath, ".html"):
 		contentType = "text/html"
+	case strings.HasSuffix(filePath, ".mp4"):
+		contentType = "video/mp4"
+	case strings.HasSuffix(filePath, ".webm"):
+		contentType = "video/webm"
+	case strings.HasSuffix(filePath, ".mov"):
+		contentType = "video/quicktime"
+	case strings.HasSuffix(filePath, ".avi"):
+		contentType = "video/x-msvideo"
 	}
 
+	// Set content headers
 	w.Header().Set("Content-Type", contentType)
-	io.Copy(w, file)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
+	w.Header().Set("Last-Modified", fileInfo.ModTime().UTC().Format(http.TimeFormat))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filepath.Base(filePath)))
+
+	// Use http.ServeContent for better range support (needed for videos)
+	http.ServeContent(w, r, filePath, fileInfo.ModTime(), file)
 }

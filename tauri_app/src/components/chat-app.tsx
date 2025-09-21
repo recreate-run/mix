@@ -396,7 +396,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       },
       {
         id: 'backend-docs',
-        name: 'Backend Documentation', 
+        name: 'Backend Documentation',
         description: 'View backend API and architecture documentation',
         action: 'link',
         url: 'https://recreate.run/docs/backend'
@@ -646,16 +646,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               result
             ]);
           } else {
-            // Show success message if there was no error
-            setMessages((prev) => [
-              ...prev,
-              {
-                content: `✅ OAuth flow started. Please authorize in your browser.`,
-                from: "assistant",
-                frontend_only: true,
-              }
-            ]);
-
             // Try to open the auth URL if available
             if (result.login?.authUrl) {
               try {
@@ -1327,8 +1317,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         {/* Feedback message notification */}
         {feedbackMessage && (
           <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-5 duration-300 ${feedbackMessage.startsWith("Error:")
-              ? "bg-destructive text-destructive-foreground"
-              : "bg-primary text-primary-foreground"
+            ? "bg-destructive text-destructive-foreground"
+            : "bg-primary text-primary-foreground"
             }`}>
             {feedbackMessage}
           </div>

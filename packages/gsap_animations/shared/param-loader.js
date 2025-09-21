@@ -11,14 +11,13 @@ const schemaCache = new Map();
  * @returns {string} Animation name (e.g., 'bounce-overlay')
  */
 function getCurrentAnimationName() {
-    // Extract animation name from URL path like '/gsap_animations/bounce-overlay/'
+    // Extract animation name from URL path: /animations/{name}/preview
     const path = window.location.pathname;
     const parts = path.split('/').filter(p => p);
 
-    // Find gsap_animations in the path and get the next part
-    const gsapIndex = parts.findIndex(p => p === 'gsap_animations');
-    if (gsapIndex !== -1 && gsapIndex + 1 < parts.length) {
-        return parts[gsapIndex + 1];
+    const animationsIndex = parts.findIndex(p => p === 'animations');
+    if (animationsIndex !== -1 && animationsIndex + 1 < parts.length) {
+        return parts[animationsIndex + 1];
     }
 
     throw new Error('Could not determine animation name from URL');
@@ -36,31 +35,14 @@ async function fetchAnimationSchema() {
         return schemaCache.get(animationName);
     }
 
-    try {
-        // Try API endpoint first (when served via Go backend)
-        const apiResponse = await fetch(`/api/gsap_animations/${animationName}`);
-        if (apiResponse.ok) {
-            const schema = await apiResponse.json();
-            schemaCache.set(animationName, schema);
-            return schema;
-        }
-    } catch (e) {
-        console.warn('API fetch failed, trying direct file access:', e);
+    const apiResponse = await fetch(`/animations/${animationName}/schema`);
+    if (!apiResponse.ok) {
+        throw new Error(`Failed to load schema for animation: ${animationName} (${apiResponse.status})`);
     }
 
-    try {
-        // Fallback to direct file access (for development/local files)
-        const fileResponse = await fetch(`./schema.json`);
-        if (fileResponse.ok) {
-            const schema = await fileResponse.json();
-            schemaCache.set(animationName, schema);
-            return schema;
-        }
-    } catch (e) {
-        console.warn('Direct file fetch failed:', e);
-    }
-
-    throw new Error(`Could not load schema for animation: ${animationName}`);
+    const schema = await apiResponse.json();
+    schemaCache.set(animationName, schema);
+    return schema;
 }
 
 /**
