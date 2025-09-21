@@ -892,10 +892,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const handleTextChange = (value: string) => {
     setText(value);
 
-    // Reset cancelled state when user starts typing after cancellation
-    if (sseStream.cancelled && value.length > 0) {
-      sseStream.resetCancelledState();
-    }
+    // Don't reset cancelled state while typing - let it persist until new message is submitted
+    // This keeps the cancelled message visible while user is composing their next message
 
     // Sync media store with text changes (bidirectional sync)
     syncWithText(value);
@@ -1143,6 +1141,23 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
     // Exit history mode if active
     historyNavigation.resetHistoryMode();
+
+    // Persist cancelled streaming content before it gets cleared
+    if (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: sseStream.finalContent || '',
+          from: 'assistant',
+          timeline: sseStream.timeline?.length ? sseStream.timeline : undefined,
+          toolCalls: sseStream.toolCalls?.length ? sseStream.toolCalls : undefined,
+          frontend_only: true, // Mark as frontend-only to distinguish from backend messages
+        },
+      ]);
+      
+      // Now reset the cancelled state since we've persisted the content
+      sseStream.resetCancelledState();
+    }
 
     // Add user message to conversation and clear input immediately
     setMessages((prev) => [
