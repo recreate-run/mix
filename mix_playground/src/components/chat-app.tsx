@@ -31,7 +31,6 @@ import { CACHE_KEYS } from '@/lib/cache-keys';
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
 import type { MessageData, UIMessage } from '@/types/message';
-import type { HierarchicalModelData } from '@/types/provider';
 import {
   handleSlashCommandNavigation,
   shouldShowSlashCommands,
@@ -43,10 +42,6 @@ import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
 import { FileUploadButton } from './file-upload-button';
 import { PermissionDialog } from './permission-dialog';
-import { handleStatusCommand, handleProviderSelection } from '@/handlers/status-command-handler';
-import { handleLoginCommand, startOAuthFlow, authenticateWithApiKey, handleOAuthCallback } from '@/handlers/login-command-handler';
-import { handleLogoutCommand, logoutProvider } from '@/handlers/logout-command-handler';
-import { handleUnifiedModelCommand, updateProviderPreference, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
 
 // Helper function to extract media outputs from show_media tool call
 // const getMediaShowcaseOutputs = (toolCalls: ToolCall[]): MediaOutput[] => {
@@ -80,55 +75,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // UI Interaction Mode 2: Command Palette (full modal triggered by "/" alone)
   const [showCommands, setShowCommands] = useState(false);
 
-  // Hierarchical model data for CMDK
-  const [hierarchicalModelData, setHierarchicalModelData] = useState<HierarchicalModelData | undefined>(undefined);
-
-  // Logout provider data for CMDK
-  const [logoutData, setLogoutData] = useState<{
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
-  } | undefined>(undefined);
-
-  // Status provider data for CMDK
-  const [statusData, setStatusData] = useState<{
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
-  } | undefined>(undefined);
-
-  // Login provider data for CMDK
-  const [loginData, setLoginData] = useState<{
-    providers: {
-      id: string;
-      displayName: string;
-      authMethods: ("api_key" | "oauth")[];
-      authenticated: boolean;
-      apiKeyFormat?: string;
-      isPreferred?: boolean;
-    }[];
-    hasExistingPreferences?: boolean;
-    oauthState?: string; // Store the OAuth state parameter
-  } | undefined>(undefined);
-
-  // Help menu data for CMDK
-  const [helpData, setHelpData] = useState<{
-    menuItems: {
-      id: string;
-      name: string;
-      description: string;
-      action: string;
-      url?: string;
-    }[];
-  } | undefined>(undefined);
 
   // Input management and focus handling
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(
@@ -239,559 +185,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   const fileRef = useFileReference(text, setText, session?.id);
 
-  // Handle the status command with our SDK implementation
-  const handleStatusCommandSpecial = async () => {
-    try {
-      // Execute the enhanced status command handler with UI
-      const statusResult = await handleStatusCommand();
 
-      // If there's statusData, show the command menu (CMDK will detect the data and show status view)
-      if (statusResult.statusData) {
-        setStatusData({
-          providers: statusResult.statusData.providers
-        });
-        setShowCommands(true);
-      } else {
-        // Add response message if no statusData (error case) and not suppressed
-        if (!statusResult.suppressChatMessage) {
-          setMessages((prev) => [
-            ...prev,
-            statusResult
-          ]);
-        } else {
-          // Show error feedback if it's suppressed
-          if (statusResult.content.includes("Failed") || statusResult.content.includes("❌")) {
-            setFeedbackMessage(`Error: ${statusResult.content.replace("❌", "").trim()}`);
 
-            // Auto-hide after 3 seconds
-            setTimeout(() => {
-              setFeedbackMessage(null);
-            }, 3000);
-          } else if (statusResult.content.includes("✅")) {
-            // Show success feedback
-            setFeedbackMessage(statusResult.content.replace("✅", "").trim());
 
-            // Auto-hide after 3 seconds
-            setTimeout(() => {
-              setFeedbackMessage(null);
-            }, 3000);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Status command failed:', error);
 
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to check authentication status`);
 
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
 
-      // Don't add error to chat - handled by notification
-    }
-  };
 
-  // Handle the login command with our SDK implementation
-  const handleLoginCommandSpecial = async () => {
-    try {
-      // Execute the login command handler
-      const loginResult = await handleLoginCommand();
 
-      // If there's loginData, show the command menu (CMDK will detect the data and show login view)
-      if (loginResult.loginData) {
-        setLoginData({
-          providers: loginResult.loginData.providers,
-          hasExistingPreferences: loginResult.loginData.hasExistingPreferences
-        });
-        setShowCommands(true);
-      } else {
-        // Add response message if no loginData (error case) and not suppressed
-        if (!loginResult.suppressChatMessage) {
-          setMessages((prev) => [
-            ...prev,
-            loginResult
-          ]);
-        }
-      }
-    } catch (error) {
-      console.error('Login command failed:', error);
 
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to start login flow`);
 
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
 
-      // Don't add error to chat - handled by notification
-    }
-  };
-
-  // Handle the logout command with our SDK implementation
-  const handleLogoutCommandSpecial = async () => {
-    try {
-      // Execute the logout command handler to get data
-      const logoutData = await handleLogoutCommand();
-
-      // If there's no logoutData (no authenticated providers), show the error message
-      if (!logoutData.logoutData) {
-        if (!logoutData.suppressChatMessage) {
-          setMessages((prev) => [
-            ...prev,
-            logoutData,
-          ]);
-        } else {
-          // Show error feedback
-          setFeedbackMessage(`Error: No authenticated providers to log out from`);
-
-          // Auto-hide after 3 seconds
-          setTimeout(() => {
-            setFeedbackMessage(null);
-          }, 3000);
-        }
-        return;
-      }
-
-      // Set logout data and show commands (CMDK will detect the data and show logout view)
-      setLogoutData({
-        providers: logoutData.logoutData.providers
-      });
-      setShowCommands(true);
-
-    } catch (error) {
-      console.error('Logout command failed:', error);
-
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to start logout flow`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Don't add error to chat - handled by notification
-    }
-  };
-
-  // Handle the help command special case - show menu modal
-  const handleHelpCommandSpecial = () => {
-    // Hardcoded help menu items - no API call needed
-    const helpMenuItems = [
-      {
-        id: 'sdk-docs',
-        name: 'SDK Documentation',
-        description: 'View Python and TypeScript SDK documentation',
-        action: 'link',
-        url: 'https://recreate.run/docs/sdk'
-      },
-      {
-        id: 'backend-docs',
-        name: 'Backend Documentation',
-        description: 'View backend API and architecture documentation',
-        action: 'link',
-        url: 'https://recreate.run/docs/backend'
-      }
-    ];
-
-    // Set help data and show commands modal
-    setHelpData({
-      menuItems: helpMenuItems
-    });
-    setShowCommands(true);
-  };
-
-  // Handle the unified model command with our SDK implementation
-  const handleUnifiedModelCommandSpecial = async () => {
-    try {
-      // Execute the unified model command handler to get data
-      const modelData = await handleUnifiedModelCommand();
-
-      // If there's an error (no hierarchicalModel), show the error message
-      if (!modelData.hierarchicalModel) {
-        // Model command error encountered (not adding command to message history)
-
-        if (!modelData.suppressChatMessage) {
-          setMessages((prev) => [
-            ...prev,
-            modelData,
-          ]);
-        }
-        return;
-      }
-
-      // Model command executed (not adding to message history)
-
-      // Set hierarchical model data and show commands (CMDK will detect the data and show hierarchical view)
-      setHierarchicalModelData({
-        providers: modelData.hierarchicalModel.providers,
-        currentProvider: modelData.hierarchicalModel.currentProvider,
-        currentModel: modelData.hierarchicalModel.currentModel
-      });
-      setShowCommands(true);
-
-    } catch (error) {
-      console.error('Unified model command failed:', error);
-
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to handle model selection`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Don't add error to chat - handled by notification
-    }
-  };
-
-  // Handle provider selection in hierarchical view
-  const handleProviderSelectionSpecial = async (providerId: string) => {
-    try {
-      // Just update the preferences, don't refresh the entire hierarchical data
-      // The CMDK component will handle the state transition from providers to models
-      await updateProviderPreference(providerId);
-    } catch (error) {
-      console.error('Provider selection failed:', error);
-      // Close CMDK and show error message
-      setShowCommands(false);
-      setHierarchicalModelData(undefined);
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to update provider preference`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Don't add error to chat - handled by notification
-    }
-  };
-
-  // Handle model selection in hierarchical view
-  const handleModelSelectionSpecial = async (providerId: string, modelId: string) => {
-    try {
-      const result = await handleModelSelectionInHierarchy(providerId, modelId);
-
-      // Close CMDK and clear hierarchical data
-      setShowCommands(false);
-      setHierarchicalModelData(undefined);
-
-      // Check if we should invalidate preferences cache
-      if (result.shouldInvalidatePreferencesCache) {
-        queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
-
-        // Check if this is a success or error message
-        if (result.content.includes("❌") || result.content.includes("Failed")) {
-          // Show error message
-          setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
-        } else {
-          // Show success message
-          setFeedbackMessage(`Model updated successfully: ${result.content.replace("✅ Successfully set ", "").replace(" as your default model for", " for")}`);
-        }
-
-        // Auto-hide the message after 3 seconds
-        setTimeout(() => {
-          setFeedbackMessage(null);
-        }, 3000);
-      }
-
-      // Only add message to chat if not suppressed
-      if (!result.suppressChatMessage) {
-        setMessages((prev) => [
-          ...prev,
-          result
-        ]);
-      }
-    } catch (error) {
-      console.error('Model selection failed:', error);
-      // Close CMDK and clear data
-      setShowCommands(false);
-      setHierarchicalModelData(undefined);
-
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to update model preference`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Don't add error message to chat interface
-      // Just log the error and show the notification
-    }
-  };
-
-  // Handle provider selection in logout view
-  const handleLogoutProviderSelectionSpecial = async (providerId: string) => {
-    try {
-      // Call logoutProvider to log out from the selected provider
-      const result = await logoutProvider(providerId);
-
-      // Close CMDK and clear logout data
-      setShowCommands(false);
-      setLogoutData(undefined);
-
-      // Check if this is a success or error message
-      if (result.content.includes("❌") || result.content.includes("Failed")) {
-        // Show error message
-        setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
-      } else {
-        // Show success message
-        setFeedbackMessage(`Logged out successfully`);
-      }
-
-      // Auto-hide the message after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Only add message to chat if not suppressed
-      if (!result.suppressChatMessage) {
-        setMessages((prev) => [
-          ...prev,
-          result
-        ]);
-      }
-    } catch (error) {
-      console.error('Logout failed:', error);
-      // Close CMDK and clear data
-      setShowCommands(false);
-      setLogoutData(undefined);
-
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to log out from provider`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Don't add error message to chat interface
-      // Just log the error and show the notification
-    }
-  };
-
-  // Handle provider selection in status view
-  const handleStatusProviderSelectionSpecial = async (providerId: string) => {
-    try {
-      // Call handleProviderSelection to initiate login for the selected provider
-      const result = await handleProviderSelection(providerId);
-
-      // Close CMDK and clear status data
-      setShowCommands(false);
-      setStatusData(undefined);
-
-      // Only add message to chat if not suppressed
-      if (!result.suppressChatMessage) {
-        setMessages((prev) => [
-          ...prev,
-          result
-        ]);
-      }
-    } catch (error) {
-      console.error('Provider selection failed:', error);
-      // Close CMDK and show error message
-      setShowCommands(false);
-      setStatusData(undefined);
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to select provider`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Don't add error to chat - handled by notification
-    }
-  };
-
-  // Handle login provider and auth method selection
-  const handleLoginProviderSelectionSpecial = async (providerId: string, authMethod: "api_key" | "oauth") => {
-    try {
-      // For API Key method, we keep the command menu open
-      // The actual API key entry will be handled in the CommandSlash component
-
-      // For OAuth flow, we need to start it here
-      if (authMethod === "oauth") {
-        try {
-          // Start OAuth flow using the SDK
-          const result = await startOAuthFlow(providerId);
-
-          // Keep command menu open and update loginData
-          // The CommandSlash component will handle the UI
-
-          // Store OAuth state if provided
-          if (result.login?.state) {
-            // Update loginData with the state parameter
-            setLoginData(prevData => prevData ? {
-              ...prevData,
-              oauthState: result.login?.state
-            } : undefined);
-          }
-
-          // If there was an error in the result, show it
-          if (result.content.startsWith("❌")) {
-            setMessages((prev) => [
-              ...prev,
-              result
-            ]);
-          } else {
-            // Try to open the auth URL if available
-            if (result.login?.authUrl) {
-              try {
-                // Import shell plugin on demand
-                const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
-
-                // Use Tauri's shell plugin to open the URL in the default browser
-                await shellOpen(result.login.authUrl);
-              } catch (shellError) {
-                console.error('Error opening with Tauri shell:', shellError);
-
-                // Fallback to regular window.open if Tauri shell fails
-                try {
-                  window.open(result.login.authUrl, '_blank', 'noopener,noreferrer');
-                } catch (windowOpenError) {
-                  console.error('All browser open methods failed:', windowOpenError);
-
-                  // Show a message to the user about manually opening the URL
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      content: `⚠️ Browser popup was blocked. Please click the link below to authorize:\n\n[Open Authorization Page](${result.login?.authUrl})\n\nOr copy this URL:\n\`${result.login?.authUrl}\``,
-                      from: "assistant",
-                      frontend_only: true,
-                    }
-                  ]);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('OAuth flow failed:', error);
-          // Show error feedback but don't close command menu
-          setFeedbackMessage(`Error: Failed to start OAuth flow`);
-
-          // Auto-hide after 3 seconds
-          setTimeout(() => {
-            setFeedbackMessage(null);
-          }, 3000);
-
-          // Don't add error to chat - handled by notification
-        }
-      }
-    } catch (error) {
-      console.error('Login provider selection failed:', error);
-      // Show error feedback but don't close command menu
-      setFeedbackMessage(`Error: Failed to handle login`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Don't add error to chat - handled by notification
-    }
-  };
-
-  // Handle API key submission from command menu
-  const handleApiKeySubmitSpecial = async (providerId: string, apiKey: string) => {
-    try {
-      // Authenticate with the SDK
-      const result = await authenticateWithApiKey(providerId, apiKey);
-
-      // Close command menu after authentication
-      setShowCommands(false);
-      setLoginData(undefined);
-
-      // Check if this is a success or error message
-      if (result.content.includes("❌") || result.content.includes("Failed")) {
-        // Show error message
-        setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
-      } else {
-        // Show success message
-        setFeedbackMessage(`Successfully authenticated with ${providerId} using API key`);
-      }
-
-      // Auto-hide the message after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Only add message to chat if not suppressed
-      if (!result.suppressChatMessage) {
-        setMessages((prev) => [
-          ...prev,
-          result
-        ]);
-      }
-
-    } catch (error) {
-      console.error('API key authentication failed:', error);
-
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to authenticate with API key`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Let the CommandSlash component handle the error, since it manages the API key input
-      throw error;
-    }
-  };
-
-  // Handle OAuth code submission from command menu
-  const handleOAuthCodeSubmitSpecial = async (providerId: string, code: string) => {
-    try {
-      // Process the OAuth code with the SDK - use the stored state parameter if available
-      const oauthState = loginData?.oauthState || '';
-      const result = await handleOAuthCallback(providerId, code, oauthState);
-
-      // Close command menu after authentication
-      setShowCommands(false);
-      setLoginData(undefined);
-
-      // Check if this is a success or error message
-      if (result.content.includes("❌") || result.content.includes("Failed")) {
-        // Show error message
-        setFeedbackMessage(`Error: ${result.content.replace("❌", "").trim()}`);
-      } else {
-        // Show success message
-        setFeedbackMessage(`Successfully authenticated with ${providerId} using OAuth`);
-      }
-
-      // Auto-hide the message after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Only add message to chat if not suppressed
-      if (!result.suppressChatMessage) {
-        setMessages((prev) => [
-          ...prev,
-          result
-        ]);
-      }
-
-    } catch (error) {
-      console.error('OAuth code processing failed:', error);
-
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to complete OAuth authentication`);
-
-      // Auto-hide after 3 seconds
-      setTimeout(() => {
-        setFeedbackMessage(null);
-      }, 3000);
-
-      // Let the CommandSlash component handle the error
-      throw error;
-    }
-  };
 
   // Handle file upload success
   const handleFileUploadSuccess = (fileName: string) => {
@@ -922,93 +326,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   };
 
-  // Unified command handler
-  // Reset all command-related states
-  const resetCommandStates = () => {
-    setHierarchicalModelData(undefined);
-    setLogoutData(undefined);
-    setStatusData(undefined);
-    setLoginData(undefined);
-    setHelpData(undefined);
-  };
-
-  const handleCommand = (
-    action: 'select' | 'execute' | 'close',
-    data?: any
-  ) => {
-    switch (action) {
-      case 'select': {
-        setShowSlashCommands(false);
-        setSelectedCommandIndex(0);
-        setText(text.slice(0, -1));
-        // Clear any previous command data before showing commands
-        resetCommandStates();
-        setShowCommands(true);
-        break;
-      }
-      case 'execute': {
-        const command = data as string;
-
-        if (command === '__reset__') {
-          // Special internal command used by "Back to Commands" button
-          // Just reset all command data without closing the command palette
-          resetCommandStates();
-          return;
-        }
-
-        setShowSlashCommands(false);
-        setShowCommands(false);
-        // Reset command data when executing any command
-        resetCommandStates();
-
-        if (command === 'clear') {
-          // Create a new session instead of just clearing UI
-          handleNewSession();
-          return;
-        }
-
-        if (command === 'status') {
-          // Handle status command using our SDK implementation
-          handleStatusCommandSpecial();
-          return;
-        }
-
-        if (command === 'login') {
-          // Handle login command using our SDK implementation
-          handleLoginCommandSpecial();
-          return;
-        }
-
-        if (command === 'logout') {
-          // Handle logout command using our SDK implementation
-          handleLogoutCommandSpecial();
-          return;
-        }
-
-        if (command === 'model') {
-          // Handle unified model command using our SDK implementation
-          handleUnifiedModelCommandSpecial();
-          return;
-        }
-
-        if (command === 'help') {
-          // Handle help command using our special modal implementation
-          handleHelpCommandSpecial();
-          return;
-        }
-
-        submitMessage(`/${command}`);
-        break;
-      }
-      case 'close': {
-        setShowSlashCommands(false);
-        setShowCommands(false);
-        // Clear all command data when closing command palette
-        resetCommandStates();
-        break;
-      }
-    }
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle Shift+Tab for plan mode toggle
@@ -1034,7 +351,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       showSlashCommands,
       selectedCommandIndex,
       setSelectedCommandIndex,
-      (command) => handleCommand('select', command),
+      () => {
+        setShowSlashCommands(false);
+        setSelectedCommandIndex(0);
+        setText(text.slice(0, -1));
+        setShowCommands(true);
+      },
       () => setShowSlashCommands(false)
     );
     if (slashHandled) return;
@@ -1055,7 +377,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         return;
       }
       if (showCommands) {
-        handleCommand('close');
+        setShowCommands(false);
+        setShowSlashCommands(false);
         return;
       }
     }
@@ -1449,31 +772,16 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {showCommands && (
             <CommandSlash
               onClose={() => {
-                // Reset all command data states to ensure clean slate without calling handleCommand('close')
-                setHierarchicalModelData(undefined);
-                setLogoutData(undefined);
-                setStatusData(undefined);
-                setLoginData(undefined);
-                setHelpData(undefined);
-
                 // Close the command palette UI
                 setShowCommands(false);
                 setShowSlashCommands(false);
               }}
-              onExecuteCommand={(command) => handleCommand('execute', command)}
               sessionId={sessionId}
-              hierarchicalModelData={hierarchicalModelData}
-              logoutData={logoutData}
-              statusData={statusData}
-              onProviderSelect={handleProviderSelectionSpecial}
-              onModelSelect={handleModelSelectionSpecial}
-              onLogoutProviderSelect={handleLogoutProviderSelectionSpecial}
-              onStatusProviderSelect={handleStatusProviderSelectionSpecial}
-              onLoginProviderSelect={handleLoginProviderSelectionSpecial}
-              onApiKeySubmit={handleApiKeySubmitSpecial}
-              onOAuthCodeSubmit={handleOAuthCodeSubmitSpecial}
-              loginData={loginData}
-              helpData={helpData}
+              onFeedbackMessage={setFeedbackMessage}
+              onNewSession={handleNewSession}
+              onQueryClientInvalidate={(keys) => queryClient.invalidateQueries({ queryKey: keys })}
+              onSubmitMessage={submitMessage}
+              onAddMessage={(message) => setMessages((prev) => [...prev, message])}
             />
           )}
 

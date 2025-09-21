@@ -35,14 +35,42 @@ import {
 import { slashCommands } from '@/utils/slash-commands';
 import { getDisplayTitle } from '@/utils/sessionUtils';
 import type { HierarchicalModelData } from '@/types';
+import { handleStatusCommand, handleProviderSelection } from '@/handlers/status-command-handler';
+import { handleLoginCommand, startOAuthFlow, authenticateWithApiKey, handleOAuthCallback } from '@/handlers/login-command-handler';
+import { handleLogoutCommand, logoutProvider } from '@/handlers/logout-command-handler';
+import { handleUnifiedModelCommand, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
 
 
 interface CommandSlashProps {
-  onExecuteCommand: (command: string) => void;
   onClose: () => void;
   sessionId: string;
-  hierarchicalModelData?: HierarchicalModelData;
-  logoutData?: {
+  onFeedbackMessage?: (message: string) => void;
+  onNewSession?: () => void;
+  onQueryClientInvalidate?: (keys: any) => void;
+  onSubmitMessage?: (message: string) => void;
+  onAddMessage?: (message: any) => void;
+}
+
+export function CommandSlash({
+  onClose,
+  sessionId,
+  onFeedbackMessage,
+  onNewSession,
+  onQueryClientInvalidate,
+  onSubmitMessage,
+  onAddMessage,
+}: CommandSlashProps) {
+  // Autonomous command component - refactored to handle all command logic internally
+  const [selectedValue, setSelectedValue] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showingPermissions, setShowingPermissions] = useState(false);
+  const [showingSessions, setShowingSessions] = useState(false);
+
+  // Command state management - moved from chat-app.tsx
+  const [hierarchicalModelData, setHierarchicalModelData] = useState<HierarchicalModelData | undefined>(undefined);
+
+  // Logout provider data for CMDK
+  const [logoutData, setLogoutData] = useState<{
     providers: {
       id: string;
       displayName: string;
@@ -50,8 +78,10 @@ interface CommandSlashProps {
       authMethod?: 'api_key' | 'oauth';
       isPreferred?: boolean;
     }[];
-  };
-  statusData?: {
+  } | undefined>(undefined);
+
+  // Status provider data for CMDK
+  const [statusData, setStatusData] = useState<{
     providers: {
       id: string;
       displayName: string;
@@ -59,8 +89,10 @@ interface CommandSlashProps {
       authMethod?: 'api_key' | 'oauth';
       isPreferred?: boolean;
     }[];
-  };
-  loginData?: {
+  } | undefined>(undefined);
+
+  // Login provider data for CMDK
+  const [loginData, setLoginData] = useState<{
     providers: {
       id: string;
       displayName: string;
@@ -70,9 +102,11 @@ interface CommandSlashProps {
       isPreferred?: boolean;
     }[];
     hasExistingPreferences?: boolean;
-    oauthState?: string;
-  };
-  helpData?: {
+    oauthState?: string; // Store the OAuth state parameter
+  } | undefined>(undefined);
+
+  // Help menu data for CMDK
+  const [helpData, setHelpData] = useState<{
     menuItems: {
       id: string;
       name: string;
@@ -80,37 +114,7 @@ interface CommandSlashProps {
       action: string;
       url?: string;
     }[];
-  };
-  onProviderSelect?: (providerId: string) => void;
-  onModelSelect?: (providerId: string, modelId: string) => void;
-  onLogoutProviderSelect?: (providerId: string) => void;
-  onStatusProviderSelect?: (providerId: string) => void;
-  onLoginProviderSelect?: (providerId: string, authMethod: "api_key" | "oauth") => void;
-  onApiKeySubmit?: (providerId: string, apiKey: string) => Promise<void>;
-  onOAuthCodeSubmit?: (providerId: string, code: string) => Promise<void>;
-}
-
-export function CommandSlash({
-  onExecuteCommand,
-  onClose,
-  sessionId,
-  hierarchicalModelData,
-  logoutData,
-  statusData,
-  loginData,
-  helpData,
-  onProviderSelect,
-  onModelSelect,
-  onLogoutProviderSelect,
-  onStatusProviderSelect,
-  onLoginProviderSelect,
-  onApiKeySubmit,
-  onOAuthCodeSubmit,
-}: CommandSlashProps) {
-  const [selectedValue, setSelectedValue] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showingPermissions, setShowingPermissions] = useState(false);
-  const [showingSessions, setShowingSessions] = useState(false);
+  } | undefined>(undefined);
   const [showingMCP, setShowingMCP] = useState(false);
   const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(
     null
@@ -130,6 +134,370 @@ export function CommandSlash({
   const hierarchicalModelInitializedRef = useRef(false);
   const navigate = useNavigate();
 
+  // Special Command Handlers - moved from chat-app.tsx
+
+  // Handle the status command with our SDK implementation
+  const handleStatusCommandSpecial = async () => {
+    try {
+      // Execute the enhanced status command handler with UI
+      const statusResult = await handleStatusCommand();
+
+      // If there's statusData, show the command menu (CMDK will detect the data and show status view)
+      if (statusResult.statusData) {
+        setStatusData({
+          providers: statusResult.statusData.providers
+        });
+        setShowingStatus(true);
+      } else {
+        // Add response message if no statusData (error case) and not suppressed
+        if (!statusResult.suppressChatMessage) {
+          onAddMessage?.(statusResult);
+        } else {
+          // Show error feedback if it's suppressed
+          if (statusResult.content.includes("Failed") || statusResult.content.includes("❌")) {
+            onFeedbackMessage?.(`Error: ${statusResult.content.replace("❌", "").trim()}`);
+          } else if (statusResult.content.includes("✅")) {
+            // Show success feedback
+            onFeedbackMessage?.(statusResult.content.replace("✅", "").trim());
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Status command failed:', error);
+      // Show error feedback
+      onFeedbackMessage?.(`Error: Failed to check authentication status`);
+    }
+  };
+
+  // Handle the login command with our SDK implementation
+  const handleLoginCommandSpecial = async () => {
+    try {
+      // Execute the login command handler
+      const loginResult = await handleLoginCommand();
+
+      // If there's loginData, show the command menu (CMDK will detect the data and show login view)
+      if (loginResult.loginData) {
+        setLoginData({
+          providers: loginResult.loginData.providers,
+          hasExistingPreferences: loginResult.loginData.hasExistingPreferences
+        });
+        setShowingLogin(true);
+      } else {
+        // Add response message if no loginData (error case) and not suppressed
+        if (!loginResult.suppressChatMessage) {
+          onAddMessage?.(loginResult);
+        }
+      }
+    } catch (error) {
+      console.error('Login command failed:', error);
+      // Show error feedback
+      onFeedbackMessage?.(`Error: Failed to start login flow`);
+    }
+  };
+
+  // Handle the logout command with our SDK implementation
+  const handleLogoutCommandSpecial = async () => {
+    try {
+      // Execute the logout command handler to get data
+      const logoutResult = await handleLogoutCommand();
+
+      // If there's no logoutData (no authenticated providers), show the error message
+      if (!logoutResult.logoutData) {
+        if (!logoutResult.suppressChatMessage) {
+          onAddMessage?.(logoutResult);
+        }
+      } else {
+        // Set the logout data to show the logout providers in CMDK
+        setLogoutData({
+          providers: logoutResult.logoutData.providers
+        });
+        setShowingLogout(true);
+      }
+    } catch (error) {
+      console.error('Logout command failed:', error);
+      // Show error feedback
+      onFeedbackMessage?.(`Error: Failed to start logout flow`);
+    }
+  };
+
+  // Handle the help command with our SDK implementation
+  const handleHelpCommandSpecial = async () => {
+    try {
+      // Create help menu data directly since there's no handler
+      const helpData = {
+        menuItems: [
+          {
+            id: 'documentation',
+            name: 'Documentation',
+            description: 'View Mix documentation',
+            action: 'url',
+            url: 'https://docs.mix.com'
+          },
+          {
+            id: 'commands',
+            name: 'Available Commands',
+            description: 'Show list of available slash commands',
+            action: 'commands'
+          },
+          {
+            id: 'support',
+            name: 'Support',
+            description: 'Get help and support',
+            action: 'url',
+            url: 'https://support.mix.com'
+          }
+        ]
+      };
+
+      // Set the help data to show the help menu in CMDK
+      setHelpData(helpData);
+      setShowingHelp(true);
+    } catch (error) {
+      console.error('Help command failed:', error);
+      // Show error feedback
+      onFeedbackMessage?.(`Error: Failed to load help menu`);
+    }
+  };
+
+  // Handle the unified model command with our SDK implementation
+  const handleUnifiedModelCommandSpecial = async () => {
+    try {
+      // Execute the unified model command handler
+      const modelResult = await handleUnifiedModelCommand();
+
+      // If there's hierarchicalModel, show the command menu (CMDK will detect the data and show model view)
+      if (modelResult.hierarchicalModel) {
+        setHierarchicalModelData(modelResult.hierarchicalModel);
+        setShowingHierarchicalModel(true);
+      } else {
+        // Add response message if no hierarchicalModel (error case) and not suppressed
+        if (!modelResult.suppressChatMessage) {
+          onAddMessage?.(modelResult);
+        }
+      }
+    } catch (error) {
+      console.error('Model command failed:', error);
+      // Show error feedback
+      onFeedbackMessage?.(`Error: Failed to load model selection`);
+    }
+  };
+
+  // Handle provider selection from status view
+  const handleProviderSelectionSpecial = async (providerId: string) => {
+    try {
+      // Use the existing status command handler
+      const result = await handleProviderSelection(providerId);
+
+      // Add the message to chat and close
+      onAddMessage?.(result);
+      onClose();
+    } catch (error) {
+      console.error('Provider selection failed:', error);
+      onFeedbackMessage?.(`Error: Failed to select provider`);
+    }
+  };
+
+  // Handle model selection from unified model view
+  const handleModelSelectionSpecial = async (providerId: string, modelId: string) => {
+    try {
+      // Use the existing unified model handler
+      const result = await handleModelSelectionInHierarchy(providerId, modelId);
+
+      // Add the message to chat and close
+      onAddMessage?.(result);
+      onClose();
+    } catch (error) {
+      console.error('Model selection failed:', error);
+      onFeedbackMessage?.(`Error: Failed to select model`);
+    }
+  };
+
+  // Handle logout provider selection
+  const handleLogoutProviderSelectionSpecial = async (providerId: string) => {
+    try {
+      // Use the existing logout handler
+      const result = await logoutProvider(providerId);
+
+      // Invalidate cache to refresh authentication state
+      onQueryClientInvalidate?.(['providers']);
+
+      // Add the message to chat and close
+      onAddMessage?.(result);
+      onClose();
+    } catch (error) {
+      console.error('Logout provider selection failed:', error);
+      onFeedbackMessage?.(`Error: Failed to logout provider`);
+    }
+  };
+
+  // Handle status provider selection
+  const handleStatusProviderSelectionSpecial = async (providerId: string) => {
+    try {
+      // Use the existing status command handler
+      const result = await handleProviderSelection(providerId);
+
+      // Add the message to chat and close
+      onAddMessage?.(result);
+      onClose();
+    } catch (error) {
+      console.error('Status provider selection failed:', error);
+      onFeedbackMessage?.(`Error: Failed to check provider status`);
+    }
+  };
+
+  // Handle login provider selection
+  const handleLoginProviderSelectionSpecial = async (providerId: string, authMethod: "api_key" | "oauth") => {
+    try {
+      if (authMethod === "oauth") {
+        // Start OAuth flow
+        const result = await startOAuthFlow(providerId);
+
+        // Update login data with OAuth state if provided
+        if (result.login?.state && loginData) {
+          setLoginData({
+            ...loginData,
+            oauthState: result.login.state
+          });
+        }
+
+        // Add the message to chat
+        onAddMessage?.(result);
+      } else {
+        // Show API key input for this provider
+        setSelectedProvider(providerId);
+        setSelectedAuthMethod("api_key");
+      }
+    } catch (error) {
+      console.error('Login provider selection failed:', error);
+      onFeedbackMessage?.(`Error: Failed to start authentication`);
+    }
+  };
+
+  // Handle API key submission
+  const handleApiKeySubmitSpecial = async (providerId: string, apiKey: string) => {
+    try {
+      // Use the existing login handler
+      const result = await authenticateWithApiKey(providerId, apiKey);
+
+      // Invalidate cache to refresh authentication state
+      onQueryClientInvalidate?.(['providers']);
+
+      // Add the message to chat and close
+      onAddMessage?.(result);
+      onClose();
+    } catch (error) {
+      console.error('API key submission failed:', error);
+      onFeedbackMessage?.(`Error: Failed to authenticate with API key`);
+    }
+  };
+
+  // Handle OAuth code submission
+  const handleOAuthCodeSubmitSpecial = async (providerId: string, code: string) => {
+    try {
+      // Use the existing OAuth handler with stored state
+      const state = loginData?.oauthState || '';
+      const result = await handleOAuthCallback(providerId, code, state);
+
+      // Invalidate cache to refresh authentication state
+      onQueryClientInvalidate?.(['providers']);
+
+      // Add the message to chat and close
+      onAddMessage?.(result);
+      onClose();
+    } catch (error) {
+      console.error('OAuth code submission failed:', error);
+      onFeedbackMessage?.(`Error: Failed to complete OAuth authentication`);
+    }
+  };
+
+  // Reset all command-related states
+  const resetCommandStates = () => {
+    setHierarchicalModelData(undefined);
+    setLogoutData(undefined);
+    setStatusData(undefined);
+    setLoginData(undefined);
+    setHelpData(undefined);
+    setShowingHierarchicalModel(false);
+    setShowingLogout(false);
+    setShowingStatus(false);
+    setShowingLogin(false);
+    setShowingHelp(false);
+  };
+
+  // Unified command handler
+  const handleCommand = (
+    action: 'select' | 'execute' | 'close',
+    data?: any
+  ) => {
+    switch (action) {
+      case 'select': {
+        // Clear any previous command data before showing commands
+        resetCommandStates();
+        break;
+      }
+      case 'execute': {
+        const command = data as string;
+
+        if (command === '__reset__') {
+          // Special internal command used by "Back to Commands" button
+          // Just reset all command data without closing the command palette
+          resetCommandStates();
+          return;
+        }
+
+        // Reset command data when executing any command
+        resetCommandStates();
+
+        if (command === 'clear') {
+          // Create a new session instead of just clearing UI
+          onNewSession?.();
+          onClose();
+          return;
+        }
+
+        if (command === 'status') {
+          // Handle status command using our SDK implementation
+          handleStatusCommandSpecial();
+          return;
+        }
+
+        if (command === 'login') {
+          // Handle login command using our SDK implementation
+          handleLoginCommandSpecial();
+          return;
+        }
+
+        if (command === 'logout') {
+          // Handle logout command using our SDK implementation
+          handleLogoutCommandSpecial();
+          return;
+        }
+
+        if (command === 'model') {
+          // Handle unified model command using our SDK implementation
+          handleUnifiedModelCommandSpecial();
+          return;
+        }
+
+        if (command === 'help') {
+          // Handle help command using our special modal implementation
+          handleHelpCommandSpecial();
+          return;
+        }
+
+        onSubmitMessage?.(`/${command}`);
+        onClose();
+        break;
+      }
+      case 'close': {
+        // Clear all command data when closing command palette
+        resetCommandStates();
+        onClose();
+        break;
+      }
+    }
+  };
+
   // Reset selection when search query changes to prevent jumping
   useEffect(() => {
     setSelectedValue('');
@@ -143,13 +511,8 @@ export function CommandSlash({
     try {
       setApiKeySubmitting(true);
       
-      // Call the onApiKeySubmit handler provided by the parent component
-      if (onApiKeySubmit) {
-        await onApiKeySubmit(selectedProvider, apiKey);
-        
-        // Close the command palette after successful submission
-        onClose();
-      }
+      // Use the internal API key submission handler
+      await handleApiKeySubmitSpecial(selectedProvider, apiKey);
     } catch (error) {
       console.error('API key submission failed:', error);
       // Keep the command palette open on error
@@ -167,18 +530,8 @@ export function CommandSlash({
     try {
       setOauthCodeSubmitting(true);
       
-      if (onOAuthCodeSubmit) {
-        // Call the onOAuthCodeSubmit handler provided by the parent component
-        await onOAuthCodeSubmit(selectedProvider, oauthCode.trim());
-        
-        // Close the command palette after successful submission
-        onClose();
-      } else {
-        // Simulate success for testing only
-        setTimeout(() => {
-          onClose();
-        }, 1000);
-      }
+      // Use the internal OAuth code submission handler
+      await handleOAuthCodeSubmitSpecial(selectedProvider, oauthCode.trim());
     } catch (error) {
       console.error('OAuth code submission failed:', error);
       // Keep the command palette open on error
@@ -429,13 +782,8 @@ export function CommandSlash({
     setSelectedValue('');
 
     if (value === 'back-to-commands') {
-      // Override any existing data by calling parent's callback to reset data
-      // Note: this must happen BEFORE we reset our local view flags
-      if (onExecuteCommand) {
-        // This will reset loginData/statusData/logoutData in parent component
-        // by calling a dummy command that doesn't exist
-        onExecuteCommand('__reset__');
-      }
+      // Reset command data using our internal handler
+      handleCommand('execute', '__reset__');
       
       // Reset selection states first
       setSelectedMCPServer(null);
@@ -483,8 +831,7 @@ export function CommandSlash({
       else if (selectedProvider && selectedAuthMethod) {
         // If clicked on the auth input item, call the handler
         if (value === 'auth-input' && (selectedAuthMethod === 'api_key' || selectedAuthMethod === 'oauth')) {
-          onLoginProviderSelect?.(selectedProvider, selectedAuthMethod);
-          onClose();
+          handleLoginProviderSelectionSpecial(selectedProvider, selectedAuthMethod);
         }
         return;
       }
@@ -497,7 +844,7 @@ export function CommandSlash({
           // If the provider only has one auth method, auto-select it
           if (provider.authMethods.length === 1) {
             setSelectedAuthMethod(provider.authMethods[0]);
-            onLoginProviderSelect?.(provider.id, provider.authMethods[0]);
+            handleLoginProviderSelectionSpecial(provider.id, provider.authMethods[0]);
             return;
           }
           return;
@@ -509,7 +856,7 @@ export function CommandSlash({
     if (showingLogout) {
       const provider = logoutData?.providers.find((p) => p.id === value);
       if (provider) {
-        onLogoutProviderSelect?.(provider.id);
+        handleLogoutProviderSelectionSpecial(provider.id);
         return;
       }
     }
@@ -518,7 +865,7 @@ export function CommandSlash({
     if (showingStatus) {
       const provider = statusData?.providers.find((p) => p.id === value);
       if (provider) {
-        onStatusProviderSelect?.(provider.id);
+        handleStatusProviderSelectionSpecial(provider.id);
         return;
       }
     }
@@ -587,7 +934,7 @@ export function CommandSlash({
           return;
         }
         setSelectedProvider(provider.id);
-        onProviderSelect?.(provider.id);
+        handleProviderSelectionSpecial(provider.id);
         return;
       }
     }
@@ -597,8 +944,7 @@ export function CommandSlash({
       const provider = hierarchicalModelData?.providers.find((p) => p.id === selectedProvider);
       const model = provider?.models.find((m) => m.id === value);
       if (model) {
-        onModelSelect?.(selectedProvider, model.id);
-        onClose(); // Close the command palette after model selection
+        handleModelSelectionSpecial(selectedProvider, model.id);
         return;
       }
     }
@@ -614,7 +960,7 @@ export function CommandSlash({
     // Handle regular commands
     const command = slashCommands.find((c) => c.id === value);
     if (command) {
-      onExecuteCommand(command.name);
+      handleCommand('execute', command.name);
     }
   };
 
@@ -866,8 +1212,7 @@ export function CommandSlash({
                           onClose();
                         } else if (item.action === 'commands') {
                           // Show available commands - trigger the original help command
-                          onExecuteCommand('help-commands');
-                          onClose();
+                          handleCommand('execute', 'help-commands');
                         }
                       }}
                       value={item.id}
@@ -1155,14 +1500,14 @@ export function CommandSlash({
                       </div>
                       <button
                         onClick={(e) => {
-                          // When clicked, call the onLoginProviderSelect handler directly
+                          // When clicked, call the internal login provider selection handler
                           // Stop event propagation to prevent the CMDK item from capturing it
                           e.stopPropagation();
                           e.preventDefault();
                           
-                          if (selectedProvider && selectedAuthMethod === 'oauth' && onLoginProviderSelect) {
+                          if (selectedProvider && selectedAuthMethod === 'oauth') {
                             // Start OAuth flow without closing the command palette
-                            onLoginProviderSelect(selectedProvider, 'oauth');
+                            handleLoginProviderSelectionSpecial(selectedProvider, 'oauth');
                             
                             // After starting OAuth flow, immediately switch to code input mode
                             setTimeout(() => {
