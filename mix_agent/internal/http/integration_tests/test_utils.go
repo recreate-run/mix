@@ -137,6 +137,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	// Message endpoints
 	mux.HandleFunc("POST /api/sessions/{id}/messages", messageHandler.HandleSendMessage)
 	mux.HandleFunc("GET /api/sessions/{id}/messages", messageHandler.HandleListSessionMessages)
+	mux.HandleFunc("GET /api/sessions/{id}/export", messageHandler.HandleExportSession)
 	mux.HandleFunc("GET /api/messages/history", messageHandler.HandleMessageHistory)
 	mux.HandleFunc("POST /api/sessions/{id}/cancel", messageHandler.HandleCancelAgent)
 

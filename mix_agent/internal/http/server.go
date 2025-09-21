@@ -111,6 +111,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	// Message endpoints
 	mux.HandleFunc("POST /api/sessions/{id}/messages", messageHandler.HandleSendMessage)
 	mux.HandleFunc("GET /api/sessions/{id}/messages", messageHandler.HandleListSessionMessages)
+	mux.HandleFunc("GET /api/sessions/{id}/export", messageHandler.HandleExportSession)
 	mux.HandleFunc("GET /api/messages/history", messageHandler.HandleMessageHistory)
 	mux.HandleFunc("POST /api/sessions/{id}/cancel", messageHandler.HandleCancelAgent)
 
