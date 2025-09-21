@@ -5,7 +5,7 @@ set -e
 echo "🔍 Running Go tests..."
 
 # Navigate to the Go backend directory
-cd "$(dirname "$0")/../../go_backend"
+cd "$(dirname "$0")/../../mix_agent"
 
 # Set environment variables for tests
 export TEST_MODE=true

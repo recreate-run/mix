@@ -27,7 +27,18 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
             /* Aspect ratio will be applied dynamically via JavaScript */
+        }
+
+        .background-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
         }
 
         .annotation-container {
@@ -61,6 +72,8 @@
 
 <body>
     <div class="page-container">
+        <video class="background-video" id="backgroundVideo" autoplay muted loop style="display: none;">
+        </video>
         <div class="annotation-container">
             <div class="annotation-wrapper">
                 <span class="text-element" id="textElement">Amazing</span>
@@ -152,6 +165,24 @@
 
             // Apply background to container only, not full body
             pageContainer.style.background = params.backgroundCSS;
+
+            // Handle background video
+            const backgroundVideo = document.getElementById('backgroundVideo');
+            if (params.backgroundVideoUrl && params.backgroundVideoUrl.trim() !== '') {
+                backgroundVideo.src = params.backgroundVideoUrl;
+                backgroundVideo.style.display = 'block';
+
+                // Add error handling
+                backgroundVideo.onerror = function(e) {
+                    backgroundVideo.style.display = 'none';
+                    pageContainer.style.background = params.backgroundCSS;
+                };
+
+                // Set background to transparent when video is used
+                pageContainer.style.background = 'transparent';
+            } else {
+                backgroundVideo.style.display = 'none';
+            }
         }
 
         function createUnderlineAnnotation() {

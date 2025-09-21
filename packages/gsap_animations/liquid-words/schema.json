@@ -34,6 +34,11 @@
       "default": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
     },
     {
+      "name": "backgroundVideoUrl",
+      "type": "string",
+      "default": ""
+    },
+    {
       "name": "autoloop",
       "type": "boolean",
       "default": false

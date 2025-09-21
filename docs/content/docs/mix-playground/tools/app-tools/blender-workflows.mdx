@@ -1,0 +1,213 @@
+---
+title: Blender Workflows
+description: Common video editing and animation workflows using Blender integration with Mix
+category: App Tools
+---
+
+# Blender Workflows with Mix
+
+This guide covers practical workflows for automating video editing and animation tasks using Mix's Blender integration.
+
+## Video Editing Workflows
+
+### Creating a Basic Video Edit
+
+Mix can automate the process of assembling video clips in a coherent sequence:
+
+```bash
+./mix -p "Create a video edit from these clips in this order: intro.mp4, interview1.mp4, b-roll.mp4, conclusion.mp4. Add cross-dissolve transitions between clips."
+```
+
+This will:
+1. Import all video files in the specified order
+2. Place them sequentially on the timeline
+3. Add cross-dissolve transitions between clips
+4. Configure the timeline range automatically
+
+### Adding Text and Titles
+
+Adding professional text overlays and titles is simple with Mix:
+
+```bash
+./mix -p "Add an opening title 'PROJECT NAME' that fades in and stays for 5 seconds, then add lower third captions for each interview segment with the person's name and title."
+```
+
+This workflow:
+1. Creates a text element with specified styling
+2. Adds animation keyframes for fade effects
+3. Positions text elements correctly on screen
+4. Synchronizes text timing with video content
+
+### Color Grading and Correction
+
+Mix can apply consistent color grading across multiple clips:
+
+```bash
+./mix -p "Apply a warm cinematic color grade to all clips, increase contrast by 10%, and add subtle vignetting."
+```
+
+This process:
+1. Adds appropriate color correction strips
+2. Configures color balance settings
+3. Adjusts contrast parameters
+4. Applies consistent vignette effects
+
+## Animation Workflows
+
+### Creating Simple 2D Animations
+
+Mix can generate simple 2D animations for intros, transitions, and elements:
+
+```bash
+./mix -p "Create a 10-second logo animation where my logo.png flies in from the left, grows slightly, then settles in the center with a subtle bounce effect."
+```
+
+This workflow:
+1. Imports the logo image
+2. Sets up animation keyframes
+3. Configures motion paths and timing
+4. Adds easing and bounce effects
+
+### Integrating 3D Elements
+
+For more advanced projects, Mix can incorporate 3D elements into your videos:
+
+```bash
+./mix -p "Create a 3D text element saying 'WELCOME' that rotates into view over 5 seconds, then stays centered for another 5 seconds before the video starts."
+```
+
+This process:
+1. Creates 3D text geometry
+2. Sets up materials and lighting
+3. Configures camera and animation keyframes
+4. Renders and composites with video content
+
+## Advanced Techniques
+
+### Multi-Camera Editing
+
+Mix can help with multi-camera editing tasks:
+
+```bash
+./mix -p "Take these 3 camera angles of the same interview and create a multi-camera edit. Switch to close-up shots when the subject is emphasizing important points."
+```
+
+This workflow:
+1. Synchronizes multiple camera angles
+2. Analyzes content for emphasis points
+3. Creates appropriate cut points
+4. Assembles a cohesive multi-camera sequence
+
+### Audio Synchronization and Enhancement
+
+Mix can handle complex audio workflows:
+
+```bash
+./mix -p "Detach audio from the main video, clean up background noise, enhance vocal clarity, and add a subtle background music track at 20% volume."
+```
+
+This process:
+1. Separates audio from video tracks
+2. Applies noise reduction and enhancement
+3. Balances audio levels appropriately
+4. Integrates background music with ducking
+
+### Batch Processing
+
+For projects requiring consistent treatment of multiple files:
+
+```bash
+./mix -p "Process all videos in the /project/raw/ directory, add our standard intro and outro, apply company color grading, and export as 1080p MP4 files."
+```
+
+This workflow:
+1. Processes multiple files sequentially
+2. Applies consistent treatments
+3. Adds standardized elements
+4. Renders all files to specified format
+
+## Rendering and Export Workflows
+
+### Configuring Export Settings
+
+Mix can handle complex rendering configurations:
+
+```bash
+./mix -p "Render my Blender project as H.264 MP4 at 1080p, 30fps, with high quality settings. Also generate a 720p version optimized for web."
+```
+
+This process:
+1. Configures appropriate codecs and containers
+2. Sets resolution and frame rate
+3. Optimizes quality settings
+4. Creates multiple export versions
+
+### Exporting Frame Sequences
+
+For workflows requiring individual frames:
+
+```bash
+./mix -p "Export frames 100-200 of my animation as PNG sequence with transparent backgrounds for use in another application."
+```
+
+This workflow:
+1. Configures frame range settings
+2. Sets up appropriate image format
+3. Enables transparency options
+4. Exports the sequence to specified location
+
+## Compositing Workflows
+
+### Green Screen Removal
+
+Mix can automate chroma key workflows:
+
+```bash
+./mix -p "Import greenscreen.mp4 and remove the green background, then composite it over background.mp4 with proper scaling and positioning."
+```
+
+This process:
+1. Sets up keying nodes
+2. Configures key color and parameters
+3. Refines edge quality and spill removal
+4. Composites foreground over background
+
+### Advanced Visual Effects
+
+For more complex visual treatments:
+
+```bash
+./mix -p "Add a particle system to the logo that emits glowing particles for 5 seconds at the end of the animation."
+```
+
+This workflow:
+1. Creates a particle system
+2. Configures emission parameters
+3. Sets up particle materials and lighting
+4. Defines animation timing and behavior
+
+## Best Practices
+
+To get the most out of Mix with Blender:
+
+1. **Be Specific** - Provide detailed descriptions of what you want to achieve
+2. **Use References** - Mention specific examples or styles when possible
+3. **Understand Limitations** - Complex 3D modeling may require manual refinement
+4. **Iterate** - Start simple and build on successful results
+5. **Learn Terminology** - Using correct Blender terms improves results
+
+## Next Steps
+
+<Cards>
+  <Card title="Blender API Reference" href="/docs/mix-playground/tools/app-tools/blender">
+    Detailed documentation of available Blender functions
+  </Card>
+  
+  <Card title="Blender Setup Guide" href="/docs/mix-playground/tools/app-tools/blender-setup">
+    How to install and configure Blender with Mix
+  </Card>
+  
+  <Card title="Video Examples" href="/docs/examples">
+    See example videos created with these workflows
+  </Card>
+</Cards>

@@ -57,12 +57,14 @@ open http://localhost:8089/animations/bounce-overlay/preview
 ### Architecture Benefits
 
 The server is completely standalone with:
+
 - No session management
 - No authentication
 - No complex storage logic
 - Direct filesystem access
 
 This design makes it easy to:
+
 - Deploy independently
 - Scale separately from main app
 - Test animations in isolation
@@ -225,8 +227,10 @@ video.addEventListener('timeupdate', () => {
 ## Testing
 
 ### Local Development
+
 - **Direct Preview**: Open `index.html?param=value`
 - **Server Preview**: `http://localhost:8089/animations/{name}/preview?param=value`
 
 ### Video Capture
-- **Capture**: `node go_backend/scripts/capture-url.mjs http://localhost:8089/animations/{name}/preview`
+
+- **Capture**: `node mix_agent/scripts/capture-url.mjs http://localhost:8089/animations/{name}/preview`

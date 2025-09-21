@@ -8,19 +8,19 @@ ehthumbs.db
 Thumbs.db
 
 # Go backend
-go_backend/mix
-go_backend/main
-go_backend/*.log
-go_backend/tmp/
-go_backend/vendor/
+mix_agent/mix
+mix_agent/main
+mix_agent/*.log
+mix_agent/tmp/
+mix_agent/vendor/
 
 # Tauri app
-mix_tauri_app/node_modules/
-mix_tauri_app/dist/
-mix_tauri_app/.next/
-mix_tauri_app/.turbo/
-mix_tauri_app/target/
-mix_tauri_app/src-tauri/target/
+mix_mix_playground/node_modules/
+mix_mix_playground/dist/
+mix_mix_playground/.next/
+mix_mix_playground/.turbo/
+mix_mix_playground/target/
+mix_mix_playground/src-tauri/target/
 
 # Dependencies
 node_modules/
@@ -83,3 +83,5 @@ speakeasy_docs/
 
 # SDK generation temporary files
 sdk/openapi-spec.json
+plans/marketing
+marketing/

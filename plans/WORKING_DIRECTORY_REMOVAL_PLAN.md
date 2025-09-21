@@ -22,15 +22,15 @@ Remove the complex arbitrary per-session working directory concept and replace w
 
 - [ ] Create migration to DROP `working_directory` column from `sessions` table
 - [ ] Remove `WorkingDirectory` field from all Go structs:
-  - `Session` struct in `/go_backend/internal/session/session.go`
-  - `SessionData` in `/go_backend/internal/http/rest_sessions.go`
-  - All database model structs in `/go_backend/internal/db/models.go`
-- [ ] Remove `WorkingDirectory` from all SQLC queries in `/go_backend/internal/db/sql/sessions.sql`
+  - `Session` struct in `/mix_agent/internal/session/session.go`
+  - `SessionData` in `/mix_agent/internal/http/rest_sessions.go`
+  - All database model structs in `/mix_agent/internal/db/models.go`
+- [ ] Remove `WorkingDirectory` from all SQLC queries in `/mix_agent/internal/db/sql/sessions.sql`
 - [ ] Regenerate SQLC code
 
 #### 1.2 Session Management Cleanup
 
-- [ ] Remove directory creation logic from `session.Create()` in `/go_backend/internal/session/session.go:64-96`
+- [ ] Remove directory creation logic from `session.Create()` in `/mix_agent/internal/session/session.go:64-96`
 - [ ] Remove `validateWorkingDirectory()` function and all calls to it
 - [ ] Remove working directory validation from session conversion methods
 - [ ] Simplify session forking to not inherit working directory
@@ -132,7 +132,7 @@ DELETE /api/sessions/{id}/files/{filename} - Delete file from session
 #### 4.3 Agent Context Updates
 
 - [ ] Update working directory context in agent to use session storage directory
-- [ ] Modify `/go_backend/internal/llm/agent/agent.go:193,434,847` to set session storage path
+- [ ] Modify `/mix_agent/internal/llm/agent/agent.go:193,434,847` to set session storage path
 - [ ] Tool execution context gets session's `/storage/{session-id}/` path
 
 ### Phase 5: Complete HTTP API Overhaul
@@ -174,23 +174,23 @@ DELETE /api/sessions/{id}/files/{filename} - Delete file from session
 
 #### 6.1 **Asset URL System Complete Overhaul**
 
-- [ ] **Complete rewrite** of `convertToAssetServerUrl()` in `/tauri_app/src/utils/assetServer.ts:8-19`:
+- [ ] **Complete rewrite** of `convertToAssetServerUrl()` in `/mix_playground/src/utils/assetServer.ts:8-19`:
   - **OLD**: `convertToAssetServerUrl(absolutePath: string, sessionStorageDirectory: string)`
   - **NEW**: `convertToAssetServerUrl(filename: string, sessionId: string)`
   - **NEW URL FORMAT**: `${getBackendUrl()}/api/sessions/${sessionId}/files/${filename}`
   - **Remove**: Working directory validation and path stripping logic
   - **Add**: Session ID validation and filename sanitization
 - [ ] **Update helper functions** that depend on `convertToAssetServerUrl()`:
-  - `getMediaSrc()` in `/tauri_app/src/components/playlist-sidebar.tsx:56`
+  - `getMediaSrc()` in `/mix_playground/src/components/playlist-sidebar.tsx:56`
   - `generatePreviewUrl()` calls throughout codebase
 
 #### 6.2 TypeScript Types Breaking Changes
 
 - [ ] **Remove `sessionStorageDirectory` field** from these exact interfaces:
-  - `Session` interface in `/tauri_app/src/types/common.ts:13-17`
-  - `SessionData` interface in `/tauri_app/src/types/common.ts:19-34`
-  - `VideoPlayerProps` interface in `/tauri_app/src/types/media.ts:12-19`
-  - `CreateSessionParams` interface in `/tauri_app/src/hooks/useSession.ts:6-9`
+  - `Session` interface in `/mix_playground/src/types/common.ts:13-17`
+  - `SessionData` interface in `/mix_playground/src/types/common.ts:19-34`
+  - `VideoPlayerProps` interface in `/mix_playground/src/types/media.ts:12-19`
+  - `CreateSessionParams` interface in `/mix_playground/src/hooks/useSession.ts:6-9`
 - [ ] **Update session creation** in `useCreateSession()` hook to not pass `sessionStorageDirectory`
 - [ ] **Add session context** to media components that need file access
 
@@ -198,43 +198,43 @@ DELETE /api/sessions/{id}/files/{filename} - Delete file from session
 
 **Major components requiring sessionStorageDirectory parameter removal:**
 
-- [ ] **ConversationDisplay** (`/tauri_app/src/components/conversation-display.tsx`):
+- [ ] **ConversationDisplay** (`/mix_playground/src/components/conversation-display.tsx`):
   - Remove `sessionStorageDirectory` prop from lines: 11, 19, 69, 91, 98, 114, 134, 161, 169, 175, 180, 195, 403-404, 429
   - Replace with `sessionId` prop and use session-based URLs
   
-- [ ] **ChatApp** (`/tauri_app/src/components/chat-app.tsx`):
+- [ ] **ChatApp** (`/mix_playground/src/components/chat-app.tsx`):
   - Remove `session?.sessionStorageDirectory` references on lines: 192, 529, 650, 660, 666, 729, 736
   - Pass `session.id` instead to child components
   
-- [ ] **PlaylistSidebar** (`/tauri_app/src/components/playlist-sidebar.tsx`):
+- [ ] **PlaylistSidebar** (`/mix_playground/src/components/playlist-sidebar.tsx`):
   - Remove `sessionStorageDirectory` parameter from lines: 17-18, 56, 63, 81, 95, 108, 129
   - Update `getMediaSrc()` calls to use session ID
   
-- [ ] **VideoPlayer** (`/tauri_app/src/components/video-player.tsx`):
+- [ ] **VideoPlayer** (`/mix_playground/src/components/video-player.tsx`):
   - Remove `sessionStorageDirectory` from lines: 21, 83
   - Use session-based URL generation
   
-- [ ] **CommandFileReference** (`/tauri_app/src/components/command-file-reference.tsx`):
+- [ ] **CommandFileReference** (`/mix_playground/src/components/command-file-reference.tsx`):
   - Remove `sessionStorageDirectory` from lines: 35, 41, 45, 50, 119, 312
   - Update thumbnail generation for session-based storage
   
-- [ ] **MessageAttachmentDisplay** (`/tauri_app/src/components/message-attachment-display.tsx`):
+- [ ] **MessageAttachmentDisplay** (`/mix_playground/src/components/message-attachment-display.tsx`):
   - Remove `sessionStorageDirectory` from lines: 15, 20, 32, 37
   - Use session ID for attachment URLs
   
-- [ ] **AttachmentPreview** (`/tauri_app/src/components/attachment-preview.tsx`):
+- [ ] **AttachmentPreview** (`/mix_playground/src/components/attachment-preview.tsx`):
   - Remove `sessionStorageDirectory` from lines: 25, 33, 98, 100
   - Update preview URL generation
 
 #### 6.4 New File Management UI Implementation
 
 - [ ] **Update existing file upload system**:
-  - Modify attachment store (`/tauri_app/src/stores/attachmentSlice.ts`) to use session-scoped uploads
-  - Update `createFileAttachment()` in `/tauri_app/src/utils/attachmentUtils.ts` for session context
+  - Modify attachment store (`/mix_playground/src/stores/attachmentSlice.ts`) to use session-scoped uploads
+  - Update `createFileAttachment()` in `/mix_playground/src/utils/attachmentUtils.ts` for session context
   
 - [ ] **Enhance file browsing UI**:
-  - Update `FileReferencePopup` (`/tauri_app/src/components/file-reference-popup.tsx`) to browse session files via API
-  - Modify `useFileReference` hook (`/tauri_app/src/hooks/useFileReference.ts`) to call session file APIs
+  - Update `FileReferencePopup` (`/mix_playground/src/components/file-reference-popup.tsx`) to browse session files via API
+  - Modify `useFileReference` hook (`/mix_playground/src/hooks/useFileReference.ts`) to call session file APIs
   
 - [ ] **Update @ file reference resolution**:
   - Modify file discovery to use `GET /api/sessions/{id}/files` API instead of filesystem access
@@ -249,7 +249,7 @@ DELETE /api/sessions/{id}/files/{filename} - Delete file from session
 
 #### 6.5 Session Management Updates  
 
-- [ ] **Update session hooks** (`/tauri_app/src/hooks/useSession.ts`):
+- [ ] **Update session hooks** (`/mix_playground/src/hooks/useSession.ts`):
   - Remove `sessionStorageDirectory` from `CreateSessionParams`
   - Update `useActiveSession()` to not expect `sessionStorageDirectory` in response
   - Ensure session ID is properly passed to file operations

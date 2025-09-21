@@ -105,9 +105,9 @@ else
   echo -e "  2. Verify the frontend port ($FRONTEND_PORT) is not in use by another application"
 fi
 
-# Step 4: Check if .env file in tauri_app has correct backend URL
+# Step 4: Check if .env file in mix_playground has correct backend URL
 echo -e "\n${BOLD}4. Checking frontend environment configuration...${NC}"
-FRONTEND_ENV_FILE="tauri_app/.env"
+FRONTEND_ENV_FILE="mix_playground/.env"
 
 if [ -f "$FRONTEND_ENV_FILE" ]; then
   echo -e "✅ ${GREEN}Frontend .env file exists${NC}"

@@ -6,22 +6,18 @@
 
 Mix is an open-source, local agent for multimodal tasks. Claude code users will feel at home.
 
-## Quick Install
-
-1. The agent uses claude sonnet 4. You can authenticate with your claude code account using the `/login` command in the UI after installation ,  or set the  `ANHROPIC_API_KEY` in the `.env` file. Other models might work but they're untested.
-2. A `GEMINI_API_KEY`  is required, since gemini-2.5-flash is used to analyse images,videos and audio., set it in the `.env` file. Ypu can get one free from google ai studio.
-
-```bash
-make install
-```
+## Quick start
 
 Then, run
 
 ```bash
+git clone https://github.com/recreate-run/mix.git
 make dev
 ```
 
-This starts bith frontend and backend together with unified logging to the same terminal. See agentic coding section below
+- Yse `/login` command to authenticate with model providers or set API keys . Anthropic and Openrouter are curretly supported. We recommend claude-sonnet-4.  
+- If you have a claude code account already, you can login with your anthropic account. Otherwise, you can set the anthropic API key using `/login`,
+- The web search tool requires a brave API key (freely available) and the web search tool requires a gemeini API key (freely available). Please set it in the `.env` for the best performance.
 
 <https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5>
 
@@ -29,37 +25,7 @@ This starts bith frontend and backend together with unified logging to the same 
 
 - Uses ffmpeg and local apps like blender instead of clunky cloud based editors
 - All project data is stored plain text and native media files - absolutely no lock-in.create a  
-- The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our SDK with stdio interface (similar to claude code SDK) is launching soon.
-
-## Local Development
-
-Install dependencies first
-
-```bash
-make install
-```
-
-### Frontend
-
-```bash
-cd tauri_app
-bun run tauri dev
-```
-
-### Backend
-
-To use in HTTP server mode (to use with the frontend)
-
-```bash
-cd go_backend
-./mix --http-port 8080
-```
-
-Use in CLI mode
-
-```bash
-./mix -p "Your prompt here"
-```
+- The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our python and typescript SDK's  (similar to claude code SDK) is launching soon.
 
 ## Agentic Coding
 
@@ -72,7 +38,7 @@ This project is optimized for AI-assisted development with integrated tooling an
 - **Shoreman Process Manager**: `scripts/shoreman.sh` runs both frontend and backend simultaneously
 - **Auto-reload**: Backend uses Go Air for hot reloading, frontend uses Vite's built-in HMR
 - **Unified Logging**: All process output is aggregated with timestamps and color-coded by service
-- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `tauri_app/src/vite-console-forward-plugin.ts`
+- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `mix_playground/src/vite-console-forward-plugin.ts`
 
 ### Development Monitoring
 
@@ -85,8 +51,8 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 ## Structure
 
 ```
-├── go_backend/          # Go backend service
-├── mix_tauri_app/  # Tauri desktop application
+├── mix_agent/          # Go backend service
+├── mix_mix_playground/  # Tauri desktop application
 ├── .gitignore          # Monorepo gitignore
 └── README.md           # This file
 ```

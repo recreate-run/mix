@@ -24,9 +24,14 @@
       "default": "#fff"
     },
     {
-      "name": "backgroundVideoURL",
+      "name": "backgroundCSS",
       "type": "string",
-      "default": "http://localhost:8088/input/videos/egg.mp4"
+      "default": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+    },
+    {
+      "name": "backgroundVideoUrl",
+      "type": "string",
+      "default": ""
     },
     {
       "name": "characterBounceHeightPixels",

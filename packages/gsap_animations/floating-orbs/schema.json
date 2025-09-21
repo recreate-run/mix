@@ -29,6 +29,11 @@
       "default": "#d1fae5"
     },
     {
+      "name": "backgroundVideoUrl",
+      "type": "string",
+      "default": ""
+    },
+    {
       "name": "primaryBlobColor",
       "type": "color",
       "default": "#84fab0"

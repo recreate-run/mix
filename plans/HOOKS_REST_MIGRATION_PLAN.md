@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan outlines the migration of all 16 hooks in `tauri_app/src/hooks/` from the legacy JSON-RPC system to the new Mix TypeScript SDK with REST API endpoints. The migration will replace all `rpcCall()` instances with type-safe SDK calls while maintaining existing functionality and user experience.
+This plan outlines the migration of all 16 hooks in `mix_playground/src/hooks/` from the legacy JSON-RPC system to the new Mix TypeScript SDK with REST API endpoints. The migration will replace all `rpcCall()` instances with type-safe SDK calls while maintaining existing functionality and user experience.
 
 ## Current State Analysis
 

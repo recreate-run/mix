@@ -23,9 +23,9 @@ if lsof -i :$BACKEND_PORT -sTCP:LISTEN > /dev/null 2>&1; then
 fi
 
 # Create build directory if it doesn't exist
-mkdir -p ./go_backend/build/debug || {
+mkdir -p ./mix_agent/build/debug || {
     echo -e "${RED}Error: Failed to create build directory.${NC}"
-    echo -e "${YELLOW}Make sure you have write permissions to ./go_backend/build/debug${NC}"
+    echo -e "${YELLOW}Make sure you have write permissions to ./mix_agent/build/debug${NC}"
     exit 1
 }
 
@@ -39,9 +39,9 @@ source ./scripts/load_env.sh || {
 
 # Ensure the Go backend is built successfully
 echo -e "${BOLD}Building Go backend...${NC}"
-cd go_backend || {
-    echo -e "${RED}Error: Failed to change to go_backend directory.${NC}"
-    echo -e "${YELLOW}Make sure the go_backend directory exists${NC}"
+cd mix_agent || {
+    echo -e "${RED}Error: Failed to change to mix_agent directory.${NC}"
+    echo -e "${YELLOW}Make sure the mix_agent directory exists${NC}"
     exit 1
 }
 

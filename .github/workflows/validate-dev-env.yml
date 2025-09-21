@@ -54,8 +54,8 @@ jobs:
 
       - name: Create minimum required directories
         run: |
-          mkdir -p tauri_app
-          mkdir -p go_backend/build/debug
+          mkdir -p mix_playground
+          mkdir -p mix_agent/build/debug
           
       - name: Run Environment Variable Validation
         run: make test-env
@@ -65,12 +65,12 @@ jobs:
         
       - name: Build Backend
         run: |
-          cd go_backend
+          cd mix_agent
           go build -o ./build/debug/mix ./main.go
           
       - name: Start Backend (Background)
         run: |
-          cd go_backend
+          cd mix_agent
           ./build/debug/mix --http-port 8088 --dangerously-skip-permissions &
           sleep 5  # Give the backend time to start
           

@@ -110,14 +110,14 @@ check_port_available $FRONTEND_PORT "frontend"
 
 # Step 6: Build directory structure check
 echo -e "\n${BOLD}6. Checking build directories...${NC}"
-if [ -d "./go_backend/build/debug" ]; then
+if [ -d "./mix_agent/build/debug" ]; then
   echo -e "✅ ${GREEN}Backend build directory exists${NC}"
 else
   echo -e "⚠️  ${YELLOW}Backend build directory doesn't exist, will be created at runtime${NC}"
   # Not incrementing errors as this will be created
 fi
 
-if [ -d "./tauri_app/target" ]; then
+if [ -d "./mix_playground/target" ]; then
   echo -e "✅ ${GREEN}Frontend build directory exists${NC}"
 else
   echo -e "⚠️  ${YELLOW}Frontend build directory doesn't exist, will be created at runtime${NC}"

@@ -33,7 +33,7 @@
       "Bash(time ffmpeg:*)",
       "WebSearch",
       "Bash(go mod:*)",
-      "Bash(/usr/bin/time -l ffmpeg -i ./go_backend/vendor/github.com/tidwall/sjson/logo.png -vf \"scale=200:200:force_original_aspect_ratio=decrease\" -q:v 2 -y /tmp/test_thumb.jpg)",
+      "Bash(/usr/bin/time -l ffmpeg -i ./mix_agent/vendor/github.com/tidwall/sjson/logo.png -vf \"scale=200:200:force_original_aspect_ratio=decrease\" -q:v 2 -y /tmp/test_thumb.jpg)",
       "Bash(sqlite3:*)",
       "Bash(sqlc:*)"
     ],

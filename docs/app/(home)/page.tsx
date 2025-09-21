@@ -53,6 +53,25 @@ export default function HomePage() {
 						</PageHeader>
 						
 						<div className="max-w-6xl mx-auto">
+							{/* Mix Interface Preview - Commented out for now, will enable later 
+							<div className="mb-12">
+								<div className="relative w-full max-w-4xl mx-auto">
+									<div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-gradient-to-br from-gray-900 to-black">
+										<img 
+											src="/images/Area.gif" 
+											alt="Mix interface showing animated creative workflow commands"
+											className="w-full h-auto object-contain"
+											style={{ aspectRatio: '16/10' }}
+										/>
+									</div>
+									<div className="absolute -inset-2 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-2xl blur-2xl -z-10"></div>
+								</div>
+								<p className="text-center text-muted-foreground/70 text-xs mt-4 max-w-2xl mx-auto">
+									Mix's intuitive interface showcases creative workflow capabilities with animated visual previews
+								</p>
+							</div>
+							*/}
+							
 							<p className="text-center text-muted-foreground mb-4 max-w-3xl mx-auto text-sm">
 								Choose how you want to interact with Mix:
 							</p>
@@ -61,7 +80,7 @@ export default function HomePage() {
 								<div className="relative border rounded-lg p-4 shadow-md bg-card hover:shadow-lg transition-all overflow-hidden group">
 									<div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50 group-hover:opacity-70 transition-opacity"></div>
 									<div className="relative z-10">
-										<h3 className="text-lg font-semibold mb-1">Mix Desktop</h3>
+										<h3 className="text-lg font-semibold mb-1">Mix Playground</h3>
 										<p className="mb-2 text-xs text-muted-foreground leading-tight">
 											Interactive Desktop interface with slash commands and a command palette.
 											Perfect for rapid workflows and AI-powered task automation.
@@ -73,7 +92,7 @@ export default function HomePage() {
 										</div>
 										<div className="flex flex-col sm:flex-row gap-2">
 											<Button size="sm">
-												<Link href="/docs/backend">
+												<Link href="/docs/mix-playground">
 													Docs
 												</Link>
 											</Button>

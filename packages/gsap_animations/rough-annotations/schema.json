@@ -39,6 +39,11 @@
       "default": "linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)"
     },
     {
+      "name": "backgroundVideoUrl",
+      "type": "string",
+      "default": ""
+    },
+    {
       "name": "fontFamily",
       "type": "string",
       "default": "Inter, system-ui, sans-serif"

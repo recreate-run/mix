@@ -72,7 +72,7 @@ func (h *RESTHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 
 #### Implementation Steps
 
-1. **Create REST wrappers** - New file `go_backend/internal/http/rest.go` (~200 lines)
+1. **Create REST wrappers** - New file `mix_agent/internal/http/rest.go` (~200 lines)
 2. **Extract logic** - Move core logic from `handle*()` functions to shared functions  
 3. **Remove JSON-RPC protocol** - Delete `/rpc` endpoint, keep business logic temporarily
 4. **Wire up routes** - Register 17 REST endpoints in `server.go` using Go 1.22+ mux patterns
@@ -214,10 +214,10 @@ mux.HandleFunc("GET /stream/{path...}", streamSubHandler)
 
 ## Files to Modify
 
-1. **CREATE** `go_backend/internal/http/rest.go` - REST wrappers around extracted business logic
-2. **MODIFY** `go_backend/internal/http/server.go` - Remove `/rpc`, add REST route registration
-3. **REFACTOR** `go_backend/internal/api/query.go` - Extract business logic to shared functions
-4. **UPDATE** `go_backend/README.md` - Replace JSON-RPC examples with REST examples
+1. **CREATE** `mix_agent/internal/http/rest.go` - REST wrappers around extracted business logic
+2. **MODIFY** `mix_agent/internal/http/server.go` - Remove `/rpc`, add REST route registration
+3. **REFACTOR** `mix_agent/internal/api/query.go` - Extract business logic to shared functions
+4. **UPDATE** `mix_agent/README.md` - Replace JSON-RPC examples with REST examples
 
 ## Implementation Strategy - PREREQUISITES ADDED
 

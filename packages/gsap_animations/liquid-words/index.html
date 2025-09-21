@@ -26,6 +26,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+        }
+
+        .background-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
         }
 
         .morphing-container {
@@ -56,6 +67,8 @@
 </head>
 <body>
     <div class="page-container">
+        <video class="background-video" id="backgroundVideo" autoplay muted loop style="display: none;">
+        </video>
         <div class="morphing-container">
             <div class="text-element" id="text1">Innovation</div>
             <div class="text-element" id="text2">Creativity</div>
@@ -99,6 +112,7 @@
                 textSizeRem: 3,
                 textColor: '#fff',
                 backgroundCSS: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundVideoUrl: '',
                 autoloop: false,
                 aspectRatio: '9/16'
             };
@@ -163,6 +177,24 @@
             
             // Apply background to page-container instead of body
             pageContainer.style.background = params.backgroundCSS;
+
+            // Handle background video
+            const backgroundVideo = document.getElementById('backgroundVideo');
+            if (params.backgroundVideoUrl && params.backgroundVideoUrl.trim() !== '') {
+                backgroundVideo.src = params.backgroundVideoUrl;
+                backgroundVideo.style.display = 'block';
+
+                // Add error handling
+                backgroundVideo.onerror = function(e) {
+                    backgroundVideo.style.display = 'none';
+                    pageContainer.style.background = params.backgroundCSS;
+                };
+
+                // Set background to transparent when video is used
+                pageContainer.style.background = 'transparent';
+            } else {
+                backgroundVideo.style.display = 'none';
+            }
         }
 
         function createMorphTimeline() {
