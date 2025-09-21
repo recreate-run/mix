@@ -142,3 +142,20 @@ generate-openapi:
 # 	@echo "📖 See mix_sdk/README.md for usage instructions"
 # 	@echo "📄 OpenAPI document saved at mix_sdk/openapi.json"
 # 	@rm -f mix_sdk/openapi-spec.json
+
+# Clean all build artifacts and dependencies
+clean:
+	@echo "🧹 Cleaning build artifacts and dependencies..."
+	@echo "Cleaning Go backend (mix_agent)..."
+	@rm -rf mix_agent/build || true
+	@rm -f mix_agent/mix || true
+	@cd mix_agent && go clean || true
+	@echo "Cleaning Tauri frontend (mix_playground)..."
+	@rm -rf mix_playground/node_modules || true
+	@rm -rf mix_playground/src-tauri/target || true
+	@rm -rf mix_playground/dist || true
+	@echo "Cleaning GSAP animations (packages/gsap_animations)..."
+	@rm -rf packages/gsap_animations/build || true
+	@rm -rf packages/gsap_animations/tmp || true
+	@rm -rf packages/gsap_animations/node_modules || true
+	@echo "✅ All build artifacts cleaned!"
