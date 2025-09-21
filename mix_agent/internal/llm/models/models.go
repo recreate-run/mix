@@ -60,7 +60,7 @@ func getProviderDisplayName(provider ModelProvider) string {
 	case ProviderOpenRouter:
 		return "OpenRouter"
 	case ProviderAnthropic:
-		return "Anthropic (Claude)"
+		return "Anthropic"
 	default:
 		return string(provider)
 	}

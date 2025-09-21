@@ -18,6 +18,7 @@ The current `/login` command implementation has several limitations:
 ### 1. Create Login Command Handler
 
 Create a dedicated handler for the `/login` command that uses the SDK to:
+
 - Fetch current authentication status
 - Display provider selection interface
 - Handle authentication based on provider type
@@ -25,6 +26,7 @@ Create a dedicated handler for the `/login` command that uses the SDK to:
 ### 2. Provider Selection UI
 
 Create a provider selection interface that:
+
 - Shows all available providers (Anthropic, OpenAI, OpenRouter)
 - Indicates which providers are already authenticated
 - Shows which authentication methods are supported for each provider
@@ -33,19 +35,22 @@ Create a provider selection interface that:
 ### 3. Authentication Method Selection
 
 After provider selection:
+
 - For providers with multiple auth methods (e.g., Anthropic with both OAuth and API key), show a method selection UI
 - For providers with only API key authentication, go directly to API key input
 - Clearly indicate the expected API key format for each provider
 
 ### 4. Authentication Flow Implementation
 
-#### API Key Authentication:
+#### API Key Authentication
+
 - Input field for API key with format guidance
 - Validation of API key format before submission
 - Clear success/error feedback
 - Storing the API key via the SDK
 
-#### OAuth Authentication (for Anthropic):
+#### OAuth Authentication (for Anthropic)
+
 - "Connect with Anthropic" button that opens the OAuth URL
 - Field for entering the authorization code
 - Handling the OAuth callback
@@ -60,9 +65,10 @@ After provider selection:
 
 ## Technical Implementation Details
 
-### 1. New Files to Create:
+### 1. New Files to Create
 
 #### `src/handlers/login-command-handler.ts`
+
 ```typescript
 import { mix } from "@/lib/mix-sdk";
 import { UIMessage } from "@/types/message";
@@ -88,7 +94,7 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
     const providers: ProviderInfo[] = [
       {
         id: "anthropic",
-        displayName: "Anthropic (Claude)",
+        displayName: "Anthropic",
         authMethods: ["api_key", "oauth"],
         authenticated: status.providers?.anthropic?.authenticated || false,
         apiKeyFormat: "sk-ant-..."
@@ -226,6 +232,7 @@ export async function handleOAuthCallback(
 ```
 
 #### `src/components/login-ui.tsx`
+
 ```typescript
 import React, { useState } from "react";
 import { AlertCircle, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
@@ -524,9 +531,10 @@ export function LoginUI({ loginState, onUpdate }: LoginUIProps) {
 }
 ```
 
-### 2. Updates to Existing Files:
+### 2. Updates to Existing Files
 
 #### Update `src/types/message.ts`
+
 ```typescript
 export interface UIMessage {
   content: string;
@@ -548,6 +556,7 @@ export interface UIMessage {
 ```
 
 #### Update `src/components/conversation-display.tsx`
+
 ```typescript
 // Add import for LoginUI component
 import { LoginUI } from './login-ui';
@@ -568,6 +577,7 @@ import { LoginUI } from './login-ui';
 ```
 
 #### Update `src/components/chat-app.tsx`
+
 ```typescript
 // Add import for login command handler
 import { handleLoginCommand } from '@/handlers/login-command-handler';

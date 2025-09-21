@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "mix_mix_playground",
+      "name": "mix_playground",
       "dependencies": {
         "@gsap/react": "^2.1.2",
         "@icons-pack/react-simple-icons": "^13.7.0",
