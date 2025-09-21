@@ -136,7 +136,7 @@ def convert_md_to_mdx(source_dir, dest_dir):
 def main():
     """Main execution function."""
     # Define paths
-    source_dir = "go_backend/internal/config/prompts/tools"
+    source_dir = "mix_agent/internal/config/prompts/tools"
     dest_dir = "docs/content/docs/backend/tools"
     
     print("Converting MD files to MDX with Jinja2 templating...")

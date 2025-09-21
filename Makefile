@@ -1,9 +1,9 @@
-.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint go-test generate-sdk gsap-server
+.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint go-test generate-mix_sdk gsap-server
 
 # Variables
 BINARY_NAME=mix
-BUILD_DIR=go_backend/build
-MAIN_PATH=./go_backend/main.go
+BUILD_DIR=mix_agent/build
+MAIN_PATH=./mix_agent/main.go
 
 # Build optimization variables
 VERSION=$(shell git tag --sort=committerdate | grep -E '[0-9]' | tail -1 2>/dev/null || echo "dev")
@@ -16,7 +16,7 @@ LDFLAGS=-s -w -X mix/internal/version.Version=$(VERSION) -X main.buildTime=$(BUI
 CGO_ENV=CGO_ENABLED=0
 
 # SDK generation variables
-SDK_OUTPUT_DIR=../mix-typescript-sdk
+SDK_OUTPUT_DIR=../mix-typescript-mix_sdk
 OPENAPI_ENDPOINT=http://localhost:8088/doc
 
 # Default target
@@ -62,11 +62,11 @@ install-deps: install
 	@echo "Installing Air (Go hot reload)..."
 	@command -v air >/dev/null 2>&1 || go install github.com/air-verse/air@latest
 	@echo "Installing Go dependencies..."
-	cd go_backend && go mod download
+	cd mix_agent && go mod download
 	@echo "Installing capture script dependencies..."
-	# cd go_backend && bun install
+	# cd mix_agent && bun install
 	@echo "Installing Tauri app dependencies..."
-	cd tauri_app && bun i
+	cd mix_playground && bun i
 	@echo "✅ All dependencies installed!"
 
 # Internal target for optimized builds
@@ -76,7 +76,7 @@ _build-optimized:
 	@echo "Version: $(VERSION)"
 	@echo "Build time: $(BUILD_TIME)"
 	@mkdir -p $(dir $(OUTPUT_PATH))
-	cd go_backend && \
+	cd mix_agent && \
 	$(CGO_ENV) $(if $(GOOS),GOOS=$(GOOS)) $(if $(GOARCH),GOARCH=$(GOARCH)) go build \
 		$(BUILD_FLAGS) \
 		-ldflags="$(LDFLAGS)" \
@@ -117,28 +117,28 @@ go-test:
 # Run TypeScript typecheck on frontend code
 frontend-typecheck:
 	@echo "Running frontend TypeScript typecheck..."
-	cd tauri_app && bun run typecheck
+	cd mix_playground && bun run typecheck
 
 # Run golangci-lint on Go backend code
 go_lint:
 	@echo "Running golangci-lint on Go backend code..."
-	cd go_backend && golangci-lint run ./...
+	cd mix_agent && golangci-lint run ./...
 
 # Generate TypeScript SDK from OpenAPI specification
 generate-openapi:
 	@echo "Generating TypeScript SDK from OpenAPI spec..."
-	@echo "Using configuration from sdk/gen.yaml"
+	@echo "Using configuration from mix_sdk/gen.yaml"
 	@echo "Downloading OpenAPI spec from $(OPENAPI_ENDPOINT)..."
-	@curl -s $(OPENAPI_ENDPOINT) > sdk/openapi-spec.json
-	@echo "Saving pretty-printed OpenAPI document to sdk/openapi.json..."
-	@curl -s $(OPENAPI_ENDPOINT) | jq '.' > sdk/openapi.json
+	@curl -s $(OPENAPI_ENDPOINT) > mix_sdk/openapi-spec.json
+	@echo "Saving pretty-printed OpenAPI document to mix_sdk/openapi.json..."
+	@curl -s $(OPENAPI_ENDPOINT) | jq '.' > mix_sdk/openapi.json
 # 	@echo "Running Speakeasy SDK generation..."
-# 	@speakeasy generate sdk --schema sdk/openapi-spec.json --lang typescript --out $(SDK_OUTPUT_DIR)
+# 	@speakeasy generate mix_sdk --schema mix_sdk/openapi-spec.json --lang typescript --out $(SDK_OUTPUT_DIR)
 # 	@echo "Installing SDK dependencies with bun..."
 # 	@cd $(SDK_OUTPUT_DIR) && bun install
 # 	@echo "Building TypeScript SDK..."
 # 	@cd $(SDK_OUTPUT_DIR) && bun run build
 # 	@echo "✅ TypeScript SDK generated and built successfully at $(SDK_OUTPUT_DIR)"
-# 	@echo "📖 See sdk/README.md for usage instructions"
-# 	@echo "📄 OpenAPI document saved at sdk/openapi.json"
-# 	@rm -f sdk/openapi-spec.json
+# 	@echo "📖 See mix_sdk/README.md for usage instructions"
+# 	@echo "📄 OpenAPI document saved at mix_sdk/openapi.json"
+# 	@rm -f mix_sdk/openapi-spec.json

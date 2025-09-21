@@ -1,6 +1,6 @@
 -- +goose Up
 -- IMPORTANT: After running this migration, you need to:
--- 1. Regenerate sqlc code: `cd go_backend && sqlc generate`
+-- 1. Regenerate sqlc code: `cd mix_agent && sqlc generate`
 -- 2. Update any custom code that uses ApiCredential struct
 -- 3. Restart the backend server: `make dev`
 -- +goose StatementBegin

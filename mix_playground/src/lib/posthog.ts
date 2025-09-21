@@ -7,10 +7,10 @@ import posthog from 'posthog-js';
 export function initPostHog() {
   try {
     // Check if analytics are enabled from environment variable
-    const analyticsEnabled = 
-      import.meta.env.VITE_ANALYTICS_ENABLED !== 'false' && 
+    const analyticsEnabled =
+      import.meta.env.VITE_ANALYTICS_ENABLED !== 'false' &&
       import.meta.env.MIX_ANALYTICS_ENABLED !== 'false';
-    
+
     if (!analyticsEnabled) {
       console.log('Analytics disabled via environment variable');
       return;
@@ -40,7 +40,7 @@ export function initPostHog() {
     });
 
     // Send initialization event
-    posthog.capture('tauri_app_initialized', {
+    posthog.capture('mix_playground_initialized', {
       version: '0.1.0',
       timestamp: new Date().toISOString(),
     });

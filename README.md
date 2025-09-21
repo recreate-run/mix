@@ -42,7 +42,7 @@ make install
 ### Frontend
 
 ```bash
-cd tauri_app
+cd mix_playground
 bun run tauri dev
 ```
 
@@ -51,7 +51,7 @@ bun run tauri dev
 To use in HTTP server mode (to use with the frontend)
 
 ```bash
-cd go_backend
+cd mix_agent
 ./mix --http-port 8080
 ```
 
@@ -72,7 +72,7 @@ This project is optimized for AI-assisted development with integrated tooling an
 - **Shoreman Process Manager**: `scripts/shoreman.sh` runs both frontend and backend simultaneously
 - **Auto-reload**: Backend uses Go Air for hot reloading, frontend uses Vite's built-in HMR
 - **Unified Logging**: All process output is aggregated with timestamps and color-coded by service
-- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `tauri_app/src/vite-console-forward-plugin.ts`
+- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `mix_playground/src/vite-console-forward-plugin.ts`
 
 ### Development Monitoring
 
@@ -85,8 +85,8 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 ## Structure
 
 ```
-├── go_backend/          # Go backend service
-├── mix_tauri_app/  # Tauri desktop application
+├── mix_agent/          # Go backend service
+├── mix_mix_playground/  # Tauri desktop application
 ├── .gitignore          # Monorepo gitignore
 └── README.md           # This file
 ```

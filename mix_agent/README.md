@@ -27,7 +27,7 @@
 Install Mix CLI globally:
 
 ```bash
-cd go_backend && go install .
+cd mix_agent && go install .
 ```
 
 Verify installation: `mix --version`

@@ -6,12 +6,12 @@
 * @sarath-menon @avaibhav54
 
 # Frontend code
-/tauri_app/ @avaibhav54
-/tauri_app/src/ @avaibhav54
+/mix_playground/ @avaibhav54
+/mix_playground/src/ @avaibhav54
 
 # Backend code
-/go_backend/ @sarath-menon
-/go_backend/src/ @sarath-menon
+/mix_agent/ @sarath-menon
+/mix_agent/src/ @sarath-menon
 
 # Workflow files
 /.github/workflows/ @sarath-menon @avaibhav54

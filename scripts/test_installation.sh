@@ -42,8 +42,8 @@ check_command air "Air (Go hot reload)"
 # Check for build directories
 echo -e "\n${BOLD}Checking directory structure${NC}"
 dirs=(
-  "go_backend/build/debug"
-  "tauri_app"
+  "mix_agent/build/debug"
+  "mix_playground"
   "scripts"
 )
 
@@ -70,7 +70,7 @@ fi
 
 # Check frontend environment file
 echo -e "\n${BOLD}Checking frontend environment file${NC}"
-if [ -f "tauri_app/.env" ]; then
+if [ -f "mix_playground/.env" ]; then
   echo -e "${GREEN}✓ Frontend .env file exists${NC}"
 else
   echo -e "${GREEN}ℹ No frontend .env file found${NC}"

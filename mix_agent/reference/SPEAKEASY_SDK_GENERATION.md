@@ -39,12 +39,14 @@ speakeasy generate sdk --schema http://localhost:8088/doc --lang typescript
 ## Prerequisites
 
 ### System Requirements
+
 - **Operating System**: macOS, Linux, or Windows
 - **Internet Connection**: Required for CLI authentication and spec validation
 - **Git**: For version control and GitHub integration
 - **Development Server**: Local server running at `http://localhost:8088`
 
 ### Account Requirements
+
 - **Speakeasy Account**: Free account at [https://app.speakeasy.com](https://app.speakeasy.com)
 - **Account Tiers**:
   - **Free Trial**: 14-day business tier trial (no credit card required)
@@ -52,6 +54,7 @@ speakeasy generate sdk --schema http://localhost:8088/doc --lang typescript
   - **Business Tier**: Unlimited SDKs and advanced features
 
 ### OpenAPI Specification Support
+
 - **Supported Formats**: OpenAPI 3.0, OpenAPI 3.1, JSON Schema
 - **Current Implementation**: OpenAPI 3.1 specification served at `http://localhost:8088/doc`
 - **Conversion Tools**: Available for Swagger 2.0 and Postman collections
@@ -63,45 +66,55 @@ speakeasy generate sdk --schema http://localhost:8088/doc --lang typescript
 Choose your preferred installation method:
 
 #### macOS (Homebrew)
+
 ```bash
 brew install speakeasy-api/tap/speakeasy
 ```
 
 #### Universal Script
+
 ```bash
 curl -fsSL https://go.speakeasy.com/cli-install.sh | sh
 ```
 
 #### Windows (Winget)
+
 ```bash
 winget install --id=Speakeasy.speakeasy
 ```
 
 #### Windows (Chocolatey)
+
 ```bash
 choco install speakeasy
 ```
 
 ### 2. Verify Installation
+
 ```bash
 speakeasy --version
 ```
 
 ### 3. Authenticate with Speakeasy
+
 ```bash
 speakeasy quickstart
 ```
+
 This command opens your browser for workspace authentication.
 
 ## OpenAPI Endpoint Configuration
 
 ### Current Implementation
+
 Our application serves the OpenAPI specification at:
+
 - **Endpoint**: `http://localhost:8088/doc`
 - **Format**: OpenAPI 3.1 JSON specification
-- **Source**: Hardcoded specification in `go_backend/internal/http/rest_docs.go`
+- **Source**: Hardcoded specification in `mix_agent/internal/http/rest_docs.go`
 
 ### Starting the Development Server
+
 ```bash
 # Start both frontend and backend with auto-reload
 make dev
@@ -111,7 +124,9 @@ curl http://localhost:8088/doc | jq '.'
 ```
 
 ### OpenAPI Specification Features
+
 Our current specification includes:
+
 - **17+ REST Endpoints**: Complete API coverage
 - **Authentication**: Security schemes and authentication methods
 - **Request/Response Models**: Comprehensive data type definitions
@@ -121,10 +136,13 @@ Our current specification includes:
 ## SDK Generation Process
 
 ### 1. Interactive Generation (Recommended for First Time)
+
 ```bash
 speakeasy quickstart
 ```
+
 This interactive process will:
+
 1. Prompt for OpenAPI document URL: `http://localhost:8088/doc`
 2. Ask for SDK name (recommended: company/project name)
 3. Let you select target language
@@ -132,6 +150,7 @@ This interactive process will:
 5. Set up basic configuration files
 
 ### 2. Direct SDK Generation
+
 ```bash
 # Generate TypeScript SDK
 speakeasy generate sdk --schema http://localhost:8088/doc --lang typescript --out ./sdks/typescript
@@ -144,6 +163,7 @@ speakeasy generate sdk --schema http://localhost:8088/doc --lang go --out ./sdks
 ```
 
 ### 3. Using Configuration File
+
 ```bash
 # Generate using gen.yaml configuration
 speakeasy run
@@ -152,6 +172,7 @@ speakeasy run
 ## Supported Languages
 
 ### General Availability (Production Ready)
+
 | Language | Maturity | Features | Package Manager |
 |----------|----------|----------|-----------------|
 | **TypeScript** | GA | Full feature set | npm/yarn |
@@ -162,6 +183,7 @@ speakeasy run
 | **PHP** | GA | Level 1 support | Composer |
 
 ### Beta Languages
+
 | Language | Maturity | Features | Package Manager |
 |----------|----------|----------|-----------------|
 | **Ruby** | Beta | Level 1 support | RubyGems |
@@ -169,6 +191,7 @@ speakeasy run
 | **MCP TypeScript** | Beta | Level 2 support | npm/yarn |
 
 ### Additional Targets
+
 - **Terraform Providers**: GA maturity, Level 2 support
 - **Postman Collections**: Alpha maturity, Level 1 support
 - **C++, Swift, Rust**: Available with varying maturity levels
@@ -176,6 +199,7 @@ speakeasy run
 ## Configuration Files
 
 ### 1. gen.yaml Configuration
+
 Create a `gen.yaml` file in your project root:
 
 ```yaml
@@ -221,6 +245,7 @@ typescript:
 ```
 
 ### 2. Workflow Configuration
+
 Create `.speakeasy/workflow.yaml`:
 
 ```yaml
@@ -244,23 +269,27 @@ targets:
 ## Customization Options
 
 ### 1. SDK Structure Customization
+
 - **Package Names**: Configure package names for different languages
 - **Class Names**: Customize generated class and method names
 - **Import Paths**: Control module organization and import structure
 - **Response Formats**: Choose between flat or nested response structures
 
 ### 2. Authentication Customization
+
 - **Security Schemes**: Configure OAuth, API keys, bearer tokens
 - **Global Security**: Set default authentication methods
 - **Per-Operation Security**: Override security for specific endpoints
 
 ### 3. Code Generation Options
+
 - **Enum Formats**: Choose between union types or traditional enums
 - **Parameter Handling**: Configure method parameter organization
 - **Error Handling**: Customize error response structures
 - **Documentation**: Control code comment generation
 
 ### 4. Using OpenAPI Overlays
+
 Create overlays to enhance your OpenAPI spec without modifying the source:
 
 ```yaml
@@ -279,6 +308,7 @@ actions:
 ```
 
 Apply overlay during generation:
+
 ```bash
 speakeasy generate sdk --schema http://localhost:8088/doc --overlay overlay.yaml --lang typescript
 ```
@@ -286,6 +316,7 @@ speakeasy generate sdk --schema http://localhost:8088/doc --overlay overlay.yaml
 ## Testing Generated SDKs
 
 ### 1. Built-in SDK Testing
+
 ```bash
 # Run SDK tests
 speakeasy test
@@ -295,6 +326,7 @@ speakeasy test --config test-config.yaml
 ```
 
 ### 2. Custom Test Configuration
+
 Create `test-config.yaml`:
 
 ```yaml
@@ -315,6 +347,7 @@ tests:
 ```
 
 ### 3. Integration Testing
+
 ```bash
 # Start local server
 make dev
@@ -328,12 +361,14 @@ speakeasy test --baseURL http://localhost:8088
 ### 1. Package Manager Publishing
 
 #### TypeScript/npm
+
 ```bash
 cd sdks/typescript
 npm publish
 ```
 
 #### Python/PyPI
+
 ```bash
 cd sdks/python
 python -m pip install build twine
@@ -342,6 +377,7 @@ twine upload dist/*
 ```
 
 #### Go Modules
+
 ```bash
 cd sdks/go
 git tag v1.0.0
@@ -349,6 +385,7 @@ git push origin v1.0.0
 ```
 
 ### 2. GitHub Releases
+
 ```bash
 # Tag and release
 git tag -a v1.0.0 -m "Release v1.0.0"
@@ -361,6 +398,7 @@ gh release create v1.0.0 --title "SDK v1.0.0" --notes "Initial SDK release"
 ## CI/CD Integration
 
 ### 1. GitHub Actions Workflow
+
 Create `.github/workflows/generate-sdks.yml`:
 
 ```yaml
@@ -402,6 +440,7 @@ jobs:
 ```
 
 ### 2. Automated Versioning
+
 ```yaml
       - name: Update Version
         run: |
@@ -412,6 +451,7 @@ jobs:
 ## Best Practices
 
 ### 1. OpenAPI Specification Best Practices
+
 - **Use Descriptive Names**: Clear operation IDs and parameter names
 - **Include Examples**: Provide request/response examples for better SDK generation
 - **Proper Data Types**: Use specific types and formats (e.g., `date-time`, `email`)
@@ -419,12 +459,14 @@ jobs:
 - **Security Schemes**: Properly define authentication methods
 
 ### 2. SDK Configuration Best Practices
+
 - **Consistent Naming**: Use consistent naming conventions across languages
 - **Version Management**: Implement semantic versioning for your SDKs
 - **Documentation**: Generate comprehensive documentation with examples
 - **Testing**: Implement thorough testing for all generated SDKs
 
 ### 3. Development Workflow Best Practices
+
 - **Source Control**: Version control your Speakeasy configuration files
 - **Automated Testing**: Set up CI/CD pipelines for SDK generation and testing
 - **Documentation**: Keep this documentation updated with changes
@@ -435,6 +477,7 @@ jobs:
 ### Common Issues and Solutions
 
 #### 1. OpenAPI Endpoint Not Accessible
+
 ```bash
 # Check if development server is running
 make tail-log
@@ -444,6 +487,7 @@ curl -I http://localhost:8088/doc
 ```
 
 #### 2. Authentication Issues
+
 ```bash
 # Re-authenticate with Speakeasy
 speakeasy auth logout
@@ -451,6 +495,7 @@ speakeasy quickstart
 ```
 
 #### 3. Invalid OpenAPI Specification
+
 ```bash
 # Validate OpenAPI spec
 speakeasy validate openapi --schema http://localhost:8088/doc
@@ -460,6 +505,7 @@ speakeasy lint openapi --schema http://localhost:8088/doc
 ```
 
 #### 4. Generation Failures
+
 ```bash
 # Check Speakeasy logs
 speakeasy generate sdk --schema http://localhost:8088/doc --lang typescript --debug
@@ -469,6 +515,7 @@ speakeasy validate gen.yaml
 ```
 
 #### 5. SDK Testing Failures
+
 ```bash
 # Run tests with verbose output
 speakeasy test --verbose
@@ -487,9 +534,11 @@ speakeasy validate test-config.yaml
 ## Advanced Topics
 
 ### 1. Custom Code Generation Templates
+
 For advanced customization, you can create custom templates for specific languages or modify the default generation behavior.
 
 ### 2. Multiple API Versions
+
 Configure Speakeasy to handle multiple API versions simultaneously:
 
 ```yaml
@@ -503,7 +552,9 @@ sources:
 ```
 
 ### 3. SDK Documentation Integration
+
 Integrate generated SDKs with documentation platforms like:
+
 - **Mintlify**: Automatic documentation generation
 - **Scalar**: Interactive API documentation
 - **GitBook**: Documentation hosting and management

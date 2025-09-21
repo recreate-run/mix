@@ -4,20 +4,20 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = ["--http-port", "8088", "--dangerously-skip-permissions"]
-  bin = "./go_backend/build/debug/mix"
-  cmd = "cd go_backend && go build -o ./build/debug/mix ./main.go"
+  bin = "./mix_agent/build/debug/mix"
+  cmd = "cd mix_agent && go build -o ./build/debug/mix ./main.go"
   delay = 0
-  exclude_dir = ["go_backend/build", "go_backend/tmp", "go_backend/vendor", "testdata", "tmp", "tauri_app", "docs", "node_modules", "build", "dist", ".git", "~/"]
+  exclude_dir = ["mix_agent/build", "mix_agent/tmp", "mix_agent/vendor", "testdata", "tmp", "mix_playground", "docs", "node_modules", "build", "dist", ".git", "~/"]
   exclude_file = []
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
   follow_symlink = false
   full_bin = ""
-  include_dir = ["go_backend/internal", "go_backend/cmd", "internal"]
+  include_dir = ["mix_agent/internal", "mix_agent/cmd", "internal"]
   include_ext = ["go", "tpl", "tmpl", "html", "md"]
   include_file = []
   kill_delay = "0s"
-  log = "go_backend/tmp/build-errors.log"
+  log = "mix_agent/tmp/build-errors.log"
   poll = false
   poll_interval = 0
   rerun = false
