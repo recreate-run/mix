@@ -885,10 +885,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const handleTextChange = (value: string) => {
     setText(value);
 
-    // Reset cancelled state when user starts typing after cancellation
-    if (sseStream.cancelled && value.length > 0) {
-      sseStream.resetCancelledState();
-    }
+    // Don't reset cancelled state while typing - let it persist until new message is submitted
+    // This keeps the cancelled message visible while user is composing their next message
 
     // Sync media store with text changes (bidirectional sync)
     syncWithText(value);
@@ -1097,6 +1095,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle streaming errors
   useEffect(() => {
     if (sseStream.error) {
+      // Don't show error messages for user-initiated cancellations
+      if (sseStream.error.includes('request cancelled by user') || 
+          sseStream.error.includes('cancelled') ||
+          sseStream.cancelled) {
+        return;
+      }
+      
       const errorMessage = `Failed to send prompt: ${sseStream.error}`;
       setMessages((prev) => [
         ...prev,
@@ -1107,7 +1112,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         },
       ]);
     }
-  }, [sseStream.error, session?.id]);
+  }, [sseStream.error, sseStream.cancelled, session?.id]);
 
   // Declarative focus management - refocus chat input when all popups are closed
   useEffect(() => {
@@ -1129,6 +1134,23 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
     // Exit history mode if active
     historyNavigation.resetHistoryMode();
+
+    // Persist cancelled streaming content before it gets cleared
+    if (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          content: sseStream.finalContent || '',
+          from: 'assistant',
+          timeline: sseStream.timeline?.length ? sseStream.timeline : undefined,
+          toolCalls: sseStream.toolCalls?.length ? sseStream.toolCalls : undefined,
+          frontend_only: true, // Mark as frontend-only to distinguish from backend messages
+        },
+      ]);
+      
+      // Now reset the cancelled state since we've persisted the content
+      sseStream.resetCancelledState();
+    }
 
     // Add user message to conversation and clear input immediately
     setMessages((prev) => [
@@ -1182,15 +1204,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const handleCancelClick = async () => {
     try {
       await sseStream.cancelMessage();
-      // Add cancellation message to conversation
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: 'Execution paused',
-          from: 'assistant',
-          frontend_only: true,
-        },
-      ]);
+      // Note: "Execution paused" will be shown in the streaming section
+      // Don't add it to permanent messages to avoid ordering conflicts
     } catch (error) {
       console.error('Failed to cancel message:', error);
     }
