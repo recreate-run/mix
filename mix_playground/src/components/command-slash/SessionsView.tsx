@@ -1,11 +1,10 @@
 import { Clock } from 'lucide-react';
-import { CommandEmpty, CommandGroup } from '@/components/ui/command';
+import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { useSessionsList } from '@/hooks/useSessionsList';
 import { useActiveSession } from '@/hooks/useSession';
 import { formatMessageCounts } from '@/types/common';
 import { getDisplayTitle } from '@/utils/sessionUtils';
 import { BackButton } from './shared/BackButton';
-import { CommandItemWrapper } from './shared/CommandItemWrapper';
 import { StatusBadge } from './shared/StatusBadge';
 
 interface SessionsViewProps {
@@ -66,17 +65,18 @@ export function SessionsView({
         const createdDate = new Date(session.createdAt);
 
         return (
-          <CommandItemWrapper
+          <CommandItem
             key={session.id}
-            id={session.id}
+            onSelect={() => handleSessionSelect(session.id)}
             value={getDisplayTitle(session)}
-            onSelect={handleSessionSelect}
-            icon={Clock}
-            title={getDisplayTitle(session)}
             className={isActive ? 'bg-accent' : ''}
-            badge={isActive && <StatusBadge status="current" />}
           >
+            <Clock className="size-4 text-muted-foreground" />
             <div className="flex-1">
+              <div className="flex items-center gap-2 font-medium text-sm">
+                {getDisplayTitle(session)}
+                {isActive && <StatusBadge status="current" />}
+              </div>
               <div className="flex items-center gap-2 text-muted-foreground text-xs">
                 <span>{formatDate(createdDate)}</span>
                 <span>•</span>
@@ -86,7 +86,7 @@ export function SessionsView({
             <div className="ml-2 font-mono text-muted-foreground text-xs">
               {session.id.slice(0, 8)}
             </div>
-          </CommandItemWrapper>
+          </CommandItem>
         );
       })}
     </CommandGroup>

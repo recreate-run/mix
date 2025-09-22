@@ -4,7 +4,7 @@ import {
   Mic,
   Monitor,
 } from 'lucide-react';
-import { CommandGroup } from '@/components/ui/command';
+import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { Switch } from '@/components/ui/switch';
 import {
   useAccessibilityPermission,
@@ -13,7 +13,6 @@ import {
   useScreenRecordingPermission,
 } from '@/hooks/usePermissions';
 import { BackButton } from './shared/BackButton';
-import { CommandItemWrapper } from './shared/CommandItemWrapper';
 
 interface PermissionsViewProps {
   onBackToCommands: () => void;
@@ -73,16 +72,21 @@ export function PermissionsView({
         {permissions.map((permission) => {
         const Icon = permission.icon;
         return (
-          <CommandItemWrapper
+          <CommandItem
             key={permission.id}
-            id={permission.id}
+            onSelect={() => handlePermissionSelect(permission.id)}
             value={permission.label}
-            onSelect={handlePermissionSelect}
-            icon={Icon}
-            title={permission.label}
-            description={permission.hook.isGranted ? 'Granted' : 'Not granted'}
             className="flex items-center justify-between"
           >
+            <Icon className="size-4 text-muted-foreground" />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 font-medium text-sm">
+                {permission.label}
+              </div>
+              <div className="text-muted-foreground text-xs">
+                {permission.hook.isGranted ? 'Granted' : 'Not granted'}
+              </div>
+            </div>
             <Switch
               checked={permission.hook.isGranted}
               disabled={
@@ -96,7 +100,7 @@ export function PermissionsView({
               }}
               onClick={(e) => e.stopPropagation()}
             />
-          </CommandItemWrapper>
+          </CommandItem>
         );
       })}
     </CommandGroup>

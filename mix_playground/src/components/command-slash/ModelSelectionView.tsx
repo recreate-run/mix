@@ -1,8 +1,7 @@
 import { Settings } from 'lucide-react';
-import { CommandEmpty, CommandGroup } from '@/components/ui/command';
+import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import type { HierarchicalModelData } from '@/types';
 import { BackButton } from './shared/BackButton';
-import { CommandItemWrapper } from './shared/CommandItemWrapper';
 import { StatusBadge } from './shared/StatusBadge';
 
 interface ModelSelectionViewProps {
@@ -51,15 +50,19 @@ export function ModelSelectionView({
           />
 
           {provider.models.map((model) => (
-            <CommandItemWrapper
+            <CommandItem
               key={model.id}
-              id={model.id}
+              onSelect={() => handleModelSelect(model.id)}
               value={model.displayName}
-              onSelect={handleModelSelect}
-              icon={Settings}
-              title={model.displayName}
-              badge={model.isSelected && <StatusBadge status="current" />}
-            />
+            >
+              <Settings className="size-4 text-muted-foreground" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-medium text-sm">
+                  {model.displayName}
+                  {model.isSelected && <StatusBadge status="current" />}
+                </div>
+              </div>
+            </CommandItem>
           ))}
       </CommandGroup>
     );
@@ -87,28 +90,40 @@ export function ModelSelectionView({
           value="back-to-commands"
         />
 
-        {hierarchicalModelData.providers.map((provider) => (
-          <CommandItemWrapper
-            key={provider.id}
-            id={provider.id}
-            value={provider.displayName}
-            onSelect={handleProviderSelect}
-            icon={Settings}
-            title={provider.displayName}
-            description={`${provider.models.length} models available${
-              provider.authenticated ? ' • Authenticated' : ''
-            }`}
-            disabled={!provider.authenticated}
-            badge={
-              <div className="flex items-center gap-2">
-                {provider.isPreferred && <StatusBadge status="preferred" />}
-                {!provider.authenticated && (
-                  <StatusBadge status="not-authenticated" />
-                )}
+        {hierarchicalModelData.providers.map((provider) => {
+          const isDisabled = !provider.authenticated;
+
+          return (
+            <CommandItem
+              key={provider.id}
+              onSelect={() => {
+                if (!isDisabled) {
+                  handleProviderSelect(provider.id);
+                }
+              }}
+              value={provider.displayName}
+              className={isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+            >
+              <Settings className="size-4 text-muted-foreground" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-medium text-sm">
+                  {provider.displayName}
+                  <div className="flex items-center gap-2">
+                    {provider.isPreferred && <StatusBadge status="preferred" />}
+                    {!provider.authenticated && (
+                      <StatusBadge status="not-authenticated" />
+                    )}
+                  </div>
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {`${provider.models.length} models available${
+                    provider.authenticated ? ' • Authenticated' : ''
+                  }`}
+                </div>
               </div>
-            }
-          />
-        ))}
+            </CommandItem>
+          );
+        })}
     </CommandGroup>
   );
 }

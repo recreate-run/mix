@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Settings } from 'lucide-react';
-import { CommandEmpty, CommandGroup } from '@/components/ui/command';
+import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import type { AuthMethod, LoginProvider } from '@/types/command-slash';
 import { BackButton } from './shared/BackButton';
-import { CommandItemWrapper } from './shared/CommandItemWrapper';
 
 interface AuthInputViewProps {
   selectedProvider: LoginProvider;
@@ -201,19 +200,23 @@ export function AuthInputView({
           />
 
           {selectedProvider.authMethods.map((method) => (
-            <CommandItemWrapper
+            <CommandItem
               key={method}
-              id={method}
-              value={method === 'api_key' ? 'API Key' : 'OAuth'}
               onSelect={() => onAuthMethodSelect(method as AuthMethod)}
-              icon={Settings}
-              title={method === 'api_key' ? 'API Key' : 'OAuth'}
-              description={
-                method === 'api_key'
-                  ? 'Enter your API key directly'
-                  : 'Connect through web authorization'
-              }
-            />
+              value={method === 'api_key' ? 'API Key' : 'OAuth'}
+            >
+              <Settings className="size-4 text-muted-foreground" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-medium text-sm">
+                  {method === 'api_key' ? 'API Key' : 'OAuth'}
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {method === 'api_key'
+                    ? 'Enter your API key directly'
+                    : 'Connect through web authorization'}
+                </div>
+              </div>
+            </CommandItem>
           ))}
       </CommandGroup>
     );
