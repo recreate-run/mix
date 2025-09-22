@@ -22,6 +22,7 @@ import { logoutProvider } from "@/handlers/logout-command-handler";
 import { authenticateWithApiKey, startOAuthFlow } from "@/handlers/login-command-handler";
 import { useProviders } from "@/hooks/useProviders";
 import { ProvidersLoadingSkeleton } from "@/components/provider-skeleton";
+import { OAuthCodeDialog } from "@/components/oauth-code-dialog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -41,6 +42,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [loginInProgress, setLoginInProgress] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [selectedAuthMethod, setSelectedAuthMethod] = useState<Record<string, 'api_key' | 'oauth'>>({});
+  
+  // OAuth code dialog state
+  const [oauthCodeDialog, setOauthCodeDialog] = useState<{
+    open: boolean;
+    provider: string;
+    oauthState: string;
+  }>({
+    open: false,
+    provider: '',
+    oauthState: '',
+  });
 
   // Initialize auth method selection for unauthenticated providers
   const initializeAuthMethods = useCallback(() => {
@@ -115,8 +127,34 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           // OAuth flow started successfully - open the auth URL
           const authUrl = result.content.match(/https?:\/\/[^\s]+/)?.[0];
           if (authUrl) {
-            window.open(authUrl, '_blank', 'width=600,height=800');
-            toast.info('OAuth window opened. Please complete authentication in the new window.');
+            try {
+              const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
+              await shellOpen(authUrl);
+              toast.info('OAuth browser opened. Please complete authentication in the browser.');
+              
+              // Show OAuth code dialog after opening browser
+              setOauthCodeDialog({
+                open: true,
+                provider: providerId,
+                oauthState: result.loginData.oauthState,
+              });
+            } catch (shellError) {
+              console.warn('Tauri shell failed, falling back to window.open:', shellError);
+              try {
+                window.open(authUrl, '_blank', 'width=600,height=800');
+                toast.info('OAuth window opened. Please complete authentication in the new window.');
+                
+                // Show OAuth code dialog after opening browser
+                setOauthCodeDialog({
+                  open: true,
+                  provider: providerId,
+                  oauthState: result.loginData.oauthState,
+                });
+              } catch (windowError) {
+                console.error('Both browser opening methods failed:', windowError);
+                toast.error('Failed to open OAuth browser. Please copy this URL manually: ' + authUrl);
+              }
+            }
           }
         } else {
           toast.error(result.content || 'Failed to start OAuth flow');
@@ -143,7 +181,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -303,6 +342,21 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </Card>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      
+      {/* OAuth Code Dialog */}
+      <OAuthCodeDialog
+        open={oauthCodeDialog.open}
+        onOpenChange={(open) => setOauthCodeDialog(prev => ({ ...prev, open }))}
+        provider={oauthCodeDialog.provider}
+        oauthState={oauthCodeDialog.oauthState}
+        onSuccess={() => {
+          // Refresh providers data after successful authentication
+          refetch();
+          // Clear login in progress state
+          setLoginInProgress(prev => ({ ...prev, [oauthCodeDialog.provider]: false }));
+        }}
+      />
+    </>
   );
 }
