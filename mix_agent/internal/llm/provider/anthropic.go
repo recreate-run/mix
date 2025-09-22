@@ -11,7 +11,7 @@ import (
 
 	"mix/internal/config"
 	"mix/internal/llm/models"
-	toolsPkg "mix/internal/llm/tools"
+	"mix/internal/llm/interfaces"
 	"mix/internal/logging"
 	"mix/internal/message"
 
@@ -38,7 +38,7 @@ type anthropicClient struct {
 	credentialStorage *CredentialStorage
 }
 
-type AnthropicClient ProviderClient
+type AnthropicClient interfaces.ProviderClient
 
 func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	anthropicOpts := anthropicOptions{
@@ -209,7 +209,7 @@ func (a *anthropicClient) convertMessages(messages []message.Message) (anthropic
 	return
 }
 
-func (a *anthropicClient) convertTools(tools []toolsPkg.BaseTool) []anthropic.ToolUnionParam {
+func (a *anthropicClient) convertTools(tools []interfaces.BaseTool) []anthropic.ToolUnionParam {
 	anthropicTools := make([]anthropic.ToolUnionParam, len(tools))
 
 	for i, tool := range tools {
@@ -349,7 +349,7 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 	}
 }
 
-func (a *anthropicClient) send(ctx context.Context, messages []message.Message, tools []toolsPkg.BaseTool) (resposne *ProviderResponse, err error) {
+func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (resposne *interfaces.ProviderResponse, err error) {
 	// Handle proactive token refresh for OAuth
 	if a.options.useOAuth && a.options.oauthCreds != nil {
 		if a.options.oauthCreds.IsTokenExpired() && a.options.oauthCreds.RefreshToken != "" {
@@ -422,13 +422,13 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 			if retryErr != nil {
 				// For authentication errors, provide a friendly message
 				if strings.Contains(retryErr.Error(), "401") {
-					return &ProviderResponse{
+					return &interfaces.ProviderResponse{
 						Content: "⚠️ Authentication failed. Please use /login command to authenticate with Claude using an API key.\n\n" +
 							"To login:\n" +
 							"1. Visit https://console.anthropic.com/settings/keys\n" +
 							"2. Create an API key\n" +
 							"3. Use the /login command to authenticate",
-						Usage: TokenUsage{},
+						Usage: interfaces.TokenUsage{},
 					}, nil
 				}
 				return nil, retryErr
@@ -452,7 +452,7 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 			}
 		}
 
-		return &ProviderResponse{
+		return &interfaces.ProviderResponse{
 			Content:                content,
 			ToolCalls:              a.toolCalls(*anthropicResponse),
 			Usage:                  a.usage(*anthropicResponse),
@@ -462,8 +462,8 @@ func (a *anthropicClient) send(ctx context.Context, messages []message.Message, 
 	}
 }
 
-func (a *anthropicClient) stream(ctx context.Context, messages []message.Message, tools []toolsPkg.BaseTool) <-chan ProviderEvent {
-	eventChan := make(chan ProviderEvent)
+func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) <-chan interfaces.ProviderEvent {
+	eventChan := make(chan interfaces.ProviderEvent)
 
 	// Handle proactive token refresh for OAuth
 	if a.options.useOAuth && a.options.oauthCreds != nil {
@@ -500,8 +500,8 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate."
 
 			// Send error event that will be properly handled by error handlers
-			eventChan <- ProviderEvent{
-				Type:  EventError,
+			eventChan <- interfaces.ProviderEvent{
+				Type:  interfaces.EventError,
 				Error: errors.New(authErrMsg),
 			}
 
@@ -522,7 +522,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 			// Check if context is already cancelled before starting the streaming loop
 			select {
 			case <-ctx.Done():
-				eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
 				close(eventChan)
 				return
 			default:
@@ -540,7 +540,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 				switch event := event.AsAny().(type) {
 				case anthropic.ContentBlockStartEvent:
 					if event.ContentBlock.Type == "text" {
-						eventChan <- ProviderEvent{Type: EventContentStart}
+						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStart}
 					} else if event.ContentBlock.Type == "tool_use" {
 						toolCall := &message.ToolCall{
 							ID:       event.ContentBlock.ID,
@@ -548,27 +548,27 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 							Finished: false,
 						}
 						activeToolCalls[int(event.Index)] = toolCall
-						eventChan <- ProviderEvent{
-							Type:     EventToolUseStart,
+						eventChan <- interfaces.ProviderEvent{
+							Type:     interfaces.EventToolUseStart,
 							ToolCall: toolCall,
 						}
 					}
 
 				case anthropic.ContentBlockDeltaEvent:
 					if event.Delta.Type == "thinking_delta" && event.Delta.Thinking != "" {
-						eventChan <- ProviderEvent{
-							Type:     EventThinkingDelta,
+						eventChan <- interfaces.ProviderEvent{
+							Type:     interfaces.EventThinkingDelta,
 							Thinking: event.Delta.Thinking,
 						}
 					} else if event.Delta.Type == "text_delta" && event.Delta.Text != "" {
-						eventChan <- ProviderEvent{
-							Type:    EventContentDelta,
+						eventChan <- interfaces.ProviderEvent{
+							Type:    interfaces.EventContentDelta,
 							Content: event.Delta.Text,
 						}
 					} else if event.Delta.Type == "input_json_delta" {
 						if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
-							eventChan <- ProviderEvent{
-								Type: EventToolUseDelta,
+							eventChan <- interfaces.ProviderEvent{
+								Type: interfaces.EventToolUseDelta,
 								ToolCall: &message.ToolCall{
 									ID:       toolCall.ID,
 									Finished: false,
@@ -579,15 +579,15 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 					}
 				case anthropic.ContentBlockStopEvent:
 					if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
-						eventChan <- ProviderEvent{
-							Type: EventToolUseStop,
+						eventChan <- interfaces.ProviderEvent{
+							Type: interfaces.EventToolUseStop,
 							ToolCall: &message.ToolCall{
 								ID: toolCall.ID,
 							},
 						}
 						delete(activeToolCalls, int(event.Index))
 					} else {
-						eventChan <- ProviderEvent{Type: EventContentStop}
+						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStop}
 					}
 
 				case anthropic.MessageStopEvent:
@@ -598,9 +598,9 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 						}
 					}
 
-					eventChan <- ProviderEvent{
-						Type: EventComplete,
-						Response: &ProviderResponse{
+					eventChan <- interfaces.ProviderEvent{
+						Type: interfaces.EventComplete,
+						Response: &interfaces.ProviderResponse{
 							Content:                content,
 							ToolCalls:              a.toolCalls(accumulatedMessage),
 							Usage:                  a.usage(accumulatedMessage),
@@ -614,7 +614,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 				// Check if context is cancelled after processing each event
 				select {
 				case <-ctx.Done():
-					eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+					eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
 					close(eventChan)
 					return
 				default:
@@ -652,7 +652,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 			// If there is an error we are going to see if we can retry the call
 			retry, after, retryErr := a.shouldRetry(attempts, err)
 			if retryErr != nil {
-				eventChan <- ProviderEvent{Type: EventError, Error: retryErr}
+				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: retryErr}
 				close(eventChan)
 				return
 			}
@@ -662,7 +662,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 				case <-ctx.Done():
 					// context cancelled
 					if ctx.Err() != nil {
-						eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
 					}
 					close(eventChan)
 					return
@@ -671,7 +671,7 @@ func (a *anthropicClient) stream(ctx context.Context, messages []message.Message
 				}
 			}
 			if ctx.Err() != nil {
-				eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
 			}
 
 			close(eventChan)
@@ -729,8 +729,8 @@ func (a *anthropicClient) toolCalls(msg anthropic.Message) []message.ToolCall {
 	return toolCalls
 }
 
-func (a *anthropicClient) usage(msg anthropic.Message) TokenUsage {
-	return TokenUsage{
+func (a *anthropicClient) usage(msg anthropic.Message) interfaces.TokenUsage {
+	return interfaces.TokenUsage{
 		InputTokens:         msg.Usage.InputTokens,
 		OutputTokens:        msg.Usage.OutputTokens,
 		CacheCreationTokens: msg.Usage.CacheCreationInputTokens,

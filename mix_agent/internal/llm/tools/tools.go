@@ -2,79 +2,29 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
+	"mix/internal/llm/interfaces"
 	"mix/internal/session"
 )
 
-type ToolInfo struct {
-	Name        string
-	Description string
-	Parameters  map[string]any
-	Required    []string
-}
+// Type aliases for shared interfaces to maintain backward compatibility
+type ToolInfo = interfaces.ToolInfo
+type ToolResponse = interfaces.ToolResponse
+type ToolCall = interfaces.ToolCall
+type BaseTool = interfaces.BaseTool
 
-type toolResponseType string
+// Helper functions re-exported for convenience
+var NewTextResponse = interfaces.NewTextResponse
+var NewTextErrorResponse = interfaces.NewTextErrorResponse
+var WithResponseMetadata = interfaces.WithResponseMetadata
 
-type (
-	sessionIDContextKey       string
-	messageIDContextKey       string
-	sessionStorageContextKey  string
-)
-
+// Context key aliases for backward compatibility
 const (
-	ToolResponseTypeText  toolResponseType = "text"
-	ToolResponseTypeImage toolResponseType = "image"
-
-	SessionIDContextKey       sessionIDContextKey       = "session_id"
-	MessageIDContextKey       messageIDContextKey       = "message_id"
-	SessionStorageContextKey  sessionStorageContextKey  = "session_storage"
+	SessionIDContextKey       = interfaces.SessionIDContextKey
+	MessageIDContextKey       = interfaces.MessageIDContextKey
+	SessionStorageContextKey  = interfaces.SessionStorageContextKey
 )
-
-type ToolResponse struct {
-	Type     toolResponseType `json:"type"`
-	Content  string           `json:"content"`
-	Metadata string           `json:"metadata,omitempty"`
-	IsError  bool             `json:"is_error"`
-}
-
-func NewTextResponse(content string) ToolResponse {
-	return ToolResponse{
-		Type:    ToolResponseTypeText,
-		Content: content,
-	}
-}
-
-func WithResponseMetadata(response ToolResponse, metadata any) ToolResponse {
-	if metadata != nil {
-		metadataBytes, err := json.Marshal(metadata)
-		if err != nil {
-			return response
-		}
-		response.Metadata = string(metadataBytes)
-	}
-	return response
-}
-
-func NewTextErrorResponse(content string) ToolResponse {
-	return ToolResponse{
-		Type:    ToolResponseTypeText,
-		Content: content,
-		IsError: true,
-	}
-}
-
-type ToolCall struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Input string `json:"input"`
-}
-
-type BaseTool interface {
-	Info() ToolInfo
-	Run(ctx context.Context, params ToolCall) (ToolResponse, error)
-}
 
 func GetContextValues(ctx context.Context) (string, string) {
 	sessionID := ctx.Value(SessionIDContextKey)

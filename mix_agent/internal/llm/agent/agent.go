@@ -11,6 +11,7 @@ import (
 	"mix/internal/config"
 	"mix/internal/llm/models"
 	"mix/internal/llm/prompt"
+	"mix/internal/llm/interfaces"
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
@@ -81,12 +82,12 @@ type agent struct {
 
 	agentName config.AgentName
 	tools     []tools.BaseTool
-	provider  provider.Provider
+	provider  interfaces.Provider
 
-	titleProvider     provider.Provider
-	summarizeProvider provider.Provider
+	titleProvider     interfaces.Provider
+	summarizeProvider interfaces.Provider
 
-	sessionProviders sync.Map // Maps session ID to provider.Provider
+	sessionProviders sync.Map // Maps session ID to interfaces.Provider
 	activeRequests   sync.Map
 
 	ctx    context.Context
@@ -104,7 +105,7 @@ func NewAgent(
 	if err != nil {
 		return nil, err
 	}
-	var titleProvider provider.Provider
+	var titleProvider interfaces.Provider
 	// Only generate titles for the main agent
 	if agentName == config.AgentMain {
 		titleProvider, err = createAgentProvider(config.AgentMain)
@@ -112,7 +113,7 @@ func NewAgent(
 			return nil, err
 		}
 	}
-	var summarizeProvider provider.Provider
+	var summarizeProvider interfaces.Provider
 	if agentName == config.AgentMain {
 		summarizeProvider, err = createAgentProvider(config.AgentMain)
 		if err != nil {
@@ -647,7 +648,7 @@ func (a *agent) finishMessage(ctx context.Context, msg *message.Message, finishR
 	_ = a.messages.Update(ctx, *msg)
 }
 
-func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event provider.ProviderEvent) error {
+func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event interfaces.ProviderEvent) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -656,7 +657,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	}
 
 	switch event.Type {
-	case provider.EventThinkingDelta:
+	case interfaces.EventThinkingDelta:
 		// Claude thinking delta received
 		assistantMsg.AppendReasoningContent(event.Thinking)
 		// Publish thinking event for real-time streaming
@@ -670,7 +671,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			return err
 		}
 		return a.messages.Update(ctx, *assistantMsg)
-	case provider.EventContentDelta:
+	case interfaces.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
 		// Publish content delta event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
@@ -683,7 +684,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			return err
 		}
 		return a.messages.Update(ctx, *assistantMsg)
-	case provider.EventToolUseStart:
+	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
 		// Publish tool start event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
@@ -696,7 +697,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		}
 		return a.messages.Update(ctx, *assistantMsg)
 	// TODO: see how to handle this
-	// case provider.EventToolUseDelta:
+	// case interfaces.EventToolUseDelta:
 	// 	tm := time.Unix(assistantMsg.UpdatedAt, 0)
 	// 	assistantMsg.AppendToolCallInput(event.ToolCall.ID, event.ToolCall.Input)
 	// 	if time.Since(tm) > 1000*time.Millisecond {
@@ -704,7 +705,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	// 		assistantMsg.UpdatedAt = time.Now().Unix()
 	// 		return err
 	// 	}
-	case provider.EventToolUseStop:
+	case interfaces.EventToolUseStop:
 		assistantMsg.FinishToolCall(event.ToolCall.ID)
 		// Publish tool completion event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
@@ -716,14 +717,14 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			return err
 		}
 		return a.messages.Update(ctx, *assistantMsg)
-	case provider.EventError:
+	case interfaces.EventError:
 		if errors.Is(event.Error, context.Canceled) {
 			// Event processing canceled for session
 			return context.Canceled
 		}
 		logging.Error(event.Error.Error())
 		return event.Error
-	case provider.EventComplete:
+	case interfaces.EventComplete:
 		assistantMsg.SetToolCalls(event.Response.ToolCalls)
 		assistantMsg.AddFinish(event.Response.FinishReason)
 
@@ -744,7 +745,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	return nil
 }
 
-func (a *agent) TrackUsage(ctx context.Context, sessionID string, model models.Model, usage provider.TokenUsage) error {
+func (a *agent) TrackUsage(ctx context.Context, sessionID string, model models.Model, usage interfaces.TokenUsage) error {
 	sess, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to get session: %w", err)
@@ -1036,13 +1037,14 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 
 	// Allow read-only and planning tools
 	allowedTools := map[string]bool{
-		"view":           true,
-		"ls":             true,
-		"grep":           true,
-		"glob":           true,
-		"todo_write":     true,
-		"exit_plan_mode": true,
-		"fetch":          true,
+		"view":                 true,
+		"ls":                   true,
+		"grep":                 true,
+		"glob":                 true,
+		"todo_write":           true,
+		"exit_plan_mode":       true,
+		"fetch":                true,
+		"multimodal_analyzer":  true,
 	}
 
 	return allowedTools[toolName]
@@ -1055,7 +1057,7 @@ func getProviderAPIKeyFromEnv(modelProvider models.ModelProvider) string {
 	return ""
 }
 
-func createAgentProvider(agentName config.AgentName) (provider.Provider, error) {
+func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error) {
 	// Try to get agent config from database first
 	ctx := context.Background()
 	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
@@ -1144,7 +1146,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	return agentProvider, nil
 }
 
-func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig session.Config) (provider.Provider, error) {
+func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig session.Config) (interfaces.Provider, error) {
 	// Try to get agent config from database first
 	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
 	if err != nil {
@@ -1232,7 +1234,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 	return sessionProvider, nil
 }
 
-func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, session *session.Session) (provider.Provider, error) {
+func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, session *session.Session) (interfaces.Provider, error) {
 	// Get user preferences to log current settings
 	userPrefs := config.GetUserPreferences()
 	var preferredProvider models.ModelProvider
@@ -1252,7 +1254,7 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 	// Check if we already have a cached provider
 	cached, exists := a.sessionProviders.Load(sessionID)
 	if exists {
-		cachedProvider := cached.(provider.Provider)
+		cachedProvider := cached.(interfaces.Provider)
 		currentModel := cachedProvider.Model()
 		// Found cached provider
 
@@ -1332,7 +1334,7 @@ func (a *agent) ClearAllSessionProviders() {
 		if sessionID, ok := key.(string); ok {
 			keysToDelete = append(keysToDelete, sessionID)
 			// Log cached provider details for debugging
-			if provider, ok := value.(provider.Provider); ok {
+			if provider, ok := value.(interfaces.Provider); ok {
 				logging.Debug("Found cached provider", "sessionID", sessionID,
 					"provider", provider.Model().Provider,
 					"model", provider.Model().ID)

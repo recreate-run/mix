@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"mix/internal/llm/tools"
+	"mix/internal/llm/interfaces"
 	"mix/internal/message"
 )
 
@@ -20,10 +20,10 @@ type BedrockOption func(*bedrockOptions)
 type bedrockClient struct {
 	providerOptions providerClientOptions
 	options         bedrockOptions
-	childProvider   ProviderClient
+	childProvider   interfaces.ProviderClient
 }
 
-type BedrockClient ProviderClient
+type BedrockClient interfaces.ProviderClient
 
 func newBedrockClient(opts providerClientOptions) BedrockClient {
 	bedrockOpts := bedrockOptions{}
@@ -75,20 +75,20 @@ func newBedrockClient(opts providerClientOptions) BedrockClient {
 	}
 }
 
-func (b *bedrockClient) send(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (*ProviderResponse, error) {
+func (b *bedrockClient) Send(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (*interfaces.ProviderResponse, error) {
 	if b.childProvider == nil {
 		return nil, errors.New("unsupported model for bedrock provider")
 	}
-	return b.childProvider.send(ctx, messages, tools)
+	return b.childProvider.Send(ctx, messages, tools)
 }
 
-func (b *bedrockClient) stream(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent {
-	eventChan := make(chan ProviderEvent)
+func (b *bedrockClient) Stream(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) <-chan interfaces.ProviderEvent {
+	eventChan := make(chan interfaces.ProviderEvent)
 
 	if b.childProvider == nil {
 		go func() {
-			eventChan <- ProviderEvent{
-				Type:  EventError,
+			eventChan <- interfaces.ProviderEvent{
+				Type:  interfaces.EventError,
 				Error: errors.New("unsupported model for bedrock provider"),
 			}
 			close(eventChan)
@@ -96,5 +96,5 @@ func (b *bedrockClient) stream(ctx context.Context, messages []message.Message, 
 		return eventChan
 	}
 
-	return b.childProvider.stream(ctx, messages, tools)
+	return b.childProvider.Stream(ctx, messages, tools)
 }

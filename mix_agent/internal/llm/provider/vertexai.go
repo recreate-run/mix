@@ -4,12 +4,13 @@ import (
 	"context"
 	"os"
 
+	"mix/internal/llm/interfaces"
 	"mix/internal/logging"
 
 	"google.golang.org/genai"
 )
 
-type VertexAIClient ProviderClient
+type VertexAIClient interfaces.ProviderClient
 
 func newVertexAIClient(opts providerClientOptions) VertexAIClient {
 	geminiOpts := geminiOptions{}

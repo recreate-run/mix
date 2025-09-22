@@ -11,7 +11,7 @@ import (
 
 	"mix/internal/config"
 	"mix/internal/llm/models"
-	"mix/internal/llm/tools"
+	"mix/internal/llm/interfaces"
 	"mix/internal/logging"
 	"mix/internal/message"
 
@@ -38,7 +38,7 @@ type openaiClient struct {
 	credentialStorage *CredentialStorage
 }
 
-type OpenAIClient ProviderClient
+type OpenAIClient interfaces.ProviderClient
 
 func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	openaiOpts := openaiOptions{
@@ -194,7 +194,7 @@ func (o *openaiClient) convertMessages(messages []message.Message) (openaiMessag
 	return
 }
 
-func (o *openaiClient) convertTools(tools []tools.BaseTool) []openai.ChatCompletionToolParam {
+func (o *openaiClient) convertTools(tools []interfaces.BaseTool) []openai.ChatCompletionToolParam {
 	openaiTools := make([]openai.ChatCompletionToolParam, len(tools))
 
 	for i, tool := range tools {
@@ -254,7 +254,7 @@ func (o *openaiClient) preparedParams(messages []openai.ChatCompletionMessagePar
 	return params
 }
 
-func (o *openaiClient) send(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (response *ProviderResponse, err error) {
+func (o *openaiClient) Send(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (response *interfaces.ProviderResponse, err error) {
 	// Handle proactive token refresh for OAuth
 	if o.options.useOAuth && o.options.oauthCreds != nil {
 		if o.options.oauthCreds.IsTokenExpired() && o.options.oauthCreds.RefreshToken != "" {
@@ -337,7 +337,7 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 			finishReason = message.FinishReasonToolUse
 		}
 
-		return &ProviderResponse{
+		return &interfaces.ProviderResponse{
 			Content:      content,
 			ToolCalls:    toolCalls,
 			Usage:        o.usage(*openaiResponse),
@@ -346,8 +346,8 @@ func (o *openaiClient) send(ctx context.Context, messages []message.Message, too
 	}
 }
 
-func (o *openaiClient) stream(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent {
-	eventChan := make(chan ProviderEvent)
+func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) <-chan interfaces.ProviderEvent {
+	eventChan := make(chan interfaces.ProviderEvent)
 
 	// Handle proactive token refresh for OAuth
 	if o.options.useOAuth && o.options.oauthCreds != nil {
@@ -397,8 +397,8 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 
 				for _, choice := range chunk.Choices {
 					if choice.Delta.Content != "" {
-						eventChan <- ProviderEvent{
-							Type:    EventContentDelta,
+						eventChan <- interfaces.ProviderEvent{
+							Type:    interfaces.EventContentDelta,
 							Content: choice.Delta.Content,
 						}
 						currentContent += choice.Delta.Content
@@ -417,9 +417,9 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 					finishReason = message.FinishReasonToolUse
 				}
 
-				eventChan <- ProviderEvent{
-					Type: EventComplete,
-					Response: &ProviderResponse{
+				eventChan <- interfaces.ProviderEvent{
+					Type: interfaces.EventComplete,
+					Response: &interfaces.ProviderResponse{
 						Content:      currentContent,
 						ToolCalls:    toolCalls,
 						Usage:        o.usage(acc.ChatCompletion),
@@ -433,7 +433,7 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 			// Check for quota exceeded errors
 			if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
 				logging.Error("OpenAI API quota exceeded in streaming request", "error", err, "errorMessage", err.Error())
-				eventChan <- ProviderEvent{Type: EventError, Error: fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)}
+				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)}
 				close(eventChan)
 				return
 			}
@@ -457,7 +457,7 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 			// If there is an error we are going to see if we can retry the call
 			retry, after, retryErr := o.shouldRetry(attempts, err)
 			if retryErr != nil {
-				eventChan <- ProviderEvent{Type: EventError, Error: retryErr}
+				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: retryErr}
 				close(eventChan)
 				return
 			}
@@ -467,7 +467,7 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 				case <-ctx.Done():
 					// context cancelled
 					if ctx.Err() == nil {
-						eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
 					}
 					close(eventChan)
 					return
@@ -475,7 +475,7 @@ func (o *openaiClient) stream(ctx context.Context, messages []message.Message, t
 					continue
 				}
 			}
-			eventChan <- ProviderEvent{Type: EventError, Error: retryErr}
+			eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: retryErr}
 			close(eventChan)
 			return
 		}
@@ -537,11 +537,11 @@ func (o *openaiClient) toolCalls(completion openai.ChatCompletion) []message.Too
 	return toolCalls
 }
 
-func (o *openaiClient) usage(completion openai.ChatCompletion) TokenUsage {
+func (o *openaiClient) usage(completion openai.ChatCompletion) interfaces.TokenUsage {
 	cachedTokens := completion.Usage.PromptTokensDetails.CachedTokens
 	inputTokens := completion.Usage.PromptTokens - cachedTokens
 
-	return TokenUsage{
+	return interfaces.TokenUsage{
 		InputTokens:         inputTokens,
 		OutputTokens:        completion.Usage.CompletionTokens,
 		CacheCreationTokens: 0, // OpenAI doesn't provide this directly
