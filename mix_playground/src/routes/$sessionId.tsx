@@ -5,7 +5,6 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { ChatApp } from '@/components/chat-app';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useActiveSession } from '@/hooks/useSession';
-// import { PageHeader } from "@/components/page-header";
 
 export const Route = createFileRoute('/$sessionId')({
   component: SessionApp,
@@ -46,8 +45,6 @@ function SessionApp() {
     >
       <AppSidebar sessionId={sessionId} variant="inset" />
       <SidebarInset className="flex h-screen flex-col">
-        {/* <PageHeader sessionId={sessionId} /> */}
-        
         {/* Always render ChatApp - it will handle loading states internally */}
         <ChatApp sessionId={sessionId} />
       </SidebarInset>

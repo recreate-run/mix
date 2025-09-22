@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { useCreateSession } from '@/hooks/useSession';
 import { useSessionsList } from '@/hooks/useSessionsList';
@@ -58,7 +59,10 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Sessions</SidebarGroupLabel>
+          <div className="flex items-center justify-between">
+            <SidebarGroupLabel>Sessions</SidebarGroupLabel>
+            <SidebarTrigger className="size-6" />
+          </div>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* New Session Button */}
