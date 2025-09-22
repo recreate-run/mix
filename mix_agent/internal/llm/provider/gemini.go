@@ -61,11 +61,18 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 			var parts []*genai.Part
 			parts = append(parts, &genai.Part{Text: msg.Content().String()})
 			for _, binaryContent := range msg.BinaryContent() {
-				imageFormat := strings.Split(binaryContent.MIMEType, "/")
-				parts = append(parts, &genai.Part{InlineData: &genai.Blob{
-					MIMEType: imageFormat[1],
-					Data:     binaryContent.Data,
-				}})
+				// Handle images and videos via inline data for supported formats
+				if g.isSupportedInlineFormat(binaryContent.MIMEType) {
+					parts = append(parts, &genai.Part{InlineData: &genai.Blob{
+						MIMEType: binaryContent.MIMEType,
+						Data:     binaryContent.Data,
+					}})
+				} else {
+					// For unsupported inline formats, log warning and skip
+					// Note: Video upload via File API would require additional implementation
+					logging.Warn("Unsupported inline format, skipping file", "mimeType", binaryContent.MIMEType)
+					continue
+				}
 			}
 			history = append(history, &genai.Content{
 				Parts: parts,
@@ -182,9 +189,14 @@ func (g *geminiClient) Send(ctx context.Context, messages []message.Message, too
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
-		SystemInstruction: &genai.Content{
+	}
+	
+	// Only add system instruction if we have a non-empty system message
+	if g.providerOptions.systemMessage != "" {
+		config.SystemInstruction = &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
-		},
+			Role:  "user",
+		}
 	}
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
@@ -280,9 +292,14 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
-		SystemInstruction: &genai.Content{
+	}
+	
+	// Only add system instruction if we have a non-empty system message
+	if g.providerOptions.systemMessage != "" {
+		config.SystemInstruction = &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
-		},
+			Role:  "user",
+		}
 	}
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
@@ -626,4 +643,46 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 	os.WriteFile(responseFile, responseJSON, 0644)
 
 	logging.Info("Empty response debug files created", "requestFile", requestFile, "responseFile", responseFile)
+}
+
+// isSupportedInlineFormat checks if the MIME type is supported for inline data
+func (g *geminiClient) isSupportedInlineFormat(mimeType string) bool {
+	// Supported inline formats according to Gemini API docs
+	supportedInlineFormats := []string{
+		"image/png",
+		"image/jpeg", 
+		"image/webp",
+		"image/heic",
+		"image/heif",
+	}
+	
+	for _, supported := range supportedInlineFormats {
+		if mimeType == supported {
+			return true
+		}
+	}
+	return false
+}
+
+// isSupportedVideoFormat checks if the MIME type is a supported video format
+// Note: Video support would require File API implementation in future SDK versions
+func (g *geminiClient) isSupportedVideoFormat(mimeType string) bool {
+	supportedVideoFormats := []string{
+		"video/mp4",
+		"video/mpeg",
+		"video/mov",
+		"video/avi",
+		"video/x-flv",
+		"video/mpg",
+		"video/webm",
+		"video/wmv",
+		"video/3gpp",
+	}
+	
+	for _, supported := range supportedVideoFormats {
+		if mimeType == supported {
+			return true
+		}
+	}
+	return false
 }

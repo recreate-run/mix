@@ -158,10 +158,10 @@ func (o *openaiClient) convertMessages(messages []message.Message) (openaiMessag
 				Role: "assistant",
 			}
 
-			if msg.Content().String() != "" {
-				assistantMsg.Content = openai.ChatCompletionAssistantMessageParamContentUnion{
-					OfString: openai.String(msg.Content().String()),
-				}
+			// Always set content to an empty string at minimum to avoid null values
+			// The OpenAI API expects a string, not null
+			assistantMsg.Content = openai.ChatCompletionAssistantMessageParamContentUnion{
+				OfString: openai.String(msg.Content().String()),
 			}
 
 			if len(msg.ToolCalls()) > 0 {
