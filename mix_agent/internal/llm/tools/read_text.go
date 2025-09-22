@@ -14,37 +14,37 @@ import (
 	"mix/internal/permission"
 )
 
-type ViewParams struct {
+type ReadTextParams struct {
 	FilePath string `json:"file_path"`
 	Offset   int    `json:"offset"`
 	Limit    int    `json:"limit"`
 }
 
-type viewTool struct {
+type readTextTool struct {
 	permissions permission.Service
 }
 
-type ViewResponseMetadata struct {
+type ReadTextResponseMetadata struct {
 	FilePath string `json:"file_path"`
 	Content  string `json:"content"`
 }
 
 const (
-	ViewToolName     = "view"
+	ReadTextToolName = "ReadText"
 	DefaultReadLimit = 2000
 	MaxLineLength    = 2000
 )
 
-func NewViewTool(permissions permission.Service) BaseTool {
-	return &viewTool{
+func NewReadTextTool(permissions permission.Service) BaseTool {
+	return &readTextTool{
 		permissions: permissions,
 	}
 }
 
-func (v *viewTool) Info() ToolInfo {
+func (r *readTextTool) Info() ToolInfo {
 	return ToolInfo{
-		Name:        ViewToolName,
-		Description: LoadToolDescription("view"),
+		Name:        ReadTextToolName,
+		Description: LoadToolDescription("read_text"),
 		Parameters: map[string]any{
 			"file_path": map[string]any{
 				"type":        "string",
@@ -64,8 +64,8 @@ func (v *viewTool) Info() ToolInfo {
 }
 
 // Run implements Tool.
-func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
-	var params ViewParams
+func (r *readTextTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
+	var params ReadTextParams
 	logging.Debug("view tool params", "params", call.Input)
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
 		return NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
@@ -88,14 +88,14 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	}
 
 	// Request permission to read the file
-	p := v.permissions.Request(
+	p := r.permissions.Request(
 		permission.CreatePermissionRequest{
 			SessionID:   sessionID,
 			Path:        filePath,
-			ToolName:    ViewToolName,
+			ToolName:    ReadTextToolName,
 			Action:      fmt.Sprintf("Read file: %s", filePath),
 			Description: fmt.Sprintf("Read file: %s", filePath),
-			Params: ViewParams{
+			Params: ReadTextParams{
 				FilePath: filePath,
 				Offset:   params.Offset,
 				Limit:    params.Limit,
@@ -148,74 +148,13 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		params.Limit = DefaultReadLimit
 	}
 
-	// Check if it's an image file
-	isImage, imageType := isImageFile(filePath)
-	if isImage {
-		// Get image file info
-		fileInfo, err := os.Stat(filePath)
-		if err != nil {
-			return ToolResponse{}, fmt.Errorf("error getting image file info: %w", err)
-		}
-
-		// Return text description instead of base64 data to avoid context overflow
-		imageDescription := fmt.Sprintf("Image file (%s) at %s\nFile size: %d bytes\n",
-			imageType, filePath, fileInfo.Size())
-
-		recordFileRead(filePath)
-		return WithResponseMetadata(
-			NewTextResponse(imageDescription),
-			ViewResponseMetadata{
-				FilePath: filePath,
-				Content:  imageDescription,
-			},
-		), nil
+	// Check if it's a binary file and reject it
+	if isBinaryFile(filePath) {
+		return NewTextErrorResponse(fmt.Sprintf("Cannot read binary file: %s", filePath)), nil
 	}
 
-	// Check if it's a video file
-	isVideo, videoType := isVideoFile(filePath)
-	if isVideo {
-		// Get video file info
-		fileInfo, err := os.Stat(filePath)
-		if err != nil {
-			return ToolResponse{}, fmt.Errorf("error getting video file info: %w", err)
-		}
 
-		// Return text description instead of video data to avoid context overflow
-		videoDescription := fmt.Sprintf("Video file (%s) at %s\nFile size: %d bytes\n",
-			videoType, filePath, fileInfo.Size())
 
-		recordFileRead(filePath)
-		return WithResponseMetadata(
-			NewTextResponse(videoDescription),
-			ViewResponseMetadata{
-				FilePath: filePath,
-				Content:  videoDescription,
-			},
-		), nil
-	}
-
-	// Check if it's an audio file
-	isAudio, audioType := isAudioFile(filePath)
-	if isAudio {
-		// Get audio file info
-		fileInfo, err := os.Stat(filePath)
-		if err != nil {
-			return ToolResponse{}, fmt.Errorf("error getting audio file info: %w", err)
-		}
-
-		// Return text description instead of audio data to avoid context overflow
-		audioDescription := fmt.Sprintf("Audio file (%s) at %s\nFile size: %d bytes\n",
-			audioType, filePath, fileInfo.Size())
-
-		recordFileRead(filePath)
-		return WithResponseMetadata(
-			NewTextResponse(audioDescription),
-			ViewResponseMetadata{
-				FilePath: filePath,
-				Content:  audioDescription,
-			},
-		), nil
-	}
 
 	// Read the file content
 	content, lineCount, err := readTextFile(filePath, params.Offset, params.Limit)
@@ -229,7 +168,7 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		recordFileRead(filePath)
 		return WithResponseMetadata(
 			NewTextResponse(output),
-			ViewResponseMetadata{
+			ReadTextResponseMetadata{
 				FilePath: filePath,
 				Content:  "",
 			},
@@ -251,7 +190,7 @@ func (v *viewTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	recordFileRead(filePath)
 	return WithResponseMetadata(
 		NewTextResponse(output),
-		ViewResponseMetadata{
+		ReadTextResponseMetadata{
 			FilePath: filePath,
 			Content:  content,
 		},
@@ -327,71 +266,8 @@ func readTextFile(filePath string, offset, limit int) (string, int, error) {
 	return strings.Join(lines, "\n"), lineCount, nil
 }
 
-func isImageFile(filePath string) (bool, string) {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".jpg", ".jpeg":
-		return true, "JPEG"
-	case ".png":
-		return true, "PNG"
-	case ".gif":
-		return true, "GIF"
-	case ".bmp":
-		return true, "BMP"
-	case ".svg":
-		return true, "SVG"
-	case ".webp":
-		return true, "WebP"
-	default:
-		return false, ""
-	}
-}
 
-func isVideoFile(filePath string) (bool, string) {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".mp4":
-		return true, "MP4"
-	case ".mov":
-		return true, "MOV"
-	case ".avi":
-		return true, "AVI"
-	case ".mkv":
-		return true, "MKV"
-	case ".webm":
-		return true, "WebM"
-	case ".wmv":
-		return true, "WMV"
-	case ".m4v":
-		return true, "M4V"
-	case ".flv":
-		return true, "FLV"
-	default:
-		return false, ""
-	}
-}
 
-func isAudioFile(filePath string) (bool, string) {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".wav":
-		return true, "WAV"
-	case ".mp3":
-		return true, "MP3"
-	case ".flac":
-		return true, "FLAC"
-	case ".ogg":
-		return true, "OGG"
-	case ".aac":
-		return true, "AAC"
-	case ".m4a":
-		return true, "M4A"
-	case ".wma":
-		return true, "WMA"
-	default:
-		return false, ""
-	}
-}
 
 type LineScanner struct {
 	scanner *bufio.Scanner
@@ -413,4 +289,73 @@ func (s *LineScanner) Text() string {
 
 func (s *LineScanner) Err() error {
 	return s.scanner.Err()
+}
+
+func isBinaryFile(filePath string) bool {
+	// Check by file extension first
+	ext := strings.ToLower(filepath.Ext(filePath))
+	binaryExtensions := []string{
+		// Images
+		".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico", ".tiff", ".tif",
+		// Videos
+		".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".m4v", ".flv", ".3gp", ".ogv",
+		// Audio
+		".wav", ".mp3", ".flac", ".ogg", ".aac", ".m4a", ".wma", ".opus",
+		// Archives
+		".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar",
+		// Executables
+		".exe", ".bin", ".app", ".dmg", ".pkg", ".deb", ".rpm",
+		// Documents
+		".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+		// Other binary formats
+		".db", ".sqlite", ".sqlite3", ".dat", ".bin", ".o", ".so", ".dylib", ".dll",
+	}
+
+	for _, binaryExt := range binaryExtensions {
+		if ext == binaryExt {
+			return true
+		}
+	}
+
+	// If extension check passes, sample the file content
+	return isBinaryContent(filePath)
+}
+
+func isBinaryContent(filePath string) bool {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false // If we can't open it, let the main function handle the error
+	}
+	defer file.Close()
+
+	// Read first 512 bytes to check for binary content
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return false // If we can't read it, let the main function handle the error
+	}
+
+	// Check for null bytes (common indicator of binary content)
+	for i := 0; i < n; i++ {
+		if buffer[i] == 0 {
+			return true
+		}
+	}
+
+	// Check for high percentage of non-printable characters
+	nonPrintable := 0
+	for i := 0; i < n; i++ {
+		b := buffer[i]
+		// Consider printable: ASCII 32-126, tab (9), newline (10), carriage return (13)
+		if !(b >= 32 && b <= 126) && b != 9 && b != 10 && b != 13 {
+			nonPrintable++
+		}
+	}
+
+	// If more than 30% non-printable characters, consider it binary
+	if n > 0 && float64(nonPrintable)/float64(n) > 0.30 {
+		return true
+	}
+
+	return false
 }

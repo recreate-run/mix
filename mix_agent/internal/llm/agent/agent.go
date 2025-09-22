@@ -1037,7 +1037,7 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 
 	// Allow read-only and planning tools
 	allowedTools := map[string]bool{
-		"view":                 true,
+		"ReadText":             true,
 		"ls":                   true,
 		"grep":                 true,
 		"glob":                 true,
