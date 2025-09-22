@@ -16,7 +16,6 @@ import (
 	"mix/internal/llm/provider"
 	"mix/internal/logging"
 	"mix/internal/message"
-	"mix/internal/permission"
 )
 
 type MultimodalAnalyzerParams struct {
@@ -30,9 +29,7 @@ type MultimodalAnalyzerParams struct {
 	VideoMode     string `json:"video_mode,omitempty"`
 }
 
-type multimodalAnalyzerTool struct {
-	permissions permission.Service
-}
+type multimodalAnalyzerTool struct{}
 
 type MultimodalAnalysisResult struct {
 	FilePath     string `json:"file_path"`
@@ -57,10 +54,8 @@ var supportedImageTypes = []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".b
 var supportedAudioTypes = []string{".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 var supportedVideoTypes = []string{".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv"}
 
-func NewMultimodalAnalyzerTool(permissions permission.Service) BaseTool {
-	return &multimodalAnalyzerTool{
-		permissions: permissions,
-	}
+func NewMultimodalAnalyzerTool() BaseTool {
+	return &multimodalAnalyzerTool{}
 }
 
 func (m *multimodalAnalyzerTool) Info() ToolInfo {
@@ -314,23 +309,6 @@ func (m *multimodalAnalyzerTool) analyzeFile(ctx context.Context, sessionID, mes
 	result := MultimodalAnalysisResult{
 		FilePath:     filePath,
 		AnalysisType: params.AnalysisType,
-	}
-
-	// Request permission to read the file
-	p := m.permissions.Request(
-		permission.CreatePermissionRequest{
-			SessionID:   sessionID,
-			Path:        filePath,
-			ToolName:    MultimodalAnalyzerToolName,
-			Action:      fmt.Sprintf("Analyze %s file: %s", params.AnalysisType, filePath),
-			Description: fmt.Sprintf("Read and analyze %s file using Gemini AI: %s", params.AnalysisType, filePath),
-			Params:      params,
-		},
-	)
-
-	if !p {
-		result.Error = "Permission denied for file access"
-		return result
 	}
 
 	// Read file content
