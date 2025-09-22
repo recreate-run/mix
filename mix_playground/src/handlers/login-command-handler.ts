@@ -9,6 +9,7 @@ const API_KEY_FORMATS: Record<string, string> = {
   "anthropic": "sk-ant-...",
   "openai": "sk-...",
   "openrouter": "sk-...",
+  "gemini": "AI...",
   // Add more as needed
 };
 
@@ -17,6 +18,7 @@ const AUTH_METHODS: Record<string, ("api_key" | "oauth")[]> = {
   "anthropic": ["api_key", "oauth"],
   "openai": ["api_key"],
   "openrouter": ["api_key"],
+  "gemini": ["api_key"],
   // Add more as needed
 };
 

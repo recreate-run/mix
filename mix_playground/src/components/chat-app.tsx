@@ -150,8 +150,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           frontend_only: true,
         },
       ]);
-    } else if (!sessionMessages.isLoading) {
-      // Clear messages only if not loading (avoid flash of empty state)
+    } else if (!sessionMessages.isLoading && !sessionMessages.data) {
+      // Clear messages only if not loading AND we explicitly have no data (avoid flash of empty state)
       setMessages([]);
     }
   }, [sessionMessages.data, sessionMessages.error, sessionMessages.isLoading, sessionId]);
