@@ -18,8 +18,12 @@ function FloatingToggle() {
   if (state === 'expanded') return null;
   
   return (
-    <div className="fixed top-4 left-4 z-50">
-      <SidebarTrigger />
+    <div className="fixed top-0 left-0 h-full w-12 z-50">
+      <div className="h-full w-full bg-sidebar border-r border-sidebar-border shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center cursor-pointer group">
+        <div className="pt-4">
+          <SidebarTrigger className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+        </div>
+      </div>
     </div>
   );
 }
