@@ -3,7 +3,7 @@ import '@/styles/App.css';
 import { useEffect } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ChatApp } from '@/components/chat-app';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useActiveSession } from '@/hooks/useSession';
 
 export const Route = createFileRoute('/$sessionId')({
@@ -11,6 +11,18 @@ export const Route = createFileRoute('/$sessionId')({
 });
 
 const LAST_SESSION_KEY = "mix-last-session-id";
+
+function FloatingToggle() {
+  const { state } = useSidebar();
+  
+  if (state === 'expanded') return null;
+  
+  return (
+    <div className="fixed top-4 left-4 z-50">
+      <SidebarTrigger />
+    </div>
+  );
+}
 
 function SessionApp() {
   const { sessionId } = Route.useParams();
@@ -45,6 +57,7 @@ function SessionApp() {
     >
       <AppSidebar sessionId={sessionId} variant="inset" />
       <SidebarInset className="flex h-screen flex-col">
+        <FloatingToggle />
         {/* Always render ChatApp - it will handle loading states internally */}
         <ChatApp sessionId={sessionId} />
       </SidebarInset>
