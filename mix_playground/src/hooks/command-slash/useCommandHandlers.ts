@@ -124,13 +124,19 @@ export function useCommandHandlers({
   const handleModelSelectionSpecial = useCallback(async (providerId: string, modelId: string) => {
     try {
       const result = await handleModelSelectionInHierarchy(providerId, modelId);
+
+      // Check if we need to invalidate the preferences cache
+      if (result.shouldInvalidatePreferencesCache) {
+        onQueryClientInvalidate?.(['preferences']);
+      }
+
       onAddMessage?.(result);
       onClose();
     } catch (error) {
       console.error('Model selection failed:', error);
       onFeedbackMessage?.(`Error: Failed to select model`);
     }
-  }, [onAddMessage, onClose, onFeedbackMessage]);
+  }, [onAddMessage, onClose, onFeedbackMessage, onQueryClientInvalidate]);
 
 
   // Handle login provider selection
