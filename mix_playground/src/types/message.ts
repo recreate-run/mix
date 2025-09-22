@@ -43,18 +43,10 @@ export interface UIMessage {
   mediaOutputs?: MediaOutput[];
   reasoning?: string;
   reasoningDuration?: number;
-  login?: {
-    providers: ProviderInfo[];
-    selectedProvider?: string;
-    step: "provider_select" | "auth_method" | "api_key" | "oauth_flow" | "oauth_code";
-    authUrl?: string;
-    hasExistingPreferences?: boolean;
-    provider?: string; // Current provider for OAuth flow
-    state?: string; // OAuth state parameter
-  };
   loginData?: {
     providers: LoginProviderInfo[];
     hasExistingPreferences?: boolean;
+    oauthState?: string;
   };
   status?: {
     providers: ProviderInfo[];
@@ -74,12 +66,6 @@ export interface UIMessage {
       id: string;
       displayName: string;
     };
-  };
-  logout?: {
-    providers: ProviderInfo[];
-  };
-  logoutData?: {
-    providers: ProviderInfo[];
   };
   hierarchicalModel?: HierarchicalModelData;
   shouldInvalidatePreferencesCache?: boolean; // Signal to the UI to invalidate the preferences cache

@@ -124,12 +124,9 @@ import { GsapAnimationPreview } from './gsap/GsapAnimationPreview';
 import { LazyVideoPlayer } from './LazyVideoPlayer';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
-import { LoginUI } from './login-ui';
-import { LogoutUI } from './logout-ui';
 import { StatusUI } from './status-ui';
 import { ProviderDisplay } from './provider-display';
 import { ModelDisplay } from './model-display';
-import { ErrorBoundary } from './error-boundary';
 
 type StreamingState = {
   processing: boolean;
@@ -542,21 +539,7 @@ export function ConversationDisplay({
                     <AIMessageContent.Content>
                       {/* Render timeline-based interleaved thinking and tools */}
                       {message.timeline && renderTimelineEntries(message.timeline)}
-                      {message.login ? (
-                        <ErrorBoundary>
-                          <LoginUI 
-                            loginState={message.login}
-                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                          />
-                        </ErrorBoundary>
-                      ) : message.logout ? (
-                        <ErrorBoundary>
-                          <LogoutUI 
-                            logoutState={message.logout}
-                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                          />
-                        </ErrorBoundary>
-                      ) : message.status ? (
+                      {message.status ? (
                         <StatusUI 
                           statusState={message.status}
                         />

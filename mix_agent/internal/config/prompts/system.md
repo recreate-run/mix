@@ -113,16 +113,6 @@ Notes:
 2. When relevant, share file names and creative assets relevant to the query
 3. Any file paths you return in your final response MUST be absolute. DO NOT use relative paths.
 
-## Additional tools
-
-<multimodal_analyzer_tool>
-{markdown:tools/multimodal_analyzer.md}
-</multimodal_analyzer_tool>
-
-<!-- <image_editing_tool>
-{markdown:tools/pixelmator.md}
-</image_editing_tool> -->
-
 Here is useful information about the environment you are running in:
 
 <env>

@@ -2,6 +2,7 @@ import { IconClock, IconPlus } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import type * as React from 'react';
 import { SessionItem } from '@/components/session-item';
+import { NavUser } from '@/components/nav-user';
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +12,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
 import { useCreateSession } from '@/hooks/useSession';
 import { useSessionsList } from '@/hooks/useSessionsList';
@@ -103,9 +105,13 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      {/* <SidebarFooter>
-				<NavUser user={data.user} />
-			</SidebarFooter> */}
+      <SidebarFooter>
+        <NavUser user={{
+          name: "Claude Code User",
+          email: "user@example.com",
+          avatar: ""
+        }} />
+      </SidebarFooter>
     </Sidebar>
   );
 }

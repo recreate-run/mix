@@ -134,7 +134,7 @@ export async function handleStatusCommand(): Promise<UIMessage> {
 export async function handleProviderSelection(provider: string): Promise<UIMessage> {
   try {
     // Use the existing login command handler to initiate login for the selected provider
-    return await handleLoginCommand(provider);
+    return await handleLoginCommand();
   } catch (error) {
     return {
       content: `Failed to initiate login for ${provider}: ${error instanceof Error ? error.message : "Unknown error"}`,

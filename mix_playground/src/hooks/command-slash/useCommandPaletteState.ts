@@ -3,8 +3,6 @@ import type {
   ViewState,
   AuthMethod,
   HierarchicalModelData,
-  LoginData,
-  LogoutData,
   StatusData,
   HelpData,
 } from '@/types/command-slash';
@@ -21,8 +19,6 @@ export function useCommandPaletteState() {
 
   // Command data states
   const [hierarchicalModelData, setHierarchicalModelData] = useState<HierarchicalModelData | undefined>(undefined);
-  const [loginData, setLoginData] = useState<LoginData | undefined>(undefined);
-  const [logoutData, setLogoutData] = useState<LogoutData | undefined>(undefined);
   const [statusData, setStatusData] = useState<StatusData | undefined>(undefined);
   const [helpData, setHelpData] = useState<HelpData | undefined>(undefined);
 
@@ -32,9 +28,7 @@ export function useCommandPaletteState() {
   // Reset all command-related states
   const resetCommandStates = () => {
     setHierarchicalModelData(undefined);
-    setLogoutData(undefined);
     setStatusData(undefined);
-    setLoginData(undefined);
     setHelpData(undefined);
     setCurrentView('commands');
     setSelectedProvider(null);
@@ -50,14 +44,6 @@ export function useCommandPaletteState() {
 
   const goBack = () => {
     switch (currentView) {
-      case 'login-auth-input':
-        setSelectedAuthMethod(null);
-        setCurrentView('login-auth-methods');
-        break;
-      case 'login-auth-methods':
-        setSelectedProvider(null);
-        setCurrentView('login');
-        break;
       case 'hierarchical-models':
         setSelectedProvider(null);
         setCurrentView('hierarchical-model');
@@ -83,11 +69,6 @@ export function useCommandPaletteState() {
   const isShowingMCPTools = currentView === 'mcp-tools';
   const isShowingHierarchicalModel = currentView === 'hierarchical-model';
   const isShowingHierarchicalModels = currentView === 'hierarchical-models';
-  const isShowingLogin = currentView.startsWith('login');
-  const isShowingLoginProviders = currentView === 'login';
-  const isShowingLoginAuthMethods = currentView === 'login-auth-methods';
-  const isShowingLoginAuthInput = currentView === 'login-auth-input';
-  const isShowingLogout = currentView === 'logout';
   const isShowingStatus = currentView === 'status';
   const isShowingHelp = currentView === 'help';
   const isShowingCommands = currentView === 'commands';
@@ -101,8 +82,6 @@ export function useCommandPaletteState() {
     selectedMCPServer,
     selectedAuthMethod,
     hierarchicalModelData,
-    loginData,
-    logoutData,
     statusData,
     helpData,
     hierarchicalModelInitializedRef,
@@ -115,8 +94,6 @@ export function useCommandPaletteState() {
     setSelectedMCPServer,
     setSelectedAuthMethod,
     setHierarchicalModelData,
-    setLoginData,
-    setLogoutData,
     setStatusData,
     setHelpData,
 
@@ -133,11 +110,6 @@ export function useCommandPaletteState() {
     isShowingMCPTools,
     isShowingHierarchicalModel,
     isShowingHierarchicalModels,
-    isShowingLogin,
-    isShowingLoginProviders,
-    isShowingLoginAuthMethods,
-    isShowingLoginAuthInput,
-    isShowingLogout,
     isShowingStatus,
     isShowingHelp,
     isShowingCommands,

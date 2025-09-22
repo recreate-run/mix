@@ -7,13 +7,12 @@ import {
 } from '@/components/ui/command';
 import { useCommandPaletteState } from '@/hooks/command-slash/useCommandPaletteState';
 import { useCommandHandlers } from '@/hooks/command-slash/useCommandHandlers';
-import type { CommandSlashProps, AuthMethod } from '@/types/command-slash';
+import type { CommandSlashProps } from '@/types/command-slash';
 import { PermissionsView } from './command-slash/PermissionsView';
 import { SessionsView } from './command-slash/SessionsView';
 import { MCPServersView } from './command-slash/MCPServersView';
 import { MCPToolsView } from './command-slash/MCPToolsView';
 import { ProvidersView } from './command-slash/ProvidersView';
-import { AuthInputView } from './command-slash/AuthInputView';
 import { ModelSelectionView } from './command-slash/ModelSelectionView';
 import { HelpMenuView } from './command-slash/HelpMenuView';
 import { CommandsListView } from './command-slash/CommandsListView';
@@ -40,8 +39,6 @@ export function CommandSlash({
     onQueryClientInvalidate,
     onClose,
     setStatusData: state.setStatusData,
-    setLoginData: state.setLoginData,
-    setLogoutData: state.setLogoutData,
     setHierarchicalModelData: state.setHierarchicalModelData,
     setHelpData: state.setHelpData,
     goToView: state.goToView,
@@ -71,12 +68,6 @@ export function CommandSlash({
     switch (commandId) {
       case 'status':
         handlers.handleStatusCommandSpecial();
-        break;
-      case 'login':
-        handlers.handleLoginCommandSpecial();
-        break;
-      case 'logout':
-        handlers.handleLogoutCommandSpecial();
         break;
       case 'model':
         handlers.handleUnifiedModelCommandSpecial();
@@ -116,27 +107,8 @@ export function CommandSlash({
     }
   }, [state.hierarchicalModelData, state]);
 
-  useEffect(() => {
-    if (state.loginData) {
-      // Check if we're in OAuth flow
-      if (state.selectedProvider && state.loginData?.oauthState) {
-        state.setSelectedAuthMethod('oauth_code');
-        state.goToView('login-auth-input');
-      } else {
-        state.goToView('login');
-        state.setSelectedProvider(null);
-        state.setSelectedAuthMethod(null);
-      }
-    }
-  }, [state.loginData, state]);
 
-  useEffect(() => {
-    if (state.logoutData) {
-      state.goToView('logout');
-      state.setSelectedProvider(null);
-      state.setSelectedAuthMethod(null);
-    }
-  }, [state.logoutData, state]);
+
 
   useEffect(() => {
     if (state.statusData) {
@@ -154,33 +126,11 @@ export function CommandSlash({
     }
   }, [state.helpData, state]);
 
-  // Helper functions for auth flow
-  const handleAuthMethodSelect = (method: AuthMethod) => {
-    state.setSelectedAuthMethod(method);
-    if (method === 'api_key' || method === 'oauth' || method === 'oauth_code') {
-      state.goToView('login-auth-input');
-    }
-  };
-
   const handleProviderSelect = (providerId: string) => {
     state.setSelectedProvider(providerId);
-    if (state.currentView === 'login') {
-      const provider = state.loginData?.providers.find(p => p.id === providerId);
-      if (provider?.authMethods.length === 1) {
-        state.setSelectedAuthMethod(provider.authMethods[0] as AuthMethod);
-        state.goToView('login-auth-input');
-      } else {
-        state.goToView('login-auth-methods');
-      }
-    } else if (state.currentView === 'hierarchical-model') {
+    if (state.currentView === 'hierarchical-model') {
       state.goToView('hierarchical-models');
     }
-  };
-
-  const getSelectedLoginProvider = () => {
-    return state.selectedProvider
-      ? state.loginData?.providers.find(p => p.id === state.selectedProvider)
-      : undefined;
   };
 
 
@@ -197,16 +147,9 @@ export function CommandSlash({
     if (value === 'back-to-providers') {
       state.setSelectedProvider(null);
       state.setSelectedAuthMethod(null);
-      if (state.currentView === 'login-auth-methods') {
-        state.goToView('login');
-      } else if (state.currentView === 'hierarchical-models') {
+      if (state.currentView === 'hierarchical-models') {
         state.goToView('hierarchical-model');
       }
-      return;
-    }
-    if (value === 'back-to-auth-methods') {
-      state.setSelectedAuthMethod(null);
-      state.goToView('login-auth-methods');
       return;
     }
     if (value === 'back-to-mcp') {
@@ -239,13 +182,9 @@ export function CommandSlash({
 
   // Get placeholder text based on current view
   const getPlaceholder = () => {
-    if (state.isShowingLoginAuthInput && state.selectedAuthMethod) {
-      return 'Enter API key or OAuth code...';
-    }
-    if (state.isShowingLoginAuthMethods) return 'Search auth methods...';
     if (state.isShowingHierarchicalModels) return 'Search models...';
     if (state.isShowingMCPTools) return 'Search tools...';
-    if (state.isShowingHierarchicalModel || state.isShowingLogin || state.isShowingLogout || state.isShowingStatus) {
+    if (state.isShowingHierarchicalModel || state.isShowingStatus) {
       return 'Search providers...';
     }
     if (state.isShowingMCP) return 'Search MCP servers...';
@@ -334,49 +273,7 @@ export function CommandSlash({
               );
             }
 
-            if (state.isShowingLoginAuthInput && state.selectedProvider) {
-              const selectedProvider = getSelectedLoginProvider();
-              if (selectedProvider) {
-                return (
-                  <AuthInputView
-                    selectedProvider={selectedProvider}
-                    selectedAuthMethod={state.selectedAuthMethod}
-                    onBackToProviders={() => handleSelect('back-to-providers')}
-                    onBackToAuthMethods={() => handleSelect('back-to-auth-methods')}
-                    onAuthMethodSelect={handleAuthMethodSelect}
-                    onOAuthStart={async (providerId) =>
-                      await handlers.handleLoginProviderSelectionSpecial(providerId, 'oauth')
-                    }
-                    onApiKeySubmit={handlers.handleApiKeySubmitSpecial}
-                    onOAuthCodeSubmit={(providerId, code) =>
-                      handlers.handleOAuthCodeSubmitSpecial(providerId, code, state.loginData?.oauthState)
-                    }
-                  />
-                );
-              }
-            }
 
-            if (state.isShowingLogin && state.loginData) {
-              return (
-                <ProvidersView
-                  type="login"
-                  providers={state.loginData.providers}
-                  onBackToCommands={() => handleSelect('back-to-commands')}
-                  onProviderSelect={handleProviderSelect}
-                />
-              );
-            }
-
-            if (state.isShowingLogout && state.logoutData) {
-              return (
-                <ProvidersView
-                  type="logout"
-                  providers={state.logoutData.providers}
-                  onBackToCommands={() => handleSelect('back-to-commands')}
-                  onProviderSelect={handlers.handleLogoutProviderSelectionSpecial}
-                />
-              );
-            }
 
             if (state.isShowingHierarchicalModel && state.hierarchicalModelData) {
               return (
