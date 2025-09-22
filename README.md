@@ -52,7 +52,7 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 
 ```
 ├── mix_agent/          # Go backend service
-├── mix_mix_playground/  # Tauri desktop application
+├── mix_playground/  # Tauri desktop application
 ├── .gitignore          # Monorepo gitignore
 └── README.md           # This file
 ```

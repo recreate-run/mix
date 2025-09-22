@@ -1,652 +1,258 @@
 import { useNavigate } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import {
-  Accessibility,
-  ArrowLeft,
-  CheckCircle,
-  Clock,
-  Folder,
-  Mic,
-  Monitor,
-  Plug,
-  Settings,
-} from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import {
-  CommandEmpty,
-  CommandGroup,
   CommandInput,
-  CommandItem,
   CommandList,
   Command as CommandPrimitive,
 } from '@/components/ui/command';
-import { Switch } from '@/components/ui/switch';
-import { useMCPList } from '@/hooks/useMCPList';
-import {
-  useAccessibilityPermission,
-  useFullDiskAccessPermission,
-  useMicrophonePermission,
-  useScreenRecordingPermission,
-} from '@/hooks/usePermissions';
-import { useActiveSession } from '@/hooks/useSession';
-import { formatMessageCounts } from '@/types/common';
-import {
-  useSessionsList,
-} from '@/hooks/useSessionsList';
-import { slashCommands } from '@/utils/slash-commands';
-import { getDisplayTitle } from '@/utils/sessionUtils';
-import type { HierarchicalModelData } from '@/types';
+import { useCommandPaletteState } from '@/hooks/command-slash/useCommandPaletteState';
+import { useCommandHandlers } from '@/hooks/command-slash/useCommandHandlers';
+import type { CommandSlashProps, AuthMethod } from '@/types/command-slash';
+import { PermissionsView } from './command-slash/PermissionsView';
+import { SessionsView } from './command-slash/SessionsView';
+import { MCPServersView } from './command-slash/MCPServersView';
+import { MCPToolsView } from './command-slash/MCPToolsView';
+import { ProvidersView } from './command-slash/ProvidersView';
+import { AuthInputView } from './command-slash/AuthInputView';
+import { ModelSelectionView } from './command-slash/ModelSelectionView';
+import { HelpMenuView } from './command-slash/HelpMenuView';
+import { CommandsListView } from './command-slash/CommandsListView';
 
 
-interface CommandSlashProps {
-  onExecuteCommand: (command: string) => void;
-  onClose: () => void;
-  sessionId: string;
-  hierarchicalModelData?: HierarchicalModelData;
-  logoutData?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
-  };
-  statusData?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authenticated: boolean;
-      authMethod?: 'api_key' | 'oauth';
-      isPreferred?: boolean;
-    }[];
-  };
-  loginData?: {
-    providers: {
-      id: string;
-      displayName: string;
-      authMethods: ("api_key" | "oauth")[];
-      authenticated: boolean;
-      apiKeyFormat?: string;
-      isPreferred?: boolean;
-    }[];
-    hasExistingPreferences?: boolean;
-    oauthState?: string;
-  };
-  helpData?: {
-    menuItems: {
-      id: string;
-      name: string;
-      description: string;
-      action: string;
-      url?: string;
-    }[];
-  };
-  onProviderSelect?: (providerId: string) => void;
-  onModelSelect?: (providerId: string, modelId: string) => void;
-  onLogoutProviderSelect?: (providerId: string) => void;
-  onStatusProviderSelect?: (providerId: string) => void;
-  onLoginProviderSelect?: (providerId: string, authMethod: "api_key" | "oauth") => void;
-  onApiKeySubmit?: (providerId: string, apiKey: string) => Promise<void>;
-  onOAuthCodeSubmit?: (providerId: string, code: string) => Promise<void>;
-}
 
 export function CommandSlash({
-  onExecuteCommand,
   onClose,
   sessionId,
-  hierarchicalModelData,
-  logoutData,
-  statusData,
-  loginData,
-  helpData,
-  onProviderSelect,
-  onModelSelect,
-  onLogoutProviderSelect,
-  onStatusProviderSelect,
-  onLoginProviderSelect,
-  onApiKeySubmit,
-  onOAuthCodeSubmit,
+  onFeedbackMessage,
+  onNewSession,
+  onQueryClientInvalidate,
+  onSubmitMessage,
+  onAddMessage,
 }: CommandSlashProps) {
-  const [selectedValue, setSelectedValue] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showingPermissions, setShowingPermissions] = useState(false);
-  const [showingSessions, setShowingSessions] = useState(false);
-  const [showingMCP, setShowingMCP] = useState(false);
-  const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(
-    null
-  );
-  const [showingHierarchicalModel, setShowingHierarchicalModel] = useState(false);
-  const [showingLogout, setShowingLogout] = useState(false);
-  const [showingStatus, setShowingStatus] = useState(false);
-  const [showingLogin, setShowingLogin] = useState(false);
-  const [showingHelp, setShowingHelp] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [selectedAuthMethod, setSelectedAuthMethod] = useState<"api_key" | "oauth" | "oauth_code" | null>(null);
-  const [apiKey, setApiKey] = useState<string>('');
-  const [oauthCode, setOauthCode] = useState<string>('');
-  const [apiKeySubmitting, setApiKeySubmitting] = useState(false);
-  const [oauthCodeSubmitting, setOauthCodeSubmitting] = useState(false);
-  const commandRef = useRef<HTMLDivElement>(null);
-  const hierarchicalModelInitializedRef = useRef(false);
   const navigate = useNavigate();
 
-  // Reset selection when search query changes to prevent jumping
-  useEffect(() => {
-    setSelectedValue('');
-  }, [searchQuery]);
-  
-  
-  // Handle API key submission
-  const handleApiKeySubmit = async () => {
-    if (!selectedProvider || !apiKey || apiKeySubmitting) return;
-    
-    try {
-      setApiKeySubmitting(true);
-      
-      // Call the onApiKeySubmit handler provided by the parent component
-      if (onApiKeySubmit) {
-        await onApiKeySubmit(selectedProvider, apiKey);
-        
-        // Close the command palette after successful submission
-        onClose();
-      }
-    } catch (error) {
-      console.error('API key submission failed:', error);
-      // Keep the command palette open on error
-    } finally {
-      setApiKeySubmitting(false);
-    }
+  // Use custom hooks for state management
+  const state = useCommandPaletteState();
+
+  const handlers = useCommandHandlers({
+    onFeedbackMessage,
+    onAddMessage,
+    onQueryClientInvalidate,
+    onClose,
+    setStatusData: state.setStatusData,
+    setLoginData: state.setLoginData,
+    setLogoutData: state.setLogoutData,
+    setHierarchicalModelData: state.setHierarchicalModelData,
+    setHelpData: state.setHelpData,
+    goToView: state.goToView,
+  });
+
+  // Navigation helpers
+  const handleNavigateToSession = (sessionId: string) => {
+    navigate({
+      to: '/$sessionId',
+      params: { sessionId },
+      replace: true,
+    });
+    onClose();
   };
-  
-  // Handle OAuth code submission
-  const handleOAuthCodeSubmit = async () => {
-    if (!selectedProvider || !oauthCode || oauthCodeSubmitting) {
+
+  // Command execution handler
+  const handleCommandExecution = (commandId: string) => {
+    // Clear search when navigating to avoid confusing states
+    state.setSearchQuery('');
+
+    if (commandId === 'clear') {
+      onNewSession?.();
+      onClose();
       return;
     }
-    
-    try {
-      setOauthCodeSubmitting(true);
-      
-      if (onOAuthCodeSubmit) {
-        // Call the onOAuthCodeSubmit handler provided by the parent component
-        await onOAuthCodeSubmit(selectedProvider, oauthCode.trim());
-        
-        // Close the command palette after successful submission
+
+    switch (commandId) {
+      case 'status':
+        handlers.handleStatusCommandSpecial();
+        break;
+      case 'login':
+        handlers.handleLoginCommandSpecial();
+        break;
+      case 'logout':
+        handlers.handleLogoutCommandSpecial();
+        break;
+      case 'model':
+        handlers.handleUnifiedModelCommandSpecial();
+        break;
+      case 'help':
+        handlers.handleHelpCommandSpecial();
+        break;
+      case 'permissions':
+        state.goToView('permissions');
+        break;
+      case 'sessions':
+        state.goToView('sessions');
+        break;
+      case 'mcp':
+        state.goToView('mcp');
+        break;
+      default:
+        onSubmitMessage?.(`/${commandId}`);
         onClose();
-      } else {
-        // Simulate success for testing only
-        setTimeout(() => {
-          onClose();
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('OAuth code submission failed:', error);
-      // Keep the command palette open on error
-    } finally {
-      setOauthCodeSubmitting(false);
+        break;
     }
   };
 
-  // Show hierarchical model view when data is provided
+
+  // Handle view transitions based on data changes
   useEffect(() => {
-    if (hierarchicalModelData) {
-      setShowingHierarchicalModel(true);
-      setShowingPermissions(false);
-      setShowingSessions(false);
-      setShowingMCP(false);
-      setShowingLogout(false);
-      setShowingStatus(false);
-      setShowingLogin(false);
-      setSelectedMCPServer(null);
-      // Only reset selectedProvider on initial load, not on data updates
-      if (!hierarchicalModelInitializedRef.current) {
-        setSelectedProvider(null);
-        hierarchicalModelInitializedRef.current = true;
+    if (state.hierarchicalModelData) {
+      state.goToView('hierarchical-model');
+      // Only reset selectedProvider on initial load
+      if (!state.hierarchicalModelInitializedRef.current) {
+        state.setSelectedProvider(null);
+        state.hierarchicalModelInitializedRef.current = true;
       }
     } else {
-      // Reset when hierarchical data is cleared
-      hierarchicalModelInitializedRef.current = false;
-      setSelectedProvider(null);
+      state.hierarchicalModelInitializedRef.current = false;
+      state.setSelectedProvider(null);
     }
-  }, [hierarchicalModelData]);
-  
-  // Show logout view when data is provided
+  }, [state.hierarchicalModelData, state]);
+
   useEffect(() => {
-    if (logoutData) {
-      setShowingLogout(true);
-      setShowingHierarchicalModel(false);
-      setShowingStatus(false);
-      setShowingLogin(false);
-      setShowingPermissions(false);
-      setShowingSessions(false);
-      setShowingMCP(false);
-      setSelectedMCPServer(null);
-      setSelectedProvider(null);
-      setSelectedAuthMethod(null);
-    }
-  }, [logoutData, showingLogout]);
-  
-  // Show status view when data is provided
-  useEffect(() => {
-    if (statusData) {
-      setShowingStatus(true);
-      setShowingLogout(false);
-      setShowingLogin(false);
-      setShowingHierarchicalModel(false);
-      setShowingPermissions(false);
-      setShowingSessions(false);
-      setShowingMCP(false);
-      setSelectedMCPServer(null);
-      setSelectedProvider(null);
-      setSelectedAuthMethod(null);
-    }
-  }, [statusData, showingStatus]);
-  
-  // Show login view when data is provided
-  useEffect(() => {
-    if (loginData) {
-      setShowingLogin(true);
-      setShowingStatus(false);
-      setShowingLogout(false);
-      setShowingHierarchicalModel(false);
-      setShowingPermissions(false);
-      setShowingSessions(false);
-      setShowingMCP(false);
-      setSelectedMCPServer(null);
-      
-      // If we already have a provider selected from before and
-      // loginData.oauthState is available, it likely means we're in OAuth flow
-      if (selectedProvider && loginData?.oauthState) {
-        setSelectedAuthMethod("oauth_code");
+    if (state.loginData) {
+      // Check if we're in OAuth flow
+      if (state.selectedProvider && state.loginData?.oauthState) {
+        state.setSelectedAuthMethod('oauth_code');
+        state.goToView('login-auth-input');
       } else {
-        // Otherwise reset the selection
-        setSelectedProvider(null);
-        setSelectedAuthMethod(null);
+        state.goToView('login');
+        state.setSelectedProvider(null);
+        state.setSelectedAuthMethod(null);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loginData, showingLogin]);
+  }, [state.loginData, state]);
 
-  // Show help view when data is provided
   useEffect(() => {
-    if (helpData) {
-      setShowingHelp(true);
-      setShowingLogin(false);
-      setShowingStatus(false);
-      setShowingLogout(false);
-      setShowingHierarchicalModel(false);
-      setShowingPermissions(false);
-      setShowingSessions(false);
-      setShowingMCP(false);
-      setSelectedMCPServer(null);
-      setSelectedProvider(null);
-      setSelectedAuthMethod(null);
+    if (state.logoutData) {
+      state.goToView('logout');
+      state.setSelectedProvider(null);
+      state.setSelectedAuthMethod(null);
     }
-  }, [helpData, showingHelp]);
+  }, [state.logoutData, state]);
 
-  // Permission hooks - always initialized for simplicity
-  const accessibility = useAccessibilityPermission(showingPermissions);
-  const fullDiskAccess = useFullDiskAccessPermission(showingPermissions);
-  const screenRecording = useScreenRecordingPermission(showingPermissions);
-  const microphone = useMicrophonePermission(showingPermissions);
+  useEffect(() => {
+    if (state.statusData) {
+      state.goToView('status');
+      state.setSelectedProvider(null);
+      state.setSelectedAuthMethod(null);
+    }
+  }, [state.statusData, state]);
 
-  // Session hooks
-  const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
-  const activeSession = useActiveSession(sessionId);
+  useEffect(() => {
+    if (state.helpData) {
+      state.goToView('help');
+      state.setSelectedProvider(null);
+      state.setSelectedAuthMethod(null);
+    }
+  }, [state.helpData, state]);
 
-  // MCP hooks
-  const { data: mcpServers = [], isLoading: mcpLoading } = useMCPList();
+  // Helper functions for auth flow
+  const handleAuthMethodSelect = (method: AuthMethod) => {
+    state.setSelectedAuthMethod(method);
+    if (method === 'api_key' || method === 'oauth' || method === 'oauth_code') {
+      state.goToView('login-auth-input');
+    }
+  };
 
-  const permissions = [
-    {
-      id: 'accessibility',
-      label: 'Accessibility',
-      icon: Accessibility,
-      hook: accessibility,
-    },
-    {
-      id: 'fullDiskAccess',
-      label: 'Full Disk Access',
-      icon: Folder,
-      hook: fullDiskAccess,
-    },
-    {
-      id: 'screenRecording',
-      label: 'Screen Recording',
-      icon: Monitor,
-      hook: screenRecording,
-    },
-    {
-      id: 'microphone',
-      label: 'Microphone',
-      icon: Mic,
-      hook: microphone,
-    },
-  ];
+  const handleProviderSelect = (providerId: string) => {
+    state.setSelectedProvider(providerId);
+    if (state.currentView === 'login') {
+      const provider = state.loginData?.providers.find(p => p.id === providerId);
+      if (provider?.authMethods.length === 1) {
+        state.setSelectedAuthMethod(provider.authMethods[0] as AuthMethod);
+        state.goToView('login-auth-input');
+      } else {
+        state.goToView('login-auth-methods');
+      }
+    } else if (state.currentView === 'hierarchical-model') {
+      state.goToView('hierarchical-models');
+    }
+  };
 
-  // Filter commands based on search query
-  const filteredCommands = searchQuery.trim()
-    ? slashCommands.filter(
-        (command) =>
-          command.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          command.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : slashCommands;
-
-  // Filter permissions based on search query
-  const filteredPermissions = searchQuery.trim()
-    ? permissions.filter((permission) =>
-        permission.label.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : permissions;
-
-  // Sort sessions chronologically (most recent first) and filter by search
-  const sortedAndFilteredSessions = sessions
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-    .filter(
-      (session) =>
-        !searchQuery.trim() ||
-        session.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-  // Filter MCP servers based on search query
-  const filteredMCPServers = searchQuery.trim()
-    ? mcpServers.filter((server) =>
-        server.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : mcpServers;
-
-  // Get tools for selected MCP server
-  const selectedServerTools = selectedMCPServer
-    ? mcpServers.find((s) => s.name === selectedMCPServer)?.tools || []
-    : [];
-
-  // Filter tools based on search query
-  const filteredMCPTools = searchQuery.trim()
-    ? selectedServerTools.filter(
-        (tool) =>
-          tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          tool.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : selectedServerTools;
-
-  // Filter providers for hierarchical model selection
-  const filteredProviders = hierarchicalModelData?.providers.filter(
-    (provider) =>
-      !searchQuery.trim() ||
-      provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
-
-  // Get models for selected provider
-  const selectedProviderModels = selectedProvider
-    ? hierarchicalModelData?.providers.find((p) => p.id === selectedProvider)?.models || []
-    : [];
-
-  // Filter models based on search query
-  const filteredModels = searchQuery.trim()
-    ? selectedProviderModels.filter((model) =>
-        model.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : selectedProviderModels;
-    
-  // Filter providers for logout
-  const filteredLogoutProviders = logoutData?.providers.filter(
-    (provider) =>
-      !searchQuery.trim() ||
-      provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
-  
-  // Filter providers for status
-  const filteredStatusProviders = statusData?.providers.filter(
-    (provider) =>
-      !searchQuery.trim() ||
-      provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
-  
-  // Filter providers for login
-  const filteredLoginProviders = loginData?.providers.filter(
-    (provider) =>
-      !searchQuery.trim() ||
-      provider.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
-  
-  // Filter auth methods for selected provider in login view
-  const selectedLoginProvider = selectedProvider ? 
-    loginData?.providers.find((p) => p.id === selectedProvider) : 
-    undefined;
-  const filteredAuthMethods = selectedLoginProvider?.authMethods.filter(
-    (method) =>
-      !searchQuery.trim() ||
-      method.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const getSelectedLoginProvider = () => {
+    return state.selectedProvider
+      ? state.loginData?.providers.find(p => p.id === state.selectedProvider)
+      : undefined;
+  };
 
 
+  // Generic selection handler
   const handleSelect = (value: string) => {
-    setSearchQuery('');
-    setSelectedValue('');
+    state.setSearchQuery('');
+    state.setSelectedValue('');
 
+    // Navigation commands
     if (value === 'back-to-commands') {
-      // Override any existing data by calling parent's callback to reset data
-      // Note: this must happen BEFORE we reset our local view flags
-      if (onExecuteCommand) {
-        // This will reset loginData/statusData/logoutData in parent component
-        // by calling a dummy command that doesn't exist
-        onExecuteCommand('__reset__');
-      }
-      
-      // Reset selection states first
-      setSelectedMCPServer(null);
-      setSelectedProvider(null);
-      setSelectedAuthMethod(null);
-      
-      // Then reset all view flags
-      setShowingPermissions(false);
-      setShowingSessions(false);
-      setShowingMCP(false);
-      setShowingHierarchicalModel(false);
-      setShowingLogout(false);
-      setShowingStatus(false);
-      setShowingLogin(false);
-      setShowingHelp(false);
-      
+      state.resetToCommands();
       return;
     }
-
     if (value === 'back-to-providers') {
-      setSelectedProvider(null);
-      setSelectedAuthMethod(null);
+      state.setSelectedProvider(null);
+      state.setSelectedAuthMethod(null);
+      if (state.currentView === 'login-auth-methods') {
+        state.goToView('login');
+      } else if (state.currentView === 'hierarchical-models') {
+        state.goToView('hierarchical-model');
+      }
       return;
     }
-    
     if (value === 'back-to-auth-methods') {
-      setSelectedAuthMethod(null);
+      state.setSelectedAuthMethod(null);
+      state.goToView('login-auth-methods');
       return;
     }
-    
-    // Handle login provider and auth method selection
-    if (showingLogin) {
-      // If we have a provider selected but no auth method yet
-      if (selectedProvider && !selectedAuthMethod) {
-        // Check if the value is a valid auth method
-        if (value === 'api_key' || value === 'oauth') {
-          setSelectedAuthMethod(value);
-          
-          // If auth method is oauth, keep the command menu open and prepare for OAuth
-          // Don't call the handler immediately, let the user click the OAuth button
-          return;
-        }
-      } 
-      // If we already have both provider and auth method selected
-      else if (selectedProvider && selectedAuthMethod) {
-        // If clicked on the auth input item, call the handler
-        if (value === 'auth-input' && (selectedAuthMethod === 'api_key' || selectedAuthMethod === 'oauth')) {
-          onLoginProviderSelect?.(selectedProvider, selectedAuthMethod);
-          onClose();
-        }
-        return;
-      }
-      // If we don't have a provider selected yet
-      else {
-        const provider = loginData?.providers.find((p) => p.id === value);
-        if (provider) {
-          setSelectedProvider(provider.id);
-          
-          // If the provider only has one auth method, auto-select it
-          if (provider.authMethods.length === 1) {
-            setSelectedAuthMethod(provider.authMethods[0]);
-            onLoginProviderSelect?.(provider.id, provider.authMethods[0]);
-            return;
-          }
-          return;
-        }
-      }
-    }
-
-    // Handle logout provider selection
-    if (showingLogout) {
-      const provider = logoutData?.providers.find((p) => p.id === value);
-      if (provider) {
-        onLogoutProviderSelect?.(provider.id);
-        return;
-      }
-    }
-    
-    // Handle status provider selection
-    if (showingStatus) {
-      const provider = statusData?.providers.find((p) => p.id === value);
-      if (provider) {
-        onStatusProviderSelect?.(provider.id);
-        return;
-      }
-    }
-
-    if (value === 'permissions') {
-      setShowingPermissions(true);
-      setShowingSessions(false);
-      setShowingMCP(false);
-      setShowingHierarchicalModel(false);
-      setSelectedMCPServer(null);
-      setSelectedProvider(null);
-
+    if (value === 'back-to-mcp') {
+      state.setSelectedMCPServer(null);
+      state.goToView('mcp');
       return;
     }
 
-    if (value === 'sessions') {
-      setShowingSessions(true);
-      setShowingPermissions(false);
-      setShowingMCP(false);
-      setShowingHierarchicalModel(false);
-      setSelectedMCPServer(null);
-      setSelectedProvider(null);
-
-      return;
-    }
-
-    if (value === 'mcp') {
-      setShowingMCP(true);
-      setShowingPermissions(false);
-      setShowingSessions(false);
-      setShowingHierarchicalModel(false);
-      setSelectedMCPServer(null);
-      setSelectedProvider(null);
-
-      return;
-    }
-
-    // Handle session selection - direct navigation (stateless design)
-    const session = sessions.find((s) => s.id === value);
-    if (session) {
-      // Navigate directly to the selected session
-      navigate({
-        to: '/$sessionId',
-        params: { sessionId: session.id },
-        replace: true,
-      });
-      onClose(); // Close the command palette
-
-      return;
-    }
-
-    // Handle MCP server selection
-    const mcpServer = mcpServers.find((s) => s.name === value);
-    if (mcpServer) {
-      setSelectedMCPServer(mcpServer.name);
-
-      return;
-    }
-
-    // Handle hierarchical provider selection
-    if (showingHierarchicalModel && !selectedProvider) {
-      const provider = hierarchicalModelData?.providers.find((p) => p.id === value);
-      if (provider) {
-        if (!provider.authenticated) {
-          // Don't allow selection of unauthenticated providers
-          return;
-        }
-        setSelectedProvider(provider.id);
-        onProviderSelect?.(provider.id);
-        return;
-      }
-    }
-
-    // Handle hierarchical model selection
-    if (showingHierarchicalModel && selectedProvider) {
-      const provider = hierarchicalModelData?.providers.find((p) => p.id === selectedProvider);
-      const model = provider?.models.find((m) => m.id === value);
-      if (model) {
-        onModelSelect?.(selectedProvider, model.id);
-        onClose(); // Close the command palette after model selection
-        return;
-      }
-    }
-
-    // Handle permission toggles
-    const permission = permissions.find((p) => p.id === value);
-    if (permission && !permission.hook.isGranted) {
-      permission.hook.request();
-
-      return;
-    }
-
-    // Handle regular commands
-    const command = slashCommands.find((c) => c.id === value);
-    if (command) {
-      onExecuteCommand(command.name);
+    // This will be handled by individual view components
+    // But we keep this as a fallback for navigation between main views
+    if (['permissions', 'sessions', 'mcp'].includes(value)) {
+      handleCommandExecution(value);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (selectedAuthMethod && showingLogin) {
-        setSelectedAuthMethod(null);
-      } else if (selectedProvider) {
-        setSelectedProvider(null);
-      } else if (selectedMCPServer) {
-        setSelectedMCPServer(null);
-      } else if (showingLogin) {
-        setShowingLogin(false);
-      } else if (showingLogout) {
-        setShowingLogout(false);
-      } else if (showingStatus) {
-        setShowingStatus(false);
-      } else if (showingHierarchicalModel) {
-        setShowingHierarchicalModel(false);
-      } else if (showingMCP) {
-        setShowingMCP(false);
-      } else if (showingPermissions) {
-        setShowingPermissions(false);
-      } else if (showingSessions) {
-        setShowingSessions(false);
-      } else if (showingHelp) {
-        setShowingHelp(false);
+
+      // Use the state management hook's navigation helper
+      if (state.selectedAuthMethod || state.selectedProvider || state.selectedMCPServer) {
+        state.goBack();
+      } else if (state.currentView !== 'commands') {
+        state.resetToCommands();
       } else {
         onClose();
       }
     }
+  };
+
+  // Get placeholder text based on current view
+  const getPlaceholder = () => {
+    if (state.isShowingLoginAuthInput && state.selectedAuthMethod) {
+      return 'Enter API key or OAuth code...';
+    }
+    if (state.isShowingLoginAuthMethods) return 'Search auth methods...';
+    if (state.isShowingHierarchicalModels) return 'Search models...';
+    if (state.isShowingMCPTools) return 'Search tools...';
+    if (state.isShowingHierarchicalModel || state.isShowingLogin || state.isShowingLogout || state.isShowingStatus) {
+      return 'Search providers...';
+    }
+    if (state.isShowingMCP) return 'Search MCP servers...';
+    if (state.isShowingPermissions) return 'Search permissions...';
+    if (state.isShowingSessions) return 'Search sessions...';
+    if (state.isShowingHelp) return 'Search help topics...';
+    return 'Search commands...';
   };
 
   return (
@@ -654,822 +260,144 @@ export function CommandSlash({
       <CommandPrimitive
         className="max-h-64"
         onKeyDown={handleKeyDown}
-        onValueChange={setSelectedValue}
-        ref={commandRef}
-        value={selectedValue}
+        onValueChange={state.setSelectedValue}
+        value={state.selectedValue}
       >
         <CommandInput
           autoFocus
-          onValueChange={setSearchQuery}
-          placeholder={
-            selectedProvider && showingLogin && selectedAuthMethod
-              ? 'Enter API key or OAuth code...'
-              : selectedProvider && showingLogin
-                ? 'Search auth methods...'
-                : selectedProvider
-                  ? 'Search models...'
-                  : selectedMCPServer
-                    ? 'Search tools...'
-                    : showingHierarchicalModel
-                      ? 'Search providers...'
-                      : showingMCP
-                        ? 'Search MCP servers...'
-                        : showingPermissions
-                          ? 'Search permissions...'
-                          : showingSessions
-                            ? 'Search sessions...'
-                            : showingLogin
-                              ? 'Search providers...'
-                              : showingHelp
-                                ? 'Search help topics...'
-                                : 'Search commands...'
-          }
-          value={searchQuery}
+          onValueChange={state.setSearchQuery}
+          placeholder={getPlaceholder()}
+          value={state.searchQuery}
         />
 
         <CommandList>
-          {showingSessions ? (
-            // Sessions View
-            <>
-              {sessionsLoading ? (
-                <CommandEmpty>Loading sessions...</CommandEmpty>
-              ) : !sortedAndFilteredSessions.length && searchQuery ? (
-                <CommandEmpty>No sessions match your search</CommandEmpty>
-              ) : sortedAndFilteredSessions.length ? (
-                <CommandGroup
-                  heading={`Sessions (${sortedAndFilteredSessions.length})`}
-                >
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
+          {(() => {
+            // Render the appropriate view component based on current state
+            if (state.isShowingSessions) {
+              return (
+                <SessionsView
+                  sessionId={sessionId}
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                  onNavigateToSession={handleNavigateToSession}
+                />
+              );
+            }
 
-                  {/* Session Items */}
-                  {sortedAndFilteredSessions.map((session) => {
-                    const isActive = activeSession.data?.id === session.id;
-                    const createdDate = new Date(session.createdAt);
-                    const formatDate = (date: Date) => {
-                      const now = new Date();
-                      const diffDays = Math.floor(
-                        (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-                      );
+            if (state.isShowingPermissions) {
+              return (
+                <PermissionsView
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                />
+              );
+            }
 
-                      if (diffDays === 0) return 'Today';
-                      if (diffDays === 1) return 'Yesterday';
-                      if (diffDays < 7) return `${diffDays} days ago`;
-                      return date.toLocaleDateString();
-                    };
+            if (state.isShowingHelp && state.helpData) {
+              return (
+                <HelpMenuView
+                  helpData={state.helpData}
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                  onClose={onClose}
+                  onExecuteCommand={handleCommandExecution}
+                />
+              );
+            }
 
-                    return (
-                      <CommandItem
-                        className={isActive ? 'bg-accent' : ''}
-                        key={session.id}
-                        onSelect={() => handleSelect(session.id)}
-                        value={session.id}
-                      >
-                        <Clock className="size-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 font-medium text-sm">
-                            {getDisplayTitle(session)}
-                            {isActive && (
-                              <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
-                                current
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                            <span>{formatDate(createdDate)}</span>
-                            <span>•</span>
-                            <span>{formatMessageCounts(session)}</span>
-                          </div>
-                        </div>
-                        <div className="ml-2 font-mono text-muted-foreground text-xs">
-                          {session.id.slice(0, 8)}
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No sessions found</CommandEmpty>
-              )}
-            </>
-          ) : showingPermissions ? (
-            // Permissions View
-            <>
-              {!filteredPermissions.length && searchQuery ? (
-                <CommandEmpty>No permissions match your search</CommandEmpty>
-              ) : (
-                <CommandGroup heading="System Permissions">
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
+            if (state.isShowingMCPTools && state.selectedMCPServer) {
+              return (
+                <MCPToolsView
+                  selectedMCPServer={state.selectedMCPServer}
+                  onBackToServers={() => handleSelect('back-to-mcp')}
+                />
+              );
+            }
 
-                  {/* Permission Items */}
-                  {filteredPermissions.map((permission) => {
-                    const Icon = permission.icon;
-                    return (
-                      <CommandItem
-                        className="flex items-center justify-between"
-                        key={permission.id}
-                        onSelect={() => handleSelect(permission.id)}
-                        value={permission.id}
-                      >
-                        <div className="flex flex-1 items-center gap-3">
-                          <Icon className="size-4 text-muted-foreground" />
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">
-                              {permission.label}
-                            </div>
-                            <div className="text-muted-foreground text-xs">
-                              {permission.hook.isGranted
-                                ? 'Granted'
-                                : 'Not granted'}
-                            </div>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={permission.hook.isGranted}
-                          disabled={
-                            permission.hook.isLoading ||
-                            permission.hook.isRequesting
-                          }
-                          onCheckedChange={(checked) => {
-                            if (!checked) return; // Only allow requesting, not revoking
-                            if (!permission.hook.isGranted) {
-                              permission.hook.request();
-                            }
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              )}
-            </>
-          ) : showingHelp ? (
-            // Help Menu View
-            <>
-              {!helpData?.menuItems.length ? (
-                <CommandEmpty>No help items available</CommandEmpty>
-              ) : (
-                <CommandGroup heading="Help & Documentation">
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
+            if (state.isShowingMCP) {
+              return (
+                <MCPServersView
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                  onServerSelect={(serverName) => {
+                    state.setSelectedMCPServer(serverName);
+                    state.goToView('mcp-tools');
+                  }}
+                />
+              );
+            }
 
-                  {/* Help Menu Items */}
-                  {helpData?.menuItems.map((item) => (
-                    <CommandItem
-                      key={item.id}
-                      onSelect={async () => {
-                        if (item.action === 'link' && item.url) {
-                          // Open external link using Tauri shell with fallback
-                          try {
-                            const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
-                            await shellOpen(item.url);
-                          } catch (shellError) {
-                            console.warn('Tauri shell failed, falling back to window.open:', shellError);
-                            try {
-                              window.open(item.url, '_blank', 'noopener,noreferrer');
-                            } catch (windowError) {
-                              console.error('Both browser opening methods failed:', windowError);
-                            }
-                          }
-                          onClose();
-                        } else if (item.action === 'commands') {
-                          // Show available commands - trigger the original help command
-                          onExecuteCommand('help-commands');
-                          onClose();
-                        }
-                      }}
-                      value={item.id}
-                    >
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{item.name}</div>
-                        <div className="text-muted-foreground text-xs">
-                          {item.description}
-                        </div>
-                      </div>
-                      {item.action === 'link' && (
-                        <div className="text-xs text-muted-foreground">
-                          external
-                        </div>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </>
-          ) : selectedMCPServer ? (
-            // MCP Tools View
-            <>
-              {!filteredMCPTools.length && searchQuery ? (
-                <CommandEmpty>No tools match your search</CommandEmpty>
-              ) : filteredMCPTools.length ? (
-                <CommandGroup
-                  heading={`${selectedMCPServer} Tools (${filteredMCPTools.length})`}
-                >
-                  {/* Back to MCP Servers */}
-                  <CommandItem
-                    onSelect={() => setSelectedMCPServer(null)}
-                    value="back-to-mcp"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to MCP Servers
-                      </div>
-                    </div>
-                  </CommandItem>
+            if (state.isShowingStatus && state.statusData) {
+              return (
+                <ProvidersView
+                  type="status"
+                  providers={state.statusData.providers}
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                  onProviderSelect={handlers.handleProviderSelectionSpecial}
+                />
+              );
+            }
 
-                  {/* Tool Items */}
-                  {filteredMCPTools.map((tool) => {
-                    const serverInfo = mcpServers.find(
-                      (s) => s.name === selectedMCPServer
-                    );
-                    return (
-                      <CommandItem
-                        className="cursor-default"
-                        key={tool.name}
-                        value={tool.name}
-                      >
-                        <Settings className="size-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{tool.name}</div>
-                          <div className="text-muted-foreground text-xs">
-                            {tool.description}
-                          </div>
-                        </div>
-                        <div
-                          className={`rounded-full px-2 py-0.5 text-xs ${serverInfo?.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}
-                        >
-                          {serverInfo?.connected ? 'connected' : 'disconnected'}
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No tools found</CommandEmpty>
-              )}
-            </>
-          ) : showingMCP ? (
-            // MCP Servers View
-            <>
-              {mcpLoading ? (
-                <CommandEmpty>Loading MCP servers...</CommandEmpty>
-              ) : !filteredMCPServers.length && searchQuery ? (
-                <CommandEmpty>No servers match your search</CommandEmpty>
-              ) : filteredMCPServers.length ? (
-                <CommandGroup
-                  heading={`MCP Servers (${filteredMCPServers.length})`}
-                >
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
+            if (state.isShowingLoginAuthInput && state.selectedProvider) {
+              const selectedProvider = getSelectedLoginProvider();
+              if (selectedProvider) {
+                return (
+                  <AuthInputView
+                    selectedProvider={selectedProvider}
+                    selectedAuthMethod={state.selectedAuthMethod}
+                    onBackToProviders={() => handleSelect('back-to-providers')}
+                    onBackToAuthMethods={() => handleSelect('back-to-auth-methods')}
+                    onAuthMethodSelect={handleAuthMethodSelect}
+                    onOAuthStart={async (providerId) =>
+                      await handlers.handleLoginProviderSelectionSpecial(providerId, 'oauth')
+                    }
+                    onApiKeySubmit={handlers.handleApiKeySubmitSpecial}
+                    onOAuthCodeSubmit={(providerId, code) =>
+                      handlers.handleOAuthCodeSubmitSpecial(providerId, code, state.loginData?.oauthState)
+                    }
+                  />
+                );
+              }
+            }
 
-                  {/* MCP Server Items */}
-                  {filteredMCPServers.map((server) => (
-                    <CommandItem
-                      key={server.name}
-                      onSelect={() => handleSelect(server.name)}
-                      value={server.name}
-                    >
-                      <Plug className="size-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 font-medium text-sm">
-                          {server.name}
-                          <div
-                            className={`rounded-full px-2 py-0.5 text-xs ${server.connected ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400'}`}
-                          >
-                            {server.status}
-                          </div>
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {server.tools?.length || 0} tools available
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No MCP servers found</CommandEmpty>
-              )}
-            </>
-          ) : showingStatus ? (
-            // Status Provider Selection View
-            <>
-              {!filteredStatusProviders.length && searchQuery ? (
-                <CommandEmpty>No providers match your search</CommandEmpty>
-              ) : filteredStatusProviders.length ? (
-                <CommandGroup
-                  heading={`Providers (${filteredStatusProviders.length})`}
-                >
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
+            if (state.isShowingLogin && state.loginData) {
+              return (
+                <ProvidersView
+                  type="login"
+                  providers={state.loginData.providers}
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                  onProviderSelect={handleProviderSelect}
+                />
+              );
+            }
 
-                  {/* Provider Items */}
-                  {filteredStatusProviders.map((provider) => (
-                    <CommandItem
-                      key={provider.id}
-                      onSelect={() => handleSelect(provider.id)}
-                      value={provider.id}
-                      className={!provider.authenticated ? 'opacity-50' : ''}
-                    >
-                      <Settings className="size-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 font-medium text-sm">
-                          {provider.displayName}
-                          {provider.authenticated && (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          )}
-                          {provider.isPreferred && (
-                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
-                              preferred
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {provider.authenticated
-                            ? `Authenticated`
-                            : 'Not authenticated - select to authenticate'
-                          }
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No providers found</CommandEmpty>
-              )}
-            </>
-          ) : showingLogin && selectedProvider && selectedAuthMethod ? (
-            // Login Auth Method Detail View (API Key input or OAuth code input)
-            <>
-              <CommandGroup heading={`Enter ${selectedAuthMethod === 'api_key' ? 'API Key' : 'OAuth Code'}`}>
-                {/* Back to Auth Methods */}
-                <CommandItem
-                  onSelect={() => handleSelect('back-to-auth-methods')}
-                  value="back-to-auth-methods"
-                >
-                  <ArrowLeft className="size-4 text-muted-foreground" />
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">
-                      Back to Auth Methods
-                    </div>
-                  </div>
-                </CommandItem>
-                
-                {/* Content based on auth method */}
-                <div>
-                  {selectedAuthMethod === 'api_key' && (
-                    // API Key input field
-                    <div className="p-2 border-b">
-                      <div className="font-medium text-sm mb-1">
-                        Enter API Key for {selectedLoginProvider?.displayName}:
-                      </div>
-                      <div className="text-muted-foreground text-xs mb-2">
-                        Format: {selectedLoginProvider?.apiKeyFormat || "API key"}
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="password"
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder={selectedLoginProvider?.apiKeyFormat || "Enter API key"}
-                          disabled={apiKeySubmitting}
-                          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && selectedProvider && apiKey) {
-                              e.preventDefault();
-                              handleApiKeySubmit();
-                            }
-                          }}
-                        />
-                        <button
-                          onClick={handleApiKeySubmit}
-                          disabled={!apiKey || apiKeySubmitting}
-                          className={`rounded-md px-3 py-2 text-sm font-medium ${!apiKey || apiKeySubmitting ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground'}`}
-                        >
-                          {apiKeySubmitting ? 'Submitting...' : 'Submit'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {selectedAuthMethod === "oauth_code" && (
-                    // OAuth code input field
-                    <div className="p-3 border-b">
-                      <div className="font-medium text-sm mb-1">
-                        Enter OAuth code for {selectedLoginProvider?.displayName}:
-                      </div>
-                      <div className="text-muted-foreground text-xs mb-2">
-                        After authorizing in your browser, paste the code here
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={oauthCode}
-                          onChange={(e) => setOauthCode(e.target.value)}
-                          placeholder="Authorization code"
-                          disabled={oauthCodeSubmitting}
-                          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && selectedProvider && oauthCode) {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleOAuthCodeSubmit();
-                            }
-                          }}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleOAuthCodeSubmit();
-                          }}
-                          disabled={!oauthCode || oauthCodeSubmitting}
-                          className={`rounded-md px-3 py-2 text-sm font-medium ${!oauthCode || oauthCodeSubmitting ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground'}`}
-                        >
-                          {oauthCodeSubmitting ? 'Submitting...' : 'Submit'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {selectedAuthMethod === "oauth" && (
-                    // OAuth flow button
-                    <div className="p-3 border-b">
-                      <div className="font-medium text-sm mb-1">
-                        Start OAuth flow for {selectedLoginProvider?.displayName}:
-                      </div>
-                      <div className="text-muted-foreground text-xs mb-2">
-                        You'll be redirected to authorize in your browser
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          // When clicked, call the onLoginProviderSelect handler directly
-                          // Stop event propagation to prevent the CMDK item from capturing it
-                          e.stopPropagation();
-                          e.preventDefault();
-                          
-                          if (selectedProvider && selectedAuthMethod === 'oauth' && onLoginProviderSelect) {
-                            // Start OAuth flow without closing the command palette
-                            onLoginProviderSelect(selectedProvider, 'oauth');
-                            
-                            // After starting OAuth flow, immediately switch to code input mode
-                            setTimeout(() => {
-                              setSelectedAuthMethod("oauth_code");
-                            }, 500);
-                          }
-                        }}
-                        className="w-full rounded-md px-3 py-2 text-sm font-medium bg-primary text-primary-foreground"
-                      >
-                        Start OAuth Authorization
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </CommandGroup>
-            </>
-          ) : showingLogin && selectedProvider ? (
-            // Login Auth Method Selection View
-            <>
-              {!filteredAuthMethods.length && searchQuery ? (
-                <CommandEmpty>No auth methods match your search</CommandEmpty>
-              ) : filteredAuthMethods.length ? (
-                <CommandGroup
-                  heading={`Authentication Methods for ${selectedLoginProvider?.displayName}`}
-                >
-                  {/* Back to Providers */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-providers')}
-                    value="back-to-providers"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Providers
-                      </div>
-                    </div>
-                  </CommandItem>
+            if (state.isShowingLogout && state.logoutData) {
+              return (
+                <ProvidersView
+                  type="logout"
+                  providers={state.logoutData.providers}
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                  onProviderSelect={handlers.handleLogoutProviderSelectionSpecial}
+                />
+              );
+            }
 
-                  {/* Auth Method Items */}
-                  {filteredAuthMethods.map((method) => (
-                    <CommandItem
-                      key={method}
-                      onSelect={() => handleSelect(method)}
-                      value={method}
-                    >
-                      <Settings className="size-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">
-                          {method === 'api_key' ? 'API Key' : 'OAuth'}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {method === 'api_key' 
-                            ? 'Enter your API key directly' 
-                            : 'Connect through web authorization'}
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No auth methods available</CommandEmpty>
-              )}
-            </>
-          ) : showingLogin ? (
-            // Login Provider Selection View
-            <>
-              {!filteredLoginProviders.length && searchQuery ? (
-                <CommandEmpty>No providers match your search</CommandEmpty>
-              ) : filteredLoginProviders.length ? (
-                <CommandGroup
-                  heading={`Providers (${filteredLoginProviders.length})`}
-                >
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
+            if (state.isShowingHierarchicalModel && state.hierarchicalModelData) {
+              return (
+                <ModelSelectionView
+                  hierarchicalModelData={state.hierarchicalModelData}
+                  selectedProvider={state.selectedProvider}
+                  onBackToCommands={() => handleSelect('back-to-commands')}
+                  onBackToProviders={() => handleSelect('back-to-providers')}
+                  onProviderSelect={handleProviderSelect}
+                  onModelSelect={handlers.handleModelSelectionSpecial}
+                />
+              );
+            }
 
-                  {/* Provider Items */}
-                  {filteredLoginProviders.map((provider) => (
-                    <CommandItem
-                      key={provider.id}
-                      onSelect={() => handleSelect(provider.id)}
-                      value={provider.id}
-                    >
-                      <Settings className="size-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 font-medium text-sm">
-                          {provider.displayName}
-                          {provider.authenticated && (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          )}
-                          {provider.isPreferred && (
-                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
-                              preferred
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {provider.authenticated 
-                            ? `Authenticated` 
-                            : `Supports: ${provider.authMethods.map(m => m === 'api_key' ? 'API Key' : 'OAuth').join(', ')}`}
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No providers found</CommandEmpty>
-              )}
-            </>
-          ) : showingLogout ? (
-            // Logout Provider Selection View
-            <>
-              {!filteredLogoutProviders.length && searchQuery ? (
-                <CommandEmpty>No providers match your search</CommandEmpty>
-              ) : filteredLogoutProviders.length ? (
-                <CommandGroup
-                  heading={`Providers (${filteredLogoutProviders.length})`}
-                >
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
-
-                  {/* Provider Items */}
-                  {filteredLogoutProviders.map((provider) => (
-                    <CommandItem
-                      key={provider.id}
-                      onSelect={() => handleSelect(provider.id)}
-                      value={provider.id}
-                    >
-                      <Settings className="size-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 font-medium text-sm">
-                          {provider.displayName}
-                          {provider.isPreferred && (
-                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
-                              preferred
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {provider.authenticated && `Authenticated`}
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No authenticated providers found</CommandEmpty>
-              )}
-            </>
-          ) : selectedProvider ? (
-            // Hierarchical Model Selection - Models View
-            <>
-              {!filteredModels.length && searchQuery ? (
-                <CommandEmpty>No models match your search</CommandEmpty>
-              ) : filteredModels.length ? (
-                <CommandGroup
-                  heading={`${hierarchicalModelData?.providers.find(p => p.id === selectedProvider)?.displayName} Models (${filteredModels.length})`}
-                >
-                  {/* Back to Providers */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-providers')}
-                    value="back-to-providers"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Providers
-                      </div>
-                    </div>
-                  </CommandItem>
-
-                  {/* Model Items */}
-                  {filteredModels.map((model) => (
-                    <CommandItem
-                      key={model.id}
-                      onSelect={() => handleSelect(model.id)}
-                      value={model.id}
-                    >
-                      <Settings className="size-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 font-medium text-sm">
-                          {model.displayName}
-                          {model.isSelected && (
-                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
-                              current
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No models found</CommandEmpty>
-              )}
-            </>
-          ) : showingHierarchicalModel ? (
-            // Hierarchical Model Selection - Providers View
-            <>
-              {!filteredProviders.length && searchQuery ? (
-                <CommandEmpty>No providers match your search</CommandEmpty>
-              ) : filteredProviders.length ? (
-                <CommandGroup
-                  heading={`Providers (${filteredProviders.length})`}
-                >
-                  {/* Back to Commands */}
-                  <CommandItem
-                    onSelect={() => handleSelect('back-to-commands')}
-                    value="back-to-commands"
-                  >
-                    <ArrowLeft className="size-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">
-                        Back to Commands
-                      </div>
-                    </div>
-                  </CommandItem>
-
-                  {/* Provider Items */}
-                  {filteredProviders.map((provider) => (
-                    <CommandItem
-                      className={!provider.authenticated ? 'opacity-50 cursor-not-allowed' : ''}
-                      key={provider.id}
-                      onSelect={() => handleSelect(provider.id)}
-                      value={provider.id}
-                    >
-                      <Settings className="size-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 font-medium text-sm">
-                          {provider.displayName}
-                          {provider.isPreferred && (
-                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground text-xs">
-                              preferred
-                            </span>
-                          )}
-                          {!provider.authenticated && (
-                            <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-red-800 text-xs dark:bg-red-800/20 dark:text-red-400">
-                              not authenticated
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {provider.models.length} models available
-                          {provider.authenticated && ` • Authenticated`}
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>No providers found</CommandEmpty>
-              )}
-            </>
-          ) : (
-            // Commands View
-            <>
-              {filteredCommands.length ? (
-                <CommandGroup heading="Commands">
-                  {filteredCommands.map((command) => {
-                    const Icon = command.icon;
-                    return (
-                      <CommandItem
-                        key={command.id}
-                        onSelect={() => handleSelect(command.id)}
-                        value={command.id}
-                      >
-                        <Icon className="size-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">
-                            {command.name}
-                          </div>
-                          <div className="text-muted-foreground text-xs">
-                            {command.description}
-                          </div>
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              ) : (
-                <CommandEmpty>
-                  {searchQuery
-                    ? 'No commands match your search'
-                    : 'No commands found'}
-                </CommandEmpty>
-              )}
-            </>
-          )}
+            // Default: Commands view
+            return (
+              <CommandsListView
+                onCommandExecute={handleCommandExecution}
+              />
+            );
+          })()}
         </CommandList>
 
         {/* Bottom Toolbar */}
@@ -1487,15 +415,9 @@ export function CommandSlash({
                 esc
               </kbd>
               <span className="text-gray-500 dark:text-gray-400">
-                {selectedProvider ||
-                selectedMCPServer ||
-                showingHierarchicalModel ||
-                showingMCP ||
-                showingPermissions ||
-                showingSessions ||
-                showingLogout ||
-                showingStatus ||
-                showingHelp
+                {state.selectedProvider ||
+                state.selectedMCPServer ||
+                state.currentView !== 'commands'
                   ? 'back'
                   : 'close'}
               </span>

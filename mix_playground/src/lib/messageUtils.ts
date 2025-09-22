@@ -23,9 +23,19 @@ const extractContentData = (content: string): ParsedContent => {
       apps: parsed.apps || [],
     };
   } catch {
+    // Extract media URLs from plain text
+    const mediaUrlRegex = /https?:\/\/[^\s]+\/api\/sessions\/[^\s]+\/files\/[^\s]+/g;
+    const mediaUrls = content.match(mediaUrlRegex) || [];
+    
+    // Remove media URLs from text to get clean text
+    let cleanText = content;
+    mediaUrls.forEach(url => {
+      cleanText = cleanText.replace(url, '').trim();
+    });
+    
     return {
-      text: content,
-      media: [],
+      text: cleanText,
+      media: mediaUrls,
       apps: [],
     };
   }
@@ -50,16 +60,27 @@ const convertMediaToAttachments = async (
     try {
       let attachment: Attachment | null = null;
 
-      try {
-        const fileStat = await stat(mediaPath);
-        if (fileStat.isDirectory) {
-          attachment = await createFolderAttachment(mediaPath);
-        } else {
+      // Check if this is a server URL (from reloaded session) - can be full URL or relative path
+      if ((mediaPath.startsWith('http') || mediaPath.startsWith('/api/sessions/')) && mediaPath.includes('/api/sessions/') && mediaPath.includes('/files/')) {
+        // Extract filename from server URL
+        const urlParts = mediaPath.split('/');
+        const filename = decodeURIComponent(urlParts[urlParts.length - 1]);
+        
+        // Create attachment with just the filename as path
+        attachment = createFileAttachment(filename);
+      } else {
+        // Handle local file paths (during upload)
+        try {
+          const fileStat = await stat(mediaPath);
+          if (fileStat.isDirectory) {
+            attachment = await createFolderAttachment(mediaPath);
+          } else {
+            attachment = createFileAttachment(mediaPath);
+          }
+        } catch (statError) {
+          // If stat fails, try to create as file based on file extension
           attachment = createFileAttachment(mediaPath);
         }
-      } catch (statError) {
-        // If stat fails, try to create as file based on file extension
-        attachment = createFileAttachment(mediaPath);
       }
 
       if (attachment) {

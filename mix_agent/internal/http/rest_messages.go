@@ -2,10 +2,12 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"mix/internal/app"
 	"mix/internal/commands"
@@ -13,6 +15,7 @@ import (
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/message"
+	"mix/internal/session"
 )
 
 // ToolCallData represents tool call information for REST API
@@ -36,6 +39,50 @@ type MessageData struct {
 	ToolCalls         []ToolCallData `json:"toolCalls,omitempty"`
 	Reasoning         string         `json:"reasoning,omitempty"`
 	ReasoningDuration int64          `json:"reasoningDuration,omitempty"`
+}
+
+// ExportToolCall represents comprehensive tool call information for transcript export
+type ExportToolCall struct {
+	ID         string      `json:"id"`
+	Name       string      `json:"name"`
+	Input      string      `json:"input"`
+	InputJSON  interface{} `json:"inputJson,omitempty"` // Parsed JSON for structured tools
+	Type       string      `json:"type"`
+	Finished   bool        `json:"finished"`
+	Result     string      `json:"result,omitempty"`
+	Metadata   string      `json:"metadata,omitempty"`
+	IsError    bool        `json:"isError,omitempty"`
+}
+
+// ExportMessage represents comprehensive message information for transcript export
+type ExportMessage struct {
+	ID                    string              `json:"id"`
+	Role                  string              `json:"role"`
+	Content               string              `json:"content"`
+	ToolCalls             []ExportToolCall    `json:"toolCalls,omitempty"`
+	Reasoning             string              `json:"reasoning,omitempty"`
+	ReasoningDuration     int64               `json:"reasoningDuration,omitempty"`
+	ThinkingBlocks        []string            `json:"thinkingBlocks,omitempty"`
+	RedactedThinkingBlocks []string           `json:"redactedThinkingBlocks,omitempty"`
+	Model                 string              `json:"model,omitempty"`
+	FinishReason          string              `json:"finishReason,omitempty"`
+	CreatedAt             time.Time           `json:"createdAt"`
+	UpdatedAt             time.Time           `json:"updatedAt"`
+}
+
+// ExportSession represents comprehensive session information for transcript export
+type ExportSession struct {
+	ID                    string          `json:"id"`
+	Title                 string          `json:"title"`
+	UserMessageCount      int64           `json:"userMessageCount"`
+	AssistantMessageCount int64           `json:"assistantMessageCount"`
+	ToolCallCount         int64           `json:"toolCallCount"`
+	PromptTokens          int64           `json:"promptTokens"`
+	CompletionTokens      int64           `json:"completionTokens"`
+	Cost                  float64         `json:"cost"`
+	CreatedAt             time.Time       `json:"createdAt"`
+	UpdatedAt             time.Time       `json:"updatedAt"`
+	Messages              []ExportMessage `json:"messages"`
 }
 
 // MessageHandler handles REST endpoints for message operations
@@ -326,6 +373,51 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 	sendJSONResponse(w, http.StatusOK, result)
 }
 
+// HandleExportSession handles GET /api/sessions/{id}/export
+func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get session metadata
+	session, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Get all messages from the session
+	messages, err := h.app.Messages.List(ctx, sessionID)
+	if err != nil {
+		logging.Error("Failed to list session messages for export", "sessionID", sessionID, "error", err)
+		sendInternalError(w, "listing session messages", err)
+		return
+	}
+
+	// Convert to comprehensive export format
+	exportData := h.convertToExportSession(session, messages)
+
+	// Set content disposition header for file download
+	filename := fmt.Sprintf("session_%s_transcript.json", sessionID)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	sendJSONResponse(w, http.StatusOK, exportData)
+}
+
 // convertMessagesToData converts message objects to MessageData for REST response
 func (h *MessageHandler) convertMessagesToData(messages []message.Message) []MessageData {
 	result := []MessageData{}
@@ -405,4 +497,107 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 		result = append(result, messageData)
 	}
 	return result
+}
+
+// convertToExportSession converts session and messages to comprehensive export format
+func (h *MessageHandler) convertToExportSession(session session.Session, messages []message.Message) ExportSession {
+	exportMessages := make([]ExportMessage, 0, len(messages))
+
+	for _, msg := range messages {
+		exportMsg := ExportMessage{
+			ID:        msg.ID,
+			Role:      string(msg.Role),
+			Content:   msg.Content().Text,
+			Model:     string(msg.Model),
+			CreatedAt: time.Unix(msg.CreatedAt, 0),
+			UpdatedAt: time.Unix(msg.UpdatedAt, 0),
+		}
+
+		// Extract tool calls with comprehensive information
+		toolCalls := msg.ToolCalls()
+		toolResults := msg.ToolResults()
+
+		if len(toolCalls) > 0 {
+			exportToolCalls := make([]ExportToolCall, 0, len(toolCalls))
+
+			// Create a map of tool results by tool call ID for quick lookup
+			resultsByID := make(map[string]message.ToolResult)
+			for _, tr := range toolResults {
+				resultsByID[tr.ToolCallID] = tr
+			}
+
+			for _, tc := range toolCalls {
+				exportTC := ExportToolCall{
+					ID:       tc.ID,
+					Name:     tc.Name,
+					Input:    tc.Input,
+					Type:     tc.Type,
+					Finished: tc.Finished,
+				}
+
+				// Try to parse input as JSON for structured display
+				var inputJSON interface{}
+				if err := json.Unmarshal([]byte(tc.Input), &inputJSON); err == nil {
+					exportTC.InputJSON = inputJSON
+				}
+
+				// Add result if available
+				if toolResult, exists := resultsByID[tc.ID]; exists {
+					exportTC.Result = toolResult.Content
+					exportTC.Metadata = toolResult.Metadata
+					exportTC.IsError = toolResult.IsError
+				}
+
+				exportToolCalls = append(exportToolCalls, exportTC)
+			}
+
+			exportMsg.ToolCalls = exportToolCalls
+		}
+
+		// Extract reasoning content
+		reasoningContent := msg.ReasoningContent()
+		if reasoningContent.Thinking != "" {
+			exportMsg.Reasoning = reasoningContent.Thinking
+			exportMsg.ReasoningDuration = reasoningContent.Duration
+		}
+
+		// Extract thinking blocks
+		thinkingBlocks := msg.ThinkingBlocks()
+		if len(thinkingBlocks) > 0 {
+			exportMsg.ThinkingBlocks = make([]string, 0, len(thinkingBlocks))
+			for _, block := range thinkingBlocks {
+				exportMsg.ThinkingBlocks = append(exportMsg.ThinkingBlocks, block.Thinking)
+			}
+		}
+
+		// Extract redacted thinking blocks
+		redactedBlocks := msg.RedactedThinkingBlocks()
+		if len(redactedBlocks) > 0 {
+			exportMsg.RedactedThinkingBlocks = make([]string, 0, len(redactedBlocks))
+			for _, block := range redactedBlocks {
+				exportMsg.RedactedThinkingBlocks = append(exportMsg.RedactedThinkingBlocks, block.Data)
+			}
+		}
+
+		// Extract finish reason
+		if finishPart := msg.FinishPart(); finishPart != nil {
+			exportMsg.FinishReason = string(finishPart.Reason)
+		}
+
+		exportMessages = append(exportMessages, exportMsg)
+	}
+
+	return ExportSession{
+		ID:                    session.ID,
+		Title:                 session.Title,
+		UserMessageCount:      session.UserMessageCount,
+		AssistantMessageCount: session.AssistantMessageCount,
+		ToolCallCount:         session.ToolCallCount,
+		PromptTokens:          session.PromptTokens,
+		CompletionTokens:      session.CompletionTokens,
+		Cost:                  session.Cost,
+		CreatedAt:             time.Unix(session.CreatedAt, 0),
+		UpdatedAt:             time.Unix(session.UpdatedAt, 0),
+		Messages:              exportMessages,
+	}
 }

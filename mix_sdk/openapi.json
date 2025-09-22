@@ -41,11 +41,12 @@
                     "type": "string"
                   },
                   "provider": {
-                    "description": "Provider name (anthropic, openai, openrouter)",
+                    "description": "Provider name (anthropic, openai, openrouter, gemini)",
                     "enum": [
                       "anthropic",
                       "openai",
-                      "openrouter"
+                      "openrouter",
+                      "gemini"
                     ],
                     "type": "string"
                   }

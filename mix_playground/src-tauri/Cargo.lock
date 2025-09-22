@@ -2299,7 +2299,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mix_mix_playground"
+name = "mix_playground"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.7",

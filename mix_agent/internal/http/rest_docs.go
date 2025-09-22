@@ -501,8 +501,8 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"provider": map[string]interface{}{
 								"type":        "string",
-								"description": "Provider name (anthropic, openai, openrouter)",
-								"enum":        []string{"anthropic", "openai", "openrouter"},
+								"description": "Provider name (anthropic, openai, openrouter, gemini)",
+								"enum":        []string{"anthropic", "openai", "openrouter", "gemini"},
 							},
 							"api_key": map[string]interface{}{
 								"type":        "string",

@@ -703,10 +703,20 @@ export function ConversationDisplay({
                       </AIToolStep>
                     </AIToolLadder>
                   ))}
-                  {!sseStream.completed && !sseStream.cancelled && <ConversationLoader />}
+                  {sseStream.cancelled ? (
+                    <div className="mt-4 text-muted-foreground">
+                      Execution paused
+                    </div>
+                  ) : !sseStream.completed ? (
+                    <ConversationLoader />
+                  ) : null}
                 </>
+              ) : sseStream.cancelled ? (
+                <div className="text-muted-foreground">
+                  Execution paused
+                </div>
               ) : (
-                !sseStream.cancelled && <ConversationLoader />
+                <ConversationLoader />
               )}
             </AIMessageContent>
           </AIMessage>

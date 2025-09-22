@@ -7,13 +7,16 @@ This document describes the complete authentication system implemented for the M
 ## Architecture
 
 ### Database-First Approach
+
 - **Primary Storage**: Encrypted SQLite database
 - **Encryption**: AES-256-GCM for API key storage
 - **User Model**: Single-user system with `default_user` ID
 - **No Environment Dependencies**: Pure database approach, no fallback to environment variables
 
 ### Supported Providers
+
 The system is limited to 3 carefully selected AI providers:
+
 - **Anthropic**: Claude models with OAuth + API key support
 - **OpenAI**: GPT models with API key authentication
 - **OpenRouter**: Multi-model gateway with API key authentication
@@ -21,11 +24,13 @@ The system is limited to 3 carefully selected AI providers:
 ## Authentication Methods
 
 ### 1. API Key Authentication
+
 - **Storage**: Encrypted in database using AES-256-GCM encryption
 - **Validation**: Format validation per provider
 - **Lifecycle**: Full CRUD operations via REST API
 
 ### 2. OAuth Authentication (Anthropic Only)
+
 - **PKCE Flow**: Secure OAuth with PKCE challenge/response
 - **Token Management**: Automatic refresh and expiration handling
 - **State Validation**: CSRF protection with state parameter
@@ -33,6 +38,7 @@ The system is limited to 3 carefully selected AI providers:
 ## Database Schema
 
 ### API Credentials Table
+
 ```sql
 CREATE TABLE IF NOT EXISTS api_credentials (
     id TEXT PRIMARY KEY DEFAULT 'default_user',  -- Single user system
@@ -44,7 +50,8 @@ CREATE TABLE IF NOT EXISTS api_credentials (
 );
 ```
 
-### Key Features:
+### Key Features
+
 - **Encryption**: All API keys encrypted before storage
 - **Uniqueness**: One credential per provider per user
 - **Timestamps**: Track creation and update times
@@ -55,6 +62,7 @@ CREATE TABLE IF NOT EXISTS api_credentials (
 ### Authentication Management
 
 #### Store API Key
+
 ```http
 POST /api/auth/api-key
 Content-Type: application/json
@@ -66,10 +74,13 @@ Content-Type: application/json
 ```
 
 #### Get Authentication Status
+
 ```http
 GET /api/auth/status
 ```
+
 **Response:**
+
 ```json
 {
   "data": {
@@ -77,7 +88,7 @@ GET /api/auth/status
       "anthropic": {
         "authenticated": false,
         "auth_method": "none",
-        "display_name": "Anthropic (Claude)"
+        "display_name": "Anthropic"
       },
       "openai": {
         "authenticated": true,
@@ -95,10 +106,13 @@ GET /api/auth/status
 ```
 
 #### Validate Preferred Provider
+
 ```http
 GET /api/auth/validate
 ```
+
 **Response:**
+
 ```json
 {
   "data": {
@@ -111,15 +125,19 @@ GET /api/auth/validate
 ```
 
 #### Delete Credentials
+
 ```http
 DELETE /api/auth/{provider}
 ```
 
 #### Initiate OAuth Flow
+
 ```http
 POST /api/auth/oauth/anthropic
 ```
+
 **Response:**
+
 ```json
 {
   "data": {
@@ -133,12 +151,14 @@ POST /api/auth/oauth/anthropic
 ## User Preferences Integration
 
 ### Preferred Provider
+
 - **Selection**: Users can set their preferred AI provider
 - **Visual Indicator**: Preferred provider marked with ⭐ star in status
 - **Validation**: System validates authentication for preferred provider
 - **Database Storage**: Preferences stored in database, not config files
 
 ### Agent Configuration
+
 - **Model Selection**: Configurable main and sub-agent models
 - **Token Limits**: Per-agent token limit configuration
 - **Reasoning Effort**: OpenAI reasoning model parameters
@@ -147,18 +167,21 @@ POST /api/auth/oauth/anthropic
 ## Security Features
 
 ### Encryption
+
 - **Algorithm**: AES-256-GCM (Galois/Counter Mode)
 - **Key Management**: Dynamic encryption key generation per session
 - **Nonce**: Unique nonce per encryption operation
 - **Authentication**: Built-in authentication tag verification
 
 ### OAuth Security
+
 - **PKCE**: Proof Key for Code Exchange prevents authorization code interception
 - **State Parameter**: CSRF protection for OAuth flows
 - **Token Refresh**: Automatic handling of expired tokens
 - **Secure Storage**: OAuth tokens stored in encrypted credential files
 
 ### API Validation
+
 - **Provider Validation**: Rejects unsupported providers
 - **Format Validation**: Per-provider API key format checks
 - **CORS Protection**: Proper CORS headers for web requests
@@ -169,6 +192,7 @@ POST /api/auth/oauth/anthropic
 ### Core Services
 
 #### APICredentialsService
+
 ```go
 type APICredentialsService struct {
     queries       *db.Queries
@@ -177,6 +201,7 @@ type APICredentialsService struct {
 ```
 
 **Key Methods:**
+
 - `StoreAPIKey(ctx, provider, apiKey)` - Encrypt and store API key
 - `GetAPIKey(ctx, provider)` - Retrieve and decrypt API key  
 - `HasAPIKey(ctx, provider)` - Check if provider has stored key
@@ -184,6 +209,7 @@ type APICredentialsService struct {
 - `ValidateAPIKey(provider, apiKey)` - Validate API key format
 
 #### Provider Integration
+
 The provider system has been updated to use database credentials:
 
 ```go
@@ -203,6 +229,7 @@ if credentialsService != nil {
 ```
 
 ### Database Migration
+
 - **Version**: `20250911000000_add_api_credentials.sql`
 - **Auto-Timestamps**: Trigger for automatic `updated_at` management
 - **Indexing**: Optimized indexes for performance
@@ -211,6 +238,7 @@ if credentialsService != nil {
 ## Error Handling
 
 ### API Error Codes
+
 - `INVALID_PROVIDER` - Provider not supported (only anthropic, openai, openrouter allowed)
 - `INVALID_API_KEY_FORMAT` - API key doesn't match expected format for provider
 - `MISSING_PROVIDER` - Provider parameter required but not provided
@@ -224,11 +252,13 @@ if credentialsService != nil {
 ### Validation Rules
 
 #### Provider Validation
+
 - Only `anthropic`, `openai`, `openrouter` accepted
 - Case-sensitive string matching
 - Clear error messages with supported provider list
 
 #### API Key Format Validation
+
 - **Anthropic**: Must start with `sk-ant-` and be at least 40 characters
 - **OpenAI**: Must start with `sk-` and be at least 40 characters  
 - **OpenRouter**: Must be at least 40 characters
@@ -237,6 +267,7 @@ if credentialsService != nil {
 ## Frontend Integration
 
 ### TypeScript SDK
+
 All authentication endpoints are available through the existing TypeScript SDK:
 
 ```typescript
@@ -257,6 +288,7 @@ await mix.auth.deleteCredentials({ provider: "openai" });
 ```
 
 ### React Integration
+
 - **TanStack Query**: All API calls wrapped in React Query hooks
 - **Error Handling**: Structured error responses with user-friendly messages
 - **State Management**: Automatic caching and invalidation
@@ -265,6 +297,7 @@ await mix.auth.deleteCredentials({ provider: "openai" });
 ## Migration from Environment Variables
 
 ### Before (Environment Variable Approach)
+
 ```bash
 export OPENAI_API_KEY="sk-..."
 export ANTHROPIC_API_KEY="sk-ant-..."
@@ -272,12 +305,14 @@ export OPENROUTER_API_KEY="sk-..."
 ```
 
 ### After (Database Approach)
+
 ```bash
 # No environment variables needed
 # All credentials managed through web UI or API
 ```
 
 ### Migration Benefits
+
 1. **Security**: Encrypted storage vs. plain text environment variables
 2. **User Control**: Web UI management vs. terminal environment setup
 3. **Portability**: Database travels with application data
@@ -288,6 +323,7 @@ export OPENROUTER_API_KEY="sk-..."
 ## Development Workflow
 
 ### Adding New Provider Support
+
 1. Add provider to `supportedProviders` map in `rest_auth.go`
 2. Add validation rules to `ValidateAPIKey()` method
 3. Update provider list in authentication status endpoint
@@ -295,6 +331,7 @@ export OPENROUTER_API_KEY="sk-..."
 5. Update documentation
 
 ### Testing Authentication
+
 ```bash
 # Check status (should show all providers unauthenticated)
 curl -X GET "http://localhost:8088/api/auth/status"
@@ -314,18 +351,21 @@ curl -X DELETE "http://localhost:8088/api/auth/openai"
 ## Production Considerations
 
 ### Security
+
 - **Encryption Key Management**: Ensure proper key rotation in production
 - **Database Security**: SQLite file permissions and backup encryption
 - **HTTPS**: All authentication endpoints must use HTTPS in production
 - **Rate Limiting**: Consider rate limiting on authentication endpoints
 
 ### Monitoring
+
 - **Authentication Events**: Log all authentication successes/failures
 - **Credential Usage**: Monitor API key usage patterns
 - **Error Tracking**: Alert on repeated authentication failures
 - **Performance**: Monitor database query performance for credential operations
 
 ### Backup and Recovery
+
 - **Database Backups**: Regular encrypted backups of credential database
 - **Key Recovery**: Secure procedure for encryption key recovery
 - **Disaster Recovery**: Test restoration procedures regularly
@@ -333,6 +373,7 @@ curl -X DELETE "http://localhost:8088/api/auth/openai"
 ## Changelog
 
 ### v1.0.0 - Initial Implementation (2025-09-11)
+
 - ✅ Database-first authentication system
 - ✅ AES-256-GCM encrypted credential storage
 - ✅ Support for 3 providers: anthropic, openai, openrouter
@@ -346,6 +387,7 @@ curl -X DELETE "http://localhost:8088/api/auth/openai"
 - ✅ Security hardening with no environment variable fallbacks
 
 ### Previous Implementation
+
 - Database-first model preferences system
 - User preferences service with SQLite storage
 - Migration from .mix.json config files to database
@@ -355,6 +397,7 @@ curl -X DELETE "http://localhost:8088/api/auth/openai"
 ## Future Enhancements
 
 ### Planned Features
+
 - **Multi-User Support**: Extend single-user to multi-user system
 - **API Key Rotation**: Automatic API key rotation for supported providers
 - **Usage Analytics**: Track API usage per provider and model
@@ -363,6 +406,7 @@ curl -X DELETE "http://localhost:8088/api/auth/openai"
 - **SSO Integration**: Enterprise single sign-on support
 
 ### Provider Expansion
+
 - **Azure OpenAI**: Enterprise OpenAI integration
 - **Google Vertex AI**: Google Cloud AI platform
 - **AWS Bedrock**: Amazon's AI service platform
@@ -371,19 +415,23 @@ curl -X DELETE "http://localhost:8088/api/auth/openai"
 ## Support and Troubleshooting
 
 ### Common Issues
+
 1. **"Credentials service not available"**: Database service not initialized properly
 2. **"Invalid provider"**: Using unsupported provider (only anthropic/openai/openrouter allowed)
 3. **"Invalid API key format"**: API key doesn't match expected format for provider
 4. **OAuth failures**: Check network connectivity and Anthropic service status
 
 ### Debug Mode
+
 Enable debug logging to see credential management operations:
+
 ```bash
 export _DEV_DEBUG=true
 make dev
 ```
 
 ### Database Inspection
+
 ```bash
 # Check credential database directly
 sqlite3 .mix/mix.db "SELECT provider, created_at, updated_at FROM api_credentials;"

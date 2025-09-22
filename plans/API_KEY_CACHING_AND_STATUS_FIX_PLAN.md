@@ -224,11 +224,12 @@ func (acs *APICredentialsService) HasAPIKey(ctx context.Context, provider models
 
 The `/status` command likely exists in a command file that wasn't found in our search. To fix this:
 
-1. **Identify the Status Command**: 
+1. **Identify the Status Command**:
    - Search for the implementation of `/status` command within the codebase
    - This could be in a custom commands directory or another location
 
 2. **Update Status Command to Match REST Behavior**:
+
    ```go
    // status command handler
    func handleStatusCommand(ctx context.Context, args string) (string, error) {
@@ -305,7 +306,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
         displayName   string
         supportsOAuth bool
     }{
-        {"anthropic", models.ProviderAnthropic, "Anthropic (Claude)", true},
+        {"anthropic", models.ProviderAnthropic, "Anthropic", true},
         {"openai", models.ProviderOpenAI, "OpenAI (GPT)", false},
         {"openrouter", models.ProviderOpenRouter, "OpenRouter", false},
     }
