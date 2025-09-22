@@ -191,8 +191,7 @@ install_uv
 install_ripgrep
 install_ytdlp
 
-# Install tools
-echo -e "${BOLD}Installing tools...${NC}"
-uv tool install multimodal-analyzer
+# # Install tools
+# echo -e "${BOLD}Installing tools...${NC}"
 
 echo -e "✅ ${GREEN}System dependencies installed!${NC}"

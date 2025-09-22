@@ -1044,7 +1044,7 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 		"todo_write":           true,
 		"exit_plan_mode":       true,
 		"fetch":                true,
-		"multimodal_analyzer":  true,
+		"ReadMedia":            true,
 	}
 
 	return allowedTools[toolName]

@@ -8,7 +8,7 @@ Usage:
 files), but it's recommended to read the whole file by not providing these parameters
 - Any lines longer than 2000 characters will be truncated
 - Results are returned using cat -n format, with line numbers starting at 1
-- This tool can read only text files. Use the multimodal-analyzer tool if you want to read media files.
+- This tool can read only text files. Use the ReadMedia tool if you want to read media files.
 - You have the capability to call multiple tools in a single response. It is always
 better to speculatively read multiple files as a batch that are potentially useful.
 - If you read a file that exists but has empty contents you will receive a system

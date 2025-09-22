@@ -4,16 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
-	"mix/internal/config"
-	"mix/internal/llm/models"
 	"mix/internal/llm/tools/shell"
-	"mix/internal/logging"
 	"mix/internal/permission"
 )
 
@@ -150,25 +144,9 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		}
 	}
 
-	// Check for multimodal analyzer commands and handle them specially
-	if strings.Contains(params.Command, "multimodal-analyzer") {
-		// Check auth first
-		if authResponse := b.checkMultimodalAnalyzerAuth(); authResponse != nil {
-			return *authResponse, nil
-		}
-
-		// Convert any session URLs to local paths
-		params.Command = b.convertSessionURLsToLocalPaths(ctx, params.Command)
-	}
-
 	shell, err := shell.GetPersistentShell(sessionStorageDir)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to get shell for session: %w", err)
-	}
-
-	// For multimodal analyzer commands, ensure Gemini API key is available in environment
-	if strings.Contains(params.Command, "multimodal-analyzer") {
-		b.ensureGeminiAPIKeyInEnvironment(ctx, shell)
 	}
 
 	stdout, stderr, exitCode, interrupted, err := shell.Exec(ctx, params.Command, params.Timeout)
@@ -232,113 +210,5 @@ func countLines(s string) int {
 	return len(strings.Split(s, "\n"))
 }
 
-// checkMultimodalAnalyzerAuth checks if the multimodal analyzer can authenticate with Gemini API
-func (b *bashTool) checkMultimodalAnalyzerAuth() *ToolResponse {
-	logging.Info("Checking multimodal analyzer authentication")
 
-	// First check database for Gemini API key
-	credentialsService := config.GetAPICredentials()
-	if credentialsService != nil {
-		ctx := context.Background()
-		apiKey, err := credentialsService.GetAPIKey(ctx, models.ProviderGemini)
-		if err == nil && apiKey != "" {
-			logging.Info("Found Gemini API key in database for multimodal analyzer")
-			return nil // API key is available from database, proceed with execution
-		}
-	}
 
-	// Fallback: Check if GEMINI_API_KEY environment variable is set
-	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
-		logging.Info("Found Gemini API key in environment for multimodal analyzer")
-		return nil // API key is available from environment, proceed with execution
-	}
-
-	// Create helpful error message with instructions
-	errorMsg := `❌ Multimodal Analyzer Authentication Required
-
-The multimodal analyzer needs a Gemini API key to analyze media files.
-
-🔧 How to fix this:
-
-Option 1 - Set API key through the UI (Recommended):
-1. Get a Gemini API key from Google AI Studio:
-   https://makersuite.google.com/app/apikey
-
-2. Use the login command in the chat:
-   /login gemini
-
-3. Enter your Gemini API key when prompted
-
-Option 2 - Set environment variable:
-1. Set the environment variable:
-   export GEMINI_API_KEY="your_api_key_here"
-
-2. Or add it to your shell profile (~/.bashrc, ~/.zshrc):
-   echo 'export GEMINI_API_KEY="your_api_key_here"' >> ~/.bashrc
-
-3. Restart your terminal or run:
-   source ~/.bashrc
-
-Once the API key is set, you can use the multimodal analyzer to analyze images, audio, and video files.`
-
-	response := NewTextErrorResponse(errorMsg)
-	return &response
-}
-
-// ensureGeminiAPIKeyInEnvironment sets the GEMINI_API_KEY environment variable in the shell
-// if it's available in the database but not in the current environment
-func (b *bashTool) ensureGeminiAPIKeyInEnvironment(ctx context.Context, shell *shell.PersistentShell) {
-	// Check if GEMINI_API_KEY is already set in environment
-	if os.Getenv("GEMINI_API_KEY") != "" {
-		return // Already set, nothing to do
-	}
-
-	// Try to get API key from database
-	credentialsService := config.GetAPICredentials()
-	if credentialsService == nil {
-		return
-	}
-
-	apiKey, err := credentialsService.GetAPIKey(ctx, models.ProviderGemini)
-	if err != nil || apiKey == "" {
-		return // No key in database
-	}
-
-	// Set the environment variable in the shell
-	exportCmd := fmt.Sprintf("export GEMINI_API_KEY='%s'", apiKey)
-	_, _, _, _, execErr := shell.Exec(ctx, exportCmd, 5000) // 5 second timeout
-	if execErr != nil {
-		logging.Error("Failed to set GEMINI_API_KEY in shell environment", "error", execErr)
-	} else {
-		logging.Info("Set Gemini API key from database in shell environment for multimodal analyzer")
-	}
-}
-
-// convertSessionURLsToLocalPaths converts localhost session URLs to local storage paths
-func (b *bashTool) convertSessionURLsToLocalPaths(ctx context.Context, command string) string {
-	// Regex to match localhost session file URLs
-	// Pattern: http://localhost:8088/api/sessions/{sessionId}/files/{filename}
-	urlPattern := regexp.MustCompile(`http://localhost:8088/api/sessions/([^/]+)/files/([^"\s]+)`)
-
-	return urlPattern.ReplaceAllStringFunc(command, func(match string) string {
-		matches := urlPattern.FindStringSubmatch(match)
-		if len(matches) != 3 {
-			return match // Return original if parsing fails
-		}
-
-		filename := matches[2]
-
-		// Get session storage directory for this session
-		sessionStorageDir, err := GetSessionStorageDirectory(ctx)
-		if err != nil {
-			logging.Warn("Failed to get session storage directory for URL conversion", "error", err)
-			return match // Return original URL if can't get storage dir
-		}
-
-		// Construct local file path
-		localPath := filepath.Join(sessionStorageDir, filename)
-
-		logging.Info("Converted session URL to local path", "url", match, "localPath", localPath)
-		return localPath
-	})
-}

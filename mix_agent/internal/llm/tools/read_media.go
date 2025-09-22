@@ -18,7 +18,7 @@ import (
 	"mix/internal/message"
 )
 
-type MultimodalAnalyzerParams struct {
+type ReadMediaParams struct {
 	FilePath      string `json:"file_path,omitempty"`
 	DirectoryPath string `json:"directory_path,omitempty"`
 	AnalysisType  string `json:"analysis_type"`
@@ -29,39 +29,39 @@ type MultimodalAnalyzerParams struct {
 	VideoMode     string `json:"video_mode,omitempty"`
 }
 
-type multimodalAnalyzerTool struct{}
+type readMediaTool struct{}
 
-type MultimodalAnalysisResult struct {
+type ReadMediaResult struct {
 	FilePath     string `json:"file_path"`
 	AnalysisType string `json:"analysis_type"`
 	Analysis     string `json:"analysis"`
 	Error        string `json:"error,omitempty"`
 }
 
-type MultimodalAnalysisResponse struct {
-	Results []MultimodalAnalysisResult `json:"results"`
+type ReadMediaResponse struct {
+	Results []ReadMediaResult `json:"results"`
 	Summary string                     `json:"summary"`
 }
 
 const (
-	MultimodalAnalyzerToolName = "multimodal_analyzer"
-	DefaultWordCount           = 200
-	MaxWordCount               = 1000
-	MinWordCount               = 50
+	ReadMediaToolName = "ReadMedia"
+	DefaultWordCount  = 200
+	MaxWordCount      = 1000
+	MinWordCount      = 50
 )
 
 var supportedImageTypes = []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
 var supportedAudioTypes = []string{".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 var supportedVideoTypes = []string{".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv"}
 
-func NewMultimodalAnalyzerTool() BaseTool {
-	return &multimodalAnalyzerTool{}
+func NewReadMediaTool() BaseTool {
+	return &readMediaTool{}
 }
 
-func (m *multimodalAnalyzerTool) Info() ToolInfo {
+func (r *readMediaTool) Info() ToolInfo {
 	return ToolInfo{
-		Name:        MultimodalAnalyzerToolName,
-		Description: LoadToolDescription("multimodal_analyzer"),
+		Name:        ReadMediaToolName,
+		Description: LoadToolDescription("read_media"),
 		Parameters: map[string]any{
 			"file_path": map[string]any{
 				"type":        "string",
@@ -107,8 +107,8 @@ func (m *multimodalAnalyzerTool) Info() ToolInfo {
 	}
 }
 
-func (m *multimodalAnalyzerTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
-	var params MultimodalAnalyzerParams
+func (r *readMediaTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
+	var params ReadMediaParams
 	logging.Debug("multimodal analyzer tool params", "params", call.Input)
 
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
@@ -116,7 +116,7 @@ func (m *multimodalAnalyzerTool) Run(ctx context.Context, call ToolCall) (ToolRe
 	}
 
 	// Validate required parameters
-	if err := m.validateParams(params); err != nil {
+	if err := r.validateParams(params); err != nil {
 		return NewTextErrorResponse(err.Error()), nil
 	}
 
@@ -127,7 +127,7 @@ func (m *multimodalAnalyzerTool) Run(ctx context.Context, call ToolCall) (ToolRe
 	}
 
 	// Determine files to process
-	files, err := m.getFilesToProcess(params)
+	files, err := r.getFilesToProcess(params)
 	if err != nil {
 		return NewTextErrorResponse(fmt.Sprintf("error determining files to process: %s", err)), nil
 	}
@@ -137,15 +137,15 @@ func (m *multimodalAnalyzerTool) Run(ctx context.Context, call ToolCall) (ToolRe
 	}
 
 	// Process files
-	results, err := m.processFiles(ctx, sessionID, messageID, files, params)
+	results, err := r.processFiles(ctx, sessionID, messageID, files, params)
 	if err != nil {
 		return ToolResponse{}, err
 	}
 
 	// Create response
-	response := MultimodalAnalysisResponse{
+	response := ReadMediaResponse{
 		Results: results,
-		Summary: m.generateSummary(results),
+		Summary: r.generateSummary(results),
 	}
 
 	responseJSON, err := json.MarshalIndent(response, "", "  ")
@@ -156,7 +156,7 @@ func (m *multimodalAnalyzerTool) Run(ctx context.Context, call ToolCall) (ToolRe
 	return NewTextResponse(string(responseJSON)), nil
 }
 
-func (m *multimodalAnalyzerTool) validateParams(params MultimodalAnalyzerParams) error {
+func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 	// Validate mutually exclusive file/directory paths
 	if params.FilePath != "" && params.DirectoryPath != "" {
 		return fmt.Errorf("cannot specify both file_path and directory_path")
@@ -207,18 +207,18 @@ func (m *multimodalAnalyzerTool) validateParams(params MultimodalAnalyzerParams)
 	return nil
 }
 
-func (m *multimodalAnalyzerTool) getFilesToProcess(params MultimodalAnalyzerParams) ([]string, error) {
+func (r *readMediaTool) getFilesToProcess(params ReadMediaParams) ([]string, error) {
 	var files []string
 
 	if params.FilePath != "" {
 		// Single file
-		if m.isSupportedFile(params.FilePath, params.AnalysisType) {
+		if r.isSupportedFile(params.FilePath, params.AnalysisType) {
 			files = append(files, params.FilePath)
 		}
 	} else {
 		// Directory processing
 		var err error
-		files, err = m.findSupportedFiles(params.DirectoryPath, params.AnalysisType, params.Recursive)
+		files, err = r.findSupportedFiles(params.DirectoryPath, params.AnalysisType, params.Recursive)
 		if err != nil {
 			return nil, err
 		}
@@ -227,7 +227,7 @@ func (m *multimodalAnalyzerTool) getFilesToProcess(params MultimodalAnalyzerPara
 	return files, nil
 }
 
-func (m *multimodalAnalyzerTool) findSupportedFiles(dirPath string, analysisType string, recursive bool) ([]string, error) {
+func (r *readMediaTool) findSupportedFiles(dirPath string, analysisType string, recursive bool) ([]string, error) {
 	var files []string
 	var supportedExts []string
 
@@ -267,7 +267,7 @@ func (m *multimodalAnalyzerTool) findSupportedFiles(dirPath string, analysisType
 	return files, err
 }
 
-func (m *multimodalAnalyzerTool) isSupportedFile(filePath string, analysisType string) bool {
+func (r *readMediaTool) isSupportedFile(filePath string, analysisType string) bool {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	switch analysisType {
@@ -294,39 +294,39 @@ func (m *multimodalAnalyzerTool) isSupportedFile(filePath string, analysisType s
 	return false
 }
 
-func (m *multimodalAnalyzerTool) processFiles(ctx context.Context, sessionID, messageID string, files []string, params MultimodalAnalyzerParams) ([]MultimodalAnalysisResult, error) {
-	var results []MultimodalAnalysisResult
+func (r *readMediaTool) processFiles(ctx context.Context, sessionID, messageID string, files []string, params ReadMediaParams) ([]ReadMediaResult, error) {
+	var results []ReadMediaResult
 
 	for _, filePath := range files {
-		result := m.analyzeFile(ctx, sessionID, messageID, filePath, params)
+		result := r.analyzeFile(ctx, sessionID, messageID, filePath, params)
 		results = append(results, result)
 	}
 
 	return results, nil
 }
 
-func (m *multimodalAnalyzerTool) analyzeFile(ctx context.Context, sessionID, messageID, filePath string, params MultimodalAnalyzerParams) MultimodalAnalysisResult {
-	result := MultimodalAnalysisResult{
+func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, filePath string, params ReadMediaParams) ReadMediaResult {
+	result := ReadMediaResult{
 		FilePath:     filePath,
 		AnalysisType: params.AnalysisType,
 	}
 
 	// Read file content
-	fileData, mimeType, err := m.readFileContent(filePath)
+	fileData, mimeType, err := r.readFileContent(filePath)
 	if err != nil {
 		result.Error = fmt.Sprintf("Error reading file: %s", err)
 		return result
 	}
 
 	// Create Gemini provider
-	geminiProvider, err := m.createGeminiProvider()
+	geminiProvider, err := r.createGeminiProvider()
 	if err != nil {
 		result.Error = fmt.Sprintf("Error creating Gemini provider: %s", err)
 		return result
 	}
 
 	// Prepare analysis prompt
-	analysisPrompt := m.buildAnalysisPrompt(params)
+	analysisPrompt := r.buildAnalysisPrompt(params)
 
 	// Create message with binary content
 	userMessage := message.Message{
@@ -342,7 +342,7 @@ func (m *multimodalAnalyzerTool) analyzeFile(ctx context.Context, sessionID, mes
 	}
 
 	// Send to Gemini for analysis
-	analysis, err := m.sendToGemini(ctx, geminiProvider, userMessage)
+	analysis, err := r.sendToGemini(ctx, geminiProvider, userMessage)
 	if err != nil {
 		result.Error = fmt.Sprintf("Error during Gemini analysis: %s", err)
 		return result
@@ -352,7 +352,7 @@ func (m *multimodalAnalyzerTool) analyzeFile(ctx context.Context, sessionID, mes
 	return result
 }
 
-func (m *multimodalAnalyzerTool) readFileContent(filePath string) ([]byte, string, error) {
+func (r *readMediaTool) readFileContent(filePath string) ([]byte, string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to open file: %w", err)
@@ -384,7 +384,7 @@ func (m *multimodalAnalyzerTool) readFileContent(filePath string) ([]byte, strin
 	return data, mimeType, nil
 }
 
-func (m *multimodalAnalyzerTool) createGeminiProvider() (interfaces.Provider, error) {
+func (r *readMediaTool) createGeminiProvider() (interfaces.Provider, error) {
 	// Get API credentials
 	credentialsService := config.GetAPICredentials()
 	if credentialsService == nil {
@@ -415,7 +415,7 @@ func (m *multimodalAnalyzerTool) createGeminiProvider() (interfaces.Provider, er
 	return geminiProvider, nil
 }
 
-func (m *multimodalAnalyzerTool) buildAnalysisPrompt(params MultimodalAnalyzerParams) string {
+func (r *readMediaTool) buildAnalysisPrompt(params ReadMediaParams) string {
 	wordCount := params.WordCount
 	if wordCount == 0 {
 		wordCount = DefaultWordCount
@@ -438,7 +438,7 @@ func (m *multimodalAnalyzerTool) buildAnalysisPrompt(params MultimodalAnalyzerPa
 	return fmt.Sprintf("%s%s\n\nPlease provide approximately %d words in your response.", promptPrefix, params.Prompt, wordCount)
 }
 
-func (m *multimodalAnalyzerTool) sendToGemini(ctx context.Context, geminiProvider interfaces.Provider, userMessage message.Message) (string, error) {
+func (r *readMediaTool) sendToGemini(ctx context.Context, geminiProvider interfaces.Provider, userMessage message.Message) (string, error) {
 	messages := []message.Message{userMessage}
 
 	// Send message to Gemini
@@ -455,7 +455,7 @@ func (m *multimodalAnalyzerTool) sendToGemini(ctx context.Context, geminiProvide
 	return response.Content, nil
 }
 
-func (m *multimodalAnalyzerTool) generateSummary(results []MultimodalAnalysisResult) string {
+func (r *readMediaTool) generateSummary(results []ReadMediaResult) string {
 	if len(results) == 0 {
 		return "No files were analyzed."
 	}
