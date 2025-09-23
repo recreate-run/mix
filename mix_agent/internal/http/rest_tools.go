@@ -38,12 +38,26 @@ type ToolAuthStatus struct {
 	DisplayName   string `json:"display_name"`
 	Description   string `json:"description"`
 	APIKeyFormat  string `json:"api_key_format"`
-	RequiresKey   bool   `json:"requires_key"`
+	RequiresKey   bool   `json:"api_key_required"`
+	Provider      string `json:"provider,omitempty"`
 }
 
 // ToolsStatusResponse represents the authentication status for all tools
 type ToolsStatusResponse struct {
 	Categories map[string]ToolCategoryStatus `json:"categories"`
+}
+
+// ToolsStatusResponseArrayFormat converts ToolsStatusResponse to an SDK-compatible array format
+type ToolsStatusResponseArrayFormat struct {
+	Categories map[string]ToolCategoryStatusArrayFormat `json:"categories"`
+}
+
+// ToolCategoryStatusArrayFormat represents the status of tools in a category with tools as array
+type ToolCategoryStatusArrayFormat struct {
+	DisplayName string          `json:"display_name"`
+	Description string          `json:"description"`
+	Icon        string          `json:"icon"`
+	Tools       []ToolAuthStatus `json:"tools"`
 }
 
 // ToolCategoryStatus represents the status of tools in a category
@@ -204,7 +218,37 @@ func (h *ToolsHandler) HandleToolsStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	status := h.checkAllToolsStatus(r.Context())
-	WriteJSONResponse(w, http.StatusOK, status)
+	
+	// Convert to array format for SDK compatibility
+	arrayFormat := h.convertToArrayFormat(status)
+	WriteJSONResponse(w, http.StatusOK, arrayFormat)
+}
+
+// convertToArrayFormat converts the map-based tools structure to an array-based format for SDK compatibility
+func (h *ToolsHandler) convertToArrayFormat(status ToolsStatusResponse) ToolsStatusResponseArrayFormat {
+	arrayFormat := ToolsStatusResponseArrayFormat{
+		Categories: make(map[string]ToolCategoryStatusArrayFormat),
+	}
+
+	for categoryID, category := range status.Categories {
+		arrayCategory := ToolCategoryStatusArrayFormat{
+			DisplayName: category.DisplayName,
+			Description: category.Description,
+			Icon:        category.Icon,
+			Tools:       make([]ToolAuthStatus, 0, len(category.Tools)),
+		}
+
+		// Convert map of tools to array of tools
+		for providerID, tool := range category.Tools {
+			// Add provider ID to the tool object
+			tool.Provider = providerID
+			arrayCategory.Tools = append(arrayCategory.Tools, tool)
+		}
+
+		arrayFormat.Categories[categoryID] = arrayCategory
+	}
+
+	return arrayFormat
 }
 
 // checkAllToolsStatus checks authentication status for all available tools
