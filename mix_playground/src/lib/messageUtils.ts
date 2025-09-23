@@ -29,9 +29,9 @@ const extractContentData = (content: string): ParsedContent => {
     
     // Remove media URLs from text to get clean text
     let cleanText = content;
-    mediaUrls.forEach(url => {
-      cleanText = cleanText.replace(url, '').trim();
-    });
+    // mediaUrls.forEach(url => {
+    //   cleanText = cleanText.replace(url, '').trim();
+    // });
     
     return {
       text: cleanText,

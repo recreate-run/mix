@@ -6,61 +6,13 @@ import (
 	"os"
 
 	"mix/internal/config"
+	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
-	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/message"
 )
 
-type EventType string
-
 const maxRetries = 8
-
-const (
-	EventContentStart  EventType = "content_start"
-	EventToolUseStart  EventType = "tool_use_start"
-	EventToolUseDelta  EventType = "tool_use_delta"
-	EventToolUseStop   EventType = "tool_use_stop"
-	EventContentDelta  EventType = "content_delta"
-	EventThinkingDelta EventType = "thinking_delta"
-	EventContentStop   EventType = "content_stop"
-	EventComplete      EventType = "complete"
-	EventError         EventType = "error"
-	EventWarning       EventType = "warning"
-)
-
-type TokenUsage struct {
-	InputTokens         int64
-	OutputTokens        int64
-	CacheCreationTokens int64
-	CacheReadTokens     int64
-}
-
-type ProviderResponse struct {
-	Content                string
-	ToolCalls              []message.ToolCall
-	Usage                  TokenUsage
-	FinishReason           message.FinishReason
-	ThinkingBlocks         []message.ThinkingBlockContent
-	RedactedThinkingBlocks []message.RedactedThinkingContent
-}
-
-type ProviderEvent struct {
-	Type EventType
-
-	Content  string
-	Thinking string
-	Response *ProviderResponse
-	ToolCall *message.ToolCall
-	Error    error
-}
-type Provider interface {
-	SendMessages(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (*ProviderResponse, error)
-
-	StreamResponse(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent
-
-	Model() models.Model
-}
 
 type providerClientOptions struct {
 	apiKey        string
@@ -76,17 +28,12 @@ type providerClientOptions struct {
 
 type ProviderClientOption func(*providerClientOptions)
 
-type ProviderClient interface {
-	send(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (*ProviderResponse, error)
-	stream(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent
-}
-
-type baseProvider[C ProviderClient] struct {
+type baseProvider[C interfaces.ProviderClient] struct {
 	options providerClientOptions
 	client  C
 }
 
-func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption) (Provider, error) {
+func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption) (interfaces.Provider, error) {
 	clientOptions := providerClientOptions{}
 
 	// Apply passed options
@@ -208,18 +155,18 @@ func (p *baseProvider[C]) cleanMessages(messages []message.Message) (cleaned []m
 	return
 }
 
-func (p *baseProvider[C]) SendMessages(ctx context.Context, messages []message.Message, tools []tools.BaseTool) (*ProviderResponse, error) {
+func (p *baseProvider[C]) SendMessages(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (*interfaces.ProviderResponse, error) {
 	messages = p.cleanMessages(messages)
-	return p.client.send(ctx, messages, tools)
+	return p.client.Send(ctx, messages, tools)
 }
 
 func (p *baseProvider[C]) Model() models.Model {
 	return p.options.model
 }
 
-func (p *baseProvider[C]) StreamResponse(ctx context.Context, messages []message.Message, tools []tools.BaseTool) <-chan ProviderEvent {
+func (p *baseProvider[C]) StreamResponse(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) <-chan interfaces.ProviderEvent {
 	messages = p.cleanMessages(messages)
-	return p.client.stream(ctx, messages, tools)
+	return p.client.Stream(ctx, messages, tools)
 }
 
 func WithAPIKey(apiKey string) ProviderClientOption {

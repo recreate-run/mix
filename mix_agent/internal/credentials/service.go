@@ -127,7 +127,7 @@ func (acs *APICredentialsService) StoreAPIKey(ctx context.Context, provider mode
 
 	_, err = acs.queries.UpsertAPICredential(ctx, db.UpsertAPICredentialParams{
 		Provider: string(provider),
-		ApiKey:   encryptedKey,
+		ApiKey:   sql.NullString{String: encryptedKey, Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to store API credential: %w", err)
@@ -161,7 +161,7 @@ func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models
 	}
 
 	// API key found in database, attempting decryption
-	decryptedKey, err := acs.decrypt(credential.ApiKey)
+	decryptedKey, err := acs.decrypt(credential.ApiKey.String)
 	if err != nil {
 		logging.Error("Failed to decrypt API key", "provider", provider, "error", err)
 		return "", fmt.Errorf("failed to decrypt API key: %w", err)
@@ -215,7 +215,7 @@ func (acs *APICredentialsService) ListCredentials(ctx context.Context) ([]models
 
 	var providers []models.ModelProvider
 	for _, cred := range credentials {
-		if cred.ApiKey != "" {
+		if cred.ApiKey.Valid && cred.ApiKey.String != "" {
 			providers = append(providers, models.ModelProvider(cred.Provider))
 		}
 	}
@@ -243,6 +243,7 @@ var supportedProviders = map[models.ModelProvider]struct{}{
 	models.ProviderOpenAI:     {},
 	models.ProviderOpenRouter: {},
 	models.ProviderGemini:     {},
+	"brave":                   {}, // External tool provider
 }
 
 // ClearCache removes all entries from the credentials cache
@@ -270,22 +271,23 @@ func (acs *APICredentialsService) PreloadCredentials(ctx context.Context) {
 
 	count := 0
 	for _, cred := range credentials {
-		if cred.ApiKey == "" {
+		if !cred.ApiKey.Valid || cred.ApiKey.String == "" {
 			continue
 		}
 
+		// Handle provider credentials (simplified schema with no tool_type)
 		provider := models.ModelProvider(cred.Provider)
-		decryptedKey, err := acs.decrypt(cred.ApiKey)
+		decryptedKey, err := acs.decrypt(cred.ApiKey.String)
 		if err != nil {
 			logging.Error("Failed to decrypt API key during preload", "provider", provider, "error", err)
 			continue
 		}
-
 		// Store in cache
 		acs.credentialsCache.Store(provider, decryptedKey)
 		count++
 	}
 }
+
 
 // ValidateAPIKey performs basic validation on an API key for a provider
 func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, apiKey string) error {
@@ -315,6 +317,10 @@ func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, 
 	case models.ProviderGemini:
 		if len(apiKey) < 30 {
 			return fmt.Errorf("invalid Gemini API key format")
+		}
+	case "brave":
+		if len(apiKey) < 30 {
+			return fmt.Errorf("invalid Brave API key format")
 		}
 	}
 

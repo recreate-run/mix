@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { handleStatusCommand, handleProviderSelection } from '@/handlers/status-command-handler';
-import { handleLoginCommand, startOAuthFlow, authenticateWithApiKey, handleOAuthCallback } from '@/handlers/login-command-handler';
-import { handleLogoutCommand, logoutProvider } from '@/handlers/logout-command-handler';
+import { startOAuthFlow, authenticateWithApiKey, handleOAuthCallback } from '@/handlers/login-command-handler';
 import { handleUnifiedModelCommand, handleModelSelectionInHierarchy } from '@/handlers/unified-model-command-handler';
 import type { CommandSlashProps, ViewState } from '@/types/command-slash';
 
@@ -11,8 +10,6 @@ interface UseCommandHandlersProps {
   onQueryClientInvalidate?: CommandSlashProps['onQueryClientInvalidate'];
   onClose: CommandSlashProps['onClose'];
   setStatusData: (data: any) => void;
-  setLoginData: (data: any) => void;
-  setLogoutData: (data: any) => void;
   setHierarchicalModelData: (data: any) => void;
   setHelpData: (data: any) => void;
   goToView: (view: ViewState) => void;
@@ -24,8 +21,6 @@ export function useCommandHandlers({
   onQueryClientInvalidate,
   onClose,
   setStatusData,
-  setLoginData,
-  setLogoutData,
   setHierarchicalModelData,
   setHelpData,
   goToView,
@@ -57,48 +52,6 @@ export function useCommandHandlers({
     }
   }, [onAddMessage, onFeedbackMessage, setStatusData, goToView]);
 
-  // Handle the login command
-  const handleLoginCommandSpecial = useCallback(async () => {
-    try {
-      const loginResult = await handleLoginCommand();
-
-      if (loginResult.loginData) {
-        setLoginData({
-          providers: loginResult.loginData.providers,
-          hasExistingPreferences: loginResult.loginData.hasExistingPreferences
-        });
-        goToView('login');
-      } else {
-        if (!loginResult.suppressChatMessage) {
-          onAddMessage?.(loginResult);
-        }
-      }
-    } catch (error) {
-      console.error('Login command failed:', error);
-      onFeedbackMessage?.(`Error: Failed to start login flow`);
-    }
-  }, [onAddMessage, onFeedbackMessage, setLoginData, goToView]);
-
-  // Handle the logout command
-  const handleLogoutCommandSpecial = useCallback(async () => {
-    try {
-      const logoutResult = await handleLogoutCommand();
-
-      if (!logoutResult.logoutData) {
-        if (!logoutResult.suppressChatMessage) {
-          onAddMessage?.(logoutResult);
-        }
-      } else {
-        setLogoutData({
-          providers: logoutResult.logoutData.providers
-        });
-        goToView('logout');
-      }
-    } catch (error) {
-      console.error('Logout command failed:', error);
-      onFeedbackMessage?.(`Error: Failed to start logout flow`);
-    }
-  }, [onAddMessage, onFeedbackMessage, setLogoutData, goToView]);
 
   // Handle the unified model command
   const handleUnifiedModelCommandSpecial = useCallback(async () => {
@@ -171,26 +124,20 @@ export function useCommandHandlers({
   const handleModelSelectionSpecial = useCallback(async (providerId: string, modelId: string) => {
     try {
       const result = await handleModelSelectionInHierarchy(providerId, modelId);
+
+      // Check if we need to invalidate the preferences cache
+      if (result.shouldInvalidatePreferencesCache) {
+        onQueryClientInvalidate?.(['preferences']);
+      }
+
       onAddMessage?.(result);
       onClose();
     } catch (error) {
       console.error('Model selection failed:', error);
       onFeedbackMessage?.(`Error: Failed to select model`);
     }
-  }, [onAddMessage, onClose, onFeedbackMessage]);
+  }, [onAddMessage, onClose, onFeedbackMessage, onQueryClientInvalidate]);
 
-  // Handle logout provider selection
-  const handleLogoutProviderSelectionSpecial = useCallback(async (providerId: string) => {
-    try {
-      const result = await logoutProvider(providerId);
-      onQueryClientInvalidate?.(['providers']);
-      onAddMessage?.(result);
-      onClose();
-    } catch (error) {
-      console.error('Logout provider selection failed:', error);
-      onFeedbackMessage?.(`Error: Failed to logout provider`);
-    }
-  }, [onQueryClientInvalidate, onAddMessage, onClose, onFeedbackMessage]);
 
   // Handle login provider selection
   const handleLoginProviderSelectionSpecial = useCallback(async (providerId: string, authMethod: 'api_key' | 'oauth') => {
@@ -198,12 +145,7 @@ export function useCommandHandlers({
       if (authMethod === "oauth") {
         const result = await startOAuthFlow(providerId);
 
-        if (result.login?.state) {
-          setLoginData((prev: any) => prev ? {
-            ...prev,
-            oauthState: result.login?.state
-          } : undefined);
-        }
+        // OAuth state is handled by the individual auth functions
 
         onAddMessage?.(result);
       }
@@ -212,7 +154,7 @@ export function useCommandHandlers({
       console.error('Login provider selection failed:', error);
       onFeedbackMessage?.(`Error: Failed to start authentication`);
     }
-  }, [setLoginData, onAddMessage, onFeedbackMessage]);
+  }, [onAddMessage, onFeedbackMessage]);
 
   // Handle API key submission
   const handleApiKeySubmitSpecial = useCallback(async (providerId: string, apiKey: string) => {
@@ -242,13 +184,10 @@ export function useCommandHandlers({
 
   return {
     handleStatusCommandSpecial,
-    handleLoginCommandSpecial,
-    handleLogoutCommandSpecial,
     handleUnifiedModelCommandSpecial,
     handleHelpCommandSpecial,
     handleProviderSelectionSpecial,
     handleModelSelectionSpecial,
-    handleLogoutProviderSelectionSpecial,
     handleLoginProviderSelectionSpecial,
     handleApiKeySubmitSpecial,
     handleOAuthCodeSubmitSpecial,

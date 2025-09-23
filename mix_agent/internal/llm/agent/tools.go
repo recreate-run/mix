@@ -28,10 +28,11 @@ func CoderAgentTools(
 			tools.NewEditTool(permissions, history),
 			tools.NewGlobTool(),
 			tools.NewGrepTool(permissions),
-			tools.NewViewTool(permissions),
+			tools.NewReadTextTool(permissions),
 			tools.NewWebSearchTool(permissions),
 			tools.NewWriteTool(permissions, history),
 			tools.NewPythonExecutionTool(permissions),
+			tools.NewReadMediaTool(),
 			tools.NewTodoWriteTool(),
 			tools.NewExitPlanModeTool(),
 			tools.NewMediaShowcaseTool(),
@@ -44,6 +45,6 @@ func TaskAgentTools(permissions permission.Service) []tools.BaseTool {
 	return []tools.BaseTool{
 		tools.NewGlobTool(),
 		tools.NewGrepTool(permissions),
-		tools.NewViewTool(permissions),
+		tools.NewReadTextTool(permissions),
 	}
 }

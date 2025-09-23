@@ -3,15 +3,30 @@ import '@/styles/App.css';
 import { useEffect } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ChatApp } from '@/components/chat-app';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useActiveSession } from '@/hooks/useSession';
-// import { PageHeader } from "@/components/page-header";
 
 export const Route = createFileRoute('/$sessionId')({
   component: SessionApp,
 });
 
 const LAST_SESSION_KEY = "mix-last-session-id";
+
+function FloatingToggle() {
+  const { state } = useSidebar();
+  
+  if (state === 'expanded') return null;
+  
+  return (
+    <div className="fixed top-0 left-0 h-full w-12 z-50">
+      <div className="h-full w-full bg-sidebar border-r border-sidebar-border shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center cursor-pointer group">
+        <div className="pt-4">
+          <SidebarTrigger className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SessionApp() {
   const { sessionId } = Route.useParams();
@@ -46,8 +61,7 @@ function SessionApp() {
     >
       <AppSidebar sessionId={sessionId} variant="inset" />
       <SidebarInset className="flex h-screen flex-col">
-        {/* <PageHeader sessionId={sessionId} /> */}
-        
+        <FloatingToggle />
         {/* Always render ChatApp - it will handle loading states internally */}
         <ChatApp sessionId={sessionId} />
       </SidebarInset>

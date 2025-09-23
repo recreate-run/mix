@@ -1,7 +1,9 @@
-import { IconClock, IconPlus } from '@tabler/icons-react';
+import { IconClock, IconPlus, IconSettings } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import type * as React from 'react';
+import { useState } from 'react';
 import { SessionItem } from '@/components/session-item';
+import { SettingsDialog } from '@/components/settings-dialog';
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +13,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { useCreateSession } from '@/hooks/useSession';
 import { useSessionsList } from '@/hooks/useSessionsList';
@@ -23,6 +27,7 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
   const navigate = useNavigate();
   const { data: sessions = [], isLoading: sessionsLoading } = useSessionsList();
   const createSession = useCreateSession();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Sort sessions chronologically (most recent first)
   const sortedSessions = sessions.sort(
@@ -55,10 +60,15 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
   };
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <Sidebar collapsible="offcanvas" {...props}>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Sessions</SidebarGroupLabel>
+          <div className="flex items-center justify-between">
+            <SidebarGroupLabel>Sessions</SidebarGroupLabel>
+            <SidebarTrigger className="size-6" />
+          </div>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* New Session Button */}
@@ -103,9 +113,17 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      {/* <SidebarFooter>
-				<NavUser user={data.user} />
-			</SidebarFooter> */}
-    </Sidebar>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
+              <IconSettings className="size-4" />
+              <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      </Sidebar>
+    </>
   );
 }

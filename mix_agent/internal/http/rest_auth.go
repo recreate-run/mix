@@ -339,6 +339,7 @@ var supportedProviders = map[string]struct{}{
 	"openai":     {},
 	"openrouter": {},
 	"gemini":     {},
+	"brave":      {},
 }
 
 // HandleOAuthCallback handles POST /api/auth/oauth/callback
@@ -494,7 +495,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 		{"anthropic", models.ProviderAnthropic, "Anthropic", true},
 		{"openai", models.ProviderOpenAI, "OpenAI", false},
 		{"openrouter", models.ProviderOpenRouter, "OpenRouter", false},
-		{"gemini", models.ProviderGemini, "Google Gemini", false},
+		// {"gemini", models.ProviderGemini, "Google Gemini", false},
 	}
 
 	for _, p := range providers {

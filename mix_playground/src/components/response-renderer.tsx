@@ -1,5 +1,4 @@
 import { AIResponse } from '@/components/ui/kibo-ui/ai/response';
-import { AuthDisplay } from './auth-display';
 import { ContextDisplay } from './context-display';
 import { HelpDisplay } from './help-display';
 import { McpDisplay } from './mcp-display';
@@ -83,14 +82,14 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
       );
     }
 
-    // Check if it's an authentication response
+    // Check if it's an authentication response - skip rendering as UI was removed
     if (
       parsedData.type === 'auth_status' ||
       parsedData.type === 'auth_login' ||
       parsedData.type === 'error' ||
       parsedData.type === 'message'
     ) {
-      return <AuthDisplay data={parsedData} />;
+      return null; // Auth UI was removed - hooks handle the logic
     }
 
     // If we reach here, it's an unknown JSON structure - log and render as text

@@ -106,7 +106,7 @@ export async function handleUnifiedModelCommand(): Promise<UIMessage> {
     
     if (!hasAuthenticatedProvider) {
       return {
-        content: "Not authenticated with any provider. Try the /login command to authenticate with a provider.",
+        content: "Not authenticated with any provider. Please authenticate using API keys or OAuth through your provider's authentication flow.",
         from: "assistant",
         frontend_only: true
       };

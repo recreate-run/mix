@@ -25,7 +25,7 @@ const AUTH_METHODS: Record<string, ("api_key" | "oauth")[]> = {
 /**
  * Handles the login command, returns a message with login UI or success/error message
  */
-export async function handleLoginCommand(provider?: string): Promise<UIMessage> {
+export async function handleLoginCommand(): Promise<UIMessage> {
   try {
     // Get current authentication status
     const status = await mix.authentication.getAuthStatus();
@@ -54,23 +54,13 @@ export async function handleLoginCommand(provider?: string): Promise<UIMessage> 
         isPreferred: providerId === preferredProvider
       };
     });
-    // Don't auto-select a provider initially - let the user choose
-    // We'll only use the provided provider if it's explicitly passed in
-    const selectedProviderValue = provider || "";
-    
-    // Return message with login UI elements and provider info
+    // Return message with login data for hooks
     return {
-      content: hasExistingPreferences ? 
-        `Using preferences with preferred provider: ${preferredProvider}` : 
+      content: hasExistingPreferences ?
+        `Using preferences with preferred provider: ${preferredProvider}` :
         "No existing preferences found. Please select a provider to authenticate with.",
       from: "assistant",
       frontend_only: true,
-      login: {
-        providers,
-        selectedProvider: selectedProviderValue,
-        step: selectedProviderValue ? "auth_method" : "provider_select",
-        hasExistingPreferences: hasExistingPreferences
-      },
       loginData: {
         providers,
         hasExistingPreferences: hasExistingPreferences
@@ -188,17 +178,10 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
       content: `If the browser doesn't open automatically, you can click or copy this URL: ${result.authUrl}`,
       from: "assistant",
       frontend_only: true,
-      login: {
-        providers,
-        step: "oauth_flow",
-        authUrl: result.authUrl,
-        selectedProvider: provider, // Use selectedProvider instead of provider for consistency
-        state: result.state // Include the state parameter from the API response
-      },
-      // Add loginData for menu palette integration
       loginData: {
         providers,
-        hasExistingPreferences: false
+        hasExistingPreferences: false,
+        oauthState: result.state
       }
     };
   } catch (error) {

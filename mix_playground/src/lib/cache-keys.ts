@@ -5,6 +5,8 @@ export const CACHE_KEYS = {
   sessionFiles: (id: string) => ['sessions', 'files', id] as const,
   messageHistory: ['messageHistory'] as const,
   preferences: ['preferences'] as const,
+  tools: ['tools'] as const,
+  toolsStatus: ['tools', 'status'] as const,
   animationSchema: (animationName: string) => ['gsap', 'animation', 'schema', animationName] as const,
   animationList: ['gsap', 'animations'] as const,
 } as const;

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"mix/internal/config"
-	toolspkg "mix/internal/llm/tools"
+	"mix/internal/llm/interfaces"
 	"mix/internal/logging"
 	"mix/internal/message"
 
@@ -32,7 +32,7 @@ type geminiClient struct {
 	client          *genai.Client
 }
 
-type GeminiClient ProviderClient
+type GeminiClient interfaces.ProviderClient
 
 func newGeminiClient(opts providerClientOptions) GeminiClient {
 	geminiOpts := geminiOptions{}
@@ -61,11 +61,18 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 			var parts []*genai.Part
 			parts = append(parts, &genai.Part{Text: msg.Content().String()})
 			for _, binaryContent := range msg.BinaryContent() {
-				imageFormat := strings.Split(binaryContent.MIMEType, "/")
-				parts = append(parts, &genai.Part{InlineData: &genai.Blob{
-					MIMEType: imageFormat[1],
-					Data:     binaryContent.Data,
-				}})
+				// Handle images and videos via inline data for supported formats
+				if g.isSupportedInlineFormat(binaryContent.MIMEType) || g.isSupportedVideoFormat(binaryContent.MIMEType) {
+					parts = append(parts, &genai.Part{InlineData: &genai.Blob{
+						MIMEType: binaryContent.MIMEType,
+						Data:     binaryContent.Data,
+					}})
+				} else {
+					// For unsupported inline formats, log warning and skip
+					// Note: Video upload via File API would require additional implementation
+					logging.Warn("Unsupported inline format, skipping file", "mimeType", binaryContent.MIMEType)
+					continue
+				}
 			}
 			history = append(history, &genai.Content{
 				Parts: parts,
@@ -135,7 +142,7 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 	return history
 }
 
-func (g *geminiClient) convertTools(tools []toolspkg.BaseTool) []*genai.Tool {
+func (g *geminiClient) convertTools(tools []interfaces.BaseTool) []*genai.Tool {
 	geminiTool := &genai.Tool{}
 	geminiTool.FunctionDeclarations = make([]*genai.FunctionDeclaration, 0, len(tools))
 
@@ -168,7 +175,7 @@ func (g *geminiClient) finishReason(reason genai.FinishReason) message.FinishRea
 	}
 }
 
-func (g *geminiClient) send(ctx context.Context, messages []message.Message, tools []toolspkg.BaseTool) (*ProviderResponse, error) {
+func (g *geminiClient) Send(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (*interfaces.ProviderResponse, error) {
 	// Convert messages
 	geminiMessages := g.convertMessages(messages)
 
@@ -182,9 +189,14 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
-		SystemInstruction: &genai.Content{
+	}
+	
+	// Only add system instruction if we have a non-empty system message
+	if g.providerOptions.systemMessage != "" {
+		config.SystemInstruction = &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
-		},
+			Role:  "user",
+		}
 	}
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
@@ -244,7 +256,7 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 		if content == "" && len(toolCalls) == 0 {
 			logging.Warn("Gemini returned empty response with no content or tool calls")
 			// Extract sessionID from context and log detailed debug information
-			if sessionID, ok := ctx.Value(toolspkg.SessionIDContextKey).(string); ok {
+			if sessionID, ok := ctx.Value(interfaces.SessionIDContextKey).(string); ok {
 				g.logEmptyResponseDetails(sessionID, messages, tools, resp)
 			}
 		}
@@ -257,7 +269,7 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 			finishReason = message.FinishReasonToolUse
 		}
 
-		return &ProviderResponse{
+		return &interfaces.ProviderResponse{
 			Content:      content,
 			ToolCalls:    toolCalls,
 			Usage:        g.usage(resp),
@@ -266,7 +278,7 @@ func (g *geminiClient) send(ctx context.Context, messages []message.Message, too
 	}
 }
 
-func (g *geminiClient) stream(ctx context.Context, messages []message.Message, tools []toolspkg.BaseTool) <-chan ProviderEvent {
+func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) <-chan interfaces.ProviderEvent {
 	// Convert messages
 	geminiMessages := g.convertMessages(messages)
 
@@ -280,9 +292,14 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
-		SystemInstruction: &genai.Content{
+	}
+	
+	// Only add system instruction if we have a non-empty system message
+	if g.providerOptions.systemMessage != "" {
+		config.SystemInstruction = &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
-		},
+			Role:  "user",
+		}
 	}
 	if len(tools) > 0 {
 		config.Tools = g.convertTools(tools)
@@ -290,7 +307,7 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 	chat, _ := g.client.Chats.Create(ctx, g.providerOptions.model.APIModel, config, history)
 
 	attempts := 0
-	eventChan := make(chan ProviderEvent)
+	eventChan := make(chan interfaces.ProviderEvent)
 
 	go func() {
 		defer close(eventChan)
@@ -302,7 +319,7 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 			toolCalls := []message.ToolCall{}
 			var finalResp *genai.GenerateContentResponse
 
-			eventChan <- ProviderEvent{Type: EventContentStart}
+			eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStart}
 
 			var lastMsgParts []genai.Part
 
@@ -313,7 +330,7 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 				if err != nil {
 					retry, after, retryErr := g.shouldRetry(attempts, err)
 					if retryErr != nil {
-						eventChan <- ProviderEvent{Type: EventError, Error: retryErr}
+						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: retryErr}
 						return
 					}
 					if retry {
@@ -321,7 +338,7 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 						select {
 						case <-ctx.Done():
 							if ctx.Err() != nil {
-								eventChan <- ProviderEvent{Type: EventError, Error: ctx.Err()}
+								eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
 							}
 
 							return
@@ -329,7 +346,7 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 							break
 						}
 					} else {
-						eventChan <- ProviderEvent{Type: EventError, Error: err}
+						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: err}
 						return
 					}
 				}
@@ -342,8 +359,8 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 						case part.Text != "":
 							delta := string(part.Text)
 							if delta != "" {
-								eventChan <- ProviderEvent{
-									Type:    EventContentDelta,
+								eventChan <- interfaces.ProviderEvent{
+									Type:    interfaces.EventContentDelta,
 									Content: delta,
 								}
 								currentContent += delta
@@ -375,14 +392,14 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 				}
 			}
 
-			eventChan <- ProviderEvent{Type: EventContentStop}
+			eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStop}
 
 			if finalResp != nil {
 				// Check for completely empty response (no content and no tool calls)
 				if currentContent == "" && len(toolCalls) == 0 {
 					logging.Warn("Gemini returned empty response with no content or tool calls")
 					// Extract sessionID from context and log detailed debug information
-					if sessionID, ok := ctx.Value(toolspkg.SessionIDContextKey).(string); ok {
+					if sessionID, ok := ctx.Value(interfaces.SessionIDContextKey).(string); ok {
 						g.logEmptyResponseDetails(sessionID, messages, tools, finalResp)
 					}
 				}
@@ -394,9 +411,9 @@ func (g *geminiClient) stream(ctx context.Context, messages []message.Message, t
 				if len(toolCalls) > 0 {
 					finishReason = message.FinishReasonToolUse
 				}
-				eventChan <- ProviderEvent{
-					Type: EventComplete,
-					Response: &ProviderResponse{
+				eventChan <- interfaces.ProviderEvent{
+					Type: interfaces.EventComplete,
+					Response: &interfaces.ProviderResponse{
 						Content:      currentContent,
 						ToolCalls:    toolCalls,
 						Usage:        g.usage(finalResp),
@@ -465,12 +482,12 @@ func (g *geminiClient) toolCalls(resp *genai.GenerateContentResponse) []message.
 	return toolCalls
 }
 
-func (g *geminiClient) usage(resp *genai.GenerateContentResponse) TokenUsage {
+func (g *geminiClient) usage(resp *genai.GenerateContentResponse) interfaces.TokenUsage {
 	if resp == nil || resp.UsageMetadata == nil {
-		return TokenUsage{}
+		return interfaces.TokenUsage{}
 	}
 
-	return TokenUsage{
+	return interfaces.TokenUsage{
 		InputTokens:         int64(resp.UsageMetadata.PromptTokenCount),
 		OutputTokens:        int64(resp.UsageMetadata.CandidatesTokenCount),
 		CacheCreationTokens: 0, // Not directly provided by Gemini
@@ -575,7 +592,7 @@ func contains(s string, substrs ...string) bool {
 }
 
 // logEmptyResponseDetails logs detailed request and response information when Gemini returns empty responses
-func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []message.Message, tools []toolspkg.BaseTool, resp *genai.GenerateContentResponse) {
+func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []message.Message, tools []interfaces.BaseTool, resp *genai.GenerateContentResponse) {
 	timestamp := time.Now().Format("20060102-150405")
 
 	// Create log directory if it doesn't exist
@@ -626,4 +643,46 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 	os.WriteFile(responseFile, responseJSON, 0644)
 
 	logging.Info("Empty response debug files created", "requestFile", requestFile, "responseFile", responseFile)
+}
+
+// isSupportedInlineFormat checks if the MIME type is supported for inline data
+func (g *geminiClient) isSupportedInlineFormat(mimeType string) bool {
+	// Supported inline formats according to Gemini API docs
+	supportedInlineFormats := []string{
+		"image/png",
+		"image/jpeg", 
+		"image/webp",
+		"image/heic",
+		"image/heif",
+	}
+	
+	for _, supported := range supportedInlineFormats {
+		if mimeType == supported {
+			return true
+		}
+	}
+	return false
+}
+
+// isSupportedVideoFormat checks if the MIME type is a supported video format
+// Note: Video support would require File API implementation in future SDK versions
+func (g *geminiClient) isSupportedVideoFormat(mimeType string) bool {
+	supportedVideoFormats := []string{
+		"video/mp4",
+		"video/mpeg",
+		"video/mov",
+		"video/avi",
+		"video/x-flv",
+		"video/mpg",
+		"video/webm",
+		"video/wmv",
+		"video/3gpp",
+	}
+	
+	for _, supported := range supportedVideoFormats {
+		if mimeType == supported {
+			return true
+		}
+	}
+	return false
 }

@@ -78,7 +78,7 @@ export async function handleProviderCommand(): Promise<UIMessage> {
     
     if (!hasAuthenticatedProvider) {
       return {
-        content: "❌ **Not authenticated with any provider**\n\nYou need to authenticate first. Try the `/login` command to authenticate with a provider.",
+        content: "❌ **Not authenticated with any provider**\n\nYou need to authenticate first. Please use API keys or OAuth through your provider's authentication flow.",
         from: "assistant",
         frontend_only: true
       };

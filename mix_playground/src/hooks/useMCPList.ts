@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
-import type { ListMcpServersResponse, Tool } from 'mix-typescript-sdk/models/operations/listmcpservers';
+import type { ListMcpServersResponse, ListMcpServersTool } from 'mix-typescript-sdk/models/operations/listmcpservers';
 
 // Use SDK types directly
-export type ToolData = Tool;
+export type ToolData = ListMcpServersTool;
 export type MCPServerData = ListMcpServersResponse;
 
 // Transform SDK response - validate and ensure tools array is never null

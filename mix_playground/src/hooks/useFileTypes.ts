@@ -17,6 +17,6 @@ export function useFileTypes() {
     queryKey: ['fileTypes'],
     queryFn: fetchFileTypes,
     retry: 3,
-    staleTime: Infinity
+    staleTime: Number.POSITIVE_INFINITY
   });
 }

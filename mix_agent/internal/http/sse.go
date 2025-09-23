@@ -286,11 +286,7 @@ func handleRegularMessage(ctx context.Context, app *app.App, w http.ResponseWrit
 	
 	// If not authenticated, show a clear error message
 	if !authenticated {
-		helpfulMsg := "⚠️ Authentication required. Please use /login command to authenticate with Claude using an API key.\n\n" +
-			"To login:\n" +
-			"1. Visit https://console.anthropic.com/settings/keys\n" +
-			"2. Create an API key\n" +
-			"3. Use the /login command to authenticate"
+		helpfulMsg := "⚠️ Authentication required. Please go to settings and authenticate"
 		
 		WriteSSE(w, "error", ErrorEvent{
 			Error: helpfulMsg,

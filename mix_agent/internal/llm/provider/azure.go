@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"mix/internal/llm/interfaces"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/azure"
@@ -14,7 +16,7 @@ type azureClient struct {
 	*openaiClient
 }
 
-type AzureClient ProviderClient
+type AzureClient interfaces.ProviderClient
 
 func newAzureClient(opts providerClientOptions) (AzureClient, error) {
 

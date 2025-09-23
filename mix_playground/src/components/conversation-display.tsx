@@ -1,82 +1,7 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
 import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/videoUrlDetection';
 import type { ToolCall } from '@/types/common';
-import { DotFlow } from '../../components/gsap/dot-flow';
 
-// Commands for the opening screen animation - Mix-specific creative workflow examples
-const commands = [
-  {
-    title: "Create a marketing video from these screenshots",
-    frames: [
-      [21, 22, 23, 24, 25, 26, 27], // Top row formation
-      [14, 15, 16, 28, 29, 30, 34, 35], // Expanding down
-      [7, 8, 9, 21, 22, 23, 37, 38, 39], // Cross pattern
-      [0, 1, 2, 14, 15, 16, 28, 29, 30, 42, 43, 44], // Full grid formation
-      [7, 8, 9, 21, 22, 23, 35, 36, 37], // Contracting
-      [14, 15, 16, 28, 29, 30, 34], // Final form
-      [21, 22, 23, 24, 25, 26, 27], // Return to top
-    ],
-    duration: 140,
-    repeatCount: 1,
-  },
-  {
-    title: "Analyze this user session recording",
-    frames: [
-      [0, 7, 14, 21, 28, 35, 42], // Scanning vertically
-      [1, 8, 15, 22, 29, 36, 43],
-      [2, 9, 16, 23, 30, 37, 44],
-      [3, 10, 17, 24, 31, 38, 45],
-      [4, 11, 18, 25, 32, 39, 46],
-      [5, 12, 19, 26, 33, 40, 47],
-      [6, 13, 20, 27, 34, 41, 48],
-      [10, 11, 12, 17, 18, 19, 24, 25, 26, 31, 32, 33], // Highlighting center analysis
-    ],
-    duration: 110,
-    repeatCount: 1,
-  },
-  {
-    title: "Edit this video: trim and add title overlay",
-    frames: [
-      [0, 1, 2, 3, 4, 5, 6], // Timeline frames
-      [7, 8, 9, 10, 11, 12, 13],
-      [14, 15, 16, 17, 18, 19, 20],
-      [21, 22, 23, 24, 25, 26, 27], // Middle section highlight
-      [14, 15, 16, 17, 18, 19, 20], // Trim back
-      [7, 8, 9, 10, 11, 12, 13],
-      [21, 22, 23, 24, 25, 26, 27], // Final edited section
-    ],
-    duration: 160,
-    repeatCount: 1,
-  },
-  {
-    title: "Generate storyboard frames for concept",
-    frames: [
-      [10, 17, 24, 31], // Four corner frames
-      [9, 10, 11, 16, 17, 18, 23, 24, 25, 30, 31, 32], // Expanding frames
-      [2, 3, 4, 9, 10, 11, 16, 17, 18, 23, 24, 25, 30, 31, 32, 37, 38, 39], // Full storyboard
-      [10, 11, 17, 18, 24, 25, 31, 32], // Refined frames
-      [17, 24], // Key frames
-      [10, 17, 24, 31], // Final four frames
-    ],
-    duration: 180,
-    repeatCount: 1,
-  },
-  {
-    title: "Process batch images: resize and watermark",
-    frames: [
-      [0, 2, 4, 6], // Scattered images
-      [7, 9, 11, 13],
-      [14, 16, 18, 20],
-      [21, 23, 25, 27], // Processing wave
-      [28, 30, 32, 34],
-      [35, 37, 39, 41],
-      [42, 44, 46, 48],
-      [0, 2, 4, 6, 42, 44, 46, 48], // Before and after
-    ],
-    duration: 130,
-    repeatCount: 1,
-  },
-];
 
 // Helper function to detect URLs
 const isURL = (path: string): boolean => {
@@ -124,12 +49,10 @@ import { GsapAnimationPreview } from './gsap/GsapAnimationPreview';
 import { LazyVideoPlayer } from './LazyVideoPlayer';
 import { ResponseRenderer } from './response-renderer';
 import { TodoList } from './todo-list';
-import { LoginUI } from './login-ui';
-import { LogoutUI } from './logout-ui';
 import { StatusUI } from './status-ui';
 import { ProviderDisplay } from './provider-display';
 import { ModelDisplay } from './model-display';
-import { ErrorBoundary } from './error-boundary';
+import { EmptyStateDisplay } from './empty-state-display';
 
 type StreamingState = {
   processing: boolean;
@@ -331,7 +254,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 
   // Group consecutive thinking entries together for better UX
   const groupedEntries: Array<
-    | { type: 'thinking', entries: string[], timestamps: number[] } 
+    | { type: 'thinking', entries: string[], timestamps: number[] }
     | { type: 'tool', entry: TimelineEntry }
     | { type: 'content', entry: TimelineEntry }
   > = [];
@@ -431,7 +354,7 @@ export function ConversationDisplay({
   setUserMessageRef,
   sessionId,
 }: ConversationDisplayProps) {
-  
+
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
   const [localMessages, setLocalMessages] = useState<UIMessage[]>(messages);
 
@@ -468,47 +391,21 @@ export function ConversationDisplay({
   const handleMessageUpdate = (index: number, updatedMessage: UIMessage) => {
     // Update local message state
     setLocalMessages((prev) => [
-      ...prev.slice(0, index), 
+      ...prev.slice(0, index),
       updatedMessage,
       ...prev.slice(index + 1)
     ]);
-    
+
     // Pass update to parent component
     if (onUpdateMessage) {
       onUpdateMessage(index, updatedMessage);
     }
   };
-  
+
   return (
     <div className="relative h-full flex-1 py-16">
       <div className="">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-12 animate-in fade-in duration-700">
-            {/* Mix Logo with gradient */}
-            <div className="text-center space-y-4">
-              <div className="text-6xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-6 tracking-tight animate-in slide-in-from-top duration-1000">
-                mix
-              </div>
-              <div className="text-xl text-muted-foreground animate-in slide-in-from-top duration-1000 delay-200">
-                AI-powered creative workflows
-              </div>
-            </div>
-
-            {/* Animated Commands with enhanced styling */}
-            <div className="relative animate-in slide-in-from-bottom duration-1000 delay-500">
-              <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-xl blur-xl"></div>
-              <div className="relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-2xl [&_.dot-flow-container]:text-foreground [&_.dot-loader_.h-1\\.5]:bg-muted/30 [&_.dot-loader_.active]:bg-primary">
-                <DotFlow items={commands} isPlaying={true} />
-              </div>
-            </div>
-
-            {/* Enhanced hint with subtle animation */}
-            <div className="text-sm text-muted-foreground/80 animate-in slide-in-from-bottom duration-1000 delay-700 flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              Start typing your creative workflow below
-            </div>
-          </div>
-        )}
+        {messages.length === 0 && <EmptyStateDisplay />}
         {localMessages.map((message, index) => {
           return (
             <AIMessage
@@ -518,136 +415,122 @@ export function ConversationDisplay({
                 message.from === 'user' ? setUserMessageRef?.(index) : undefined
               }
             >
-            <AIMessageContent>
-              {message.from === 'assistant' ? (
-                <>
-                  {/* Render media outputs as primary content */}
-                  {message.mediaOutputs && sessionId ? (
-                    <>
-                      <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} />
+              <AIMessageContent>
+                {message.from === 'assistant' ? (
+                  <>
+                    {/* Render media outputs as primary content */}
+                    {message.mediaOutputs && sessionId ? (
+                      <>
+                        <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} />
+                        <AIMessageContent.Content>
+                          {/* Render timeline-based interleaved thinking and tools */}
+                          {message.timeline && renderTimelineEntries(message.timeline)}
+                        </AIMessageContent.Content>
+                      </>
+                    ) : message.mediaOutputs ? (
+                      <>
+                        <div className="text-sm text-muted-foreground">Media content requires session ID</div>
+                        <AIMessageContent.Content>
+                          {/* Render timeline-based interleaved thinking and tools */}
+                          {message.timeline && renderTimelineEntries(message.timeline)}
+                        </AIMessageContent.Content>
+                      </>
+                    ) : (
                       <AIMessageContent.Content>
                         {/* Render timeline-based interleaved thinking and tools */}
                         {message.timeline && renderTimelineEntries(message.timeline)}
+                        {message.status ? (
+                          <StatusUI
+                            statusState={message.status}
+                          />
+                        ) : message.provider ? (
+                          <ProviderDisplay
+                            data={message.provider}
+                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                          />
+                        ) : message.model ? (
+                          <ModelDisplay
+                            data={message.model}
+                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                          />
+                        ) : (
+                          <ResponseRenderer content={message.content} />
+                        )}
                       </AIMessageContent.Content>
-                    </>
-                  ) : message.mediaOutputs ? (
-                    <>
-                      <div className="text-sm text-muted-foreground">Media content requires session ID</div>
-                      <AIMessageContent.Content>
-                        {/* Render timeline-based interleaved thinking and tools */}
-                        {message.timeline && renderTimelineEntries(message.timeline)}
-                      </AIMessageContent.Content>
-                    </>
-                  ) : (
+                    )}
+                    {message.content && (
+                      <AIMessageContent.Toolbar>
+                        <MessageCopyButton content={message.content} />
+                      </AIMessageContent.Toolbar>
+                    )}
+                  </>
+                ) : (
+                  <>
                     <AIMessageContent.Content>
-                      {/* Render timeline-based interleaved thinking and tools */}
-                      {message.timeline && renderTimelineEntries(message.timeline)}
-                      {message.login ? (
-                        <ErrorBoundary>
-                          <LoginUI 
-                            loginState={message.login}
-                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                          />
-                        </ErrorBoundary>
-                      ) : message.logout ? (
-                        <ErrorBoundary>
-                          <LogoutUI 
-                            logoutState={message.logout}
-                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                          />
-                        </ErrorBoundary>
-                      ) : message.status ? (
-                        <StatusUI 
-                          statusState={message.status}
-                        />
-                      ) : message.provider ? (
-                        <ProviderDisplay 
-                          data={message.provider}
-                          onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                        />
-                      ) : message.model ? (
-                        <ModelDisplay
-                          data={message.model}
-                          onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                        />
-                      ) : (
-                        <ResponseRenderer content={message.content} />
-                      )}
+                      <MessageAttachmentDisplay
+                        attachments={message.attachments || []}
+                        sessionId={sessionId}
+                      />
+                      {message.content}
                     </AIMessageContent.Content>
-                  )}
-                  {message.content && (
                     <AIMessageContent.Toolbar>
                       <MessageCopyButton content={message.content} />
+                      {onForkMessage && (
+                        <Button
+                          className="text-muted-foreground hover:text-foreground"
+                          disabled={sseStream.processing}
+                          onClick={() => onForkMessage(index)}
+                          size="sm"
+                          variant="ghost"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
                     </AIMessageContent.Toolbar>
-                  )}
-                </>
-              ) : (
-                <>
-                  <AIMessageContent.Content>
-                    <MessageAttachmentDisplay
-                      attachments={message.attachments || []}
-                      sessionId={sessionId}
-                    />
-                    {message.content}
-                  </AIMessageContent.Content>
-                  <AIMessageContent.Toolbar>
-                    <MessageCopyButton content={message.content} />
-                    {onForkMessage && (
-                      <Button
-                        className="text-muted-foreground hover:text-foreground"
-                        disabled={sseStream.processing}
-                        onClick={() => onForkMessage(index)}
-                        size="sm"
-                        variant="ghost"
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                    )}
-                  </AIMessageContent.Toolbar>
-                </>
-              )}
-              {/* Render special tools (todos, plans) and legacy tools when timeline is not available */}
-              {message.toolCalls && message.toolCalls.length > 0 && (
-                <>
-                  {/* Render plan content */}
-                  {extractPlanFromToolCalls(message.toolCalls) && (
-                    <PlanDisplay
-                      onKeepPlanning={() => handlePlanKeepPlanning(index)}
-                      onProceed={() => handlePlanProceed(index)}
-                      planContent={extractPlanFromToolCalls(message.toolCalls)}
-                      showOptions={showPlanOptions === index}
-                    />
-                  )}
-                  {/* Render todos inline without tool wrapper */}
-                  {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
-                    <div className="mt-4">
-                      <TodoList
-                        todos={extractTodosFromToolCalls(message.toolCalls)}
+                  </>
+                )}
+                {/* Render special tools (todos, plans) and legacy tools when timeline is not available */}
+                {message.toolCalls && message.toolCalls.length > 0 && (
+                  <>
+                    {/* Render plan content */}
+                    {extractPlanFromToolCalls(message.toolCalls) && (
+                      <PlanDisplay
+                        onKeepPlanning={() => handlePlanKeepPlanning(index)}
+                        onProceed={() => handlePlanProceed(index)}
+                        planContent={extractPlanFromToolCalls(message.toolCalls)}
+                        showOptions={showPlanOptions === index}
                       />
-                    </div>
-                  )}
-                  {/* Render regular tool calls directly ONLY when timeline is not available or empty */}
-                  {(!message.timeline || message.timeline.length === 0) && filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
-                    <AIToolLadder key={`direct-tool-${toolCall.id}-${index}`}>
-                      <AIToolStep
-                        isLast={true}
-                        status={toolCall.status}
-                        stepNumber={1}
-                      >
-                        <AIToolHeader
-                          description={toolCall.description}
-                          name={toolCall.name}
-                          status={toolCall.status}
-                          toolCall={toolCall}
+                    )}
+                    {/* Render todos inline without tool wrapper */}
+                    {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
+                      <div className="mt-4">
+                        <TodoList
+                          todos={extractTodosFromToolCalls(message.toolCalls)}
                         />
-                        <AIToolContent toolCall={toolCall} />
-                      </AIToolStep>
-                    </AIToolLadder>
-                  ))}
-                </>
-              )}
-            </AIMessageContent>
-          </AIMessage>
+                      </div>
+                    )}
+                    {/* Render regular tool calls directly ONLY when timeline is not available or empty */}
+                    {(!message.timeline || message.timeline.length === 0) && filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
+                      <AIToolLadder key={`direct-tool-${toolCall.id}-${index}`}>
+                        <AIToolStep
+                          isLast={true}
+                          status={toolCall.status}
+                          stepNumber={1}
+                        >
+                          <AIToolHeader
+                            description={toolCall.description}
+                            name={toolCall.name}
+                            status={toolCall.status}
+                            toolCall={toolCall}
+                          />
+                          <AIToolContent toolCall={toolCall} />
+                        </AIToolStep>
+                      </AIToolLadder>
+                    ))}
+                  </>
+                )}
+              </AIMessageContent>
+            </AIMessage>
           );
         })}
         {(sseStream.processing && !sseStream.completed) || (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length)) ? (

@@ -23,7 +23,6 @@ export function useAppList() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['appList'],
     queryFn: fetchAppList,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });

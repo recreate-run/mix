@@ -31,9 +31,6 @@ export interface LoginData {
   oauthState?: string;
 }
 
-export interface LogoutData {
-  providers: Provider[];
-}
 
 export interface StatusData {
   providers: Provider[];
@@ -61,10 +58,6 @@ export type ViewState =
   | 'mcp-tools'
   | 'hierarchical-model'
   | 'hierarchical-models'
-  | 'login'
-  | 'login-auth-methods'
-  | 'login-auth-input'
-  | 'logout'
   | 'status'
   | 'help';
 
@@ -75,7 +68,6 @@ export interface CommandPaletteState {
   selectedAuthMethod: AuthMethod | null;
   hierarchicalModelData?: HierarchicalModelData;
   loginData?: LoginData;
-  logoutData?: LogoutData;
   statusData?: StatusData;
   helpData?: HelpData;
 }

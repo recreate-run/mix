@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"mix/internal/config"
+	"mix/internal/logging"
 	"mix/internal/permission"
 )
 
@@ -223,10 +225,21 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 		}
 	}
 
-	// Get API key from environment
-	apiKey := os.Getenv("BRAVE_SEARCH_API_KEY")
-	if apiKey == "" {
-		return NewTextErrorResponse("BRAVE_SEARCH_API_KEY environment variable is not set"), nil
+	// Get API key from credentials service
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		return NewTextErrorResponse("Credentials service not available"), nil
+	}
+
+	apiKey, err := credentialsService.GetAPIKey(ctx, "brave")
+	if err != nil || apiKey == ""  {
+		// Fallback to environment variable for backwards compatibility
+		envAPIKey := os.Getenv("BRAVE_SEARCH_API_KEY")
+		if envAPIKey == "" {
+			logging.Error("Brave Search API key not configured")
+			return NewTextErrorResponse("Brave Search API key not configured. Please set your API key in Settings > Tools & Agents."), nil
+		}
+		apiKey = envAPIKey
 	}
 
 	sessionID, messageID := GetContextValues(ctx)

@@ -281,59 +281,6 @@ func getOpenAPISpec() OpenAPISpec {
 				},
 			},
 			// System Operations
-			"/api/auth/login": map[string]interface{}{
-				"post": map[string]interface{}{
-					"operationId":  "initiateOAuthLogin",
-					"summary":     "OAuth authentication",
-					"description": "Initiate OAuth authentication flow",
-					"tags":        []string{"Authentication"},
-					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", map[string]interface{}{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"authUrl": map[string]interface{}{
-									"type":        "string",
-									"description": "OAuth authorization URL",
-								},
-							},
-						}, "Authentication URL"),
-						"401": createErrorResponse("Unauthorized - authentication failed"),
-						"500": createErrorResponse("Internal server error"),
-					},
-				},
-			},
-			"/api/auth/apikey": map[string]interface{}{
-				"post": map[string]interface{}{
-					"operationId":  "setApiKey",
-					"summary":     "Set API key",
-					"description": "Set API key for direct authentication",
-					"tags":        []string{"Authentication"},
-					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
-						"required": []string{"apiKey"},
-						"properties": map[string]interface{}{
-							"apiKey": map[string]interface{}{
-								"type":        "string",
-								"description": "API key for authentication",
-							},
-						},
-					}),
-					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", map[string]interface{}{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"success": map[string]interface{}{
-									"type":        "boolean",
-									"description": "Whether API key was set successfully",
-								},
-							},
-						}, "API key set status"),
-						"400": createErrorResponse("Invalid API key"),
-						"401": createErrorResponse("Unauthorized - authentication failed"),
-						"500": createErrorResponse("Internal server error"),
-					},
-				},
-			},
 			"/api/mcp": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "listMcpServers",
@@ -501,8 +448,8 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"provider": map[string]interface{}{
 								"type":        "string",
-								"description": "Provider name (anthropic, openai, openrouter, gemini)",
-								"enum":        []string{"anthropic", "openai", "openrouter", "gemini"},
+								"description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
+								"enum":        []string{"anthropic", "openai", "openrouter", "gemini", "brave"},
 							},
 							"api_key": map[string]interface{}{
 								"type":        "string",
@@ -694,7 +641,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"description": "Delete stored API key and/or OAuth credentials for a provider",
 					"tags":        []string{"Authentication"},
 					"parameters": []map[string]interface{}{
-						createPathParameter("provider", "Provider name (anthropic, openai, openrouter)"),
+						createPathParameter("provider", "Provider name (anthropic, openai, openrouter, gemini, brave)"),
 					},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("object", map[string]interface{}{
@@ -1079,6 +1026,65 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "File deleted successfully",
 						},
 						"404": createErrorResponse("Session or file not found"),
+					},
+				},
+			},
+			// Tools & Agents API Endpoints
+			"/api/tools/status": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getToolsStatus",
+					"summary":     "Get tools status",
+					"description": "Get status and authentication information for all available tools and categories",
+					"tags":        []string{"Tools"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"categories": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"display_name": map[string]interface{}{
+												"type":        "string",
+												"description": "User-friendly category name",
+											},
+											"tools": map[string]interface{}{
+												"type": "array",
+												"items": map[string]interface{}{
+													"type": "object",
+													"properties": map[string]interface{}{
+														"provider": map[string]interface{}{
+															"type":        "string",
+															"description": "Tool provider name",
+														},
+														"display_name": map[string]interface{}{
+															"type":        "string",
+															"description": "User-friendly tool name",
+														},
+														"description": map[string]interface{}{
+															"type":        "string",
+															"description": "Tool description",
+														},
+														"authenticated": map[string]interface{}{
+															"type":        "boolean",
+															"description": "Whether tool is authenticated and ready to use",
+														},
+														"api_key_required": map[string]interface{}{
+															"type":        "boolean",
+															"description": "Whether tool requires API key authentication",
+														},
+													},
+												},
+												"description": "Available tools in this category",
+											},
+										},
+									},
+									"description": "Map of tool categories and their tools",
+								},
+							},
+						}, "Tools status and authentication information"),
+						"500": createErrorResponse("Internal server error"),
 					},
 				},
 			},

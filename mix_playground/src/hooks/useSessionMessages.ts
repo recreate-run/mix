@@ -30,10 +30,15 @@ async function loadAndConvertMessages(
 };
 
 export function useSessionMessages(sessionId: string | null) {
-  return useQuery({
+  const query = useQuery({
     queryKey: CACHE_KEYS.sessionMessages(sessionId || ''),
-    queryFn: () => sessionId ? loadAndConvertMessages(sessionId) : [],
+    queryFn: async () => {
+      const result = sessionId ? await loadAndConvertMessages(sessionId) : [];
+      return result;
+    },
     enabled: !!sessionId,
     refetchOnWindowFocus: false,
   });
+
+  return query;
 };

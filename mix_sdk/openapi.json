@@ -41,12 +41,13 @@
                     "type": "string"
                   },
                   "provider": {
-                    "description": "Provider name (anthropic, openai, openrouter, gemini)",
+                    "description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
                     "enum": [
                       "anthropic",
                       "openai",
                       "openrouter",
-                      "gemini"
+                      "gemini",
+                      "brave"
                     ],
                     "type": "string"
                   }
@@ -108,131 +109,6 @@
           }
         },
         "summary": "Store API key",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
-    "/api/auth/apikey": {
-      "post": {
-        "description": "Set API key for direct authentication",
-        "operationId": "setApiKey",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "apiKey": {
-                    "description": "API key for authentication",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "apiKey"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "success": {
-                      "description": "Whether API key was set successfully",
-                      "type": "boolean"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "API key set status"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Invalid API key"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized - authentication failed"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Set API key",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
-    "/api/auth/login": {
-      "post": {
-        "description": "Initiate OAuth authentication flow",
-        "operationId": "initiateOAuthLogin",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "authUrl": {
-                      "description": "OAuth authorization URL",
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Authentication URL"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized - authentication failed"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal server error"
-          }
-        },
-        "summary": "OAuth authentication",
         "tags": [
           "Authentication"
         ]
@@ -515,7 +391,7 @@
         "operationId": "deleteCredentials",
         "parameters": [
           {
-            "description": "Provider name (anthropic, openai, openrouter)",
+            "description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
             "in": "path",
             "name": "provider",
             "required": true,
@@ -1992,6 +1868,82 @@
         "summary": "Send a message to session",
         "tags": [
           "Messages"
+        ]
+      }
+    },
+    "/api/tools/status": {
+      "get": {
+        "description": "Get status and authentication information for all available tools and categories",
+        "operationId": "getToolsStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "categories": {
+                      "additionalProperties": {
+                        "properties": {
+                          "display_name": {
+                            "description": "User-friendly category name",
+                            "type": "string"
+                          },
+                          "tools": {
+                            "description": "Available tools in this category",
+                            "items": {
+                              "properties": {
+                                "api_key_required": {
+                                  "description": "Whether tool requires API key authentication",
+                                  "type": "boolean"
+                                },
+                                "authenticated": {
+                                  "description": "Whether tool is authenticated and ready to use",
+                                  "type": "boolean"
+                                },
+                                "description": {
+                                  "description": "Tool description",
+                                  "type": "string"
+                                },
+                                "display_name": {
+                                  "description": "User-friendly tool name",
+                                  "type": "string"
+                                },
+                                "provider": {
+                                  "description": "Tool provider name",
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "description": "Map of tool categories and their tools",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Tools status and authentication information"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get tools status",
+        "tags": [
+          "Tools"
         ]
       }
     },

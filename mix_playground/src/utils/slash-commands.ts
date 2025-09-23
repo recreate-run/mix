@@ -2,8 +2,6 @@ import {
   Clock,
   Command,
   HelpCircle,
-  LogIn,
-  LogOut,
   RefreshCw,
   Shield,
   Cpu,
@@ -40,18 +38,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'mcp',
     description: 'Model Context Protocol',
     icon: Command,
-  },
-  {
-    id: 'login',
-    name: 'login',
-    description: 'Authenticate with available providers',
-    icon: LogIn,
-  },
-  {
-    id: 'logout',
-    name: 'logout',
-    description: 'Sign out from Claude Code',
-    icon: LogOut,
   },
   // Status command hidden - /model can be used instead for provider/model selection
   // {
