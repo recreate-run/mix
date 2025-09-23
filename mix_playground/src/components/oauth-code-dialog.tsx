@@ -50,7 +50,7 @@ export function OAuthCodeDialog({
       toast.success('Authentication successful!');
       queryClient.invalidateQueries({ queryKey: ['providers'] });
       queryClient.invalidateQueries({ queryKey: ['preferences'] });
-      
+
       setCode('');
       onOpenChange(false);
       onSuccess?.();
@@ -77,7 +77,7 @@ export function OAuthCodeDialog({
             After authorizing in your browser, copy and paste the authorization code here to complete the authentication process.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="auth-code">Authorization Code</Label>
@@ -91,12 +91,8 @@ export function OAuthCodeDialog({
               className="font-mono text-sm"
             />
           </div>
-          
-          <div className="text-sm text-muted-foreground">
-            <p>Look for a code that starts with something like "auth_" or a long string of characters after completing authorization in your browser.</p>
-          </div>
         </div>
-        
+
         <DialogFooter>
           <Button
             type="button"

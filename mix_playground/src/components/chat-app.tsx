@@ -42,19 +42,6 @@ import { ConversationDisplay } from './conversation-display';
 import { FileUploadButton } from './file-upload-button';
 import { PermissionDialog } from './permission-dialog';
 
-// Helper function to extract media outputs from show_media tool call
-// const getMediaShowcaseOutputs = (toolCalls: ToolCall[]): MediaOutput[] => {
-//   const mediaShowcaseTool = toolCalls?.find(
-//     (tc) => tc.name === 'show_media'
-//   );
-//   if (!mediaShowcaseTool?.parameters?.outputs) return [];
-//   try {
-//     return mediaShowcaseTool.parameters.outputs as MediaOutput[];
-//   } catch {
-//     return [];
-//   }
-// };
-
 interface ChatAppProps {
   sessionId: string;
 }
@@ -156,44 +143,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   }, [sessionMessages.data, sessionMessages.error, sessionMessages.isLoading, sessionId]);
 
-  // // Transform open apps to Attachment format and filter allowed apps
-  // const allowedApps = [
-  //   'Notes',
-  //   'Obsidian',
-  //   'Blender',
-  //   'Pixelmator Pro',
-  //   'Final Cut Pro',
-  // ];
-  // const availableApps = useMemo(() => {
-  //   return openApps
-  //     .filter((app) =>
-  //       allowedApps.some((allowed) =>
-  //         app.name.toLowerCase().includes(allowed.toLowerCase())
-  //       )
-  //     )
-  //     .map((app) => ({
-  //       id: `app:${app.bundle_id}`,
-  //       name: app.name,
-  //       type: 'app' as const,
-  //       icon: 'placeholder', // Icons loaded on-demand for performance
-  //       isOpen: true,
-  //       bundleId: app.bundle_id,
-  //     }));
-  // }, [openApps]);
   const availableApps: any[] = [];
 
   const fileRef = useFileReference(text, setText, session?.id);
-
-
-
-
-
-
-
-
-
-
-
 
 
   // Handle file upload success
@@ -578,9 +530,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Button status and disabled state now computed by enhanced hook
   const isSubmitDisabled = sseStream.buttonStatus === 'ready'
     ? (!text && attachments.length === 0) ||
-      !session?.id ||
-      sessionLoading ||
-      sseStream.isSubmitDisabled
+    !session?.id ||
+    sessionLoading ||
+    sseStream.isSubmitDisabled
     : sseStream.buttonStatus === 'paused'
       ? true // Disable button completely during cancellation
       : !session?.id || sessionLoading || sseStream.isSubmitDisabled;
@@ -676,7 +628,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                     />
                   )}
 
-                  {/* Mode selection temporarily hidden */}
+                  {/* Plan Mode selection, hidden for now */}
                   {/* <Select
                     onValueChange={(value) => setIsPlanMode(value === 'plan')}
                     value={isPlanMode ? 'plan' : 'edit'}

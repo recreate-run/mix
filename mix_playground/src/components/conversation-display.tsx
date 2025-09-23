@@ -328,7 +328,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 
   // Group consecutive thinking entries together for better UX
   const groupedEntries: Array<
-    | { type: 'thinking', entries: string[], timestamps: number[] } 
+    | { type: 'thinking', entries: string[], timestamps: number[] }
     | { type: 'tool', entry: TimelineEntry }
     | { type: 'content', entry: TimelineEntry }
   > = [];
@@ -428,7 +428,7 @@ export function ConversationDisplay({
   setUserMessageRef,
   sessionId,
 }: ConversationDisplayProps) {
-  
+
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
   const [localMessages, setLocalMessages] = useState<UIMessage[]>(messages);
 
@@ -465,17 +465,17 @@ export function ConversationDisplay({
   const handleMessageUpdate = (index: number, updatedMessage: UIMessage) => {
     // Update local message state
     setLocalMessages((prev) => [
-      ...prev.slice(0, index), 
+      ...prev.slice(0, index),
       updatedMessage,
       ...prev.slice(index + 1)
     ]);
-    
+
     // Pass update to parent component
     if (onUpdateMessage) {
       onUpdateMessage(index, updatedMessage);
     }
   };
-  
+
   return (
     <div className="relative h-full flex-1 py-16">
       <div className="">
@@ -487,7 +487,7 @@ export function ConversationDisplay({
                 mix
               </div>
               <div className="text-xl text-muted-foreground animate-in slide-in-from-top duration-1000 delay-200">
-                AI-powered creative workflows
+                The multimodal agents SDK
               </div>
             </div>
 
@@ -515,122 +515,122 @@ export function ConversationDisplay({
                 message.from === 'user' ? setUserMessageRef?.(index) : undefined
               }
             >
-            <AIMessageContent>
-              {message.from === 'assistant' ? (
-                <>
-                  {/* Render media outputs as primary content */}
-                  {message.mediaOutputs && sessionId ? (
-                    <>
-                      <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} />
+              <AIMessageContent>
+                {message.from === 'assistant' ? (
+                  <>
+                    {/* Render media outputs as primary content */}
+                    {message.mediaOutputs && sessionId ? (
+                      <>
+                        <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} />
+                        <AIMessageContent.Content>
+                          {/* Render timeline-based interleaved thinking and tools */}
+                          {message.timeline && renderTimelineEntries(message.timeline)}
+                        </AIMessageContent.Content>
+                      </>
+                    ) : message.mediaOutputs ? (
+                      <>
+                        <div className="text-sm text-muted-foreground">Media content requires session ID</div>
+                        <AIMessageContent.Content>
+                          {/* Render timeline-based interleaved thinking and tools */}
+                          {message.timeline && renderTimelineEntries(message.timeline)}
+                        </AIMessageContent.Content>
+                      </>
+                    ) : (
                       <AIMessageContent.Content>
                         {/* Render timeline-based interleaved thinking and tools */}
                         {message.timeline && renderTimelineEntries(message.timeline)}
+                        {message.status ? (
+                          <StatusUI
+                            statusState={message.status}
+                          />
+                        ) : message.provider ? (
+                          <ProviderDisplay
+                            data={message.provider}
+                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                          />
+                        ) : message.model ? (
+                          <ModelDisplay
+                            data={message.model}
+                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                          />
+                        ) : (
+                          <ResponseRenderer content={message.content} />
+                        )}
                       </AIMessageContent.Content>
-                    </>
-                  ) : message.mediaOutputs ? (
-                    <>
-                      <div className="text-sm text-muted-foreground">Media content requires session ID</div>
-                      <AIMessageContent.Content>
-                        {/* Render timeline-based interleaved thinking and tools */}
-                        {message.timeline && renderTimelineEntries(message.timeline)}
-                      </AIMessageContent.Content>
-                    </>
-                  ) : (
+                    )}
+                    {message.content && (
+                      <AIMessageContent.Toolbar>
+                        <MessageCopyButton content={message.content} />
+                      </AIMessageContent.Toolbar>
+                    )}
+                  </>
+                ) : (
+                  <>
                     <AIMessageContent.Content>
-                      {/* Render timeline-based interleaved thinking and tools */}
-                      {message.timeline && renderTimelineEntries(message.timeline)}
-                      {message.status ? (
-                        <StatusUI 
-                          statusState={message.status}
-                        />
-                      ) : message.provider ? (
-                        <ProviderDisplay 
-                          data={message.provider}
-                          onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                        />
-                      ) : message.model ? (
-                        <ModelDisplay
-                          data={message.model}
-                          onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
-                        />
-                      ) : (
-                        <ResponseRenderer content={message.content} />
-                      )}
+                      <MessageAttachmentDisplay
+                        attachments={message.attachments || []}
+                        sessionId={sessionId}
+                      />
+                      {message.content}
                     </AIMessageContent.Content>
-                  )}
-                  {message.content && (
                     <AIMessageContent.Toolbar>
                       <MessageCopyButton content={message.content} />
+                      {onForkMessage && (
+                        <Button
+                          className="text-muted-foreground hover:text-foreground"
+                          disabled={sseStream.processing}
+                          onClick={() => onForkMessage(index)}
+                          size="sm"
+                          variant="ghost"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
                     </AIMessageContent.Toolbar>
-                  )}
-                </>
-              ) : (
-                <>
-                  <AIMessageContent.Content>
-                    <MessageAttachmentDisplay
-                      attachments={message.attachments || []}
-                      sessionId={sessionId}
-                    />
-                    {message.content}
-                  </AIMessageContent.Content>
-                  <AIMessageContent.Toolbar>
-                    <MessageCopyButton content={message.content} />
-                    {onForkMessage && (
-                      <Button
-                        className="text-muted-foreground hover:text-foreground"
-                        disabled={sseStream.processing}
-                        onClick={() => onForkMessage(index)}
-                        size="sm"
-                        variant="ghost"
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                    )}
-                  </AIMessageContent.Toolbar>
-                </>
-              )}
-              {/* Render special tools (todos, plans) and legacy tools when timeline is not available */}
-              {message.toolCalls && message.toolCalls.length > 0 && (
-                <>
-                  {/* Render plan content */}
-                  {extractPlanFromToolCalls(message.toolCalls) && (
-                    <PlanDisplay
-                      onKeepPlanning={() => handlePlanKeepPlanning(index)}
-                      onProceed={() => handlePlanProceed(index)}
-                      planContent={extractPlanFromToolCalls(message.toolCalls)}
-                      showOptions={showPlanOptions === index}
-                    />
-                  )}
-                  {/* Render todos inline without tool wrapper */}
-                  {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
-                    <div className="mt-4">
-                      <TodoList
-                        todos={extractTodosFromToolCalls(message.toolCalls)}
+                  </>
+                )}
+                {/* Render special tools (todos, plans) and legacy tools when timeline is not available */}
+                {message.toolCalls && message.toolCalls.length > 0 && (
+                  <>
+                    {/* Render plan content */}
+                    {extractPlanFromToolCalls(message.toolCalls) && (
+                      <PlanDisplay
+                        onKeepPlanning={() => handlePlanKeepPlanning(index)}
+                        onProceed={() => handlePlanProceed(index)}
+                        planContent={extractPlanFromToolCalls(message.toolCalls)}
+                        showOptions={showPlanOptions === index}
                       />
-                    </div>
-                  )}
-                  {/* Render regular tool calls directly ONLY when timeline is not available or empty */}
-                  {(!message.timeline || message.timeline.length === 0) && filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
-                    <AIToolLadder key={`direct-tool-${toolCall.id}-${index}`}>
-                      <AIToolStep
-                        isLast={true}
-                        status={toolCall.status}
-                        stepNumber={1}
-                      >
-                        <AIToolHeader
-                          description={toolCall.description}
-                          name={toolCall.name}
-                          status={toolCall.status}
-                          toolCall={toolCall}
+                    )}
+                    {/* Render todos inline without tool wrapper */}
+                    {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
+                      <div className="mt-4">
+                        <TodoList
+                          todos={extractTodosFromToolCalls(message.toolCalls)}
                         />
-                        <AIToolContent toolCall={toolCall} />
-                      </AIToolStep>
-                    </AIToolLadder>
-                  ))}
-                </>
-              )}
-            </AIMessageContent>
-          </AIMessage>
+                      </div>
+                    )}
+                    {/* Render regular tool calls directly ONLY when timeline is not available or empty */}
+                    {(!message.timeline || message.timeline.length === 0) && filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
+                      <AIToolLadder key={`direct-tool-${toolCall.id}-${index}`}>
+                        <AIToolStep
+                          isLast={true}
+                          status={toolCall.status}
+                          stepNumber={1}
+                        >
+                          <AIToolHeader
+                            description={toolCall.description}
+                            name={toolCall.name}
+                            status={toolCall.status}
+                            toolCall={toolCall}
+                          />
+                          <AIToolContent toolCall={toolCall} />
+                        </AIToolStep>
+                      </AIToolLadder>
+                    ))}
+                  </>
+                )}
+              </AIMessageContent>
+            </AIMessage>
           );
         })}
         {(sseStream.processing && !sseStream.completed) || (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length)) ? (
