@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -356,8 +357,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <h3 className="text-lg font-semibold">Tools & Agents</h3>
             </div>
             
-            <WebSearchToolsCard />
-            <MultimodalAnalyzersCard />
+            <Tabs defaultValue="web_search" className="w-full">
+              <TabsList className="w-full mb-4">
+                <TabsTrigger value="web_search" className="flex-1">Web Search</TabsTrigger>
+                <TabsTrigger value="multimodal" className="flex-1">Multimodal Analysis</TabsTrigger>
+              </TabsList>
+              <TabsContent value="web_search">
+                <WebSearchToolsCard />
+              </TabsContent>
+              <TabsContent value="multimodal">
+                <MultimodalAnalyzersCard />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </DialogContent>
