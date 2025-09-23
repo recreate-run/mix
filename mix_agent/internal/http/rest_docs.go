@@ -281,59 +281,6 @@ func getOpenAPISpec() OpenAPISpec {
 				},
 			},
 			// System Operations
-			"/api/auth/login": map[string]interface{}{
-				"post": map[string]interface{}{
-					"operationId":  "initiateOAuthLogin",
-					"summary":     "OAuth authentication",
-					"description": "Initiate OAuth authentication flow",
-					"tags":        []string{"Authentication"},
-					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", map[string]interface{}{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"authUrl": map[string]interface{}{
-									"type":        "string",
-									"description": "OAuth authorization URL",
-								},
-							},
-						}, "Authentication URL"),
-						"401": createErrorResponse("Unauthorized - authentication failed"),
-						"500": createErrorResponse("Internal server error"),
-					},
-				},
-			},
-			"/api/auth/apikey": map[string]interface{}{
-				"post": map[string]interface{}{
-					"operationId":  "setApiKey",
-					"summary":     "Set API key",
-					"description": "Set API key for direct authentication",
-					"tags":        []string{"Authentication"},
-					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
-						"required": []string{"apiKey"},
-						"properties": map[string]interface{}{
-							"apiKey": map[string]interface{}{
-								"type":        "string",
-								"description": "API key for authentication",
-							},
-						},
-					}),
-					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", map[string]interface{}{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"success": map[string]interface{}{
-									"type":        "boolean",
-									"description": "Whether API key was set successfully",
-								},
-							},
-						}, "API key set status"),
-						"400": createErrorResponse("Invalid API key"),
-						"401": createErrorResponse("Unauthorized - authentication failed"),
-						"500": createErrorResponse("Internal server error"),
-					},
-				},
-			},
 			"/api/mcp": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "listMcpServers",
