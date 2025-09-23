@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionsList } from "@/hooks/useSessionsList";
+import { LoadingScreen } from "@/components/loading/LoadingScreen";
 
 export const Route = createFileRoute("/")({
 	component: AutoRedirectHome,
@@ -14,10 +15,11 @@ function AutoRedirectHome() {
 	const createSession = useCreateSession();
 	const { data: sessions, isLoading, error } = useSessionsList();
 	const [isHandling, setIsHandling] = useState(false);
+	const [animationComplete, setAnimationComplete] = useState(false);
 
 	useEffect(() => {
 		// Prevent multiple simultaneous executions
-		if (isHandling || isLoading || error) return;
+		if (isHandling || isLoading || error || !animationComplete) return;
 		if (!sessions) return;
 
 		setIsHandling(true);
@@ -65,12 +67,6 @@ function AutoRedirectHome() {
 		);
 	}
 
-	return (
-		<div className="flex min-h-screen items-center justify-center">
-			<div className="text-center">
-				<div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-				<p className="text-muted-foreground">Loading...</p>
-			</div>
-		</div>
-	);
+
+	return <LoadingScreen duration={10} onComplete={() => setAnimationComplete(true)} />;
 }
