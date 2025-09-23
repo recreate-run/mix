@@ -84,16 +84,16 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 	switch provider {
 	case ProviderOpenAI:
 		return []ModelID{
-			GPT4oMini,
-			GPT4o,
+			// GPT4oMini,
+			// GPT4o,
 			GPT41,
-			GPT41Mini,
-			GPT41Nano,
-			O1,
-			O1Mini,
-			O1Pro,
+			// GPT41Mini,
+			// GPT41Nano,
+			// O1,
+			// O1Mini,
+			// O1Pro,
 			O3,
-			O3Mini,
+			// O3Mini,
 			O4Mini,
 		}
 	case ProviderOpenRouter:
@@ -105,8 +105,6 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 		return []ModelID{
 			Claude4Sonnet,
 			Claude37Sonnet,
-			Claude35Haiku,
-			Claude3Opus,
 			Claude4Opus,
 		}
 	case ProviderGemini:
