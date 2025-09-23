@@ -23,6 +23,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	systemHandler := NewSystemHandler(app)
 	preferencesHandler := NewPreferencesHandler(app)
 	authHandler := NewAuthHandler(app)
+	toolsHandler := NewToolsHandler(app)
 
 	// Create session-aware asset handler using app's storage config
 	fileHandler := NewFileHandler(app, app.StorageConfig)
@@ -137,6 +138,11 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/auth/validate", authHandler.HandleValidatePreferredProvider)
 	mux.HandleFunc("POST /api/auth/oauth/{provider}", authHandler.HandleStartOAuth)
 	mux.HandleFunc("POST /api/auth/oauth-callback", authHandler.HandleOAuthCallback)
+
+	// Tools management endpoints
+	mux.HandleFunc("POST /api/tools/credentials", toolsHandler.HandleStoreToolAPIKey)
+	mux.HandleFunc("DELETE /api/tools/credentials/{tool_type}/{provider}", toolsHandler.HandleDeleteToolCredential)
+	mux.HandleFunc("GET /api/tools/status", toolsHandler.HandleToolsStatus)
 
 	addr := host + ":" + strconv.Itoa(port)
 	server := &http.Server{

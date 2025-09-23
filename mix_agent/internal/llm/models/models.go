@@ -75,7 +75,7 @@ func GetSupportedProviders() []ModelProvider {
 		ProviderOpenAI,
 		ProviderOpenRouter,
 		ProviderAnthropic, // Claude
-		ProviderGemini,
+		// ProviderGemini,
 	}
 }
 
@@ -184,7 +184,7 @@ var SupportedModels = map[ModelID]Model{
 func init() {
 	maps.Copy(SupportedModels, AnthropicModels)
 	maps.Copy(SupportedModels, OpenAIModels)
-	maps.Copy(SupportedModels, GeminiModels)
+	// maps.Copy(SupportedModels, GeminiModels)
 	//maps.Copy(SupportedModels, GroqModels)
 	//maps.Copy(SupportedModels, AzureModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
