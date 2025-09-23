@@ -1995,6 +1995,265 @@
         ]
       }
     },
+    "/api/tools/credentials": {
+      "post": {
+        "description": "Store API key for a specific tool provider",
+        "operationId": "storeToolCredentials",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "api_key": {
+                    "description": "API key for authentication",
+                    "type": "string"
+                  },
+                  "provider": {
+                    "description": "Tool provider name (e.g., brave, gemini)",
+                    "type": "string"
+                  },
+                  "tool_type": {
+                    "description": "Tool category type",
+                    "enum": [
+                      "web_search",
+                      "multimodal_analyzer"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool_type",
+                  "provider",
+                  "api_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "description": "Success message",
+                      "type": "string"
+                    },
+                    "provider": {
+                      "description": "Tool provider name",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Operation status (success)",
+                      "type": "string"
+                    },
+                    "tool_type": {
+                      "description": "Tool category type",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Tool API key stored successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request data or API key format"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Store tool API key",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/tools/credentials/{tool_type}/{provider}": {
+      "delete": {
+        "description": "Delete stored API key for a specific tool provider",
+        "operationId": "deleteToolCredentials",
+        "parameters": [
+          {
+            "description": "Tool category type (web_search, multimodal_analyzer)",
+            "in": "path",
+            "name": "tool_type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tool provider name (e.g., brave, gemini)",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "description": "Success message",
+                      "type": "string"
+                    },
+                    "provider": {
+                      "description": "Tool provider name",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Operation status (success)",
+                      "type": "string"
+                    },
+                    "tool_type": {
+                      "description": "Tool category type",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Tool API key deleted successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid tool type or provider"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Tool credentials not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Delete tool API key",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/tools/status": {
+      "get": {
+        "description": "Get status and authentication information for all available tools and categories",
+        "operationId": "getToolsStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "categories": {
+                      "additionalProperties": {
+                        "properties": {
+                          "display_name": {
+                            "description": "User-friendly category name",
+                            "type": "string"
+                          },
+                          "tools": {
+                            "description": "Available tools in this category",
+                            "items": {
+                              "properties": {
+                                "api_key_required": {
+                                  "description": "Whether tool requires API key authentication",
+                                  "type": "boolean"
+                                },
+                                "authenticated": {
+                                  "description": "Whether tool is authenticated and ready to use",
+                                  "type": "boolean"
+                                },
+                                "description": {
+                                  "description": "Tool description",
+                                  "type": "string"
+                                },
+                                "display_name": {
+                                  "description": "User-friendly tool name",
+                                  "type": "string"
+                                },
+                                "provider": {
+                                  "description": "Tool provider name",
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "description": "Map of tool categories and their tools",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Tools status and authentication information"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get tools status",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "description": "Check server health and status",

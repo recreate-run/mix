@@ -494,7 +494,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 		{"anthropic", models.ProviderAnthropic, "Anthropic", true},
 		{"openai", models.ProviderOpenAI, "OpenAI", false},
 		{"openrouter", models.ProviderOpenRouter, "OpenRouter", false},
-		{"gemini", models.ProviderGemini, "Google Gemini", false},
+		// {"gemini", models.ProviderGemini, "Google Gemini", false},
 	}
 
 	for _, p := range providers {

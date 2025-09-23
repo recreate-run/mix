@@ -62,7 +62,7 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 			parts = append(parts, &genai.Part{Text: msg.Content().String()})
 			for _, binaryContent := range msg.BinaryContent() {
 				// Handle images and videos via inline data for supported formats
-				if g.isSupportedInlineFormat(binaryContent.MIMEType) {
+				if g.isSupportedInlineFormat(binaryContent.MIMEType) || g.isSupportedVideoFormat(binaryContent.MIMEType) {
 					parts = append(parts, &genai.Part{InlineData: &genai.Blob{
 						MIMEType: binaryContent.MIMEType,
 						Data:     binaryContent.Data,

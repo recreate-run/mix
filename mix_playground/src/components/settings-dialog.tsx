@@ -4,7 +4,7 @@ import {
   IconLogout,
   IconLogin,
 } from '@tabler/icons-react';
-import { Loader2 } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,8 @@ import { authenticateWithApiKey, startOAuthFlow } from "@/handlers/login-command
 import { useProviders } from "@/hooks/useProviders";
 import { ProvidersLoadingSkeleton } from "@/components/provider-skeleton";
 import { OAuthCodeDialog } from "@/components/oauth-code-dialog";
+import { WebSearchToolsCard } from "@/components/web-search-tools-card";
+import { MultimodalAnalyzersCard } from "@/components/multimodal-analyzers-card";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -186,17 +188,24 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <IconServer className="h-5 w-5" />
-            Providers
+            <Settings className="h-5 w-5" />
+            Settings
           </DialogTitle>
           <DialogDescription>
-            Manage your authenticated providers and logout if needed.
+            Manage your providers, tools, and authentication settings.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="overflow-y-auto max-h-[50vh] min-h-[400px]">
-          <Card className="border-0">
-            <CardContent className="p-0 border-0">
+        <div className="overflow-y-auto max-h-[60vh] min-h-[500px] space-y-6">
+          {/* Providers Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <IconServer className="h-5 w-5" />
+                <CardTitle>AI Providers</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
               {loadingProviders ? (
                 <ProvidersLoadingSkeleton />
               ) : allProviders.length === 0 ? (
@@ -340,6 +349,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Tools & Agents Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Tools & Agents</h3>
+            </div>
+            
+            <WebSearchToolsCard />
+            <MultimodalAnalyzersCard />
+          </div>
         </div>
       </DialogContent>
       </Dialog>

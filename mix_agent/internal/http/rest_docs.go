@@ -1082,6 +1082,155 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			// Tools & Agents API Endpoints
+			"/api/tools/status": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getToolsStatus",
+					"summary":     "Get tools status",
+					"description": "Get status and authentication information for all available tools and categories",
+					"tags":        []string{"Tools"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"categories": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"display_name": map[string]interface{}{
+												"type":        "string",
+												"description": "User-friendly category name",
+											},
+											"tools": map[string]interface{}{
+												"type": "array",
+												"items": map[string]interface{}{
+													"type": "object",
+													"properties": map[string]interface{}{
+														"provider": map[string]interface{}{
+															"type":        "string",
+															"description": "Tool provider name",
+														},
+														"display_name": map[string]interface{}{
+															"type":        "string",
+															"description": "User-friendly tool name",
+														},
+														"description": map[string]interface{}{
+															"type":        "string",
+															"description": "Tool description",
+														},
+														"authenticated": map[string]interface{}{
+															"type":        "boolean",
+															"description": "Whether tool is authenticated and ready to use",
+														},
+														"api_key_required": map[string]interface{}{
+															"type":        "boolean",
+															"description": "Whether tool requires API key authentication",
+														},
+													},
+												},
+												"description": "Available tools in this category",
+											},
+										},
+									},
+									"description": "Map of tool categories and their tools",
+								},
+							},
+						}, "Tools status and authentication information"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/tools/credentials": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "storeToolCredentials",
+					"summary":     "Store tool API key",
+					"description": "Store API key for a specific tool provider",
+					"tags":        []string{"Tools"},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"tool_type", "provider", "api_key"},
+						"properties": map[string]interface{}{
+							"tool_type": map[string]interface{}{
+								"type":        "string",
+								"description": "Tool category type",
+								"enum":        []string{"web_search", "multimodal_analyzer"},
+							},
+							"provider": map[string]interface{}{
+								"type":        "string",
+								"description": "Tool provider name (e.g., brave, gemini)",
+							},
+							"api_key": map[string]interface{}{
+								"type":        "string",
+								"description": "API key for authentication",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status (success)",
+								},
+								"tool_type": map[string]interface{}{
+									"type":        "string",
+									"description": "Tool category type",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Tool provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Success message",
+								},
+							},
+						}, "Tool API key stored successfully"),
+						"400": createErrorResponse("Invalid request data or API key format"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/tools/credentials/{tool_type}/{provider}": map[string]interface{}{
+				"delete": map[string]interface{}{
+					"operationId":  "deleteToolCredentials",
+					"summary":     "Delete tool API key",
+					"description": "Delete stored API key for a specific tool provider",
+					"tags":        []string{"Tools"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("tool_type", "Tool category type (web_search, multimodal_analyzer)"),
+						createPathParameter("provider", "Tool provider name (e.g., brave, gemini)"),
+					},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status (success)",
+								},
+								"tool_type": map[string]interface{}{
+									"type":        "string",
+									"description": "Tool category type",
+								},
+								"provider": map[string]interface{}{
+									"type":        "string",
+									"description": "Tool provider name",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Success message",
+								},
+							},
+						}, "Tool API key deleted successfully"),
+						"400": createErrorResponse("Invalid tool type or provider"),
+						"404": createErrorResponse("Tool credentials not found"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "healthCheck",

@@ -349,6 +349,14 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 	}
 
 	result.Analysis = analysis
+	
+	// Log successful analysis
+	logging.Info("ReadMedia analysis completed successfully", 
+		"filePath", filePath, 
+		"analysisType", params.AnalysisType,
+		"responseLength", len(analysis),
+		"response", analysis)
+	
 	return result
 }
 
