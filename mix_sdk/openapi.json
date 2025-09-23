@@ -41,12 +41,13 @@
                     "type": "string"
                   },
                   "provider": {
-                    "description": "Provider name (anthropic, openai, openrouter, gemini)",
+                    "description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
                     "enum": [
                       "anthropic",
                       "openai",
                       "openrouter",
-                      "gemini"
+                      "gemini",
+                      "brave"
                     ],
                     "type": "string"
                   }
@@ -515,7 +516,7 @@
         "operationId": "deleteCredentials",
         "parameters": [
           {
-            "description": "Provider name (anthropic, openai, openrouter)",
+            "description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
             "in": "path",
             "name": "provider",
             "required": true,
@@ -1992,189 +1993,6 @@
         "summary": "Send a message to session",
         "tags": [
           "Messages"
-        ]
-      }
-    },
-    "/api/tools/credentials": {
-      "post": {
-        "description": "Store API key for a specific tool provider",
-        "operationId": "storeToolCredentials",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "api_key": {
-                    "description": "API key for authentication",
-                    "type": "string"
-                  },
-                  "provider": {
-                    "description": "Tool provider name (e.g., brave, gemini)",
-                    "type": "string"
-                  },
-                  "tool_type": {
-                    "description": "Tool category type",
-                    "enum": [
-                      "web_search",
-                      "multimodal_analyzer"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "tool_type",
-                  "provider",
-                  "api_key"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "description": "Success message",
-                      "type": "string"
-                    },
-                    "provider": {
-                      "description": "Tool provider name",
-                      "type": "string"
-                    },
-                    "status": {
-                      "description": "Operation status (success)",
-                      "type": "string"
-                    },
-                    "tool_type": {
-                      "description": "Tool category type",
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Tool API key stored successfully"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Invalid request data or API key format"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Store tool API key",
-        "tags": [
-          "Tools"
-        ]
-      }
-    },
-    "/api/tools/credentials/{tool_type}/{provider}": {
-      "delete": {
-        "description": "Delete stored API key for a specific tool provider",
-        "operationId": "deleteToolCredentials",
-        "parameters": [
-          {
-            "description": "Tool category type (web_search, multimodal_analyzer)",
-            "in": "path",
-            "name": "tool_type",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Tool provider name (e.g., brave, gemini)",
-            "in": "path",
-            "name": "provider",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "description": "Success message",
-                      "type": "string"
-                    },
-                    "provider": {
-                      "description": "Tool provider name",
-                      "type": "string"
-                    },
-                    "status": {
-                      "description": "Operation status (success)",
-                      "type": "string"
-                    },
-                    "tool_type": {
-                      "description": "Tool category type",
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Tool API key deleted successfully"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Invalid tool type or provider"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Tool credentials not found"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Internal server error"
-          }
-        },
-        "summary": "Delete tool API key",
-        "tags": [
-          "Tools"
         ]
       }
     },

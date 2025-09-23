@@ -69,9 +69,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getSessionByIDStmt, err = db.PrepareContext(ctx, getSessionByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetSessionByID: %w", err)
 	}
-	if q.getToolCredentialStmt, err = db.PrepareContext(ctx, getToolCredential); err != nil {
-		return nil, fmt.Errorf("error preparing query GetToolCredential: %w", err)
-	}
 	if q.getUserPreferencesStmt, err = db.PrepareContext(ctx, getUserPreferences); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserPreferences: %w", err)
 	}
@@ -101,9 +98,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.listSessionsWithContentStmt, err = db.PrepareContext(ctx, listSessionsWithContent); err != nil {
 		return nil, fmt.Errorf("error preparing query ListSessionsWithContent: %w", err)
-	}
-	if q.listToolCredentialsStmt, err = db.PrepareContext(ctx, listToolCredentials); err != nil {
-		return nil, fmt.Errorf("error preparing query ListToolCredentials: %w", err)
 	}
 	if q.listUserMessageHistoryStmt, err = db.PrepareContext(ctx, listUserMessageHistory); err != nil {
 		return nil, fmt.Errorf("error preparing query ListUserMessageHistory: %w", err)
@@ -218,11 +212,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getSessionByIDStmt: %w", cerr)
 		}
 	}
-	if q.getToolCredentialStmt != nil {
-		if cerr := q.getToolCredentialStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getToolCredentialStmt: %w", cerr)
-		}
-	}
 	if q.getUserPreferencesStmt != nil {
 		if cerr := q.getUserPreferencesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getUserPreferencesStmt: %w", cerr)
@@ -271,11 +260,6 @@ func (q *Queries) Close() error {
 	if q.listSessionsWithContentStmt != nil {
 		if cerr := q.listSessionsWithContentStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listSessionsWithContentStmt: %w", cerr)
-		}
-	}
-	if q.listToolCredentialsStmt != nil {
-		if cerr := q.listToolCredentialsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing listToolCredentialsStmt: %w", cerr)
 		}
 	}
 	if q.listUserMessageHistoryStmt != nil {
@@ -387,7 +371,6 @@ type Queries struct {
 	getFileByPathAndSessionStmt        *sql.Stmt
 	getMessageStmt                     *sql.Stmt
 	getSessionByIDStmt                 *sql.Stmt
-	getToolCredentialStmt              *sql.Stmt
 	getUserPreferencesStmt             *sql.Stmt
 	hasAPICredentialStmt               *sql.Stmt
 	listAPICredentialsStmt             *sql.Stmt
@@ -398,7 +381,6 @@ type Queries struct {
 	listMessagesForForkStmt            *sql.Stmt
 	listSessionsMetadataStmt           *sql.Stmt
 	listSessionsWithContentStmt        *sql.Stmt
-	listToolCredentialsStmt            *sql.Stmt
 	listUserMessageHistoryStmt         *sql.Stmt
 	resetUserPreferencesToDefaultsStmt *sql.Stmt
 	updateAPICredentialStmt            *sql.Stmt
@@ -431,7 +413,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getFileByPathAndSessionStmt:        q.getFileByPathAndSessionStmt,
 		getMessageStmt:                     q.getMessageStmt,
 		getSessionByIDStmt:                 q.getSessionByIDStmt,
-		getToolCredentialStmt:              q.getToolCredentialStmt,
 		getUserPreferencesStmt:             q.getUserPreferencesStmt,
 		hasAPICredentialStmt:               q.hasAPICredentialStmt,
 		listAPICredentialsStmt:             q.listAPICredentialsStmt,
@@ -442,7 +423,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listMessagesForForkStmt:            q.listMessagesForForkStmt,
 		listSessionsMetadataStmt:           q.listSessionsMetadataStmt,
 		listSessionsWithContentStmt:        q.listSessionsWithContentStmt,
-		listToolCredentialsStmt:            q.listToolCredentialsStmt,
 		listUserMessageHistoryStmt:         q.listUserMessageHistoryStmt,
 		resetUserPreferencesToDefaultsStmt: q.resetUserPreferencesToDefaultsStmt,
 		updateAPICredentialStmt:            q.updateAPICredentialStmt,

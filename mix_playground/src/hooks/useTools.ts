@@ -2,8 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import { toast } from 'sonner';
-import { GetToolsStatusResponse } from 'mix-typescript-sdk/models/operations';
-import { ToolType } from 'mix-typescript-sdk/models/operations/storetoolcredentials';
 
 export interface ToolInfo {
   provider: string;
@@ -23,13 +21,12 @@ export interface ToolsStatus {
   categories: Record<string, ToolCategory>;
 }
 
-export interface StoreToolCredentialsRequest {
-  toolType: ToolType;
+export interface StoreCredentialsRequest {
   provider: string;
-  apiKey: string;
+  api_key: string;
 }
 
-async function fetchToolsStatus(): Promise<GetToolsStatusResponse> {
+async function fetchToolsStatus(): Promise<ToolsStatus> {
   try {
     // Return empty structure if tools module not available
     if (!mix.tools?.getToolsStatus) {
@@ -39,7 +36,10 @@ async function fetchToolsStatus(): Promise<GetToolsStatusResponse> {
     
     try {
       const response = await mix.tools.getToolsStatus();
-      return response;
+      // Transform SDK response to match our interface
+      return {
+        categories: response.categories || {}
+      };
     } catch (sdkError) {
       // SDK validation error - likely a mismatch between SDK schema and API response
       console.warn('SDK validation error, returning empty structure:', sdkError);
@@ -59,30 +59,21 @@ export function useToolsStatus() {
   });
 }
 
-export function useStoreToolCredentials() {
+export function useStoreCredentials() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (request: StoreToolCredentialsRequest) => {
-      if (!mix.tools?.storeToolCredentials) {
-        throw new Error('Tools API not available in current SDK version');
-      }
-      
+    mutationFn: async (request: StoreCredentialsRequest) => {
       try {
-        return await mix.tools.storeToolCredentials({
-          toolType: request.toolType,
-          provider: request.provider,
-          apiKey: request.apiKey,
+        // Use the SDK authentication API for storing credentials
+        await mix.authentication.storeApiKey({
+          provider: request.provider as any,
+          apiKey: request.api_key
         });
-      } catch (sdkError) {
-        // Handle SDK validation errors gracefully
-        console.warn('SDK validation error in storeToolCredentials:', sdkError);
-        return { 
-          status: 'success',
-          message: `${request.provider} API key stored successfully`,
-          provider: request.provider,
-          toolType: request.toolType.toString()
-        };
+        return { status: 'success', provider: request.provider };
+      } catch (error) {
+        console.error('Failed to store credentials:', error);
+        throw error;
       }
     },
     onSuccess: (_, variables) => {
@@ -98,29 +89,18 @@ export function useStoreToolCredentials() {
   });
 }
 
-export function useDeleteToolCredentials() {
+export function useDeleteCredentials() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ toolType, provider }: { toolType: string; provider: string }) => {
-      if (!mix.tools?.deleteToolCredentials) {
-        throw new Error('Tools API not available in current SDK version');
-      }
-      
+    mutationFn: async ({ provider }: { provider: string }) => {
       try {
-        return await mix.tools.deleteToolCredentials({
-          toolType,
-          provider
-        });
-      } catch (sdkError) {
-        // Handle SDK validation errors gracefully
-        console.warn('SDK validation error in deleteToolCredentials:', sdkError);
-        return { 
-          status: 'success',
-          message: `${provider} API key removed successfully`,
-          provider: provider,
-          toolType: toolType
-        };
+        // Use the SDK authentication API for deleting credentials
+        await mix.authentication.deleteCredentials({ provider });
+        return { status: 'success', provider };
+      } catch (error) {
+        console.error('Failed to delete credentials:', error);
+        throw error;
       }
     },
     onSuccess: (_, variables) => {

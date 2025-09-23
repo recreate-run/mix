@@ -12,28 +12,26 @@ import (
 
 const createAPICredential = `-- name: CreateAPICredential :one
 INSERT INTO api_credentials (
-    id, provider, api_key, tool_type, created_at, updated_at
+    id, provider, api_key, created_at, updated_at
 ) VALUES (
-    'default_user', ?, ?, COALESCE(?, 'provider'), strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000
-) RETURNING user_id, id, provider, api_key, tool_type, created_at, updated_at
+    'default_user', ?, ?, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000
+) RETURNING user_id, id, provider, api_key, created_at, updated_at
 `
 
 type CreateAPICredentialParams struct {
 	Provider string         `json:"provider"`
 	ApiKey   sql.NullString `json:"api_key"`
-	Column3  interface{}    `json:"column_3"`
 }
 
 // Store a new API credential for a provider
 func (q *Queries) CreateAPICredential(ctx context.Context, arg CreateAPICredentialParams) (ApiCredential, error) {
-	row := q.queryRow(ctx, q.createAPICredentialStmt, createAPICredential, arg.Provider, arg.ApiKey, arg.Column3)
+	row := q.queryRow(ctx, q.createAPICredentialStmt, createAPICredential, arg.Provider, arg.ApiKey)
 	var i ApiCredential
 	err := row.Scan(
 		&i.UserID,
 		&i.ID,
 		&i.Provider,
 		&i.ApiKey,
-		&i.ToolType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -42,17 +40,12 @@ func (q *Queries) CreateAPICredential(ctx context.Context, arg CreateAPICredenti
 
 const deleteAPICredential = `-- name: DeleteAPICredential :exec
 DELETE FROM api_credentials 
-WHERE id = 'default_user' AND provider = ? AND tool_type = COALESCE(?, 'provider')
+WHERE id = 'default_user' AND provider = ?
 `
 
-type DeleteAPICredentialParams struct {
-	Provider string `json:"provider"`
-	ToolType string `json:"tool_type"`
-}
-
 // Delete API credential for a provider
-func (q *Queries) DeleteAPICredential(ctx context.Context, arg DeleteAPICredentialParams) error {
-	_, err := q.exec(ctx, q.deleteAPICredentialStmt, deleteAPICredential, arg.Provider, arg.ToolType)
+func (q *Queries) DeleteAPICredential(ctx context.Context, provider string) error {
+	_, err := q.exec(ctx, q.deleteAPICredentialStmt, deleteAPICredential, provider)
 	return err
 }
 
@@ -68,53 +61,20 @@ func (q *Queries) DeleteAllAPICredentials(ctx context.Context) error {
 }
 
 const getAPICredential = `-- name: GetAPICredential :one
-SELECT user_id, id, provider, api_key, tool_type, created_at, updated_at
+SELECT user_id, id, provider, api_key, created_at, updated_at
 FROM api_credentials 
-WHERE id = 'default_user' AND provider = ? AND tool_type = COALESCE(?, 'provider')
+WHERE id = 'default_user' AND provider = ?
 `
-
-type GetAPICredentialParams struct {
-	Provider string `json:"provider"`
-	ToolType string `json:"tool_type"`
-}
 
 // Get API credential for a specific provider
-func (q *Queries) GetAPICredential(ctx context.Context, arg GetAPICredentialParams) (ApiCredential, error) {
-	row := q.queryRow(ctx, q.getAPICredentialStmt, getAPICredential, arg.Provider, arg.ToolType)
+func (q *Queries) GetAPICredential(ctx context.Context, provider string) (ApiCredential, error) {
+	row := q.queryRow(ctx, q.getAPICredentialStmt, getAPICredential, provider)
 	var i ApiCredential
 	err := row.Scan(
 		&i.UserID,
 		&i.ID,
 		&i.Provider,
 		&i.ApiKey,
-		&i.ToolType,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getToolCredential = `-- name: GetToolCredential :one
-SELECT user_id, id, provider, api_key, tool_type, created_at, updated_at
-FROM api_credentials 
-WHERE id = 'default_user' AND provider = ? AND tool_type = ?
-`
-
-type GetToolCredentialParams struct {
-	Provider string `json:"provider"`
-	ToolType string `json:"tool_type"`
-}
-
-// Get API credential for a specific tool
-func (q *Queries) GetToolCredential(ctx context.Context, arg GetToolCredentialParams) (ApiCredential, error) {
-	row := q.queryRow(ctx, q.getToolCredentialStmt, getToolCredential, arg.Provider, arg.ToolType)
-	var i ApiCredential
-	err := row.Scan(
-		&i.UserID,
-		&i.ID,
-		&i.Provider,
-		&i.ApiKey,
-		&i.ToolType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -124,27 +84,22 @@ func (q *Queries) GetToolCredential(ctx context.Context, arg GetToolCredentialPa
 const hasAPICredential = `-- name: HasAPICredential :one
 SELECT COUNT(*) as count
 FROM api_credentials 
-WHERE id = 'default_user' AND provider = ? AND tool_type = COALESCE(?, 'provider') AND api_key IS NOT NULL AND api_key != ''
+WHERE id = 'default_user' AND provider = ? AND api_key IS NOT NULL AND api_key != ''
 `
 
-type HasAPICredentialParams struct {
-	Provider string `json:"provider"`
-	ToolType string `json:"tool_type"`
-}
-
 // Check if user has API credential for a provider
-func (q *Queries) HasAPICredential(ctx context.Context, arg HasAPICredentialParams) (int64, error) {
-	row := q.queryRow(ctx, q.hasAPICredentialStmt, hasAPICredential, arg.Provider, arg.ToolType)
+func (q *Queries) HasAPICredential(ctx context.Context, provider string) (int64, error) {
+	row := q.queryRow(ctx, q.hasAPICredentialStmt, hasAPICredential, provider)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const listAPICredentials = `-- name: ListAPICredentials :many
-SELECT user_id, id, provider, api_key, tool_type, created_at, updated_at
+SELECT user_id, id, provider, api_key, created_at, updated_at
 FROM api_credentials 
 WHERE id = 'default_user'
-ORDER BY tool_type, provider
+ORDER BY provider
 `
 
 // List all API credentials for the user
@@ -162,46 +117,6 @@ func (q *Queries) ListAPICredentials(ctx context.Context) ([]ApiCredential, erro
 			&i.ID,
 			&i.Provider,
 			&i.ApiKey,
-			&i.ToolType,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listToolCredentials = `-- name: ListToolCredentials :many
-SELECT user_id, id, provider, api_key, tool_type, created_at, updated_at
-FROM api_credentials 
-WHERE id = 'default_user' AND tool_type = ?
-ORDER BY provider
-`
-
-// List all tool credentials by tool type
-func (q *Queries) ListToolCredentials(ctx context.Context, toolType string) ([]ApiCredential, error) {
-	rows, err := q.query(ctx, q.listToolCredentialsStmt, listToolCredentials, toolType)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ApiCredential{}
-	for rows.Next() {
-		var i ApiCredential
-		if err := rows.Scan(
-			&i.UserID,
-			&i.ID,
-			&i.Provider,
-			&i.ApiKey,
-			&i.ToolType,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -221,26 +136,24 @@ func (q *Queries) ListToolCredentials(ctx context.Context, toolType string) ([]A
 const updateAPICredential = `-- name: UpdateAPICredential :one
 UPDATE api_credentials 
 SET api_key = ?, updated_at = strftime('%s', 'now') * 1000
-WHERE id = 'default_user' AND provider = ? AND tool_type = COALESCE(?, 'provider')
-RETURNING user_id, id, provider, api_key, tool_type, created_at, updated_at
+WHERE id = 'default_user' AND provider = ?
+RETURNING user_id, id, provider, api_key, created_at, updated_at
 `
 
 type UpdateAPICredentialParams struct {
 	ApiKey   sql.NullString `json:"api_key"`
 	Provider string         `json:"provider"`
-	ToolType string         `json:"tool_type"`
 }
 
 // Update existing API credential for a provider
 func (q *Queries) UpdateAPICredential(ctx context.Context, arg UpdateAPICredentialParams) (ApiCredential, error) {
-	row := q.queryRow(ctx, q.updateAPICredentialStmt, updateAPICredential, arg.ApiKey, arg.Provider, arg.ToolType)
+	row := q.queryRow(ctx, q.updateAPICredentialStmt, updateAPICredential, arg.ApiKey, arg.Provider)
 	var i ApiCredential
 	err := row.Scan(
 		&i.UserID,
 		&i.ID,
 		&i.Provider,
 		&i.ApiKey,
-		&i.ToolType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -249,31 +162,29 @@ func (q *Queries) UpdateAPICredential(ctx context.Context, arg UpdateAPICredenti
 
 const upsertAPICredential = `-- name: UpsertAPICredential :one
 INSERT INTO api_credentials (
-    id, provider, api_key, tool_type, created_at, updated_at
+    id, provider, api_key, created_at, updated_at
 ) VALUES (
-    'default_user', ?, ?, COALESCE(?, 'provider'), strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000
-) ON CONFLICT(id, provider, tool_type) DO UPDATE SET
+    'default_user', ?, ?, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000
+) ON CONFLICT(id, provider) DO UPDATE SET
     api_key = excluded.api_key,
     updated_at = strftime('%s', 'now') * 1000
-RETURNING user_id, id, provider, api_key, tool_type, created_at, updated_at
+RETURNING user_id, id, provider, api_key, created_at, updated_at
 `
 
 type UpsertAPICredentialParams struct {
 	Provider string         `json:"provider"`
 	ApiKey   sql.NullString `json:"api_key"`
-	Column3  interface{}    `json:"column_3"`
 }
 
 // Insert or update API credential for a provider
 func (q *Queries) UpsertAPICredential(ctx context.Context, arg UpsertAPICredentialParams) (ApiCredential, error) {
-	row := q.queryRow(ctx, q.upsertAPICredentialStmt, upsertAPICredential, arg.Provider, arg.ApiKey, arg.Column3)
+	row := q.queryRow(ctx, q.upsertAPICredentialStmt, upsertAPICredential, arg.Provider, arg.ApiKey)
 	var i ApiCredential
 	err := row.Scan(
 		&i.UserID,
 		&i.ID,
 		&i.Provider,
 		&i.ApiKey,
-		&i.ToolType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

@@ -15,7 +15,6 @@ import (
 	"mix/internal/db"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
-	"mix/internal/tools"
 )
 
 // APICredentialsService handles encrypted API key storage and retrieval
@@ -129,7 +128,6 @@ func (acs *APICredentialsService) StoreAPIKey(ctx context.Context, provider mode
 	_, err = acs.queries.UpsertAPICredential(ctx, db.UpsertAPICredentialParams{
 		Provider: string(provider),
 		ApiKey:   sql.NullString{String: encryptedKey, Valid: true},
-		Column3:  "provider",
 	})
 	if err != nil {
 		return fmt.Errorf("failed to store API credential: %w", err)
@@ -150,10 +148,7 @@ func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models
 	}
 
 	// API key not in cache, retrieving from database
-	credential, err := acs.queries.GetAPICredential(ctx, db.GetAPICredentialParams{
-		Provider: string(provider),
-		ToolType: "provider",
-	})
+	credential, err := acs.queries.GetAPICredential(ctx, string(provider))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// No API key found in database
@@ -188,10 +183,7 @@ func (acs *APICredentialsService) HasAPIKey(ctx context.Context, provider models
 	}
 
 	// Not in cache, check the database
-	count, err := acs.queries.HasAPICredential(ctx, db.HasAPICredentialParams{
-		Provider: string(provider),
-		ToolType: "provider",
-	})
+	count, err := acs.queries.HasAPICredential(ctx, string(provider))
 	if err != nil {
 		return false, fmt.Errorf("failed to check API credential: %w", err)
 	}
@@ -202,10 +194,7 @@ func (acs *APICredentialsService) HasAPIKey(ctx context.Context, provider models
 
 // DeleteAPIKey removes the API key for a provider
 func (acs *APICredentialsService) DeleteAPIKey(ctx context.Context, provider models.ModelProvider) error {
-	err := acs.queries.DeleteAPICredential(ctx, db.DeleteAPICredentialParams{
-		Provider: string(provider),
-		ToolType: "provider",
-	})
+	err := acs.queries.DeleteAPICredential(ctx, string(provider))
 	if err != nil {
 		return fmt.Errorf("failed to delete API credential: %w", err)
 	}
@@ -226,7 +215,7 @@ func (acs *APICredentialsService) ListCredentials(ctx context.Context) ([]models
 
 	var providers []models.ModelProvider
 	for _, cred := range credentials {
-		if cred.ApiKey.Valid && cred.ApiKey.String != "" && cred.ToolType == "provider" {
+		if cred.ApiKey.Valid && cred.ApiKey.String != "" {
 			providers = append(providers, models.ModelProvider(cred.Provider))
 		}
 	}
@@ -254,6 +243,7 @@ var supportedProviders = map[models.ModelProvider]struct{}{
 	models.ProviderOpenAI:     {},
 	models.ProviderOpenRouter: {},
 	models.ProviderGemini:     {},
+	"brave":                   {}, // External tool provider
 }
 
 // ClearCache removes all entries from the credentials cache
@@ -285,166 +275,19 @@ func (acs *APICredentialsService) PreloadCredentials(ctx context.Context) {
 			continue
 		}
 
-		// Handle both provider and tool credentials
-		if cred.ToolType == "provider" {
-			provider := models.ModelProvider(cred.Provider)
-			decryptedKey, err := acs.decrypt(cred.ApiKey.String)
-			if err != nil {
-				logging.Error("Failed to decrypt API key during preload", "provider", provider, "error", err)
-				continue
-			}
-			// Store in cache
-			acs.credentialsCache.Store(provider, decryptedKey)
-			count++
-		} else {
-			// Handle tool credentials
-			cacheKey := fmt.Sprintf("tool_%s_%s", cred.ToolType, cred.Provider)
-			decryptedKey, err := acs.decrypt(cred.ApiKey.String)
-			if err != nil {
-				logging.Error("Failed to decrypt tool API key during preload", "tool", cred.Provider, "error", err)
-				continue
-			}
-			// Store in cache
-			acs.credentialsCache.Store(cacheKey, decryptedKey)
-			count++
+		// Handle provider credentials (simplified schema with no tool_type)
+		provider := models.ModelProvider(cred.Provider)
+		decryptedKey, err := acs.decrypt(cred.ApiKey.String)
+		if err != nil {
+			logging.Error("Failed to decrypt API key during preload", "provider", provider, "error", err)
+			continue
 		}
+		// Store in cache
+		acs.credentialsCache.Store(provider, decryptedKey)
+		count++
 	}
 }
 
-// Tool-specific credential management methods
-
-// SetToolAPIKey stores an encrypted API key for a tool
-func (acs *APICredentialsService) SetToolAPIKey(ctx context.Context, toolType tools.ToolType, provider tools.ToolProvider, apiKey string) error {
-	// Validate the API key using the tool registry
-	registry := tools.GetRegistry()
-	if err := registry.ValidateAPIKey(toolType, provider, apiKey); err != nil {
-		return fmt.Errorf("API key validation failed: %w", err)
-	}
-
-	// Encrypt the API key
-	encryptedKey, err := acs.encrypt(apiKey)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt API key: %w", err)
-	}
-
-	// Store in database
-	providerID := tools.GetProviderIdentifier(toolType, provider)
-	_, err = acs.queries.UpsertAPICredential(ctx, db.UpsertAPICredentialParams{
-		Provider: providerID,
-		ApiKey:   sql.NullString{String: encryptedKey, Valid: true},
-		Column3:  string(toolType),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to store tool API credential: %w", err)
-	}
-
-	// Update cache
-	cacheKey := fmt.Sprintf("tool_%s_%s", toolType, provider)
-	acs.credentialsCache.Store(cacheKey, apiKey)
-
-	return nil
-}
-
-// GetToolAPIKey retrieves a decrypted API key for a tool
-func (acs *APICredentialsService) GetToolAPIKey(ctx context.Context, toolType tools.ToolType, provider tools.ToolProvider) (string, error) {
-	cacheKey := fmt.Sprintf("tool_%s_%s", toolType, provider)
-	
-	// Check cache first
-	if cachedValue, exists := acs.credentialsCache.Load(cacheKey); exists {
-		return cachedValue.(string), nil
-	}
-
-	// Get from database
-	providerID := tools.GetProviderIdentifier(toolType, provider)
-	credential, err := acs.queries.GetToolCredential(ctx, db.GetToolCredentialParams{
-		Provider: providerID,
-		ToolType: string(toolType),
-	})
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("no API key found for tool %s/%s", toolType, provider)
-		}
-		return "", fmt.Errorf("failed to get tool API credential: %w", err)
-	}
-
-	if !credential.ApiKey.Valid || credential.ApiKey.String == "" {
-		return "", fmt.Errorf("API key is empty for tool %s/%s", toolType, provider)
-	}
-
-	// Decrypt the API key
-	decryptedKey, err := acs.decrypt(credential.ApiKey.String)
-	if err != nil {
-		return "", fmt.Errorf("failed to decrypt tool API key: %w", err)
-	}
-
-	// Cache the decrypted key
-	acs.credentialsCache.Store(cacheKey, decryptedKey)
-
-	return decryptedKey, nil
-}
-
-// HasToolAPIKey checks if a tool has an API key stored
-func (acs *APICredentialsService) HasToolAPIKey(ctx context.Context, toolType tools.ToolType, provider tools.ToolProvider) (bool, error) {
-	cacheKey := fmt.Sprintf("tool_%s_%s", toolType, provider)
-	
-	// Check cache first
-	if cachedValue, exists := acs.credentialsCache.Load(cacheKey); exists {
-		return cachedValue.(string) != "", nil
-	}
-
-	// Check database
-	providerID := tools.GetProviderIdentifier(toolType, provider)
-	count, err := acs.queries.HasAPICredential(ctx, db.HasAPICredentialParams{
-		Provider: providerID,
-		ToolType: string(toolType),
-	})
-	if err != nil {
-		return false, fmt.Errorf("failed to check tool API credential: %w", err)
-	}
-
-	return count > 0, nil
-}
-
-// DeleteToolAPIKey removes the API key for a tool
-func (acs *APICredentialsService) DeleteToolAPIKey(ctx context.Context, toolType tools.ToolType, provider tools.ToolProvider) error {
-	providerID := tools.GetProviderIdentifier(toolType, provider)
-	err := acs.queries.DeleteAPICredential(ctx, db.DeleteAPICredentialParams{
-		Provider: providerID,
-		ToolType: string(toolType),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete tool API credential: %w", err)
-	}
-
-	// Remove from cache
-	cacheKey := fmt.Sprintf("tool_%s_%s", toolType, provider)
-	acs.credentialsCache.Delete(cacheKey)
-
-	return nil
-}
-
-// ListToolCredentials returns a list of tools that have stored API keys
-func (acs *APICredentialsService) ListToolCredentials(ctx context.Context, toolType tools.ToolType) ([]tools.ToolProvider, error) {
-	credentials, err := acs.queries.ListToolCredentials(ctx, string(toolType))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list tool credentials: %w", err)
-	}
-
-	var providers []tools.ToolProvider
-	for _, cred := range credentials {
-		if cred.ApiKey.Valid && cred.ApiKey.String != "" {
-			// Extract provider from the stored identifier
-			_, provider, err := tools.ParseProviderIdentifier(cred.Provider)
-			if err != nil {
-				logging.Error("Failed to parse provider identifier", "provider", cred.Provider, "error", err)
-				continue
-			}
-			providers = append(providers, provider)
-		}
-	}
-
-	return providers, nil
-}
 
 // ValidateAPIKey performs basic validation on an API key for a provider
 func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, apiKey string) error {
@@ -474,6 +317,10 @@ func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, 
 	case models.ProviderGemini:
 		if len(apiKey) < 30 {
 			return fmt.Errorf("invalid Gemini API key format")
+		}
+	case "brave":
+		if len(apiKey) < 30 {
+			return fmt.Errorf("invalid Brave API key format")
 		}
 	}
 

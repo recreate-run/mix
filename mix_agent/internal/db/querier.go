@@ -17,23 +17,21 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (CreateSessionRow, error)
 	CreateUserPreferences(ctx context.Context, arg CreateUserPreferencesParams) (UserPreference, error)
 	// Delete API credential for a provider
-	DeleteAPICredential(ctx context.Context, arg DeleteAPICredentialParams) error
+	DeleteAPICredential(ctx context.Context, provider string) error
 	// Delete all API credentials for the user
 	DeleteAllAPICredentials(ctx context.Context) error
 	DeleteFile(ctx context.Context, id string) error
 	DeleteMessage(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
 	// Get API credential for a specific provider
-	GetAPICredential(ctx context.Context, arg GetAPICredentialParams) (ApiCredential, error)
+	GetAPICredential(ctx context.Context, provider string) (ApiCredential, error)
 	GetFile(ctx context.Context, id string) (File, error)
 	GetFileByPathAndSession(ctx context.Context, arg GetFileByPathAndSessionParams) (File, error)
 	GetMessage(ctx context.Context, id string) (Message, error)
 	GetSessionByID(ctx context.Context, id string) (GetSessionByIDRow, error)
-	// Get API credential for a specific tool
-	GetToolCredential(ctx context.Context, arg GetToolCredentialParams) (ApiCredential, error)
 	GetUserPreferences(ctx context.Context) (UserPreference, error)
 	// Check if user has API credential for a provider
-	HasAPICredential(ctx context.Context, arg HasAPICredentialParams) (int64, error)
+	HasAPICredential(ctx context.Context, provider string) (int64, error)
 	// List all API credentials for the user
 	ListAPICredentials(ctx context.Context) ([]ApiCredential, error)
 	ListFilesByPath(ctx context.Context, path string) ([]File, error)
@@ -43,8 +41,6 @@ type Querier interface {
 	ListMessagesForFork(ctx context.Context, arg ListMessagesForForkParams) ([]Message, error)
 	ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetadataRow, error)
 	ListSessionsWithContent(ctx context.Context) ([]ListSessionsWithContentRow, error)
-	// List all tool credentials by tool type
-	ListToolCredentials(ctx context.Context, toolType string) ([]ApiCredential, error)
 	ListUserMessageHistory(ctx context.Context, arg ListUserMessageHistoryParams) ([]Message, error)
 	ResetUserPreferencesToDefaults(ctx context.Context) (UserPreference, error)
 	// Update existing API credential for a provider

@@ -14,7 +14,6 @@ import (
 
 	"mix/internal/config"
 	"mix/internal/permission"
-	"mix/internal/tools"
 )
 
 type SearchParams struct {
@@ -231,7 +230,7 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 		return NewTextErrorResponse("Credentials service not available"), nil
 	}
 
-	apiKey, err := credentialsService.GetToolAPIKey(ctx, tools.ToolTypeWebSearch, tools.WebSearchBrave)
+	apiKey, err := credentialsService.GetAPIKey(ctx, "brave")
 	if err != nil {
 		// Fallback to environment variable for backwards compatibility
 		envAPIKey := os.Getenv("BRAVE_SEARCH_API_KEY")

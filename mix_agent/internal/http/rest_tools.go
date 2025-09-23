@@ -9,6 +9,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/config"
+	"mix/internal/llm/models"
 	"mix/internal/logging"
 	"mix/internal/tools"
 )
@@ -120,8 +121,8 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Store the API key
-	if err := credentialsService.SetToolAPIKey(r.Context(), toolType, provider, request.APIKey); err != nil {
+	// Store the API key using simplified provider approach
+	if err := credentialsService.StoreAPIKey(r.Context(), models.ModelProvider(string(provider)), request.APIKey); err != nil {
 		// Track failed authentication attempt
 		if h.app.Analytics != nil {
 			h.app.Analytics.TrackProviderAuth(r.Context(), fmt.Sprintf("%s_%s", toolType, provider), false, "api_key")
@@ -190,8 +191,8 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Delete the credential
-	if err := credentialsService.DeleteToolAPIKey(r.Context(), toolType, provider); err != nil {
+	// Delete the credential using simplified provider approach
+	if err := credentialsService.DeleteAPIKey(r.Context(), models.ModelProvider(string(provider))); err != nil {
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to delete tool credential", "TOOL_CREDENTIAL_DELETE_FAILED")
 		return
 	}
@@ -284,7 +285,7 @@ func (h *ToolsHandler) checkAllToolsStatus(ctx context.Context) ToolsStatusRespo
 
 			// Check if tool has API key (if required)
 			if tool.RequiresKey && credentialsService != nil {
-				hasKey, err := credentialsService.HasToolAPIKey(ctx, tool.Type, tool.Provider)
+				hasKey, err := credentialsService.HasAPIKey(ctx, models.ModelProvider(string(tool.Provider)))
 				if err != nil {
 					logging.Error("Failed to check tool API key", "tool", tool.Provider, "error", err)
 				} else {

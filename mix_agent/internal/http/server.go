@@ -140,8 +140,8 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("POST /api/auth/oauth-callback", authHandler.HandleOAuthCallback)
 
 	// Tools management endpoints
-	mux.HandleFunc("POST /api/tools/credentials", toolsHandler.HandleStoreToolAPIKey)
-	mux.HandleFunc("DELETE /api/tools/credentials/{tool_type}/{provider}", toolsHandler.HandleDeleteToolCredential)
+	// mux.HandleFunc("POST /api/tools/credentials", toolsHandler.HandleStoreToolAPIKey)
+	// mux.HandleFunc("DELETE /api/tools/credentials/{tool_type}/{provider}", toolsHandler.HandleDeleteToolCredential)
 	mux.HandleFunc("GET /api/tools/status", toolsHandler.HandleToolsStatus)
 
 	addr := host + ":" + strconv.Itoa(port)

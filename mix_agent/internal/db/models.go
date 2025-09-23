@@ -13,7 +13,6 @@ type ApiCredential struct {
 	ID        string         `json:"id"`
 	Provider  string         `json:"provider"`
 	ApiKey    sql.NullString `json:"api_key"`
-	ToolType  string         `json:"tool_type"`
 	CreatedAt int64          `json:"created_at"`
 	UpdatedAt int64          `json:"updated_at"`
 }

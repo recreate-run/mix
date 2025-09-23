@@ -5,12 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToolsStatus, useStoreToolCredentials, useDeleteToolCredentials } from '@/hooks/useTools';
+import { useToolsStatus, useStoreCredentials, useDeleteCredentials } from '@/hooks/useTools';
 
 export function WebSearchToolsCard() {
   const { data: toolsStatus, isLoading } = useToolsStatus();
-  const storeCredentials = useStoreToolCredentials();
-  const deleteCredentials = useDeleteToolCredentials();
+  const storeCredentials = useStoreCredentials();
+  const deleteCredentials = useDeleteCredentials();
   
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
 
@@ -26,9 +26,8 @@ export function WebSearchToolsCard() {
     if (!apiKey) return;
 
     await storeCredentials.mutateAsync({
-      toolType: 'web_search',
       provider,
-      apiKey,
+      api_key: apiKey,
     });
 
     // Clear the input after successful storage
@@ -37,7 +36,6 @@ export function WebSearchToolsCard() {
 
   const handleDeleteCredentials = async (provider: string) => {
     await deleteCredentials.mutateAsync({
-      toolType: 'web_search',
       provider,
     });
   };

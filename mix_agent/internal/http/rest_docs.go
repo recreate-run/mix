@@ -501,8 +501,8 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"provider": map[string]interface{}{
 								"type":        "string",
-								"description": "Provider name (anthropic, openai, openrouter, gemini)",
-								"enum":        []string{"anthropic", "openai", "openrouter", "gemini"},
+								"description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
+								"enum":        []string{"anthropic", "openai", "openrouter", "gemini", "brave"},
 							},
 							"api_key": map[string]interface{}{
 								"type":        "string",
@@ -694,7 +694,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"description": "Delete stored API key and/or OAuth credentials for a provider",
 					"tags":        []string{"Authentication"},
 					"parameters": []map[string]interface{}{
-						createPathParameter("provider", "Provider name (anthropic, openai, openrouter)"),
+						createPathParameter("provider", "Provider name (anthropic, openai, openrouter, gemini, brave)"),
 					},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("object", map[string]interface{}{
@@ -1137,96 +1137,6 @@ func getOpenAPISpec() OpenAPISpec {
 								},
 							},
 						}, "Tools status and authentication information"),
-						"500": createErrorResponse("Internal server error"),
-					},
-				},
-			},
-			"/api/tools/credentials": map[string]interface{}{
-				"post": map[string]interface{}{
-					"operationId":  "storeToolCredentials",
-					"summary":     "Store tool API key",
-					"description": "Store API key for a specific tool provider",
-					"tags":        []string{"Tools"},
-					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
-						"required": []string{"tool_type", "provider", "api_key"},
-						"properties": map[string]interface{}{
-							"tool_type": map[string]interface{}{
-								"type":        "string",
-								"description": "Tool category type",
-								"enum":        []string{"web_search", "multimodal_analyzer"},
-							},
-							"provider": map[string]interface{}{
-								"type":        "string",
-								"description": "Tool provider name (e.g., brave, gemini)",
-							},
-							"api_key": map[string]interface{}{
-								"type":        "string",
-								"description": "API key for authentication",
-							},
-						},
-					}),
-					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", map[string]interface{}{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"status": map[string]interface{}{
-									"type":        "string",
-									"description": "Operation status (success)",
-								},
-								"tool_type": map[string]interface{}{
-									"type":        "string",
-									"description": "Tool category type",
-								},
-								"provider": map[string]interface{}{
-									"type":        "string",
-									"description": "Tool provider name",
-								},
-								"message": map[string]interface{}{
-									"type":        "string",
-									"description": "Success message",
-								},
-							},
-						}, "Tool API key stored successfully"),
-						"400": createErrorResponse("Invalid request data or API key format"),
-						"500": createErrorResponse("Internal server error"),
-					},
-				},
-			},
-			"/api/tools/credentials/{tool_type}/{provider}": map[string]interface{}{
-				"delete": map[string]interface{}{
-					"operationId":  "deleteToolCredentials",
-					"summary":     "Delete tool API key",
-					"description": "Delete stored API key for a specific tool provider",
-					"tags":        []string{"Tools"},
-					"parameters": []map[string]interface{}{
-						createPathParameter("tool_type", "Tool category type (web_search, multimodal_analyzer)"),
-						createPathParameter("provider", "Tool provider name (e.g., brave, gemini)"),
-					},
-					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", map[string]interface{}{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"status": map[string]interface{}{
-									"type":        "string",
-									"description": "Operation status (success)",
-								},
-								"tool_type": map[string]interface{}{
-									"type":        "string",
-									"description": "Tool category type",
-								},
-								"provider": map[string]interface{}{
-									"type":        "string",
-									"description": "Tool provider name",
-								},
-								"message": map[string]interface{}{
-									"type":        "string",
-									"description": "Success message",
-								},
-							},
-						}, "Tool API key deleted successfully"),
-						"400": createErrorResponse("Invalid tool type or provider"),
-						"404": createErrorResponse("Tool credentials not found"),
 						"500": createErrorResponse("Internal server error"),
 					},
 				},
