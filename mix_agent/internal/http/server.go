@@ -117,8 +117,8 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("POST /api/sessions/{id}/cancel", messageHandler.HandleCancelAgent)
 
 	// System endpoints
-	mux.HandleFunc("POST /api/auth/login", systemHandler.HandleAuthLogin)
-	mux.HandleFunc("POST /api/auth/apikey", systemHandler.HandleSetAPIKey)
+	// mux.HandleFunc("POST /api/auth/login", systemHandler.HandleAuthLogin)
+	// mux.HandleFunc("POST /api/auth/apikey", systemHandler.HandleSetAPIKey)
 	mux.HandleFunc("GET /api/mcp", systemHandler.HandleListMCPServers)
 	mux.HandleFunc("GET /api/commands", systemHandler.HandleListCommands)
 	mux.HandleFunc("GET /api/commands/{name}", systemHandler.HandleGetCommand)
