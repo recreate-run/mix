@@ -1,7 +1,6 @@
 import { convertToAssetServerUrl } from '@/utils/assetServer';
 import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/videoUrlDetection';
 import type { ToolCall } from '@/types/common';
-import { DotFlow } from '../../components/gsap/dot-flow';
 
 
 // Helper function to detect URLs
@@ -53,6 +52,7 @@ import { TodoList } from './todo-list';
 import { StatusUI } from './status-ui';
 import { ProviderDisplay } from './provider-display';
 import { ModelDisplay } from './model-display';
+import { EmptyStateDisplay } from './empty-state-display';
 
 type StreamingState = {
   processing: boolean;
@@ -405,19 +405,7 @@ export function ConversationDisplay({
   return (
     <div className="relative h-full flex-1 py-16">
       <div className="">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-12 animate-in fade-in duration-700">
-            {/* Mix Logo with gradient */}
-            <div className="text-center space-y-4">
-              <div className="text-6xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-6 tracking-tight animate-in slide-in-from-top duration-1000">
-                mix
-              </div>
-              <div className="text-xl text-muted-foreground animate-in slide-in-from-top duration-1000 delay-200">
-                The multimodal agents SDK
-              </div>
-            </div>
-          </div>
-        )}
+        {messages.length === 0 && <EmptyStateDisplay />}
         {localMessages.map((message, index) => {
           return (
             <AIMessage
