@@ -39,7 +39,6 @@ async function fetchToolsStatus(): Promise<GetToolsStatusResponse> {
     
     try {
       const response = await mix.tools.getToolsStatus();
-      console.info("logging api tool response", response)
       return response;
     } catch (sdkError) {
       // SDK validation error - likely a mismatch between SDK schema and API response
