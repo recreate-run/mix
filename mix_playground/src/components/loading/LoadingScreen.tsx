@@ -83,7 +83,6 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps) {
   const [logoVisible, setLogoVisible] = useState(false);
-  const [textVisible, setTextVisible] = useState(false);
   const [animationStarted, setAnimationStarted] = useState(false);
 
   useEffect(() => {
@@ -95,10 +94,6 @@ export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps)
       setLogoVisible(true);
     }, 100);
 
-    // Text fade in after 2.5s (logo fade + pulse delay)
-    const textTimer = setTimeout(() => {
-      setTextVisible(true);
-    }, 2500);
 
     // Complete after duration
     const completeTimer = setTimeout(() => {
@@ -107,7 +102,6 @@ export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps)
 
     return () => {
       clearTimeout(logoTimer);
-      clearTimeout(textTimer);
       clearTimeout(completeTimer);
     };
   }, [duration, onComplete]);

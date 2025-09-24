@@ -19,7 +19,8 @@ async function authenticate(params: AuthParams): Promise<AuthResponse> {
 	const { input, mode, oauthState } = params;
 
 	if (mode === "apikey" || input.startsWith("sk-ant-")) {
-		return await mix.auth.setApiKey({ apiKey: input });
+		await mix.authentication.storeApiKey({ provider: "anthropic", apiKey: input });
+		return { success: true };
 	}
 
 	try {
@@ -30,7 +31,7 @@ async function authenticate(params: AuthParams): Promise<AuthResponse> {
 		});
 		return { success: true };
 	} catch {
-		return await mix.authentication.login();
+		return await mix.authentication.startOAuthFlow({ provider: "anthropic" });
 	}
 }
 
