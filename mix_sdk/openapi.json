@@ -1992,6 +1992,91 @@
           "System"
         ]
       }
+    },
+    "/stream": {
+      "get": {
+        "description": "Establishes a persistent SSE connection for receiving real-time updates during message processing. Connection remains open for multiple messages and includes proper reconnection support with Last-Event-ID header.",
+        "operationId": "streamEvents",
+        "parameters": [
+          {
+            "description": "Session ID to stream events for",
+            "in": "query",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last received event ID for reconnection and event replay",
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/SSEEventStream"
+                }
+              }
+            },
+            "description": "SSE event stream",
+            "headers": {
+              "Cache-Control": {
+                "description": "Prevents caching of the event stream",
+                "schema": {
+                  "example": "no-cache",
+                  "type": "string"
+                }
+              },
+              "Connection": {
+                "description": "Keep connection alive for streaming",
+                "schema": {
+                  "example": "keep-alive",
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "description": "Server-sent events MIME type",
+                "schema": {
+                  "example": "text/event-stream",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Server-Sent Events stream for real-time updates",
+        "tags": [
+          "Streaming"
+        ]
+      }
     }
   },
   "components": {
@@ -2118,6 +2203,541 @@
           "type"
         ],
         "type": "object"
+      },
+      "SSEBaseEvent": {
+        "description": "Base SSE event with standard fields",
+        "properties": {
+          "event": {
+            "description": "Event type identifier",
+            "enum": [
+              "connected",
+              "heartbeat",
+              "error",
+              "complete",
+              "thinking",
+              "content",
+              "tool",
+              "tool_execution_start",
+              "tool_execution_complete",
+              "permission",
+              "summarize"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique sequential event identifier for ordering and reconnection",
+            "example": "1234567890",
+            "type": "string"
+          },
+          "retry": {
+            "description": "Client retry interval in milliseconds",
+            "example": 30000,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "event"
+        ],
+        "type": "object"
+      },
+      "SSECompleteEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "content": {
+                    "description": "Final response content",
+                    "type": "string"
+                  },
+                  "done": {
+                    "description": "Indicates message processing completion",
+                    "type": "boolean"
+                  },
+                  "messageId": {
+                    "description": "Completed message identifier",
+                    "type": "string"
+                  },
+                  "reasoning": {
+                    "description": "Optional reasoning content",
+                    "type": "string"
+                  },
+                  "reasoningDuration": {
+                    "description": "Duration of reasoning process in milliseconds",
+                    "type": "integer"
+                  },
+                  "type": {
+                    "description": "Completion type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "done"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEConnectedEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "sessionId": {
+                    "description": "Session identifier for the connected stream",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sessionId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEContentEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "content": {
+                    "description": "Streaming content delta",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Content event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEErrorEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "attempt": {
+                    "description": "Current retry attempt number",
+                    "type": "integer"
+                  },
+                  "error": {
+                    "description": "Error message description",
+                    "type": "string"
+                  },
+                  "maxAttempts": {
+                    "description": "Maximum number of retry attempts",
+                    "type": "integer"
+                  },
+                  "retryAfter": {
+                    "description": "Milliseconds to wait before retry",
+                    "type": "integer"
+                  },
+                  "type": {
+                    "description": "Error type classification",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEEventStream": {
+        "description": "Server-Sent Event stream with discriminated event types",
+        "discriminator": {
+          "mapping": {
+            "complete": "#/components/schemas/SSECompleteEvent",
+            "connected": "#/components/schemas/SSEConnectedEvent",
+            "content": "#/components/schemas/SSEContentEvent",
+            "error": "#/components/schemas/SSEErrorEvent",
+            "heartbeat": "#/components/schemas/SSEHeartbeatEvent",
+            "permission": "#/components/schemas/SSEPermissionEvent",
+            "summarize": "#/components/schemas/SSESummarizeEvent",
+            "thinking": "#/components/schemas/SSEThinkingEvent",
+            "tool": "#/components/schemas/SSEToolEvent",
+            "tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
+            "tool_execution_start": "#/components/schemas/SSEToolExecutionStartEvent"
+          },
+          "propertyName": "event"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SSEConnectedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEHeartbeatEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEErrorEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSECompleteEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEThinkingEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEContentEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEToolEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEToolExecutionStartEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEPermissionEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSESummarizeEvent"
+          }
+        ],
+        "type": "object"
+      },
+      "SSEHeartbeatEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "type": {
+                    "description": "Heartbeat type",
+                    "example": "ping",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEPermissionEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "action": {
+                    "description": "Requested action description",
+                    "type": "string"
+                  },
+                  "description": {
+                    "description": "Human-readable permission description",
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "Permission request identifier",
+                    "type": "string"
+                  },
+                  "params": {
+                    "description": "Additional parameters for the permission request",
+                    "type": "object"
+                  },
+                  "path": {
+                    "description": "File path for permission request",
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "description": "Session identifier for the permission request",
+                    "type": "string"
+                  },
+                  "toolName": {
+                    "description": "Tool requiring permission",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Permission event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "id",
+                  "sessionId",
+                  "toolName",
+                  "description",
+                  "action"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSESummarizeEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "done": {
+                    "description": "Indicates if summarization is complete",
+                    "type": "boolean"
+                  },
+                  "progress": {
+                    "description": "Summarization progress description",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Summarization event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "progress",
+                  "done"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEThinkingEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "content": {
+                    "description": "Thinking or reasoning content",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Thinking event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "content"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEToolEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "id": {
+                    "description": "Tool execution identifier",
+                    "type": "string"
+                  },
+                  "input": {
+                    "description": "Tool input parameters",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Tool name being executed",
+                    "type": "string"
+                  },
+                  "status": {
+                    "description": "Tool execution status",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Tool event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "name",
+                  "input",
+                  "id",
+                  "status"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEToolExecutionCompleteEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "progress": {
+                    "description": "Final execution progress description",
+                    "type": "string"
+                  },
+                  "success": {
+                    "description": "Indicates if tool execution succeeded",
+                    "type": "boolean"
+                  },
+                  "toolCallId": {
+                    "description": "Tool call identifier",
+                    "type": "string"
+                  },
+                  "toolName": {
+                    "description": "Name of the completed tool",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Tool execution complete event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "toolName",
+                  "progress",
+                  "success",
+                  "toolCallId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEToolExecutionStartEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "progress": {
+                    "description": "Execution progress description",
+                    "type": "string"
+                  },
+                  "toolCallId": {
+                    "description": "Tool call identifier",
+                    "type": "string"
+                  },
+                  "toolName": {
+                    "description": "Name of the tool being executed",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Tool execution start event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "toolName",
+                  "progress",
+                  "toolCallId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "SessionData": {
         "properties": {
