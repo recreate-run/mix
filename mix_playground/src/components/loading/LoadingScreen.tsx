@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
-import { DotFlow } from '../../../components/gsap/dot-flow';
+import { useEffect, useState } from 'react';
+import { DotFlow } from './DotFlowCSS';
 
 // Commands for the opening screen animation - Mix-specific creative workflow examples
 const commands = [
@@ -83,101 +82,88 @@ interface LoadingScreenProps {
 }
 
 export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps) {
-  // Ensure onComplete is called after duration
+  const [logoVisible, setLogoVisible] = useState(false);
+  const [animationStarted, setAnimationStarted] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Start animations immediately
+    setAnimationStarted(true);
+
+    // Logo fade in after 100ms
+    const logoTimer = setTimeout(() => {
+      setLogoVisible(true);
+    }, 100);
+
+
+    // Complete after duration
+    const completeTimer = setTimeout(() => {
       if (onComplete) onComplete();
     }, duration * 1000);
-    
-    return () => clearTimeout(timer);
-  }, [duration, onComplete]);
-  const logoRef = useRef(null);
-  const containerRef = useRef(null);
-  const cursorRef = useRef(null);
-  const textRef = useRef(null);
-  const [animationComplete, setAnimationComplete] = useState(false);
-  
-  useEffect(() => {
-    const tl = gsap.timeline({ 
-      onComplete: () => {
-        setAnimationComplete(true);
-        if (onComplete) onComplete();
-      }
-    });
-    
-    // Force the animation to take exactly the specified duration
-    tl.totalDuration(duration);
-    
-    // Initial fade in
-    tl.fromTo(logoRef.current,
-      { opacity: 0, scale: 0.8 },
-      { opacity: 1, scale: 1, duration: 2, ease: "power2.out" }
-    );
-    
-    // Subtle pulse animation for the logo
-    tl.to(logoRef.current, {
-      scale: 1.05, 
-      duration: 1.5, 
-      repeat: 2, 
-      yoyo: true,
-      ease: "sine.inOut"
-    }, ">-0.5");
-    
-    // Fade in the tagline text
-    tl.fromTo(textRef.current,
-      { opacity: 0 },
-      { opacity: 1, duration: 1.5, ease: "power1.inOut" },
-      ">-1"
-    );
-    
-    // Continuous animations independent of the timeline
-    
-    // Animate the cursor blinking
-    gsap.to(cursorRef.current, {
-      opacity: 0,
-      duration: 0.7,
-      repeat: -1,
-      yoyo: true,
-      ease: "power2.inOut"
-    });
 
-    // Subtle container floating animation
-    gsap.to(containerRef.current, {
-      y: 8,
-      duration: 3,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
-    
     return () => {
-      tl.kill();
-      gsap.killTweensOf([logoRef.current, cursorRef.current, containerRef.current]);
+      clearTimeout(logoTimer);
+      clearTimeout(completeTimer);
     };
   }, [duration, onComplete]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-background/90">
-      <div ref={containerRef} className="text-center p-8 rounded-lg bg-background/50 backdrop-blur-sm">
+      <div className={`text-center p-8 rounded-lg bg-background/50 backdrop-blur-sm transition-transform duration-3000 ease-in-out ${animationStarted ? 'animate-float' : ''}`}>
         <div className="mb-4 relative">
-          <div ref={logoRef} className="text-4xl font-bold text-primary mb-2">mix</div>
+          <img
+            src="/mix_logo_transparent.png"
+            alt="Mix Logo"
+            className={`size-48 object-contain mx-auto transition-all duration-2000 ease-out ${logoVisible
+              ? 'opacity-100 scale-100 animate-pulse-subtle'
+              : 'opacity-0 scale-75'
+              }`}
+          />
           <div className="text-sm text-muted-foreground flex justify-center items-center">
-            <span>AI-powered creative workflows</span>
-            <span ref={cursorRef} className="ml-1 h-4 w-0.5 bg-primary inline-block"></span>
+            <span>The multimodal agents SDK</span>
+            <span className="ml-1 h-4 w-0.5 bg-primary inline-block animate-blink"></span>
           </div>
         </div>
-        
+
         {/* Animated Commands with enhanced styling */}
         <div className="relative animate-in slide-in-from-bottom duration-1000 delay-500">
-          <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-xl blur-xl"></div>
+
           <div className="relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-2xl [&_.dot-flow-container]:text-foreground [&_.dot-loader_.h-1\\.5]:bg-muted/30 [&_.dot-loader_.active]:bg-primary">
             <DotFlow items={commands} isPlaying={true} />
           </div>
         </div>
-
-        {/* Loading text */}
-        <p ref={textRef} className="text-sm text-muted-foreground/80 animate-in slide-in-from-bottom duration-1000 delay-700 mt-4">Loading your creative space...</p>
       </div>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(8px); }
+          }
+
+          @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+          }
+
+          @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+          }
+
+          .animate-float {
+            animation: float 3s ease-in-out infinite;
+          }
+
+          .animate-pulse-subtle {
+            animation: pulse-subtle 1.5s ease-in-out 2;
+            animation-delay: 1s;
+          }
+
+          .animate-blink {
+            animation: blink 0.7s ease-in-out infinite;
+          }
+        `
+      }} />
     </div>
   );
 }

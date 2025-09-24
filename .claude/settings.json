@@ -3,7 +3,7 @@
     "allow": [
       "Bash(make tail-log:*)",
       "Bash(cp:*)",
-      "Bash(npm install)",
+      "Bash(bun install)",
       "Bash(make:*)",
       "Bash(./build/mix:*)",
       "Bash(pkill:*)",

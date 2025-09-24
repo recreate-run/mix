@@ -37,8 +37,25 @@ async function fetchToolsStatus(): Promise<ToolsStatus> {
     try {
       const response = await mix.tools.getToolsStatus();
       // Transform SDK response to match our interface
+      const transformedCategories: Record<string, ToolCategory> = {};
+
+      if (response.categories) {
+        Object.entries(response.categories).forEach(([key, category]) => {
+          transformedCategories[key] = {
+            displayName: category.displayName || key,
+            tools: (category.tools || []).map(tool => ({
+              provider: tool.provider || '',
+              displayName: tool.displayName || tool.provider || '',
+              description: tool.description || '',
+              authenticated: tool.authenticated || false,
+              apiKeyRequired: tool.apiKeyRequired || false
+            }))
+          };
+        });
+      }
+
       return {
-        categories: response.categories || {}
+        categories: transformedCategories
       };
     } catch (sdkError) {
       // SDK validation error - likely a mismatch between SDK schema and API response
