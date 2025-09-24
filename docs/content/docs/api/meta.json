@@ -1,0 +1,11 @@
+{
+  "title": "API",
+  "description": "Mix API Reference and Code Samples",
+  "icon": "Zap",
+  "root": true,
+  "pages": [
+    "index",
+    "typescript-samples",
+    "python-samples"
+  ]
+}

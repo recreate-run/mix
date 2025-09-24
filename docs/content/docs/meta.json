@@ -1,6 +1,7 @@
 {
   "pages": [
     "mix-playground",
-    "sdk"
+    "sdk",
+    "api"
   ]
 }
