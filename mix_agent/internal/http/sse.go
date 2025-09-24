@@ -28,6 +28,7 @@ type Connection struct {
 	closeOnce sync.Once
 }
 
+
 // ConnectionRegistry manages active SSE connections
 type ConnectionRegistry struct {
 	mu          sync.RWMutex
@@ -79,6 +80,7 @@ func (r *ConnectionRegistry) Broadcast(sessionID, message string) {
 	}
 }
 
+
 // HandleSSEStream handles persistent Server-Sent Events streaming for agent responses
 func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r *http.Request) {
 	// Set SSE headers
@@ -94,23 +96,38 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	}
 
 	sessionID := r.URL.Query().Get("sessionId")
+
 	if sessionID == "" {
-		WriteSSE(w, "error", ErrorEvent{Error: "Missing sessionId parameter"})
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	// Get flusher for SSE streaming
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Initialize SSEWriter for this session
+	sseWriter := NewSSEWriter(w, sessionID, flusher)
+
+	// Note: Last-Event-ID header support was intentionally omitted from this implementation.
+	// For chat interfaces with persistent connections, clients typically don't need to resume
+	// mid-message after disconnection. The connection stays open across multiple messages,
+	// and users can simply reconnect to continue the conversation from the current state.
+	// This design choice prioritizes simplicity and maintainability over rarely-used
+	// reconnection scenarios that add significant complexity without providing real value.
 
 	// Validate session exists
 	_, err := app.Sessions.Get(ctx, sessionID)
 	if err != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Invalid session ID: %s", sessionID)})
+		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Invalid session ID: %s", sessionID)}); err != nil {
+			// Error already handled by SSEWriter
+		}
 		return
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		WriteSSE(w, "error", ErrorEvent{Error: "Streaming not supported"})
-		return
-	}
 
 	// Create connection
 	conn := &Connection{
@@ -129,9 +146,11 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 		})
 	}()
 
-	// Send connection confirmation
-	WriteSSE(w, "connected", ConnectedEvent{SessionID: sessionID})
-	flusher.Flush()
+	// Send connection confirmation with SSE-compliant event
+	if err := sseWriter.WriteEvent("connected", ConnectedEvent{SessionID: sessionID}); err != nil {
+		// Connection error handled by SSEWriter
+		return
+	}
 
 	// Subscribe to permission events for this session
 	permissionEvents := app.Permissions.Subscribe(ctx)
@@ -149,13 +168,11 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 					return
 				}
 
-				// Debug: Log all permission events received
-				fmt.Printf("SSE: Received permission event - Type: %s, EventSessionID: %s, SSESessionID: %s\n", 
-					permissionEvent.Type, permissionEvent.Payload.SessionID, sessionID)
+				// Process permission events for current session
 
 				// Only send permission events for the current session
 				if permissionEvent.Type == pubsub.CreatedEvent && permissionEvent.Payload.SessionID == sessionID {
-					fmt.Printf("SSE: Sending permission event to frontend - ID: %s\n", permissionEvent.Payload.ID)
+					// Send permission event to frontend
 					
 					permEvent := PermissionEvent{
 						Type:        "permission",
@@ -168,13 +185,11 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 						Params:      permissionEvent.Payload.Params,
 					}
 
-					if err := WriteSSE(w, "permission", permEvent); err != nil {
+					if err := sseWriter.WriteEvent("permission", permEvent); err != nil {
 						return
 					}
-					flusher.Flush()
-				} else {
-					fmt.Printf("SSE: Filtered out permission event - Type: %s, Session mismatch\n", permissionEvent.Type)
 				}
+				// Permission events filtered by session
 			}
 		}
 	}()
@@ -197,15 +212,17 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 			return
 
 		case <-heartbeat.C:
-			WriteSSE(w, "heartbeat", HeartbeatEvent{Type: "ping"})
-			flusher.Flush()
+			if err := sseWriter.WriteEvent("heartbeat", HeartbeatEvent{Type: "ping"}); err != nil {
+				// Heartbeat error handled by SSEWriter
+				return
+			}
 
 		case message, ok := <-conn.Messages:
 			if !ok {
 				return
 			}
 
-			if err := processMessage(ctx, app, w, flusher, sessionID, message); err != nil {
+			if err := processMessage(ctx, app, sseWriter, sessionID, message); err != nil {
 				return
 			}
 		}
@@ -253,7 +270,7 @@ func quotePaths(text string, mediaPaths []string) string {
 }
 
 // handleShellCommand executes shell commands for ! prefixed messages
-func handleShellCommand(ctx context.Context, w http.ResponseWriter, flusher http.Flusher, text string) error {
+func handleShellCommand(ctx context.Context, sseWriter *SSEWriter, text string) error {
 	command := strings.TrimSpace(strings.TrimPrefix(text, "!"))
 	if command == "" {
 		command = "echo 'No command specified'"
@@ -267,19 +284,21 @@ func handleShellCommand(ctx context.Context, w http.ResponseWriter, flusher http
 		result = fmt.Sprintf("Error: %v\n%s", err, result)
 	}
 
-	WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: result, Done: true})
-	flusher.Flush()
+	if err := sseWriter.WriteEvent("complete", CompleteEvent{Type: "complete", Content: result, Done: true}); err != nil {
+		return fmt.Errorf("failed to write complete event: %w", err)
+	}
 	return nil
 }
 
 // handleRegularMessage processes regular messages through the agent
-func handleRegularMessage(ctx context.Context, app *app.App, w http.ResponseWriter, flusher http.Flusher, sessionID, text string, planMode bool) error {
+func handleRegularMessage(ctx context.Context, app *app.App, sseWriter *SSEWriter, sessionID, text string, planMode bool) error {
 	
 	// Check authentication status before processing the message using the centralized function
 	authenticated, _, authErr := provider.IsAuthenticated(ctx, "")
 	if authErr != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Error checking authentication: %s", authErr.Error())})
-		flusher.Flush()
+		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Error checking authentication: %s", authErr.Error())}); err != nil {
+			// Auth error handled by SSEWriter
+		}
 		return nil
 	}
 	
@@ -288,19 +307,21 @@ func handleRegularMessage(ctx context.Context, app *app.App, w http.ResponseWrit
 	if !authenticated {
 		helpfulMsg := "⚠️ Authentication required. Please go to settings and authenticate"
 		
-		WriteSSE(w, "error", ErrorEvent{
+		if err := sseWriter.WriteEvent("error", ErrorEvent{
 			Error: helpfulMsg,
 			Type: "authentication_error",
-		})
-		flusher.Flush()
+		}); err != nil {
+			// Auth error handled by SSEWriter
+		}
 		return nil
 	}
 	
 	// If authenticated, proceed with normal message processing
 	events, err := app.CoderAgent.RunWithPlanMode(ctx, sessionID, text, planMode)
 	if err != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())})
-		flusher.Flush()
+		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())}); err != nil {
+			// Agent error handled by SSEWriter
+		}
 		return nil
 	}
 	
@@ -325,15 +346,15 @@ func handleRegularMessage(ctx context.Context, app *app.App, w http.ResponseWrit
 						reasoningDuration = reasoningContent.Duration
 					}
 				}
-				WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: content, MessageID: messageID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration})
-				flusher.Flush()
+				if err := sseWriter.WriteEvent("complete", CompleteEvent{Type: "complete", Content: content, MessageID: messageID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration}); err != nil {
+					// Complete event error handled by SSEWriter
+				}
 				return nil
 			}
 
-			if err := WriteAgentEventAsSSE(w, event); err != nil {
+			if err := WriteAgentEventAsSSE(sseWriter, event); err != nil {
 				return err
 			}
-			flusher.Flush()
 
 			if event.Error != nil || event.Done {
 				return nil
@@ -343,7 +364,7 @@ func handleRegularMessage(ctx context.Context, app *app.App, w http.ResponseWrit
 }
 
 // processMessage processes a single message and streams the response
-func processMessage(ctx context.Context, app *app.App, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
+func processMessage(ctx context.Context, app *app.App, sseWriter *SSEWriter, sessionID, content string) error {
 	
 	msgContent, err := parseMessageContent(content)
 	if err != nil {
@@ -356,31 +377,33 @@ func processMessage(ctx context.Context, app *app.App, w http.ResponseWriter, fl
 	case strings.HasPrefix(text, "/"):
 		// Quote paths in slash commands if they contain file references
 		quotedText := quotePaths(text, msgContent.Media)
-		return handleSlashCommandStreaming(ctx, app, w, flusher, sessionID, quotedText)
+		return handleSlashCommandStreaming(ctx, app, sseWriter, sessionID, quotedText)
 	case strings.HasPrefix(text, "!"):
 		// Quote paths in shell commands
 		quotedText := quotePaths(text, msgContent.Media)
-		return handleShellCommand(ctx, w, flusher, quotedText)
+		return handleShellCommand(ctx, sseWriter, quotedText)
 	default:
-		return handleRegularMessage(ctx, app, w, flusher, sessionID, text, msgContent.PlanMode)
+		return handleRegularMessage(ctx, app, sseWriter, sessionID, text, msgContent.PlanMode)
 	}
 }
 
 // handleSlashCommandStreaming processes slash commands for persistent connections
-func handleSlashCommandStreaming(ctx context.Context, app *app.App, w http.ResponseWriter, flusher http.Flusher, sessionID, content string) error {
-	
+func handleSlashCommandStreaming(ctx context.Context, app *app.App, sseWriter *SSEWriter, sessionID, content string) error {
+
 	parsedCmd, err := commands.ParseCommand(content)
 	if err != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Invalid slash command: %s", err.Error())})
-		flusher.Flush()
+		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Invalid slash command: %s", err.Error())}); err != nil {
+			// Command error handled by SSEWriter
+		}
 		return nil
 	}
 
 
 	reg := commands.NewRegistry()
 	if err := reg.LoadCommands(app); err != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Failed to load commands: %s", err.Error())})
-		flusher.Flush()
+		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Failed to load commands: %s", err.Error())}); err != nil {
+			// Load commands error handled by SSEWriter
+		}
 		return nil
 	}
 
@@ -389,13 +412,15 @@ func handleSlashCommandStreaming(ctx context.Context, app *app.App, w http.Respo
 	
 	result, err := reg.ExecuteCommand(cmdCtx, parsedCmd.Name, parsedCmd.Arguments)
 	if err != nil {
-		WriteSSE(w, "error", ErrorEvent{Error: fmt.Sprintf("Command execution failed: %s", err.Error())})
-		flusher.Flush()
+		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Command execution failed: %s", err.Error())}); err != nil {
+			// Command execution error handled by SSEWriter
+		}
 		return nil
 	}
 
-	WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: result, Done: true})
-	flusher.Flush()
+	if err := sseWriter.WriteEvent("complete", CompleteEvent{Type: "complete", Content: result, Done: true}); err != nil {
+		// Command complete error handled by SSEWriter
+	}
 	return nil
 }
 
@@ -454,18 +479,18 @@ func HandleMessageQueue(w http.ResponseWriter, r *http.Request) {
 }
 
 // WriteAgentEventAsSSE converts an AgentEvent to SSE format using unified event types
-func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
+func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 	switch event.Type {
 	case agent.AgentEventTypeThinking:
 		// Send thinking delta event
-		if err := WriteSSE(w, "thinking", ThinkingEvent{Type: "thinking", Content: event.Thinking}); err != nil {
+		if err := sseWriter.WriteEvent("thinking", ThinkingEvent{Type: "thinking", Content: event.Thinking}); err != nil {
 			return err
 		}
 
 	case agent.AgentEventTypeContentDelta:
 		// Stream content deltas for text between tool calls
 		if event.Content != "" {
-			if err := WriteSSE(w, "content", ContentEvent{Type: "content", Content: event.Content}); err != nil {
+			if err := sseWriter.WriteEvent("content", ContentEvent{Type: "content", Content: event.Content}); err != nil {
 				return err
 			}
 		}
@@ -481,7 +506,7 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 				status = "completed"
 			}
 
-			if err := WriteSSE(w, "tool", ToolEvent{Type: "tool", Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status}); err != nil {
+			if err := sseWriter.WriteEvent("tool", ToolEvent{Type: "tool", Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status}); err != nil {
 				return err
 			}
 		}
@@ -490,7 +515,7 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 		if event.Done {
 			// Check if this is a permission denied error
 			if event.Message.FinishReason() == "permission_denied" {
-				if err := WriteSSE(w, "error", ErrorEvent{Error: "Permission denied"}); err != nil {
+				if err := sseWriter.WriteEvent("error", ErrorEvent{Error: "Permission denied"}); err != nil {
 					return err
 				}
 			} else {
@@ -498,7 +523,7 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 				reasoningContent := event.Message.ReasoningContent()
 				reasoning := reasoningContent.String()
 				reasoningDuration := reasoningContent.Duration
-				if err := WriteSSE(w, "complete", CompleteEvent{Type: "complete", Content: content, MessageID: event.Message.ID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration}); err != nil {
+				if err := sseWriter.WriteEvent("complete", CompleteEvent{Type: "complete", Content: content, MessageID: event.Message.ID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration}); err != nil {
 					return err
 				}
 			}
@@ -534,7 +559,7 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 				MaxAttempts: maxAttempts,
 			}
 			
-			if err := WriteSSE(w, "rate_limit_error", errorEvent); err != nil {
+			if err := sseWriter.WriteEvent("rate_limit_error", errorEvent); err != nil {
 				return err
 			}
 			
@@ -544,18 +569,18 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 			strings.Contains(errMsg, "401 Unauthorized") {
 			// Create a more helpful error message
 			helpfulMsg := "Authentication failed: Not logged in or token expired. Please use /login to authenticate with Claude Code."
-			if err := WriteSSE(w, "error", ErrorEvent{Error: helpfulMsg}); err != nil {
+			if err := sseWriter.WriteEvent("error", ErrorEvent{Error: helpfulMsg}); err != nil {
 				return err
 			}
 		} else {
 			// Normal error handling
-			if err := WriteSSE(w, "error", ErrorEvent{Error: errMsg}); err != nil {
+			if err := sseWriter.WriteEvent("error", ErrorEvent{Error: errMsg}); err != nil {
 				return err
 			}
 		}
 
 	case agent.AgentEventTypeSummarize:
-		if err := WriteSSE(w, "summarize", SummarizeEvent{Type: "summarize", Progress: event.Progress, Done: event.Done}); err != nil {
+		if err := sseWriter.WriteEvent("summarize", SummarizeEvent{Type: "summarize", Progress: event.Progress, Done: event.Done}); err != nil {
 			return err
 		}
 
@@ -571,7 +596,7 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 			}
 		}
 
-		if err := WriteSSE(w, "tool_execution_start", ToolExecutionStartEvent{
+		if err := sseWriter.WriteEvent("tool_execution_start", ToolExecutionStartEvent{
 			Type:       "tool_execution_start",
 			ToolName:   toolName,
 			Progress:   event.Progress,
@@ -602,7 +627,7 @@ func WriteAgentEventAsSSE(w http.ResponseWriter, event agent.AgentEvent) error {
 			success = false
 		}
 
-		if err := WriteSSE(w, "tool_execution_complete", ToolExecutionCompleteEvent{
+		if err := sseWriter.WriteEvent("tool_execution_complete", ToolExecutionCompleteEvent{
 			Type:       "tool_execution_complete",
 			ToolName:   toolName,
 			Progress:   event.Progress,

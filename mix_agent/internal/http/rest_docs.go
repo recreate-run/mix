@@ -1088,6 +1088,71 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/stream": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "streamEvents",
+					"summary":     "Server-Sent Events stream for real-time updates",
+					"description": "Establishes a persistent SSE connection for receiving real-time updates during message processing. Connection remains open for multiple messages and includes proper reconnection support with Last-Event-ID header.",
+					"tags":        []string{"Streaming"},
+					"parameters": []map[string]interface{}{
+						{
+							"name":        "sessionId",
+							"in":          "query",
+							"required":    true,
+							"description": "Session ID to stream events for",
+							"schema": map[string]interface{}{
+								"type": "string",
+							},
+						},
+						{
+							"name":        "Last-Event-ID",
+							"in":          "header",
+							"required":    false,
+							"description": "Last received event ID for reconnection and event replay",
+							"schema": map[string]interface{}{
+								"type": "string",
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "SSE event stream",
+							"headers": map[string]interface{}{
+								"Content-Type": map[string]interface{}{
+									"description": "Server-sent events MIME type",
+									"schema": map[string]interface{}{
+										"type":    "string",
+										"example": "text/event-stream",
+									},
+								},
+								"Cache-Control": map[string]interface{}{
+									"description": "Prevents caching of the event stream",
+									"schema": map[string]interface{}{
+										"type":    "string",
+										"example": "no-cache",
+									},
+								},
+								"Connection": map[string]interface{}{
+									"description": "Keep connection alive for streaming",
+									"schema": map[string]interface{}{
+										"type":    "string",
+										"example": "keep-alive",
+									},
+								},
+							},
+							"content": map[string]interface{}{
+								"text/event-stream": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/SSEEventStream",
+									},
+								},
+							},
+						},
+						"404": createErrorResponse("Session not found"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "healthCheck",
@@ -1301,6 +1366,417 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 					"required": []string{"name", "size", "modified", "isDir"},
+				},
+				"SSEBaseEvent": map[string]interface{}{
+					"type":        "object",
+					"description": "Base SSE event with standard fields",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Unique sequential event identifier for ordering and reconnection",
+							"example":     "1234567890",
+						},
+						"event": map[string]interface{}{
+							"type":        "string",
+							"description": "Event type identifier",
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_execution_start", "tool_execution_complete", "permission", "summarize"},
+						},
+						"retry": map[string]interface{}{
+							"type":        "integer",
+							"description": "Client retry interval in milliseconds",
+							"example":     30000,
+						},
+					},
+					"required": []string{"id", "event"},
+				},
+				"SSEEventStream": map[string]interface{}{
+					"type":         "object",
+					"description":  "Server-Sent Event stream with discriminated event types",
+					"discriminator": map[string]interface{}{
+						"propertyName": "event",
+						"mapping": map[string]interface{}{
+							"connected":              "#/components/schemas/SSEConnectedEvent",
+							"heartbeat":              "#/components/schemas/SSEHeartbeatEvent",
+							"error":                  "#/components/schemas/SSEErrorEvent",
+							"complete":               "#/components/schemas/SSECompleteEvent",
+							"thinking":               "#/components/schemas/SSEThinkingEvent",
+							"content":                "#/components/schemas/SSEContentEvent",
+							"tool":                   "#/components/schemas/SSEToolEvent",
+							"tool_execution_start":   "#/components/schemas/SSEToolExecutionStartEvent",
+							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
+							"permission":             "#/components/schemas/SSEPermissionEvent",
+							"summarize":              "#/components/schemas/SSESummarizeEvent",
+						},
+					},
+					"oneOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEConnectedEvent"},
+						{"$ref": "#/components/schemas/SSEHeartbeatEvent"},
+						{"$ref": "#/components/schemas/SSEErrorEvent"},
+						{"$ref": "#/components/schemas/SSECompleteEvent"},
+						{"$ref": "#/components/schemas/SSEThinkingEvent"},
+						{"$ref": "#/components/schemas/SSEContentEvent"},
+						{"$ref": "#/components/schemas/SSEToolEvent"},
+						{"$ref": "#/components/schemas/SSEToolExecutionStartEvent"},
+						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
+						{"$ref": "#/components/schemas/SSEPermissionEvent"},
+						{"$ref": "#/components/schemas/SSESummarizeEvent"},
+					},
+				},
+				"SSEConnectedEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"sessionId": map[string]interface{}{
+											"type":        "string",
+											"description": "Session identifier for the connected stream",
+										},
+									},
+									"required": []string{"sessionId"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEHeartbeatEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Heartbeat type",
+											"example":     "ping",
+										},
+									},
+									"required": []string{"type"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEErrorEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"error": map[string]interface{}{
+											"type":        "string",
+											"description": "Error message description",
+										},
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Error type classification",
+										},
+										"retryAfter": map[string]interface{}{
+											"type":        "integer",
+											"description": "Milliseconds to wait before retry",
+										},
+										"attempt": map[string]interface{}{
+											"type":        "integer",
+											"description": "Current retry attempt number",
+										},
+										"maxAttempts": map[string]interface{}{
+											"type":        "integer",
+											"description": "Maximum number of retry attempts",
+										},
+									},
+									"required": []string{"error"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSECompleteEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Completion type",
+										},
+										"content": map[string]interface{}{
+											"type":        "string",
+											"description": "Final response content",
+										},
+										"messageId": map[string]interface{}{
+											"type":        "string",
+											"description": "Completed message identifier",
+										},
+										"done": map[string]interface{}{
+											"type":        "boolean",
+											"description": "Indicates message processing completion",
+										},
+										"reasoning": map[string]interface{}{
+											"type":        "string",
+											"description": "Optional reasoning content",
+										},
+										"reasoningDuration": map[string]interface{}{
+											"type":        "integer",
+											"description": "Duration of reasoning process in milliseconds",
+										},
+									},
+									"required": []string{"type", "done"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEThinkingEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Thinking event type",
+										},
+										"content": map[string]interface{}{
+											"type":        "string",
+											"description": "Thinking or reasoning content",
+										},
+									},
+									"required": []string{"type", "content"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEContentEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Content event type",
+										},
+										"content": map[string]interface{}{
+											"type":        "string",
+											"description": "Streaming content delta",
+										},
+									},
+									"required": []string{"type", "content"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEToolEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool event type",
+										},
+										"name": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool name being executed",
+										},
+										"input": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool input parameters",
+										},
+										"id": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool execution identifier",
+										},
+										"status": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool execution status",
+										},
+									},
+									"required": []string{"type", "name", "input", "id", "status"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEToolExecutionStartEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool execution start event type",
+										},
+										"toolName": map[string]interface{}{
+											"type":        "string",
+											"description": "Name of the tool being executed",
+										},
+										"progress": map[string]interface{}{
+											"type":        "string",
+											"description": "Execution progress description",
+										},
+										"toolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool call identifier",
+										},
+									},
+									"required": []string{"type", "toolName", "progress", "toolCallId"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEToolExecutionCompleteEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool execution complete event type",
+										},
+										"toolName": map[string]interface{}{
+											"type":        "string",
+											"description": "Name of the completed tool",
+										},
+										"progress": map[string]interface{}{
+											"type":        "string",
+											"description": "Final execution progress description",
+										},
+										"success": map[string]interface{}{
+											"type":        "boolean",
+											"description": "Indicates if tool execution succeeded",
+										},
+										"toolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool call identifier",
+										},
+									},
+									"required": []string{"type", "toolName", "progress", "success", "toolCallId"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEPermissionEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Permission event type",
+										},
+										"id": map[string]interface{}{
+											"type":        "string",
+											"description": "Permission request identifier",
+										},
+										"sessionId": map[string]interface{}{
+											"type":        "string",
+											"description": "Session identifier for the permission request",
+										},
+										"toolName": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool requiring permission",
+										},
+										"description": map[string]interface{}{
+											"type":        "string",
+											"description": "Human-readable permission description",
+										},
+										"action": map[string]interface{}{
+											"type":        "string",
+											"description": "Requested action description",
+										},
+										"path": map[string]interface{}{
+											"type":        "string",
+											"description": "File path for permission request",
+										},
+										"params": map[string]interface{}{
+											"type":        "object",
+											"description": "Additional parameters for the permission request",
+										},
+									},
+									"required": []string{"type", "id", "sessionId", "toolName", "description", "action"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSESummarizeEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Summarization event type",
+										},
+										"progress": map[string]interface{}{
+											"type":        "string",
+											"description": "Summarization progress description",
+										},
+										"done": map[string]interface{}{
+											"type":        "boolean",
+											"description": "Indicates if summarization is complete",
+										},
+									},
+									"required": []string{"type", "progress", "done"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
 				},
 			},
 		},
