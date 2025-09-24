@@ -35,7 +35,7 @@ function AutoRedirectHome() {
 
 				// Use most recent session if available
 				if (sessions.length > 0) {
-					const mostRecent = sessions.reduce((latest, session) => 
+					const mostRecent = sessions.reduce((latest, session) =>
 						new Date(session.createdAt) > new Date(latest.createdAt) ? session : latest
 					);
 					localStorage.setItem(LAST_SESSION_KEY, mostRecent.id);
@@ -47,7 +47,7 @@ function AutoRedirectHome() {
 				const newSession = await createSession.mutateAsync({ title: "New Session" });
 				localStorage.setItem(LAST_SESSION_KEY, newSession.id);
 				navigate({ to: "/$sessionId", params: { sessionId: newSession.id }, replace: true });
-				
+
 			} catch (err) {
 				console.error("Failed to handle session redirect:", err);
 				setIsHandling(false);
@@ -68,5 +68,5 @@ function AutoRedirectHome() {
 	}
 
 
-	return <LoadingScreen duration={10} onComplete={() => setAnimationComplete(true)} />;
+	return <LoadingScreen duration={4} onComplete={() => setAnimationComplete(true)} />;
 }

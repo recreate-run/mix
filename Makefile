@@ -68,7 +68,7 @@ install-deps: install
 	@echo "Installing Tauri app dependencies..."
 	cd mix_playground && bun i
 	@echo "Installing GSAP animations dependencies..."
-	cd packages/gsap_animations && npm install
+	cd packages/gsap_animations && bun install
 	@echo "✅ All dependencies installed!"
 
 # Internal target for optimized builds
