@@ -1300,6 +1300,36 @@ func getOpenAPISpec() OpenAPISpec {
 				},
 				"MessageData": map[string]interface{}{
 					"type": "object",
+					"description": "Message data structure for user input",
+					"properties": map[string]interface{}{
+						"text": map[string]interface{}{
+							"type":        "string",
+							"description": "The text content of the message",
+						},
+						"media": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+							"description": "Array of media file references or URLs",
+						},
+						"apps": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+							"description": "Array of app identifiers or references",
+						},
+						"plan_mode": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether the message is in planning mode",
+						},
+					},
+					"required": []string{"text", "media", "apps", "plan_mode"},
+				},
+				"BackendMessage": map[string]interface{}{
+					"type": "object",
+					"description": "Backend message structure representing a complete message exchange",
 					"properties": map[string]interface{}{
 						"id": map[string]interface{}{
 							"type":        "string",
@@ -1310,7 +1340,8 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "Session identifier",
 						},
 						"role": map[string]interface{}{
-							"$ref": "#/components/schemas/MessageRole",
+							"type":        "string",
+							"description": "Message role (user, assistant, tool)",
 						},
 						"userInput": map[string]interface{}{
 							"type":        "string",

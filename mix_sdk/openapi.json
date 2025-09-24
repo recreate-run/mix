@@ -2163,6 +2163,53 @@
   },
   "components": {
     "schemas": {
+      "BackendMessage": {
+        "description": "Backend message structure representing a complete message exchange",
+        "properties": {
+          "assistantResponse": {
+            "description": "Assistant's response message (optional)",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique message identifier",
+            "type": "string"
+          },
+          "reasoning": {
+            "description": "Reasoning process (optional)",
+            "type": "string"
+          },
+          "reasoningDuration": {
+            "description": "Reasoning duration in milliseconds (optional)",
+            "type": "integer"
+          },
+          "role": {
+            "description": "Message role (user, assistant, tool)",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier",
+            "type": "string"
+          },
+          "toolCalls": {
+            "description": "Tool calls made during message processing",
+            "items": {
+              "$ref": "#/components/schemas/ToolCallData"
+            },
+            "type": "array"
+          },
+          "userInput": {
+            "description": "User's input message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "role",
+          "userInput"
+        ],
+        "type": "object"
+      },
       "ErrorResponse": {
         "properties": {
           "error": {
@@ -2204,47 +2251,36 @@
         "type": "object"
       },
       "MessageData": {
+        "description": "Message data structure for user input",
         "properties": {
-          "assistantResponse": {
-            "description": "Assistant's response message (optional)",
-            "type": "string"
-          },
-          "id": {
-            "description": "Unique message identifier",
-            "type": "string"
-          },
-          "reasoning": {
-            "description": "Reasoning process (optional)",
-            "type": "string"
-          },
-          "reasoningDuration": {
-            "description": "Reasoning duration in milliseconds (optional)",
-            "type": "integer"
-          },
-          "role": {
-            "$ref": "#/components/schemas/MessageRole"
-          },
-          "sessionId": {
-            "description": "Session identifier",
-            "type": "string"
-          },
-          "toolCalls": {
-            "description": "Tool calls made during message processing",
+          "apps": {
+            "description": "Array of app identifiers or references",
             "items": {
-              "$ref": "#/components/schemas/ToolCallData"
+              "type": "string"
             },
             "type": "array"
           },
-          "userInput": {
-            "description": "User's input message",
+          "media": {
+            "description": "Array of media file references or URLs",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "plan_mode": {
+            "description": "Whether the message is in planning mode",
+            "type": "boolean"
+          },
+          "text": {
+            "description": "The text content of the message",
             "type": "string"
           }
         },
         "required": [
-          "id",
-          "sessionId",
-          "role",
-          "userInput"
+          "text",
+          "media",
+          "apps",
+          "plan_mode"
         ],
         "type": "object"
       },
