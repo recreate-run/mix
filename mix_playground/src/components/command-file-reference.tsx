@@ -14,10 +14,9 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import type { useFileReference } from '@/hooks/useFileReference';
-import { useFileTypes } from '@/hooks/useFileTypes';
 import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { getFileType, getFileTypeFromExtension, type SupportedFileTypes } from '@/utils/fileTypes';
+import { getFileTypeFromExtension } from '@/utils/fileTypes';
 import { generatePreviewUrl } from '@/utils/assetServer';
 import { AppIcon } from './app-icon';
 
@@ -31,14 +30,12 @@ interface CommandFileReferenceProps {
 }
 
 // Media thumbnail component
-const MediaThumbnail = ({ 
-  file, 
-  sessionId, 
-  supportedFileTypes 
-}: { 
-  file: Attachment; 
-  sessionId: string; 
-  supportedFileTypes?: SupportedFileTypes;
+const MediaThumbnail = ({
+  file,
+  sessionId
+}: {
+  file: Attachment;
+  sessionId: string;
 }) => {
   // Safety checks
   if (!file || !file.name || !sessionId) {
@@ -46,7 +43,7 @@ const MediaThumbnail = ({
     return <ImageIcon className="size-4 text-red-500" />;
   }
 
-  const fileType = getFileType(file.name, supportedFileTypes) || getFileTypeFromExtension(file.name);
+  const fileType = getFileTypeFromExtension(file.name);
 
   const previewUrl = generatePreviewUrl({ path: file.name, type: fileType }, sessionId);
   
@@ -132,7 +129,6 @@ export function CommandFileReference({
 }: CommandFileReferenceProps) {
   const addAttachment = useBoundStore((state) => state.addAttachment);
   const addReference = useBoundStore((state) => state.addReference);
-  const { data: supportedFileTypes } = useFileTypes();
 
   const handleAppSelect = (app: Attachment) => {
     const words = text.split(' ');
@@ -215,7 +211,7 @@ export function CommandFileReference({
               {filteredFiles.length > 0 && (
                 <CommandGroup heading="Session Files">
                   {filteredFiles.map((file) => {
-                    const fileType = getFileType(file.name);
+                    const fileType = getFileTypeFromExtension(file.name);
                     const typeLabel = fileType
                       ? fileType.charAt(0).toUpperCase() + fileType.slice(1)
                       : 'File';
@@ -226,10 +222,9 @@ export function CommandFileReference({
                         onSelect={() => handleSelect(`file:${file.name}`)}
                         value={`file:${file.name}`}
                       >
-                        <MediaThumbnail 
-                          file={file} 
+                        <MediaThumbnail
+                          file={file}
                           sessionId={sessionId}
-                          supportedFileTypes={supportedFileTypes}
                         />
                         <div className="flex-1">
                           <div className="font-medium text-sm">{file.name}</div>
