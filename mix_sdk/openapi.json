@@ -2077,6 +2077,88 @@
           "Streaming"
         ]
       }
+    },
+    "/stream/{id}/message": {
+      "post": {
+        "description": "Send a message to a session via the streaming pipeline. This endpoint integrates with active SSE connections to broadcast real-time processing events including thinking, content, tool execution, and completion events.",
+        "operationId": "sendStreamingMessage",
+        "parameters": [
+          {
+            "description": "Session ID to send message to",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "content": {
+                    "description": "Message content to send for processing",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "content"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamMessageResponse"
+                }
+              }
+            },
+            "description": "Message broadcasted to streaming pipeline. Real-time processing events will be sent via active SSE connections."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid message content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Send message via streaming pipeline",
+        "tags": [
+          "Streaming"
+        ]
+      }
     }
   },
   "components": {
@@ -2798,6 +2880,27 @@
           "completionTokens",
           "cost",
           "createdAt"
+        ],
+        "type": "object"
+      },
+      "StreamMessageResponse": {
+        "description": "Response from streaming message endpoint indicating broadcast status",
+        "properties": {
+          "sessionId": {
+            "description": "Session identifier",
+            "type": "string"
+          },
+          "status": {
+            "description": "Broadcast status",
+            "enum": [
+              "broadcasted"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "sessionId"
         ],
         "type": "object"
       },

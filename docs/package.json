@@ -17,6 +17,7 @@
 		"fumadocs-core": "^15.6.12",
 		"fumadocs-mdx": "^11.7.5",
 		"fumadocs-ui": "^15.6.12",
+		"js-yaml": "^4.1.0",
 		"lucide-react": "^0.468.0",
 		"mermaid": "^11.10.1",
 		"next": "15.4.5",

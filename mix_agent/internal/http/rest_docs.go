@@ -1153,6 +1153,35 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/stream/{id}/message": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "sendStreamingMessage",
+					"summary":     "Send message via streaming pipeline",
+					"description": "Send a message to a session via the streaming pipeline. This endpoint integrates with active SSE connections to broadcast real-time processing events including thinking, content, tool execution, and completion events.",
+					"tags":        []string{"Streaming"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID to send message to"),
+					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"content"},
+						"properties": map[string]interface{}{
+							"content": map[string]interface{}{
+								"type":        "string",
+								"description": "Message content to send for processing",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"$ref": "#/components/schemas/StreamMessageResponse",
+						}, "Message broadcasted to streaming pipeline. Real-time processing events will be sent via active SSE connections."),
+						"400": createErrorResponse("Invalid message content"),
+						"404": createErrorResponse("Session not found"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "healthCheck",
@@ -1748,6 +1777,22 @@ func getOpenAPISpec() OpenAPISpec {
 							"required": []string{"data"},
 						},
 					},
+				},
+				"StreamMessageResponse": map[string]interface{}{
+					"description": "Response from streaming message endpoint indicating broadcast status",
+					"type": "object",
+					"properties": map[string]interface{}{
+						"sessionId": map[string]interface{}{
+							"type":        "string",
+							"description": "Session identifier",
+						},
+						"status": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"broadcasted"},
+							"description": "Broadcast status",
+						},
+					},
+					"required": []string{"status", "sessionId"},
 				},
 				"SSESummarizeEvent": map[string]interface{}{
 					"allOf": []map[string]interface{}{
