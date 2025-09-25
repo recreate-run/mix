@@ -703,7 +703,6 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, 
 			// Get preferred provider
 			if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
 				provider = pref
-				logging.Info("Using preferred provider from user preferences", "provider", provider)
 			}
 		}
 

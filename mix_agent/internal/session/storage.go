@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"mix/internal/logging"
-
 	"github.com/google/uuid"
 )
 
@@ -60,7 +58,6 @@ func GetUploadsStoragePath(config Config) string {
 	return filepath.Join(config.BasePath, "uploads")
 }
 
-
 // ValidateSessionID validates that a session ID is a valid UUID format
 func ValidateSessionID(sessionID string) bool {
 	_, err := uuid.Parse(sessionID)
@@ -79,8 +76,6 @@ func CreateSessionDirectory(sessionID string, config Config) error {
 	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create session directory: %w", err)
 	}
-
-	logging.Info("Created session storage directory", "sessionID", sessionID, "path", sessionDir)
 	return nil
 }
 
@@ -129,7 +124,6 @@ func GetUploadsRoot(config Config) (*os.Root, error) {
 
 	return root, nil
 }
-
 
 // GetSessionFilePath returns the full path to a file within a session
 // DEPRECATED: Use GetSessionRoot and Root operations for better security
@@ -200,8 +194,5 @@ func DeleteSessionDirectory(sessionID string, config Config) error {
 	if err := os.RemoveAll(sessionDir); err != nil {
 		return fmt.Errorf("failed to delete session directory: %w", err)
 	}
-
-	logging.Info("Deleted session storage directory", "sessionID", sessionID, "path", sessionDir)
 	return nil
 }
-
