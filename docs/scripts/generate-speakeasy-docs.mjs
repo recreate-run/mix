@@ -42,7 +42,7 @@ async function main() {
         items: [
           {
             path: 'index.mdx',
-            description: 'Complete API reference for Mix - session management, messaging, and system operations',
+            description: 'Complete API reference for Mix',
           },
         ],
       },

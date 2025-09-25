@@ -1,5 +1,5 @@
 {
-  "title": "Mix Playground",
+  "title": "Mix Agent",
   "description": "Creative AI platform documentation",
   "icon": "BookOpen",
   "root": true,
@@ -11,6 +11,7 @@
     "design-decisions",
     "---Architecture---",
     "architecture-overview",
+    "true-concurrency-architecture",
     "event-streaming",
     "testing",
     "storage-architecture",
