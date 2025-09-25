@@ -495,7 +495,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 func (a *agent) finishMessage(ctx context.Context, msg *message.Message, finishReson message.FinishReason) {
 	msg.AddFinish(finishReson)
-	_ = a.messages.Update(ctx, *msg)
+	_ = a.messages.Update(context.Background(), *msg)
 }
 
 func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event interfaces.ProviderEvent) error {
@@ -520,7 +520,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	case interfaces.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
 		// Publish content delta event for real-time streaming
@@ -533,7 +533,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
 		// Publish tool start event for real-time streaming
@@ -545,7 +545,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	// TODO: see how to handle this
 	// case interfaces.EventToolUseDelta:
 	// 	tm := time.Unix(assistantMsg.UpdatedAt, 0)
@@ -566,7 +566,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	case interfaces.EventError:
 		if errors.Is(event.Error, context.Canceled) {
 			// Event processing canceled for session
@@ -586,7 +586,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			assistantMsg.AddRedactedThinkingBlock(redactedBlock.Data)
 		}
 
-		if err := a.messages.Update(ctx, *assistantMsg); err != nil {
+		if err := a.messages.Update(context.Background(), *assistantMsg); err != nil {
 			return fmt.Errorf("failed to update message: %w", err)
 		}
 		return a.TrackUsage(ctx, sessionID, a.provider.Model(), event.Response.Usage)

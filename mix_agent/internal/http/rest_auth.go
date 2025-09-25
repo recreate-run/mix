@@ -481,7 +481,6 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 	if userPrefs != nil {
 		if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
 			preferredProvider = pref
-			logging.Info("User preferred provider", "provider", preferredProvider)
 		}
 	}
 

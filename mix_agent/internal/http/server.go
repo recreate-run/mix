@@ -150,9 +150,6 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 		IdleTimeout:  15 * time.Minute, // Prevent 60-second drops
 	}
 
-	// Immediate feedback to user
-	logging.Info("Starting HTTP REST API server", "address", addr)
-
 	// Handle graceful shutdown
 	go func() {
 		<-ctx.Done()
