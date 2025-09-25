@@ -73,27 +73,21 @@ export default function HomePage() {
 							*/}
 							
 							<p className="text-center text-muted-foreground mb-4 max-w-3xl mx-auto text-sm">
-								Choose how you want to interact with Mix:
+								Get started with Mix:
 							</p>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								{/* Terminal UI Card */}
+								{/* Mix Playground Card */}
 								<div className="relative border rounded-lg p-4 shadow-md bg-card hover:shadow-lg transition-all overflow-hidden group">
 									<div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50 group-hover:opacity-70 transition-opacity"></div>
 									<div className="relative z-10">
-										<h3 className="text-lg font-semibold mb-1">Mix Agent</h3>
+										<h3 className="text-lg font-semibold mb-1">Mix Playground</h3>
 										<p className="mb-2 text-xs text-muted-foreground leading-tight">
-											Interactive Desktop interface with slash commands and a command palette.
-											Perfect for rapid workflows and AI-powered task automation.
+											Desktop app with interactive interface, slash commands, and real-time AI chat. Built with Tauri and React.
 										</p>
-										<div className="flex flex-wrap gap-1 mb-3">
-											{/* <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Command Palette</span>
-											<span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Slash Commands</span>
-											<span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">App Integration</span> */}
-										</div>
 										<div className="flex flex-col sm:flex-row gap-2">
 											<Button size="sm">
-												<Link href="/docs/mix-agent">
-													Docs
+												<Link href="/docs/mix-playground">
+													Get Started
 												</Link>
 											</Button>
 											<Button variant="outline" size="sm">

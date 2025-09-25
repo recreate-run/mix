@@ -1,6 +1,7 @@
 {
   "pages": [
     "mix-agent",
+    "mix-playground",
     "sdk",
     "api"
   ]

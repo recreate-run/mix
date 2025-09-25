@@ -1,0 +1,33 @@
+---
+title: Mix Playground
+description: Interactive desktop application built with Mix TypeScript SDK
+---
+
+## Overview
+
+Mix Playground is a Tauri desktop app that connects to Mix Agent backend via the Mix TypeScript SDK.
+
+**Architecture**: `Playground (React/Tauri) → TypeScript SDK → Mix Agent (Go)`
+
+## Key Features
+
+- **Real-time AI Chat**: Streaming responses via SSE
+- **File Attachments**: Drag & drop files for analysis
+- **Session Management**: Create, fork, browse conversations
+- **Settings-based Auth**: Configure providers via settings dialog
+- **Slash Commands**: Quick actions via `/` commands
+
+## Quick Start
+
+1. **Launch**: Start the desktop application
+2. **Settings**: Configure AI providers (Anthropic, OpenAI, etc.)
+3. **Chat**: Start conversing with AI models
+4. **Commands**: Use `/help` for available actions
+
+## Core Components
+
+- **Chat Interface**: Main conversation area
+- **Settings Dialog**: Provider auth, model selection, preferences  
+- **Session Browser**: Navigate between conversations
+- **File Upload**: Attach files to conversations
+- **Command System**: Slash commands for quick actions

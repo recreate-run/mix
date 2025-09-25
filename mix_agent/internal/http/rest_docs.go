@@ -1007,17 +1007,11 @@ func getOpenAPISpec() OpenAPISpec {
 						"200": map[string]interface{}{
 							"description": "File content",
 							"content": map[string]interface{}{
-								"application/octet-stream": map[string]interface{}{
-									"schema": map[string]interface{}{
-										"type":   "string",
-										"format": "binary",
-									},
-								},
-								"image/jpeg": map[string]interface{}{
+								"*/*": map[string]interface{}{
 									"schema": map[string]interface{}{
 										"type":        "string",
 										"format":      "binary",
-										"description": "Thumbnail image (when thumb parameter is used)",
+										"description": "File content with appropriate MIME type",
 									},
 								},
 							},
