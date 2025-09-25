@@ -28,7 +28,7 @@ async function main() {
     console.log('Generating API documentation files...');
     
     await generateFiles({
-      input: [specPath],
+      input: ['./lib/mix-api-spec.yaml'],
       output: './content/docs/api',
       // Generate one page per operation, grouped by tag
       per: 'operation',
