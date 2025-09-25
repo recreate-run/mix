@@ -1,0 +1,46 @@
+---
+title: Quickstart 
+description: Get up and running with Mix
+---
+
+
+## Installation
+```bash
+uv add mix-python-sdk
+```
+
+## Quick Start
+
+```python
+import asyncio
+from mix_sdk import MixClient
+
+async def main():
+    # Connect to Mix backend
+    client = MixClient("http://localhost:8080")
+    
+    # Create a session
+    session_id = await client.create_session("My Workflow")
+
+    # send message
+    response = await client.send_message(session_id, "Create a video")
+    print(response.content)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Streaming 
+
+
+```python
+async for event in client.stream_message(session_id, "Create a video"):
+    if event.type == "tool":
+        print(f"Running: {event.name}")
+    elif event.type == "permission":
+        await client.grant_permission(event.id)  # or deny_permission()
+    elif event.type == "error":
+        print(f"Error: {event.error}")
+    elif event.type == "complete":
+        print(f"Done: {event.content}")
+```

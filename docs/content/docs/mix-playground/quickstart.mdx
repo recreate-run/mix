@@ -1,46 +1,49 @@
 ---
-title: Quickstart 
-description: Get up and running with Mix
+title: Quickstart
+description: Get started with Mix Playground in 3 steps
 ---
 
+## 3-Step Setup
 
-## Installation
+### 1. Launch App
+Start Mix Playground desktop application.
+
+### 2. Configure Provider  
+1. Click **Settings** icon
+2. Choose provider (Anthropic, OpenAI, etc.)
+3. Select **OAuth** or **API Key** authentication
+4. Complete authentication flow
+5. Select a model from available options
+
+### 3. Start Chatting
+Type your message and press Enter. AI responds in real-time.
+
+## First Commands
+
 ```bash
-uv add mix-python-sdk
+/help        # Show available commands
+/sessions    # Browse conversations  
+/clear       # Start new session
+/status      # Check authentication
 ```
 
-## Quick Start
+## File Attachments
 
-```python
-import asyncio
-from mix_sdk import MixClient
+- **Drag & Drop**: Drop files into chat
+- **Upload Button**: Click attachment icon
+- **Reference Files**: Use `@filename` in messages
 
-async def main():
-    # Connect to Mix backend
-    client = MixClient("http://localhost:8080")
-    
-    # Create a session
-    session_id = await client.create_session("My Workflow")
+## Tips
 
-    # send message
-    response = await client.send_message(session_id, "Create a video")
-    print(response.content)
+- **Settings Dialog**: All configuration happens here
+- **Real-time Responses**: Messages stream live
+- **Multiple Sessions**: Switch between conversations
+- **Slash Commands**: Quick actions with `/`
 
-if __name__ == "__main__":
-    asyncio.run(main())
-```
+## Troubleshooting
 
-### Streaming 
+- **No Response**: Check Settings → Provider authentication
+- **App Won't Start**: Ensure Mix Agent backend is running
+- **Connection Issues**: Verify internet connection
 
-
-```python
-async for event in client.stream_message(session_id, "Create a video"):
-    if event.type == "tool":
-        print(f"Running: {event.name}")
-    elif event.type == "permission":
-        await client.grant_permission(event.id)  # or deny_permission()
-    elif event.type == "error":
-        print(f"Error: {event.error}")
-    elif event.type == "complete":
-        print(f"Done: {event.content}")
-```
+That's it! You're ready to use Mix Playground.

@@ -38,7 +38,7 @@ function Footer({
             <h3 className="text-lg font-medium">Resources</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/docs/mix-playground" className="text-muted-foreground hover:text-primary">Documentation</Link>
+                <Link href="/docs/mix-agent" className="text-muted-foreground hover:text-primary">Documentation</Link>
               </li>
               <li>
                 <Link href="/docs/sdk" className="text-muted-foreground hover:text-primary">SDK</Link>

@@ -1,126 +1,33 @@
 ---
-title: Home
-description: Learn about Mix, the multimodal AI workflow automation platform that integrates with professional tools like Blender, Figma, and Logic Pro.
+title: Mix Playground
+description: Interactive desktop application built with Mix TypeScript SDK
 ---
 
 ## Overview
 
-> Mix is "Claude Code" for multimodal tasks. A desktop app that integrates with professional tools like Blender, Figma, and Logic Pro to automate creative and analytical workflows.
+Mix Playground is a Tauri desktop app that connects to Mix Agent backend via the Mix TypeScript SDK.
 
-## Quick Start
-
-```bash
-# Clone and start development environment
-git clone <repository-url> && cd mix && make dev
-```
-
-[Complete quickstart guide (5 minutes) →](/docs/mix-playground/quickstart)
-
-## What Mix does for you
-
-* **Automate creative workflows**: Generate and edit videos in Blender, create sound effects in Logic Pro, post-process in After Effects - all from natural language descriptions.
-* **Analyze multimedia content**: Extract insights from session recordings, analyze video content, and process multimodal data automatically.
-* **Integrate professional tools**: Works with existing creative and analytical software you already use - no need to change your workflow.
-* **Flexible deployment**: Use as a desktop app or embed the backend into your products via our upcoming SDK with stdio interface (similar to Claude Code SDK).
-
-## Why teams choose Mix
-
-* **No vendor lock-in**: All project data is stored as plain text and native media files. Your data stays yours.
-* **Powerful tool integration**: Works with Blender and Pixelmator. Support for Figma, Logic Pro, After Effects, and other industry-standard software coming soon.
-* **Powerful AI backbone**: Uses Claude Sonnet 4 for reasoning and Gemini 2.5 Flash for multimodal analysis.
-* **Client-server architecture**: Backend is an HTTP server, meaning the desktop app is just one client. Perfect for integration.
-
-## Architecture Overview
-
-Mix consists of two main components:
-
-- **Go Backend**: HTTP server that orchestrates AI agents and tool integrations
-- **Tauri Frontend**: Cross-platform desktop application built with React
-- **AI Integration**: Claude Sonnet 4 for main reasoning, Gemini 2.5 Flash for multimodal analysis
+**Architecture**: `Playground (React/Tauri) → TypeScript SDK → Mix Agent (Go)`
 
 ## Key Features
 
-### Creative Automation
-- **Video Generation & Editing**: Automated Blender workflows for video creation
-- **Audio Processing**: Integration with Logic Pro for sound design
-- **Visual Design**: Figma integration for design workflows
-- **Post-Production**: After Effects automation for final processing
+- **Real-time AI Chat**: Streaming responses via SSE
+- **File Attachments**: Drag & drop files for analysis
+- **Session Management**: Create, fork, browse conversations
+- **Settings-based Auth**: Configure providers via settings dialog
+- **Slash Commands**: Quick actions via `/` commands
 
-### Analysis & Intelligence  
-- **Session Recording Analysis**: Extract insights and highlights from user sessions
-- **Multimodal Content Analysis**: Process images, videos, and audio automatically
-- **Content Summarization**: Generate summaries and key insights from multimedia content
+## Quick Start
 
-### Developer Experience
-- **Plain Text Storage**: No proprietary formats, complete data portability
-- **HTTP API**: RESTful backend ready for custom integrations
-- **Unified Development**: Single `make dev` command starts everything
-- **Flexible Authentication**: Claude Code account or API keys
+1. **Launch**: Start the desktop application
+2. **Settings**: Configure AI providers (Anthropic, OpenAI, etc.)
+3. **Chat**: Start conversing with AI models
+4. **Commands**: Use `/help` for available actions
 
-## Quick Commands
+## Core Components
 
-```bash
-# Development (starts both frontend and backend)
-make dev
-
-# Production build
-make build
-
-# View logs
-make tail-log
-
-# CLI mode
-./mix -p "Your prompt here"
-
-# HTTP server mode
-./mix --http-port 8080
-```
-
-## Next Steps
-
-<Cards>
-  <Card title="Quickstart Guide" href="/docs/mix-playground/quickstart">
-    Get up and running in 5 minutes
-  </Card>
-  
-  <Card title="Configuration" href="/docs/configuration">
-    Configure AI models and authentication
-  </Card>
-  
-  <Card title="Tool Integrations" href="/docs/tools">
-    Learn about Blender, Figma, and other tool integrations
-  </Card>
-  
-  <Card title="API Reference" href="/docs/api">
-    HTTP API documentation for custom integrations
-  </Card>
-</Cards>
-
-## Examples & Use Cases
-
-<Cards>
-  <Card title="View Examples" href="/docs/examples">
-    Explore real-world use cases and implementation examples
-  </Card>
-</Cards>
-
-
-## Additional Resources
-
-<Cards>
-  <Card title="Development Guide" href="/docs/development">
-    Architecture details and contribution guidelines
-  </Card>
-  
-  <Card title="Authentication Setup" href="/docs/authentication">
-    Configure Claude Code and Gemini authentication
-  </Card>
-  
-  <Card title="Troubleshooting" href="/docs/troubleshooting">
-    Common issues and solutions
-  </Card>
-  
-  <Card title="Python SDK" href="/docs/sdk">
-    Integrate Mix AI workflows into your Python applications
-  </Card>
-</Cards>
+- **Chat Interface**: Main conversation area
+- **Settings Dialog**: Provider auth, model selection, preferences  
+- **Session Browser**: Navigate between conversations
+- **File Upload**: Attach files to conversations
+- **Command System**: Slash commands for quick actions

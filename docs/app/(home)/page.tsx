@@ -80,7 +80,7 @@ export default function HomePage() {
 								<div className="relative border rounded-lg p-4 shadow-md bg-card hover:shadow-lg transition-all overflow-hidden group">
 									<div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50 group-hover:opacity-70 transition-opacity"></div>
 									<div className="relative z-10">
-										<h3 className="text-lg font-semibold mb-1">Mix Playground</h3>
+										<h3 className="text-lg font-semibold mb-1">Mix Agent</h3>
 										<p className="mb-2 text-xs text-muted-foreground leading-tight">
 											Interactive Desktop interface with slash commands and a command palette.
 											Perfect for rapid workflows and AI-powered task automation.
@@ -92,7 +92,7 @@ export default function HomePage() {
 										</div>
 										<div className="flex flex-col sm:flex-row gap-2">
 											<Button size="sm">
-												<Link href="/docs/mix-playground">
+												<Link href="/docs/mix-agent">
 													Docs
 												</Link>
 											</Button>

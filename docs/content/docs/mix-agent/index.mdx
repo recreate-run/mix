@@ -1,0 +1,144 @@
+---
+title: Mix Agent
+description: Learn about Mix Agent - the Go backend HTTP server that powers AI workflows and integrates with professional tools
+---
+
+## Overview
+
+> Mix Agent is the core backend service that powers AI workflows and tool integrations. Built in Go, it provides HTTP APIs, CLI interfaces, and serves as the foundation for Mix Playground and other client applications.
+
+## Quick Start
+
+```bash
+# Clone and start development environment
+git clone <repository-url> && cd mix && make dev
+
+# CLI mode - direct prompt execution
+./mix -p "Your prompt here"
+
+# HTTP server mode - start backend server
+./mix --http-port 8080
+```
+
+[Complete quickstart guide (5 minutes) →](/docs/mix-agent/quickstart)
+
+## What Mix Agent Provides
+
+* **HTTP API Server**: RESTful backend for client applications and integrations
+* **CLI Interface**: Direct command-line access for scripting and automation  
+* **Tool Integration**: Orchestrates professional tools like Blender, Logic Pro, and more
+* **AI Orchestration**: Manages multiple AI providers and model selection
+* **Session Management**: Persistent conversation storage and retrieval
+* **Real-time Streaming**: Server-Sent Events for live responses
+
+## Why Teams Choose Mix Agent
+
+* **Backend-First Architecture**: HTTP server designed for multiple client integrations
+* **No Vendor Lock-in**: All data stored as plain text and native files - your data stays yours
+* **Multi-Provider AI**: Support for Anthropic, OpenAI, OpenRouter, and Google models
+* **Powerful Tool Integration**: Orchestrates Blender, Pixelmator, and other professional tools
+* **Production Ready**: Built in Go for performance, reliability, and easy deployment
+
+## Architecture Overview
+
+Mix Agent is the backend foundation that powers multiple interfaces:
+
+- **HTTP Server**: RESTful API with real-time streaming capabilities
+- **CLI Interface**: Direct command-line access for automation and scripting  
+- **Client Support**: Powers Mix Playground desktop app and custom integrations
+- **AI Integration**: Multi-provider support (Anthropic, OpenAI, OpenRouter, Google)
+- **Tool Orchestration**: Manages external tool integrations and workflows
+
+## Key Features
+
+### Backend Services
+- **HTTP API**: Comprehensive RESTful endpoints for all functionality
+- **Real-time Streaming**: Server-Sent Events for live AI responses
+- **Session Management**: Create, retrieve, fork, and manage conversations
+- **File Handling**: Upload, storage, and retrieval of multimedia content
+
+### AI Provider Management
+- **Multi-Provider Support**: Anthropic, OpenAI, OpenRouter, Google integration
+- **Authentication Flows**: OAuth and API key support for all providers
+- **Model Selection**: Dynamic model switching and preference management
+- **Rate Limiting**: Built-in protection against API overuse
+
+### Tool Integration
+- **Professional Tools**: Blender, Pixelmator, and extensible tool framework
+- **Permission System**: User-controlled tool execution authorization
+- **Tool Orchestration**: Complex workflows across multiple applications
+- **Custom Tools**: Framework for adding new tool integrations
+
+### Developer Experience
+- **CLI Interface**: Direct command-line access for automation
+- **Plain Text Storage**: No proprietary formats, complete data portability
+- **Production Ready**: Built in Go for performance and reliability
+- **Multiple Deployment**: HTTP server, CLI tool, or embedded service
+
+## Quick Commands
+
+```bash
+# Development (starts both frontend and backend)
+make dev
+
+# Production build
+make build
+
+# View logs
+make tail-log
+
+# CLI mode
+./mix -p "Your prompt here"
+
+# HTTP server mode
+./mix --http-port 8080
+```
+
+## Next Steps
+
+<Cards>
+  <Card title="Quickstart Guide" href="/docs/mix-agent/quickstart">
+    Get up and running in 5 minutes
+  </Card>
+  
+  <Card title="Configuration" href="/docs/configuration">
+    Configure AI models and authentication
+  </Card>
+  
+  <Card title="Tool Integrations" href="/docs/tools">
+    Learn about Blender, Figma, and other tool integrations
+  </Card>
+  
+  <Card title="API Reference" href="/docs/api">
+    HTTP API documentation for custom integrations
+  </Card>
+</Cards>
+
+## Examples & Use Cases
+
+<Cards>
+  <Card title="View Examples" href="/docs/examples">
+    Explore real-world use cases and implementation examples
+  </Card>
+</Cards>
+
+
+## Additional Resources
+
+<Cards>
+  <Card title="Development Guide" href="/docs/development">
+    Architecture details and contribution guidelines
+  </Card>
+  
+  <Card title="Authentication Setup" href="/docs/authentication">
+    Configure Claude Code and Gemini authentication
+  </Card>
+  
+  <Card title="Troubleshooting" href="/docs/troubleshooting">
+    Common issues and solutions
+  </Card>
+  
+  <Card title="Python SDK" href="/docs/sdk">
+    Integrate Mix AI workflows into your Python applications
+  </Card>
+</Cards>
