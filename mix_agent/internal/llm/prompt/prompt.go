@@ -3,14 +3,9 @@ package prompt
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"mix/internal/config"
 	"mix/internal/llm/models"
-	"mix/internal/llm/tools"
-	"mix/internal/logging"
 )
 
 func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string) (string, error) {
@@ -30,111 +25,10 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 			return "", fmt.Errorf("failed to load system prompt for main agent: %w", err)
 		}
 
-		if agentName == config.AgentMain {
-			// Add context from project-specific instruction files if they exist
-			contextContent, err := getContextFromPaths(ctx)
-			if err != nil {
-				logging.Error("Failed to load context files", "error", err)
-				return fmt.Sprintf("%s\n\n# Context Loading Error\nError loading project context files: %s", basePrompt, err.Error()), nil
-			}
-			logging.Debug("Context content", "Context", contextContent)
-			if contextContent != "" {
-				return fmt.Sprintf("%s\n\n# Project-Specific Context\n Make sure to follow the instructions in the context below\n%s", basePrompt, contextContent), nil
-			}
-		}
+		// Main agent uses base prompt without context files
+		// For code exploration, use subagents via the Task tool instead
 	}
 
 	return basePrompt, nil
 }
 
-func getContextFromPaths(ctx context.Context) (string, error) {
-	sessionStorageDir, ok := ctx.Value(tools.SessionStorageContextKey).(string)
-	if !ok {
-		return "", fmt.Errorf("no session storage directory found in context")
-	}
-
-	cfg := config.Get()
-	contextPaths := cfg.ContextPaths
-
-	return processContextPaths(sessionStorageDir, contextPaths)
-}
-
-func processContextPaths(workDir string, paths []string) (string, error) {
-	processedFiles := make(map[string]bool)
-	results := make([]string, 0)
-	var foundCount, loadedCount int
-
-	for _, path := range paths {
-		if strings.HasSuffix(path, "/") {
-			err := filepath.WalkDir(filepath.Join(workDir, path), func(filePath string, d os.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-				if !d.IsDir() {
-					lowerPath := strings.ToLower(filePath)
-					if processedFiles[lowerPath] {
-						return nil
-					}
-					processedFiles[lowerPath] = true
-
-					result, found, err := processFile(filePath)
-					if err != nil {
-						return err
-					}
-					if found {
-						foundCount++
-						if result != "" {
-							loadedCount++
-							results = append(results, result)
-						}
-					}
-				}
-				return nil
-			})
-			if err != nil {
-				return "", err
-			}
-		} else {
-			fullPath := filepath.Join(workDir, path)
-			lowerPath := strings.ToLower(fullPath)
-			if processedFiles[lowerPath] {
-				continue
-			}
-			processedFiles[lowerPath] = true
-
-			result, found, err := processFile(fullPath)
-			if err != nil {
-				return "", err
-			}
-			if found {
-				foundCount++
-				if result != "" {
-					loadedCount++
-					results = append(results, result)
-				}
-			}
-		}
-	}
-
-	content := strings.Join(results, "\n")
-	return content, nil
-}
-
-func processFile(filePath string) (string, bool, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			logging.Info("Context file not found", "path", filePath)
-			return "", false, nil // Not found, not an error
-		}
-		logging.Error("Failed to read context file", "path", filePath, "error", err)
-		return "", false, fmt.Errorf("failed to read context file %s: %w", filePath, err)
-	}
-
-	if len(content) == 0 {
-		logging.Info("Context file is empty", "path", filePath)
-		return "", true, nil // Found but empty
-	}
-
-	return "# From:" + filePath + "\n" + string(content), true, nil
-}

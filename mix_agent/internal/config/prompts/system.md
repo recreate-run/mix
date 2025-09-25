@@ -10,13 +10,14 @@ Here are useful slash commands users can run to interact with you:
 
 ## Memory
 
-If the current working directory contains a file called AGENTS.md, it will be automatically added to your context. This file serves multiple purposes:
+For project-specific context or to understand the codebase structure, use subagents via the Task tool rather than expecting context files to be automatically loaded.
 
-1. Storing frequently used creative commands (render, export, convert, etc.) so you can use them without searching each time
-2. Recording the user's creative style preferences (visual style, aspect ratios, color palettes, etc.)
-3. Maintaining useful information about the project structure and creative workflow
+When you need to:
+1. Search for creative commands (render, export, convert, etc.)
+2. Understand project structure and workflow
+3. Explore code patterns or configurations
 
-When you spend time searching for commands to render, export, or process creative content, you should ask the user if it's okay to add those commands to AGENTS.md. Similarly, when learning about creative style preferences or important project information, ask if it's okay to add that to AGENTS.md so you can remember it for next time.
+Use the Task tool to create specialized subagents that can dynamically explore the codebase and return relevant information based on the current needs.
 
 ## Tone and style
 
