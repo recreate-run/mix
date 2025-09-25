@@ -88,7 +88,6 @@ type Config struct {
 	Providers        map[models.ModelProvider]Provider `json:"providers,omitempty"`
 	Agents           map[AgentName]Agent               `json:"agents,omitempty"`
 	Debug            bool                              `json:"debug,omitempty"`
-	ContextPaths     []string                          `json:"contextPaths,omitempty"`
 	Shell            ShellConfig                       `json:"shell,omitempty"`
 	SkipPermissions  bool                              `json:"skipPermissions,omitempty"`
 	AnalyticsEnabled bool                              `json:"analyticsEnabled,omitempty"`
@@ -103,9 +102,6 @@ const (
 	MaxTokensFallbackDefault = 4096
 )
 
-var defaultContextPaths = []string{
-	"AGENTS.md",
-}
 
 // getDefaultConfig returns the hardcoded default configuration
 func getDefaultConfig() *Config {
@@ -113,7 +109,6 @@ func getDefaultConfig() *Config {
 		Data: Data{
 			Directory: ".mix",
 		},
-		ContextPaths: []string{"AGENTS.md"},
 		Shell: ShellConfig{
 			Path: "",
 			Args: []string{"-l"},
@@ -343,7 +338,6 @@ func configureViper() {
 // setDefaults configures default values for embedded binary configuration.
 func setDefaults(debug bool) {
 	viper.SetDefault("data.directory", defaultDataDirectory)
-	viper.SetDefault("contextPaths", defaultContextPaths)
 	viper.SetDefault("promptsDir", "")
 
 	// Set default shell from environment or fallback to /bin/bash

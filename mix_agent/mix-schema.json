@@ -206,17 +206,6 @@
       },
       "type": "object"
     },
-    "contextPaths": {
-      "default": [
-        "AGENTS.md"
-
-      ],
-      "description": "Context paths for the application",
-      "items": {
-        "type": "string"
-      },
-      "type": "array"
-    },
     "data": {
       "description": "Storage configuration",
       "properties": {
