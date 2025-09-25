@@ -2,7 +2,6 @@ import { docs } from '@/.source';
 import { loader } from 'fumadocs-core/source';
 import { createElement } from 'react';
 import { BookOpen, Rocket, Settings, FileText, Terminal, Smartphone } from 'lucide-react';
-import { transformerOpenAPI } from 'fumadocs-openapi/server';
 
 const icons = {
   BookOpen,
@@ -21,8 +20,5 @@ export const source = loader({
   icon(icon) {
     if (icon && icon in icons)
       return createElement(icons[icon as keyof typeof icons]);
-  },
-  pageTree: {
-    transformers: [transformerOpenAPI()],
   },
 });
