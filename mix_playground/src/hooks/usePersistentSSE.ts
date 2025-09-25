@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
-import type { TimelineEntry, MessageData, UIMessage } from '@/types/message';
+import type { TimelineEntry, UIMessage } from '@/types/message';
 import type { ToolCall } from '@/types/common';
 import type { Attachment } from '@/stores/attachmentSlice';
 import { expandFileReferences, buildFullUrlFromPath } from '@/utils/attachmentUtils';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import type { SendMessageRequestBody } from "mix-typescript-sdk/models/operations/sendmessage";
 
 
 export type SSEPermissionRequest = {
@@ -591,11 +592,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         // Expand file references
         const expandedText = expandFileReferences(text, referenceMap, mediaUrls);
 
-        const messageData: MessageData = {
+        const messageData: SendMessageRequestBody = {
           text: expandedText,
           media: mediaUrls,
           apps: attachments.filter((a) => a.type === 'app').map((app) => app.name),
-          plan_mode: planMode,
+          planMode: planMode,
         };
 
         // Send to backend first

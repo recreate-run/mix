@@ -5,6 +5,9 @@ import { invalidateSessionCaches } from '@/lib/session-cache';
 interface SendMessageParams {
   content: string;
   sessionId: string;
+  apps?: string[];
+  media?: string[];
+  planMode?: boolean;
 }
 
 interface MessageResponse {
@@ -17,12 +20,16 @@ async function sendMessage(
   const response = await mix.messages.send({
     id: params.sessionId,
     requestBody: {
-      content: params.content
+      text: params.content,
+      apps: params.apps || [],
+      media: params.media || [],
+      planMode: params.planMode || false
     }
   });
 
-  const assistantResponse = response.assistantResponse || 'No response from server';
-  return { response: assistantResponse };
+  // The response is now a BackendMessage object containing the message data
+  // Return the user input or assistant response as confirmation
+  return { response: response.userInput || response.assistantResponse || 'Message sent successfully' };
 }
 
 export function useSendMessage() {

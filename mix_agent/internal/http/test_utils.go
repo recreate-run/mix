@@ -135,7 +135,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("GET /api/mcp", systemHandler.HandleListMCPServers)
 	mux.HandleFunc("GET /api/commands", systemHandler.HandleListCommands)
 	mux.HandleFunc("GET /api/commands/{name}", systemHandler.HandleGetCommand)
-	mux.HandleFunc("POST /api/auth/login", systemHandler.HandleAuthLogin)
 	mux.HandleFunc("POST /api/auth/apikey", systemHandler.HandleSetAPIKey)
 	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)

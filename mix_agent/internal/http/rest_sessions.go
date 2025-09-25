@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"mix/internal/app"
@@ -251,6 +252,11 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 	err := h.app.Sessions.Delete(ctx, sessionID)
 	if err != nil {
+		// Check if the error is because the session doesn't exist
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no rows") {
+			sendNotFoundError(w, "Session", sessionID)
+			return
+		}
 		sendInternalError(w, "deleting session", err)
 		return
 	}

@@ -112,12 +112,23 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	// Initialize SSEWriter for this session
 	sseWriter := NewSSEWriter(w, sessionID, flusher)
 
-	// Note: Last-Event-ID header support was intentionally omitted from this implementation.
+	// TODO: Last-Event-ID header support is documented in OpenAPI spec but not implemented.
+	// This feature was intentionally omitted from the initial implementation as it adds
+	// significant complexity for minimal benefit in this chat interface context.
+	//
 	// For chat interfaces with persistent connections, clients typically don't need to resume
 	// mid-message after disconnection. The connection stays open across multiple messages,
 	// and users can simply reconnect to continue the conversation from the current state.
 	// This design choice prioritizes simplicity and maintainability over rarely-used
-	// reconnection scenarios that add significant complexity without providing real value.
+	// reconnection scenarios.
+	//
+	// Implementation would require:
+	// - Event ID generation and tracking per connection
+	// - Event replay buffer management with memory/storage considerations
+	// - Client-side Last-Event-ID header parsing and validation
+	// - Complex state synchronization between server and client
+	//
+	// Current workaround: Clients can reconnect and continue from current conversation state.
 
 	// Validate session exists
 	_, err := app.Sessions.Get(ctx, sessionID)
@@ -237,14 +248,6 @@ type MessageContent struct {
 	PlanMode bool     `json:"plan_mode,omitempty"`
 }
 
-// extractText parses JSON content to extract the actual text value
-func extractText(content string) string {
-	var msgContent MessageContent
-	if err := json.Unmarshal([]byte(content), &msgContent); err == nil && msgContent.Text != "" {
-		return msgContent.Text
-	}
-	return content
-}
 
 // parseMessageContent parses the complete JSON message structure
 func parseMessageContent(content string) (MessageContent, error) {
