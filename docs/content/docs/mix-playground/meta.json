@@ -11,6 +11,7 @@
     "design-decisions",
     "---Architecture---",
     "architecture-overview",
+    "true-concurrency-architecture",
     "event-streaming",
     "testing",
     "storage-architecture",

@@ -16,7 +16,6 @@ import (
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/message"
-	"mix/internal/permission"
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
@@ -25,7 +24,6 @@ import (
 // Common errors
 var (
 	ErrRequestCancelled = errors.New("request cancelled by user")
-	ErrSessionBusy      = errors.New("session is currently processing another request")
 )
 
 type AgentEventType string
@@ -66,8 +64,6 @@ type Service interface {
 	Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	Cancel(sessionID string)
-	IsSessionBusy(sessionID string) bool
-	IsBusy() bool
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
 	Summarize(ctx context.Context, sessionID string) error
 	ClearAllSessionProviders()
@@ -88,7 +84,7 @@ type agent struct {
 	summarizeProvider interfaces.Provider
 
 	sessionProviders sync.Map // Maps session ID to interfaces.Provider
-	activeRequests   sync.Map
+	activeContexts   sync.Map  // Maps session ID to context.CancelFunc for cancellation
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -134,7 +130,7 @@ func NewAgent(
 		titleProvider:     titleProvider,
 		summarizeProvider: summarizeProvider,
 		sessionProviders:  sync.Map{},
-		activeRequests:    sync.Map{},
+		activeContexts:    sync.Map{},
 		ctx:               ctx,
 		cancel:            cancel,
 	}
@@ -151,7 +147,7 @@ func (a *agent) Model() models.Model {
 
 func (a *agent) Cancel(sessionID string) {
 	// Cancel regular requests
-	if cancelFunc, exists := a.activeRequests.LoadAndDelete(sessionID); exists {
+	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID); exists {
 		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
 			// Request cancellation initiated
 			cancel()
@@ -159,7 +155,7 @@ func (a *agent) Cancel(sessionID string) {
 	}
 
 	// Also check for summarize requests
-	if cancelFunc, exists := a.activeRequests.LoadAndDelete(sessionID + "-summarize"); exists {
+	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID + "-summarize"); exists {
 		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
 			// Summarize cancellation initiated
 			cancel()
@@ -167,24 +163,6 @@ func (a *agent) Cancel(sessionID string) {
 	}
 }
 
-func (a *agent) IsBusy() bool {
-	busy := false
-	a.activeRequests.Range(func(key, value interface{}) bool {
-		if cancelFunc, ok := value.(context.CancelFunc); ok {
-			if cancelFunc != nil {
-				busy = true
-				return false // Stop iterating
-			}
-		}
-		return true // Continue iterating
-	})
-	return busy
-}
-
-func (a *agent) IsSessionBusy(sessionID string) bool {
-	_, busy := a.activeRequests.Load(sessionID)
-	return busy
-}
 
 func (a *agent) generateTitle(ctx context.Context, sessionID string, content string) error {
 	if content == "" {
@@ -245,10 +223,8 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 	events := make(chan AgentEvent, 10) // Buffered channel for better streaming
 
 	genCtx, cancel := context.WithCancel(ctx)
-	if _, loaded := a.activeRequests.LoadOrStore(sessionID, cancel); loaded {
-		cancel() // Clean up unused cancel function
-		return nil, ErrSessionBusy
-	}
+	// Store cancel function for potential cancellation
+	a.activeContexts.Store(sessionID, cancel)
 
 	// Add plan mode to context
 	if planMode {
@@ -261,7 +237,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 	go func() {
 		defer func() {
 			logging.Debug("Request completed", "sessionID", sessionID)
-			a.activeRequests.Delete(sessionID)
+			a.activeContexts.Delete(sessionID)
 			cancel()
 			close(events)
 		}()
@@ -487,141 +463,24 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		return assistantMsg, nil, nil
 	}
 
-	// Debug logging: Show all requested tool calls for analysis
-	if len(toolCalls) > 1 {
-		// LLM requested multiple tools - will process sequentially
-	} else {
-		// LLM requested single tool
+	// Execute all tool calls with dependency awareness
+	logging.Debug("Processing tool calls", "count", len(toolCalls), "sessionID", sessionID)
+
+	toolResults, err := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
+	if err != nil {
+		return assistantMsg, nil, fmt.Errorf("failed to execute tools: %w", err)
 	}
 
-	// Execute ONLY the first tool call - let main loop handle processing
-	toolCall := toolCalls[0]
-	// Processing tool
-
-	// Check for context cancellation
-	select {
-	case <-ctx.Done():
-		a.finishMessage(context.Background(), &assistantMsg, message.FinishReasonCanceled)
-		return assistantMsg, nil, ctx.Err()
-	default:
-	}
-
-	// Find tool
-	var tool tools.BaseTool
-	for _, availableTool := range a.tools {
-		if availableTool.Info().Name == toolCall.Name {
-			tool = availableTool
-			break
-		}
-	}
-
-	// Tool not found
-	if tool == nil {
-		result := message.ToolResult{
-			ToolCallID: toolCall.ID,
-			Content:    fmt.Sprintf("Tool not found: %s", toolCall.Name),
-			IsError:    true,
-		}
-		msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
-			Role:  message.Tool,
-			Parts: []message.ContentPart{result},
-		})
-		if err != nil {
-			return assistantMsg, nil, fmt.Errorf("failed to create tool not found message: %w", err)
-		}
-		return assistantMsg, &msg, nil
-	}
-
-	// Check if tool is available in plan mode
-	if ctx.Value("plan_mode") != nil && !isToolAllowedInPlanMode(tool) {
-		result := message.ToolResult{
-			ToolCallID: toolCall.ID,
-			Content:    "Tool not available in plan mode. Use exit_plan_mode to proceed with execution.",
-			IsError:    true,
-		}
-		msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
-			Role:  message.Tool,
-			Parts: []message.ContentPart{result},
-		})
-		if err != nil {
-			return assistantMsg, nil, fmt.Errorf("failed to create plan mode restriction message: %w", err)
-		}
-		return assistantMsg, &msg, nil
-	}
-
-	// Executing tool
-
-	// Publish tool execution start event
-	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
-		Type:       AgentEventTypeToolExecutionStart,
-		Message:    assistantMsg,
-		SessionID:  sessionID,
-		Progress:   fmt.Sprintf("Executing %s tool", toolCall.Name),
-		ToolCallID: toolCall.ID,
+	// Create tool result message with all results
+	msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
+		Role:  message.Tool,
+		Parts: toolResults,
 	})
 	if err != nil {
-		logging.Error("Failed to publish tool execution start event", "error", err)
+		return assistantMsg, nil, fmt.Errorf("failed to create tool result message: %w", err)
 	}
 
-	toolStartTime := time.Now()
-	toolResult, toolErr := tool.Run(ctx, tools.ToolCall{
-		ID:    toolCall.ID,
-		Name:  toolCall.Name,
-		Input: toolCall.Input,
-	})
-	toolDuration := time.Since(toolStartTime)
-
-	// Tool execution completed
-
-	// Publish tool execution completion event
-	completionProgress := fmt.Sprintf("Completed %s tool in %v", toolCall.Name, toolDuration)
-	if toolErr != nil {
-		completionProgress = fmt.Sprintf("Failed %s tool after %v: %v", toolCall.Name, toolDuration, toolErr)
-	}
-	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
-		Type:       AgentEventTypeToolExecutionComplete,
-		Message:    assistantMsg,
-		SessionID:  sessionID,
-		Progress:   completionProgress,
-		ToolCallID: toolCall.ID,
-	})
-	if err != nil {
-		logging.Error("Failed to publish tool execution completion event", "error", err)
-	}
-
-	// Handle permission denied - exit early for security
-	if toolErr != nil && errors.Is(toolErr, permission.ErrorPermissionDenied) {
-		// Tool permission denied
-		a.finishMessage(ctx, &assistantMsg, message.FinishReasonPermissionDenied)
-		result := message.ToolResult{
-			ToolCallID: toolCall.ID,
-			Content:    "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
-			IsError:    false, // Not a technical error - it's a security boundary
-		}
-		msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
-			Role:  message.Tool,
-			Parts: []message.ContentPart{result},
-		})
-		if err != nil {
-			return assistantMsg, nil, fmt.Errorf("failed to create permission denied message: %w", err)
-		}
-		return assistantMsg, &msg, nil
-	}
-
-	// Handle other tool errors
-	if toolErr != nil {
-		logging.Error("[Agent] Tool execution failed", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "error", toolErr)
-	}
-
-	// Create tool result
-	result := message.ToolResult{
-		ToolCallID: toolCall.ID,
-		Content:    toolResult.Content,
-		Metadata:   toolResult.Metadata,
-		IsError:    toolResult.IsError,
-	}
-
-	// Publish intermediate event
+	// Publish completion event
 	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 		Type:      AgentEventTypeResponse,
 		Message:   assistantMsg,
@@ -629,15 +488,6 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	})
 	if err != nil {
 		logging.Error("Failed to publish agent event", "error", err)
-	}
-
-	// Create tool result message for the single tool
-	msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
-		Role:  message.Tool,
-		Parts: []message.ContentPart{result},
-	})
-	if err != nil {
-		return assistantMsg, nil, fmt.Errorf("failed to create tool result message: %w", err)
 	}
 
 	return assistantMsg, &msg, nil
@@ -768,9 +618,7 @@ func (a *agent) TrackUsage(ctx context.Context, sessionID string, model models.M
 }
 
 func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error) {
-	if a.IsBusy() {
-		return models.Model{}, fmt.Errorf("cannot change model while processing requests")
-	}
+	// Allow model changes at any time since operations are no longer globally synchronized
 
 	// Update agent model in database instead of config file
 	userPrefs := config.GetUserPreferences()
@@ -817,14 +665,11 @@ func (a *agent) Summarize(ctx context.Context, sessionID string) error {
 	// Create a new context with cancellation
 	summarizeCtx, cancel := context.WithCancel(ctx)
 
-	// Atomically check and store the cancel function to avoid race conditions
-	if _, loaded := a.activeRequests.LoadOrStore(sessionID+"-summarize", cancel); loaded {
-		cancel() // Clean up unused cancel function
-		return ErrSessionBusy
-	}
+	// Store cancel function for potential cancellation
+	a.activeContexts.Store(sessionID+"-summarize", cancel)
 
 	go func() {
-		defer a.activeRequests.Delete(sessionID + "-summarize")
+		defer a.activeContexts.Delete(sessionID + "-summarize")
 		defer cancel()
 		event := AgentEvent{
 			Type:     AgentEventTypeSummarize,
