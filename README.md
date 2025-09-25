@@ -2,22 +2,34 @@
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/Sarath?style=social)](https://x.com/intent/user?screen_name=sarath_suresh_m)
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
-[![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/backend)
+[![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/mix-agent)
 
 Mix is an open-source, local agent for multimodal tasks. Claude code users will feel at home.
 
-## Quick start
+## Architecture
 
-Then, run
+- **Mix Agent**: Go backend HTTP server with CLI interface
+- **Mix Playground**: Desktop app built with Tauri and React  
+- **SDKs**: TypeScript and Python SDKs for integration
+
+## Quick start
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
 make dev
 ```
 
-- Yse `/login` command to authenticate with model providers or set API keys . Anthropic and Openrouter are curretly supported. We recommend claude-sonnet-4.  
-- If you have a claude code account already, you can login with your anthropic account. Otherwise, you can set the anthropic API key using `/login`,
-- The web search tool requires a brave API key (freely available) and the web search tool requires a gemeini API key (freely available). Please set it in the `.env` for the best performance.
+This starts both Mix Agent (backend) and Mix Playground (desktop app).
+
+### Setup
+1. **Launch**: Mix Playground opens automatically
+2. **Settings**: Configure AI providers (Anthropic, OpenAI, etc.) via Settings dialog
+3. **Authentication**: Use OAuth or API keys for authentication
+4. **Start chatting**: Begin your AI workflows
+
+### Additional Setup
+- **Web search**: Set Brave API key in `.env` for search functionality
+- **Gemini**: Set Gemini API key in `.env` for multimodal analysis
 
 <https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5>
 
