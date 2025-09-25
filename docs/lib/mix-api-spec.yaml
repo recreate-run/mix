@@ -1714,13 +1714,9 @@ paths:
       responses:
         "200":
           content:
-            "application/octet-stream":
+            "*/*":
               schema:
-                format: "binary"
-                type: "string"
-            "image/jpeg":
-              schema:
-                description: "Thumbnail image (when thumb parameter is used)"
+                description: "File content with appropriate MIME type"
                 format: "binary"
                 type: "string"
           description: "File content"
