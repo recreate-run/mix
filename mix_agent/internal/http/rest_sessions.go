@@ -1,11 +1,18 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"mix/internal/app"
+)
+
+// Prompt size limits
+const (
+	MaxReplacePromptSize = 100 * 1024 // 100KB
+	MaxAppendPromptSize  = 50 * 1024  // 50KB
 )
 
 // SessionData represents session information for REST API
@@ -113,7 +120,9 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 // CreateSessionRequest represents the request body for creating a session
 type CreateSessionRequest struct {
-	Title string `json:"title"`
+	Title              string `json:"title"`
+	CustomSystemPrompt string `json:"customSystemPrompt,omitempty"`
+	PromptMode         string `json:"promptMode,omitempty"`
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -139,8 +148,39 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Set default prompt mode if not specified
+	promptMode := req.PromptMode
+	if promptMode == "" {
+		promptMode = "default"
+	}
+
+	// Validate prompt mode
+	if promptMode != "default" && promptMode != "append" && promptMode != "replace" {
+		sendValidationError(w, "promptMode", "promptMode must be 'default', 'append', or 'replace'")
+		return
+	}
+
+	// Validate custom prompt size based on mode
+	if req.CustomSystemPrompt != "" {
+		promptSize := len(req.CustomSystemPrompt)
+
+		switch promptMode {
+		case "replace":
+			if promptSize > MaxReplacePromptSize {
+				sendValidationError(w, "customSystemPrompt", fmt.Sprintf("Custom prompt size (%dKB) exceeds replace mode limit of %dKB", promptSize/1024, MaxReplacePromptSize/1024))
+				return
+			}
+		case "append":
+			if promptSize > MaxAppendPromptSize {
+				sendValidationError(w, "customSystemPrompt", fmt.Sprintf("Custom prompt size (%dKB) exceeds append mode limit of %dKB", promptSize/1024, MaxAppendPromptSize/1024))
+				return
+			}
+		// default mode ignores custom prompt, so no size check needed
+		}
+	}
+
 	ctx := r.Context()
-	session, err := h.app.Sessions.Create(ctx, req.Title)
+	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode)
 	if err != nil {
 		sendInternalError(w, "creating session", err)
 		return

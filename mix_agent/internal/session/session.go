@@ -22,6 +22,8 @@ type Session struct {
 	PromptTokens          int64
 	CompletionTokens      int64
 	SummaryMessageID      string
+	CustomSystemPrompt    string
+	PromptMode            string
 	Cost                  float64
 	CreatedAt             int64
 	UpdatedAt             int64
@@ -30,7 +32,7 @@ type Session struct {
 // Simplified Service interface for embedded binary
 type Service interface {
 	pubsub.Suscriber[Session]
-	Create(ctx context.Context, title string) (Session, error)
+	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string) (Session, error)
 	Fork(ctx context.Context, sourceSessionID string, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
@@ -45,7 +47,7 @@ type service struct {
 	storageConfig Config
 }
 
-func (s *service) Create(ctx context.Context, title string) (Session, error) {
+func (s *service) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string) (Session, error) {
 	sessionID := uuid.New().String()
 	
 	// FAIL IMMEDIATELY if we cannot create storage directory
@@ -56,8 +58,10 @@ func (s *service) Create(ctx context.Context, title string) (Session, error) {
 
 	// Only create database entry AFTER storage directory is confirmed to exist
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
-		ID:    sessionID,
-		Title: title,
+		ID:                 sessionID,
+		Title:              title,
+		CustomSystemPrompt: sql.NullString{String: customSystemPrompt, Valid: customSystemPrompt != ""},
+		PromptMode:         sql.NullString{String: promptMode, Valid: promptMode != ""},
 	})
 	if err != nil {
 		// If DB creation fails after directory creation, we have an orphaned directory
@@ -174,10 +178,12 @@ func (s *service) ListWithContent(ctx context.Context) ([]db.ListSessionsWithCon
 
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 	dbSession, err := s.q.UpdateSession(ctx, db.UpdateSessionParams{
-		ID:               session.ID,
-		Title:            session.Title,
-		PromptTokens:     session.PromptTokens,
-		CompletionTokens: session.CompletionTokens,
+		ID:                 session.ID,
+		Title:              session.Title,
+		CustomSystemPrompt: sql.NullString{String: session.CustomSystemPrompt, Valid: session.CustomSystemPrompt != ""},
+		PromptMode:         sql.NullString{String: session.PromptMode, Valid: session.PromptMode != ""},
+		PromptTokens:       session.PromptTokens,
+		CompletionTokens:   session.CompletionTokens,
 		SummaryMessageID: sql.NullString{
 			String: session.SummaryMessageID,
 			Valid:  session.SummaryMessageID != "",
@@ -214,6 +220,8 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
 		SummaryMessageID:      item.SummaryMessageID.String,
+		CustomSystemPrompt:    item.CustomSystemPrompt.String,
+		PromptMode:            item.PromptMode.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -231,6 +239,8 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
 		SummaryMessageID:      item.SummaryMessageID.String,
+		CustomSystemPrompt:    item.CustomSystemPrompt.String,
+		PromptMode:            item.PromptMode.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -248,6 +258,8 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
 		SummaryMessageID:      item.SummaryMessageID.String,
+		CustomSystemPrompt:    item.CustomSystemPrompt.String,
+		PromptMode:            item.PromptMode.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -271,6 +283,8 @@ func (s *service) fromUpdateSessionRowWithCounts(ctx context.Context, item db.Up
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
 		SummaryMessageID:      item.SummaryMessageID.String,
+		CustomSystemPrompt:    item.CustomSystemPrompt.String,
+		PromptMode:            item.PromptMode.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,

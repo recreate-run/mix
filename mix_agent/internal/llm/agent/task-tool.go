@@ -75,7 +75,7 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 	defer agent.Shutdown()
 
-	session, err := b.sessions.Create(ctx, "New Agent Session")
+	session, err := b.sessions.Create(ctx, "New Agent Session", "", "default")
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}
