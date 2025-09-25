@@ -85,7 +85,7 @@ jobs:
         if: (steps.git-check.outputs.changes == 'true' || github.event.inputs.force_update == 'true') && steps.build-docs.outputs.status == 'success'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.API_DOCS_PAT }}
           commit-message: "chore: update API documentation [automated]"
           title: "chore: update API documentation [automated]"
           body: |
