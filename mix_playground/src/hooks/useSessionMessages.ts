@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { convertBackendMessagesToUI } from '@/lib/messageUtils';
 import { mix } from '@/lib/mix-sdk';
-import type { BackendMessage, UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/message';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import type { BackendMessage } from 'mix-typescript-sdk/models';
 
 async function loadSessionMessages(
   sessionId: string
@@ -10,6 +11,7 @@ async function loadSessionMessages(
   try {
     const response = await mix.messages.getSession({ id: sessionId });
     return response;
+
   } catch (error: any) {
     console.error('Failed to load messages:', error);
     console.error('Error details:', {

@@ -1,11 +1,6 @@
 {
-  "title": "API",
-  "description": "Mix API Reference and Code Samples",
-  "icon": "Zap",
-  "root": true,
-  "pages": [
-    "index",
-    "typescript-samples",
-    "python-samples"
-  ]
+  "title": "API Reference",
+  "description": "Complete API reference for Mix - session management, messaging, and system operations",
+  "icon": "Terminal",
+  "root": true
 }

@@ -5,13 +5,11 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"time"
 
 	"mix/internal/app"
 	"mix/internal/commands"
 	"mix/internal/config"
 	"mix/internal/llm/agent"
-	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/permission"
@@ -52,7 +50,7 @@ func NewSystemHandler(app *app.App) *SystemHandler {
 		logging.Error("Failed to load commands", "error", err)
 		// Continue with empty registry - API will return proper errors
 	}
-	
+
 	return &SystemHandler{
 		app:             app,
 		commandRegistry: registry,
@@ -64,126 +62,6 @@ type AuthLoginRequest struct {
 	AuthCode string `json:"authCode"`
 	APIKey   string `json:"apiKey"` // Allow direct API key submission
 	Manual   bool   `json:"manual"` // Flag for manual token input
-}
-
-// HandleAuthLogin handles POST /api/auth/login
-func (h *SystemHandler) HandleAuthLogin(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req AuthLoginRequest
-	if err := parseJSONBody(r, &req); err != nil {
-		sendValidationError(w, "body", err.Error())
-		return
-	}
-
-	// Check if this is a manual API key submission
-	if req.APIKey != "" {
-		// Set environment variable
-		os.Setenv("ANTHROPIC_API_KEY", req.APIKey)
-
-		result := map[string]interface{}{
-			"status":  "success",
-			"message": "API key set successfully. You can now use the application.",
-		}
-
-		sendJSONResponse(w, http.StatusOK, result)
-		return
-	}
-
-	if req.AuthCode == "" {
-		sendValidationError(w, "authCode", "authCode or apiKey is required")
-		return
-	}
-
-	storage, err := provider.NewCredentialStorage()
-	if err != nil {
-		sendInternalError(w, "initializing credential storage", err)
-		return
-	}
-
-	// Extract state from auth code to retrieve the correct OAuth flow
-	authCodeParts := strings.Split(req.AuthCode, "#")
-	var oauthFlow *provider.OAuthFlow
-
-	if len(authCodeParts) == 2 {
-		// Auth code format: code#state
-		state := authCodeParts[1]
-		oauthFlow = provider.GetOAuthFlow(state)
-
-		if oauthFlow == nil {
-			sendErrorResponse(w, ErrorTypeValidation, "OAuth flow not found for this session. Please restart the authentication process.")
-			return
-		}
-	} else {
-		// Fallback: create new OAuth flow (for backwards compatibility)
-		oauthFlow, err = provider.NewOAuthFlow("")
-		if err != nil {
-			sendInternalError(w, "creating OAuth flow", err)
-			return
-		}
-	}
-
-	// For manual token entry (from UI), check if this is an API key (starts with sk-ant-)
-	if req.Manual && strings.HasPrefix(req.AuthCode, "sk-ant-") {
-		// This is a direct API key, not an auth code
-		os.Setenv("ANTHROPIC_API_KEY", req.AuthCode)
-
-		result := map[string]interface{}{
-			"status":  "success",
-			"message": "API key set successfully. You can now use the application.",
-		}
-
-		sendJSONResponse(w, http.StatusOK, result)
-		return
-	}
-
-	// Exchange the authorization code for tokens
-	credentials, err := oauthFlow.ExchangeCodeForTokens(req.AuthCode)
-	if err != nil {
-		// Check if this is the Cloudflare protection error
-		if strings.Contains(err.Error(), "Cloudflare") || strings.Contains(err.Error(), "manual token extraction") {
-			result := map[string]interface{}{
-				"status":  "error",
-				"step":    "manual_fallback",
-				"message": "OAuth flow completed but token exchange was blocked by Cloudflare protection. Please try one of these methods:\n\n1. Try again with the exact code format: code#state\n\n2. Or create an API key manually:\n   - Visit: https://console.anthropic.com/settings/keys\n   - Create a new API key\n   - Enter the API key in the form below\n\nNote: Terminal authentication may still work via `mix auth add anthropic-claude-pro-max`",
-			}
-
-			sendJSONResponse(w, http.StatusOK, result)
-			return
-		}
-
-		// For other OAuth exchange failures, guide user to manual API key approach
-		sendInternalError(w, "exchanging authorization code", err)
-		return
-	}
-
-	// Store the credentials
-	err = storage.StoreOAuthCredentials("anthropic", credentials.AccessToken, credentials.RefreshToken, credentials.ExpiresAt, credentials.ClientID)
-	if err != nil {
-		sendInternalError(w, "storing credentials", err)
-		return
-	}
-
-	// Clean up the OAuth flow from memory after successful authentication
-	if len(authCodeParts) == 2 {
-		provider.CleanupOAuthFlow(authCodeParts[1])
-	}
-
-	result := map[string]interface{}{
-		"status":    "success",
-		"message":   "Successfully authenticated with Claude Code OAuth! You can now use the application.",
-		"expiresIn": (credentials.ExpiresAt - time.Now().Unix()) / 60, // minutes
-	}
-
-	sendJSONResponse(w, http.StatusOK, result)
 }
 
 // SetAPIKeyRequest represents the request body for setting API key

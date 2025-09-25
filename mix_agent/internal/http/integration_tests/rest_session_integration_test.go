@@ -145,11 +145,11 @@ func TestRESTSessionDeletion(t *testing.T) {
 		t.Fatalf("Expected status code %d when retrieving deleted session, got %d", http.StatusNotFound, getResp.StatusCode)
 	}
 
-	// Test deleting non-existent session - should return 500 (internal error from business logic)
+	// Test deleting non-existent session - should return 404 (not found)
 	nonExistentID := "non-existent-session-id"
 	deleteNonExistentResp := makeJSONRequest(t, result.Server, "DELETE", "/api/sessions/"+nonExistentID, nil)
-	if deleteNonExistentResp.StatusCode != http.StatusInternalServerError {
-		t.Fatalf("Expected status code %d when deleting non-existent session, got %d", http.StatusInternalServerError, deleteNonExistentResp.StatusCode)
+	if deleteNonExistentResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected status code %d when deleting non-existent session, got %d", http.StatusNotFound, deleteNonExistentResp.StatusCode)
 	}
 
 	t.Logf("✅ Session deletion test passed - Deleted session: %s", sessionID)

@@ -6,7 +6,8 @@ import {
 } from '@/utils/attachmentUtils';
 import type { ToolCall, ToolCallData } from '@/types/common';
 import type { MediaOutput } from '@/types/media';
-import type { BackendMessage, UIMessage, TimelineEntry } from '@/types/message';
+import type { UIMessage, TimelineEntry } from '@/types/message';
+import type { BackendMessage } from 'mix-typescript-sdk/models';
 
 interface ParsedContent {
   text: string;
@@ -26,13 +27,13 @@ const extractContentData = (content: string): ParsedContent => {
     // Extract media URLs from plain text
     const mediaUrlRegex = /https?:\/\/[^\s]+\/api\/sessions\/[^\s]+\/files\/[^\s]+/g;
     const mediaUrls = content.match(mediaUrlRegex) || [];
-    
+
     // Remove media URLs from text to get clean text
     let cleanText = content;
     // mediaUrls.forEach(url => {
     //   cleanText = cleanText.replace(url, '').trim();
     // });
-    
+
     return {
       text: cleanText,
       media: mediaUrls,
@@ -65,7 +66,7 @@ const convertMediaToAttachments = async (
         // Extract filename from server URL
         const urlParts = mediaPath.split('/');
         const filename = decodeURIComponent(urlParts[urlParts.length - 1]);
-        
+
         // Create attachment with just the filename as path
         attachment = createFileAttachment(filename);
       } else {

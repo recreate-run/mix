@@ -1,5 +1,5 @@
 import type { Attachment } from '@/stores/attachmentSlice';
-import type { ToolCall, ToolCallData } from './common';
+import type { ToolCall } from './common';
 import type { MediaOutput } from './media';
 import type { HierarchicalModelData, ProviderInfo, ModelInfo } from './provider';
 
@@ -13,25 +13,25 @@ export interface LoginProviderInfo {
   isPreferred?: boolean;
 }
 
-export type TimelineEntry = 
+export type TimelineEntry =
   | {
-      type: 'thinking';
-      timestamp: number;
-      content: string;
-      id: string;
-    }
+    type: 'thinking';
+    timestamp: number;
+    content: string;
+    id: string;
+  }
   | {
-      type: 'tool';
-      timestamp: number;
-      content: ToolCall;
-      id: string;
-    }
+    type: 'tool';
+    timestamp: number;
+    content: ToolCall;
+    id: string;
+  }
   | {
-      type: 'content';
-      timestamp: number;
-      content: string;
-      id: string;
-    };
+    type: 'content';
+    timestamp: number;
+    content: string;
+    id: string;
+  };
 
 export interface UIMessage {
   content: string;
@@ -71,21 +71,3 @@ export interface UIMessage {
   shouldInvalidatePreferencesCache?: boolean; // Signal to the UI to invalidate the preferences cache
   suppressChatMessage?: boolean; // When true, message won't be shown in the chat interface
 }
-
-export interface BackendMessage {
-  id: string;
-  sessionId: string;
-  role: string;
-  userInput: string;
-  assistantResponse?: string;
-  toolCalls?: ToolCallData[];
-  reasoning?: string;
-  reasoningDuration?: number;
-}
-
-export type MessageData = {
-  text: string;
-  media: string[];
-  apps: string[];
-  plan_mode: boolean;
-};

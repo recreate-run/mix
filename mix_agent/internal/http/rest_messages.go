@@ -108,7 +108,10 @@ func NewMessageHandler(app *app.App) *MessageHandler {
 
 // SendMessageRequest represents the request body for sending a message
 type SendMessageRequest struct {
-	Content string `json:"content"`
+	Text     string   `json:"text"`
+	Media    []string `json:"media"`
+	Apps     []string `json:"apps"`
+	PlanMode bool     `json:"plan_mode"`
 }
 
 // Helper function to get command names for logging
@@ -144,7 +147,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if req.Content == "" {
+	if req.Text == "" {
 		sendValidationError(w, "content", "message content is required")
 		return
 	}
@@ -165,7 +168,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		result := MessageData{
 			ID:                "system-auth-prompt",
 			Role:              "assistant",
-			UserInput:         req.Content,
+			UserInput:         req.Text,
 			AssistantResponse: helpfulMsg,
 		}
 
@@ -174,8 +177,8 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Check if this is a slash command and handle it immediately
-	if commands.IsSlashCommand(req.Content) {
-		parsed, parseErr := commands.ParseCommand(req.Content)
+	if commands.IsSlashCommand(req.Text) {
+		parsed, parseErr := commands.ParseCommand(req.Text)
 		if parseErr != nil {
 			sendValidationError(w, "content", "Invalid slash command: "+parseErr.Error())
 			return
@@ -208,7 +211,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		result := MessageData{
 			ID:                "cmd-" + parsed.Name,
 			Role:              "assistant",
-			UserInput:         req.Content,
+			UserInput:         req.Text,
 			AssistantResponse: commandResult,
 		}
 
@@ -217,7 +220,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Send message to agent
-	done, err := h.app.CoderAgent.Run(ctx, sessionID, req.Content)
+	done, err := h.app.CoderAgent.RunWithPlanMode(ctx, sessionID, req.Text, req.PlanMode)
 	if err != nil {
 		sendInternalError(w, "sending message to agent", err)
 		return
@@ -236,7 +239,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			authResult := MessageData{
 				ID:                "system-auth-prompt",
 				Role:              "assistant",
-				UserInput:         req.Content,
+				UserInput:         req.Text,
 				AssistantResponse: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
 			}
 
@@ -257,7 +260,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	messageData := MessageData{
 		ID:                result.Message.ID,
 		Role:              "user",
-		UserInput:         req.Content,
+		UserInput:         req.Text,
 		AssistantResponse: response,
 	}
 

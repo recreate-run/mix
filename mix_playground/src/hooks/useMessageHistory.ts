@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { mix } from '@/lib/mix-sdk';
-import type { MessageData } from 'mix-typescript-sdk/models';
+import type { BackendMessage } from 'mix-typescript-sdk/models';
 
 interface MessageHistoryItem {
   id: string;
@@ -27,37 +27,20 @@ interface UseMessageHistoryReturn {
   hasMoreHistory: boolean;
 }
 
-function extractMessageData(content: string) {
-  try {
-    const parsed = JSON.parse(content);
-    return {
-      text: parsed.text || content,
-      media: parsed.media || [],
-      apps: parsed.apps || [],
-    };
-  } catch {
-    return {
-      text: content,
-      media: [],
-      apps: [],
-    };
-  }
-}
 
 async function fetchMessages(params: { limit: number; offset: number }): Promise<MessageHistoryItem[]> {
   // Let SDK validation errors propagate - don't mask them with fallbacks
   const response = await mix.messages.getHistory(params);
 
-  // Use proper SDK types for type safety
-  return response.map((msg: MessageData) => {
-    const messageData = extractMessageData(msg.userInput);
+  // Map the BackendMessage structure to our MessageHistoryItem format
+  return response.map((msg: BackendMessage) => {
     return {
       id: msg.id,
       role: msg.role,
-      content: messageData.text,
+      content: msg.userInput || msg.assistantResponse || '',
       sessionId: msg.sessionId,
-      media: messageData.media,
-      apps: messageData.apps,
+      media: [], // BackendMessage doesn't have media field
+      apps: [], // BackendMessage doesn't have apps field
     };
   });
 }

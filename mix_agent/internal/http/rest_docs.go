@@ -108,10 +108,6 @@ func getOpenAPISpec() OpenAPISpec {
 								"type":        "string",
 								"description": "Title for the session",
 							},
-							"workingDirectory": map[string]interface{}{
-								"type":        "string",
-								"description": "Optional working directory path",
-							},
 						},
 					}),
 					"responses": map[string]interface{}{
@@ -165,8 +161,8 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"messageIndex": map[string]interface{}{
 								"type":        "integer",
-								"minimum":     1,
-								"description": "Index of the last message to include in the fork (1-based)",
+								"minimum":     0,
+								"description": "Index of the last message to include in the fork (0-based)",
 							},
 							"title": map[string]interface{}{
 								"type":        "string",
@@ -176,7 +172,7 @@ func getOpenAPISpec() OpenAPISpec {
 					}),
 					"responses": map[string]interface{}{
 						"201": createSuccessResponse("object", getSessionDataSchema(), "Forked session"),
-						"400": createErrorResponse("Invalid request - messageIndex must be > 0"),
+						"400": createErrorResponse("Invalid request - messageIndex must be >= 0"),
 						"404": createErrorResponse("Source session not found"),
 					},
 				},
@@ -193,16 +189,34 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
-						"required": []string{"content"},
+						"required": []string{"text", "media", "apps", "plan_mode"},
 						"properties": map[string]interface{}{
-							"content": map[string]interface{}{
+							"text": map[string]interface{}{
 								"type":        "string",
-								"description": "Message content to send",
+								"description": "The text content of the message",
+							},
+							"media": map[string]interface{}{
+								"type": "array",
+								"items": map[string]interface{}{
+									"type": "string",
+								},
+								"description": "Array of media file references or URLs",
+							},
+							"apps": map[string]interface{}{
+								"type": "array",
+								"items": map[string]interface{}{
+									"type": "string",
+								},
+								"description": "Array of app identifiers or references",
+							},
+							"plan_mode": map[string]interface{}{
+								"type":        "boolean",
+								"description": "Whether the message is in planning mode",
 							},
 						},
 					}),
 					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", getMessageDataSchema(), "Message sent and processed"),
+						"200": createSuccessResponse("object", getBackendMessageSchema(), "Message sent and processed"),
 						"400": createErrorResponse("Invalid message data"),
 						"404": createErrorResponse("Session not found"),
 					},
@@ -216,7 +230,7 @@ func getOpenAPISpec() OpenAPISpec {
 						createPathParameter("id", "Session ID"),
 					},
 					"responses": map[string]interface{}{
-						"200": createSuccessResponse("array", getMessageDataSchema(), "List of session messages"),
+						"200": createSuccessResponse("array", getBackendMessageSchema(), "List of session messages"),
 						"404": createErrorResponse("Session not found"),
 					},
 				},
@@ -274,7 +288,7 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 					"responses": map[string]interface{}{
-						"200": createSuccessResponse("array", getMessageDataSchema(), "Message history"),
+						"200": createSuccessResponse("array", getBackendMessageSchema(), "Message history"),
 						"401": createErrorResponse("Unauthorized - authentication required"),
 						"500": createErrorResponse("Internal server error"),
 					},
@@ -1287,10 +1301,6 @@ func getOpenAPISpec() OpenAPISpec {
 							"format":      "date-time",
 							"description": "Session creation timestamp",
 						},
-						"workingDirectory": map[string]interface{}{
-							"type":        "string",
-							"description": "Working directory path (optional)",
-						},
 						"firstUserMessage": map[string]interface{}{
 							"type":        "string",
 							"description": "First user message (optional)",
@@ -1300,6 +1310,36 @@ func getOpenAPISpec() OpenAPISpec {
 				},
 				"MessageData": map[string]interface{}{
 					"type": "object",
+					"description": "Message data structure for user input",
+					"properties": map[string]interface{}{
+						"text": map[string]interface{}{
+							"type":        "string",
+							"description": "The text content of the message",
+						},
+						"media": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+							"description": "Array of media file references or URLs",
+						},
+						"apps": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+							"description": "Array of app identifiers or references",
+						},
+						"plan_mode": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether the message is in planning mode",
+						},
+					},
+					"required": []string{"text", "media", "apps", "plan_mode"},
+				},
+				"BackendMessage": map[string]interface{}{
+					"type": "object",
+					"description": "Backend message structure representing a complete message exchange",
 					"properties": map[string]interface{}{
 						"id": map[string]interface{}{
 							"type":        "string",
@@ -1310,7 +1350,8 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "Session identifier",
 						},
 						"role": map[string]interface{}{
-							"$ref": "#/components/schemas/MessageRole",
+							"type":        "string",
+							"description": "Message role (user, assistant, tool)",
 						},
 						"userInput": map[string]interface{}{
 							"type":        "string",
@@ -1907,5 +1948,11 @@ func getToolCallDataSchema() map[string]interface{} {
 func getFileInfoSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"$ref": "#/components/schemas/FileInfo",
+	}
+}
+
+func getBackendMessageSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"$ref": "#/components/schemas/BackendMessage",
 	}
 }

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { TimelineEntry, MessageData, UIMessage } from '@/types/message';
+import { mix } from '@/lib/mix-sdk';
+import type { TimelineEntry, UIMessage } from '@/types/message';
 import type { ToolCall } from '@/types/common';
 import type { Attachment } from '@/stores/attachmentSlice';
 import { expandFileReferences, buildFullUrlFromPath } from '@/utils/attachmentUtils';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import type { SendMessageRequestBody } from "mix-typescript-sdk/models/operations/sendmessage";
+
 
 export type SSEPermissionRequest = {
   id: string;
@@ -58,10 +61,6 @@ export type PersistentSSEHook = PersistentSSEState & {
   denyPermission: (id: string) => Promise<void>;
 };
 
-
-import { getBackendUrl } from '@/utils/backendUrl';
-import { mix } from '@/lib/mix-sdk';
-
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   const queryClient = useQueryClient();
   const [state, setState] = useState<PersistentSSEState>({
@@ -82,38 +81,308 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     permissionRequests: [],
   });
 
-  const eventSourceRef = useRef<EventSource | null>(null);
   const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
   const toolStartTimes = useRef<Map<string, number>>(new Map());
   const timelineRef = useRef<TimelineEntry[]>([]);
   const connectedRef = useRef<boolean>(false);
   const currentSessionRef = useRef<string>('');
-  const eventListenersRef = useRef<
-    Array<{ event: string; handler: (event: MessageEvent) => void }>
-  >([]);
+  const streamAbortController = useRef<AbortController | null>(null);
+  const lastEventIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     connectedRef.current = state.connected;
   }, [state.connected]);
+
+  // Stream processing function
+  const processEventStream = useCallback(async (sessionId: string, abortController: AbortController) => {
+    try {
+      setState(prev => ({ ...prev, connecting: true, error: null }));
+
+      const result = await mix.streaming.streamEvents({
+        sessionId,
+        lastEventID: lastEventIdRef.current,
+      });
+
+      setState(prev => ({ ...prev, connected: true, connecting: false }));
+
+      for await (const event of result.result) {
+        if (abortController.signal.aborted) {
+          break;
+        }
+
+        // Store event ID for reconnection
+        if (event.id) {
+          lastEventIdRef.current = event.id;
+        }
+
+        // Handle different event types using SDK's discriminated union
+        switch (event.event) {
+          case 'connected':
+            setState(prev => ({ ...prev, connected: true, connecting: false }));
+            break;
+
+          case 'heartbeat':
+            // Heartbeat events keep connection alive - no UI state changes needed
+            break;
+
+          case 'thinking': {
+            const thinkingContent = event.data.content || '';
+
+            // Add to timeline
+            const thinkingEntry: TimelineEntry = {
+              type: 'thinking',
+              timestamp: Date.now(),
+              content: thinkingContent,
+              id: `thinking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            };
+
+            timelineRef.current = [...timelineRef.current, thinkingEntry];
+
+            setState(prev => ({
+              ...prev,
+              reasoning: (prev.reasoning || '') + thinkingContent,
+              timeline: [...timelineRef.current],
+              processing: true,
+            }));
+            break;
+          }
+
+          case 'content': {
+            const contentDelta = event.data.content || '';
+
+            // Find the last entry in timeline
+            const lastEntry = timelineRef.current[timelineRef.current.length - 1];
+
+            // If the last entry is a content entry, append to it
+            if (lastEntry && lastEntry.type === 'content') {
+              const existingContent = lastEntry.content;
+              timelineRef.current[timelineRef.current.length - 1] = {
+                ...lastEntry,
+                content: existingContent + contentDelta,
+                timestamp: Date.now()
+              };
+            } else {
+              // Create new content entry
+              const contentEntry: TimelineEntry = {
+                type: 'content',
+                timestamp: Date.now(),
+                content: contentDelta,
+                id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              };
+              timelineRef.current = [...timelineRef.current, contentEntry];
+            }
+
+            setState(prev => ({
+              ...prev,
+              finalContent: (prev.finalContent || '') + contentDelta,
+              timeline: [...timelineRef.current],
+              processing: true,
+            }));
+            break;
+          }
+
+          case 'tool': {
+            const toolCall: ToolCall = {
+              id: event.data.id || `${event.data.name}-${Date.now()}`,
+              name: event.data.name || 'unknown',
+              description: event.data.name || 'Tool execution',
+              status: (event.data.status as any) || 'pending',
+              parameters: event.data.input
+                ? typeof event.data.input === 'string'
+                  ? (() => {
+                    try {
+                      return JSON.parse(event.data.input);
+                    } catch {
+                      return { input: event.data.input };
+                    }
+                  })()
+                  : event.data.input
+                : {},
+              result: undefined,
+              error: undefined,
+            };
+
+            if (event.data.status === 'running' && !toolStartTimes.current.has(toolCall.id)) {
+              toolStartTimes.current.set(toolCall.id, Date.now());
+            }
+
+            if ((event.data.status === 'completed' || event.data.status === 'error') &&
+              toolStartTimes.current.has(toolCall.id)) {
+              toolStartTimes.current.delete(toolCall.id);
+            }
+
+            toolCallsMap.current.set(toolCall.id, toolCall);
+
+            // Add to timeline when tool is first seen
+            if (!timelineRef.current.some(entry => entry.type === 'tool' && entry.content.id === toolCall.id)) {
+              const toolEntry: TimelineEntry = {
+                type: 'tool',
+                timestamp: Date.now(),
+                content: toolCall,
+                id: toolCall.id
+              };
+              timelineRef.current = [...timelineRef.current, toolEntry];
+            } else {
+              // Update existing tool entry
+              timelineRef.current = timelineRef.current.map(entry =>
+                entry.type === 'tool' && entry.content.id === toolCall.id
+                  ? { ...entry, content: toolCall }
+                  : entry
+              );
+            }
+
+            setState(prev => ({
+              ...prev,
+              toolCalls: Array.from(toolCallsMap.current.values()),
+              timeline: [...timelineRef.current],
+              processing: true,
+            }));
+            break;
+          }
+
+          case 'tool_execution_start': {
+            const toolCallId = event.data.toolCallId;
+            const progress = event.data.progress;
+
+            const existingToolCall = toolCallsMap.current.get(toolCallId);
+            if (existingToolCall) {
+              const updatedToolCall = {
+                ...existingToolCall,
+                status: 'running' as const,
+                description: progress
+              };
+
+              toolCallsMap.current.set(toolCallId, updatedToolCall);
+              toolStartTimes.current.set(toolCallId, Date.now());
+
+              // Update timeline entry
+              timelineRef.current = timelineRef.current.map(entry =>
+                entry.type === 'tool' && entry.content.id === toolCallId
+                  ? { ...entry, content: updatedToolCall }
+                  : entry
+              );
+
+              setState(prev => ({
+                ...prev,
+                toolCalls: Array.from(toolCallsMap.current.values()),
+                timeline: [...timelineRef.current],
+                processing: true,
+              }));
+            }
+            break;
+          }
+
+          case 'tool_execution_complete': {
+            const toolCallId = event.data.toolCallId;
+            const progress = event.data.progress;
+            const success = event.data.success;
+
+            const existingToolCall = toolCallsMap.current.get(toolCallId);
+            if (existingToolCall) {
+              const updatedToolCall = {
+                ...existingToolCall,
+                status: success ? 'completed' as const : 'error' as const,
+                description: progress,
+                result: success ? progress : undefined,
+                error: success ? undefined : progress
+              };
+
+              toolCallsMap.current.set(toolCallId, updatedToolCall);
+
+              if (toolStartTimes.current.has(toolCallId)) {
+                toolStartTimes.current.delete(toolCallId);
+              }
+
+              timelineRef.current = timelineRef.current.map(entry =>
+                entry.type === 'tool' && entry.content.id === toolCallId
+                  ? { ...entry, content: updatedToolCall }
+                  : entry
+              );
+
+              setState(prev => ({
+                ...prev,
+                toolCalls: Array.from(toolCallsMap.current.values()),
+                timeline: [...timelineRef.current],
+                processing: true,
+              }));
+            }
+            break;
+          }
+
+          case 'complete':
+            setState(prev => ({
+              ...prev,
+              reasoning: event.data.reasoning || null,
+              reasoningDuration: event.data.reasoningDuration || null,
+              completed: true,
+              processing: false,
+            }));
+            break;
+
+          case 'error':
+            setState(prev => ({
+              ...prev,
+              error: event.data.error || 'Stream error',
+              connecting: false,
+              processing: false,
+              rateLimit: event.data.retryAfter ? {
+                retryAfter: event.data.retryAfter,
+                attempt: event.data.attempt || 1,
+                maxAttempts: event.data.maxAttempts || 8,
+              } : undefined,
+            }));
+            break;
+
+          case 'permission': {
+            const permissionRequest: SSEPermissionRequest = {
+              id: event.data.id,
+              sessionId: event.data.sessionId,
+              toolName: event.data.toolName,
+              description: event.data.description,
+              action: event.data.action,
+              path: event.data.path || '',
+              params: event.data.params || {},
+            };
+
+            setState(prev => ({
+              ...prev,
+              permissionRequests: [...prev.permissionRequests, permissionRequest],
+            }));
+            break;
+          }
+
+          default:
+            // Handle any other event types
+            break;
+        }
+      }
+    } catch (error) {
+      if (!abortController.signal.aborted) {
+        console.error('Stream processing error:', error);
+        setState(prev => ({
+          ...prev,
+          connected: false,
+          connecting: false,
+          error: error instanceof Error ? error.message : 'Stream connection failed',
+        }));
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!sessionId || sessionId === currentSessionRef.current) {
       return;
     }
 
-    if (eventSourceRef.current) {
-      // Remove all event listeners before closing
-      eventListenersRef.current.forEach(({ event, handler }) => {
-        eventSourceRef.current?.removeEventListener(event, handler);
-      });
-      eventListenersRef.current = [];
-
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+    // Clean up previous session
+    if (streamAbortController.current) {
+      streamAbortController.current.abort();
     }
+
     toolCallsMap.current.clear();
     toolStartTimes.current.clear();
     timelineRef.current = [];
+    lastEventIdRef.current = undefined;
     currentSessionRef.current = sessionId;
 
     setState({
@@ -133,408 +402,53 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       permissionRequests: [],
     });
 
-    const eventSource = new EventSource(
-      `${getBackendUrl()}/stream?sessionId=${encodeURIComponent(sessionId)}`
-    );
-    eventSourceRef.current = eventSource;
+    // Create new abort controller for this session
+    streamAbortController.current = new AbortController();
 
-    // Helper function to add event listener and track it
-    const addTrackedEventListener = (
-      event: string,
-      handler: (event: MessageEvent) => void
-    ) => {
-      eventSource.addEventListener(event, handler);
-      eventListenersRef.current.push({ event, handler });
-    };
+    // Start streaming with SDK
 
-    addTrackedEventListener('connected', () => {
-      setState((prev) => ({ ...prev, connected: true, connecting: false }));
+    processEventStream(sessionId, streamAbortController.current).catch((error) => {
+      console.error('Stream processing failed:', error);
+      setState(prev => ({
+        ...prev,
+        connected: false,
+        connecting: false,
+        error: error instanceof Error ? error.message : 'Stream connection failed',
+      }));
     });
-
-    addTrackedEventListener('heartbeat', (_event) => {
-      // Heartbeat events keep connection alive - no UI state changes needed
-    });
-
-    addTrackedEventListener('thinking', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const thinkingContent = data.content || '';
-
-        // Add to timeline
-        const thinkingEntry: TimelineEntry = {
-          type: 'thinking',
-          timestamp: Date.now(),
-          content: thinkingContent,
-          id: `thinking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        };
-
-        timelineRef.current = [...timelineRef.current, thinkingEntry];
-
-        setState((prev) => ({
-          ...prev,
-          reasoning: (prev.reasoning || '') + thinkingContent,
-          timeline: [...timelineRef.current],
-          processing: true,
-        }));
-      } catch (err) {
-        console.error('Failed to parse thinking event:', err, 'Raw event data:', event.data);
-      }
-    });
-
-    addTrackedEventListener('content', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const contentDelta = data.content || '';
-
-        // Find the last entry in timeline
-        const lastEntry = timelineRef.current[timelineRef.current.length - 1];
-        
-        // If the last entry is a content entry, append to it
-        // If it's a tool or thinking entry, create a new content entry
-        if (lastEntry && lastEntry.type === 'content') {
-          // Append delta to existing content entry
-          const existingContent = lastEntry.content;
-          timelineRef.current[timelineRef.current.length - 1] = {
-            ...lastEntry,
-            content: existingContent + contentDelta,
-            timestamp: Date.now()
-          };
-        } else {
-          // Create new content entry (after tool call or thinking)
-          const contentEntry: TimelineEntry = {
-            type: 'content',
-            timestamp: Date.now(),
-            content: contentDelta,
-            id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          };
-          timelineRef.current = [...timelineRef.current, contentEntry];
-        }
-
-        // Also update finalContent by accumulating deltas
-        setState((prev) => ({
-          ...prev,
-          finalContent: (prev.finalContent || '') + contentDelta,
-          timeline: [...timelineRef.current],
-          processing: true,
-        }));
-      } catch (err) {
-        console.error('Failed to parse content event:', err, 'Raw event data:', event.data);
-      }
-    });
-
-    addTrackedEventListener('tool', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const toolCall: ToolCall = {
-          id: data.id || `${data.name}-${Date.now()}`,
-          name: data.name || 'unknown',
-          description: data.description || data.name || 'Tool execution',
-          status: data.status || 'pending',
-          parameters: data.input
-            ? typeof data.input === 'string'
-              ? (() => {
-                try {
-                  return JSON.parse(data.input);
-                } catch {
-                  return { input: data.input };
-                }
-              })()
-              : data.input
-            : {},
-          result: data.result,
-          error: data.error,
-        };
-
-        if (
-          data.status === 'running' &&
-          !toolStartTimes.current.has(toolCall.id)
-        ) {
-          toolStartTimes.current.set(toolCall.id, Date.now());
-        }
-
-        if (
-          (data.status === 'completed' || data.status === 'error') &&
-          toolStartTimes.current.has(toolCall.id)
-        ) {
-          toolStartTimes.current.delete(toolCall.id);
-        }
-
-        toolCallsMap.current.set(toolCall.id, toolCall);
-
-        // Add to timeline when tool is first seen (running or pending status)
-        if (!timelineRef.current.some(entry => entry.type === 'tool' && entry.content.id === toolCall.id)) {
-          const toolEntry: TimelineEntry = {
-            type: 'tool',
-            timestamp: Date.now(),
-            content: toolCall,
-            id: toolCall.id
-          };
-
-          timelineRef.current = [...timelineRef.current, toolEntry];
-        } else {
-          // Update existing tool entry
-          timelineRef.current = timelineRef.current.map(entry =>
-            entry.type === 'tool' && entry.content.id === toolCall.id
-              ? { ...entry, content: toolCall }
-              : entry
-          );
-        }
-
-        setState((prev) => ({
-          ...prev,
-          toolCalls: Array.from(toolCallsMap.current.values()),
-          timeline: [...timelineRef.current],
-          processing: true,
-        }));
-      } catch (err) {
-        console.error('Failed to parse tool event:', err, 'Raw event data:', event.data);
-        // Don't silently ignore - this could indicate backend issues
-      }
-    });
-
-    // Handle tool execution start events
-    addTrackedEventListener('tool_execution_start', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const toolCallId = data.toolCallId;
-        const progress = data.progress;
-
-        // Find the corresponding tool call by ID and update its status to running
-        const existingToolCall = toolCallsMap.current.get(toolCallId);
-
-        if (existingToolCall) {
-          const updatedToolCall = {
-            ...existingToolCall,
-            status: 'running' as const,
-            description: progress
-          };
-
-          toolCallsMap.current.set(toolCallId, updatedToolCall);
-          toolStartTimes.current.set(toolCallId, Date.now());
-
-          // Update timeline entry
-          timelineRef.current = timelineRef.current.map(entry =>
-            entry.type === 'tool' && entry.content.id === toolCallId
-              ? { ...entry, content: updatedToolCall }
-              : entry
-          );
-
-          setState((prev) => ({
-            ...prev,
-            toolCalls: Array.from(toolCallsMap.current.values()),
-            timeline: [...timelineRef.current],
-            processing: true,
-          }));
-        }
-      } catch (err) {
-        console.error('Failed to parse tool_execution_start event:', err, 'Raw event data:', event.data);
-        // Don't silently ignore - this could indicate backend issues
-      }
-    });
-
-    // Handle tool execution complete events
-    addTrackedEventListener('tool_execution_complete', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const toolCallId = data.toolCallId;
-        const progress = data.progress;
-        const success = data.success;
-
-        // Find the corresponding tool call by ID and update its status
-        const existingToolCall = toolCallsMap.current.get(toolCallId);
-
-        if (existingToolCall) {
-          const updatedToolCall = {
-            ...existingToolCall,
-            status: success ? 'completed' as const : 'error' as const,
-            description: progress,
-            result: success ? progress : undefined,
-            error: success ? undefined : progress
-          };
-
-          toolCallsMap.current.set(toolCallId, updatedToolCall);
-
-          // Remove from start times tracking
-          if (toolStartTimes.current.has(toolCallId)) {
-            toolStartTimes.current.delete(toolCallId);
-          }
-
-          // Update timeline entry
-          timelineRef.current = timelineRef.current.map(entry =>
-            entry.type === 'tool' && entry.content.id === toolCallId
-              ? { ...entry, content: updatedToolCall }
-              : entry
-          );
-
-          setState((prev) => ({
-            ...prev,
-            toolCalls: Array.from(toolCallsMap.current.values()),
-            timeline: [...timelineRef.current],
-            processing: true,
-          }));
-        }
-      } catch (err) {
-        console.error('Failed to parse tool_execution_complete event:', err, 'Raw event data:', event.data);
-        // Don't silently ignore - this could indicate backend issues
-      }
-    });
-
-    addTrackedEventListener('complete', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setState((prev) => ({
-          ...prev,
-          // Don't update finalContent - it was already built from content deltas during streaming
-          // finalContent: data.content || '', // ← REMOVED - this was causing duplication
-          reasoning: data.reasoning || null,
-          reasoningDuration: data.reasoningDuration || null,
-          completed: true,
-          processing: false,
-        }));
-      } catch (_err) {
-        setState((prev) => ({ ...prev, processing: false }));
-      }
-    });
-
-    // Handle standard error events
-    addTrackedEventListener('error', (event) => {
-      if (event.data) {
-        try {
-          const data = JSON.parse(event.data);
-          setState((prev) => ({
-            ...prev,
-            error: data.error || 'Stream error',
-            connecting: false,
-            processing: false,
-            rateLimit: undefined,
-          }));
-        } catch {
-          setState((prev) => ({
-            ...prev,
-            error: 'Stream error',
-            connecting: false,
-            processing: false,
-            rateLimit: undefined,
-          }));
-        }
-      }
-    });
-
-    // Handle rate limit error events
-    addTrackedEventListener('rate_limit_error', (event) => {
-      if (event.data) {
-        try {
-          const data = JSON.parse(event.data);
-          setState((prev) => ({
-            ...prev,
-            error: data.error || 'Rate limit exceeded',
-            connecting: false,
-            processing: true, // Keep processing true to show we're still working
-            rateLimit: {
-              retryAfter: data.retryAfter || 60,
-              attempt: data.attempt || 1,
-              maxAttempts: data.maxAttempts || 8,
-            },
-          }));
-        } catch (err) {
-          console.error('Failed to parse rate limit error:', err);
-          setState((prev) => ({
-            ...prev,
-            error: 'Rate limit exceeded',
-            connecting: false,
-            processing: true,
-            rateLimit: {
-              retryAfter: 60,
-              attempt: 1,
-              maxAttempts: 8,
-            },
-          }));
-        }
-      }
-    });
-
-    // Handle permission request events
-    addTrackedEventListener('permission', (event) => {
-      if (event.data) {
-        try {
-          const data = JSON.parse(event.data);
-          const permissionRequest: SSEPermissionRequest = {
-            id: data.id,
-            sessionId: data.sessionId,
-            toolName: data.toolName,
-            description: data.description,
-            action: data.action,
-            path: data.path,
-            params: data.params || {},
-          };
-
-          setState((prev) => ({
-            ...prev,
-            permissionRequests: [...prev.permissionRequests, permissionRequest],
-          }));
-        } catch (err) {
-          console.error('Failed to parse permission event:', err);
-        }
-      }
-    });
-
-    eventSource.onerror = () => {
-      const readyState = eventSource.readyState;
-      if (
-        readyState === EventSource.CLOSED ||
-        readyState === EventSource.CONNECTING
-      ) {
-        setState((prev) => ({
-          ...prev,
-          connected: false,
-          connecting: readyState === EventSource.CONNECTING,
-          error: readyState === EventSource.CONNECTING ? null : prev.error,
-        }));
-      }
-    };
 
     return () => {
-      if (eventSourceRef.current) {
-        // Remove all event listeners before closing
-        eventListenersRef.current.forEach(({ event, handler }) => {
-          eventSourceRef.current?.removeEventListener(event, handler);
-        });
-        eventListenersRef.current = [];
-
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+      if (streamAbortController.current) {
+        streamAbortController.current.abort();
+        streamAbortController.current = null;
       }
       toolCallsMap.current.clear();
       toolStartTimes.current.clear();
       timelineRef.current = [];
       currentSessionRef.current = '';
+      lastEventIdRef.current = undefined;
     };
   }, [sessionId]);
 
   // Cleanup on component unmount
   useEffect(() => {
     return () => {
-      if (eventSourceRef.current) {
-        // Remove all event listeners before closing
-        eventListenersRef.current.forEach(({ event, handler }) => {
-          eventSourceRef.current?.removeEventListener(event, handler);
-        });
-        eventListenersRef.current = [];
-
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+      if (streamAbortController.current) {
+        streamAbortController.current.abort();
+        streamAbortController.current = null;
       }
       toolCallsMap.current.clear();
       toolStartTimes.current.clear();
       timelineRef.current = [];
       currentSessionRef.current = '';
+      lastEventIdRef.current = undefined;
     };
   }, []);
 
   const sendMessage = useCallback(
-    async function(content: string) {
-      if (!(sessionId && connectedRef.current)) {
-        throw new Error('No active SSE connection');
+    async function (content: string) {
+      if (!sessionId) {
+        throw new Error('No session ID available');
       }
 
       setState((prev) => ({
@@ -557,21 +471,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       timelineRef.current = [];
 
       try {
-        const response = await fetch(
-          `${getBackendUrl()}/stream/${encodeURIComponent(sessionId)}/message`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Failed to queue message: ${response.status} ${errorText}`
-          );
-        }
+        await mix.streaming.sendStreamingMessage({
+          id: sessionId,
+          requestBody: { content },
+        });
       } catch (error) {
         setState((prev) => ({
           ...prev,
@@ -586,7 +489,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     [sessionId]
   );
 
-  const cancelMessage = useCallback(async function() {
+  const cancelMessage = useCallback(async function () {
     if (!sessionId) {
       throw new Error('No session ID available');
     }
@@ -595,7 +498,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
     try {
       await mix.messages.cancelProcessing({ id: sessionId });
-
 
       setState((prev) => ({
         ...prev,
@@ -615,14 +517,13 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     }
   }, [sessionId]);
 
-  const resetCancelledState = useCallback(function() {
+  const resetCancelledState = useCallback(function () {
     setState((prev) => ({ ...prev, cancelled: false }));
   }, []);
 
-  const grantPermission = useCallback(async function(id: string) {
+  const grantPermission = useCallback(async function (id: string) {
     try {
       await mix.permissions.grant({ id });
-
 
       // Remove the permission request from state
       setState((prev) => ({
@@ -637,10 +538,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     }
   }, []);
 
-  const denyPermission = useCallback(async function(id: string) {
+  const denyPermission = useCallback(async function (id: string) {
     try {
       await mix.permissions.deny({ id });
-
 
       // Remove the permission request from state
       setState((prev) => ({
@@ -692,17 +592,17 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         // Expand file references
         const expandedText = expandFileReferences(text, referenceMap, mediaUrls);
 
-        const messageData: MessageData = {
+        const messageData: SendMessageRequestBody = {
           text: expandedText,
           media: mediaUrls,
           apps: attachments.filter((a) => a.type === 'app').map((app) => app.name),
-          plan_mode: planMode,
+          planMode: planMode,
         };
 
-        // Send to backend FIRST
+        // Send to backend first
         await sendMessage(JSON.stringify(messageData));
 
-        // Only add to UI AFTER successful backend request
+        // Only add to UI after successful backend request
         const userMessage: UIMessage = {
           content: text,
           from: 'user',

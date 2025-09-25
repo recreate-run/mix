@@ -683,7 +683,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/MessageData"
+                    "$ref": "#/components/schemas/BackendMessage"
                   },
                   "type": "array"
                 }
@@ -1248,10 +1248,6 @@
                   "title": {
                     "description": "Title for the session",
                     "type": "string"
-                  },
-                  "workingDirectory": {
-                    "description": "Optional working directory path",
-                    "type": "string"
                   }
                 },
                 "required": [
@@ -1699,8 +1695,8 @@
               "schema": {
                 "properties": {
                   "messageIndex": {
-                    "description": "Index of the last message to include in the fork (1-based)",
-                    "minimum": 1,
+                    "description": "Index of the last message to include in the fork (0-based)",
+                    "minimum": 0,
                     "type": "integer"
                   },
                   "title": {
@@ -1736,7 +1732,7 @@
                 }
               }
             },
-            "description": "Invalid request - messageIndex must be > 0"
+            "description": "Invalid request - messageIndex must be >= 0"
           },
           "404": {
             "content": {
@@ -1776,7 +1772,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/MessageData"
+                    "$ref": "#/components/schemas/BackendMessage"
                   },
                   "type": "array"
                 }
@@ -1819,13 +1815,34 @@
             "application/json": {
               "schema": {
                 "properties": {
-                  "content": {
-                    "description": "Message content to send",
+                  "apps": {
+                    "description": "Array of app identifiers or references",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "media": {
+                    "description": "Array of media file references or URLs",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "plan_mode": {
+                    "description": "Whether the message is in planning mode",
+                    "type": "boolean"
+                  },
+                  "text": {
+                    "description": "The text content of the message",
                     "type": "string"
                   }
                 },
                 "required": [
-                  "content"
+                  "text",
+                  "media",
+                  "apps",
+                  "plan_mode"
                 ],
                 "type": "object"
               }
@@ -1838,7 +1855,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageData"
+                  "$ref": "#/components/schemas/BackendMessage"
                 }
               }
             },
@@ -2163,6 +2180,53 @@
   },
   "components": {
     "schemas": {
+      "BackendMessage": {
+        "description": "Backend message structure representing a complete message exchange",
+        "properties": {
+          "assistantResponse": {
+            "description": "Assistant's response message (optional)",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique message identifier",
+            "type": "string"
+          },
+          "reasoning": {
+            "description": "Reasoning process (optional)",
+            "type": "string"
+          },
+          "reasoningDuration": {
+            "description": "Reasoning duration in milliseconds (optional)",
+            "type": "integer"
+          },
+          "role": {
+            "description": "Message role (user, assistant, tool)",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Session identifier",
+            "type": "string"
+          },
+          "toolCalls": {
+            "description": "Tool calls made during message processing",
+            "items": {
+              "$ref": "#/components/schemas/ToolCallData"
+            },
+            "type": "array"
+          },
+          "userInput": {
+            "description": "User's input message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "role",
+          "userInput"
+        ],
+        "type": "object"
+      },
       "ErrorResponse": {
         "properties": {
           "error": {
@@ -2204,47 +2268,36 @@
         "type": "object"
       },
       "MessageData": {
+        "description": "Message data structure for user input",
         "properties": {
-          "assistantResponse": {
-            "description": "Assistant's response message (optional)",
-            "type": "string"
-          },
-          "id": {
-            "description": "Unique message identifier",
-            "type": "string"
-          },
-          "reasoning": {
-            "description": "Reasoning process (optional)",
-            "type": "string"
-          },
-          "reasoningDuration": {
-            "description": "Reasoning duration in milliseconds (optional)",
-            "type": "integer"
-          },
-          "role": {
-            "$ref": "#/components/schemas/MessageRole"
-          },
-          "sessionId": {
-            "description": "Session identifier",
-            "type": "string"
-          },
-          "toolCalls": {
-            "description": "Tool calls made during message processing",
+          "apps": {
+            "description": "Array of app identifiers or references",
             "items": {
-              "$ref": "#/components/schemas/ToolCallData"
+              "type": "string"
             },
             "type": "array"
           },
-          "userInput": {
-            "description": "User's input message",
+          "media": {
+            "description": "Array of media file references or URLs",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "plan_mode": {
+            "description": "Whether the message is in planning mode",
+            "type": "boolean"
+          },
+          "text": {
+            "description": "The text content of the message",
             "type": "string"
           }
         },
         "required": [
-          "id",
-          "sessionId",
-          "role",
-          "userInput"
+          "text",
+          "media",
+          "apps",
+          "plan_mode"
         ],
         "type": "object"
       },
@@ -2864,10 +2917,6 @@
           "userMessageCount": {
             "description": "Number of user messages in session",
             "type": "integer"
-          },
-          "workingDirectory": {
-            "description": "Working directory path (optional)",
-            "type": "string"
           }
         },
         "required": [

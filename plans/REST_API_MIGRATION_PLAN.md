@@ -55,7 +55,6 @@ Every endpoint requires explicit session ID - no server-side "current session" s
 - **`handleSessionsList()`** - Complete logic for listing sessions
 - **`handleSessionsCreate()`** - Complete logic for creating sessions  
 - **`handleMessagesSend()`** - Complete auth, validation, and agent processing
-- **`handleAuthLogin()`** - Complete OAuth flow implementation
 - **All 17 handlers fully implemented** with validation, error handling, and app integration
 
 #### What to Build (17 REST wrappers)
