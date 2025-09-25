@@ -1,0 +1,43 @@
+---
+title: Overview
+description: >-
+  Complete API reference for Mix - session management, messaging, and system
+  operations
+---
+
+{/* <!-- This file is auto-generated. Do not edit manually. --> */}
+
+<Cards>
+<Card href="/docs/api/authentication/storeApiKey" title="Store API key" description="Store API key for direct authentication with a specific provider" />
+<Card href="/docs/api/authentication/handleOAuthCallback" title="Handle OAuth callback" description="Process OAuth callback and exchange code for access token" />
+<Card href="/docs/api/authentication/startOAuthFlow" title="Start OAuth authentication" description="Initiate OAuth authentication flow for a specific provider" />
+<Card href="/docs/api/authentication/getAuthStatus" title="Get authentication status" description="Get authentication status for all supported providers" />
+<Card href="/docs/api/authentication/validatePreferredProvider" title="Validate preferred provider" description="Check if the user's preferred provider is authenticated" />
+<Card href="/docs/api/authentication/deleteCredentials" title="Delete provider credentials" description="Delete stored API key and/or OAuth credentials for a provider" />
+<Card href="/docs/api/system/listCommands" title="List available commands" description="Retrieve list of all available commands" />
+<Card href="/docs/api/system/getCommand" title="Get specific command" description="Retrieve details about a specific command" />
+<Card href="/docs/api/system/listMcpServers" title="List MCP servers" description="Retrieve list of available Model Context Protocol (MCP) servers" />
+<Card href="/docs/api/messages/getMessageHistory" title="Get global message history" description="Retrieve message history across all sessions with optional pagination" />
+<Card href="/docs/api/permissions/denyPermission" title="Deny permission" description="Deny a specific permission" />
+<Card href="/docs/api/permissions/grantPermission" title="Grant permission" description="Grant a specific permission" />
+<Card href="/docs/api/preferences/getPreferences" title="Get user preferences" description="Retrieve current user preferences including model and provider settings" />
+<Card href="/docs/api/preferences/updatePreferences" title="Update user preferences" description="Update user preferences including model and provider settings" />
+<Card href="/docs/api/preferences/getAvailableProviders" title="Get available providers" description="Retrieve list of available AI providers and their supported models" />
+<Card href="/docs/api/preferences/resetPreferences" title="Reset preferences" description="Reset user preferences to default values" />
+<Card href="/docs/api/sessions/listSessions" title="List all sessions" description="Retrieve a list of all available sessions with their metadata" />
+<Card href="/docs/api/sessions/createSession" title="Create a new session" description="Create a new session with required title. Session automatically gets isolated storage directory." />
+<Card href="/docs/api/sessions/getSession" title="Get a specific session" description="Retrieve detailed information about a specific session" />
+<Card href="/docs/api/sessions/deleteSession" title="Delete a session" description="Permanently delete a session and all its data" />
+<Card href="/docs/api/messages/cancelSessionProcessing" title="Cancel agent processing" description="Cancel any ongoing agent processing in the specified session" />
+<Card href="/docs/api/files/listSessionFiles" title="List session files" description="List all files in session storage directory" />
+<Card href="/docs/api/files/uploadSessionFile" title="Upload file to session" description="Upload a file to session-specific storage directory" />
+<Card href="/docs/api/files/getSessionFile" title="Get session file" description="Download or serve a specific file from session storage. Supports thumbnail generation with ?thumb parameter." />
+<Card href="/docs/api/files/deleteSessionFile" title="Delete session file" description="Delete a specific file from session storage" />
+<Card href="/docs/api/sessions/forkSession" title="Fork a session" description="Create a new session based on an existing session, copying messages up to a specified index" />
+<Card href="/docs/api/messages/getSessionMessages" title="List session messages" description="Retrieve all messages from a specific session" />
+<Card href="/docs/api/messages/sendMessage" title="Send a message to session" description="Send a user message to a specific session for AI processing" />
+<Card href="/docs/api/tools/getToolsStatus" title="Get tools status" description="Get status and authentication information for all available tools and categories" />
+<Card href="/docs/api/system/healthCheck" title="Health check" description="Check server health and status" />
+<Card href="/docs/api/streaming/streamEvents" title="Server-Sent Events stream for real-time updates" description="Establishes a persistent SSE connection for receiving real-time updates during message processing. Connection remains open for multiple messages and includes proper reconnection support with Last-Event-ID header." />
+<Card href="/docs/api/streaming/sendStreamingMessage" title="Send message via streaming pipeline" description="Send a message to a session via the streaming pipeline. This endpoint integrates with active SSE connections to broadcast real-time processing events including thinking, content, tool execution, and completion events." />
+</Cards>

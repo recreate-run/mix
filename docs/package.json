@@ -16,6 +16,7 @@
 		"dev": "^0.1.3",
 		"fumadocs-core": "^15.6.12",
 		"fumadocs-mdx": "^11.7.5",
+		"fumadocs-openapi": "^9.3.12",
 		"fumadocs-ui": "^15.6.12",
 		"js-yaml": "^4.1.0",
 		"lucide-react": "^0.468.0",
@@ -25,6 +26,7 @@
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
 		"scroll-into-view-if-needed": "^3.1.0",
+		"shiki": "^3.13.0",
 		"tailwind-merge": "^3.3.1"
 	},
 	"devDependencies": {
