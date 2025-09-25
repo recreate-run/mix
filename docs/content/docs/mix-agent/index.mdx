@@ -1,61 +1,79 @@
 ---
-title: Home
-description: Learn about Mix, the multimodal AI workflow automation platform that integrates with professional tools like Blender, Figma, and Logic Pro.
+title: Mix Agent
+description: Learn about Mix Agent - the Go backend HTTP server that powers AI workflows and integrates with professional tools
 ---
 
 ## Overview
 
-> Mix is "Claude Code" for multimodal tasks. A desktop app that integrates with professional tools like Blender, Figma, and Logic Pro to automate creative and analytical workflows.
+> Mix Agent is the core backend service that powers AI workflows and tool integrations. Built in Go, it provides HTTP APIs, CLI interfaces, and serves as the foundation for Mix Playground and other client applications.
 
 ## Quick Start
 
 ```bash
 # Clone and start development environment
 git clone <repository-url> && cd mix && make dev
+
+# CLI mode - direct prompt execution
+./mix -p "Your prompt here"
+
+# HTTP server mode - start backend server
+./mix --http-port 8080
 ```
 
 [Complete quickstart guide (5 minutes) →](/docs/mix-agent/quickstart)
 
-## What Mix does for you
+## What Mix Agent Provides
 
-* **Automate creative workflows**: Generate and edit videos in Blender, create sound effects in Logic Pro, post-process in After Effects - all from natural language descriptions.
-* **Analyze multimedia content**: Extract insights from session recordings, analyze video content, and process multimodal data automatically.
-* **Integrate professional tools**: Works with existing creative and analytical software you already use - no need to change your workflow.
-* **Flexible deployment**: Use as a desktop app or embed the backend into your products via our upcoming SDK with stdio interface (similar to Claude Code SDK).
+* **HTTP API Server**: RESTful backend for client applications and integrations
+* **CLI Interface**: Direct command-line access for scripting and automation  
+* **Tool Integration**: Orchestrates professional tools like Blender, Logic Pro, and more
+* **AI Orchestration**: Manages multiple AI providers and model selection
+* **Session Management**: Persistent conversation storage and retrieval
+* **Real-time Streaming**: Server-Sent Events for live responses
 
-## Why teams choose Mix
+## Why Teams Choose Mix Agent
 
-* **No vendor lock-in**: All project data is stored as plain text and native media files. Your data stays yours.
-* **Powerful tool integration**: Works with Blender and Pixelmator. Support for Figma, Logic Pro, After Effects, and other industry-standard software coming soon.
-* **Powerful AI backbone**: Uses Claude Sonnet 4 for reasoning and Gemini 2.5 Flash for multimodal analysis.
-* **Client-server architecture**: Backend is an HTTP server, meaning the desktop app is just one client. Perfect for integration.
+* **Backend-First Architecture**: HTTP server designed for multiple client integrations
+* **No Vendor Lock-in**: All data stored as plain text and native files - your data stays yours
+* **Multi-Provider AI**: Support for Anthropic, OpenAI, OpenRouter, and Google models
+* **Powerful Tool Integration**: Orchestrates Blender, Pixelmator, and other professional tools
+* **Production Ready**: Built in Go for performance, reliability, and easy deployment
 
 ## Architecture Overview
 
-Mix consists of two main components:
+Mix Agent is the backend foundation that powers multiple interfaces:
 
-- **Go Backend**: HTTP server that orchestrates AI agents and tool integrations
-- **Tauri Frontend**: Cross-platform desktop application built with React
-- **AI Integration**: Claude Sonnet 4 for main reasoning, Gemini 2.5 Flash for multimodal analysis
+- **HTTP Server**: RESTful API with real-time streaming capabilities
+- **CLI Interface**: Direct command-line access for automation and scripting  
+- **Client Support**: Powers Mix Playground desktop app and custom integrations
+- **AI Integration**: Multi-provider support (Anthropic, OpenAI, OpenRouter, Google)
+- **Tool Orchestration**: Manages external tool integrations and workflows
 
 ## Key Features
 
-### Creative Automation
-- **Video Generation & Editing**: Automated Blender workflows for video creation
-- **Audio Processing**: Integration with Logic Pro for sound design
-- **Visual Design**: Figma integration for design workflows
-- **Post-Production**: After Effects automation for final processing
+### Backend Services
+- **HTTP API**: Comprehensive RESTful endpoints for all functionality
+- **Real-time Streaming**: Server-Sent Events for live AI responses
+- **Session Management**: Create, retrieve, fork, and manage conversations
+- **File Handling**: Upload, storage, and retrieval of multimedia content
 
-### Analysis & Intelligence  
-- **Session Recording Analysis**: Extract insights and highlights from user sessions
-- **Multimodal Content Analysis**: Process images, videos, and audio automatically
-- **Content Summarization**: Generate summaries and key insights from multimedia content
+### AI Provider Management
+- **Multi-Provider Support**: Anthropic, OpenAI, OpenRouter, Google integration
+- **Authentication Flows**: OAuth and API key support for all providers
+- **Model Selection**: Dynamic model switching and preference management
+- **Rate Limiting**: Built-in protection against API overuse
+
+### Tool Integration
+- **Professional Tools**: Blender, Pixelmator, and extensible tool framework
+- **Permission System**: User-controlled tool execution authorization
+- **Tool Orchestration**: Complex workflows across multiple applications
+- **Custom Tools**: Framework for adding new tool integrations
 
 ### Developer Experience
+- **CLI Interface**: Direct command-line access for automation
 - **Plain Text Storage**: No proprietary formats, complete data portability
-- **HTTP API**: RESTful backend ready for custom integrations
-- **Unified Development**: Single `make dev` command starts everything
-- **Flexible Authentication**: Claude Code account or API keys
+- **Production Ready**: Built in Go for performance and reliability
+- **Multiple Deployment**: HTTP server, CLI tool, or embedded service
 
 ## Quick Commands
 
