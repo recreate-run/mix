@@ -33,6 +33,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createMessageStmt, err = db.PrepareContext(ctx, createMessage); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateMessage: %w", err)
 	}
+	if q.createOAuthCredentialStmt, err = db.PrepareContext(ctx, createOAuthCredential); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateOAuthCredential: %w", err)
+	}
 	if q.createSessionStmt, err = db.PrepareContext(ctx, createSession); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateSession: %w", err)
 	}
@@ -45,11 +48,17 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteAllAPICredentialsStmt, err = db.PrepareContext(ctx, deleteAllAPICredentials); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteAllAPICredentials: %w", err)
 	}
+	if q.deleteAllOAuthCredentialsStmt, err = db.PrepareContext(ctx, deleteAllOAuthCredentials); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteAllOAuthCredentials: %w", err)
+	}
 	if q.deleteFileStmt, err = db.PrepareContext(ctx, deleteFile); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteFile: %w", err)
 	}
 	if q.deleteMessageStmt, err = db.PrepareContext(ctx, deleteMessage); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteMessage: %w", err)
+	}
+	if q.deleteOAuthCredentialStmt, err = db.PrepareContext(ctx, deleteOAuthCredential); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteOAuthCredential: %w", err)
 	}
 	if q.deleteSessionStmt, err = db.PrepareContext(ctx, deleteSession); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteSession: %w", err)
@@ -66,6 +75,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getMessageStmt, err = db.PrepareContext(ctx, getMessage); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMessage: %w", err)
 	}
+	if q.getOAuthCredentialStmt, err = db.PrepareContext(ctx, getOAuthCredential); err != nil {
+		return nil, fmt.Errorf("error preparing query GetOAuthCredential: %w", err)
+	}
 	if q.getSessionByIDStmt, err = db.PrepareContext(ctx, getSessionByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetSessionByID: %w", err)
 	}
@@ -75,8 +87,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.hasAPICredentialStmt, err = db.PrepareContext(ctx, hasAPICredential); err != nil {
 		return nil, fmt.Errorf("error preparing query HasAPICredential: %w", err)
 	}
+	if q.hasOAuthCredentialStmt, err = db.PrepareContext(ctx, hasOAuthCredential); err != nil {
+		return nil, fmt.Errorf("error preparing query HasOAuthCredential: %w", err)
+	}
 	if q.listAPICredentialsStmt, err = db.PrepareContext(ctx, listAPICredentials); err != nil {
 		return nil, fmt.Errorf("error preparing query ListAPICredentials: %w", err)
+	}
+	if q.listExpiredOAuthCredentialsStmt, err = db.PrepareContext(ctx, listExpiredOAuthCredentials); err != nil {
+		return nil, fmt.Errorf("error preparing query ListExpiredOAuthCredentials: %w", err)
 	}
 	if q.listFilesByPathStmt, err = db.PrepareContext(ctx, listFilesByPath); err != nil {
 		return nil, fmt.Errorf("error preparing query ListFilesByPath: %w", err)
@@ -92,6 +110,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.listMessagesForForkStmt, err = db.PrepareContext(ctx, listMessagesForFork); err != nil {
 		return nil, fmt.Errorf("error preparing query ListMessagesForFork: %w", err)
+	}
+	if q.listOAuthCredentialsStmt, err = db.PrepareContext(ctx, listOAuthCredentials); err != nil {
+		return nil, fmt.Errorf("error preparing query ListOAuthCredentials: %w", err)
 	}
 	if q.listSessionsMetadataStmt, err = db.PrepareContext(ctx, listSessionsMetadata); err != nil {
 		return nil, fmt.Errorf("error preparing query ListSessionsMetadata: %w", err)
@@ -117,6 +138,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateMessageStmt, err = db.PrepareContext(ctx, updateMessage); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateMessage: %w", err)
 	}
+	if q.updateOAuthCredentialStmt, err = db.PrepareContext(ctx, updateOAuthCredential); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateOAuthCredential: %w", err)
+	}
 	if q.updateSessionStmt, err = db.PrepareContext(ctx, updateSession); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateSession: %w", err)
 	}
@@ -131,6 +155,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.upsertAPICredentialStmt, err = db.PrepareContext(ctx, upsertAPICredential); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertAPICredential: %w", err)
+	}
+	if q.upsertOAuthCredentialStmt, err = db.PrepareContext(ctx, upsertOAuthCredential); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertOAuthCredential: %w", err)
 	}
 	return &q, nil
 }
@@ -150,6 +177,11 @@ func (q *Queries) Close() error {
 	if q.createMessageStmt != nil {
 		if cerr := q.createMessageStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createMessageStmt: %w", cerr)
+		}
+	}
+	if q.createOAuthCredentialStmt != nil {
+		if cerr := q.createOAuthCredentialStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createOAuthCredentialStmt: %w", cerr)
 		}
 	}
 	if q.createSessionStmt != nil {
@@ -172,6 +204,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteAllAPICredentialsStmt: %w", cerr)
 		}
 	}
+	if q.deleteAllOAuthCredentialsStmt != nil {
+		if cerr := q.deleteAllOAuthCredentialsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteAllOAuthCredentialsStmt: %w", cerr)
+		}
+	}
 	if q.deleteFileStmt != nil {
 		if cerr := q.deleteFileStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteFileStmt: %w", cerr)
@@ -180,6 +217,11 @@ func (q *Queries) Close() error {
 	if q.deleteMessageStmt != nil {
 		if cerr := q.deleteMessageStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteMessageStmt: %w", cerr)
+		}
+	}
+	if q.deleteOAuthCredentialStmt != nil {
+		if cerr := q.deleteOAuthCredentialStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteOAuthCredentialStmt: %w", cerr)
 		}
 	}
 	if q.deleteSessionStmt != nil {
@@ -207,6 +249,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getMessageStmt: %w", cerr)
 		}
 	}
+	if q.getOAuthCredentialStmt != nil {
+		if cerr := q.getOAuthCredentialStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getOAuthCredentialStmt: %w", cerr)
+		}
+	}
 	if q.getSessionByIDStmt != nil {
 		if cerr := q.getSessionByIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getSessionByIDStmt: %w", cerr)
@@ -222,9 +269,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing hasAPICredentialStmt: %w", cerr)
 		}
 	}
+	if q.hasOAuthCredentialStmt != nil {
+		if cerr := q.hasOAuthCredentialStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing hasOAuthCredentialStmt: %w", cerr)
+		}
+	}
 	if q.listAPICredentialsStmt != nil {
 		if cerr := q.listAPICredentialsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listAPICredentialsStmt: %w", cerr)
+		}
+	}
+	if q.listExpiredOAuthCredentialsStmt != nil {
+		if cerr := q.listExpiredOAuthCredentialsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listExpiredOAuthCredentialsStmt: %w", cerr)
 		}
 	}
 	if q.listFilesByPathStmt != nil {
@@ -250,6 +307,11 @@ func (q *Queries) Close() error {
 	if q.listMessagesForForkStmt != nil {
 		if cerr := q.listMessagesForForkStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listMessagesForForkStmt: %w", cerr)
+		}
+	}
+	if q.listOAuthCredentialsStmt != nil {
+		if cerr := q.listOAuthCredentialsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listOAuthCredentialsStmt: %w", cerr)
 		}
 	}
 	if q.listSessionsMetadataStmt != nil {
@@ -292,6 +354,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateMessageStmt: %w", cerr)
 		}
 	}
+	if q.updateOAuthCredentialStmt != nil {
+		if cerr := q.updateOAuthCredentialStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateOAuthCredentialStmt: %w", cerr)
+		}
+	}
 	if q.updateSessionStmt != nil {
 		if cerr := q.updateSessionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateSessionStmt: %w", cerr)
@@ -315,6 +382,11 @@ func (q *Queries) Close() error {
 	if q.upsertAPICredentialStmt != nil {
 		if cerr := q.upsertAPICredentialStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing upsertAPICredentialStmt: %w", cerr)
+		}
+	}
+	if q.upsertOAuthCredentialStmt != nil {
+		if cerr := q.upsertOAuthCredentialStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertOAuthCredentialStmt: %w", cerr)
 		}
 	}
 	return err
@@ -359,26 +431,33 @@ type Queries struct {
 	createAPICredentialStmt            *sql.Stmt
 	createFileStmt                     *sql.Stmt
 	createMessageStmt                  *sql.Stmt
+	createOAuthCredentialStmt          *sql.Stmt
 	createSessionStmt                  *sql.Stmt
 	createUserPreferencesStmt          *sql.Stmt
 	deleteAPICredentialStmt            *sql.Stmt
 	deleteAllAPICredentialsStmt        *sql.Stmt
+	deleteAllOAuthCredentialsStmt      *sql.Stmt
 	deleteFileStmt                     *sql.Stmt
 	deleteMessageStmt                  *sql.Stmt
+	deleteOAuthCredentialStmt          *sql.Stmt
 	deleteSessionStmt                  *sql.Stmt
 	getAPICredentialStmt               *sql.Stmt
 	getFileStmt                        *sql.Stmt
 	getFileByPathAndSessionStmt        *sql.Stmt
 	getMessageStmt                     *sql.Stmt
+	getOAuthCredentialStmt             *sql.Stmt
 	getSessionByIDStmt                 *sql.Stmt
 	getUserPreferencesStmt             *sql.Stmt
 	hasAPICredentialStmt               *sql.Stmt
+	hasOAuthCredentialStmt             *sql.Stmt
 	listAPICredentialsStmt             *sql.Stmt
+	listExpiredOAuthCredentialsStmt    *sql.Stmt
 	listFilesByPathStmt                *sql.Stmt
 	listFilesBySessionStmt             *sql.Stmt
 	listLatestSessionFilesStmt         *sql.Stmt
 	listMessagesBySessionStmt          *sql.Stmt
 	listMessagesForForkStmt            *sql.Stmt
+	listOAuthCredentialsStmt           *sql.Stmt
 	listSessionsMetadataStmt           *sql.Stmt
 	listSessionsWithContentStmt        *sql.Stmt
 	listUserMessageHistoryStmt         *sql.Stmt
@@ -387,11 +466,13 @@ type Queries struct {
 	updateFileStmt                     *sql.Stmt
 	updateMainAgentModelStmt           *sql.Stmt
 	updateMessageStmt                  *sql.Stmt
+	updateOAuthCredentialStmt          *sql.Stmt
 	updateSessionStmt                  *sql.Stmt
 	updateSubAgentModelStmt            *sql.Stmt
 	updateUserPreferencesStmt          *sql.Stmt
 	updateUserPreferredProviderStmt    *sql.Stmt
 	upsertAPICredentialStmt            *sql.Stmt
+	upsertOAuthCredentialStmt          *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -401,26 +482,33 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createAPICredentialStmt:            q.createAPICredentialStmt,
 		createFileStmt:                     q.createFileStmt,
 		createMessageStmt:                  q.createMessageStmt,
+		createOAuthCredentialStmt:          q.createOAuthCredentialStmt,
 		createSessionStmt:                  q.createSessionStmt,
 		createUserPreferencesStmt:          q.createUserPreferencesStmt,
 		deleteAPICredentialStmt:            q.deleteAPICredentialStmt,
 		deleteAllAPICredentialsStmt:        q.deleteAllAPICredentialsStmt,
+		deleteAllOAuthCredentialsStmt:      q.deleteAllOAuthCredentialsStmt,
 		deleteFileStmt:                     q.deleteFileStmt,
 		deleteMessageStmt:                  q.deleteMessageStmt,
+		deleteOAuthCredentialStmt:          q.deleteOAuthCredentialStmt,
 		deleteSessionStmt:                  q.deleteSessionStmt,
 		getAPICredentialStmt:               q.getAPICredentialStmt,
 		getFileStmt:                        q.getFileStmt,
 		getFileByPathAndSessionStmt:        q.getFileByPathAndSessionStmt,
 		getMessageStmt:                     q.getMessageStmt,
+		getOAuthCredentialStmt:             q.getOAuthCredentialStmt,
 		getSessionByIDStmt:                 q.getSessionByIDStmt,
 		getUserPreferencesStmt:             q.getUserPreferencesStmt,
 		hasAPICredentialStmt:               q.hasAPICredentialStmt,
+		hasOAuthCredentialStmt:             q.hasOAuthCredentialStmt,
 		listAPICredentialsStmt:             q.listAPICredentialsStmt,
+		listExpiredOAuthCredentialsStmt:    q.listExpiredOAuthCredentialsStmt,
 		listFilesByPathStmt:                q.listFilesByPathStmt,
 		listFilesBySessionStmt:             q.listFilesBySessionStmt,
 		listLatestSessionFilesStmt:         q.listLatestSessionFilesStmt,
 		listMessagesBySessionStmt:          q.listMessagesBySessionStmt,
 		listMessagesForForkStmt:            q.listMessagesForForkStmt,
+		listOAuthCredentialsStmt:           q.listOAuthCredentialsStmt,
 		listSessionsMetadataStmt:           q.listSessionsMetadataStmt,
 		listSessionsWithContentStmt:        q.listSessionsWithContentStmt,
 		listUserMessageHistoryStmt:         q.listUserMessageHistoryStmt,
@@ -429,10 +517,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		updateFileStmt:                     q.updateFileStmt,
 		updateMainAgentModelStmt:           q.updateMainAgentModelStmt,
 		updateMessageStmt:                  q.updateMessageStmt,
+		updateOAuthCredentialStmt:          q.updateOAuthCredentialStmt,
 		updateSessionStmt:                  q.updateSessionStmt,
 		updateSubAgentModelStmt:            q.updateSubAgentModelStmt,
 		updateUserPreferencesStmt:          q.updateUserPreferencesStmt,
 		updateUserPreferredProviderStmt:    q.updateUserPreferredProviderStmt,
 		upsertAPICredentialStmt:            q.upsertAPICredentialStmt,
+		upsertOAuthCredentialStmt:          q.upsertOAuthCredentialStmt,
 	}
 }

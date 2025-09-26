@@ -38,6 +38,21 @@ type Message struct {
 	FinishedAt sql.NullInt64  `json:"finished_at"`
 }
 
+type OauthCredential struct {
+	UserID       string         `json:"user_id"`
+	Provider     string         `json:"provider"`
+	AccessToken  sql.NullString `json:"access_token"`
+	RefreshToken sql.NullString `json:"refresh_token"`
+	IDToken      sql.NullString `json:"id_token"`
+	ApiKey       sql.NullString `json:"api_key"`
+	AccountID    sql.NullString `json:"account_id"`
+	ClientID     string         `json:"client_id"`
+	ExpiresAt    sql.NullInt64  `json:"expires_at"`
+	LastRefresh  sql.NullString `json:"last_refresh"`
+	CreatedAt    int64          `json:"created_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+}
+
 type Session struct {
 	ID                 string         `json:"id"`
 	ParentSessionID    sql.NullString `json:"parent_session_id"`

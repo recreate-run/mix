@@ -11,17 +11,40 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"mix/internal/db"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
 )
 
-// APICredentialsService handles encrypted API key storage and retrieval
+// APICredentialsService handles encrypted API key and OAuth credential storage and retrieval
 type APICredentialsService struct {
 	queries          *db.Queries
 	encryptionKey    []byte
 	credentialsCache sync.Map // Provider -> API Key cache
+	oauthCache       sync.Map // Provider -> OAuth Credentials cache
+}
+
+// OAuthCredentials holds OAuth token information (matches provider/oauth.go structs)
+type OAuthCredentials struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	IDToken      string `json:"id_token,omitempty"`      // For OpenAI
+	APIKey       string `json:"api_key,omitempty"`       // Generated API key (for OpenAI)
+	AccountID    string `json:"account_id,omitempty"`    // For OpenAI
+	ExpiresAt    int64  `json:"expires_at"`
+	ClientID     string `json:"client_id"`
+	Provider     string `json:"provider"`
+	LastRefresh  string `json:"last_refresh,omitempty"`
+}
+
+// IsTokenExpired checks if the OAuth token is expired or will expire soon (5 minutes buffer)
+func (cred *OAuthCredentials) IsTokenExpired() bool {
+	if cred.ExpiresAt == 0 {
+		return false // No expiry time set
+	}
+	return time.Now().Unix() >= (cred.ExpiresAt - 300) // 5 minute buffer
 }
 
 // NewAPICredentialsService creates a new API credentials service
@@ -30,10 +53,12 @@ func NewAPICredentialsService(database *sql.DB, encryptionKey []byte) *APICreden
 		queries:          db.New(database),
 		encryptionKey:    encryptionKey,
 		credentialsCache: sync.Map{},
+		oauthCache:       sync.Map{},
 	}
 
 	// Preload credentials in the background
 	go service.PreloadCredentials(context.Background())
+	go service.PreloadOAuthCredentials(context.Background())
 
 	return service
 }
@@ -339,4 +364,279 @@ func GenerateEncryptionKey() ([]byte, error) {
 		0x8c, 0x9d, 0xae, 0xbf, 0xc0, 0xd1, 0xe2, 0xf3,
 	}
 	return key, nil
+}
+
+// OAuth credential methods
+
+// StoreOAuthCredentials stores encrypted OAuth credentials for a provider
+func (acs *APICredentialsService) StoreOAuthCredentials(ctx context.Context, provider string, creds *OAuthCredentials) error {
+	encryptedAccessToken, err := acs.encrypt(creds.AccessToken)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt access token: %w", err)
+	}
+
+	encryptedRefreshToken, err := acs.encrypt(creds.RefreshToken)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt refresh token: %w", err)
+	}
+
+	encryptedIDToken, err := acs.encrypt(creds.IDToken)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt ID token: %w", err)
+	}
+
+	encryptedAPIKey, err := acs.encrypt(creds.APIKey)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt API key: %w", err)
+	}
+
+	_, err = acs.queries.UpsertOAuthCredential(ctx, db.UpsertOAuthCredentialParams{
+		Provider:     provider,
+		AccessToken:  sql.NullString{String: encryptedAccessToken, Valid: encryptedAccessToken != ""},
+		RefreshToken: sql.NullString{String: encryptedRefreshToken, Valid: encryptedRefreshToken != ""},
+		IDToken:      sql.NullString{String: encryptedIDToken, Valid: encryptedIDToken != ""},
+		ApiKey:       sql.NullString{String: encryptedAPIKey, Valid: encryptedAPIKey != ""},
+		AccountID:    sql.NullString{String: creds.AccountID, Valid: creds.AccountID != ""},
+		ClientID:     creds.ClientID,
+		ExpiresAt:    sql.NullInt64{Int64: creds.ExpiresAt, Valid: creds.ExpiresAt != 0},
+		LastRefresh:  sql.NullString{String: creds.LastRefresh, Valid: creds.LastRefresh != ""},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store OAuth credential: %w", err)
+	}
+
+	// Update the cache with the new credentials
+	acs.oauthCache.Store(provider, creds)
+
+	return nil
+}
+
+// GetOAuthCredentials retrieves and decrypts OAuth credentials for a provider
+func (acs *APICredentialsService) GetOAuthCredentials(ctx context.Context, provider string) (*OAuthCredentials, error) {
+	// Check the cache first
+	if cachedValue, found := acs.oauthCache.Load(provider); found {
+		return cachedValue.(*OAuthCredentials), nil
+	}
+
+	// OAuth credentials not in cache, retrieving from database
+	credential, err := acs.queries.GetOAuthCredential(ctx, provider)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// No OAuth credentials found in database
+			return nil, nil // No credential found
+		}
+		return nil, fmt.Errorf("failed to get OAuth credential: %w", err)
+	}
+
+	// OAuth credentials found in database, attempting decryption
+	accessToken, err := acs.decrypt(credential.AccessToken.String)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt access token: %w", err)
+	}
+
+	refreshToken, err := acs.decrypt(credential.RefreshToken.String)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt refresh token: %w", err)
+	}
+
+	idToken, err := acs.decrypt(credential.IDToken.String)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt ID token: %w", err)
+	}
+
+	apiKey, err := acs.decrypt(credential.ApiKey.String)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt API key: %w", err)
+	}
+
+	creds := &OAuthCredentials{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		IDToken:      idToken,
+		APIKey:       apiKey,
+		AccountID:    credential.AccountID.String,
+		ExpiresAt:    credential.ExpiresAt.Int64,
+		ClientID:     credential.ClientID,
+		Provider:     provider,
+		LastRefresh:  credential.LastRefresh.String,
+	}
+
+	// Store in cache
+	acs.oauthCache.Store(provider, creds)
+	return creds, nil
+}
+
+// HasOAuthCredentials checks if a provider has stored OAuth credentials
+func (acs *APICredentialsService) HasOAuthCredentials(ctx context.Context, provider string) (bool, error) {
+	// Check the cache first
+	if _, found := acs.oauthCache.Load(provider); found {
+		return true, nil
+	}
+
+	// Not in cache, check the database
+	count, err := acs.queries.HasOAuthCredential(ctx, provider)
+	if err != nil {
+		return false, fmt.Errorf("failed to check OAuth credential: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+// DeleteOAuthCredentials removes the OAuth credentials for a provider
+func (acs *APICredentialsService) DeleteOAuthCredentials(ctx context.Context, provider string) error {
+	err := acs.queries.DeleteOAuthCredential(ctx, provider)
+	if err != nil {
+		return fmt.Errorf("failed to delete OAuth credential: %w", err)
+	}
+
+	// Remove from cache
+	acs.oauthCache.Delete(provider)
+
+	return nil
+}
+
+// ListOAuthCredentials returns a list of providers that have stored OAuth credentials (without the actual tokens)
+func (acs *APICredentialsService) ListOAuthCredentials(ctx context.Context) ([]string, error) {
+	credentials, err := acs.queries.ListOAuthCredentials(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OAuth credentials: %w", err)
+	}
+
+	var providers []string
+	for _, cred := range credentials {
+		if cred.AccessToken.Valid && cred.AccessToken.String != "" {
+			providers = append(providers, cred.Provider)
+		}
+	}
+
+	return providers, nil
+}
+
+// DeleteAllOAuthCredentials removes all stored OAuth credentials
+func (acs *APICredentialsService) DeleteAllOAuthCredentials(ctx context.Context) error {
+	err := acs.queries.DeleteAllOAuthCredentials(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to delete all OAuth credentials: %w", err)
+	}
+
+	// Clear the OAuth cache
+	acs.oauthCache = sync.Map{}
+
+	return nil
+}
+
+// PreloadOAuthCredentials loads all OAuth credentials into the cache to avoid database hits
+func (acs *APICredentialsService) PreloadOAuthCredentials(ctx context.Context) {
+	// List all OAuth credentials from the database
+	credentials, err := acs.queries.ListOAuthCredentials(ctx)
+	if err != nil {
+		logging.Error("Failed to preload OAuth credentials", "error", err)
+		return
+	}
+
+	count := 0
+	for _, cred := range credentials {
+		if !cred.AccessToken.Valid || cred.AccessToken.String == "" {
+			continue
+		}
+
+		// Decrypt credentials
+		accessToken, err := acs.decrypt(cred.AccessToken.String)
+		if err != nil {
+			logging.Error("Failed to decrypt access token during preload", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		refreshToken, err := acs.decrypt(cred.RefreshToken.String)
+		if err != nil {
+			logging.Error("Failed to decrypt refresh token during preload", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		idToken, err := acs.decrypt(cred.IDToken.String)
+		if err != nil {
+			logging.Error("Failed to decrypt ID token during preload", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		apiKey, err := acs.decrypt(cred.ApiKey.String)
+		if err != nil {
+			logging.Error("Failed to decrypt API key during preload", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		oauthCreds := &OAuthCredentials{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			IDToken:      idToken,
+			APIKey:       apiKey,
+			AccountID:    cred.AccountID.String,
+			ExpiresAt:    cred.ExpiresAt.Int64,
+			ClientID:     cred.ClientID,
+			Provider:     cred.Provider,
+			LastRefresh:  cred.LastRefresh.String,
+		}
+
+		// Store in cache
+		acs.oauthCache.Store(cred.Provider, oauthCreds)
+		count++
+	}
+
+	logging.Debug("Preloaded OAuth credentials", "count", count)
+}
+
+// GetExpiredOAuthCredentials returns OAuth credentials that are expired or will expire soon
+func (acs *APICredentialsService) GetExpiredOAuthCredentials(ctx context.Context) ([]*OAuthCredentials, error) {
+	credentials, err := acs.queries.ListExpiredOAuthCredentials(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list expired OAuth credentials: %w", err)
+	}
+
+	var expiredCreds []*OAuthCredentials
+	for _, cred := range credentials {
+		if !cred.AccessToken.Valid || cred.AccessToken.String == "" {
+			continue
+		}
+
+		// Decrypt credentials
+		accessToken, err := acs.decrypt(cred.AccessToken.String)
+		if err != nil {
+			logging.Error("Failed to decrypt access token for expired credential", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		refreshToken, err := acs.decrypt(cred.RefreshToken.String)
+		if err != nil {
+			logging.Error("Failed to decrypt refresh token for expired credential", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		idToken, err := acs.decrypt(cred.IDToken.String)
+		if err != nil {
+			logging.Error("Failed to decrypt ID token for expired credential", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		apiKey, err := acs.decrypt(cred.ApiKey.String)
+		if err != nil {
+			logging.Error("Failed to decrypt API key for expired credential", "provider", cred.Provider, "error", err)
+			continue
+		}
+
+		oauthCreds := &OAuthCredentials{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			IDToken:      idToken,
+			APIKey:       apiKey,
+			AccountID:    cred.AccountID.String,
+			ExpiresAt:    cred.ExpiresAt.Int64,
+			ClientID:     cred.ClientID,
+			Provider:     cred.Provider,
+			LastRefresh:  cred.LastRefresh.String,
+		}
+
+		expiredCreds = append(expiredCreds, oauthCreds)
+	}
+
+	return expiredCreds, nil
 }
