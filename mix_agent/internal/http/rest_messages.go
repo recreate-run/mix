@@ -161,9 +161,9 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// If not authenticated, show a clear error message
+	// If not authenticated, show a provider-specific error message
 	if !authenticated {
-		helpfulMsg := "⚠️ Authentication required. Please go to settings and authenticate"
+		helpfulMsg := getAuthenticationErrorMessage(ctx)
 
 		result := MessageData{
 			ID:                "system-auth-prompt",

@@ -15,12 +15,13 @@ make frontend-typecheck     # Always use this for frontend typechecking
 - Do NOT stop the dev server. It stays running, auto-compiles, and auto-reloads via the Go `air` package, logging to `dev.log`.
 - Run `make` from the project's top-level directory. If it fails, you probably weren't there.
 - You MUST check the tail-log after finishing each task
+- ALWAYS update mix_agent/internal/http/rest_docs.go when modifying any backend API endpoints, request/response schemas, or validation rules
 - If you encounter any issues, run `make test-all` to validate the environment and check for common problems
 - For detailed troubleshooting steps, refer to the TROUBLESHOOTING.md file
 
 ## Architecture
 
-1. Backend - Go
+1. Backend - Golang
 2. Frontend - Tauri 2.0 app with react
 
 ## Tech Stack
@@ -34,8 +35,3 @@ make frontend-typecheck     # Always use this for frontend typechecking
 2. NEVER mock LLM API calls
 3. DO NOT preserve backward compatibility unless the user specifically requests it
 4. Do not handle errors (eg. API failures) gracefully, raise exceptions immediately.
-
-## Notes
-
-This project uses `.mix/commands/` for custom slash commands (independent from Claude Code's `.claude/commands/` system).
-Users can add `.md` files to `.mix/commands/` or `~/.mix/commands/` to create custom commands.

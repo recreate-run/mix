@@ -703,7 +703,6 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, 
 			// Get preferred provider
 			if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
 				provider = pref
-				logging.Info("Using preferred provider from user preferences", "provider", provider)
 			}
 		}
 
@@ -732,25 +731,18 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, 
 
 	// Check for OAuth credentials for supported providers
 	if provider == models.ProviderAnthropic || provider == models.ProviderOpenAI {
-		// Try to initialize credential storage
-		storage, err := NewCredentialStorage()
-		if err != nil {
-			logging.Warn("Failed to initialize credential storage", "error", err)
-			return false, "none", nil
-		}
-
 		// Different handling based on provider
 		switch provider {
 		case models.ProviderAnthropic:
-			// Check for valid Anthropic OAuth credentials
-			creds, err := storage.GetOAuthCredentials("anthropic")
+			// Check for valid Anthropic OAuth credentials in database
+			creds, err := credentialsService.GetOAuthCredentials(ctx, "anthropic")
 			if err == nil && creds != nil && !creds.IsTokenExpired() {
 				return true, "oauth", nil
 			}
 
 		case models.ProviderOpenAI:
-			// Check for valid OpenAI OAuth credentials
-			creds, err := storage.GetOpenAICredentials("openai")
+			// Check for valid OpenAI OAuth credentials in database
+			creds, err := credentialsService.GetOAuthCredentials(ctx, "openai")
 			if err == nil && creds != nil && !creds.IsTokenExpired() {
 				return true, "oauth", nil
 			}

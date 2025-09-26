@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"mix/internal/config"
+	"mix/internal/credentials"
 	"mix/internal/llm/models"
 	"mix/internal/llm/interfaces"
 	"mix/internal/logging"
@@ -48,34 +49,43 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 		o(&anthropicOpts)
 	}
 
-	// Initialize credential storage
-	credStorage, err := NewCredentialStorage()
-	if err != nil {
-		logging.Warn("Failed to initialize OAuth credential storage: %v", err)
+	// Get credentials service
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		logging.Warn("Credentials service unavailable")
 	}
 
-	// Check for OAuth credentials first (highest priority)
-	var oauthCreds *OAuthCredentials
-	if credStorage != nil {
-		if creds, err := credStorage.GetOAuthCredentials("anthropic"); err == nil && creds != nil {
+	// Check for OAuth credentials first (highest priority) 
+	var oauthCreds *OAuthCredentials // Use old format for internal client compatibility
+	if credentialsService != nil {
+		ctx := context.Background() // Create context for database operations
+		if creds, err := credentialsService.GetOAuthCredentials(ctx, "anthropic"); err == nil && creds != nil {
+			// Convert from database format to client format
+			oauthCreds = &OAuthCredentials{
+				AccessToken:  creds.AccessToken,
+				RefreshToken: creds.RefreshToken,
+				ExpiresAt:    creds.ExpiresAt,
+				ClientID:     creds.ClientID,
+				Provider:     creds.Provider,
+			}
+
 			// Check if token needs refresh
-			if creds.IsTokenExpired() && creds.RefreshToken != "" {
+			if oauthCreds.IsTokenExpired() && oauthCreds.RefreshToken != "" {
 				logging.Info("OAuth token expired, attempting refresh...")
-				if refreshedCreds, err := RefreshAccessToken(creds); err == nil {
-					// Store refreshed credentials
-					credStorage.StoreOAuthCredentials(
-						"anthropic",
-						refreshedCreds.AccessToken,
-						refreshedCreds.RefreshToken,
-						refreshedCreds.ExpiresAt,
-						refreshedCreds.ClientID,
-					)
+				if refreshedCreds, err := RefreshAccessToken(oauthCreds); err == nil {
+					// Store refreshed credentials in database
+					newCreds := &credentials.OAuthCredentials{
+						AccessToken:  refreshedCreds.AccessToken,
+						RefreshToken: refreshedCreds.RefreshToken,
+						ExpiresAt:    refreshedCreds.ExpiresAt,
+						ClientID:     refreshedCreds.ClientID,
+						Provider:     "anthropic",
+					}
+					credentialsService.StoreOAuthCredentials(ctx, "anthropic", newCreds)
 					oauthCreds = refreshedCreds
 				} else {
 					logging.Warn("Failed to refresh OAuth token: %v", err)
 				}
-			} else if !creds.IsTokenExpired() {
-				oauthCreds = creds
 			}
 		}
 	}
@@ -124,7 +134,7 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	anthropicClient := &anthropicClient{
 		providerOptions:   opts,
 		options:           anthropicOpts,
-		credentialStorage: credStorage,
+		credentialStorage: nil, // No longer using file-based storage
 	}
 
 	// Add beta headers if needed

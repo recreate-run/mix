@@ -1,20 +1,12 @@
 {
   "title": "Mix Playground",
   "description": "Interactive desktop application for Mix workflows",
-    "icon": "BookOpen",
+  "icon": "BookOpen",
   "root": true,
   "pages": [
     "index",
-    "quickstart", 
-    "authentication",
-    "model-selection",
-    "interface-overview",
-    "sessions",
+    "quickstart",
     "slash-commands",
-    "settings",
-    "file-attachments",
-    "streaming",
-    "mcp-integration",
-    "troubleshooting"
+        "settings"
   ]
 }

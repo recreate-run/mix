@@ -495,7 +495,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 func (a *agent) finishMessage(ctx context.Context, msg *message.Message, finishReson message.FinishReason) {
 	msg.AddFinish(finishReson)
-	_ = a.messages.Update(ctx, *msg)
+	_ = a.messages.Update(context.Background(), *msg)
 }
 
 func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event interfaces.ProviderEvent) error {
@@ -520,7 +520,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	case interfaces.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
 		// Publish content delta event for real-time streaming
@@ -533,7 +533,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
 		// Publish tool start event for real-time streaming
@@ -545,7 +545,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	// TODO: see how to handle this
 	// case interfaces.EventToolUseDelta:
 	// 	tm := time.Unix(assistantMsg.UpdatedAt, 0)
@@ -566,7 +566,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if err != nil {
 			return err
 		}
-		return a.messages.Update(ctx, *assistantMsg)
+		return a.messages.Update(context.Background(), *assistantMsg)
 	case interfaces.EventError:
 		if errors.Is(event.Error, context.Canceled) {
 			// Event processing canceled for session
@@ -586,7 +586,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			assistantMsg.AddRedactedThinkingBlock(redactedBlock.Data)
 		}
 
-		if err := a.messages.Update(ctx, *assistantMsg); err != nil {
+		if err := a.messages.Update(context.Background(), *assistantMsg); err != nil {
 			return fmt.Errorf("failed to update message: %w", err)
 		}
 		return a.TrackUsage(ctx, sessionID, a.provider.Model(), event.Response.Usage)
@@ -653,6 +653,33 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 	}
 
 	a.provider = provider
+
+	// Update title and summary providers if this is the main agent
+	// Since title and summary providers always use AgentMain config, we need to update them
+	// whenever AgentMain model changes
+	if agentName == config.AgentMain {
+		// Update title provider if it exists
+		if a.titleProvider != nil {
+			titleProvider, err := createAgentProvider(config.AgentMain)
+			if err != nil {
+				logging.Warn("Failed to update title provider", "error", err)
+			} else {
+				a.titleProvider = titleProvider
+				logging.Info("Updated title provider to use new model", "model", modelID)
+			}
+		}
+
+		// Update summary provider if it exists
+		if a.summarizeProvider != nil {
+			summarizeProvider, err := createAgentProvider(config.AgentMain)
+			if err != nil {
+				logging.Warn("Failed to update summary provider", "error", err)
+			} else {
+				a.summarizeProvider = summarizeProvider
+				logging.Info("Updated summary provider to use new model", "model", modelID)
+			}
+		}
+	}
 
 	return a.provider.Model(), nil
 }
@@ -1040,8 +1067,14 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		sessionVars["workdir"] = session.GetSessionStoragePath(sess.ID, storageConfig)
 	}
 
-	// Get system prompt with session variables
-	systemPrompt, err := prompt.GetAgentPromptWithVars(ctx, agentName, model.Provider, sessionVars)
+	// Get system prompt with session variables and custom prompt support
+	customPrompt := ""
+	promptMode := "default"
+	if sess != nil {
+		customPrompt = sess.CustomSystemPrompt
+		promptMode = sess.PromptMode
+	}
+	systemPrompt, err := prompt.GetAgentPromptWithVars(ctx, agentName, model.Provider, sessionVars, customPrompt, promptMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load system prompt: %w", err)
 	}

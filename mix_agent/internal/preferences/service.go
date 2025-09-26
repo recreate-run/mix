@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 
 	"mix/internal/db"
 	"mix/internal/llm/models"
+	"mix/internal/logging"
 )
 
 // Agent types to avoid import cycle
@@ -26,20 +28,34 @@ type Agent struct {
 // UserPreferencesService handles user preferences from database
 type UserPreferencesService struct {
 	queries *db.Queries
+	preferencesCache sync.Map // Caches user preferences to avoid database hits
 }
 
 // NewUserPreferencesService creates a new user preferences service
 func NewUserPreferencesService(database *sql.DB) *UserPreferencesService {
-	return &UserPreferencesService{
+	service := &UserPreferencesService{
 		queries: db.New(database),
+		preferencesCache: sync.Map{},
 	}
+
+	// Preload preferences in the background
+	go service.PreloadPreferences(context.Background())
+
+	return service
 }
 
 // GetUserPreferences gets user preferences from database without creating them
 func (ups *UserPreferencesService) GetUserPreferences(ctx context.Context) (*db.UserPreference, error) {
-	// Try to get existing preferences
+	// Check cache first for fast access
+	if cachedValue, found := ups.preferencesCache.Load("default_user"); found {
+		return cachedValue.(*db.UserPreference), nil
+	}
+
+	// Try to get existing preferences from database
 	prefs, err := ups.queries.GetUserPreferences(ctx)
 	if err == nil {
+		// Store in cache for future fast access
+		ups.preferencesCache.Store("default_user", &prefs)
 		return &prefs, nil
 	}
 	
@@ -64,6 +80,9 @@ func (ups *UserPreferencesService) CreateDefaultUserPreferences(ctx context.Cont
 	if err != nil {
 		return nil, fmt.Errorf("failed to create default user preferences: %w", err)
 	}
+	
+	// Store in cache for future fast access
+	ups.preferencesCache.Store("default_user", &createdPrefs)
 	return &createdPrefs, nil
 }
 
@@ -96,6 +115,9 @@ func (ups *UserPreferencesService) UpdateMainAgentPreferences(ctx context.Contex
 		return fmt.Errorf("failed to update main agent preferences: %w", err)
 	}
 	
+	// Invalidate cache to force refresh on next read
+	ups.preferencesCache.Delete("default_user")
+	
 	return nil
 }
 
@@ -112,6 +134,9 @@ func (ups *UserPreferencesService) UpdateSubAgentPreferences(ctx context.Context
 		return fmt.Errorf("failed to update sub agent preferences: %w", err)
 	}
 	
+	// Invalidate cache to force refresh on next read
+	ups.preferencesCache.Delete("default_user")
+	
 	return nil
 }
 
@@ -122,17 +147,20 @@ func (ups *UserPreferencesService) UpdatePreferredProvider(ctx context.Context, 
 		return fmt.Errorf("failed to update preferred provider: %w", err)
 	}
 	
+	// Invalidate cache to force refresh on next read
+	ups.preferencesCache.Delete("default_user")
+	
 	return nil
 }
 
 // GetAgentConfig converts database preferences to Agent config format
 func (ups *UserPreferencesService) GetAgentConfig(ctx context.Context, agentName AgentName) (Agent, error) {
 	// Try to get existing preferences
-	prefs, err := ups.GetUserPreferences(ctx)
+	prefs, err := ups.GetUserPreferences(ctx) // This now checks cache first
 	if err != nil {
 		// If preferences don't exist, create default ones
 		if err == sql.ErrNoRows {
-			prefs, err = ups.CreateDefaultUserPreferences(ctx)
+			prefs, err = ups.CreateDefaultUserPreferences(ctx) // This will cache the result
 			if err != nil {
 				return Agent{}, fmt.Errorf("failed to create default user preferences: %w", err)
 			}
@@ -162,11 +190,11 @@ func (ups *UserPreferencesService) GetAgentConfig(ctx context.Context, agentName
 // GetPreferredProvider gets the user's preferred provider from database
 func (ups *UserPreferencesService) GetPreferredProvider(ctx context.Context) (models.ModelProvider, error) {
 	// Try to get existing preferences
-	prefs, err := ups.GetUserPreferences(ctx)
+	prefs, err := ups.GetUserPreferences(ctx) // This now checks cache first
 	if err != nil {
 		// If preferences don't exist, create default ones
 		if err == sql.ErrNoRows {
-			prefs, err = ups.CreateDefaultUserPreferences(ctx)
+			prefs, err = ups.CreateDefaultUserPreferences(ctx) // This will cache the result
 			if err != nil {
 				return "", fmt.Errorf("failed to create default user preferences: %w", err)
 			}
@@ -182,56 +210,30 @@ func (ups *UserPreferencesService) GetPreferredProvider(ctx context.Context) (mo
 	return models.ModelProvider(prefs.PreferredProvider.String), nil
 }
 
-// MigrateFromConfig migrates agent configuration from .mix.json to database
-func (ups *UserPreferencesService) MigrateFromConfig(ctx context.Context, agents map[AgentName]Agent, preferredProvider models.ModelProvider) error {
-	// Check if preferences already exist
-	_, err := ups.queries.GetUserPreferences(ctx)
-	if err == nil {
-		// User preferences already exist in database, skipping migration
-		return nil
-	}
+// PreloadPreferences loads all preferences into the cache to avoid database hits
+func (ups *UserPreferencesService) PreloadPreferences(ctx context.Context) {
+	logging.Debug("Preloading user preferences into cache")
 	
-	if err != sql.ErrNoRows {
-		return fmt.Errorf("failed to check existing preferences: %w", err)
-	}
-	
-	// Get agent configurations
-	mainAgent, hasMain := agents[AgentMain]
-	subAgent, hasSub := agents[AgentSub]
-	
-	// Use defaults if not present
-	if !hasMain {
-		mainAgent = Agent{
-			Model:           "claude-4-sonnet",
-			MaxTokens:       4096,
-			ReasoningEffort: "",
-		}
-	}
-	
-	if !hasSub {
-		subAgent = Agent{
-			Model:           "claude-4-sonnet", 
-			MaxTokens:       2048,
-			ReasoningEffort: "",
-		}
-	}
-	
-	// Create preferences from config
-	params := db.CreateUserPreferencesParams{
-		PreferredProvider:       sql.NullString{String: string(preferredProvider), Valid: preferredProvider != ""},
-		MainAgentModel:          sql.NullString{String: string(mainAgent.Model), Valid: true},
-		MainAgentMaxTokens:      sql.NullInt64{Int64: mainAgent.MaxTokens, Valid: true},
-		MainAgentReasoningEffort: sql.NullString{String: mainAgent.ReasoningEffort, Valid: mainAgent.ReasoningEffort != ""},
-		SubAgentModel:           sql.NullString{String: string(subAgent.Model), Valid: true},
-		SubAgentMaxTokens:       sql.NullInt64{Int64: subAgent.MaxTokens, Valid: true},
-		SubAgentReasoningEffort: sql.NullString{String: subAgent.ReasoningEffort, Valid: subAgent.ReasoningEffort != ""},
-	}
-	
-	_, err = ups.queries.CreateUserPreferences(ctx, params)
+	// Try to get existing preferences
+	prefs, err := ups.queries.GetUserPreferences(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to migrate preferences to database: %w", err)
+		if err == sql.ErrNoRows {
+			logging.Debug("No preferences found in database during preload")
+			// Don't create default preferences here, let them be created on first access
+			return
+		}
+		logging.Error("Failed to preload user preferences", "error", err)
+		return
 	}
 	
-	// Successfully migrated user preferences from .mix.json to database
-	return nil
+	// Store in cache
+	ups.preferencesCache.Store("default_user", &prefs)
+	logging.Debug("User preferences successfully preloaded into cache")
+}
+
+// ClearCache removes all entries from the preferences cache
+func (ups *UserPreferencesService) ClearCache() {
+	// Create a new empty map to replace the existing one
+	ups.preferencesCache = sync.Map{}
+	logging.Debug("User preferences cache cleared")
 }

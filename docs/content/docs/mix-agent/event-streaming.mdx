@@ -12,7 +12,7 @@ Mix implements a sophisticated **4-layer streaming architecture** that provides 
 graph LR
     A[LLM Provider] --> B[Agent Processing]
     B --> C[Pub/Sub Broker]  
-    C --> D[SSE Frontend]
+    C --> D[SSE Client]
 "
 />
 
@@ -50,7 +50,7 @@ Provider events enhanced with session context and streaming state:
 - **Buffered channels**: Prevents blocking on slow clients
 - **Subscription management**: Session-specific filtering
 
-### 4. SSE Frontend Delivery
+### 4. SSE Client Delivery
 **Location**: `go_backend/internal/http/sse_events.go`
 
 User-facing events delivered to web/desktop clients:
@@ -72,13 +72,13 @@ sequenceDiagram
     participant Provider
     participant Agent
     participant PubSub
-    participant Frontend
+    participant Client
     
     Provider->>Agent: EventThinkingDelta
     Agent->>Agent: Process + Add Session Context
     Agent->>PubSub: AgentEventTypeThinking
-    PubSub->>Frontend: SSE: thinking
-    Frontend->>Frontend: Display AI reasoning
+    PubSub->>Client: SSE: thinking
+    Client->>Client: Display AI reasoning
 "
 />
 
@@ -94,12 +94,12 @@ sequenceDiagram
     participant Agent
     participant Tool
     participant PubSub
-    participant Frontend
+    participant Client
     
     Note over Provider,Agent: Provider streams complete response first
     Provider->>Agent: EventToolUseStart
     Agent->>PubSub: AgentEventTypeResponse (tool declared)
-    PubSub->>Frontend: SSE: tool (declared)
+    PubSub->>Client: SSE: tool (declared)
     
     Provider->>Agent: EventToolUseStop  
     Provider->>Agent: EventComplete
@@ -108,17 +108,17 @@ sequenceDiagram
     Agent->>Agent: Check for tool calls
     
     Agent->>PubSub: AgentEventTypeToolExecutionStart
-    PubSub->>Frontend: SSE: tool_execution_start
+    PubSub->>Client: SSE: tool_execution_start
     
     Agent->>Tool: Execute Tool (with session context)
     Tool->>Tool: Run with permissions & working directory
     Tool->>Agent: ToolResult
     
     Agent->>PubSub: AgentEventTypeToolExecutionComplete
-    PubSub->>Frontend: SSE: tool_execution_complete
+    PubSub->>Client: SSE: tool_execution_complete
     
     Agent->>PubSub: AgentEventTypeResponse (final results)
-    PubSub->>Frontend: SSE: tool (results)
+    PubSub->>Client: SSE: tool (results)
     
     Note over Agent: Tool results feed into next conversation turn
 "
@@ -136,7 +136,7 @@ sequenceDiagram
     participant Agent
     participant Tool
     participant PubSub
-    participant Frontend
+    participant Client
     
     Agent->>Tool: Execute Tool Call
     Tool->>Tool: Attempt Operation (file edit, bash command)
@@ -145,13 +145,13 @@ sequenceDiagram
     alt Permission Granted
         Tool->>Agent: ToolResult (success)
         Agent->>PubSub: AgentEventTypeResponse (completed)
-        PubSub->>Frontend: SSE: tool (success)
+        PubSub->>Client: SSE: tool (success)
     else Permission Denied
         Tool->>Agent: permission.ErrorPermissionDenied
         Agent->>Agent: Create error response
         Agent->>PubSub: AgentEventTypeResponse (denied)
-        PubSub->>Frontend: SSE: tool (permission denied)
-        Note over Frontend: User sees security boundary message
+        PubSub->>Client: SSE: tool (permission denied)
+        Note over Client: User sees security boundary message
     end
 "
 />
@@ -160,38 +160,3 @@ sequenceDiagram
 **Purpose**: Security boundaries with error handling  
 **Key Point**: Permission checking is REACTIVE - tools fail and return errors, no interactive dialogs
 
-## Session Management
-
-### Session-Scoped Providers
-Each session maintains its own provider instance with:
-- **Session-specific system prompts**
-- **Working directory context**  
-- **Cached provider reuse** for performance
-
-```go
-// go_backend/internal/llm/agent/agent.go:1135
-sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &session)
-```
-
-### Context Propagation
-Every tool execution includes:
-- `SessionIDContextKey` - Message correlation
-- `SessionStorageContextKey` - Session storage directory boundaries
-- `MessageIDContextKey` - Response tracking
-
-## Performance Features
-
-### Buffered Streaming
-```go
-events := make(chan AgentEvent, 10) // Smooth real-time streaming
-```
-
-### Concurrent Processing
-- **Main processing goroutine**: Tool execution and conversation management
-- **Subscription forwarder**: Intermediate event streaming  
-- **Background tasks**: Title generation, cleanup
-
-### Error Recovery
-- **Context cancellation**: Clean stream termination
-- **Permission denial**: Graceful security boundary handling
-- **Provider failures**: Automatic retry and fallback

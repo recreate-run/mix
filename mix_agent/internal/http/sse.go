@@ -306,9 +306,9 @@ func handleRegularMessage(ctx context.Context, app *app.App, sseWriter *SSEWrite
 	}
 	
 	
-	// If not authenticated, show a clear error message
+	// If not authenticated, show a provider-specific error message
 	if !authenticated {
-		helpfulMsg := "⚠️ Authentication required. Please go to settings and authenticate"
+		helpfulMsg := getAuthenticationErrorMessage(ctx)
 		
 		if err := sseWriter.WriteEvent("error", ErrorEvent{
 			Error: helpfulMsg,

@@ -9,6 +9,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/config"
+	"mix/internal/credentials"
 	"mix/internal/llm/models"
 	llmprovider "mix/internal/llm/provider"
 	"mix/internal/logging"
@@ -176,13 +177,12 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 		h.app.Analytics.TrackProviderAuth(ctx, provider, true, "delete_credentials")
 	}
 
-	// Also clear OAuth credentials if this is Anthropic
-	if provider == "anthropic" {
-		storage, err := llmprovider.NewCredentialStorage()
-		if err == nil {
-			if err := storage.ClearOAuthCredentials("anthropic"); err != nil {
-				logging.Warn("Failed to clear OAuth credentials", "error", err, "provider", provider)
-			}
+	// Also clear OAuth credentials if this provider supports OAuth
+	if provider == "anthropic" || provider == "openai" {
+		if err := credentialsService.DeleteOAuthCredentials(ctx, provider); err != nil {
+			logging.Warn("Failed to delete OAuth credentials", "error", err, "provider", provider)
+		} else {
+			logging.Info("OAuth credentials deleted successfully", "provider", provider)
 		}
 	}
 
@@ -404,7 +404,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	authCode := fmt.Sprintf("%s#%s", req.Code, req.State)
 
 	// Exchange code for tokens
-	credentials, err := oauthFlow.ExchangeCodeForTokens(authCode)
+	oauthTokens, err := oauthFlow.ExchangeCodeForTokens(authCode)
 	if err != nil {
 		logging.Error("Failed to exchange authorization code for tokens", "error", err)
 		// Track failed token exchange
@@ -415,26 +415,28 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Initialize credential storage
-	storage, err := llmprovider.NewCredentialStorage()
-	if err != nil {
-		logging.Error("Failed to initialize credential storage", "error", err)
+	// Get credentials service
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		logging.Error("Failed to get credentials service")
 		// Track failure due to storage initialization
 		if h.app.Analytics != nil {
 			h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
 		}
-		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to initialize credential storage", "STORAGE_ERROR")
+		WriteErrorResponse(w, http.StatusInternalServerError, "Credentials service unavailable", "STORAGE_ERROR")
 		return
 	}
 
-	// Store the credentials
-	err = storage.StoreOAuthCredentials(
-		"anthropic",
-		credentials.AccessToken,
-		credentials.RefreshToken,
-		credentials.ExpiresAt,
-		credentials.ClientID,
-	)
+	// Store the OAuth credentials in database  
+	oauthCreds := &credentials.OAuthCredentials{
+		AccessToken:  oauthTokens.AccessToken,
+		RefreshToken: oauthTokens.RefreshToken,
+		ExpiresAt:    oauthTokens.ExpiresAt,
+		ClientID:     oauthTokens.ClientID,
+		Provider:     "anthropic",
+	}
+	
+	err = credentialsService.StoreOAuthCredentials(r.Context(), "anthropic", oauthCreds)
 	if err != nil {
 		logging.Error("Failed to store OAuth credentials", "error", err)
 		// Track failure due to storage error
@@ -460,7 +462,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		"status":     "success",
 		"provider":   req.Provider,
 		"message":    "OAuth authentication successful",
-		"expires_in": int64(credentials.ExpiresAt - time.Now().Unix()),
+		"expires_in": int64(oauthTokens.ExpiresAt - time.Now().Unix()),
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -481,7 +483,6 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 	if userPrefs != nil {
 		if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
 			preferredProvider = pref
-			logging.Info("User preferred provider", "provider", preferredProvider)
 		}
 	}
 
@@ -543,15 +544,15 @@ func (h *AuthHandler) checkOAuthCredentials(provider string) bool {
 		return false
 	}
 
-	// Use the same credential storage system as the auth command
-	storage, err := llmprovider.NewCredentialStorage()
-	if err != nil {
-		logging.Warn("Failed to initialize credential storage", "error", err)
+	// Get credentials service
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		logging.Warn("Credentials service unavailable")
 		return false
 	}
 
-	// Check for Anthropic OAuth credentials
-	creds, err := storage.GetOAuthCredentials("anthropic")
+	// Check for OAuth credentials in database
+	creds, err := credentialsService.GetOAuthCredentials(context.Background(), provider)
 	if err != nil {
 		return false
 	}

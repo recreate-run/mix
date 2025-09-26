@@ -3,17 +3,16 @@ package prompt
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
+	"time"
 
 	"mix/internal/config"
 	"mix/internal/llm/models"
-	"mix/internal/llm/tools"
-	"mix/internal/logging"
 )
 
-func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string) (string, error) {
+func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string, customPrompt string, mode string) (string, error) {
 	var basePrompt string
 	var err error
 
@@ -30,111 +29,83 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 			return "", fmt.Errorf("failed to load system prompt for main agent: %w", err)
 		}
 
-		if agentName == config.AgentMain {
-			// Add context from project-specific instruction files if they exist
-			contextContent, err := getContextFromPaths(ctx)
-			if err != nil {
-				logging.Error("Failed to load context files", "error", err)
-				return fmt.Sprintf("%s\n\n# Context Loading Error\nError loading project context files: %s", basePrompt, err.Error()), nil
-			}
-			logging.Debug("Context content", "Context", contextContent)
-			if contextContent != "" {
-				return fmt.Sprintf("%s\n\n# Project-Specific Context\n Make sure to follow the instructions in the context below\n%s", basePrompt, contextContent), nil
-			}
-		}
+		// Main agent uses base prompt without context files
+		// For code exploration, use subagents via the Task tool instead
 	}
 
-	return basePrompt, nil
+	// Separate base prompt content from system-controlled env section
+	baseContent, envSection := extractEnvSection(basePrompt)
+
+	// Handle custom system prompt customization on content only (not env)
+	var finalContent string
+	if customPrompt != "" {
+		switch mode {
+		case "replace":
+			// Replace the entire base content with custom prompt
+			finalContent = applyVariableSubstitution(customPrompt, sessionVars)
+		case "append":
+			// Append custom prompt to base content
+			customWithVars := applyVariableSubstitution(customPrompt, sessionVars)
+			finalContent = baseContent + "\n\n" + customWithVars
+		default:
+			// Default mode, use base content as-is (customPrompt ignored)
+			finalContent = baseContent
+		}
+	} else {
+		// No custom prompt, use base content
+		finalContent = baseContent
+	}
+
+	// Always append system-controlled env section at the end
+	finalPrompt := finalContent
+	if envSection != "" {
+		// Apply variable substitution to env section
+		envWithVars := applyVariableSubstitution(envSection, sessionVars)
+		finalPrompt = finalContent + "\n\n" + envWithVars
+	}
+
+	return finalPrompt, nil
 }
 
-func getContextFromPaths(ctx context.Context) (string, error) {
-	sessionStorageDir, ok := ctx.Value(tools.SessionStorageContextKey).(string)
-	if !ok {
-		return "", fmt.Errorf("no session storage directory found in context")
+// extractEnvSection separates the <env> section from the base prompt content
+// Returns (baseContent, envSection) where envSection includes the <env> tags
+func extractEnvSection(prompt string) (string, string) {
+	envRegex := regexp.MustCompile(`(?s)<env>.*?</env>`)
+	envMatch := envRegex.FindString(prompt)
+
+	if envMatch == "" {
+		// No env section found, return original prompt and empty env
+		return prompt, ""
 	}
 
-	cfg := config.Get()
-	contextPaths := cfg.ContextPaths
+	// Remove env section from base content
+	baseContent := envRegex.ReplaceAllString(prompt, "")
+	baseContent = strings.TrimSpace(baseContent)
 
-	return processContextPaths(sessionStorageDir, contextPaths)
+	return baseContent, envMatch
 }
 
-func processContextPaths(workDir string, paths []string) (string, error) {
-	processedFiles := make(map[string]bool)
-	results := make([]string, 0)
-	var foundCount, loadedCount int
+// applyVariableSubstitution applies variable substitution to custom prompts using the same logic as LoadPrompt
+func applyVariableSubstitution(content string, sessionVars map[string]string) string {
+	result := content
 
-	for _, path := range paths {
-		if strings.HasSuffix(path, "/") {
-			err := filepath.WalkDir(filepath.Join(workDir, path), func(filePath string, d os.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-				if !d.IsDir() {
-					lowerPath := strings.ToLower(filePath)
-					if processedFiles[lowerPath] {
-						return nil
-					}
-					processedFiles[lowerPath] = true
+	// Build variables starting with standard ones
+	allVars := make(map[string]string)
 
-					result, found, err := processFile(filePath)
-					if err != nil {
-						return err
-					}
-					if found {
-						foundCount++
-						if result != "" {
-							loadedCount++
-							results = append(results, result)
-						}
-					}
-				}
-				return nil
-			})
-			if err != nil {
-				return "", err
-			}
-		} else {
-			fullPath := filepath.Join(workDir, path)
-			lowerPath := strings.ToLower(fullPath)
-			if processedFiles[lowerPath] {
-				continue
-			}
-			processedFiles[lowerPath] = true
+	// Add platform and date (always available)
+	allVars["platform"] = runtime.GOOS
+	allVars["today_date"] = time.Now().Format("2006-01-02")
 
-			result, found, err := processFile(fullPath)
-			if err != nil {
-				return "", err
-			}
-			if found {
-				foundCount++
-				if result != "" {
-					loadedCount++
-					results = append(results, result)
-				}
-			}
-		}
+	// Merge with session vars (session vars override standard ones)
+	for k, v := range sessionVars {
+		allVars[k] = v
 	}
 
-	content := strings.Join(results, "\n")
-	return content, nil
-}
-
-func processFile(filePath string) (string, bool, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			logging.Info("Context file not found", "path", filePath)
-			return "", false, nil // Not found, not an error
-		}
-		logging.Error("Failed to read context file", "path", filePath, "error", err)
-		return "", false, fmt.Errorf("failed to read context file %s: %w", filePath, err)
+	// Replace $<name> placeholders with values
+	for key, value := range allVars {
+		placeholder := "$<" + key + ">"
+		result = strings.ReplaceAll(result, placeholder, value)
 	}
 
-	if len(content) == 0 {
-		logging.Info("Context file is empty", "path", filePath)
-		return "", true, nil // Found but empty
-	}
-
-	return "# From:" + filePath + "\n" + string(content), true, nil
+	return strings.TrimSpace(result)
 }
