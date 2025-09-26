@@ -62,27 +62,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 		t.Fatalf("Failed to create GSAP animations dir: %v", err)
 	}
 
-	// Create minimal test configuration
-	configContent := `{
-  "$schema": "./mix-schema.json",
-  "agents": {
-    "main": {
-      "model": "claude-4-sonnet",
-      "maxTokens": 4096
-    },
-    "sub": {
-      "model": "claude-4-sonnet",
-      "maxTokens": 2048
-    }
-  },
-  "mcpServers": {}
-}`
-	configPath := testConfigDir + "/.mix.json"
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
-		t.Fatalf("Failed to create test config: %v", err)
-	}
-
-	// Initialize configuration
+	// Initialize configuration (database-only, no config file needed)
 	if _, err := config.Load(testConfigDir, false, false); err != nil {
 		t.Fatalf("Failed to load test config: %v", err)
 	}
