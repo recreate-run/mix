@@ -322,7 +322,7 @@ func GetAPICredentials() *credentials.APICredentialsService {
 	return apiCredentialsService
 }
 
-// GetAgentFromDatabase returns agent configuration from database instead of .mix.json
+// GetAgentFromDatabase returns agent configuration from database 
 func GetAgentFromDatabase(ctx context.Context, agentName AgentName) (Agent, error) {
 	if userPreferencesService == nil {
 		return Agent{}, fmt.Errorf("user preferences service not initialized")

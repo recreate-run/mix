@@ -237,5 +237,3 @@ func (ups *UserPreferencesService) ClearCache() {
 	ups.preferencesCache = sync.Map{}
 	logging.Debug("User preferences cache cleared")
 }
-
-// MigrateFromConfig removed - migration from .mix.json no longer needed

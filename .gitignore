@@ -75,7 +75,7 @@ fumadocs-dev/
 
 
 **/*mix/
-.mix.json
+# .mix.json
 storage/
 
 planning/
