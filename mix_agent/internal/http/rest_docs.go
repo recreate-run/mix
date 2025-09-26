@@ -98,7 +98,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"post": map[string]interface{}{
 					"operationId":  "createSession",
 					"summary":     "Create a new session",
-					"description": "Create a new session with required title. Session automatically gets isolated storage directory.",
+					"description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.",
 					"tags":        []string{"Sessions"},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
@@ -108,11 +108,75 @@ func getOpenAPISpec() OpenAPISpec {
 								"type":        "string",
 								"description": "Title for the session",
 							},
+							"customSystemPrompt": map[string]interface{}{
+								"type":        "string",
+								"description": "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax.",
+								"maxLength":   102400,
+								"example":     "You are a helpful assistant specialized in $<domain>. Always be concise and accurate.",
+							},
+							"promptMode": map[string]interface{}{
+								"type":        "string",
+								"enum":        []string{"default", "append", "replace"},
+								"default":     "default",
+								"description": "Custom prompt handling mode:\n- 'default': Use base system prompt only (customSystemPrompt ignored)\n- 'append': Append customSystemPrompt to base system prompt (50KB limit)\n- 'replace': Replace base system prompt with customSystemPrompt (100KB limit)",
+								"example":     "append",
+							},
 						},
 					}),
 					"responses": map[string]interface{}{
 						"201": createSuccessResponse("object", getSessionDataSchema(), "Created session"),
-						"400": createErrorResponse("Invalid request data"),
+						"400": map[string]interface{}{
+							"description": "Invalid request data",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/ErrorResponse",
+									},
+									"examples": map[string]interface{}{
+										"missing_title": map[string]interface{}{
+											"summary": "Missing required title",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "title is required",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"invalid_prompt_mode": map[string]interface{}{
+											"summary": "Invalid prompt mode",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "promptMode must be 'default', 'append', or 'replace'",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"prompt_size_exceeded_replace": map[string]interface{}{
+											"summary": "Custom prompt size exceeds replace mode limit",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "Custom prompt size (150KB) exceeds replace mode limit of 100KB",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"prompt_size_exceeded_append": map[string]interface{}{
+											"summary": "Custom prompt size exceeds append mode limit",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "Custom prompt size (75KB) exceeds append mode limit of 50KB",
+													"type":    "validation_error",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},

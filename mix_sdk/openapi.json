@@ -1238,13 +1238,30 @@
         ]
       },
       "post": {
-        "description": "Create a new session with required title. Session automatically gets isolated storage directory.",
+        "description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.",
         "operationId": "createSession",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "properties": {
+                  "customSystemPrompt": {
+                    "description": "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax.",
+                    "example": "You are a helpful assistant specialized in $<domain>. Always be concise and accurate.",
+                    "maxLength": 102400,
+                    "type": "string"
+                  },
+                  "promptMode": {
+                    "default": "default",
+                    "description": "Custom prompt handling mode:\n- 'default': Use base system prompt only (customSystemPrompt ignored)\n- 'append': Append customSystemPrompt to base system prompt (50KB limit)\n- 'replace': Replace base system prompt with customSystemPrompt (100KB limit)",
+                    "enum": [
+                      "default",
+                      "append",
+                      "replace"
+                    ],
+                    "example": "append",
+                    "type": "string"
+                  },
                   "title": {
                     "description": "Title for the session",
                     "type": "string"
@@ -1273,6 +1290,48 @@
           "400": {
             "content": {
               "application/json": {
+                "examples": {
+                  "invalid_prompt_mode": {
+                    "summary": "Invalid prompt mode",
+                    "value": {
+                      "error": {
+                        "code": 400,
+                        "message": "promptMode must be 'default', 'append', or 'replace'",
+                        "type": "validation_error"
+                      }
+                    }
+                  },
+                  "missing_title": {
+                    "summary": "Missing required title",
+                    "value": {
+                      "error": {
+                        "code": 400,
+                        "message": "title is required",
+                        "type": "validation_error"
+                      }
+                    }
+                  },
+                  "prompt_size_exceeded_append": {
+                    "summary": "Custom prompt size exceeds append mode limit",
+                    "value": {
+                      "error": {
+                        "code": 400,
+                        "message": "Custom prompt size (75KB) exceeds append mode limit of 50KB",
+                        "type": "validation_error"
+                      }
+                    }
+                  },
+                  "prompt_size_exceeded_replace": {
+                    "summary": "Custom prompt size exceeds replace mode limit",
+                    "value": {
+                      "error": {
+                        "code": 400,
+                        "message": "Custom prompt size (150KB) exceeds replace mode limit of 100KB",
+                        "type": "validation_error"
+                      }
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
