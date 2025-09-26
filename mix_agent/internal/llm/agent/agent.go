@@ -654,6 +654,33 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 
 	a.provider = provider
 
+	// Update title and summary providers if this is the main agent
+	// Since title and summary providers always use AgentMain config, we need to update them
+	// whenever AgentMain model changes
+	if agentName == config.AgentMain {
+		// Update title provider if it exists
+		if a.titleProvider != nil {
+			titleProvider, err := createAgentProvider(config.AgentMain)
+			if err != nil {
+				logging.Warn("Failed to update title provider", "error", err)
+			} else {
+				a.titleProvider = titleProvider
+				logging.Info("Updated title provider to use new model", "model", modelID)
+			}
+		}
+
+		// Update summary provider if it exists
+		if a.summarizeProvider != nil {
+			summarizeProvider, err := createAgentProvider(config.AgentMain)
+			if err != nil {
+				logging.Warn("Failed to update summary provider", "error", err)
+			} else {
+				a.summarizeProvider = summarizeProvider
+				logging.Info("Updated summary provider to use new model", "model", modelID)
+			}
+		}
+	}
+
 	return a.provider.Model(), nil
 }
 
