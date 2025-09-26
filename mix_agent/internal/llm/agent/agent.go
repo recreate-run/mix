@@ -1040,8 +1040,14 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		sessionVars["workdir"] = session.GetSessionStoragePath(sess.ID, storageConfig)
 	}
 
-	// Get system prompt with session variables
-	systemPrompt, err := prompt.GetAgentPromptWithVars(ctx, agentName, model.Provider, sessionVars)
+	// Get system prompt with session variables and custom prompt support
+	customPrompt := ""
+	promptMode := "default"
+	if sess != nil {
+		customPrompt = sess.CustomSystemPrompt
+		promptMode = sess.PromptMode
+	}
+	systemPrompt, err := prompt.GetAgentPromptWithVars(ctx, agentName, model.Provider, sessionVars, customPrompt, promptMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load system prompt: %w", err)
 	}
