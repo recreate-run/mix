@@ -14,17 +14,12 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import type { useFileReference } from '@/hooks/useFileReference';
-import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
 import { getFileTypeFromExtension } from '@/utils/fileTypes';
 import { generatePreviewUrl } from '@/utils/assetServer';
-import { AppIcon } from './app-icon';
 
 interface CommandFileReferenceProps {
   fileRef: ReturnType<typeof useFileReference>;
-  apps?: Attachment[];
-  text: string;
-  onTextUpdate?: (newText: string) => void;
   onClose?: () => void;
   sessionId: string;
 }
@@ -46,7 +41,7 @@ const MediaThumbnail = ({
   const fileType = getFileTypeFromExtension(file.name);
 
   const previewUrl = generatePreviewUrl({ path: file.name, type: fileType }, sessionId);
-  
+
   // Log errors if generatePreviewUrl failed for media files
   if (!previewUrl && (fileType === 'image' || fileType === 'video')) {
     console.error('❌ Preview URL generation failed for media file:', {
@@ -121,25 +116,10 @@ const MediaThumbnail = ({
 
 export function CommandFileReference({
   fileRef,
-  apps = [],
-  text,
-  onTextUpdate,
   onClose,
   sessionId,
 }: CommandFileReferenceProps) {
-  const addAttachment = useBoundStore((state) => state.addAttachment);
-  const addReference = useBoundStore((state) => state.addReference);
 
-  const handleAppSelect = (app: Attachment) => {
-    const words = text.split(' ');
-    const displayReference = `@${app.name}`;
-    words[words.length - 1] = `${displayReference} `;
-    const newText = words.join(' ');
-
-    addAttachment(app);
-    addReference(displayReference, `app:${app.name}`);
-    onTextUpdate?.(newText);
-  };
 
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -147,16 +127,10 @@ export function CommandFileReference({
   // Filter files based on search query
   const filteredFiles = searchQuery.trim()
     ? fileRef.files.filter((file) =>
-        file.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      file.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : fileRef.files;
 
-  // Filter apps based on search query
-  const filteredApps = searchQuery.trim()
-    ? apps.filter((app) =>
-        app.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : apps;
 
   const handleSelect = (value: string) => {
     // Clear search query and selected value to prevent state interference
@@ -168,12 +142,6 @@ export function CommandFileReference({
       const file = filteredFiles.find((f) => f.name === fileName);
       if (file) {
         fileRef.selectFile(file);
-      }
-    } else if (value.startsWith('app:')) {
-      const appName = value.substring(4);
-      const app = apps.find((a) => a.name === appName);
-      if (app) {
-        handleAppSelect(app);
       }
     }
   };
@@ -205,7 +173,7 @@ export function CommandFileReference({
             <div className="px-3 py-2 text-muted-foreground text-xs">
               Loading session files...
             </div>
-          ) : filteredFiles.length || filteredApps.length ? (
+          ) : filteredFiles.length ? (
             <>
               {/* Session Files Section */}
               {filteredFiles.length > 0 && (
@@ -240,37 +208,11 @@ export function CommandFileReference({
                 </CommandGroup>
               )}
 
-              {/* Applications Section */}
-              {filteredApps.length > 0 && (
-                <CommandGroup heading="Applications">
-                  {filteredApps.map((app) => (
-                    <CommandItem
-                      key={app.id}
-                      onSelect={() => handleSelect(`app:${app.name}`)}
-                      value={`app:${app.name}`}
-                    >
-                      <div className="flex-shrink-0 rounded-md bg-white p-1 shadow-sm dark:bg-gray-700">
-                        <AppIcon
-                          bundleId={app.bundleId || app.id.replace('app:', '')}
-                          className="size-4"
-                          name={app.name}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{app.name}</div>
-                        <div className="text-muted-foreground text-xs">
-                          Application • Running
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
             </>
           ) : (
             <CommandEmpty>
               {searchQuery
-                ? 'No files or apps match your search'
+                ? 'No files match your search'
                 : 'No session files found'}
             </CommandEmpty>
           )}

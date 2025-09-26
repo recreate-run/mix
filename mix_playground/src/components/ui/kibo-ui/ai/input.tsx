@@ -40,7 +40,6 @@ export const AIInput = ({ className, ...props }: AIInputProps) => (
 
 export type AIInputTextareaProps = ComponentProps<typeof Textarea> & {
   availableFiles?: string[];
-  availableApps?: string[];
   availableCommands?: string[];
 };
 
@@ -51,7 +50,6 @@ export const AIInputTextarea = ({
   placeholder = 'What would you like to know?',
   value = '',
   availableFiles = [],
-  availableApps = [],
   availableCommands = [],
   ...props
 }: AIInputTextareaProps) => {
@@ -61,8 +59,8 @@ export const AIInputTextarea = ({
   const previousValueRef = useRef<string>(String(value || ''));
 
   const parser = useMemo(
-    () => new TextParser(availableFiles, availableCommands, availableApps),
-    [availableFiles, availableCommands, availableApps]
+    () => new TextParser(availableFiles, availableCommands),
+    [availableFiles, availableCommands]
   );
   const tokens = useMemo(
     () => parser.parse(String(value || '')),

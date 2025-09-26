@@ -253,29 +253,16 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
-						"required": []string{"text", "media", "apps", "plan_mode"},
+						"required": []string{"text"},
 						"properties": map[string]interface{}{
 							"text": map[string]interface{}{
 								"type":        "string",
 								"description": "The text content of the message",
 							},
-							"media": map[string]interface{}{
-								"type": "array",
-								"items": map[string]interface{}{
-									"type": "string",
-								},
-								"description": "Array of media file references or URLs",
-							},
-							"apps": map[string]interface{}{
-								"type": "array",
-								"items": map[string]interface{}{
-									"type": "string",
-								},
-								"description": "Array of app identifiers or references",
-							},
 							"plan_mode": map[string]interface{}{
 								"type":        "boolean",
 								"description": "Whether the message is in planning mode",
+								"default":     false,
 							},
 						},
 					}),
@@ -1374,26 +1361,13 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "The text content of the message",
 						},
-						"media": map[string]interface{}{
-							"type": "array",
-							"items": map[string]interface{}{
-								"type": "string",
-							},
-							"description": "Array of media file references or URLs",
-						},
-						"apps": map[string]interface{}{
-							"type": "array",
-							"items": map[string]interface{}{
-								"type": "string",
-							},
-							"description": "Array of app identifiers or references",
-						},
 						"plan_mode": map[string]interface{}{
 							"type":        "boolean",
 							"description": "Whether the message is in planning mode",
+							"default":     false,
 						},
 					},
-					"required": []string{"text", "media", "apps", "plan_mode"},
+					"required": []string{"text"},
 				},
 				"BackendMessage": map[string]interface{}{
 					"type": "object",

@@ -9,7 +9,6 @@ import type { Attachment } from '@/stores/attachmentSlice';
 import { removeFileReferences } from '@/utils/attachmentUtils';
 import { generatePreviewUrl } from '@/utils/assetServer';
 import {
-  AppPreview,
   AudioPreview,
   DefaultPreview,
   FolderPreview,
@@ -42,9 +41,7 @@ export const AttachmentPreview = ({
     if (attachmentToRemove) {
       let identifier: string;
       
-      if (attachmentToRemove.type === 'app') {
-        identifier = `app:${attachmentToRemove.name}`;
-      } else if (attachmentToRemove.url) {
+      if (attachmentToRemove.url) {
         // For URL attachments, remove the URL directly from text
         identifier = attachmentToRemove.url;
         const updatedText = text.replace(new RegExp(attachmentToRemove.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
@@ -77,19 +74,7 @@ export const AttachmentPreview = ({
     <div className="flex flex-wrap gap-2 rounded-lg px-2">
       {attachments.map((attachment, index) => (
         <div className="group relative flex-shrink-0" key={attachment.id}>
-          {attachment.type === 'app' ? (
-            // App attachments have different styling - no tooltip, inline layout
-            <div className="relative">
-              <AppPreview attachment={attachment} />
-              <button
-                className="absolute top-1 right-1 z-10 flex items-center justify-center rounded-full bg-red-500/80 p-[2px] transition-colors hover:bg-red-600"
-                onClick={() => handleRemoveItem(index)}
-                title="Remove app"
-              >
-                <X className="size-3 text-white" />
-              </button>
-            </div>
-          ) : (
+          {
             // File/folder/media attachments use tooltip and grid layout
             <Tooltip>
               <TooltipTrigger asChild>
@@ -135,7 +120,7 @@ export const AttachmentPreview = ({
                 <X className="size-3 text-white" />
               </button>
             </Tooltip>
-          )}
+          }
         </div>
       ))}
     </div>

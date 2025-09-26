@@ -1868,21 +1868,8 @@
             "application/json": {
               "schema": {
                 "properties": {
-                  "apps": {
-                    "description": "Array of app identifiers or references",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "media": {
-                    "description": "Array of media file references or URLs",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
                   "plan_mode": {
+                    "default": false,
                     "description": "Whether the message is in planning mode",
                     "type": "boolean"
                   },
@@ -1892,10 +1879,7 @@
                   }
                 },
                 "required": [
-                  "text",
-                  "media",
-                  "apps",
-                  "plan_mode"
+                  "text"
                 ],
                 "type": "object"
               }
@@ -2323,21 +2307,8 @@
       "MessageData": {
         "description": "Message data structure for user input",
         "properties": {
-          "apps": {
-            "description": "Array of app identifiers or references",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "media": {
-            "description": "Array of media file references or URLs",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "plan_mode": {
+            "default": false,
             "description": "Whether the message is in planning mode",
             "type": "boolean"
           },
@@ -2347,10 +2318,7 @@
           }
         },
         "required": [
-          "text",
-          "media",
-          "apps",
-          "plan_mode"
+          "text"
         ],
         "type": "object"
       },

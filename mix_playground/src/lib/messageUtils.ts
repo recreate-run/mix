@@ -12,7 +12,6 @@ import type { BackendMessage } from 'mix-typescript-sdk/models';
 interface ParsedContent {
   text: string;
   media: string[];
-  apps: string[];
 }
 
 const extractContentData = (content: string): ParsedContent => {
@@ -21,7 +20,6 @@ const extractContentData = (content: string): ParsedContent => {
     return {
       text: parsed.text || content,
       media: parsed.media || [],
-      apps: parsed.apps || [],
     };
   } catch {
     // Extract media URLs from plain text
@@ -37,20 +35,10 @@ const extractContentData = (content: string): ParsedContent => {
     return {
       text: cleanText,
       media: mediaUrls,
-      apps: [],
     };
   }
 };
 
-const createAppAttachment = (appName: string): Attachment => {
-  return {
-    id: `app:${appName}`,
-    name: appName,
-    type: 'app',
-    icon: 'placeholder',
-    isOpen: true,
-  };
-};
 
 const convertMediaToAttachments = async (
   mediaPaths: string[]
@@ -120,16 +108,10 @@ const convertToolCallsToUI = (toolCalls: ToolCallData[]): ToolCall[] => {
 export const convertBackendMessageToUI = async (
   backendMessage: BackendMessage
 ): Promise<UIMessage> => {
-  const { text, media, apps } = extractContentData(backendMessage.userInput);
+  const { text, media } = extractContentData(backendMessage.userInput);
 
   // Convert media paths to attachments
-  const mediaAttachments = await convertMediaToAttachments(media);
-
-  // Convert app names to attachments
-  const appAttachments = apps.map((appName) => createAppAttachment(appName));
-
-  // Combine all attachments
-  const attachments = [...mediaAttachments, ...appAttachments];
+  const attachments = await convertMediaToAttachments(media);
 
   // Convert tool calls if present
   const toolCalls = backendMessage.toolCalls
