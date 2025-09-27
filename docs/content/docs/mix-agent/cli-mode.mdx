@@ -9,28 +9,17 @@ Mix's CLI mode processes prompts directly from the command line, providing immed
 
 ## Quick Start
 
-**Basic Usage**
 ```bash
 mix -p "Explain the use of context in Go"
 ```
 
-**With JSON Output**
-```bash
-mix -p "Generate a simple HTTP handler" -f json
-```
 
-**Debug Mode**
-```bash
-mix -d -p "Help me debug this error"
-```
 
-## Command Syntax
+## Core Options
 
 ```bash
 mix --prompt "your question here" [options]
 ```
-
-### Core Options
 
 | Flag | Short | Description | Default |
 |------|-------|-------------|---------|
@@ -40,45 +29,6 @@ mix --prompt "your question here" [options]
 | `--debug` | `-d` | Enable debug logging | `false` |
 | `--cwd` | `-c` | Set working directory | Current directory |
 
-## Output Formats
-
-### Text Format (Default)
-Natural language response optimized for readability:
-```bash
-mix -p "What is dependency injection?"
-# Returns formatted text response
-```
-
-### JSON Format  
-Structured data for programmatic processing:
-```bash
-mix -p "List Go best practices" -f json
-# Returns JSON-structured response
-```
-
-## Use Cases
-
-**Code Explanation**
-```bash
-mix -p "Explain this Go function" -c /path/to/project
-```
-
-**Quick Development Help**
-```bash
-mix -p "How to handle errors in Go HTTP handlers?"
-```
-
-**Project-Specific Context**
-```bash
-mix -c ~/myproject -p "Review the authentication middleware"
-```
-
-**Automated Scripting**
-```bash
-# Process response programmatically
-RESPONSE=$(mix -p "Generate unit test" -f json -q)
-echo "$RESPONSE" | jq '.content'
-```
 
 ## Tips
 

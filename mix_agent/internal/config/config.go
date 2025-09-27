@@ -101,7 +101,7 @@ var cfg *Config
 var cfgMutex sync.RWMutex
 
 // Global user preferences service
-var userPreferencesService *preferences.UserPreferencesService
+var userPreferencesService preferences.Service
 
 // Global API credentials service
 var apiCredentialsService *credentials.APICredentialsService
@@ -293,7 +293,7 @@ func InitUserPreferences(database *sql.DB) error {
 }
 
 // GetUserPreferences returns the user preferences service
-func GetUserPreferences() *preferences.UserPreferencesService {
+func GetUserPreferences() preferences.Service {
 	cfgMutex.RLock()
 	defer cfgMutex.RUnlock()
 	return userPreferencesService

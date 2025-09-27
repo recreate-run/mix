@@ -3,20 +3,11 @@ title: HTTP API
 description: Complete guide to Mix's HTTP REST API for programmatic integration and automation.
 ---
 
-Mix provides a REST API interface for programmatic integration and automation.
+Mix provides a REST API interface for programmatic integration and automation. The recommended way to interact with the server is throught the generated [client SDK's](sdk).
 
-## HTTP Server Mode
+## HTTP Endpoints Reference
 
-Start Mix as an HTTP server to expose REST APIs and media endpoints.
-
-### Quick Start
-
-Start HTTP server on port 8080: `./mix --http-port 8080`  
-Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
-
-### HTTP Endpoints Reference
-
-#### Core API Endpoints
+### Core API Endpoints
 
 | Endpoint | Method | Purpose | Content Type |
 |----------|--------|---------|--------------| 
@@ -28,9 +19,8 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 | `/api/file-types` | GET | Get supported file types | `application/json` |
 | `/input/` | GET | Serve input asset files | `*/*` |
 | `/output/` | GET | Serve output asset files | `*/*` |
-| `/api/gsap_animations/` | GET | Get GSAP animations | `application/json` |
 
-#### Sessions API
+### Sessions API
 
 | Endpoint | Method | Purpose | Content Type |
 |----------|--------|---------|--------------|
@@ -40,7 +30,7 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 | `/api/sessions/{id}` | DELETE | Delete a session | `application/json` |
 | `/api/sessions/{id}/fork` | POST | Fork an existing session | `application/json` |
 
-#### Messages API
+### Messages API
 
 | Endpoint | Method | Purpose | Content Type |
 |----------|--------|---------|--------------|
@@ -49,7 +39,7 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 | `/api/messages/history` | GET | Get global message history | `application/json` |
 | `/api/sessions/{id}/cancel` | POST | Cancel agent processing | `application/json` |
 
-#### Authentication API
+### Authentication API
 
 | Endpoint | Method | Purpose | Content Type |
 |----------|--------|---------|--------------|
@@ -62,7 +52,7 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 | `/api/auth/oauth/{provider}` | POST | Start OAuth authentication | `application/json` |
 | `/api/auth/oauth-callback` | POST | Handle OAuth callback | `application/json` |
 
-#### Preferences API
+### Preferences API
 
 | Endpoint | Method | Purpose | Content Type |
 |----------|--------|---------|--------------|
@@ -71,7 +61,7 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 | `/api/preferences/providers` | GET | Get available providers | `application/json` |
 | `/api/preferences/reset` | POST | Reset preferences to defaults | `application/json` |
 
-#### System API
+### System API
 
 | Endpoint | Method | Purpose | Content Type |
 |----------|--------|---------|--------------|
@@ -80,48 +70,3 @@ Custom host and port: `./mix --http-host 0.0.0.0 --http-port 3000`
 | `/api/commands/{name}` | GET | Get specific command | `application/json` |
 | `/api/permissions/{id}/grant` | POST | Grant permission | `application/json` |
 | `/api/permissions/{id}/deny` | POST | Deny permission | `application/json` |
-
-### Usage Examples
-
-#### List Sessions
-```bash
-curl http://localhost:8088/api/sessions
-```
-
-#### Create Session
-```bash
-curl -X POST http://localhost:8088/api/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"title": "My Session"}'
-```
-
-#### Send Message  
-```bash
-curl -X POST http://localhost:8088/api/sessions/{id}/messages \
-  -H "Content-Type: application/json" \
-  -d '{"content": "Hello, Mix!"}'
-```
-
-#### Get User Preferences
-```bash
-curl http://localhost:8088/api/preferences
-```
-
-#### Update Preferences
-```bash
-curl -X POST http://localhost:8088/api/preferences \
-  -H "Content-Type: application/json" \
-  -d '{"preferred_provider": "anthropic", "main_agent_model": "claude-4-sonnet"}'
-```
-
-#### Authenticate with API Key
-```bash
-curl -X POST http://localhost:8088/api/auth/api-key \
-  -H "Content-Type: application/json" \
-  -d '{"provider": "anthropic", "api_key": "sk-ant-YOUR-API-KEY"}'
-```
-
-#### List Available Commands
-```bash
-curl http://localhost:8088/api/commands
-```

@@ -20,7 +20,7 @@ import (
 
 // APICredentialsService handles encrypted API key and OAuth credential storage and retrieval
 type APICredentialsService struct {
-	queries          *db.Queries
+	queries          db.Querier
 	encryptionKey    []byte
 	credentialsCache sync.Map // Provider -> API Key cache
 	oauthCache       sync.Map // Provider -> OAuth Credentials cache
@@ -49,16 +49,28 @@ func (cred *OAuthCredentials) IsTokenExpired() bool {
 
 // NewAPICredentialsService creates a new API credentials service
 func NewAPICredentialsService(database *sql.DB, encryptionKey []byte) *APICredentialsService {
+	return NewAPICredentialsServiceWithQuerier(db.New(database), encryptionKey)
+}
+
+// NewAPICredentialsServiceWithQuerier creates a new API credentials service with a custom querier (for testing)
+func NewAPICredentialsServiceWithQuerier(querier db.Querier, encryptionKey []byte) *APICredentialsService {
+	return NewAPICredentialsServiceWithQuerierAndPreload(querier, encryptionKey, true)
+}
+
+// NewAPICredentialsServiceWithQuerierAndPreload creates a new API credentials service with optional preloading
+func NewAPICredentialsServiceWithQuerierAndPreload(querier db.Querier, encryptionKey []byte, enablePreload bool) *APICredentialsService {
 	service := &APICredentialsService{
-		queries:          db.New(database),
+		queries:          querier,
 		encryptionKey:    encryptionKey,
 		credentialsCache: sync.Map{},
 		oauthCache:       sync.Map{},
 	}
 
-	// Preload credentials in the background
-	go service.PreloadCredentials(context.Background())
-	go service.PreloadOAuthCredentials(context.Background())
+	if enablePreload {
+		// Preload credentials in the background
+		go service.PreloadCredentials(context.Background())
+		go service.PreloadOAuthCredentials(context.Background())
+	}
 
 	return service
 }
@@ -238,7 +250,7 @@ func (acs *APICredentialsService) ListCredentials(ctx context.Context) ([]models
 		return nil, fmt.Errorf("failed to list API credentials: %w", err)
 	}
 
-	var providers []models.ModelProvider
+	providers := make([]models.ModelProvider, 0) // Initialize as empty slice instead of nil
 	for _, cred := range credentials {
 		if cred.ApiKey.Valid && cred.ApiKey.String != "" {
 			providers = append(providers, models.ModelProvider(cred.Provider))
@@ -502,7 +514,7 @@ func (acs *APICredentialsService) ListOAuthCredentials(ctx context.Context) ([]s
 		return nil, fmt.Errorf("failed to list OAuth credentials: %w", err)
 	}
 
-	var providers []string
+	providers := make([]string, 0) // Initialize as empty slice instead of nil
 	for _, cred := range credentials {
 		if cred.AccessToken.Valid && cred.AccessToken.String != "" {
 			providers = append(providers, cred.Provider)
