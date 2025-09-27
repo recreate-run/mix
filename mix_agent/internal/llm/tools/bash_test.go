@@ -598,9 +598,11 @@ func TestBashToolInterfaceCompliance(t *testing.T) {
 	// Verify Run method signature (this will be tested more thoroughly in integration tests)
 	ctx := context.Background()
 	call := interfaces.ToolCall{ID: "test", Name: "bash", Input: "{}"}
-	_, err := tool.Run(ctx, call)
-	// We expect an error here due to invalid context, but the method should exist
-	assert.Error(t, err)
+	response, err := tool.Run(ctx, call)
+	// Should return error response for missing command, not Go error
+	assert.NoError(t, err)
+	assert.True(t, response.IsError)
+	assert.Contains(t, response.Content, "missing command")
 }
 
 // Test permission service integration
@@ -646,12 +648,13 @@ func TestSafeCommandsBypassPermissions(t *testing.T) {
 	}
 
 	// Since echo is a safe command, permission should not be requested
-	// The call will fail due to shell setup issues, but not due to permissions
-	_, err := tool.Run(ctx, call)
+	// The call should succeed since safe commands bypass permissions
+	response, err := tool.Run(ctx, call)
 
-	// Should fail with shell-related error, not permission error
-	assert.Error(t, err)
-	assert.NotEqual(t, permission.ErrorPermissionDenied, err)
+	// Should succeed without permission error
+	assert.NoError(t, err)
+	assert.False(t, response.IsError)
+	assert.Contains(t, response.Content, "hello")
 
 	// Verify no permission requests were made
 	mockPermissionService.AssertNotCalled(t, "Request")
