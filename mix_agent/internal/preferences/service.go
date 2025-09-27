@@ -27,19 +27,26 @@ type Agent struct {
 
 // UserPreferencesService handles user preferences from database
 type UserPreferencesService struct {
-	queries *db.Queries
+	queries db.Querier
 	preferencesCache sync.Map // Caches user preferences to avoid database hits
 }
 
 // NewUserPreferencesService creates a new user preferences service
 func NewUserPreferencesService(database *sql.DB) *UserPreferencesService {
+	return NewUserPreferencesServiceWithQuerierAndPreload(db.New(database), true)
+}
+
+// NewUserPreferencesServiceWithQuerierAndPreload creates a service with custom querier and preload control
+func NewUserPreferencesServiceWithQuerierAndPreload(querier db.Querier, enablePreload bool) *UserPreferencesService {
 	service := &UserPreferencesService{
-		queries: db.New(database),
+		queries: querier,
 		preferencesCache: sync.Map{},
 	}
 
-	// Preload preferences in the background
-	go service.PreloadPreferences(context.Background())
+	// Preload preferences in the background only if enabled
+	if enablePreload {
+		go service.PreloadPreferences(context.Background())
+	}
 
 	return service
 }
