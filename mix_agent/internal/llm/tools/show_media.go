@@ -116,9 +116,8 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 
 		// Require HTTP/HTTPS URLs for all types except gsap_animation
 		if output.Type != "gsap_animation" && !isURL(output.Path) {
-			return NewTextErrorResponse(fmt.Sprintf("Path must be a valid HTTP/HTTPS URL for output %d: %s", i, output.Path)), nil
+			return NewTextErrorResponse(fmt.Sprintf("For the show_media tool ,path must be a valid HTTP/HTTPS URL for output %d: %s", i, output.Path)), nil
 		}
-
 
 		// For gsap_animation, validate that config is provided
 		if output.Type == "gsap_animation" {
@@ -175,7 +174,6 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 		Content: message,
 	}, nil
 }
-
 
 func isURL(path string) bool {
 	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://")

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"mix/internal/config"
+	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
 	"mix/internal/llm/prompt"
-	"mix/internal/llm/interfaces"
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
@@ -84,7 +84,7 @@ type agent struct {
 	summarizeProvider interfaces.Provider
 
 	sessionProviders sync.Map // Maps session ID to interfaces.Provider
-	activeContexts   sync.Map  // Maps session ID to context.CancelFunc for cancellation
+	activeContexts   sync.Map // Maps session ID to context.CancelFunc for cancellation
 
 	accumulator *MessageAccumulator // In-memory message accumulator
 
@@ -168,7 +168,6 @@ func (a *agent) Cancel(sessionID string) {
 		}
 	}
 }
-
 
 func (a *agent) generateTitle(ctx context.Context, sessionID string, content string) error {
 	if content == "" {
@@ -403,9 +402,6 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 		Role:  message.User,
 		Parts: parts,
 	})
-	if err == nil {
-		logging.Info(fmt.Sprintf("Agent: Created user message %s - initial DB write", userMsg.ID))
-	}
 	return userMsg, err
 }
 
@@ -442,9 +438,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	if err != nil {
 		return assistantMsg, nil, fmt.Errorf("failed to create assistant message: %w", err)
 	}
-	
-	logging.Info(fmt.Sprintf("Agent: Created assistant message %s - initial DB write", assistantMsg.ID))
-	
+
 	// Store initial assistant message in accumulator
 	a.accumulator.Store(&assistantMsg)
 
@@ -510,10 +504,10 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 func (a *agent) finishMessage(ctx context.Context, msg *message.Message, finishReson message.FinishReason) {
 	msg.AddFinish(finishReson)
-	
+
 	// Store in accumulator
 	a.accumulator.Store(msg)
-	
+
 	// Finalize with the given finish reason - this ensures immediate flush
 	_ = a.accumulator.FinalizeMessage(msg.ID, finishReson)
 }
@@ -530,15 +524,15 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case interfaces.EventThinkingDelta:
 		// Claude thinking delta received
 		assistantMsg.AppendReasoningContent(event.Thinking)
-		
+
 		// Store in accumulator without immediate DB update
 		a.accumulator.Store(assistantMsg)
-		
+
 		// Update thinking content in accumulator
 		if err := a.accumulator.UpdateThinking(assistantMsg.ID, event.Thinking); err != nil {
 			return err
 		}
-		
+
 		// Publish thinking event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeThinking,
@@ -549,15 +543,15 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		return err
 	case interfaces.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
-		
+
 		// Store in accumulator without immediate DB update
 		a.accumulator.Store(assistantMsg)
-		
+
 		// Update content in accumulator
 		if err := a.accumulator.UpdateContent(assistantMsg.ID, event.Content); err != nil {
 			return err
 		}
-		
+
 		// Publish content delta event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeContentDelta,
@@ -568,16 +562,16 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		return err
 	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
-		
+
 		// Store in accumulator
 		a.accumulator.Store(assistantMsg)
-		
+
 		// Flush immediately for tool events (they're less frequent)
 		logging.Debug(fmt.Sprintf("Agent: Tool use started for %s - triggering immediate flush", event.ToolCall.Name))
 		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
 			return err
 		}
-		
+
 		// Publish tool start event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
@@ -596,16 +590,16 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	// 	}
 	case interfaces.EventToolUseStop:
 		assistantMsg.FinishToolCall(event.ToolCall.ID)
-		
+
 		// Store in accumulator
 		a.accumulator.Store(assistantMsg)
-		
+
 		// Flush immediately for tool events
 		logging.Debug(fmt.Sprintf("Agent: Tool use completed for ID %s - triggering immediate flush", event.ToolCall.ID))
 		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
 			return err
 		}
-		
+
 		// Publish tool completion event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
@@ -616,13 +610,11 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case interfaces.EventError:
 		// Store current state before error
 		a.accumulator.Store(assistantMsg)
-		
-		// Flush immediately on error to ensure we don't lose state
-		logging.Info(fmt.Sprintf("Agent: Error event received - triggering immediate flush for message %s", assistantMsg.ID))
+
 		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
 			logging.Error("Failed to flush message on error: %v", err)
 		}
-		
+
 		if errors.Is(event.Error, context.Canceled) {
 			// Event processing canceled for session
 			return context.Canceled
@@ -643,13 +635,13 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 		// Store final state in accumulator
 		a.accumulator.Store(assistantMsg)
-		
+
 		// Finalize message with the finish reason from response
 		// The finish reason is already set by AddFinish
 		if err := a.accumulator.FinalizeMessage(assistantMsg.ID, event.Response.FinishReason); err != nil {
 			return fmt.Errorf("failed to finalize message: %w", err)
 		}
-		
+
 		return a.TrackUsage(ctx, sessionID, a.provider.Model(), event.Response.Usage)
 	}
 
@@ -970,14 +962,14 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 
 	// Allow read-only and planning tools
 	allowedTools := map[string]bool{
-		"ReadText":             true,
-		"ls":                   true,
-		"grep":                 true,
-		"glob":                 true,
-		"todo_write":           true,
-		"exit_plan_mode":       true,
-		"fetch":                true,
-		"ReadMedia":            true,
+		"ReadText":       true,
+		"ls":             true,
+		"grep":           true,
+		"glob":           true,
+		"todo_write":     true,
+		"exit_plan_mode": true,
+		"fetch":          true,
+		"ReadMedia":      true,
 	}
 
 	return allowedTools[toolName]
@@ -1257,7 +1249,7 @@ func (a *agent) handleSessionEvents() {
 			if _, existed := a.sessionProviders.LoadAndDelete(sessionID); existed {
 				// Cleaned up session provider cache
 			}
-			
+
 			// Also flush any pending messages for this session
 			// Note: This is a best-effort cleanup since we don't track messages by session
 			// The accumulator will automatically clean up after the 5-second delay

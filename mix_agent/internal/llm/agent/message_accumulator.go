@@ -70,14 +70,12 @@ func (ma *MessageAccumulator) Store(msg *message.Message) {
 			IsDirty:     true,
 		}
 		ma.messages[msg.ID] = accumulated
-		logging.Debug(fmt.Sprintf("MessageAccumulator: Stored new message %s in accumulator", msg.ID))
 	} else {
 		accumulated.mu.Lock()
 		accumulated.Message = msg
 		accumulated.LastUpdated = time.Now()
 		accumulated.IsDirty = true
 		accumulated.mu.Unlock()
-		logging.Debug(fmt.Sprintf("MessageAccumulator: Updated message %s in accumulator", msg.ID))
 	}
 }
 
@@ -117,7 +115,6 @@ func (ma *MessageAccumulator) UpdateThinking(messageID string, delta string) err
 	accumulated.LastUpdated = time.Now()
 	accumulated.IsDirty = true
 	
-	logging.Debug(fmt.Sprintf("MessageAccumulator: Accumulated thinking delta for message %s (no DB write)", messageID))
 	
 	return nil
 }
@@ -140,7 +137,6 @@ func (ma *MessageAccumulator) UpdateContent(messageID string, delta string) erro
 	accumulated.LastUpdated = time.Now()
 	accumulated.IsDirty = true
 	
-	logging.Debug(fmt.Sprintf("MessageAccumulator: Accumulated content delta for message %s (no DB write)", messageID))
 	
 	return nil
 }
@@ -163,14 +159,12 @@ func (ma *MessageAccumulator) FlushMessage(messageID string) error {
 	}
 	
 	// Update in database
-	logging.Info(fmt.Sprintf("MessageAccumulator: Flushing message %s to database (manual flush)", accumulated.Message.ID))
 	if err := ma.messageUpdater.Update(context.Background(), *accumulated.Message); err != nil {
 		logging.Error(fmt.Sprintf("MessageAccumulator: Failed to flush message %s: %v", accumulated.Message.ID, err))
 		return err
 	}
 	
 	accumulated.IsDirty = false
-	logging.Debug(fmt.Sprintf("MessageAccumulator: Successfully flushed message %s", accumulated.Message.ID))
 	return nil
 }
 
@@ -193,14 +187,12 @@ func (ma *MessageAccumulator) FinalizeMessage(messageID string, finishReason mes
 	accumulated.IsDirty = true
 	
 	// Always flush finalized messages immediately
-	logging.Info(fmt.Sprintf("MessageAccumulator: Finalizing message %s with reason %v - flushing to database", messageID, finishReason))
 	if err := ma.messageUpdater.Update(context.Background(), *accumulated.Message); err != nil {
 		logging.Error(fmt.Sprintf("MessageAccumulator: Failed to finalize message %s: %v", messageID, err))
 		return err
 	}
 	
 	accumulated.IsDirty = false
-	logging.Debug(fmt.Sprintf("MessageAccumulator: Successfully finalized message %s", messageID))
 	
 	// Remove from accumulator after a delay to handle late events
 	go func() {
@@ -208,7 +200,6 @@ func (ma *MessageAccumulator) FinalizeMessage(messageID string, finishReason mes
 		ma.mu.Lock()
 		delete(ma.messages, messageID)
 		ma.mu.Unlock()
-		logging.Debug(fmt.Sprintf("MessageAccumulator: Removed finalized message %s from accumulator", messageID))
 	}()
 	
 	return nil
@@ -224,15 +215,11 @@ func (ma *MessageAccumulator) flushAllMessages() {
 	ma.mu.RLock()
 	defer ma.mu.RUnlock()
 	
-	if len(ma.messages) > 0 {
-		logging.Info(fmt.Sprintf("MessageAccumulator: Flushing all %d messages on shutdown", len(ma.messages)))
-	}
 	
 	flushedCount := 0
 	for id, accumulated := range ma.messages {
 		accumulated.mu.Lock()
 		if accumulated.IsDirty {
-			logging.Info(fmt.Sprintf("MessageAccumulator: Shutdown flush of message %s to database", id))
 			if err := ma.messageUpdater.Update(context.Background(), *accumulated.Message); err != nil {
 				logging.Error(fmt.Sprintf("MessageAccumulator: Failed to flush message %s during shutdown: %v", id, err))
 			} else {
@@ -243,14 +230,10 @@ func (ma *MessageAccumulator) flushAllMessages() {
 		accumulated.mu.Unlock()
 	}
 	
-	if flushedCount > 0 {
-		logging.Info(fmt.Sprintf("MessageAccumulator: Shutdown flush completed - flushed %d messages", flushedCount))
-	}
 }
 
 // Shutdown gracefully shuts down the accumulator
 func (ma *MessageAccumulator) Shutdown() {
-	logging.Info("MessageAccumulator: Shutting down")
 	
 	// Flush all pending messages before shutdown
 	ma.flushAllMessages()
