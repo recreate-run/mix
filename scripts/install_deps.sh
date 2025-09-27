@@ -193,7 +193,8 @@ install_ytdlp() {
       echo -e "${RED}Failed to download yt-dlp${NC}"
     fi
   else
-    echo -e "✅ ${GREEN}yt-dlp is already installed${NC}"
+    echo -e "✅ ${GREEN}yt-dlp is already installed, updating to latest version...${NC}"
+    yt-dlp -U
   fi
 }
 

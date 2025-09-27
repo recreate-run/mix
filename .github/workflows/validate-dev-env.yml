@@ -75,21 +75,26 @@ jobs:
 
       - name: Run Go Tests
         run: |
-          # Use enhanced script with unit-only flag to avoid flaky integration tests
-          ./scripts/tests/run_go_tests.sh --unit-only
+          # Use enhanced script with unit-only flag and save output for coverage report
+          ./scripts/tests/run_go_tests.sh --unit-only | tee test_output.log
 
       - name: Generate Coverage Report for PR
         if: github.event_name == 'pull_request'
         run: |
-          cd mix_agent
-          echo "## 📊 Test Coverage Report" >> coverage_report.md
-          echo "" >> coverage_report.md
-          echo "\`\`\`" >> coverage_report.md
-          go tool cover -func=coverage.out | grep -E "(credentials|session|message|preferences|agent)" | head -20 >> coverage_report.md
-          echo "\`\`\`" >> coverage_report.md
-          echo "" >> coverage_report.md
-          TOTAL_COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
-          echo "**Total Coverage: $TOTAL_COVERAGE**" >> coverage_report.md
+          mkdir -p mix_agent
+          echo "## 📊 Mix Agent Test Coverage Report" >> mix_agent/coverage_report.md
+          echo "" >> mix_agent/coverage_report.md
+
+          # Extract module coverage from test output
+          echo "### Module Coverage:" >> mix_agent/coverage_report.md
+          echo "\`\`\`" >> mix_agent/coverage_report.md
+          grep "coverage:" test_output.log | grep "mix/internal" | sort >> mix_agent/coverage_report.md
+          echo "\`\`\`" >> mix_agent/coverage_report.md
+          echo "" >> mix_agent/coverage_report.md
+
+          # Get overall coverage from the script output
+          TOTAL_COVERAGE=$(grep "🎯 Total Coverage:" test_output.log | tail -1 | awk '{print $4}' || echo "N/A")
+          echo "### Overall Coverage: **$TOTAL_COVERAGE**" >> mix_agent/coverage_report.md
 
       - name: Upload Coverage Report
         if: github.event_name == 'pull_request'
@@ -107,7 +112,7 @@ jobs:
             });
 
             const existingComment = comments.data.find(comment =>
-              comment.body.includes('📊 Test Coverage Report')
+              comment.body.includes('📊 Mix Agent Test Coverage Report')
             );
 
             if (existingComment) {
