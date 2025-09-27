@@ -21,7 +21,7 @@ import (
 type ReadMediaParams struct {
 	FilePath      string `json:"file_path,omitempty"`
 	DirectoryPath string `json:"directory_path,omitempty"`
-	AnalysisType  string `json:"analysis_type"`
+	MediaType     string `json:"media_type"`
 	Prompt        string `json:"prompt"`
 	Recursive     bool   `json:"recursive,omitempty"`
 	WordCount     int    `json:"word_count,omitempty"`
@@ -32,15 +32,15 @@ type ReadMediaParams struct {
 type readMediaTool struct{}
 
 type ReadMediaResult struct {
-	FilePath     string `json:"file_path"`
-	AnalysisType string `json:"analysis_type"`
-	Analysis     string `json:"analysis"`
-	Error        string `json:"error,omitempty"`
+	FilePath  string `json:"file_path"`
+	MediaType string `json:"media_type"`
+	Analysis  string `json:"analysis"`
+	Error     string `json:"error,omitempty"`
 }
 
 type ReadMediaResponse struct {
 	Results []ReadMediaResult `json:"results"`
-	Summary string                     `json:"summary"`
+	Summary string            `json:"summary"`
 }
 
 const (
@@ -71,7 +71,7 @@ func (r *readMediaTool) Info() ToolInfo {
 				"type":        "string",
 				"description": "Path to directory for batch processing",
 			},
-			"analysis_type": map[string]any{
+			"media_type": map[string]any{
 				"type":        "string",
 				"enum":        []string{"image", "audio", "video"},
 				"description": "Type of media analysis to perform",
@@ -103,7 +103,7 @@ func (r *readMediaTool) Info() ToolInfo {
 				"description": "Video analysis mode (required for video type)",
 			},
 		},
-		Required: []string{"analysis_type", "prompt"},
+		Required: []string{"media_type", "prompt"},
 	}
 }
 
@@ -167,17 +167,17 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 	}
 
 	// Validate analysis type
-	if params.AnalysisType != "image" && params.AnalysisType != "audio" && params.AnalysisType != "video" {
-		return fmt.Errorf("analysis_type must be 'image', 'audio', or 'video'")
+	if params.MediaType != "image" && params.MediaType != "audio" && params.MediaType != "video" {
+		return fmt.Errorf("media_type must be 'image', 'audio', or 'video'")
 	}
 
 	// Validate type-specific requirements
-	if params.AnalysisType == "audio" && params.AudioMode == "" {
-		return fmt.Errorf("audio_mode is required when analysis_type is 'audio'")
+	if params.MediaType == "audio" && params.AudioMode == "" {
+		return fmt.Errorf("audio_mode is required when media_type is 'audio'")
 	}
 
-	if params.AnalysisType == "video" && params.VideoMode == "" {
-		return fmt.Errorf("video_mode is required when analysis_type is 'video'")
+	if params.MediaType == "video" && params.VideoMode == "" {
+		return fmt.Errorf("video_mode is required when media_type is 'video'")
 	}
 
 	// Validate audio mode
@@ -212,13 +212,13 @@ func (r *readMediaTool) getFilesToProcess(params ReadMediaParams) ([]string, err
 
 	if params.FilePath != "" {
 		// Single file
-		if r.isSupportedFile(params.FilePath, params.AnalysisType) {
+		if r.isSupportedFile(params.FilePath, params.MediaType) {
 			files = append(files, params.FilePath)
 		}
 	} else {
 		// Directory processing
 		var err error
-		files, err = r.findSupportedFiles(params.DirectoryPath, params.AnalysisType, params.Recursive)
+		files, err = r.findSupportedFiles(params.DirectoryPath, params.MediaType, params.Recursive)
 		if err != nil {
 			return nil, err
 		}
@@ -227,11 +227,11 @@ func (r *readMediaTool) getFilesToProcess(params ReadMediaParams) ([]string, err
 	return files, nil
 }
 
-func (r *readMediaTool) findSupportedFiles(dirPath string, analysisType string, recursive bool) ([]string, error) {
+func (r *readMediaTool) findSupportedFiles(dirPath string, mediaType string, recursive bool) ([]string, error) {
 	var files []string
 	var supportedExts []string
 
-	switch analysisType {
+	switch mediaType {
 	case "image":
 		supportedExts = supportedImageTypes
 	case "audio":
@@ -267,10 +267,10 @@ func (r *readMediaTool) findSupportedFiles(dirPath string, analysisType string, 
 	return files, err
 }
 
-func (r *readMediaTool) isSupportedFile(filePath string, analysisType string) bool {
+func (r *readMediaTool) isSupportedFile(filePath string, mediaType string) bool {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
-	switch analysisType {
+	switch mediaType {
 	case "image":
 		for _, supportedExt := range supportedImageTypes {
 			if ext == supportedExt {
@@ -307,8 +307,8 @@ func (r *readMediaTool) processFiles(ctx context.Context, sessionID, messageID s
 
 func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, filePath string, params ReadMediaParams) ReadMediaResult {
 	result := ReadMediaResult{
-		FilePath:     filePath,
-		AnalysisType: params.AnalysisType,
+		FilePath:  filePath,
+		MediaType: params.MediaType,
 	}
 
 	// Read file content
@@ -349,14 +349,14 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 	}
 
 	result.Analysis = analysis
-	
+
 	// Log successful analysis
-	logging.Info("ReadMedia analysis completed successfully", 
-		"filePath", filePath, 
-		"analysisType", params.AnalysisType,
+	logging.Info("ReadMedia analysis completed successfully",
+		"filePath", filePath,
+		"mediaType", params.MediaType,
 		"responseLength", len(analysis),
 		"response", analysis)
-	
+
 	return result
 }
 
@@ -430,7 +430,7 @@ func (r *readMediaTool) buildAnalysisPrompt(params ReadMediaParams) string {
 	}
 
 	var promptPrefix string
-	switch params.AnalysisType {
+	switch params.MediaType {
 	case "image":
 		promptPrefix = "Analyze this image and "
 	case "audio":

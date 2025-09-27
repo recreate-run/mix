@@ -7,6 +7,17 @@ import type { Attachment } from '@/stores/attachmentSlice';
 import { expandFileReferences } from '@/utils/attachmentUtils';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import type { SendMessageRequestBody } from "mix-typescript-sdk/models/operations/sendmessage";
+import type {
+  SSEEventStream,
+  SSEToolEvent,
+  SSEToolExecutionStartEvent,
+  SSEToolExecutionCompleteEvent,
+  SSEThinkingEvent,
+  SSEContentEvent,
+  SSECompleteEvent,
+  SSEErrorEvent,
+  SSEPermissionEvent
+} from 'mix-typescript-sdk/models/sseeventstream';
 
 
 export type SSEPermissionRequest = {
@@ -117,16 +128,21 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
         // Handle different event types using SDK's discriminated union
         switch (event.event) {
-          case 'connected':
+          case 'connected': {
+            // const connectedEvent = event as SSEConnectedEvent;
             setState(prev => ({ ...prev, connected: true, connecting: false }));
             break;
+          }
 
-          case 'heartbeat':
+          case 'heartbeat': {
+            // const heartbeatEvent = event as SSEHeartbeatEvent;
             // Heartbeat events keep connection alive - no UI state changes needed
             break;
+          }
 
           case 'thinking': {
-            const thinkingContent = event.data.content || '';
+            const thinkingEvent = event as SSEThinkingEvent;
+            const thinkingContent = thinkingEvent.data.content || '';
 
             // Add to timeline
             const thinkingEntry: TimelineEntry = {
@@ -148,7 +164,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           }
 
           case 'content': {
-            const contentDelta = event.data.content || '';
+            const contentEvent = event as SSEContentEvent;
+            const contentDelta = contentEvent.data.content || '';
 
             // Find the last entry in timeline
             const lastEntry = timelineRef.current[timelineRef.current.length - 1];
@@ -182,31 +199,32 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           }
 
           case 'tool': {
+            const toolEvent = event as SSEToolEvent;
             const toolCall: ToolCall = {
-              id: event.data.id || `${event.data.name}-${Date.now()}`,
-              name: event.data.name || 'unknown',
-              description: event.data.name || 'Tool execution',
-              status: (event.data.status as any) || 'pending',
-              parameters: event.data.input
-                ? typeof event.data.input === 'string'
+              id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
+              name: toolEvent.data.name || 'unknown',
+              description: toolEvent.data.name || 'Tool execution',
+              status: (toolEvent.data.status as 'pending' | 'running' | 'completed' | 'error') || 'pending',
+              parameters: toolEvent.data.input
+                ? typeof toolEvent.data.input === 'string'
                   ? (() => {
                     try {
-                      return JSON.parse(event.data.input);
+                      return JSON.parse(toolEvent.data.input);
                     } catch {
-                      return { input: event.data.input };
+                      return { input: toolEvent.data.input };
                     }
                   })()
-                  : event.data.input
+                  : toolEvent.data.input
                 : {},
               result: undefined,
               error: undefined,
             };
 
-            if (event.data.status === 'running' && !toolStartTimes.current.has(toolCall.id)) {
+            if (toolEvent.data.status === 'running' && !toolStartTimes.current.has(toolCall.id)) {
               toolStartTimes.current.set(toolCall.id, Date.now());
             }
 
-            if ((event.data.status === 'completed' || event.data.status === 'error') &&
+            if ((toolEvent.data.status === 'completed' || toolEvent.data.status === 'error') &&
               toolStartTimes.current.has(toolCall.id)) {
               toolStartTimes.current.delete(toolCall.id);
             }
@@ -241,8 +259,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           }
 
           case 'tool_execution_start': {
-            const toolCallId = event.data.toolCallId;
-            const progress = event.data.progress;
+            const toolStartEvent = event as SSEToolExecutionStartEvent;
+            const toolCallId = toolStartEvent.data.toolCallId;
+            const progress = toolStartEvent.data.progress;
 
             const existingToolCall = toolCallsMap.current.get(toolCallId);
             if (existingToolCall) {
@@ -273,9 +292,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           }
 
           case 'tool_execution_complete': {
-            const toolCallId = event.data.toolCallId;
-            const progress = event.data.progress;
-            const success = event.data.success;
+            const toolCompleteEvent = event as SSEToolExecutionCompleteEvent;
+            const toolCallId = toolCompleteEvent.data.toolCallId;
+            const progress = toolCompleteEvent.data.progress;
+            const success = toolCompleteEvent.data.success;
 
             const existingToolCall = toolCallsMap.current.get(toolCallId);
             if (existingToolCall) {
@@ -309,39 +329,44 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             break;
           }
 
-          case 'complete':
+          case 'complete': {
+            const completeEvent = event as SSECompleteEvent;
             setState(prev => ({
               ...prev,
-              reasoning: event.data.reasoning || null,
-              reasoningDuration: event.data.reasoningDuration || null,
+              reasoning: completeEvent.data.reasoning || null,
+              reasoningDuration: completeEvent.data.reasoningDuration || null,
               completed: true,
               processing: false,
             }));
             break;
+          }
 
-          case 'error':
+          case 'error': {
+            const errorEvent = event as SSEErrorEvent;
             setState(prev => ({
               ...prev,
-              error: event.data.error || 'Stream error',
+              error: errorEvent.data.error || 'Stream error',
               connecting: false,
               processing: false,
-              rateLimit: event.data.retryAfter ? {
-                retryAfter: event.data.retryAfter,
-                attempt: event.data.attempt || 1,
-                maxAttempts: event.data.maxAttempts || 8,
+              rateLimit: errorEvent.data.retryAfter ? {
+                retryAfter: errorEvent.data.retryAfter,
+                attempt: errorEvent.data.attempt || 1,
+                maxAttempts: errorEvent.data.maxAttempts || 8,
               } : undefined,
             }));
             break;
+          }
 
           case 'permission': {
+            const permissionEvent = event as SSEPermissionEvent;
             const permissionRequest: SSEPermissionRequest = {
-              id: event.data.id,
-              sessionId: event.data.sessionId,
-              toolName: event.data.toolName,
-              description: event.data.description,
-              action: event.data.action,
-              path: event.data.path || '',
-              params: event.data.params || {},
+              id: permissionEvent.data.id,
+              sessionId: permissionEvent.data.sessionId,
+              toolName: permissionEvent.data.toolName,
+              description: permissionEvent.data.description,
+              action: permissionEvent.data.action,
+              path: permissionEvent.data.path || '',
+              params: permissionEvent.data.params || {},
             };
 
             setState(prev => ({
@@ -351,9 +376,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             break;
           }
 
-          default:
-            // Handle any other event types
+          default: {
+            // Handle any other event types that might be added in the future
+            console.warn('Unknown event type:', (event as SSEEventStream).event);
             break;
+          }
         }
       }
     } catch (error) {

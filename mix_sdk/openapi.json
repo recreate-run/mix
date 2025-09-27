@@ -2274,6 +2274,25 @@
         ],
         "type": "object"
       },
+      "CoreToolName": {
+        "description": "Core built-in tool names",
+        "enum": [
+          "bash",
+          "ReadText",
+          "glob",
+          "ReadMedia",
+          "grep",
+          "write",
+          "edit",
+          "python_execution",
+          "search",
+          "todo_write",
+          "exit_plan_mode",
+          "show_media",
+          "task"
+        ],
+        "type": "string"
+      },
       "ErrorResponse": {
         "properties": {
           "error": {
@@ -2304,13 +2323,18 @@
             "description": "File size in bytes",
             "format": "int64",
             "type": "integer"
+          },
+          "url": {
+            "description": "Static URL to access the file",
+            "type": "string"
           }
         },
         "required": [
           "name",
           "size",
           "modified",
-          "isDir"
+          "isDir",
+          "url"
         ],
         "type": "object"
       },
@@ -2674,8 +2698,8 @@
                     "type": "string"
                   },
                   "toolName": {
-                    "description": "Tool requiring permission",
-                    "type": "string"
+                    "$ref": "#/components/schemas/ToolName",
+                    "description": "Tool requiring permission"
                   },
                   "type": {
                     "description": "Permission event type",
@@ -2787,8 +2811,8 @@
                     "type": "string"
                   },
                   "name": {
-                    "description": "Tool name being executed",
-                    "type": "string"
+                    "$ref": "#/components/schemas/ToolName",
+                    "description": "Tool name being executed"
                   },
                   "status": {
                     "description": "Tool execution status",
@@ -2838,8 +2862,8 @@
                     "type": "string"
                   },
                   "toolName": {
-                    "description": "Name of the completed tool",
-                    "type": "string"
+                    "$ref": "#/components/schemas/ToolName",
+                    "description": "Name of the completed tool"
                   },
                   "type": {
                     "description": "Tool execution complete event type",
@@ -2881,8 +2905,8 @@
                     "type": "string"
                   },
                   "toolName": {
-                    "description": "Name of the tool being executed",
-                    "type": "string"
+                    "$ref": "#/components/schemas/ToolName",
+                    "description": "Name of the tool being executed"
                   },
                   "type": {
                     "description": "Tool execution start event type",
@@ -3003,8 +3027,8 @@
             "type": "boolean"
           },
           "name": {
-            "description": "Tool name",
-            "type": "string"
+            "$ref": "#/components/schemas/ToolName",
+            "description": "Tool name"
           },
           "result": {
             "description": "Tool execution result (optional)",
@@ -3023,6 +3047,20 @@
           "finished"
         ],
         "type": "object"
+      },
+      "ToolName": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CoreToolName"
+          },
+          {
+            "description": "MCP tool names following pattern: {serverName}_{toolName}",
+            "example": "brave_search",
+            "pattern": "^[a-zA-Z0-9_]+_[a-zA-Z0-9_]+$",
+            "type": "string"
+          }
+        ],
+        "description": "Tool name - either a core tool or MCP tool following {serverName}_{toolName} pattern"
       }
     }
   }
