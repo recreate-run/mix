@@ -35,7 +35,7 @@ func NewManager(config Config) (*Manager, error) {
 
 // Connect establishes a database connection and runs migrations
 func (m *Manager) Connect(ctx context.Context) error {
-	logging.Info("Using database provider: %s", m.provider.Type())
+	logging.Info("Using database provider", "type", m.provider.Type())
 
 	// Connect to the database
 	if err := m.provider.Connect(ctx); err != nil {

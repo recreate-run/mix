@@ -39,7 +39,7 @@ func (p *TursoProvider) Connect(ctx context.Context) error {
 	connectionString := p.config.URL + "?authToken=" + p.config.AuthToken
 
 	// Connect to Turso using libsql driver
-	logging.Info("Connecting to Turso database at: %s", p.config.URL)
+	logging.Info("Connecting to Turso database", "url", p.config.URL)
 	db, err := sql.Open("libsql", connectionString)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Turso: %w", err)
