@@ -86,6 +86,8 @@ type agent struct {
 	sessionProviders sync.Map // Maps session ID to interfaces.Provider
 	activeContexts   sync.Map  // Maps session ID to context.CancelFunc for cancellation
 
+	accumulator *MessageAccumulator // In-memory message accumulator
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -119,6 +121,9 @@ func NewAgent(
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Create message accumulator (no periodic flushing)
+	accumulator := NewMessageAccumulator(messages)
+
 	agent := &agent{
 		Broker:            pubsub.NewBroker[AgentEvent](),
 		agentName:         agentName,
@@ -131,6 +136,7 @@ func NewAgent(
 		summarizeProvider: summarizeProvider,
 		sessionProviders:  sync.Map{},
 		activeContexts:    sync.Map{},
+		accumulator:       accumulator,
 		ctx:               ctx,
 		cancel:            cancel,
 	}
@@ -393,10 +399,14 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 
 	parts := []message.ContentPart{message.TextContent{Text: messageContent}}
 	parts = append(parts, attachmentParts...)
-	return a.messages.Create(ctx, sessionID, message.CreateMessageParams{
+	userMsg, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role:  message.User,
 		Parts: parts,
 	})
+	if err == nil {
+		logging.Info(fmt.Sprintf("Agent: Created user message %s - initial DB write", userMsg.ID))
+	}
+	return userMsg, err
 }
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
@@ -432,6 +442,11 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	if err != nil {
 		return assistantMsg, nil, fmt.Errorf("failed to create assistant message: %w", err)
 	}
+	
+	logging.Info(fmt.Sprintf("Agent: Created assistant message %s - initial DB write", assistantMsg.ID))
+	
+	// Store initial assistant message in accumulator
+	a.accumulator.Store(&assistantMsg)
 
 	// Add the session and message ID into the context if needed by tools.
 	ctx = context.WithValue(ctx, tools.MessageIDContextKey, assistantMsg.ID)
@@ -495,7 +510,12 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 func (a *agent) finishMessage(ctx context.Context, msg *message.Message, finishReson message.FinishReason) {
 	msg.AddFinish(finishReson)
-	_ = a.messages.Update(context.Background(), *msg)
+	
+	// Store in accumulator
+	a.accumulator.Store(msg)
+	
+	// Finalize with the given finish reason - this ensures immediate flush
+	_ = a.accumulator.FinalizeMessage(msg.ID, finishReson)
 }
 
 func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event interfaces.ProviderEvent) error {
@@ -510,6 +530,15 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case interfaces.EventThinkingDelta:
 		// Claude thinking delta received
 		assistantMsg.AppendReasoningContent(event.Thinking)
+		
+		// Store in accumulator without immediate DB update
+		a.accumulator.Store(assistantMsg)
+		
+		// Update thinking content in accumulator
+		if err := a.accumulator.UpdateThinking(assistantMsg.ID, event.Thinking); err != nil {
+			return err
+		}
+		
 		// Publish thinking event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeThinking,
@@ -517,12 +546,18 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID: sessionID,
 			Thinking:  event.Thinking,
 		})
-		if err != nil {
-			return err
-		}
-		return a.messages.Update(context.Background(), *assistantMsg)
+		return err
 	case interfaces.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
+		
+		// Store in accumulator without immediate DB update
+		a.accumulator.Store(assistantMsg)
+		
+		// Update content in accumulator
+		if err := a.accumulator.UpdateContent(assistantMsg.ID, event.Content); err != nil {
+			return err
+		}
+		
 		// Publish content delta event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeContentDelta,
@@ -530,22 +565,26 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID: sessionID,
 			Content:   event.Content, // Send only the delta, not accumulated content
 		})
-		if err != nil {
-			return err
-		}
-		return a.messages.Update(context.Background(), *assistantMsg)
+		return err
 	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
+		
+		// Store in accumulator
+		a.accumulator.Store(assistantMsg)
+		
+		// Flush immediately for tool events (they're less frequent)
+		logging.Debug(fmt.Sprintf("Agent: Tool use started for %s - triggering immediate flush", event.ToolCall.Name))
+		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
+			return err
+		}
+		
 		// Publish tool start event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
 			Message:   *assistantMsg,
 			SessionID: sessionID,
 		})
-		if err != nil {
-			return err
-		}
-		return a.messages.Update(context.Background(), *assistantMsg)
+		return err
 	// TODO: see how to handle this
 	// case interfaces.EventToolUseDelta:
 	// 	tm := time.Unix(assistantMsg.UpdatedAt, 0)
@@ -557,17 +596,33 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	// 	}
 	case interfaces.EventToolUseStop:
 		assistantMsg.FinishToolCall(event.ToolCall.ID)
+		
+		// Store in accumulator
+		a.accumulator.Store(assistantMsg)
+		
+		// Flush immediately for tool events
+		logging.Debug(fmt.Sprintf("Agent: Tool use completed for ID %s - triggering immediate flush", event.ToolCall.ID))
+		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
+			return err
+		}
+		
 		// Publish tool completion event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
 			Type:      AgentEventTypeResponse,
 			Message:   *assistantMsg,
 			SessionID: sessionID,
 		})
-		if err != nil {
-			return err
-		}
-		return a.messages.Update(context.Background(), *assistantMsg)
+		return err
 	case interfaces.EventError:
+		// Store current state before error
+		a.accumulator.Store(assistantMsg)
+		
+		// Flush immediately on error to ensure we don't lose state
+		logging.Info(fmt.Sprintf("Agent: Error event received - triggering immediate flush for message %s", assistantMsg.ID))
+		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
+			logging.Error("Failed to flush message on error: %v", err)
+		}
+		
 		if errors.Is(event.Error, context.Canceled) {
 			// Event processing canceled for session
 			return context.Canceled
@@ -586,9 +641,15 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			assistantMsg.AddRedactedThinkingBlock(redactedBlock.Data)
 		}
 
-		if err := a.messages.Update(context.Background(), *assistantMsg); err != nil {
-			return fmt.Errorf("failed to update message: %w", err)
+		// Store final state in accumulator
+		a.accumulator.Store(assistantMsg)
+		
+		// Finalize message with the finish reason from response
+		// The finish reason is already set by AddFinish
+		if err := a.accumulator.FinalizeMessage(assistantMsg.ID, event.Response.FinishReason); err != nil {
+			return fmt.Errorf("failed to finalize message: %w", err)
 		}
+		
 		return a.TrackUsage(ctx, sessionID, a.provider.Model(), event.Response.Usage)
 	}
 
@@ -1179,6 +1240,10 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 }
 
 func (a *agent) Shutdown() {
+	// Shutdown message accumulator first to flush pending messages
+	if a.accumulator != nil {
+		a.accumulator.Shutdown()
+	}
 	a.cancel()
 }
 
@@ -1192,6 +1257,10 @@ func (a *agent) handleSessionEvents() {
 			if _, existed := a.sessionProviders.LoadAndDelete(sessionID); existed {
 				// Cleaned up session provider cache
 			}
+			
+			// Also flush any pending messages for this session
+			// Note: This is a best-effort cleanup since we don't track messages by session
+			// The accumulator will automatically clean up after the 5-second delay
 		}
 	}
 }
