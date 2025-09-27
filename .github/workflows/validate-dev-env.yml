@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:  # Allow manual triggering
 
+permissions:
+  contents: read
+  pull-requests: write  # Required to comment on PRs
+  issues: write         # Required to create/update issue comments
+
 jobs:
   validate:
     name: Validate Dev Environment
