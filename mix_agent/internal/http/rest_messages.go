@@ -108,10 +108,8 @@ func NewMessageHandler(app *app.App) *MessageHandler {
 
 // SendMessageRequest represents the request body for sending a message
 type SendMessageRequest struct {
-	Text     string   `json:"text"`
-	Media    []string `json:"media"`
-	Apps     []string `json:"apps"`
-	PlanMode bool     `json:"plan_mode"`
+	Text     string `json:"text"`
+	PlanMode bool   `json:"plan_mode,omitempty"`
 }
 
 // Helper function to get command names for logging

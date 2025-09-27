@@ -1,14 +1,9 @@
-import { stat } from '@tauri-apps/plugin-fs';
-import {
-  createFileAttachment as createFileAttachmentUtil,
-  createFolderAttachment as createFolderAttachmentUtil,
-} from '@/utils/attachmentUtils';
 import { detectVideoUrls, createVideoUrlAttachment } from '@/utils/videoUrlDetection';
 
 export type Attachment = {
   id: string;
   name: string;
-  type: 'image' | 'video' | 'audio' | 'text' | 'folder' | 'app';
+  type: 'image' | 'video' | 'audio' | 'text' | 'folder';
   // File/folder specific
   path?: string;
   preview?: string;
@@ -19,10 +14,6 @@ export type Attachment = {
     audios: number;
   };
   isDirectory?: boolean;
-  // App specific
-  icon?: string; // base64
-  isOpen?: boolean;
-  bundleId?: string;
   // URL specific (for video/image URLs)
   url?: string;
   thumbnailUrl?: string;
@@ -157,26 +148,26 @@ export const createAttachmentSlice = (
   addUrlAttachments: (text: string) => {
     const videoUrls = detectVideoUrls(text);
     const state = get();
-    
+
     let newAttachments = [...state.attachments];
     let newReferenceMap = new Map(state.referenceMap);
     let hasChanges = false;
-    
+
     for (const videoInfo of videoUrls) {
       const attachment = createVideoUrlAttachment(videoInfo);
-      
+
       // Skip if URL attachment already exists
       if (state.attachments.some(existing => existing.url === videoInfo.url)) {
         continue;
       }
-      
+
       // Add the attachment
       newAttachments.push(attachment);
-      
+
       // Add reference mapping (URL to itself for direct reference)
       newReferenceMap.set(videoInfo.url, videoInfo.url);
       hasChanges = true;
-      
+
       // Enforce 10 attachment limit
       if (newAttachments.length > 10) {
         console.warn('Maximum 10 attachments allowed');
@@ -184,7 +175,7 @@ export const createAttachmentSlice = (
         break;
       }
     }
-    
+
     if (hasChanges) {
       set(() => ({
         attachments: newAttachments,
@@ -208,95 +199,14 @@ export const getReferencedAttachments = (
 ): Attachment[] => {
   return attachments.filter((attachment) => {
     // Handle file/folder references
-    const hasFileReference = text.includes(`@${attachment.name}`) || 
-                            text.includes(`@../${attachment.name}`);
-    
+    const hasFileReference = text.includes(`@${attachment.name}`) ||
+      text.includes(`@../${attachment.name}`);
+
     // Handle URL references (URLs are referenced directly, not with @ prefix)
     const hasUrlReference = attachment.url && text.includes(attachment.url);
-    
+
     return hasFileReference || hasUrlReference;
   });
 };
 
-// Reconstruct attachment state from historical message data
-export const reconstructAttachmentsFromHistory = async (
-  text: string,
-  mediaPaths: string[],
-  appNames: string[]
-): Promise<{
-  contractedText: string;
-  attachments: Attachment[];
-  referenceMap: Map<string, string>;
-}> => {
-  const attachments: Attachment[] = [];
-  const referenceMap = new Map<string, string>();
-  let contractedText = text;
-
-  // Process media files/folders
-  for (const mediaPath of mediaPaths) {
-    try {
-      // Use stat to determine if path is file or directory
-      let attachment: Attachment | null = null;
-
-      try {
-        // Use stat to properly determine if path is file or directory
-        const pathStat = await stat(mediaPath);
-
-        if (pathStat.isDirectory) {
-          attachment = await createFolderAttachmentUtil(mediaPath);
-        } else {
-          attachment = createFileAttachmentUtil(mediaPath);
-        }
-      } catch (statError) {
-        // If stat fails, try to create as file based on file extension
-        attachment = createFileAttachmentUtil(mediaPath);
-      }
-
-      if (attachment) {
-        const displayName = `@${attachment.name}`;
-        attachments.push(attachment);
-        referenceMap.set(displayName, mediaPath);
-
-        // Replace full path with display name in text
-        contractedText = contractedText.replace(
-          new RegExp(mediaPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-          displayName
-        );
-      }
-    } catch (error) {
-      console.warn(
-        'Failed to create attachment for media path:',
-        mediaPath,
-        error
-      );
-    }
-  }
-
-  // Process app references
-  for (const appName of appNames) {
-    const attachment: Attachment = {
-      id: `app:${appName}`,
-      name: appName,
-      type: 'app',
-      icon: 'placeholder',
-      isOpen: true,
-    };
-
-    const displayName = `@${appName}`;
-    attachments.push(attachment);
-    referenceMap.set(displayName, `app:${appName}`);
-
-    // Replace app name with display name in text (only if it's not already in @ format)
-    if (!contractedText.includes(displayName)) {
-      contractedText = contractedText.replace(
-        new RegExp(
-          `\\b${appName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
-          'g'
-        ),
-        displayName
-      );
-    }
-  }
-
-  return { contractedText, attachments, referenceMap };
-};
+// This function is now handled in attachmentUtils.ts with simplified signature

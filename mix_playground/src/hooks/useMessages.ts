@@ -5,8 +5,6 @@ import { invalidateSessionCaches } from '@/lib/session-cache';
 interface SendMessageParams {
   content: string;
   sessionId: string;
-  apps?: string[];
-  media?: string[];
   planMode?: boolean;
 }
 
@@ -21,9 +19,7 @@ async function sendMessage(
     id: params.sessionId,
     requestBody: {
       text: params.content,
-      apps: params.apps || [],
-      media: params.media || [],
-      planMode: params.planMode || false
+      planMode: params.planMode ?? false
     }
   });
 
