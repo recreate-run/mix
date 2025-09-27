@@ -1,0 +1,59 @@
+package session
+
+import (
+	"context"
+
+	"github.com/stretchr/testify/mock"
+
+	"mix/internal/db"
+	"mix/internal/pubsub"
+)
+
+// MockService implements session.Service for testing
+type MockService struct {
+	mock.Mock
+}
+
+func (m *MockService) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string) (Session, error) {
+	args := m.Called(ctx, title, customSystemPrompt, promptMode)
+	return args.Get(0).(Session), args.Error(1)
+}
+
+func (m *MockService) Fork(ctx context.Context, sourceSessionID string, title string) (Session, error) {
+	args := m.Called(ctx, sourceSessionID, title)
+	return args.Get(0).(Session), args.Error(1)
+}
+
+func (m *MockService) Get(ctx context.Context, id string) (Session, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(Session), args.Error(1)
+}
+
+func (m *MockService) List(ctx context.Context) ([]Session, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]Session), args.Error(1)
+}
+
+func (m *MockService) ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]db.ListSessionsWithContentRow), args.Error(1)
+}
+
+func (m *MockService) Save(ctx context.Context, sess Session) (Session, error) {
+	args := m.Called(ctx, sess)
+	var result Session
+	if args.Get(0) != nil {
+		result = args.Get(0).(Session)
+	}
+	return result, args.Error(1)
+}
+
+func (m *MockService) Delete(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockService) Subscribe(ctx context.Context) <-chan pubsub.Event[Session] {
+	args := m.Called(ctx)
+	return args.Get(0).(<-chan pubsub.Event[Session])
+}

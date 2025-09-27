@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"mix/internal/config"
-	"mix/internal/db"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
 	"mix/internal/message"
@@ -18,149 +17,10 @@ import (
 	"mix/internal/session"
 )
 
-// Mock implementations for testing
-
-// MockSessionService implements session.Service
-type MockSessionService struct {
-	mock.Mock
-}
-
-func (m *MockSessionService) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string) (session.Session, error) {
-	args := m.Called(ctx, title, customSystemPrompt, promptMode)
-	return args.Get(0).(session.Session), args.Error(1)
-}
-
-func (m *MockSessionService) Fork(ctx context.Context, sourceSessionID string, title string) (session.Session, error) {
-	args := m.Called(ctx, sourceSessionID, title)
-	return args.Get(0).(session.Session), args.Error(1)
-}
-
-func (m *MockSessionService) Get(ctx context.Context, id string) (session.Session, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(session.Session), args.Error(1)
-}
-
-func (m *MockSessionService) List(ctx context.Context) ([]session.Session, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]session.Session), args.Error(1)
-}
-
-func (m *MockSessionService) ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]db.ListSessionsWithContentRow), args.Error(1)
-}
-
-func (m *MockSessionService) Save(ctx context.Context, sess session.Session) (session.Session, error) {
-	args := m.Called(ctx, sess)
-	var result session.Session
-	if args.Get(0) != nil {
-		result = args.Get(0).(session.Session)
-	}
-	return result, args.Error(1)
-}
-
-func (m *MockSessionService) Delete(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockSessionService) Subscribe(ctx context.Context) <-chan pubsub.Event[session.Session] {
-	args := m.Called(ctx)
-	return args.Get(0).(<-chan pubsub.Event[session.Session])
-}
-
-// MockMessageService implements message.Service
-type MockMessageService struct {
-	mock.Mock
-}
-
-func (m *MockMessageService) Create(ctx context.Context, sessionID string, params message.CreateMessageParams) (message.Message, error) {
-	args := m.Called(ctx, sessionID, params)
-	return args.Get(0).(message.Message), args.Error(1)
-}
-
-func (m *MockMessageService) Update(ctx context.Context, message message.Message) error {
-	args := m.Called(ctx, message)
-	return args.Error(0)
-}
-
-func (m *MockMessageService) Get(ctx context.Context, id string) (message.Message, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(message.Message), args.Error(1)
-}
-
-func (m *MockMessageService) List(ctx context.Context, sessionID string) ([]message.Message, error) {
-	args := m.Called(ctx, sessionID)
-	return args.Get(0).([]message.Message), args.Error(1)
-}
-
-func (m *MockMessageService) Delete(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockMessageService) ListUserMessageHistory(ctx context.Context, limit, offset int64) ([]message.Message, error) {
-	args := m.Called(ctx, limit, offset)
-	return args.Get(0).([]message.Message), args.Error(1)
-}
-
-func (m *MockMessageService) CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error {
-	args := m.Called(ctx, sourceSessionID, targetSessionID, messageIndex)
-	return args.Error(0)
-}
-
-func (m *MockMessageService) Subscribe(ctx context.Context) <-chan pubsub.Event[message.Message] {
-	args := m.Called(ctx)
-	return args.Get(0).(<-chan pubsub.Event[message.Message])
-}
-
-// MockProvider implements interfaces.Provider
-type MockProvider struct {
-	mock.Mock
-}
-
-func (m *MockProvider) Model() models.Model {
-	args := m.Called()
-	return args.Get(0).(models.Model)
-}
-
-func (m *MockProvider) SendMessages(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (*interfaces.ProviderResponse, error) {
-	args := m.Called(ctx, messages, tools)
-	return args.Get(0).(*interfaces.ProviderResponse), args.Error(1)
-}
-
-func (m *MockProvider) StreamResponse(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) <-chan interfaces.ProviderEvent {
-	args := m.Called(ctx, messages, tools)
-	return args.Get(0).(<-chan interfaces.ProviderEvent)
-}
-
-// MockTool implements interfaces.BaseTool
-type MockTool struct {
-	mock.Mock
-}
-
-func (m *MockTool) Name() string {
-	args := m.Called()
-	return args.String(0)
-}
-
-func (m *MockTool) Description() string {
-	args := m.Called()
-	return args.String(0)
-}
-
-func (m *MockTool) Parameters() interface{} {
-	args := m.Called()
-	return args.Get(0)
-}
-
-func (m *MockTool) Execute(ctx context.Context, input map[string]interface{}) (interface{}, error) {
-	args := m.Called(ctx, input)
-	return args.Get(0), args.Error(1)
-}
+// Test helper functions using mocks from their respective packages
 
 // Test helper functions
-func CreateTestAgent(t *testing.T, mockSessions *MockSessionService, mockMessages *MockMessageService, mockProvider *MockProvider) *agent {
+func CreateTestAgent(t *testing.T, mockSessions *session.MockService, mockMessages *message.MockService, mockProvider *interfaces.MockProvider) *agent {
 	agentTools := []interfaces.BaseTool{}
 	storageConfig := session.Config{}
 
@@ -226,9 +86,9 @@ func CreateTestModel() models.Model {
 
 // Test Model method
 func TestModel(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	testModel := CreateTestModel()
 	mockProvider.On("Model").Return(testModel)
@@ -243,9 +103,9 @@ func TestModel(t *testing.T) {
 
 // Test Cancel method
 func TestCancel(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -265,9 +125,9 @@ func TestCancel(t *testing.T) {
 
 // Test Cancel with summarize context
 func TestCancelSummarize(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -287,9 +147,9 @@ func TestCancelSummarize(t *testing.T) {
 
 // Test generateTitle method
 func TestGenerateTitle(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -319,9 +179,9 @@ func TestGenerateTitle(t *testing.T) {
 
 // Test generateTitle with empty content
 func TestGenerateTitleEmptyContent(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -338,9 +198,9 @@ func TestGenerateTitleEmptyContent(t *testing.T) {
 
 // Test generateTitle without title provider
 func TestGenerateTitleNoProvider(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 	agent.titleProvider = nil // Remove title provider
@@ -358,9 +218,9 @@ func TestGenerateTitleNoProvider(t *testing.T) {
 
 // Test ClearAllSessionProviders
 func TestClearAllSessionProviders(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -383,9 +243,9 @@ func TestClearAllSessionProviders(t *testing.T) {
 
 // Test error handling
 func TestErr(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -398,9 +258,9 @@ func TestErr(t *testing.T) {
 
 // Test Shutdown
 func TestShutdown(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -418,9 +278,9 @@ func TestShutdown(t *testing.T) {
 
 // Test createUserMessage basic functionality
 func TestCreateUserMessage(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
@@ -441,9 +301,9 @@ func TestCreateUserMessage(t *testing.T) {
 
 // Test createUserMessage with plan mode
 func TestCreateUserMessagePlanMode(t *testing.T) {
-	mockSessions := &MockSessionService{}
-	mockMessages := &MockMessageService{}
-	mockProvider := &MockProvider{}
+	mockSessions := &session.MockService{}
+	mockMessages := &message.MockService{}
+	mockProvider := &interfaces.MockProvider{}
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
