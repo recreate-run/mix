@@ -444,7 +444,7 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 				return nil, retryErr
 			}
 			if retry {
-				logging.Warn(fmt.Sprintf("Retrying due to rate limit... attempt %d of %d", attempts, maxRetries))
+				logging.Warn(a.getRetryMessage(err, attempts))
 				select {
 				case <-ctx.Done():
 					return nil, ctx.Err()
@@ -667,7 +667,7 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 				return
 			}
 			if retry {
-				logging.Warn(fmt.Sprintf("Retrying due to rate limit... attempt %d of %d", attempts, maxRetries))
+				logging.Warn(a.getRetryMessage(err, attempts))
 				select {
 				case <-ctx.Done():
 					// context cancelled
@@ -691,31 +691,106 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 	return eventChan
 }
 
-func (a *anthropicClient) shouldRetry(attempts int, err error) (bool, int64, error) {
+// errorType represents different types of LLM API errors for better messaging
+type errorType string
+
+const (
+	errorTypeOverloaded    errorType = "overloaded"
+	errorTypeRateLimit     errorType = "rate_limit"
+	errorTypeUnavailable   errorType = "unavailable"
+	errorTypeUnretryable   errorType = "unretryable"
+)
+
+// detectRetryableError analyzes the error and returns whether it's retryable and its type
+func (a *anthropicClient) detectRetryableError(err error) (bool, errorType) {
 	var apierr *anthropic.Error
-	if !errors.As(err, &apierr) {
-		return false, 0, err
+
+	// Check for HTTP status codes first
+	if errors.As(err, &apierr) {
+		switch apierr.StatusCode {
+		case 429:
+			return true, errorTypeRateLimit
+		case 529:
+			return true, errorTypeUnavailable
+		}
 	}
 
-	if apierr.StatusCode != 429 && apierr.StatusCode != 529 {
+	// Check for Anthropic API error types in response body
+	errStr := err.Error()
+	if strings.Contains(errStr, `"type":"overloaded_error"`) ||
+	   strings.Contains(errStr, `"message":"Overloaded"`) {
+		return true, errorTypeOverloaded
+	}
+
+	if strings.Contains(errStr, `"type":"rate_limit_error"`) ||
+	   strings.Contains(errStr, "rate_limit_error") {
+		return true, errorTypeRateLimit
+	}
+
+	return false, errorTypeUnretryable
+}
+
+// getRetryMessage returns a descriptive retry message based on the error type
+func (a *anthropicClient) getRetryMessage(err error, attempts int) string {
+	_, errType := a.detectRetryableError(err)
+
+	var operation string
+	switch errType {
+	case errorTypeOverloaded:
+		operation = "LLM API temporarily overloaded"
+	case errorTypeRateLimit:
+		operation = "LLM API rate limited"
+	case errorTypeUnavailable:
+		operation = "LLM API temporarily unavailable"
+	default:
+		operation = "LLM API error"
+	}
+
+	return fmt.Sprintf("Retrying due to %s... attempt %d of %d", operation, attempts, maxRetries)
+}
+
+func (a *anthropicClient) shouldRetry(attempts int, err error) (bool, int64, error) {
+	// Use enhanced error detection
+	retryable, errType := a.detectRetryableError(err)
+	if !retryable {
 		return false, 0, err
 	}
 
 	if attempts > maxRetries {
-		return false, 0, fmt.Errorf("maximum retry attempts reached for rate limit: %d retries", maxRetries)
+		var errorTypeMsg string
+		switch errType {
+		case errorTypeOverloaded:
+			errorTypeMsg = "LLM API overloaded"
+		case errorTypeRateLimit:
+			errorTypeMsg = "LLM API rate limited"
+		case errorTypeUnavailable:
+			errorTypeMsg = "LLM API unavailable"
+		default:
+			errorTypeMsg = "LLM API error"
+		}
+		return false, 0, fmt.Errorf("%s - maximum retry attempts reached: %d retries", errorTypeMsg, maxRetries)
 	}
 
-	retryMs := 0
-	retryAfterValues := apierr.Response.Header.Values("Retry-After")
+	// Calculate retry delay with exponential backoff
+	var retryMs int
+	var apierr *anthropic.Error
 
+	// Try to get Retry-After header for HTTP status code errors
+	if errors.As(err, &apierr) && apierr.Response != nil {
+		retryAfterValues := apierr.Response.Header.Values("Retry-After")
+		if len(retryAfterValues) > 0 {
+			if _, parseErr := fmt.Sscanf(retryAfterValues[0], "%d", &retryMs); parseErr == nil {
+				retryMs = retryMs * 1000 // Convert to milliseconds
+				return true, int64(retryMs), nil
+			}
+		}
+	}
+
+	// Use exponential backoff with jitter
 	backoffMs := 2000 * (1 << (attempts - 1))
 	jitterMs := int(float64(backoffMs) * 0.2)
 	retryMs = backoffMs + jitterMs
-	if len(retryAfterValues) > 0 {
-		if _, err := fmt.Sscanf(retryAfterValues[0], "%d", &retryMs); err == nil {
-			retryMs = retryMs * 1000
-		}
-	}
+
 	return true, int64(retryMs), nil
 }
 
