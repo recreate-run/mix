@@ -65,18 +65,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.store_api_key(api_key="<value>", provider="brave")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -94,6 +82,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.store_api_key(api_key="<value>", provider="brave")
+
+                # Handle response
+                print(res)
   "/api/auth/oauth-callback":
     post:
       description: "Process OAuth callback and exchange code for access token"
@@ -152,18 +152,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.handle_o_auth_callback(code="<value>", provider="<value>", state="Arizona")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -182,6 +170,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.handle_o_auth_callback(code="<value>", provider="<value>", state="Arizona")
+
+                # Handle response
+                print(res)
   "/api/auth/oauth/{provider}":
     post:
       description: "Initiate OAuth authentication flow for a specific provider"
@@ -224,18 +224,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.start_o_auth_flow(provider="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -252,6 +240,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.start_o_auth_flow(provider="<value>")
+
+                # Handle response
+                print(res)
   "/api/auth/status":
     get:
       description: "Get authentication status for all supported providers"
@@ -292,18 +292,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.get_auth_status()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -318,6 +306,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.get_auth_status()
+
+                # Handle response
+                print(res)
   "/api/auth/validate":
     get:
       description: "Check if the user's preferred provider is authenticated"
@@ -355,18 +355,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.validate_preferred_provider()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -381,6 +369,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.validate_preferred_provider()
+
+                # Handle response
+                print(res)
   "/api/auth/{provider}":
     delete:
       description: "Delete stored API key and/or OAuth credentials for a provider"
@@ -423,18 +423,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.delete_credentials(provider="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -451,6 +439,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.delete_credentials(provider="<value>")
+
+                # Handle response
+                print(res)
   "/api/commands":
     get:
       description: "Retrieve list of all available commands"
@@ -485,18 +485,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.list_commands()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -511,6 +499,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.list_commands()
+
+                # Handle response
+                print(res)
   "/api/commands/{name}":
     get:
       description: "Retrieve details about a specific command"
@@ -548,18 +548,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.get_command(name="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -576,6 +564,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.get_command(name="<value>")
+
+                # Handle response
+                print(res)
   "/api/mcp":
     get:
       description: "Retrieve list of available Model Context Protocol (MCP) servers"
@@ -633,18 +633,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.list_mcp_servers()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -659,6 +647,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.list_mcp_servers()
+
+                # Handle response
+                print(res)
   "/api/messages/history":
     get:
       description: "Retrieve message history across all sessions with optional pagination"
@@ -702,18 +702,6 @@ paths:
         - "Messages"
       x-speakeasy-name-override: "getHistory"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.messages.get_history(limit=50, offset=0)
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -728,6 +716,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.messages.get_history(limit=50, offset=0)
+
+                # Handle response
+                print(res)
   "/api/permissions/{id}/deny":
     post:
       description: "Deny a specific permission"
@@ -770,18 +770,6 @@ paths:
         - "Permissions"
       x-speakeasy-name-override: "deny"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.permissions.deny(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -798,6 +786,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.permissions.deny(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/permissions/{id}/grant":
     post:
       description: "Grant a specific permission"
@@ -840,18 +840,6 @@ paths:
         - "Permissions"
       x-speakeasy-name-override: "grant"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.permissions.grant(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -868,6 +856,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.permissions.grant(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/preferences":
     get:
       description: "Retrieve current user preferences including model and provider settings"
@@ -938,18 +938,6 @@ paths:
         - "Preferences"
       x-speakeasy-name-override: get
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.get_preferences()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -964,6 +952,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.get_preferences()
+
+                # Handle response
+                print(res)
     post:
       description: "Update user preferences including model and provider settings"
       operationId: "updatePreferences"
@@ -1045,18 +1045,6 @@ paths:
         - "Preferences"
       x-speakeasy-name-override: update
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.update_preferences()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1071,6 +1059,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.update_preferences()
+
+                # Handle response
+                print(res)
   "/api/preferences/providers":
     get:
       description: "Retrieve list of available AI providers and their supported models"
@@ -1104,18 +1104,6 @@ paths:
         - "Preferences"
       x-speakeasy-name-override: getProviders
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.get_available_providers()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1130,6 +1118,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.get_available_providers()
+
+                # Handle response
+                print(res)
   "/api/preferences/reset":
     post:
       description: "Reset user preferences to default values"
@@ -1179,18 +1179,6 @@ paths:
         - "Preferences"
       x-speakeasy-name-override: reset
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.reset_preferences()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1205,6 +1193,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.reset_preferences()
+
+                # Handle response
+                print(res)
   "/api/sessions":
     get:
       description: "Retrieve a list of all available sessions with their metadata"
@@ -1232,18 +1232,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "list"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.list()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1258,14 +1246,40 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.list()
+
+                # Handle response
+                print(res)
     post:
-      description: "Create a new session with required title. Session automatically gets isolated storage directory."
+      description: "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory."
       operationId: "createSession"
       requestBody:
         content:
           "application/json":
             schema:
               properties:
+                "customSystemPrompt":
+                  description: "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax."
+                  example: "You are a helpful assistant specialized in $<domain>. Always be concise and accurate."
+                  maxLength: 102400
+                  type: "string"
+                "promptMode":
+                  default: "default"
+                  description: "Custom prompt handling mode:\n- 'default': Use base system prompt only (customSystemPrompt ignored)\n- 'append': Append customSystemPrompt to base system prompt (50KB limit)\n- 'replace': Replace base system prompt with customSystemPrompt (100KB limit)"
+                  enum:
+                    - "default"
+                    - "append"
+                    - "replace"
+                  example: "append"
+                  type: "string"
                 "title":
                   description: "Title for the session"
                   type: "string"
@@ -1282,6 +1296,19 @@ paths:
         "400":
           content:
             "application/json":
+              examples:
+                "invalid_prompt_mode":
+                  summary: "Invalid prompt mode"
+                  value: {"error": {"code": 400, "message": "promptMode must be 'default', 'append', or 'replace'", "type": "validation_error"}}
+                "missing_title":
+                  summary: "Missing required title"
+                  value: {"error": {"code": 400, "message": "title is required", "type": "validation_error"}}
+                "prompt_size_exceeded_append":
+                  summary: "Custom prompt size exceeds append mode limit"
+                  value: {"error": {"code": 400, "message": "Custom prompt size (75KB) exceeds append mode limit of 50KB", "type": "validation_error"}}
+                "prompt_size_exceeded_replace":
+                  summary: "Custom prompt size exceeds replace mode limit"
+                  value: {"error": {"code": 400, "message": "Custom prompt size (150KB) exceeds replace mode limit of 100KB", "type": "validation_error"}}
               schema: {"$ref": "#/components/schemas/ErrorResponse"}
           description: "Invalid request data"
       summary: "Create a new session"
@@ -1289,18 +1316,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "create"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.create(title="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1310,6 +1325,8 @@ paths:
 
             async function run() {
               const result = await mix.sessions.create({
+                customSystemPrompt: "You are a helpful assistant specialized in $<domain>. Always be concise and accurate.",
+                promptMode: "append",
                 title: "<value>",
               });
 
@@ -1317,6 +1334,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.create(title="<value>", custom_system_prompt="You are a helpful assistant specialized in $<domain>. Always be concise and accurate.", prompt_mode="append")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}":
     delete:
       description: "Permanently delete a session and all its data"
@@ -1341,17 +1370,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "delete"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                mix.sessions.delete(id="<id>")
-
-                # Use the SDK ...
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1368,6 +1386,17 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                mix.sessions.delete(id="<id>")
+
+                # Use the SDK ...
     get:
       description: "Retrieve detailed information about a specific session"
       operationId: "getSession"
@@ -1394,18 +1423,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "get"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.get(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1422,6 +1439,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.get(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/cancel":
     post:
       description: "Cancel any ongoing agent processing in the specified session"
@@ -1454,18 +1483,6 @@ paths:
         - "Messages"
       x-speakeasy-name-override: "cancelProcessing"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.cancel_processing(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1482,6 +1499,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.cancel_processing(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/files":
     get:
       description: "List all files in session storage directory"
@@ -1511,18 +1540,6 @@ paths:
         - "Files"
       x-speakeasy-name-override: list
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.files.list_session_files(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1539,6 +1556,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.files.list_session_files(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/files/upload":
     post:
       description: "Upload a file to session-specific storage directory"
@@ -1589,21 +1618,6 @@ paths:
         - "Files"
       x-speakeasy-name-override: upload
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.files.upload_session_file(id="<id>", file={
-                    "file_name": "example.file",
-                    "content": open("example.file", "rb"),
-                })
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1624,6 +1638,21 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.files.upload_session_file(id="<id>", file={
+                    "file_name": "example.file",
+                    "content": open("example.file", "rb"),
+                })
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/files/{filename}":
     delete:
       description: "Delete a specific file from session storage"
@@ -1654,17 +1683,6 @@ paths:
         - "Files"
       x-speakeasy-name-override: delete
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                mix.files.delete_session_file(id="<id>", filename="example.file")
-
-                # Use the SDK ...
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1682,6 +1700,17 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                mix.files.delete_session_file(id="<id>", filename="example.file")
+
+                # Use the SDK ...
     get:
       description: "Download or serve a specific file from session storage. Supports thumbnail generation with ?thumb parameter."
       operationId: "getSessionFile"
@@ -1735,18 +1764,6 @@ paths:
         - "Files"
       x-speakeasy-name-override: get
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.files.get_session_file(id="<id>", filename="example.file")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1764,6 +1781,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.files.get_session_file(id="<id>", filename="example.file")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/fork":
     post:
       description: "Create a new session based on an existing session, copying messages up to a specified index"
@@ -1812,18 +1841,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "fork"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.fork(id="<id>", message_index=385832)
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1843,6 +1860,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.fork(id="<id>", message_index=385832)
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/messages":
     get:
       description: "Retrieve all messages from a specific session"
@@ -1872,18 +1901,6 @@ paths:
         - "Messages"
       x-speakeasy-name-override: "getSession"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.messages.list_session(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1900,6 +1917,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.messages.list_session(id="<id>")
+
+                # Handle response
+                print(res)
     post:
       description: "Send a user message to a specific session for AI processing"
       operationId: "sendMessage"
@@ -1915,17 +1944,8 @@ paths:
           "application/json":
             schema:
               properties:
-                "apps":
-                  description: "Array of app identifiers or references"
-                  items:
-                    type: "string"
-                  type: "array"
-                "media":
-                  description: "Array of media file references or URLs"
-                  items:
-                    type: "string"
-                  type: "array"
                 "plan_mode":
+                  default: false
                   description: "Whether the message is in planning mode"
                   type: "boolean"
                 "text":
@@ -1933,9 +1953,6 @@ paths:
                   type: "string"
               required:
                 - "text"
-                - "media"
-                - "apps"
-                - "plan_mode"
               type: "object"
         required: true
       responses:
@@ -1959,23 +1976,6 @@ paths:
         - "Messages"
       x-speakeasy-name-override: "send"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.messages.send(id="<id>", apps=[
-                    "<value 1>",
-                ], media=[
-                    "<value 1>",
-                    "<value 2>",
-                ], plan_mode=False, text="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1987,14 +1987,6 @@ paths:
               const result = await mix.messages.send({
                 id: "<id>",
                 requestBody: {
-                  apps: [
-                    "<value 1>",
-                  ],
-                  media: [
-                    "<value 1>",
-                    "<value 2>",
-                  ],
-                  planMode: false,
                   text: "<value>",
                 },
               });
@@ -2003,6 +1995,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.messages.send(id="<id>", text="<value>", plan_mode=False)
+
+                # Handle response
+                print(res)
   "/api/tools/status":
     get:
       description: "Get status and authentication information for all available tools and categories"
@@ -2054,18 +2058,6 @@ paths:
       tags:
         - "Tools"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.tools.get_tools_status()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2080,6 +2072,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.tools.get_tools_status()
+
+                # Handle response
+                print(res)
   "/health":
     get:
       description: "Check server health and status"
@@ -2110,18 +2114,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.get_health()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2136,6 +2128,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.get_health()
+
+                # Handle response
+                print(res)
   "/stream":
     get:
       description: "Establishes a persistent SSE connection for receiving real-time updates during message processing. Connection remains open for multiple messages and includes proper reconnection support with Last-Event-ID header."
@@ -2192,20 +2196,6 @@ paths:
       tags:
         - "Streaming"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.streaming.stream_events(session_id="<id>")
-
-                with res as event_stream:
-                    for event in event_stream:
-                        # handle event
-                        print(event, flush=True)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2224,6 +2214,20 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.streaming.stream_events(session_id="<id>")
+
+                with res as event_stream:
+                    for event in event_stream:
+                        # handle event
+                        print(event, flush=True)
   "/stream/{id}/message":
     post:
       description: "Send a message to a session via the streaming pipeline. This endpoint integrates with active SSE connections to broadcast real-time processing events including thinking, content, tool execution, and completion events."
@@ -2272,18 +2276,6 @@ paths:
       tags:
         - "Streaming"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.streaming.send_streaming_message(id="<id>", content="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2303,6 +2295,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.streaming.send_streaming_message(id="<id>", content="<value>")
+
+                # Handle response
+                print(res)
 components:
   schemas:
     "BackendMessage":
@@ -2370,17 +2374,8 @@ components:
     "MessageData":
       description: "Message data structure for user input"
       properties:
-        "apps":
-          description: "Array of app identifiers or references"
-          items:
-            type: "string"
-          type: "array"
-        "media":
-          description: "Array of media file references or URLs"
-          items:
-            type: "string"
-          type: "array"
         "plan_mode":
+          default: false
           description: "Whether the message is in planning mode"
           type: "boolean"
         "text":
@@ -2388,9 +2383,6 @@ components:
           type: "string"
       required:
         - "text"
-        - "media"
-        - "apps"
-        - "plan_mode"
       type: "object"
     "MessageRole":
       description: "Message role"
