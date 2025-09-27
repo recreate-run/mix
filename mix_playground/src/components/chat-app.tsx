@@ -24,7 +24,6 @@ import { usePreferences, formatCurrentModel } from '@/hooks/usePreferences';
 import { useBoundStore } from '@/stores';
 import {
   type Attachment,
-  reconstructAttachmentsFromHistory,
 } from '@/stores/attachmentSlice';
 import { buildSessionFileUrl } from '@/utils/attachmentUtils';
 // import type { ToolCall } from '@/types/common';
@@ -143,7 +142,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   }, [sessionMessages.data, sessionMessages.error, sessionMessages.isLoading, sessionId]);
 
-  const availableApps: any[] = [];
+  // Apps functionality removed - UI attachment system is separate from API fields
 
   const fileRef = useFileReference(text, setText, session?.id);
 
@@ -487,25 +486,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         title: `Forked: ${session.title || 'Chat Session'}`,
       });
 
-      // Extract media paths and app names from the message attachments
-      const mediaPaths =
-        messageToFork.attachments?.filter((a) => a.path).map((a) => a.path!) ||
-        [];
-      const appNames =
-        messageToFork.attachments
-          ?.filter((a) => a.type === 'app')
-          .map((a) => a.name) || [];
-
-      // Reconstruct attachment state from the historical message
-      const { contractedText, attachments, referenceMap } =
-        await reconstructAttachmentsFromHistory(
-          messageToFork.content,
-          mediaPaths,
-          appNames
-        );
-
       // Queue fork text BEFORE navigation to prevent race condition
-      pendingForkTextRef.current = { text: contractedText, attachments, referenceMap };
+      pendingForkTextRef.current = {
+        text: messageToFork.content,
+        attachments: [],
+        referenceMap: new Map()
+      };
 
       // Navigate to the forked session
       navigate({
@@ -599,9 +585,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           >
             <AIInputTextarea
               autoFocus
-              availableApps={attachments
-                .filter((a) => a.type === 'app')
-                .map((app) => app.name)}
               availableCommands={slashCommands.map((cmd) => cmd.name)}
               availableFiles={fileRef.files.map((file) => file.name)}
               onChange={(e) => {
@@ -683,11 +666,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {/* File Reference Dropdown with Command Component */}
           {fileRef.show && session?.id && (
             <CommandFileReference
-              apps={availableApps}
               fileRef={fileRef}
               onClose={fileRef.close}
-              onTextUpdate={setText}
-              text={text}
               sessionId={session.id}
             />
           )}

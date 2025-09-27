@@ -112,28 +112,6 @@ export const FolderPreview = ({ attachment }: AttachmentItemPreviewProps) => {
   );
 };
 
-export const AppPreview = ({ attachment }: AttachmentItemPreviewProps) => {
-  return (
-    <div className="group flex min-w-0 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 transition-colors hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500">
-      <div className="flex-shrink-0 rounded-md bg-gray-50 p-1 shadow-sm dark:bg-gray-600">
-        <img
-          alt={`${attachment.name} icon`}
-          className="size-4 rounded-sm"
-          src={`data:image/png;base64,${attachment.icon}`}
-        />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-medium text-gray-900 text-sm dark:text-gray-100">
-          {attachment.name}
-        </div>
-        <div className="text-gray-500 text-xs dark:text-gray-400">
-          Application
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export const DefaultPreview = ({
   attachment: _,

@@ -1,7 +1,6 @@
 import type { Attachment } from '@/stores';
 import { generatePreviewUrl } from '@/utils/assetServer';
 import {
-  AppPreview,
   AudioPreview,
   DefaultPreview,
   FolderPreview,
@@ -42,8 +41,6 @@ export function MessageAttachmentDisplay({
               return <TextPreview attachment={attachment} />;
             case 'folder':
               return <FolderPreview attachment={attachment} />;
-            case 'app':
-              return <AppPreview attachment={attachment} />;
             default:
               return <DefaultPreview attachment={attachment} />;
           }
