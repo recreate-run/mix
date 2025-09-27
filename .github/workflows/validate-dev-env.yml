@@ -68,20 +68,19 @@ jobs:
           cd mix_agent
           go build -o ./build/debug/mix ./main.go
 
-      - name: Run Go Tests (Unit Tests Only)
+      - name: Run Go Tests
         run: |
-          cd mix_agent
-          # Run unit tests only, excluding integration tests
-          go test -v ./internal/credentials ./internal/session ./internal/message ./internal/preferences ./internal/llm/agent -coverprofile=coverage.out
-          go tool cover -func=coverage.out
+          # Use enhanced script with unit-only flag to avoid flaky integration tests
+          ./scripts/tests/run_go_tests.sh --unit-only
 
-      - name: Generate Coverage Report
+      - name: Generate Coverage Report for PR
+        if: github.event_name == 'pull_request'
         run: |
           cd mix_agent
           echo "## 📊 Test Coverage Report" >> coverage_report.md
           echo "" >> coverage_report.md
           echo "\`\`\`" >> coverage_report.md
-          go tool cover -func=coverage.out | grep -E "(credentials|session|message|preferences|agent)" >> coverage_report.md
+          go tool cover -func=coverage.out | grep -E "(credentials|session|message|preferences|agent)" | head -20 >> coverage_report.md
           echo "\`\`\`" >> coverage_report.md
           echo "" >> coverage_report.md
           TOTAL_COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
