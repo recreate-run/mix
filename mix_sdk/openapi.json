@@ -1603,7 +1603,7 @@
     },
     "/api/sessions/{id}/files/{filename}": {
       "delete": {
-        "description": "Delete a specific file from session storage",
+        "description": "Delete a specific file from session storage. Only files are supported - directories cannot be deleted.",
         "operationId": "deleteSessionFile",
         "parameters": [
           {
@@ -1628,6 +1628,16 @@
         "responses": {
           "204": {
             "description": "File deleted successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request - attempted to delete a directory"
           },
           "404": {
             "content": {
