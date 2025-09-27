@@ -109,7 +109,7 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 
 	for _, safe := range safeReadOnlyCommands {
 		if strings.HasPrefix(cmdLower, strings.ToLower(safe)) {
-			if len(cmdLower) == len(safe) || cmdLower[len(safe)] == ' ' || cmdLower[len(safe)] == '-' {
+			if len(cmdLower) == len(safe) || cmdLower[len(safe)] == ' ' {
 				isSafeReadOnly = true
 				break
 			}

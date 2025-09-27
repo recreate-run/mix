@@ -10,9 +10,11 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"mix/internal/credentials"
+	"mix/internal/database"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
 	"mix/internal/preferences"
@@ -74,6 +76,7 @@ type ShellConfig struct {
 // Config is the simplified configuration structure for embedded binary.
 type Config struct {
 	Data       Data                 `json:"data"`
+	Database   database.Config      `json:"database"`
 	WorkingDir string               `json:"wd,omitempty"`
 	PromptsDir string               `json:"promptsDir,omitempty"`
 	MCPServers map[string]MCPServer `json:"mcpServers,omitempty"`
@@ -126,9 +129,10 @@ func Load(sessionStorageDir string, debug bool, skipPermissions bool) (*Config, 
 		Data: Data{
 			Directory: defaultDataDirectory,
 		},
-		WorkingDir: sessionStorageDir,
-		PromptsDir: promptsDir,
-		MCPServers: getDefaultMCPServers(),
+		Database:    loadDatabaseConfig(),
+		WorkingDir:  sessionStorageDir,
+		PromptsDir:  promptsDir,
+		MCPServers:  getDefaultMCPServers(),
 		// Providers removed - managed by database API credentials service
 		Agents:          make(map[AgentName]Agent), // Keep for legacy compatibility but unused
 		SkipPermissions: skipPermissions,
@@ -189,6 +193,42 @@ func getDefaultMCPServers() map[string]MCPServer {
 			AllowedTools: []string{"execute_blender_code"},
 		},
 	}
+}
+
+// loadDatabaseConfig loads database configuration from environment variables
+func loadDatabaseConfig() database.Config {
+	dbType := strings.ToLower(getEnvOrDefault("MIX_DB_TYPE", string(database.ProviderSQLite)))
+
+	config := database.Config{
+		Type: database.ProviderType(dbType),
+		SQLite: database.SQLiteConfig{
+			DataDir:  getEnvOrDefault("MIX_DB_SQLITE_DATA_DIR", defaultDataDirectory),
+			Filename: getEnvOrDefault("MIX_DB_SQLITE_FILENAME", "mix.db"),
+		},
+		Turso: database.TursoConfig{
+			URL:       os.Getenv("MIX_DB_TURSO_URL"),
+			AuthToken: os.Getenv("MIX_DB_TURSO_AUTH_TOKEN"),
+		},
+	}
+
+	// Validate the database type
+	switch config.Type {
+	case database.ProviderSQLite, database.ProviderTurso:
+		// Valid types
+	default:
+		logging.Debug("Invalid database type, defaulting to SQLite", "type", dbType)
+		config.Type = database.ProviderSQLite
+	}
+
+	return config
+}
+
+// getEnvOrDefault gets environment variable or returns default value
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // initializeProviders removed - providers now managed by database API credentials service
@@ -280,6 +320,13 @@ func applyDefaultValues() {
 // It's safe to call this function multiple times.
 func Get() *Config {
 	return cfg
+}
+
+// ResetForTesting resets the configuration for testing purposes
+func ResetForTesting() {
+	cfgMutex.Lock()
+	defer cfgMutex.Unlock()
+	cfg = nil
 }
 
 // InitUserPreferences initializes the user preferences service with database connection

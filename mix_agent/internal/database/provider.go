@@ -35,10 +35,17 @@ const (
 type Config struct {
 	Type   ProviderType `json:"type"`
 	SQLite SQLiteConfig `json:"sqlite"`
+	Turso  TursoConfig  `json:"turso"`
 }
 
 // SQLiteConfig holds SQLite-specific configuration
 type SQLiteConfig struct {
 	DataDir  string `json:"dataDir"`
 	Filename string `json:"filename"`
+}
+
+// TursoConfig holds Turso-specific configuration
+type TursoConfig struct {
+	URL       string `json:"url"`       // libsql://[databaseId]-[organizationName].turso.io
+	AuthToken string `json:"authToken"` // Turso auth token
 }

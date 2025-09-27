@@ -17,13 +17,20 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.0
 	github.com/stretchr/testify v1.11.1
+	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d
 	golang.org/x/image v0.30.0
 	mvdan.cc/sh/v3 v3.12.0
 )
 
 require github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 
-require github.com/fsnotify/fsnotify v1.8.0 // indirect
+require (
+	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/coder/websocket v1.8.13 // indirect
+	github.com/fsnotify/fsnotify v1.8.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
+)
 
 require (
 	cloud.google.com/go v0.122.0 // indirect

@@ -44,8 +44,8 @@ export TEST_MODE=true
 if [ "$UNIT_ONLY" = true ]; then
     echo "📝 Running unit tests only (excluding integration tests)"
     # Run stable unit tests only - these modules have solid test coverage
-    TEST_PACKAGES="./internal/credentials ./internal/session ./internal/message ./internal/preferences ./internal/llm/agent ./internal/config"
-    echo "🎯 Testing packages: credentials, session, message, preferences, agent, config"
+    TEST_PACKAGES="./internal/credentials ./internal/session ./internal/message ./internal/preferences ./internal/llm/agent ./internal/config ./internal/llm/tools"
+    echo "🎯 Testing packages: credentials, session, message, preferences, agent, config, tools"
 else
     echo "🧪 Running all tests including integration tests"
     TEST_PACKAGES="./internal/..."
@@ -70,7 +70,7 @@ if go test $VERBOSITY $TEST_PACKAGES -coverprofile=coverage.out; then
     if [ "$UNIT_ONLY" = true ]; then
         echo ""
         echo "📈 Core module coverage:"
-        go tool cover -func=coverage.out | grep -E "(credentials|session|message|preferences|agent|config)" | head -25
+        go tool cover -func=coverage.out | grep -E "(credentials|session|message|preferences|agent|config|tools)" | head -25
 
         # Calculate and display total coverage for tested modules
         TOTAL_COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
