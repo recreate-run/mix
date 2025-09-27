@@ -388,3 +388,30 @@ func makeMultipartFileRequestFromBytes(t *testing.T, server *httptest.Server, pa
 
 	return resp
 }
+
+// setupTestAPICredentials configures test API credentials for integration testing
+func setupTestAPICredentials(t *testing.T, app *app.App) {
+	ctx := context.Background()
+	
+	// Get credentials service from config (should be initialized by app.New)
+	credService := config.GetAPICredentials()
+	if credService == nil {
+		t.Fatal("Credentials service not available in test environment")
+	}
+	
+	// Add test API key for Anthropic (most commonly used in tests)
+	testAPIKey := "sk-ant-test-key-for-integration-testing-only-12345678901234567890"
+	err := credService.StoreAPIKey(ctx, "anthropic", testAPIKey)
+	if err != nil {
+		t.Fatalf("Failed to setup test Anthropic API credentials: %v", err)  
+	}
+	
+	// Also add OpenAI credentials for comprehensive testing
+	openaiTestKey := "sk-test-openai-key-for-integration-testing-only-12345678901234567890"
+	err = credService.StoreAPIKey(ctx, "openai", openaiTestKey)
+	if err != nil {
+		t.Fatalf("Failed to setup test OpenAI API credentials: %v", err)  
+	}
+	
+	t.Log("✅ Test API credentials configured (anthropic, openai)")
+}

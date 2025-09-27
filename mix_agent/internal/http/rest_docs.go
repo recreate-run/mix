@@ -1074,7 +1074,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"delete": map[string]interface{}{
 					"operationId":  "deleteSessionFile",
 					"summary":     "Delete session file",
-					"description": "Delete a specific file from session storage",
+					"description": "Delete a specific file from session storage. Only files are supported - directories cannot be deleted.",
 					"tags":        []string{"Files"},
 					"parameters": []map[string]interface{}{
 						createPathParameter("id", "Session ID"),
@@ -1084,6 +1084,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"204": map[string]interface{}{
 							"description": "File deleted successfully",
 						},
+						"400": createErrorResponse("Bad request - attempted to delete a directory"),
 						"404": createErrorResponse("Session or file not found"),
 					},
 				},

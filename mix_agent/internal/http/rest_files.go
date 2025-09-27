@@ -258,13 +258,20 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer root.Close()
 
-	// Check if file exists using Root - prevents path traversal
-	if _, err := root.Stat(filename); err != nil {
+	// Check if file exists and get info using Root - prevents path traversal
+	fileInfo, err := root.Stat(filename)
+	if err != nil {
 		if os.IsNotExist(err) {
 			sendNotFoundError(w, "File", filename)
 			return
 		}
 		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
+		return
+	}
+
+	// Check if it's a directory - this API is for files only
+	if fileInfo.IsDir() {
+		sendValidationError(w, "filename", "cannot delete directories, only files are supported")
 		return
 	}
 
