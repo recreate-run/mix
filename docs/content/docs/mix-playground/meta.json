@@ -1,6 +1,6 @@
 {
   "title": "Mix Playground",
-  "description": "Interactive desktop application for Mix workflows",
+  "description": "Desktop app",
   "icon": "BookOpen",
   "root": true,
   "pages": [

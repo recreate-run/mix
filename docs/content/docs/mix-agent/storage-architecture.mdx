@@ -1,5 +1,5 @@
 ---
-title: Storage Architecture
+title: Storage
 description: Two-tier file storage system with shared uploads and session-specific storage
 ---
 
@@ -68,37 +68,6 @@ When a file is requested via `/api/sessions/{session-id}/files/{filename}`, the 
 
 This allows agents to "override" shared files with session-specific versions while maintaining access to collaborative files.
 
-## API Behavior
-
-### File Upload
-```http
-POST /api/sessions/{id}/files/upload
-```
-- **Destination**: Always uploads to shared storage (`/storage/uploads/`)
-- **Access**: File becomes available to all sessions
-- **User control**: Users can upload, list, and delete these files
-
-### File Serving
-```http
-GET /api/sessions/{id}/files/{filename}
-```
-- **Priority**: Session storage first, then shared uploads
-- **Agent files**: Private to the session, invisible to other sessions
-- **Shared files**: Accessible by all sessions unless overridden by session file
-
-### File Listing
-```http
-GET /api/sessions/{id}/files
-```
-- **Scope**: Only lists shared uploads directory
-- **Rationale**: Session files are agent-managed and not user-visible
-
-### File Deletion
-```http
-DELETE /api/sessions/{id}/files/{filename}
-```
-- **Scope**: Only deletes from shared uploads
-- **Rationale**: Session files are agent-managed, users cannot delete them
 
 ## Agent Workflow
 
@@ -131,3 +100,10 @@ This enables agents to work with user files while maintaining private working co
     ├── analysis.json
     └── filtered-data.csv
 ```
+
+## Key Files
+
+- [mix_agent/internal/session/storage.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/session/storage.go): Core storage management functions that define the two-tier structure with GetSessionStoragePath() and GetUploadsStoragePath()
+- [mix_agent/internal/http/session_asset_server.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/session_asset_server.go): Implements two-tier file serving logic with session storage priority over shared uploads
+- [mix_agent/internal/http/rest_files.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/rest_files.go): Implements file management REST APIs including upload, listing, and deletion with secure path validation
+- [mix_agent/internal/app/app.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/app/app.go): Application initialization that sets up storage configuration and directory structure

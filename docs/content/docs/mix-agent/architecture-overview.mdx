@@ -1,5 +1,5 @@
 ---
-title: Architecture overview
+title: Overview
 description: Go-based agent architecture
 ---
 
@@ -91,32 +91,5 @@ Tools can be added without modifying core code:
 - **Session Isolation**: File system isolation per session
 - **API Key Management**: Secure storage and environment-based configuration
 
-## Integration Points
-
-### External Services
-- **LLM Providers**: RESTful APIs with streaming support
-- **Web Search**: Brave Search API for web, image, and video search
-- **Analytics**: PostHog integration for usage tracking
-  - **User interaction events**: Messages and responses
-  - **Provider metrics**: Response time, token usage, thinking detection
-  - **Authentication tracking**: API key and OAuth success rates
-
-### File System Integration
-- **Working Directories**: Automatic session-based directory creation
-- **Asset Serving**: Static file serving for media workflows
-- **File Versioning**: Complete history tracking for all file operations
-
-## Scalability Considerations
-
-### Horizontal Scaling
-While currently designed as a single-instance application, the architecture supports future scaling:
-- **Stateless Design**: Session state stored in database, not memory
-- **Event-driven Architecture**: Natural boundary for service separation
-- **Provider Abstraction**: Easy addition of new LLM providers
-
-### Resource Management
-- **Memory Efficiency**: Streaming responses to minimize memory usage
-- **Connection Limits**: Bounded connection pools and goroutine management
-- **Timeout Management**: Comprehensive timeout handling for all operations
 
 This architecture successfully balances sophistication with maintainability, providing a robust foundation for AI-powered development assistance while maintaining excellent performance and security characteristics.

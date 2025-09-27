@@ -1,6 +1,6 @@
 {
-  "title": "SDK",
-  "description": "Creative AI platform documentation",
+  "title": "Mix SDK",
+  "description": "Clients to use the agent",
   "icon": "BookOpen",
   "root": true,
   "pages": [

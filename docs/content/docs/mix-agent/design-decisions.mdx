@@ -8,21 +8,9 @@ description: Why Mix was built like this
 |--------|------------------|-------------------|
 | **Testing** | Simple `curl` commands test any endpoint instantly | Requires subprocess spawning, input/output coordination |
 | **Debugging Tools** | Browser DevTools, Postman, network inspectors work out-of-box | Must build custom logging, parsing, and inspection tools |
-| **Request Visibility** | Complete JSON payloads visible in network tabs and logs | Binary streams hide request/response structure from developers |
 | **Error Handling** | Clear HTTP status codes plus structured JSON-RPC error responses | Cryptic stderr messages, silent failures, process hangs |
-| **Integration Testing** | Any HTTP client library provides immediate testing capability | Custom test harnesses required for process communication |
+| **SDK Generation** | OpenAPI spec enables automatic SDK generation for multiple languages | Requires custom protocol parsers and hand-written client libraries |
 
 
-This HTTP-first approach enables Mix's flexible architecture where a single Go backend serves multiple clients (Tauri desktop app, CLI tools, external integrations) through standard HTTP communication. This design supports Mix's dual role as both a desktop application and an embeddable backend service while leveraging familiar web development debugging workflows.
+This HTTP-first approach enables Mix's flexible architecture where a single Go backend serves multiple clients (Tauri desktop app, CLI tools, external integrations) through standard HTTP communication. 
 
-## REST endpoints instead of JSON-RPC interface
-
-| Aspect | REST Endpoints ✅ | JSON-RPC Interface ❌ |
-|--------|-------------------|----------------------|
-| **Developer Experience** | Familiar HTTP patterns (`GET /sessions`, `POST /sessions`) that developers know instantly | Custom RPC methods requiring documentation and learning curve for every operation |
-| **Testing & Debugging** | Simple `curl` commands, browser DevTools, Postman work out-of-box | Requires crafting JSON-RPC payloads, limited tooling support for debugging |
-| **HTTP Semantics** | Proper status codes (200, 404, 500), cacheable GET requests, idempotent operations | Everything is POST, no caching, no HTTP semantic benefits |
-| **API Discoverability** | Self-documenting URLs reveal available resources and actions | Opaque `/rpc` endpoint hides all available methods behind documentation |
-| **Integration Ecosystem** | OpenAPI specs, code generation, every HTTP client library works immediately | Custom client libraries needed, limited ecosystem support |
-
-This REST approach prioritizes developer adoption and SDK usability - the core goal for Mix as a developer-facing product. While JSON-RPC offers some internal architectural conveniences, the massive improvement in developer experience, testing simplicity, and integration ecosystem support makes REST endpoints the clear choice for Mix's HTTP API. JSON-RPC remains valuable for stdio mode where it fits the use case naturally.

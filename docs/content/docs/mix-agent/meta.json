@@ -1,19 +1,17 @@
 {
   "title": "Mix Agent",
-  "description": "Creative AI platform documentation",
+  "description": "Backend running the agent",
   "icon": "BookOpen",
   "root": true,
   "pages": [
     "---Getting Started---",
     "index",
     "quickstart",
-    "overview",
     "design-decisions",
     "---Architecture---",
     "architecture-overview",
     "concurrency-architecture",
     "event-streaming",
-    "testing",
     "storage-architecture",
     "---Usage---",
     "common-workflows",
@@ -21,10 +19,10 @@
     "http-mode",
     "desktop-app",
     "troubleshooting",
-    "---Security---",
-    "security-privacy",
-    "---Tools---",
+    "---Development---",
+    "testing",
     "tools/system-tools",
-    "tools/app-tools"
+     "---Others---",
+    "security-privacy"
   ]
 }
