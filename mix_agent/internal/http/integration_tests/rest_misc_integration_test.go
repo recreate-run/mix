@@ -161,8 +161,17 @@ func TestRESTStreamEndpoint(t *testing.T) {
 
 	t.Log("Testing GET /stream - Stream endpoint")
 
-	// Make request to stream endpoint
-	req, err := http.NewRequest("GET", result.Server.URL+"/stream", nil)
+	// Create a session first to get a valid sessionId
+	sessionRequest := map[string]interface{}{
+		"title": "Stream Test Session",
+	}
+	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
+	sessionID := sessionData["id"].(string)
+
+	// Make request to stream endpoint with required sessionId parameter
+	streamURL := result.Server.URL + "/stream?sessionId=" + sessionID
+	req, err := http.NewRequest("GET", streamURL, nil)
 	if err != nil {
 		t.Fatalf("Failed to create stream request: %v", err)
 	}
@@ -219,9 +228,18 @@ func TestRESTStreamSubPathEndpoint(t *testing.T) {
 
 	t.Log("Testing GET /stream/{path...} - Stream sub-path endpoint")
 
-	// Test stream sub-path with a sample path
+	// Create a session first to get a valid sessionId
+	sessionRequest := map[string]interface{}{
+		"title": "Stream Sub-path Test Session",
+	}
+	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
+	sessionID := sessionData["id"].(string)
+
+	// Test stream sub-path with a sample path and required sessionId parameter
 	testPath := "events/session-updates"
-	req, err := http.NewRequest("GET", result.Server.URL+"/stream/"+testPath, nil)
+	streamURL := result.Server.URL + "/stream/" + testPath + "?sessionId=" + sessionID
+	req, err := http.NewRequest("GET", streamURL, nil)
 	if err != nil {
 		t.Fatalf("Failed to create stream sub-path request: %v", err)
 	}
