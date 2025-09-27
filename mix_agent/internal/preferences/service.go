@@ -116,34 +116,34 @@ func (ups *UserPreferencesService) UpdateMainAgentPreferences(ctx context.Contex
 		MainAgentMaxTokens:      sql.NullInt64{Int64: maxTokens, Valid: true},
 		MainAgentReasoningEffort: sql.NullString{String: reasoningEffort, Valid: reasoningEffort != ""},
 	}
-	
+
 	_, err := ups.queries.UpdateMainAgentModel(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to update main agent preferences: %w", err)
 	}
-	
+
 	// Invalidate cache to force refresh on next read
 	ups.preferencesCache.Delete("default_user")
-	
+
 	return nil
 }
 
-// UpdateSubAgentPreferences updates the sub agent model preferences  
+// UpdateSubAgentPreferences updates the sub agent model preferences
 func (ups *UserPreferencesService) UpdateSubAgentPreferences(ctx context.Context, modelID models.ModelID, maxTokens int64, reasoningEffort string) error {
 	params := db.UpdateSubAgentModelParams{
 		SubAgentModel:           sql.NullString{String: string(modelID), Valid: true},
 		SubAgentMaxTokens:       sql.NullInt64{Int64: maxTokens, Valid: true},
 		SubAgentReasoningEffort: sql.NullString{String: reasoningEffort, Valid: reasoningEffort != ""},
 	}
-	
+
 	_, err := ups.queries.UpdateSubAgentModel(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to update sub agent preferences: %w", err)
 	}
-	
+
 	// Invalidate cache to force refresh on next read
 	ups.preferencesCache.Delete("default_user")
-	
+
 	return nil
 }
 
@@ -153,10 +153,10 @@ func (ups *UserPreferencesService) UpdatePreferredProvider(ctx context.Context, 
 	if err != nil {
 		return fmt.Errorf("failed to update preferred provider: %w", err)
 	}
-	
+
 	// Invalidate cache to force refresh on next read
 	ups.preferencesCache.Delete("default_user")
-	
+
 	return nil
 }
 
@@ -209,11 +209,11 @@ func (ups *UserPreferencesService) GetPreferredProvider(ctx context.Context) (mo
 			return "", err
 		}
 	}
-	
+
 	if !prefs.PreferredProvider.Valid || prefs.PreferredProvider.String == "" {
 		return models.ProviderAnthropic, nil // Default to Anthropic
 	}
-	
+
 	return models.ModelProvider(prefs.PreferredProvider.String), nil
 }
 
