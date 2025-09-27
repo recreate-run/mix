@@ -99,6 +99,24 @@ install_bun() {
     echo -e "📦 ${BOLD}Installing Bun...${NC}"
     curl -fsSL https://bun.sh/install | bash
     export PATH="$HOME/.bun/bin:$PATH"
+    
+    # Update PATH in shell profiles for future sessions
+    if [ -f "$HOME/.bashrc" ] && ! grep -q "export PATH=.*\.bun/bin" "$HOME/.bashrc"; then
+      echo 'export PATH="$HOME/.bun/bin:$PATH"' >> "$HOME/.bashrc"
+    fi
+    
+    if [ "$OS" = "Darwin" ] && [ -f "$HOME/.zshrc" ] && ! grep -q "export PATH=.*\.bun/bin" "$HOME/.zshrc"; then
+      echo 'export PATH="$HOME/.bun/bin:$PATH"' >> "$HOME/.zshrc"
+    fi
+    
+    # Verify bun is in PATH after installation
+    if ! command -v bun >/dev/null 2>&1; then
+      echo -e "${YELLOW}Bun installed but not found in PATH.${NC}"
+      echo -e "${YELLOW}Please run this command manually:${NC}"
+      echo -e "${BOLD}export PATH=\"$HOME/.bun/bin:\$PATH\"${NC}"
+    else
+      echo -e "${GREEN}Bun installed and found in PATH at: $(which bun)${NC}"
+    fi
   else
     echo -e "✅ ${GREEN}Bun is already installed${NC}"
   fi
@@ -195,3 +213,14 @@ install_ytdlp
 # echo -e "${BOLD}Installing tools...${NC}"
 
 echo -e "✅ ${GREEN}System dependencies installed!${NC}"
+
+# Final verification for bun to ensure it's available after installation
+if ! command -v bun >/dev/null 2>&1; then
+  echo -e "${RED}WARNING: Bun is still not in PATH after installation.${NC}"
+  echo -e "${YELLOW}You may need to restart your terminal session or manually add bun to your PATH:${NC}"
+  echo -e "${BOLD}export PATH=\"$HOME/.bun/bin:\$PATH\"${NC}"
+  echo -e "${YELLOW}Then run 'make dev' again.${NC}"
+  exit 1
+else
+  echo -e "✅ ${GREEN}Bun is confirmed working and available in PATH${NC}"
+fi
