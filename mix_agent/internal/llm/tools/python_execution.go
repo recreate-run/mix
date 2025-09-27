@@ -136,8 +136,8 @@ func (p *pythonExecutionTool) executePythonCode(ctx context.Context, code string
 		}
 	}
 
-	stdoutStr := truncateOutput(stdout.String())
-	stderrStr := truncateOutput(stderr.String())
+	stdoutStr := truncatePythonOutput(stdout.String())
+	stderrStr := truncatePythonOutput(stderr.String())
 
 	return &PythonExecutionResult{
 		Type:       "code_execution_result",
@@ -145,4 +145,20 @@ func (p *pythonExecutionTool) executePythonCode(ctx context.Context, code string
 		Stderr:     stderrStr,
 		ReturnCode: returnCode,
 	}, nil
+}
+
+func truncatePythonOutput(content string) string {
+	if len(content) <= PythonMaxOutputLength {
+		return content
+	}
+
+	halfLength := PythonMaxOutputLength / 2
+	start := content[:halfLength]
+	end := content[len(content)-halfLength:]
+
+	// Count lines in truncated portion
+	truncatedContent := content[halfLength : len(content)-halfLength]
+	truncatedLinesCount := strings.Count(truncatedContent, "\n")
+
+	return fmt.Sprintf("%s\n\n... [%d lines truncated] ...\n\n%s", start, truncatedLinesCount, end)
 }
