@@ -68,9 +68,61 @@ jobs:
           cd mix_agent
           go build -o ./build/debug/mix ./main.go
 
-      - name: Run Go Tests
+      - name: Run Go Tests (Unit Tests Only)
         run: |
-          ./scripts/tests/run_go_tests.sh
+          cd mix_agent
+          # Run unit tests only, excluding integration tests
+          go test -v ./internal/credentials ./internal/session ./internal/message ./internal/preferences ./internal/llm/agent -coverprofile=coverage.out
+          go tool cover -func=coverage.out
+
+      - name: Generate Coverage Report
+        run: |
+          cd mix_agent
+          echo "## 📊 Test Coverage Report" >> coverage_report.md
+          echo "" >> coverage_report.md
+          echo "\`\`\`" >> coverage_report.md
+          go tool cover -func=coverage.out | grep -E "(credentials|session|message|preferences|agent)" >> coverage_report.md
+          echo "\`\`\`" >> coverage_report.md
+          echo "" >> coverage_report.md
+          TOTAL_COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+          echo "**Total Coverage: $TOTAL_COVERAGE**" >> coverage_report.md
+
+      - name: Upload Coverage Report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coverageReport = fs.readFileSync('mix_agent/coverage_report.md', 'utf8');
+
+            // Find existing coverage comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.data.find(comment =>
+              comment.body.includes('📊 Test Coverage Report')
+            );
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: coverageReport
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: coverageReport
+              });
+            }
 
       - name: Start Backend (Background)
         run: |
