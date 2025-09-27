@@ -1273,6 +1273,27 @@ func getOpenAPISpec() OpenAPISpec {
 		},
 		Components: OpenAPIComponents{
 			Schemas: map[string]interface{}{
+				"CoreToolName": map[string]interface{}{
+					"type": "string",
+					"enum": []string{
+						"bash", "ReadText", "glob", "ReadMedia", "grep", "write", "edit",
+						"python_execution", "search", "todo_write", "exit_plan_mode",
+						"show_media", "task",
+					},
+					"description": "Core built-in tool names",
+				},
+				"ToolName": map[string]interface{}{
+					"anyOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/CoreToolName"},
+						{
+							"type":        "string",
+							"pattern":     "^[a-zA-Z0-9_]+_[a-zA-Z0-9_]+$",
+							"description": "MCP tool names following pattern: {serverName}_{toolName}",
+							"example":     "brave_search",
+						},
+					},
+					"description": "Tool name - either a core tool or MCP tool following {serverName}_{toolName} pattern",
+				},
 				"ErrorResponse": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -1420,7 +1441,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "Unique tool call identifier",
 						},
 						"name": map[string]interface{}{
-							"type":        "string",
+							"$ref":        "#/components/schemas/ToolName",
 							"description": "Tool name",
 						},
 						"input": map[string]interface{}{
@@ -1467,8 +1488,12 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "boolean",
 							"description": "Whether this is a directory",
 						},
+						"url": map[string]interface{}{
+							"type":        "string",
+							"description": "Static URL to access the file",
+						},
 					},
-					"required": []string{"name", "size", "modified", "isDir"},
+					"required": []string{"name", "size", "modified", "isDir", "url"},
 				},
 				"SSEBaseEvent": map[string]interface{}{
 					"type":        "object",
@@ -1710,7 +1735,7 @@ func getOpenAPISpec() OpenAPISpec {
 											"description": "Tool event type",
 										},
 										"name": map[string]interface{}{
-											"type":        "string",
+											"$ref":        "#/components/schemas/ToolName",
 											"description": "Tool name being executed",
 										},
 										"input": map[string]interface{}{
@@ -1747,7 +1772,7 @@ func getOpenAPISpec() OpenAPISpec {
 											"description": "Tool execution start event type",
 										},
 										"toolName": map[string]interface{}{
-											"type":        "string",
+											"$ref":        "#/components/schemas/ToolName",
 											"description": "Name of the tool being executed",
 										},
 										"progress": map[string]interface{}{
@@ -1780,7 +1805,7 @@ func getOpenAPISpec() OpenAPISpec {
 											"description": "Tool execution complete event type",
 										},
 										"toolName": map[string]interface{}{
-											"type":        "string",
+											"$ref":        "#/components/schemas/ToolName",
 											"description": "Name of the completed tool",
 										},
 										"progress": map[string]interface{}{
@@ -1825,7 +1850,7 @@ func getOpenAPISpec() OpenAPISpec {
 											"description": "Session identifier for the permission request",
 										},
 										"toolName": map[string]interface{}{
-											"type":        "string",
+											"$ref":        "#/components/schemas/ToolName",
 											"description": "Tool requiring permission",
 										},
 										"description": map[string]interface{}{

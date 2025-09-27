@@ -19,6 +19,7 @@ type FileInfo struct {
 	Size         int64   `json:"size"`
 	Modified     int64   `json:"modified"` // Unix timestamp
 	IsDir        bool    `json:"isDir"`
+	URL          string  `json:"url"`          // Static URL to access the file
 }
 
 // FileHandler handles REST endpoints for session file operations
@@ -137,6 +138,7 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		Size:     fileInfo.Size(),
 		Modified: fileInfo.ModTime().Unix(),
 		IsDir:    fileInfo.IsDir(),
+		URL:      fmt.Sprintf("http://localhost:8088/api/sessions/%s/files/%s", sessionID, filename),
 	}
 	
 	// Include original filename if it was different from stored name
@@ -206,6 +208,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 			Size:     info.Size(),
 			Modified: info.ModTime().Unix(),
 			IsDir:    info.IsDir(),
+			URL:      fmt.Sprintf("http://localhost:8088/api/sessions/%s/files/%s", sessionID, info.Name()),
 		})
 	}
 
