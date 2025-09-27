@@ -95,16 +95,8 @@ and content creation workflows.`,
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		// Create database manager and connect with timeout
-		dbConfig := database.Config{
-			Type: database.ProviderSQLite,
-			SQLite: database.SQLiteConfig{
-				DataDir:  cfg.Data.Directory,
-				Filename: "mix.db",
-			},
-		}
-
-		dbManager, err := database.NewManager(dbConfig)
+		// Create database manager with configuration from environment
+		dbManager, err := database.NewManager(cfg.Database)
 		if err != nil {
 			return fmt.Errorf("failed to create database manager: %w", err)
 		}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -96,6 +97,11 @@ func (g *globTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 }
 
 func globFiles(pattern, searchPath string, limit int) ([]string, bool, error) {
+	// Check if search path exists
+	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
+		return nil, false, fmt.Errorf("directory does not exist: %s", searchPath)
+	}
+
 	cmdRg := fileutil.GetRgCmd(pattern)
 	if cmdRg != nil {
 		cmdRg.Dir = searchPath
