@@ -9,7 +9,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/config"
-	"mix/internal/db"
+	"mix/internal/database"
 	"mix/internal/format"
 	httphandlers "mix/internal/http"
 	"mix/internal/llm/agent"
@@ -95,15 +95,30 @@ and content creation workflows.`,
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		// Connect DB with timeout, this will also run migrations
-		dbCtx, dbCancel := context.WithTimeout(ctx, db.DBConnectionTimeout)
-		defer dbCancel()
-		conn, err := db.Connect(dbCtx, cfg.Data.Directory)
-		if err != nil {
-			return err
+		// Create database manager and connect with timeout
+		dbConfig := database.Config{
+			Type: database.ProviderSQLite,
+			SQLite: database.SQLiteConfig{
+				DataDir:  cfg.Data.Directory,
+				Filename: "mix.db",
+			},
 		}
 
-		app, err := app.New(ctx, conn)
+		dbManager, err := database.NewManager(dbConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create database manager: %w", err)
+		}
+
+		dbCtx, dbCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer dbCancel()
+
+		err = dbManager.Connect(dbCtx)
+		if err != nil {
+			return fmt.Errorf("failed to connect to database: %w", err)
+		}
+		defer dbManager.Close()
+
+		app, err := app.New(ctx, dbManager.GetDB())
 		if err != nil {
 			logging.Error("Failed to create app: %v", err)
 			return err
