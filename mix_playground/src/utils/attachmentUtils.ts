@@ -1,4 +1,4 @@
-import { readDir, stat } from '@tauri-apps/plugin-fs';
+import { readDir } from '@tauri-apps/plugin-fs';
 import type { Attachment } from '@/stores/attachmentSlice';
 import {
   getFileType,
@@ -160,40 +160,16 @@ export const buildSessionFileUrl = (sessionId: string, fileName: string): string
   return `${backendUrl}/api/sessions/${sessionId}/files/${fileName}`;
 };
 
-export const buildFullUrlFromPath = (path: string): string => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  return `${backendUrl}${path}`;
-};
-
 // Text reference utilities
 export const expandFileReferences = (
   text: string,
-  referenceMap: Map<string, string>,
-  mediaUrls?: string[]
+  referenceMap: Map<string, string>
 ): string => {
   let expandedText = text;
 
-  // Create a set of media URLs for quick lookup
-  const mediaUrlSet = mediaUrls ? new Set(mediaUrls) : null;
-
   for (const [displayName, fullUrl] of referenceMap) {
-    // Handle app references by just using the app name
-    if (fullUrl.startsWith('app:')) {
-      const appName = fullUrl.substring(4); // Remove 'app:' prefix
-      expandedText = expandedText.replace(displayName, appName);
-    } else {
-      // Handle file/folder references
-      // If mediaUrls is provided, ensure we use the exact URL from media array
-      let urlToUse = fullUrl;
-      if (mediaUrlSet) {
-        // Find the matching URL in media array (should be exact match)
-        const matchingMediaUrl = mediaUrls?.find(mediaUrl => mediaUrl === fullUrl);
-        if (matchingMediaUrl) {
-          urlToUse = matchingMediaUrl;
-        }
-      }
-      expandedText = expandedText.replace(displayName, urlToUse);
-    }
+    // Handle file/folder references
+    expandedText = expandedText.replace(displayName, fullUrl);
   }
 
   // Check for any remaining unresolved references and throw exception
@@ -229,85 +205,3 @@ export const removeFileReferences = (
   return updatedText;
 };
 
-// Reconstruct attachment state from historical message data
-export const reconstructAttachmentsFromHistory = async (
-  text: string,
-  mediaPaths: string[],
-  appNames: string[]
-): Promise<{
-  contractedText: string;
-  attachments: Attachment[];
-  referenceMap: Map<string, string>;
-}> => {
-  const attachments: Attachment[] = [];
-  const referenceMap = new Map<string, string>();
-  let contractedText = text;
-
-  // Process media files/folders
-  for (const mediaPath of mediaPaths) {
-    try {
-      // Use stat to determine if path is file or directory
-      let attachment: Attachment | null = null;
-
-      try {
-        // Use stat to properly determine if path is file or directory
-        const pathStat = await stat(mediaPath);
-
-        if (pathStat.isDirectory) {
-          attachment = await createFolderAttachment(mediaPath);
-        } else {
-          attachment = createFileAttachment(mediaPath);
-        }
-      } catch (statError) {
-        // If stat fails, try to create as file based on file extension
-        attachment = createFileAttachment(mediaPath);
-      }
-
-      if (attachment) {
-        const displayName = `@${attachment.name}`;
-        attachments.push(attachment);
-        referenceMap.set(displayName, mediaPath);
-
-        // Replace full path with display name in text
-        contractedText = contractedText.replace(
-          new RegExp(mediaPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-          displayName
-        );
-      }
-    } catch (error) {
-      console.warn(
-        'Failed to create attachment for media path:',
-        mediaPath,
-        error
-      );
-    }
-  }
-
-  // Process app references
-  for (const appName of appNames) {
-    const attachment: Attachment = {
-      id: `app:${appName}`,
-      name: appName,
-      type: 'app',
-      icon: 'placeholder',
-      isOpen: true,
-    };
-
-    const displayName = `@${appName}`;
-    attachments.push(attachment);
-    referenceMap.set(displayName, `app:${appName}`);
-
-    // Replace app name with display name in text (only if it's not already in @ format)
-    if (!contractedText.includes(displayName)) {
-      contractedText = contractedText.replace(
-        new RegExp(
-          `\\b${appName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
-          'g'
-        ),
-        displayName
-      );
-    }
-  }
-
-  return { contractedText, attachments, referenceMap };
-};

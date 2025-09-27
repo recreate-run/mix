@@ -4,7 +4,7 @@ import { mix } from '@/lib/mix-sdk';
 import type { TimelineEntry, UIMessage } from '@/types/message';
 import type { ToolCall } from '@/types/common';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { expandFileReferences, buildFullUrlFromPath } from '@/utils/attachmentUtils';
+import { expandFileReferences } from '@/utils/attachmentUtils';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import type { SendMessageRequestBody } from "mix-typescript-sdk/models/operations/sendmessage";
 
@@ -586,16 +586,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       }
 
       try {
-        // Build media URLs array
-        const mediaUrls = attachments.filter((a) => a.path).map((a) => buildFullUrlFromPath(a.path!));
-
-        // Expand file references
-        const expandedText = expandFileReferences(text, referenceMap, mediaUrls);
+        // Expand file references (no longer need media URLs for API)
+        const expandedText = expandFileReferences(text, referenceMap);
 
         const messageData: SendMessageRequestBody = {
           text: expandedText,
-          media: mediaUrls,
-          apps: attachments.filter((a) => a.type === 'app').map((app) => app.name),
           planMode: planMode,
         };
 

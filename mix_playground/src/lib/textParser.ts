@@ -1,4 +1,4 @@
-export type TokenType = 'text' | 'file-ref' | 'app-ref' | 'slash-command';
+export type TokenType = 'text' | 'file-ref' | 'slash-command';
 
 export interface Token {
   type: TokenType;
@@ -10,8 +10,7 @@ export interface Token {
 export class TextParser {
   constructor(
     private availableFiles: string[],
-    private availableCommands: string[],
-    private availableApps: string[] = []
+    private availableCommands: string[]
   ) {}
 
   parse(text: string): Token[] {
@@ -41,20 +40,6 @@ export class TextParser {
       });
     });
 
-    // Match app references
-    this.availableApps.forEach((appName) => {
-      const pattern = `@${appName}`;
-      const regex = new RegExp(this.escapeRegex(pattern), 'g');
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        matches.push({
-          type: 'app-ref',
-          start: match.index,
-          end: match.index + match[0].length,
-          content: match[0],
-        });
-      }
-    });
 
     this.availableCommands.forEach((command) => {
       const pattern = `/${command}`;
@@ -152,7 +137,7 @@ export class TextParser {
 
   private isSpecialToken(type: TokenType): boolean {
     return (
-      type === 'file-ref' || type === 'app-ref' || type === 'slash-command'
+      type === 'file-ref' || type === 'slash-command'
     );
   }
 
@@ -184,5 +169,5 @@ export function findTokenAtPosition(
 }
 
 export function isWholeTokenDeletion(type: TokenType): boolean {
-  return type === 'file-ref' || type === 'app-ref' || type === 'slash-command';
+  return type === 'file-ref' || type === 'slash-command';
 }

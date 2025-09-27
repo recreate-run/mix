@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMessageHistory } from '@/hooks/useMessageHistory';
 import { useBoundStore } from '@/stores';
-import { reconstructAttachmentsFromHistory } from '@/stores/attachmentSlice';
 
 interface UseMessageHistoryNavigationProps {
   text: string;
@@ -45,29 +44,10 @@ export function useMessageHistoryNavigation({
       // Get the full history item to access media and apps
       const historyItem = messageHistory.getHistoryItem(newIndex);
       if (historyItem) {
-        try {
-          // Reconstruct attachment state from historical message
-          const { contractedText, attachments, referenceMap } =
-            await reconstructAttachmentsFromHistory(
-              historyItem.content,
-              historyItem.media || [],
-              historyItem.apps || []
-            );
-
-          // Atomically set attachment state from history
-          setHistoryState(attachments, referenceMap);
-
-          // Set the contracted text (with @filename references)
-          setText(contractedText);
-          syncWithText(contractedText);
-        } catch (error) {
-          console.warn(
-            'Failed to reconstruct attachments from history:',
-            error
-          );
-          // Fallback to plain text
-          setText(historyItem.content);
-        }
+        // Clear attachment state and set text directly
+        setHistoryState([], new Map());
+        setText(historyItem.content);
+        syncWithText(historyItem.content);
       } else {
         // Fallback to plain text if no history item
         setText(allHistoryTexts[newIndex]);

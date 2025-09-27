@@ -253,29 +253,16 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
-						"required": []string{"text", "media", "apps", "plan_mode"},
+						"required": []string{"text"},
 						"properties": map[string]interface{}{
 							"text": map[string]interface{}{
 								"type":        "string",
 								"description": "The text content of the message",
 							},
-							"media": map[string]interface{}{
-								"type": "array",
-								"items": map[string]interface{}{
-									"type": "string",
-								},
-								"description": "Array of media file references or URLs",
-							},
-							"apps": map[string]interface{}{
-								"type": "array",
-								"items": map[string]interface{}{
-									"type": "string",
-								},
-								"description": "Array of app identifiers or references",
-							},
 							"plan_mode": map[string]interface{}{
 								"type":        "boolean",
 								"description": "Whether the message is in planning mode",
+								"default":     false,
 							},
 						},
 					}),
@@ -1087,7 +1074,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"delete": map[string]interface{}{
 					"operationId":  "deleteSessionFile",
 					"summary":     "Delete session file",
-					"description": "Delete a specific file from session storage",
+					"description": "Delete a specific file from session storage. Only files are supported - directories cannot be deleted.",
 					"tags":        []string{"Files"},
 					"parameters": []map[string]interface{}{
 						createPathParameter("id", "Session ID"),
@@ -1097,6 +1084,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"204": map[string]interface{}{
 							"description": "File deleted successfully",
 						},
+						"400": createErrorResponse("Bad request - attempted to delete a directory"),
 						"404": createErrorResponse("Session or file not found"),
 					},
 				},
@@ -1374,26 +1362,13 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "The text content of the message",
 						},
-						"media": map[string]interface{}{
-							"type": "array",
-							"items": map[string]interface{}{
-								"type": "string",
-							},
-							"description": "Array of media file references or URLs",
-						},
-						"apps": map[string]interface{}{
-							"type": "array",
-							"items": map[string]interface{}{
-								"type": "string",
-							},
-							"description": "Array of app identifiers or references",
-						},
 						"plan_mode": map[string]interface{}{
 							"type":        "boolean",
 							"description": "Whether the message is in planning mode",
+							"default":     false,
 						},
 					},
-					"required": []string{"text", "media", "apps", "plan_mode"},
+					"required": []string{"text"},
 				},
 				"BackendMessage": map[string]interface{}{
 					"type": "object",

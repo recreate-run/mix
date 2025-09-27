@@ -1,10 +1,6 @@
 name: Update API Documentation
 
 on:
-  # Run on a schedule (twice per day)
-  schedule:
-    - cron: '0 0,12 * * *'
-  
   # Allow manual triggering of the workflow
   workflow_dispatch:
     inputs:

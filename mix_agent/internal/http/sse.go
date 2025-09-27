@@ -13,7 +13,6 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/commands"
-	"mix/internal/fileutil"
 	"mix/internal/llm/agent"
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
@@ -242,10 +241,8 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 
 // MessageContent represents the JSON structure sent from frontend
 type MessageContent struct {
-	Text     string   `json:"text"`
-	Media    []string `json:"media,omitempty"`
-	Apps     []string `json:"apps,omitempty"`
-	PlanMode bool     `json:"plan_mode,omitempty"`
+	Text     string `json:"text"`
+	PlanMode bool   `json:"plan_mode,omitempty"`
 }
 
 
@@ -258,19 +255,6 @@ func parseMessageContent(content string) (MessageContent, error) {
 	return msgContent, nil
 }
 
-// quotePaths ensures all file paths in the content are properly quoted for shell operations
-func quotePaths(text string, mediaPaths []string) string {
-	result := text
-
-	// Quote media paths that might be referenced in the text
-	for _, path := range mediaPaths {
-		quotedPath := fileutil.QuotePath(path)
-		// Replace unquoted paths with quoted versions
-		result = strings.ReplaceAll(result, path, quotedPath)
-	}
-
-	return result
-}
 
 // handleShellCommand executes shell commands for ! prefixed messages
 func handleShellCommand(ctx context.Context, sseWriter *SSEWriter, text string) error {
@@ -378,13 +362,9 @@ func processMessage(ctx context.Context, app *app.App, sseWriter *SSEWriter, ses
 
 	switch {
 	case strings.HasPrefix(text, "/"):
-		// Quote paths in slash commands if they contain file references
-		quotedText := quotePaths(text, msgContent.Media)
-		return handleSlashCommandStreaming(ctx, app, sseWriter, sessionID, quotedText)
+		return handleSlashCommandStreaming(ctx, app, sseWriter, sessionID, text)
 	case strings.HasPrefix(text, "!"):
-		// Quote paths in shell commands
-		quotedText := quotePaths(text, msgContent.Media)
-		return handleShellCommand(ctx, sseWriter, quotedText)
+		return handleShellCommand(ctx, sseWriter, text)
 	default:
 		return handleRegularMessage(ctx, app, sseWriter, sessionID, text, msgContent.PlanMode)
 	}
