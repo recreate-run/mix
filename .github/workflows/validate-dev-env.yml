@@ -92,8 +92,8 @@ jobs:
           echo "\`\`\`" >> mix_agent/coverage_report.md
           echo "" >> mix_agent/coverage_report.md
 
-          # Get overall coverage from the last line that shows total
-          TOTAL_COVERAGE=$(grep "Total Coverage:" test_output.log | tail -1 | awk '{print $4}' || echo "N/A")
+          # Get overall coverage from the script output
+          TOTAL_COVERAGE=$(grep "🎯 Total Coverage:" test_output.log | tail -1 | awk '{print $4}' || echo "N/A")
           echo "### Overall Coverage: **$TOTAL_COVERAGE**" >> mix_agent/coverage_report.md
 
       - name: Upload Coverage Report

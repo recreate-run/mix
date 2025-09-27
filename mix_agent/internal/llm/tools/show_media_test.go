@@ -414,7 +414,7 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 					"title": "Test Image"
 				}]
 			}`,
-			expectedError: "Path must be a valid HTTP/HTTPS URL for output 0",
+			expectedError: "path must be a valid HTTP/HTTPS URL for output 0",
 		},
 		{
 			name: "gsap_animation missing config",
