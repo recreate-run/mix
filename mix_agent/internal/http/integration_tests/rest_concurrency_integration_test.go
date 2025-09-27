@@ -63,7 +63,7 @@ func TestConcurrentFileOperationsAcrossSessions(t *testing.T) {
 				fileName, fileContent)
 
 			duration := time.Since(start)
-			success := uploadResp.StatusCode == http.StatusOK
+			success := uploadResp.StatusCode == http.StatusCreated
 
 			if uploadResp != nil {
 				uploadResp.Body.Close()
@@ -132,7 +132,7 @@ func TestConcurrentToolExecutionAcrossSessions(t *testing.T) {
 			}
 
 			messageRequest := map[string]interface{}{
-				"content": messageContent,
+				"text": messageContent,
 			}
 
 			msgResp := makeJSONRequest(t, result.Server, "POST",
@@ -257,7 +257,7 @@ func TestConcurrentMessageProcessing(t *testing.T) {
 			defer wg.Done()
 
 			messageRequest := map[string]interface{}{
-				"content": fmt.Sprintf("Create file 'message_%d.txt' with content 'Message %d data'",
+				"text": fmt.Sprintf("Create file 'message_%d.txt' with content 'Message %d data'",
 					index, index),
 			}
 
@@ -329,7 +329,7 @@ func TestSessionIsolationUnderLoad(t *testing.T) {
 				index, time.Now().UnixNano())
 
 			messageRequest := map[string]interface{}{
-				"content": fmt.Sprintf("Create file 'isolation_test_%d.txt' with content '%s'",
+				"text": fmt.Sprintf("Create file 'isolation_test_%d.txt' with content '%s'",
 					index, uniqueContent),
 			}
 
@@ -513,7 +513,7 @@ func validateSessionIsolation(t *testing.T, sessions []string) {
 // createFileInSession simulates creating a file in a session's storage
 func createFileInSession(t *testing.T, result *TestServerResult, sessionID, fileName, content string) {
 	messageRequest := map[string]interface{}{
-		"content": fmt.Sprintf("Create file '%s' with content '%s'", fileName, content),
+		"text": fmt.Sprintf("Create file '%s' with content '%s'", fileName, content),
 	}
 
 	msgResp := makeJSONRequest(t, result.Server, "POST",
@@ -531,7 +531,7 @@ func createFileInSession(t *testing.T, result *TestServerResult, sessionID, file
 // readFileFromSession simulates reading a file from a session's storage
 func readFileFromSession(t *testing.T, result *TestServerResult, sessionID, fileName string) string {
 	messageRequest := map[string]interface{}{
-		"content": fmt.Sprintf("Read the content of file '%s'", fileName),
+		"text": fmt.Sprintf("Read the content of file '%s'", fileName),
 	}
 
 	msgResp := makeJSONRequest(t, result.Server, "POST",
@@ -567,7 +567,7 @@ func BenchmarkConcurrentToolExecution(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		messageRequest := map[string]interface{}{
-			"content": fmt.Sprintf("Create benchmark file %d and list current files", i),
+			"text": fmt.Sprintf("Create benchmark file %d and list current files", i),
 		}
 
 		msgResp := makeJSONRequest(t, result.Server, "POST",
@@ -592,7 +592,7 @@ func TestNoConcurrencyRegressions(t *testing.T) {
 
 	// Test basic message sending
 	messageRequest := map[string]interface{}{
-		"content": "This is a basic test message to ensure normal functionality works",
+		"text": "This is a basic test message to ensure normal functionality works",
 	}
 
 	msgResp := makeJSONRequest(t, result.Server, "POST",
@@ -644,7 +644,7 @@ func TestErrorHandlingUnderConcurrency(t *testing.T) {
 			defer wg.Done()
 
 			messageRequest := map[string]interface{}{
-				"content": content,
+				"text": content,
 			}
 
 			start := time.Now()

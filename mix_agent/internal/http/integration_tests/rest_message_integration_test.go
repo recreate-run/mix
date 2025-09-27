@@ -27,7 +27,7 @@ func TestRESTMessageSending(t *testing.T) {
 
 	// Send a message to the session
 	messageRequest := map[string]interface{}{
-		"content": "Hello, this is a test message for integration testing",
+		"text": "Hello, this is a test message for integration testing",
 	}
 
 	// Make the request
