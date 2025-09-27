@@ -70,8 +70,6 @@ jobs:
 
       - name: Run Go Tests
         run: |
-          cd mix_agent
-          chmod +x ./scripts/tests/run_go_tests.sh
           ./scripts/tests/run_go_tests.sh
 
       - name: Start Backend (Background)
