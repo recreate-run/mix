@@ -4,43 +4,27 @@ description: Get up and running with Mix
 ---
 
 
-## Installation
 ```bash
-uv add mix-python-sdk
+git clone https://github.com/recreate-run/mix.git
+make dev
 ```
 
-## Quick Start
+Authenticate LLM providers and tool API's usring the settings dialog (gear icon at the bottom left)
 
-```python
-import asyncio
-from mix_sdk import MixClient
+1. We recommend claude-sonnet-4 via the oauth (claude code account) or the anthropic API key using the Settings dialog.
+2. Set Gemini API key for the `ReadMedia tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
+3. Set Brave API key for the `Search` tool. Available for free from [Brave](https://brave.com/search/api/)
 
-async def main():
-    # Connect to Mix backend
-    client = MixClient("http://localhost:8080")
-    
-    # Create a session
-    session_id = await client.create_session("My Workflow")
+Try out some examples in the playground
 
-    # send message
-    response = await client.send_message(session_id, "Create a video")
-    print(response.content)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+```bash
+Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
 
-### Streaming 
+```bash
+Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
+```
 
-
-```python
-async for event in client.stream_message(session_id, "Create a video"):
-    if event.type == "tool":
-        print(f"Running: {event.name}")
-    elif event.type == "permission":
-        await client.grant_permission(event.id)  # or deny_permission()
-    elif event.type == "error":
-        print(f"Error: {event.error}")
-    elif event.type == "complete":
-        print(f"Done: {event.content}")
+```bash
+Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```

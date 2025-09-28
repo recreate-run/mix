@@ -116,7 +116,7 @@ def main():
     """Main execution function."""
     # Define paths
     source_dir = "mix_agent/internal/config/prompts/tools"
-    dest_dir = "docs/content/docs/backend/tools"
+    dest_dir = "docs/content/docs/mix-agent/tools"
 
     print("Converting MD files to MDX with Jinja2 templating...")
     print(f"Source: {source_dir}")
