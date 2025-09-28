@@ -13,6 +13,7 @@
     "concurrency-architecture",
     "event-streaming",
     "storage-architecture",
+    "database-schema",
     "---Usage---",
     "cli-mode",
     "http-mode",
