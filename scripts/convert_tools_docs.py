@@ -131,7 +131,7 @@ def main():
     for filename in sorted(converted_files):
         print(f"  ✓ {filename}")
 
-    print(f"\nNext step: Update meta.json to include these files in the sidebar")
+    print("\nNext step: Update meta.json to include these files in the sidebar")
 
 
 if __name__ == "__main__":
