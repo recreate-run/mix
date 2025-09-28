@@ -64,7 +64,7 @@ Multimodal search
 ```bash
 uv run examples/web_search_multimodal.py
 ```
-https://github.com/user-attachments/assets/cb185bfe-3096-4384-b33a-1b41b0e1d8a8
+https://github.com/user-attachments/assets/d73791e4-5377-4522-b76c-0df9f1bdd81f
 
 Modiying/Replacing the system prompt
 
