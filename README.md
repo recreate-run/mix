@@ -48,6 +48,7 @@ Show 3 most interesting 5 second highlights from this video
 
 ```bash
 https://github.com/recreate-run/mix-python-sdk.git
+cd mix-python-sdk
 ```
 
 ### Demos
@@ -63,6 +64,7 @@ Multimodal search
 ```bash
 uv run examples/web_search_multimodal.py
 ```
+https://github.com/user-attachments/assets/cb185bfe-3096-4384-b33a-1b41b0e1d8a8
 
 Modiying/Replacing the system prompt
 
