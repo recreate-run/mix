@@ -4,13 +4,14 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
 [![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/mix-agent)
 
-Mix is an open-source, local agent for multimodal tasks. Claude code users will feel at home.
+Mix is the best agentic backbone for your multimodal app. It comes with a GUI playground for testing and debugging SDK workflows.
 
-- **Mix Agent**: Go backend HTTP server with CLI interface
-- **Mix Playground**: Desktop app built with Tauri and React  
-- **SDKs**: TypeScript and Python SDKs for integration
+- SDK is a first class citizen unlike CLI tools that also offer an SDK
+- Built for multimodal workflows instead of coding workflows (Unlike Claude Code/Opencode SDK's)
+- All project data is stored plain text and native media files - absolutely no lock-in.
+- The backend is an HTTP server, meaning that the frontend is just one of possible clients. Check out our python and typescript SDK's  
 
-## Quick start
+## Quick start (Playground)
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
@@ -23,34 +24,55 @@ Authenticate LLM providers and tool API's usring the settings dialog (gear icon 
 2. Set Gemini API key for the `ReadMedia tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
 3. Set Brave API key for the `Search` tool. Available for free from [Brave](https://brave.com/search/api/)
 
-Try out some examples in the playground
+### Demos
+
+```bash
+Find the best videos cat about kerala putty 5 sec tiktok video from it. Add a title animation and export to a video
+```
+https://github.com/user-attachments/assets/303bc48d-848b-47a7-a6a1-c4b0673334a2
 
 ```bash
 Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
+https://github.com/user-attachments/assets/d9417ed7-0c1c-403c-bbe9-b63746547ab8
 
 ```bash
 Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
+https://github.com/user-attachments/assets/13d45f7b-88d0-46dc-8407-bc9226dec9e9
+
+## Quick start (Python SDK)
 
 ```bash
-Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
+https://github.com/recreate-run/mix-python-sdk.git
 ```
 
-<https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5>
+### Demos
 
-📋 Key Features
+Create a tiktok videos
 
-- Uses ffmpeg and local apps like blender instead of clunky cloud based editors
-- All project data is stored plain text and native media files - absolutely no lock-in.create a  
-- The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our python and typescript SDK's  (similar to claude code SDK) is launching soon.
+```bash
+uv run examples/tiktok_video.py
+```
+
+Multimodal search
+
+```bash
+uv run examples/web_search_multimodal.py
+```
+
+Modiying/Replacing the system prompt
+
+```bash
+uv run examples/system_prompt_change.py
+```
+
 
 ## Roadmap
 
-- Support for other models for the main agent and multimodal analyzer
-- Image generation and video generation tool
-- Pixelmator for image editing
-- Mix SDK (similar to claude code SDK)
+- Support for hosted SQLite/LibSQL databases (eg. turso)
+- Image/Video generation
+- REST cients in other languages
 
 ## Tech Stack
 
