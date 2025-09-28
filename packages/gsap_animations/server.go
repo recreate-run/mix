@@ -52,9 +52,6 @@ func startServer(ctx context.Context) error {
 	}
 
 	log.Printf("GSAP server starting on port %s", port)
-	log.Printf("Serving animations from: %s", getAnimationsDir())
-	log.Printf("Storage directory: %s", getStoragePath())
-	log.Printf("Video export available at: POST /export")
 
 	// Start server in goroutine
 	errChan := make(chan error, 1)
@@ -78,13 +75,10 @@ func startServer(ctx context.Context) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	log.Printf("Shutting down GSAP server...")
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Server shutdown error: %v", err)
 		return err
 	}
-
-	log.Printf("GSAP server shutdown complete")
 	return nil
 }
 

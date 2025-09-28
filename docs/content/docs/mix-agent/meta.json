@@ -14,14 +14,13 @@
     "event-streaming",
     "storage-architecture",
     "---Usage---",
-    "common-workflows",
     "cli-mode",
     "http-mode",
-    "desktop-app",
+    "tools",
     "troubleshooting",
     "---Development---",
+    "ai-coding",
     "testing",
-    "tools/system-tools",
      "---Others---",
     "security-privacy"
   ]

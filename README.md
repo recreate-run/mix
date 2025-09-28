@@ -6,8 +6,6 @@
 
 Mix is an open-source, local agent for multimodal tasks. Claude code users will feel at home.
 
-## Architecture
-
 - **Mix Agent**: Go backend HTTP server with CLI interface
 - **Mix Playground**: Desktop app built with Tauri and React  
 - **SDKs**: TypeScript and Python SDKs for integration
@@ -19,17 +17,25 @@ git clone https://github.com/recreate-run/mix.git
 make dev
 ```
 
-This starts both Mix Agent (backend) and Mix Playground (desktop app).
+Authenticate LLM providers and tool API's usring the settings dialog (gear icon at the bottom left)
 
-### Setup
-1. **Launch**: Mix Playground opens automatically
-2. **Settings**: Configure AI providers (Anthropic, OpenAI, etc.) via Settings dialog
-3. **Authentication**: Use OAuth or API keys for authentication
-4. **Start chatting**: Begin your AI workflows
+1. We recommend claude-sonnet-4 via the oauth (claude code account) or the anthropic API key using the Settings dialog.
+2. Set Gemini API key for the `ReadMedia tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
+3. Set Brave API key for the `Search` tool. Available for free from [Brave](https://brave.com/search/api/)
 
-### Additional Setup
-- **Web search**: Set Brave API key in `.env` for search functionality
-- **Gemini**: Set Gemini API key in `.env` for multimodal analysis
+Try out some examples in the playground
+
+```bash
+Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
+```
+
+```bash
+Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
+```
+
+```bash
+Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
+```
 
 <https://github.com/user-attachments/assets/be6ca94c-dc91-4129-86a7-f00e3e5407b5>
 
@@ -39,51 +45,12 @@ This starts both Mix Agent (backend) and Mix Playground (desktop app).
 - All project data is stored plain text and native media files - absolutely no lock-in.create a  
 - The backend is an HTTP server, meaning that the frontend is just one of possible clients. Our python and typescript SDK's  (similar to claude code SDK) is launching soon.
 
-## Agentic Coding
-
-This project is optimized for AI-assisted development with integrated tooling and workflows.
-
-**CLAUDE.md**: Contains AI-specific development guidelines that override default behavior.
-
-### Unified Development Environment
-
-- **Shoreman Process Manager**: `scripts/shoreman.sh` runs both frontend and backend simultaneously
-- **Auto-reload**: Backend uses Go Air for hot reloading, frontend uses Vite's built-in HMR
-- **Unified Logging**: All process output is aggregated with timestamps and color-coded by service
-- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `mix_playground/src/vite-console-forward-plugin.ts`
-
-### Development Monitoring
-
-```bash
-make tail-log    # View last 100 lines of unified development logs
-```
-
-All development output (backend compilation, frontend builds, runtime logs, browser console) flows through a single log file for streamlined AI-assisted debugging.
-
-## Structure
-
-```
-├── mix_agent/          # Go backend service
-├── mix_playground/  # Tauri desktop application
-├── .gitignore          # Monorepo gitignore
-└── README.md           # This file
-```
-
-## Tools
-
-1. Blender, pixelmator tools
-2. Multimodal analyzer
-
 ## Roadmap
 
 - Support for other models for the main agent and multimodal analyzer
 - Image generation and video generation tool
 - Pixelmator for image editing
 - Mix SDK (similar to claude code SDK)
-
-## Contributing
-
-Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for information on how to contribute to the project, including our branch strategy and pull request workflow.
 
 ## Tech Stack
 

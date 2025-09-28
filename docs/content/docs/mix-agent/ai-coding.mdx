@@ -1,0 +1,32 @@
+---
+title: AI assisted coding
+description: Understand what data Mix collects and how to control it.
+---
+
+This project is optimized for AI-assisted development with integrated tooling and workflows.
+
+**CLAUDE.md**: Contains AI-specific development guidelines that override default behavior.
+
+### Unified Development Environment
+
+- **Shoreman Process Manager**: `scripts/shoreman.sh` runs both frontend and backend simultaneously
+- **Auto-reload**: Backend uses Go Air for hot reloading, frontend uses Vite's built-in HMR
+- **Unified Logging**: All process output is aggregated with timestamps and color-coded by service
+- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `mix_playground/src/vite-console-forward-plugin.ts`
+
+### Development Monitoring
+
+```bash
+make tail-log    # View last 100 lines of unified development logs
+```
+
+All development output (backend compilation, frontend builds, runtime logs, browser console) flows through a single log file for streamlined AI-assisted debugging.
+
+## Structure
+
+```
+├── mix_agent/          # Go backend service
+├── mix_playground/  # Tauri desktop application
+├── .gitignore          # Monorepo gitignore
+└── README.md           # This file
+```

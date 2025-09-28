@@ -54,12 +54,13 @@ uv run --with jinja2 scripts/convert_tools_docs.py
 
 ## Creating Sidebar Subgroups with Popover Behavior
 
-To create expandable sidebar subgroups (like "System Tools" under "Tools"):
+To create expandable sidebar subgroups (like "Tools" under "Tools"):
 
 1. **Create a root folder** with `meta.json` containing `"root": true`:
+
    ```json
    {
-     "title": "System Tools",
+     "title": "Tools",
      "description": "Core system tools for file management",
      "icon": "Terminal",
      "root": true,
@@ -70,6 +71,7 @@ To create expandable sidebar subgroups (like "System Tools" under "Tools"):
 2. **Move related pages** into the subfolder (e.g., `tools/system-tools/`)
 
 3. **Update parent meta.json** to reference the folder:
+
    ```json
    {
      "pages": ["tools/system-tools"]
@@ -77,6 +79,7 @@ To create expandable sidebar subgroups (like "System Tools" under "Tools"):
    ```
 
 4. **Add icon to source.ts** if needed:
+
    ```ts
    import { Terminal } from 'lucide-react';
    const icons = { Terminal };
