@@ -29,14 +29,17 @@ Authenticate LLM providers and tool API's usring the settings dialog (gear icon 
 ```bash
 Find the best videos cat about kerala putty 5 sec tiktok video from it. Add a title animation and export to a video
 ```
+https://github.com/user-attachments/assets/303bc48d-848b-47a7-a6a1-c4b0673334a2
 
 ```bash
 Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
+https://github.com/user-attachments/assets/d9417ed7-0c1c-403c-bbe9-b63746547ab8
 
 ```bash
 Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
+https://github.com/user-attachments/assets/13d45f7b-88d0-46dc-8407-bc9226dec9e9
 
 ## Quick start (Python SDK)
 
@@ -63,6 +66,7 @@ Modiying/Replacing the system prompt
 ```bash
 uv run examples/system_prompt_change.py
 ```
+
 
 ## Roadmap
 
