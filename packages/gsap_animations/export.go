@@ -16,8 +16,8 @@ import (
 
 // URLVideoExportRequest represents the request payload for URL video export
 type URLVideoExportRequest struct {
-	URL         string   `json:"url"`                  // URL to capture
-	S3URL       string   `json:"s3Url,omitempty"`      // Optional S3 URL to upload the video to
+	URL         string   `json:"url"`                   // URL to capture
+	S3URL       string   `json:"s3Url,omitempty"`       // Optional S3 URL to upload the video to
 	FPS         *int     `json:"fps,omitempty"`         // default: 30
 	AspectRatio *string  `json:"aspectRatio,omitempty"` // default: "9/16" (format like "16/9", "4/3")
 	Height      *int     `json:"height,omitempty"`      // default: 640
@@ -27,8 +27,8 @@ type URLVideoExportRequest struct {
 // URLVideoExportResponse represents the response for URL video export
 type URLVideoExportResponse struct {
 	Success bool   `json:"success"`
-	URL     string `json:"url,omitempty"`      // URL to access the video (local server)
-	S3URL   string `json:"s3Url,omitempty"`    // S3 URL where video was uploaded (if requested)
+	URL     string `json:"url,omitempty"`   // URL to access the video (local server)
+	S3URL   string `json:"s3Url,omitempty"` // S3 URL where video was uploaded (if requested)
 	Message string `json:"message,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
@@ -237,8 +237,6 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
-
-	log.Printf("Video export completed successfully\nOutput: %s", string(output))
 
 	// Check if output file was created
 	if _, err := os.Stat(outputPath); os.IsNotExist(err) {

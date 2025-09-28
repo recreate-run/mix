@@ -9,10 +9,10 @@ import (
 type ToolType string
 
 const (
-	ToolTypeWebSearch         ToolType = "web_search"
+	ToolTypeWebSearch          ToolType = "web_search"
 	ToolTypeMultimodalAnalyzer ToolType = "multimodal_analyzer"
-	ToolTypeImageGeneration   ToolType = "image_generation"
-	ToolTypeCodeAnalysis      ToolType = "code_analysis"
+	ToolTypeImageGeneration    ToolType = "image_generation"
+	ToolTypeCodeAnalysis       ToolType = "code_analysis"
 )
 
 // ToolProvider represents a specific provider within a tool category
@@ -21,23 +21,23 @@ type ToolProvider string
 const (
 	// Web Search providers
 	WebSearchBrave ToolProvider = "brave"
-	
+
 	// Multimodal Analyzer providers
 	MultimodalGemini ToolProvider = "gemini"
 	MultimodalOpenAI ToolProvider = "openai"
-	
+
 	// Future providers can be added here
 )
 
 // ToolInfo represents information about a tool
 type ToolInfo struct {
-	Type        ToolType     `json:"type"`
-	Provider    ToolProvider `json:"provider"`
-	DisplayName string       `json:"display_name"`
-	Description string       `json:"description"`
-	APIKeyFormat string      `json:"api_key_format"`
-	Enabled     bool         `json:"enabled"`
-	RequiresKey bool         `json:"requires_key"`
+	Type         ToolType     `json:"type"`
+	Provider     ToolProvider `json:"provider"`
+	DisplayName  string       `json:"display_name"`
+	Description  string       `json:"description"`
+	APIKeyFormat string       `json:"api_key_format"`
+	Enabled      bool         `json:"enabled"`
+	RequiresKey  bool         `json:"requires_key"`
 }
 
 // ToolCategory represents a category of tools for UI display
@@ -61,10 +61,10 @@ func NewToolRegistry() *ToolRegistry {
 		tools:      make(map[ToolType]map[ToolProvider]ToolInfo),
 		categories: make(map[ToolType]ToolCategory),
 	}
-	
+
 	registry.initializeTools()
 	registry.initializeCategories()
-	
+
 	return registry
 }
 
@@ -80,7 +80,7 @@ func (tr *ToolRegistry) initializeTools() {
 		Enabled:      true,
 		RequiresKey:  true,
 	})
-	
+
 	// Multimodal Analyzer Tools
 	tr.registerTool(ToolInfo{
 		Type:         ToolTypeMultimodalAnalyzer,
@@ -91,7 +91,7 @@ func (tr *ToolRegistry) initializeTools() {
 		Enabled:      true,
 		RequiresKey:  true,
 	})
-	
+
 	tr.registerTool(ToolInfo{
 		Type:         ToolTypeMultimodalAnalyzer,
 		Provider:     MultimodalOpenAI,
@@ -99,7 +99,7 @@ func (tr *ToolRegistry) initializeTools() {
 		Description:  "OpenAI's vision model for image analysis",
 		APIKeyFormat: "sk-...",
 		Enabled:      false, // Disabled for now as it uses regular OpenAI provider
-		RequiresKey:  false,  // Uses existing OpenAI key
+		RequiresKey:  false, // Uses existing OpenAI key
 	})
 }
 
@@ -107,31 +107,31 @@ func (tr *ToolRegistry) initializeTools() {
 func (tr *ToolRegistry) initializeCategories() {
 	tr.categories[ToolTypeWebSearch] = ToolCategory{
 		Type:        ToolTypeWebSearch,
-		DisplayName: "🔍 Web Search Tools",
+		DisplayName: "Web Search",
 		Description: "Search the web for real-time information",
 		Icon:        "🔍",
 		Tools:       tr.getToolsByType(ToolTypeWebSearch),
 	}
-	
+
 	tr.categories[ToolTypeMultimodalAnalyzer] = ToolCategory{
 		Type:        ToolTypeMultimodalAnalyzer,
-		DisplayName: "👁️ Multimodal Analyzers",
+		DisplayName: "Read media",
 		Description: "Analyze images, videos, and other media",
 		Icon:        "👁️",
 		Tools:       tr.getToolsByType(ToolTypeMultimodalAnalyzer),
 	}
-	
+
 	tr.categories[ToolTypeImageGeneration] = ToolCategory{
 		Type:        ToolTypeImageGeneration,
-		DisplayName: "🎨 Image Generation",
+		DisplayName: "Image Generation",
 		Description: "Generate images using AI",
 		Icon:        "🎨",
 		Tools:       tr.getToolsByType(ToolTypeImageGeneration),
 	}
-	
+
 	tr.categories[ToolTypeCodeAnalysis] = ToolCategory{
 		Type:        ToolTypeCodeAnalysis,
-		DisplayName: "💻 Code Analysis",
+		DisplayName: "Code Analysis",
 		Description: "Analyze and understand code",
 		Icon:        "💻",
 		Tools:       tr.getToolsByType(ToolTypeCodeAnalysis),
@@ -197,15 +197,15 @@ func (tr *ToolRegistry) ValidateAPIKey(toolType ToolType, provider ToolProvider,
 	if !exists {
 		return fmt.Errorf("tool not found: %s/%s", toolType, provider)
 	}
-	
+
 	if !tool.RequiresKey {
 		return nil // No validation needed
 	}
-	
+
 	if apiKey == "" {
 		return fmt.Errorf("API key is required for %s", tool.DisplayName)
 	}
-	
+
 	// Validate format based on provider
 	switch provider {
 	case WebSearchBrave:
@@ -222,7 +222,7 @@ func (tr *ToolRegistry) ValidateAPIKey(toolType ToolType, provider ToolProvider,
 			return fmt.Errorf("API key is too short")
 		}
 	}
-	
+
 	return nil
 }
 
