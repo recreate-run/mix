@@ -97,7 +97,7 @@ This architecture ensures prompt isolation while sharing tools and services effi
 
 ### 5. Data Layer (`internal/db/`)
 
-- SQLite database with proper migrations
+- SQLite or Turso database with proper migrations
 - Three core entities: Sessions, Messages, Files
 - SQLC for type-safe database operations
 - Automatic timestamping and relationship management
