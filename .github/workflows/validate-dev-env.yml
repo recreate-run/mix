@@ -81,19 +81,20 @@ jobs:
       - name: Generate Coverage Report for PR
         if: github.event_name == 'pull_request'
         run: |
-          echo "## 📊 Mix Agent Test Coverage Report" >> coverage_report.md
-          echo "" >> coverage_report.md
+          mkdir -p mix_agent
+          echo "## 📊 Mix Agent Test Coverage Report" >> mix_agent/coverage_report.md
+          echo "" >> mix_agent/coverage_report.md
 
           # Extract module coverage from test output
-          echo "### Module Coverage:" >> coverage_report.md
-          echo "\`\`\`" >> coverage_report.md
-          grep "coverage:" test_output.log | grep "mix/internal" | sort >> coverage_report.md
-          echo "\`\`\`" >> coverage_report.md
-          echo "" >> coverage_report.md
+          echo "### Module Coverage:" >> mix_agent/coverage_report.md
+          echo "\`\`\`" >> mix_agent/coverage_report.md
+          grep "coverage:" test_output.log | grep "mix/internal" | sort >> mix_agent/coverage_report.md
+          echo "\`\`\`" >> mix_agent/coverage_report.md
+          echo "" >> mix_agent/coverage_report.md
 
-          # Get overall coverage from the last line that shows total
-          TOTAL_COVERAGE=$(grep "Total Coverage:" test_output.log | tail -1 | awk '{print $4}' || echo "N/A")
-          echo "### Overall Coverage: **$TOTAL_COVERAGE**" >> coverage_report.md
+          # Get overall coverage from the script output
+          TOTAL_COVERAGE=$(grep "🎯 Total Coverage:" test_output.log | tail -1 | awk '{print $4}' || echo "N/A")
+          echo "### Overall Coverage: **$TOTAL_COVERAGE**" >> mix_agent/coverage_report.md
 
       - name: Upload Coverage Report
         if: github.event_name == 'pull_request'
@@ -111,7 +112,7 @@ jobs:
             });
 
             const existingComment = comments.data.find(comment =>
-              comment.body.includes('📊 Test Coverage Report')
+              comment.body.includes('📊 Mix Agent Test Coverage Report')
             );
 
             if (existingComment) {
