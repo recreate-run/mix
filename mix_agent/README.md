@@ -34,6 +34,17 @@ Verify installation: `mix --version`
 b
 *Note: Ensure `~/go/bin` is in your PATH*
 
+## Database Configuration
+
+Mix supports SQLite (default) and Turso for cloud deployments:
+
+```bash
+# Turso setup
+export MIX_DB_TYPE=turso
+export MIX_DB_TURSO_URL=libsql://your-database-org.turso.io
+export MIX_DB_TURSO_AUTH_TOKEN=your-auth-token
+```
+
 ## Main Components
 
 ### 1. Entry Points (`main.go`, `cmd/`)
@@ -86,7 +97,7 @@ This architecture ensures prompt isolation while sharing tools and services effi
 
 ### 5. Data Layer (`internal/db/`)
 
-- SQLite database with proper migrations
+- SQLite or Turso database with proper migrations
 - Three core entities: Sessions, Messages, Files
 - SQLC for type-safe database operations
 - Automatic timestamping and relationship management
