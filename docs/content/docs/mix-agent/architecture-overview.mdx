@@ -16,7 +16,7 @@ graph TB
     Agent[AI Agent<br/>Conversations & Reasoning]
     Tools[Tools & Services<br/>File Ops • Shell • Web Search]
     External[External APIs<br/>LLMs • Search • Analytics]
-    DB[(Database<br/>SQLite)]
+    DB[(Database<br/>SQLite • Turso)]
     
     User --> Core
     Core --> Agent
@@ -59,7 +59,7 @@ Extensible plugin architecture:
 
 ### 5. Data Architecture
 Robust data persistence and management:
-- **SQLite with WAL**: High-performance local database with concurrent access
+- **SQLite or Turso**: Local SQLite with WAL or cloud Turso database for distributed deployments
 - **Type-safe Queries**: SQLC-generated queries for compile-time safety
 - **Session Isolation**: Per-session directory structure with asset management
 - **Migration System**: Goose-based schema evolution
@@ -87,7 +87,7 @@ Tools can be added without modifying core code:
 - **Audit Trail**: Complete logging of all permission requests and grants
 
 ### Data Security
-- **Local-first**: All data stored locally in SQLite database
+- **Flexible Storage**: Data stored in local SQLite or secure cloud Turso database
 - **Session Isolation**: File system isolation per session
 - **API Key Management**: Secure storage and environment-based configuration
 
