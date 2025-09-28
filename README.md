@@ -11,7 +11,38 @@ Mix is the best agentic backbone for your multimodal app. It comes with a GUI pl
 - All project data is stored plain text and native media files - absolutely no lock-in.
 - The backend is an HTTP server, meaning that the frontend is just one of possible clients. Check out our python and typescript SDK's  
 
+## Quick start (Python SDK)
+
+```bash
+https://github.com/recreate-run/mix-python-sdk.git
+cd mix-python-sdk
+```
+
+### Demos
+
+Create a tiktok videos
+
+```bash
+uv run examples/tiktok_video.py
+```
+
+Multimodal search
+
+```bash
+uv run examples/web_search_multimodal.py
+```
+
+<https://github.com/user-attachments/assets/d73791e4-5377-4522-b76c-0df9f1bdd81f>
+
+Modiying/Replacing the system prompt
+
+```bash
+uv run examples/system_prompt_change.py
+```
+
 ## Quick start (Playground)
+
+Mix comes with a GUI playground for testing and debugging SDK workflows. It's built from the [Mix typescript SDK](https://github.com/recreate-run/mix-typescript-sdk)
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
@@ -43,32 +74,6 @@ Show 3 most interesting 5 second highlights from this video
 ```
 
 <https://github.com/user-attachments/assets/d9417ed7-0c1c-403c-bbe9-b63746547ab8>
-
-## Quick start (Python SDK)
-
-```bash
-https://github.com/recreate-run/mix-python-sdk.git
-```
-
-### Demos
-
-Create a tiktok videos
-
-```bash
-uv run examples/tiktok_video.py
-```
-
-Multimodal search
-
-```bash
-uv run examples/web_search_multimodal.py
-```
-
-Modiying/Replacing the system prompt
-
-```bash
-uv run examples/system_prompt_change.py
-```
 
 ## Roadmap
 
