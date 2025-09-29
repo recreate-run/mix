@@ -174,7 +174,7 @@ func TestGetAllCategories(t *testing.T) {
 	}
 
 	require.NotNil(t, webSearchCategory)
-	assert.Equal(t, "🔍 Web Search Tools", webSearchCategory.DisplayName)
+	assert.Equal(t, "Web Search", webSearchCategory.DisplayName)
 	assert.Equal(t, "🔍", webSearchCategory.Icon)
 	assert.Len(t, webSearchCategory.Tools, 1)
 }
@@ -186,7 +186,7 @@ func TestGetCategory(t *testing.T) {
 	// Test existing category
 	category, exists := registry.GetCategory(ToolTypeWebSearch)
 	assert.True(t, exists)
-	assert.Equal(t, "🔍 Web Search Tools", category.DisplayName)
+	assert.Equal(t, "Web Search", category.DisplayName)
 	assert.Len(t, category.Tools, 1)
 
 	// Test non-existing category

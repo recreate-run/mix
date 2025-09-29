@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type (patch/minor)'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+  push:
+    tags:
+      - 'v*'
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+env:
+  GO_VERSION: '1.24.0'
+
+jobs:
+  # Pre-release validation
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: mix_agent/go.sum
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ ${{ github.ref_type }} == 'tag' ]]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=snapshot-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download Go modules
+        run: cd mix_agent && go mod download
+
+      - name: Test build
+        run: |
+          cd mix_agent
+          echo "Testing Go build process..."
+          go build -o /tmp/mix-test ./main.go
+          echo "Build test successful!"
+          rm -f /tmp/mix-test
+
+  # Cross-platform release build
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags
+        run: git fetch --force --tags
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: mix_agent/go.sum
+
+      - name: Download Go modules
+        run: cd mix_agent && go mod download
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Uncomment when ready for package manager publishing
+          # HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+          # AUR_KEY: ${{ secrets.AUR_KEY }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-artifacts-${{ needs.validate.outputs.version }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt
+          retention-days: 30
+
+  # Test macOS builds (for PRs and non-tag pushes)
+  test-build:
+    needs: validate
+    runs-on: macos-latest
+    if: "!startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch'"
+    strategy:
+      matrix:
+        include:
+          - goarch: amd64
+            name: intel
+          - goarch: arm64
+            name: apple-silicon
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build for macOS (${{ matrix.name }})
+        env:
+          GOOS: darwin
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          cd mix_agent
+          mkdir -p ../dist
+          go build -ldflags "-s -w -X mix/internal/version.Version=test-${{ matrix.name }}" -o ../dist/mix-mac-${{ matrix.name }} ./main.go
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-mac-${{ matrix.name }}
+          path: dist/mix-mac-*
+          retention-days: 7
