@@ -7,9 +7,15 @@ builds:
       - CGO_ENABLED=0
     goos:
       - darwin
+      - linux
+      - windows
     goarch:
       - amd64
       - arm64
+    # Exclude arm64 for Windows (not commonly supported)
+    ignore:
+      - goos: windows
+        goarch: arm64
     ldflags:
       - -s -w -X mix/internal/version.Version={{.Version}}
     main: ./mix_agent/main.go
@@ -17,10 +23,18 @@ builds:
 
 archives:
   - name_template: >-
-      mix-mac-
-      {{- if eq .Arch "amd64" }}intel
-      {{- else if eq .Arch "arm64" }}apple-silicon
-      {{- else }}{{ .Arch }}{{ end }}
+      mix-
+      {{- if eq .Os "darwin" }}mac-
+        {{- if eq .Arch "amd64" }}intel
+        {{- else if eq .Arch "arm64" }}apple-silicon
+        {{- else }}{{ .Arch }}{{ end }}
+      {{- else if eq .Os "windows" }}windows-
+        {{- if eq .Arch "amd64" }}x64{{ else }}{{ .Arch }}{{ end }}
+      {{- else if eq .Os "linux" }}linux-
+        {{- if eq .Arch "amd64" }}x64
+        {{- else if eq .Arch "arm64" }}arm64
+        {{- else }}{{ .Arch }}{{ end }}
+      {{- else }}{{ .Os }}-{{ .Arch }}{{ end }}
     files:
       - README.md
       - LICENSE*

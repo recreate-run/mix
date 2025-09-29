@@ -28,9 +28,15 @@ help:
 	@echo "  install-deps - Install project dependencies"
 	@echo "  build       - Build optimized binary for current platform"
 	@echo "  build-sidecar - Build Tauri-compatible sidecar binary with platform suffix"
-	@echo "  build-all   - Build binaries for all macOS architectures (Intel + Apple Silicon)"
+	@echo "  build-all   - Build binaries for all platforms and architectures"
+	@echo "  build-macos - Build for all macOS architectures (Intel + Apple Silicon)"
+	@echo "  build-linux - Build for all Linux architectures (x64 + ARM64)"
+	@echo "  build-windows - Build for Windows (x64)"
 	@echo "  build-darwin-amd64  - Build for macOS (Intel)"
 	@echo "  build-darwin-arm64  - Build for macOS (Apple Silicon)"
+	@echo "  build-linux-amd64   - Build for Linux (x64)"
+	@echo "  build-linux-arm64   - Build for Linux (ARM64)"
+	@echo "  build-windows-amd64 - Build for Windows (x64)"
 	@echo "  build-mac-intel     - Alias for build-darwin-amd64"
 	@echo "  build-mac-arm       - Alias for build-darwin-arm64"
 	@echo "  release     - Create release with GoReleaser"
@@ -107,10 +113,21 @@ build-sidecar:
 	@$(MAKE) _build-optimized OUTPUT_PATH=build/release/$(BINARY_NAME)-$(TARGET_TRIPLE)
 	@echo "Tauri sidecar binary built: $(BUILD_DIR)/release/$(BINARY_NAME)-$(TARGET_TRIPLE)"
 
-# macOS build targets
-build-all: build-darwin-amd64 build-darwin-arm64
+# Cross-platform build targets
+build-all: build-macos build-linux build-windows
+	@echo "✅ All platform binaries built successfully!"
+
+# Platform-specific build groups
+build-macos: build-darwin-amd64 build-darwin-arm64
 	@echo "✅ All macOS binaries built successfully!"
 
+build-linux: build-linux-amd64 build-linux-arm64
+	@echo "✅ All Linux binaries built successfully!"
+
+build-windows: build-windows-amd64
+	@echo "✅ All Windows binaries built successfully!"
+
+# macOS build targets
 build-darwin-amd64:
 	@echo "Building for macOS (Intel)..."
 	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)-mac-intel GOOS=darwin GOARCH=amd64
@@ -118,6 +135,20 @@ build-darwin-amd64:
 build-darwin-arm64:
 	@echo "Building for macOS (Apple Silicon)..."
 	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)-mac-apple-silicon GOOS=darwin GOARCH=arm64
+
+# Linux build targets
+build-linux-amd64:
+	@echo "Building for Linux (x64)..."
+	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)-linux-x64 GOOS=linux GOARCH=amd64
+
+build-linux-arm64:
+	@echo "Building for Linux (ARM64)..."
+	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)-linux-arm64 GOOS=linux GOARCH=arm64
+
+# Windows build targets
+build-windows-amd64:
+	@echo "Building for Windows (x64)..."
+	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)-windows-x64.exe GOOS=windows GOARCH=amd64
 
 # Alias for convenience
 build-mac-intel: build-darwin-amd64
