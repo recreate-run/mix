@@ -13,6 +13,8 @@ Use for displaying/viewing media files:
    - When users want to SEE the actual media file
    - Presenting finished work or media deliverables
    - Showing examples and reference materials for visual context
+   - Displaying PDF documents, reports, and documentation
+   - Showcasing CSV data files and spreadsheets
 
 3. After Media Processing Tasks - Display media outputs from:
    - Video editing (trimming, effects, filters, color correction, edited clips)
@@ -38,7 +40,7 @@ Skip using this tool when:
 1. Content Analysis Requests: "What's in this image?", "Describe this file", "Analyze this"
 2. Information Extraction: "Explain what you see", "What does this show?"
 3. File doesn't exist: Media file paths are invalid or inaccessible
-4. Non-media content: Documents, data files, or other non-visual/audio content
+4. Non-media content: Text documents or other non-visual/audio/data content
 
 ## Examples of When to Use Media Showcase
 
@@ -117,6 +119,30 @@ Assistant: I'll display that audio track from the URL.
 </example>
 
 <example>
+User: Display this project documentation: https://example.com/docs/project-spec.pdf
+Assistant: I'll show you that PDF document for review.
+
+*Uses show_media tool with:*
+
+- Path: <https://example.com/docs/project-spec.pdf>
+- Type: pdf
+- Title: Project Specification
+- Description: Technical documentation for project requirements
+</example>
+
+<example>
+User: Show me the sales data CSV file: https://example.com/data/sales-report.csv
+Assistant: I'll display that CSV file for you to review.
+
+*Uses show_media tool with:*
+
+- Path: <https://example.com/data/sales-report.csv>
+- Type: csv
+- Title: Sales Report Data
+- Description: Monthly sales figures and analytics
+</example>
+
+<example>
 User: Create a GSAP animation with bouncing text saying "AMAZING!"
 Assistant: [After configuring the GSAP animation]
 
@@ -149,7 +175,7 @@ Assistant: I've identified key segments from your demo video.
 outputs (required): Array of media outputs to showcase
 
 - path: HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media URL
-- type: "image", "video", "audio", "gsap_animation", or "youtube"
+- type: "image", "video", "audio", "gsap_animation", "youtube", "pdf", or "csv"
 - title: Display title
 - description: Project context (optional)
 - config: Animation configuration JSON (required for gsap_animation)

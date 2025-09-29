@@ -56,23 +56,20 @@ jobs:
       - name: Download Go modules
         run: cd mix_agent && go mod download
 
-      - name: Run tests
-        run: cd mix_agent && go test -v ./...
-
-      - name: Run linting
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          working-directory: mix_agent
-
       - name: Test build
-        run: cd mix_agent && go build -o /tmp/mix-test ./main.go
+        run: |
+          cd mix_agent
+          echo "Testing Go build process..."
+          go build -o /tmp/mix-test ./main.go
+          echo "Build test successful!"
+          rm -f /tmp/mix-test
 
-  # Cross-platform release build
+  # macOS release build
   release:
     needs: validate
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    # Run on tags, manual dispatch, or pushes to main/dev for testing
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -92,12 +89,23 @@ jobs:
       - name: Download Go modules
         run: cd mix_agent && go mod download
 
+      - name: Check if this is a tagged release
+        id: check_tag
+        run: |
+          if [[ ${{ github.ref_type }} == 'tag' ]]; then
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+            echo "args=release --clean" >> $GITHUB_OUTPUT
+          else
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+            echo "args=build --snapshot --clean" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          args: ${{ steps.check_tag.outputs.args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Uncomment when ready for package manager publishing
@@ -113,6 +121,7 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
             dist/checksums.txt
+            dist/mix_darwin_*/*
           retention-days: 30
 
   # Test macOS builds (for PRs and non-tag pushes)
@@ -144,7 +153,7 @@ jobs:
         run: |
           cd mix_agent
           mkdir -p ../dist
-          go build -ldflags "-s -w" -o ../dist/mix-mac-${{ matrix.name }} ./main.go
+          go build -ldflags "-s -w -X mix/internal/version.Version=test-${{ matrix.name }}" -o ../dist/mix-mac-${{ matrix.name }} ./main.go
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

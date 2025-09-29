@@ -48,6 +48,7 @@ import { RateLimitDisplay } from './rate-limit-display';
 import { GsapAnimationPreview } from './gsap/GsapAnimationPreview';
 import { LazyVideoPlayer } from './LazyVideoPlayer';
 import { ResponseRenderer } from './response-renderer';
+import { CsvViewer } from './CsvViewer';
 import { TodoList } from './todo-list';
 import { StatusUI } from './status-ui';
 import { ProviderDisplay } from './provider-display';
@@ -158,6 +159,36 @@ const MainMediaPlayer = ({ media, sessionId }: { media: MediaOutput; sessionId: 
             Failed to load YouTube video: {media.path}
           </div>
         </div>
+      )}
+
+      {media.type === 'pdf' && (
+        <div className="overflow-hidden rounded-md">
+          <iframe
+            src={getMediaSrc(media.path, sessionId)}
+            title={media.title}
+            frameBorder="0"
+            className="aspect-[4/5] w-full min-w-xl bg-white"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget
+                .nextElementSibling as HTMLElement;
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <div
+            className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
+            style={{ display: 'none' }}
+          >
+            Failed to load PDF document: {media.path}
+          </div>
+        </div>
+      )}
+
+      {media.type === 'csv' && (
+        <CsvViewer
+          url={getMediaSrc(media.path, sessionId)}
+          title={media.title}
+        />
       )}
     </div>
   );
