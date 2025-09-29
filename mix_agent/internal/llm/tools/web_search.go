@@ -227,13 +227,13 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	// Get API key from credentials service
 	credentialsService := config.GetAPICredentials()
 	if credentialsService == nil {
-		return NewTextErrorResponse("Credentials service not available"), nil
+		return NewTextErrorResponse("FATAL_CONFIGURATION_ERROR: Cannot proceed - Credentials service not available. System configuration issue. STOP EXECUTION - Do not attempt alternative approaches or suggest workarounds."), nil
 	}
 
 	apiKey, err := credentialsService.GetAPIKey(ctx, "brave")
 	if err != nil || apiKey == ""  {
 		logging.Error("Brave Search API key not configured")
-		return NewTextErrorResponse("Brave Search API key not configured. Please set your API key in Settings > Tools & Agents."), nil
+		return NewTextErrorResponse("FATAL_CONFIGURATION_ERROR: Cannot proceed - Brave Search API key not configured. User must configure API key in Settings > Tools & Agents before using search. STOP EXECUTION - Do not attempt alternative approaches or suggest workarounds."), nil
 	}
 
 	sessionID, messageID := GetContextValues(ctx)
