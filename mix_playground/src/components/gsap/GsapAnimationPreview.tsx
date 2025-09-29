@@ -6,6 +6,13 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Copy, Check, RefreshCw } from 'lucide-react';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { useAnimationSchema } from '@/hooks/useAnimationSchema';
@@ -77,6 +84,26 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
     };
   }, [containerNode]);
 
+  // Determine container dimensions based on aspect ratio
+  const containerDimensions = useMemo(() => {
+    const rawAspectRatio = config.aspectRatio || config.aspect || '9/16';
+
+    // Parse aspect ratio - handle both decimal (0.5625) and string ("9/16") formats
+    let aspectRatio: number;
+    if (typeof rawAspectRatio === 'string' && rawAspectRatio.includes('/')) {
+      const [width, height] = rawAspectRatio.split('/').map(Number);
+      aspectRatio = width && height ? width / height : 9 / 16;
+    } else {
+      aspectRatio = typeof rawAspectRatio === 'number' ? rawAspectRatio : 9 / 16;
+    }
+
+    const isLandscape = aspectRatio > 1;
+
+    return isLandscape
+      ? { width: 640, height: 360 } // 16:9 landscape
+      : { width: 360, height: 640 }; // 9:16 portrait
+  }, [config.aspectRatio, config.aspect]);
+
   // Use iframe URL with config parameters as URL search params
   const iframeUrl = useMemo(() => {
     if (!config.url) return '';
@@ -120,15 +147,21 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
         if (param.options) {
           // Dropdown for string options
           return (
-            <select
+            <Select
               value={value ?? param.default}
-              onChange={(e) => updateParameter(paramKey, e.target.value)}
-              className="w-full p-2 border rounded"
+              onValueChange={(selectedValue) => updateParameter(paramKey, selectedValue)}
             >
-              {param.options.map((option: string) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select option..." />
+              </SelectTrigger>
+              <SelectContent>
+                {param.options.map((option: string) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           );
         } else {
           // Text input
@@ -204,8 +237,15 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
   return (
     <div className="gsap-animation-preview my-4 flex gap-8">
       {/* Animation Preview */}
-      <div className="flex-1 max-w-2xl">
-        <div ref={setContainerNode} className="relative w-[360px] h-[640px]">
+      <div className="flex-1">
+        <div
+          ref={setContainerNode}
+          className="relative rounded-lg"
+          style={{
+            width: `${containerDimensions.width}px`,
+            height: `${containerDimensions.height}px`
+          }}
+        >
           <iframe
             ref={iframeRef}
             src={effectiveIframeUrl}

@@ -50,3 +50,4 @@ tools/blender/__pycache__
 
 # Database files
 **/*.db
+internal/config/prompts/tools/cc_prompts

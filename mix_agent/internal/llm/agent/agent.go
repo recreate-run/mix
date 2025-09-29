@@ -475,18 +475,21 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	// Execute all tool calls with dependency awareness
 	logging.Debug("Processing tool calls", "count", len(toolCalls), "sessionID", sessionID)
 
-	toolResults, err := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
-	if err != nil {
-		return assistantMsg, nil, fmt.Errorf("failed to execute tools: %w", err)
-	}
+	toolResults, toolErr := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
 
-	// Create tool result message with all results
+	// Always create tool result message, even if some tools failed
+	// This prevents orphaned tool_use messages that cause API rejection
 	msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
 		Role:  message.Tool,
 		Parts: toolResults,
 	})
 	if err != nil {
 		return assistantMsg, nil, fmt.Errorf("failed to create tool result message: %w", err)
+	}
+
+	// Log tool execution errors but don't fail the entire flow
+	if toolErr != nil {
+		logging.Error("Some tools failed during execution", "error", toolErr, "sessionID", sessionID)
 	}
 
 	// Publish completion event
