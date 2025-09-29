@@ -74,6 +74,10 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 					continue
 				}
 			}
+			for _, uriContent := range msg.URIContent() {
+				// Handle URIs using Gemini's native URI support
+				parts = append(parts, genai.NewPartFromURI(uriContent.URI, uriContent.MIMEType))
+			}
 			history = append(history, &genai.Content{
 				Parts: parts,
 				Role:  "user",

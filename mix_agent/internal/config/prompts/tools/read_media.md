@@ -5,7 +5,8 @@ Usage notes:
 - Supports three analysis types: "image", "audio", or "video"
 - Can process single files or entire directories with optional recursive scanning
 - Requires either file_path OR directory_path parameter (mutually exclusive)
-- All file paths must be absolute paths for security. Relative paths and URL's are not allwed
+- All file paths must be absolute paths for security. Relative paths and are not allowed
+- All URL's except youtube URL's are not allowed. ReadMedia can analyze youtube videos directly.
 - For audio files: audio_mode parameter required ("transcript" or "description")
 - For video files: video_mode parameter required ("description")
 - For image files: no additional mode parameter needed

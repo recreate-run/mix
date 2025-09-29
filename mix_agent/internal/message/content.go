@@ -107,6 +107,17 @@ func (bc BinaryContent) String(provider models.ModelProvider) string {
 
 func (BinaryContent) isPart() {}
 
+type URIContent struct {
+	URI      string `json:"uri"`
+	MIMEType string `json:"mime_type"`
+}
+
+func (uc URIContent) String() string {
+	return uc.URI
+}
+
+func (URIContent) isPart() {}
+
 type ToolCall struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
@@ -222,6 +233,16 @@ func (m *Message) BinaryContent() []BinaryContent {
 		}
 	}
 	return binaryContents
+}
+
+func (m *Message) URIContent() []URIContent {
+	uriContents := make([]URIContent, 0)
+	for _, part := range m.Parts {
+		if c, ok := part.(URIContent); ok {
+			uriContents = append(uriContents, c)
+		}
+	}
+	return uriContents
 }
 
 func (m *Message) ToolCalls() []ToolCall {
