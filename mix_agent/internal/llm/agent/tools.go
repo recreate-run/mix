@@ -31,7 +31,7 @@ func CoderAgentTools(
 			tools.NewReadTextTool(permissions),
 			tools.NewWebSearchTool(permissions),
 			tools.NewWriteTool(permissions, history),
-			tools.NewPythonExecutionTool(permissions),
+			// tools.NewPythonExecutionTool(permissions),
 			tools.NewReadMediaTool(),
 			tools.NewTodoWriteTool(),
 			tools.NewExitPlanModeTool(),

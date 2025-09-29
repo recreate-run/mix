@@ -118,7 +118,7 @@ func (p *pythonExecutionTool) executePythonCode(ctx context.Context, code string
 		return nil, fmt.Errorf("failed to write code to temp file: %w", err)
 	}
 
-	cmd := exec.CommandContext(timeoutCtx, "uv", "run", "--isolated", "--with", "numpy", tempFile.Name())
+	cmd := exec.CommandContext(timeoutCtx, "uv", "run", "--isolated", "--with", "numpy", "--with", "pandas", tempFile.Name())
 	cmd.Dir = tempDir
 
 	var stdout, stderr strings.Builder
