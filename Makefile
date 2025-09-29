@@ -26,8 +26,17 @@ help:
 	@echo "  docs        - Run documentation development server"
 	@echo "  install     - Install system dependencies (one-time setup)"
 	@echo "  install-deps - Install project dependencies"
-	@echo "  build       - Build the binary to $(BUILD_DIR)/release/ directory"
+	@echo "  build       - Build optimized binary for current platform"
 	@echo "  build-sidecar - Build Tauri-compatible sidecar binary with platform suffix"
+	@echo "  build-all   - Build binaries for all macOS architectures (Intel + Apple Silicon)"
+	@echo "  build-darwin-amd64  - Build for macOS (Intel)"
+	@echo "  build-darwin-arm64  - Build for macOS (Apple Silicon)"
+	@echo "  build-mac-intel     - Alias for build-darwin-amd64"
+	@echo "  build-mac-arm       - Alias for build-darwin-arm64"
+	@echo "  release     - Create release with GoReleaser"
+	@echo "  release-test - Test release build (dry run)"
+	@echo "  release-snapshot - Create snapshot release for testing"
+	@echo "  scripts/release.sh - Enhanced release script with validation"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  install-air - Install Air if not present"
 	@echo "  tail-log    - Show the last 100 lines of the log"
@@ -83,14 +92,54 @@ _build-optimized:
 	$(CGO_ENV) $(if $(GOOS),GOOS=$(GOOS)) $(if $(GOARCH),GOARCH=$(GOARCH)) go build \
 		$(BUILD_FLAGS) \
 		-ldflags="$(LDFLAGS)" \
-		-o $(OUTPUT_PATH) \
+		-o ../$(OUTPUT_PATH) \
 		main.go
+
+# Build production binary for current platform
+build:
+	@echo "Building optimized binary for current platform..."
+	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)
+	@echo "Binary built: $(BUILD_DIR)/release/$(BINARY_NAME)"
 
 # Build Tauri-compatible sidecar binary with platform-specific naming
 build-sidecar:
 	@echo "Building optimized Tauri sidecar binary for platform: $(TARGET_TRIPLE)"
 	@$(MAKE) _build-optimized OUTPUT_PATH=build/release/$(BINARY_NAME)-$(TARGET_TRIPLE)
 	@echo "Tauri sidecar binary built: $(BUILD_DIR)/release/$(BINARY_NAME)-$(TARGET_TRIPLE)"
+
+# macOS build targets
+build-all: build-darwin-amd64 build-darwin-arm64
+	@echo "✅ All macOS binaries built successfully!"
+
+build-darwin-amd64:
+	@echo "Building for macOS (Intel)..."
+	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)-mac-intel GOOS=darwin GOARCH=amd64
+
+build-darwin-arm64:
+	@echo "Building for macOS (Apple Silicon)..."
+	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)-mac-apple-silicon GOOS=darwin GOARCH=arm64
+
+# Alias for convenience
+build-mac-intel: build-darwin-amd64
+build-mac-arm: build-darwin-arm64
+
+# Release using GoReleaser
+release:
+	@echo "Creating release with GoReleaser..."
+	@command -v goreleaser >/dev/null 2>&1 || { echo "GoReleaser not found. Install with: brew install goreleaser"; exit 1; }
+	@goreleaser release --clean
+
+# Test release build (dry run)
+release-test:
+	@echo "Testing release build with GoReleaser..."
+	@command -v goreleaser >/dev/null 2>&1 || { echo "GoReleaser not found. Install with: brew install goreleaser"; exit 1; }
+	@goreleaser build --snapshot --clean
+
+# Release snapshot (for testing)
+release-snapshot:
+	@echo "Creating snapshot release..."
+	@command -v goreleaser >/dev/null 2>&1 || { echo "GoReleaser not found. Install with: brew install goreleaser"; exit 1; }
+	@goreleaser release --snapshot --clean
 
 # Display the last 100 lines of development log with ANSI codes stripped
 tail-log:

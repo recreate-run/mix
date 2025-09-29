@@ -6,12 +6,13 @@ Uses Jinja2 templating for sophisticated content processing.
 
 from pathlib import Path
 from jinja2 import Template
+import shutil
 
 # Files to ignore during conversion
 IGNORE_FILES = ["kill_bash.md"]
 
 # Tools to exclude from documentation (backend-only tools)
-EXCLUDED_TOOLS = ["bash_output.md"]
+EXCLUDED_TOOLS = ["bash_output.md", "python_execution.md"]
 
 # Jinja2 template for MDX files
 MDX_TEMPLATE = Template("""---
@@ -67,7 +68,12 @@ def convert_md_to_mdx(source_dir, dest_dir):
     source_path = Path(source_dir)
     dest_path = Path(dest_dir)
 
-    # Ensure destination directory exists
+    # Remove existing destination directory if it exists
+    if dest_path.exists():
+        print(f"Removing existing directory: {dest_path}")
+        shutil.rmtree(dest_path)
+
+    # Create fresh destination directory
     dest_path.mkdir(parents=True, exist_ok=True)
 
     converted_files = []

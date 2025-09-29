@@ -51,6 +51,8 @@ var safeReadOnlyCommands = []string{
 	"git rev-parse", "git config --get", "git config --list", "git describe", "git blame", "git grep", "git shortlog",
 
 	"go version", "go help", "go list", "go env", "go doc", "go vet", "go fmt", "go mod", "go test", "go build", "go run", "go install", "go clean",
+
+	"uv run",
 }
 
 func bashDescription() string {
