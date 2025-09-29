@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DotFlow } from './DotFlowCSS';
 
-// Commands for the opening screen animation - Mix-specific creative workflow examples
+// Commands for the opening screen animation - Mix-specific workflow examples
 const commands = [
   {
     title: "Create a marketing video from these screenshots",
