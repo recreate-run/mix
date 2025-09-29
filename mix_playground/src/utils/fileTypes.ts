@@ -1,5 +1,5 @@
 // Types matching the Go backend structures
-export interface FileTypeInfo {
+interface FileTypeInfo {
   extensions: string[];
   mime_types: Record<string, number>;
   size_limit: number;
@@ -11,13 +11,13 @@ export interface SupportedFileTypes {
   audio: FileTypeInfo;
 }
 
-export type FileType = 'image' | 'video' | 'audio' | 'text';
+type FileType = 'image' | 'video' | 'audio' | 'text';
 
 // Static extension arrays - single source of truth
 export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff'] as const;
 export const VIDEO_EXTENSIONS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'm4v'] as const;
 export const AUDIO_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'] as const;
-export const TEXT_EXTENSIONS = ['md', 'txt'] as const;
+const TEXT_EXTENSIONS = ['md', 'txt'] as const;
 
 /**
  * Simple file type detection based on extension only (no backend dependency)
@@ -55,9 +55,6 @@ export function getFileType(fileName: string, supportedTypes?: SupportedFileType
   return null;
 }
 
-export function isMediaFile(fileName: string, supportedTypes?: SupportedFileTypes): boolean {
-  return getFileType(fileName, supportedTypes) !== null;
-}
 
 // Helper functions for backward compatibility
 export function getImageExtensions(supportedTypes?: SupportedFileTypes): string[] {

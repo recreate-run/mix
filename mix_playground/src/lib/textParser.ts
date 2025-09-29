@@ -1,6 +1,6 @@
-export type TokenType = 'text' | 'file-ref' | 'slash-command';
+type TokenType = 'text' | 'file-ref' | 'slash-command';
 
-export interface Token {
+interface Token {
   type: TokenType;
   content: string;
   start: number;
@@ -147,27 +147,5 @@ export class TextParser {
 }
 
 // Legacy exports for backward compatibility during transition
-export function parseTextIntoTokens(
-  text: string,
-  options: { availableFiles: string[]; availableCommands: string[] }
-): Token[] {
-  const parser = new TextParser(
-    options.availableFiles,
-    options.availableCommands
-  );
-  return parser.parse(text);
-}
 
-export function findTokenAtPosition(
-  tokens: Token[],
-  position: number
-): Token | null {
-  return (
-    tokens.find((token) => position >= token.start && position < token.end) ||
-    null
-  );
-}
 
-export function isWholeTokenDeletion(type: TokenType): boolean {
-  return type === 'file-ref' || type === 'slash-command';
-}

@@ -3,25 +3,25 @@ import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import { toast } from 'sonner';
 
-export interface ToolInfo {
+interface ToolInfo {
   provider: string;
   displayName: string;
-  
+
   description: string;
   authenticated: boolean;
   apiKeyRequired: boolean;
 }
 
-export interface ToolCategory {
+interface ToolCategory {
   displayName: string;
   tools: ToolInfo[];
 }
 
-export interface ToolsStatus {
+interface ToolsStatus {
   categories: Record<string, ToolCategory>;
 }
 
-export interface StoreCredentialsRequest {
+interface StoreCredentialsRequest {
   provider: string;
   api_key: string;
 }
@@ -33,7 +33,7 @@ async function fetchToolsStatus(): Promise<ToolsStatus> {
       console.warn('Tools API not available in current SDK version');
       return { categories: {} };
     }
-    
+
     try {
       const response = await mix.tools.getToolsStatus();
       // Transform SDK response to match our interface
@@ -78,7 +78,7 @@ export function useToolsStatus() {
 
 export function useStoreCredentials() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (request: StoreCredentialsRequest) => {
       try {
@@ -96,7 +96,7 @@ export function useStoreCredentials() {
     onSuccess: (_, variables) => {
       // Invalidate tools status to refresh authentication state
       queryClient.invalidateQueries({ queryKey: CACHE_KEYS.toolsStatus });
-      
+
       toast.success(`${variables.provider} API key stored successfully`);
     },
     onError: (error: any) => {
@@ -108,7 +108,7 @@ export function useStoreCredentials() {
 
 export function useDeleteCredentials() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ provider }: { provider: string }) => {
       try {
@@ -123,7 +123,7 @@ export function useDeleteCredentials() {
     onSuccess: (_, variables) => {
       // Invalidate tools status to refresh authentication state
       queryClient.invalidateQueries({ queryKey: CACHE_KEYS.toolsStatus });
-      
+
       toast.success(`${variables.provider} API key removed successfully`);
     },
     onError: (error: any) => {

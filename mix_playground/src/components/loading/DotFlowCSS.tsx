@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DotLoader } from '../../../components/gsap/dot-loader';
 
-export type DotFlowProps = {
+type DotFlowProps = {
   items: {
     title: string;
     frames: number[][];

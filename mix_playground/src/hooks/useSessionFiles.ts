@@ -41,4 +41,3 @@ export const useSessionFiles = (sessionId?: string) => {
   });
 };
 
-export default useSessionFiles;

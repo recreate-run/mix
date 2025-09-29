@@ -11,7 +11,7 @@ from jinja2 import Template
 IGNORE_FILES = ["kill_bash.md"]
 
 # Tools to exclude from documentation (backend-only tools)
-EXCLUDED_TOOLS = ["todo_write_cc.md", "bash_output.md"]
+EXCLUDED_TOOLS = ["bash_output.md"]
 
 # Jinja2 template for MDX files
 MDX_TEMPLATE = Template("""---

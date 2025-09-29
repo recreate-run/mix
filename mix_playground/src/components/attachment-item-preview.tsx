@@ -8,7 +8,7 @@ import {
 import type { Attachment } from '@/stores';
 import { AudioWaveform } from './audio-waveform';
 
-export interface AttachmentItemPreviewProps {
+interface AttachmentItemPreviewProps {
   attachment: Attachment;
   previewUrl?: string;
 }

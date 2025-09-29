@@ -1,15 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
-
-export interface LoginProviderInfo {
-  id: string;
-  displayName: string;
-  authMethods: ('api_key' | 'oauth')[];
-  authenticated: boolean;
-  apiKeyFormat: string;
-  isPreferred: boolean;
-}
+import { LoginProviderInfo } from "@/types/message";
 
 // Authentication method constants
 const AUTH_METHODS: Record<string, ('api_key' | 'oauth')[]> = {
