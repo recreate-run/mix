@@ -1,0 +1,74 @@
+version: 2
+project_name: mix
+before:
+  hooks:
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X mix/internal/version.Version={{.Version}}
+    main: ./mix_agent/main.go
+    dir: .
+
+archives:
+  - name_template: >-
+      mix-mac-
+      {{- if eq .Arch "amd64" }}intel
+      {{- else if eq .Arch "arm64" }}apple-silicon
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - README.md
+      - LICENSE*
+      - CHANGELOG*
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  version_template: "0.0.0-{{ .Timestamp }}"
+# Uncomment and configure when ready to publish to package managers
+# aurs:
+#   - name: mix
+#     homepage: "https://github.com/recreate-run/mix"
+#     description: "terminal based agent that can build anything"
+#     maintainers:
+#       - "maintainer@example.com"
+#     license: "MIT"
+#     private_key: "{{ .Env.AUR_KEY }}"
+#     git_url: "ssh://aur@aur.archlinux.org/mix-bin.git"
+#     provides:
+#       - mix
+#     conflicts:
+#       - mix
+#     package: |-
+#       install -Dm755 ./mix "${pkgdir}/usr/bin/mix"
+# brews:
+#   - repository:
+#       owner: recreate-run
+#       name: homebrew-tap
+# Uncomment and configure when ready to publish packages
+# nfpms:
+#   - maintainer: maintainer@example.com
+#     description: terminal based agent that can build anything
+#     formats:
+#       - deb
+#       - rpm
+#     file_name_template: >-
+#       {{ .ProjectName }}-
+#       {{- if eq .Os "darwin" }}mac
+#       {{- else }}{{ .Os }}{{ end }}-{{ .Arch }}
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^doc:"
+      - "^test:"
+      - "^ci:"
+      - "^ignore:"
+      - "^example:"
+      - "^wip:"
