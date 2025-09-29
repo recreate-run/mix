@@ -25,18 +25,12 @@ export interface LoginProvider extends Provider {
   apiKeyFormat?: string;
 }
 
-export interface LoginData {
-  providers: LoginProvider[];
-  hasExistingPreferences?: boolean;
-  oauthState?: string;
-}
-
 
 export interface StatusData {
   providers: Provider[];
 }
 
-export interface HelpMenuItem {
+interface HelpMenuItem {
   id: string;
   name: string;
   description: string;
@@ -60,16 +54,4 @@ export type ViewState =
   | 'hierarchical-models'
   | 'status'
   | 'help';
-
-export interface CommandPaletteState {
-  currentView: ViewState;
-  selectedProvider: string | null;
-  selectedMCPServer: string | null;
-  selectedAuthMethod: AuthMethod | null;
-  hierarchicalModelData?: HierarchicalModelData;
-  loginData?: LoginData;
-  statusData?: StatusData;
-  helpData?: HelpData;
-}
-
 

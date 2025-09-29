@@ -185,15 +185,10 @@ export const createAttachmentSlice = (
   },
 });
 
-export const getParentPath = (path: string): string | null => {
-  const parts = path.split('/');
-  parts.pop();
-  return parts.length > 0 ? parts.join('/') : null;
-};
 
 
 // Get attachments that are still referenced in text
-export const getReferencedAttachments = (
+const getReferencedAttachments = (
   text: string,
   attachments: Attachment[]
 ): Attachment[] => {

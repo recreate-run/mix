@@ -30,7 +30,7 @@ export type SSEPermissionRequest = {
   params: Record<string, unknown>;
 };
 
-export type PersistentSSEState = {
+type PersistentSSEState = {
   connected: boolean;
   connecting: boolean;
   error: string | null;
@@ -53,7 +53,7 @@ export type PersistentSSEState = {
   permissionRequests: SSEPermissionRequest[];
 };
 
-export type PersistentSSEHook = PersistentSSEState & {
+type PersistentSSEHook = PersistentSSEState & {
   submitMessage: (params: {
     text: string;
     attachments?: Attachment[];

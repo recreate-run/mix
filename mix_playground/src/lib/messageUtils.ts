@@ -105,7 +105,7 @@ const convertToolCallsToUI = (toolCalls: ToolCallData[]): ToolCall[] => {
   });
 };
 
-export const convertBackendMessageToUI = async (
+const convertBackendMessageToUI = async (
   backendMessage: BackendMessage
 ): Promise<UIMessage> => {
   const { text, media } = extractContentData(backendMessage.userInput);
