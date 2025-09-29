@@ -123,7 +123,7 @@ func (r *readMediaTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 	// Check if Gemini API key is configured before processing any files
 	if err := r.validateGeminiAPIKey(ctx); err != nil {
 		logging.Error("Gemini API key not configured")
-		return NewTextErrorResponse("Gemini API key not configured. Please set your API key."), nil
+		return NewTextErrorResponse("Configuration required: Gemini API key is not configured. Please configure your Gemini API key in Settings to use image analysis features. This is a configuration requirement and no alternative tools or approaches should be attempted."), nil
 	}
 
 	// Get session context
