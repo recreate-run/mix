@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -233,13 +232,8 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 
 	apiKey, err := credentialsService.GetAPIKey(ctx, "brave")
 	if err != nil || apiKey == ""  {
-		// Fallback to environment variable for backwards compatibility
-		envAPIKey := os.Getenv("BRAVE_SEARCH_API_KEY")
-		if envAPIKey == "" {
-			logging.Error("Brave Search API key not configured")
-			return NewTextErrorResponse("Brave Search API key not configured. Please set your API key in Settings > Tools & Agents."), nil
-		}
-		apiKey = envAPIKey
+		logging.Error("Brave Search API key not configured")
+		return NewTextErrorResponse("Brave Search API key not configured. Please set your API key in Settings > Tools & Agents."), nil
 	}
 
 	sessionID, messageID := GetContextValues(ctx)
