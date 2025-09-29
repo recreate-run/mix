@@ -45,7 +45,7 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 						"type": map[string]any{
 							"type":        "string",
 							"description": "Media type",
-							"enum":        []string{"image", "video", "audio", "gsap_animation", "youtube"},
+							"enum":        []string{"image", "video", "audio", "gsap_animation", "youtube", "pdf", "csv"},
 						},
 						"title": map[string]any{
 							"type":        "string",
@@ -109,6 +109,8 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 			"audio":          true,
 			"gsap_animation": true,
 			"youtube":        true,
+			"pdf":            true,
+			"csv":            true,
 		}
 		if !validTypes[output.Type] {
 			return NewTextErrorResponse(fmt.Sprintf("Invalid media type '%s' for output %d", output.Type, i)), nil
