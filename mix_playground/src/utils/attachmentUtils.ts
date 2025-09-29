@@ -9,7 +9,7 @@ import {
 } from '@/utils/fileTypes';
 
 // Helper function for folder attachment creation
-export const countMediaFilesInFolder = async (
+const countMediaFilesInFolder = async (
   folderPath: string,
   supportedTypes?: SupportedFileTypes
 ): Promise<{ images: number; videos: number; audios: number }> => {
@@ -86,73 +86,7 @@ export const createFolderAttachment = async (
   };
 };
 
-const IGNORED_DIRECTORIES = [
-  'node_modules',
-  '.git',
-  '.next',
-  '.nuxt',
-  'dist',
-  'build',
-  'target',     // Rust
-  '.cargo',
-  'tmp',
-  'temp',
-  '__pycache__',
-  '.pytest_cache',
-  'coverage',
-  '.nyc_output',
-  'vendor',     // PHP/Go
-  '.idea',      // JetBrains IDEs
-  '.vscode',    // VS Code
-  '.gradle',    // Gradle
-  'logs'
-];
 
-// File system utilities
-export const filterAndSortEntries = (
-  entries: any[],
-  basePath = '',
-  supportedTypes?: SupportedFileTypes
-): Attachment[] => {
-  return entries
-    .filter((entry) => {
-      if (entry.name.startsWith('.')) return false;
-      if (entry.isDirectory && IGNORED_DIRECTORIES.includes(entry.name)) return false;
-      if (entry.isDirectory) return true;
-      // If file types not loaded yet, don't filter files
-      if (!supportedTypes) return true;
-      const fileType = getFileType(entry.name, supportedTypes);
-      return fileType !== null;
-    })
-    .map((entry) => {
-      const path = basePath ? `${basePath}/${entry.name}` : entry.name;
-      const extension = entry.isFile
-        ? entry.name.split('.').pop()?.toLowerCase()
-        : undefined;
-      const fileType = extension ? getFileType(entry.name, supportedTypes) : null;
-
-      return {
-        id: entry.isDirectory ? `folder:${path}` : `file:${path}`,
-        name: entry.name,
-        path,
-        type: entry.isDirectory ? ('folder' as const) : fileType!,
-        isDirectory: entry.isDirectory,
-        extension,
-        // Note: Preview URL will be generated when sessionStorageDirectory is available
-      };
-    })
-    .sort((a, b) => {
-      if (a.isDirectory && !b.isDirectory) return -1;
-      if (!a.isDirectory && b.isDirectory) return 1;
-      return a.name.localeCompare(b.name);
-    });
-};
-
-export const getParentPath = (path: string): string | null => {
-  const parts = path.split('/');
-  parts.pop();
-  return parts.length > 0 ? parts.join('/') : null;
-};
 
 // URL building utilities
 export const buildSessionFileUrl = (sessionId: string, fileName: string): string => {

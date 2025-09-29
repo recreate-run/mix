@@ -7,4 +7,3 @@ export const mix = new Mix({
   serverURL: getBackendUrl(),
 });
 
-export default mix;

@@ -381,13 +381,6 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 
 	result.Analysis = analysis
 
-	// Log successful analysis
-	logging.Info("ReadMedia analysis completed successfully",
-		"filePath", filePath,
-		"mediaType", params.MediaType,
-		"responseLength", len(analysis),
-		"response", analysis)
-
 	return result
 }
 
@@ -526,4 +519,3 @@ func contains(slice []string, item string) bool {
 	}
 	return false
 }
-

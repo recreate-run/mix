@@ -36,6 +36,7 @@ help:
 	@echo "  test-installation - Test if all dependencies are installed"
 	@echo "  test-all    - Run all validation tests"
 	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
+	@echo "  frontend-lint - Run linter on frontend code"
 	@echo "  go_lint     - Run golangci-lint on Go backend code"
 	@echo "  go-test     - Run Go tests with coverage"
 	@echo "  generate-openapi - Generate JSON OpenAPI spec"
@@ -120,6 +121,10 @@ go-test:
 frontend-typecheck:
 	@echo "Running frontend TypeScript typecheck..."
 	cd mix_playground && bun run typecheck
+
+frontend-lint:
+	@echo "Running frontend lint..."
+	cd mix_playground && bun knip
 
 # Run golangci-lint on Go backend code
 go_lint:

@@ -15,7 +15,7 @@ interface ClientLogRequest {
   logs: LogEntry[];
 }
 
-export interface ConsoleForwardOptions {
+interface ConsoleForwardOptions {
   /**
    * Whether to enable console forwarding (default: true in dev mode)
    */
@@ -176,15 +176,15 @@ function addToBuffer(entry) {
 
 // Patch console methods
 ${levels
-  .map(
-    (level) => `
+            .map(
+              (level) => `
 console.${level} = function(...args) {
   originalMethods.${level}(...args);
   const entry = createLogEntry("${level}", args);
   addToBuffer(entry);
 };`
-  )
-  .join('')}
+            )
+            .join('')}
 
 // Cleanup handlers
 window.addEventListener("beforeunload", flushLogs);
