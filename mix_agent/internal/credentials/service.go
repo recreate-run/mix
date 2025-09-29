@@ -30,9 +30,9 @@ type APICredentialsService struct {
 type OAuthCredentials struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`
-	IDToken      string `json:"id_token,omitempty"`      // For OpenAI
-	APIKey       string `json:"api_key,omitempty"`       // Generated API key (for OpenAI)
-	AccountID    string `json:"account_id,omitempty"`    // For OpenAI
+	IDToken      string `json:"id_token,omitempty"`   // For OpenAI
+	APIKey       string `json:"api_key,omitempty"`    // Generated API key (for OpenAI)
+	AccountID    string `json:"account_id,omitempty"` // For OpenAI
 	ExpiresAt    int64  `json:"expires_at"`
 	ClientID     string `json:"client_id"`
 	Provider     string `json:"provider"`
@@ -104,7 +104,6 @@ func (acs *APICredentialsService) encrypt(plaintext string) (string, error) {
 func (acs *APICredentialsService) decrypt(ciphertext string) (string, error) {
 	// Attempting to decrypt API key
 	if ciphertext == "" {
-		logging.Warn("Empty ciphertext provided for decryption")
 		return "", nil
 	}
 
@@ -324,7 +323,6 @@ func (acs *APICredentialsService) PreloadCredentials(ctx context.Context) {
 		count++
 	}
 }
-
 
 // ValidateAPIKey performs basic validation on an API key for a provider
 func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, apiKey string) error {
