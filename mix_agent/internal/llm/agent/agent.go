@@ -478,8 +478,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	toolResults, err := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
 	if err != nil {
 		return assistantMsg, nil, fmt.Errorf("failed to execute tools: %w", err)
-
-	toolResults, toolExecErr := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
+	}
 
 	// Create tool result message with all results
 	msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
