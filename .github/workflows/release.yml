@@ -122,20 +122,36 @@ jobs:
             dist/*.zip
             dist/checksums.txt
             dist/mix_darwin_*/*
+            dist/mix_linux_*/*
+            dist/mix_windows_*/*
           retention-days: 30
 
-  # Test macOS builds (for PRs and non-tag pushes)
+  # Test cross-platform builds (for PRs and non-tag pushes)
   test-build:
     needs: validate
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     if: "!startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch'"
     strategy:
       matrix:
         include:
-          - goarch: amd64
-            name: intel
-          - goarch: arm64
-            name: apple-silicon
+          # macOS builds
+          - goos: darwin
+            goarch: amd64
+            name: mac-intel
+          - goos: darwin
+            goarch: arm64
+            name: mac-apple-silicon
+          # Linux builds
+          - goos: linux
+            goarch: amd64
+            name: linux-x64
+          - goos: linux
+            goarch: arm64
+            name: linux-arm64
+          # Windows builds
+          - goos: windows
+            goarch: amd64
+            name: windows-x64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -145,19 +161,23 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Build for macOS (${{ matrix.name }})
+      - name: Build for ${{ matrix.name }}
         env:
-          GOOS: darwin
+          GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
           cd mix_agent
           mkdir -p ../dist
-          go build -ldflags "-s -w -X mix/internal/version.Version=test-${{ matrix.name }}" -o ../dist/mix-mac-${{ matrix.name }} ./main.go
+          binary_name="mix-${{ matrix.name }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            binary_name="${binary_name}.exe"
+          fi
+          go build -ldflags "-s -w -X mix/internal/version.Version=test-${{ matrix.name }}" -o "../dist/${binary_name}" ./main.go
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-mac-${{ matrix.name }}
-          path: dist/mix-mac-*
+          name: build-${{ matrix.name }}
+          path: dist/mix-${{ matrix.name }}*
           retention-days: 7
