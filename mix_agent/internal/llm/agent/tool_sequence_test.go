@@ -92,16 +92,7 @@ func TestToolSequenceValidationFix(t *testing.T) {
 		Parts:     []message.ContentPart{},
 	}
 
-	// Mock the message creation for tool results
-	// This is the critical part - tool result message MUST be created even when some tools fail
-	mockMessages.On("Create", mock.Anything, "test_session_123", mock.MatchedBy(func(params message.CreateMessageParams) bool {
-		return params.Role == message.Tool && len(params.Parts) == 2 // Should have results for both tools
-	})).Return(message.Message{
-		ID:        "tool_result_msg_999",
-		SessionID: "test_session_123",
-		Role:      message.Tool,
-		Parts:     []message.ContentPart{}, // Will be filled by the function
-	}, nil)
+	// Note: This test only tests executeToolsWithDependencies, not the full message creation flow
 
 	// Execute the tools
 	results, err := agent.executeToolsWithDependencies(context.Background(), "test_session_123", toolCalls, assistantMsg)
@@ -212,6 +203,9 @@ func TestStreamAndHandleEventsToolFailure(t *testing.T) {
 		Role:      message.Assistant,
 		Parts:     []message.ContentPart{},
 	}, nil)
+
+	// Mock message updates during event processing
+	mockMessages.On("Update", mock.Anything, mock.AnythingOfType("message.Message")).Return(nil)
 
 	// Mock tool result message creation - this MUST succeed even when tool fails
 	mockMessages.On("Create", mock.Anything, "test_session_123", mock.MatchedBy(func(params message.CreateMessageParams) bool {
