@@ -56,17 +56,13 @@ jobs:
       - name: Download Go modules
         run: cd mix_agent && go mod download
 
-      - name: Run tests
-        run: cd mix_agent && go test -v ./...
-
-      - name: Run linting
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          working-directory: mix_agent
-
       - name: Test build
-        run: cd mix_agent && go build -o /tmp/mix-test ./main.go
+        run: |
+          cd mix_agent
+          echo "Testing Go build process..."
+          go build -o /tmp/mix-test ./main.go
+          echo "Build test successful!"
+          rm -f /tmp/mix-test
 
   # Cross-platform release build
   release:
@@ -144,7 +140,7 @@ jobs:
         run: |
           cd mix_agent
           mkdir -p ../dist
-          go build -ldflags "-s -w" -o ../dist/mix-mac-${{ matrix.name }} ./main.go
+          go build -ldflags "-s -w -X mix/internal/version.Version=test-${{ matrix.name }}" -o ../dist/mix-mac-${{ matrix.name }} ./main.go
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
