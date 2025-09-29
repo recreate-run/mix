@@ -52,4 +52,3 @@ export function useFileUpload() {
   });
 };
 
-export default useFileUpload;

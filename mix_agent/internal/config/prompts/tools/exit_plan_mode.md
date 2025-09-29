@@ -9,7 +9,7 @@ Eg.
 
 1. Initial task: "Analyze existing video templates and understand the current
 editing workflow" - Do not use the exit plan mode tool because you are not planning the
-production steps of a creative task.
+production steps of a task.
 2. Initial task: "Create a product demo video with animations and voiceover" - Use the exit plan mode tool
 after you have finished planning the production steps of the task.
 

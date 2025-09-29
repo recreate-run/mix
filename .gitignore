@@ -86,3 +86,6 @@ sdk/openapi-spec.json
 plans/marketing
 marketing/
 debug_logs/
+
+# reference prompts
+mix_agent/internal/config/prompts/tools/cc_prompts

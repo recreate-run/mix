@@ -195,11 +195,21 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 		return fmt.Errorf("word_count must be between %d and %d", MinWordCount, MaxWordCount)
 	}
 
-	// Validate paths are absolute
+	// Validate paths are absolute (skip for URLs)
 	targetPath := params.FilePath
 	if targetPath == "" {
 		targetPath = params.DirectoryPath
 	}
+
+	// Skip absolute path validation for URLs (YouTube, etc.)
+	if params.FilePath != "" && isURL(params.FilePath) {
+		// URLs are only supported for video media type
+		if params.MediaType != "video" {
+			return fmt.Errorf("URLs are only supported for video media type")
+		}
+		return nil
+	}
+
 	if !filepath.IsAbs(targetPath) {
 		return fmt.Errorf("file_path and directory_path must be absolute paths")
 	}
@@ -211,9 +221,15 @@ func (r *readMediaTool) getFilesToProcess(params ReadMediaParams) ([]string, err
 	var files []string
 
 	if params.FilePath != "" {
-		// Single file
-		if r.isSupportedFile(params.FilePath, params.MediaType) {
+		// Check if it's a URL (YouTube, etc.)
+		if isURL(params.FilePath) {
+			// For URLs, just return the URL as the "file" to process
 			files = append(files, params.FilePath)
+		} else {
+			// Single local file
+			if r.isSupportedFile(params.FilePath, params.MediaType) {
+				files = append(files, params.FilePath)
+			}
 		}
 	} else {
 		// Directory processing
@@ -311,13 +327,6 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		MediaType: params.MediaType,
 	}
 
-	// Read file content
-	fileData, mimeType, err := r.readFileContent(filePath)
-	if err != nil {
-		result.Error = fmt.Sprintf("Error reading file: %s", err)
-		return result
-	}
-
 	// Create Gemini provider
 	geminiProvider, err := r.createGeminiProvider()
 	if err != nil {
@@ -328,17 +337,39 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 	// Prepare analysis prompt
 	analysisPrompt := r.buildAnalysisPrompt(params)
 
-	// Create message with binary content
-	userMessage := message.Message{
-		Role: message.User,
-		Parts: []message.ContentPart{
-			message.TextContent{Text: analysisPrompt},
-			message.BinaryContent{
-				Path:     filePath,
-				MIMEType: mimeType,
-				Data:     fileData,
+	// Create message with appropriate content type
+	var userMessage message.Message
+	if isURL(filePath) && (strings.Contains(filePath, "youtube.com") || strings.Contains(filePath, "youtu.be")) {
+		// For YouTube URLs, use URIContent with native Gemini support
+		userMessage = message.Message{
+			Role: message.User,
+			Parts: []message.ContentPart{
+				message.TextContent{Text: analysisPrompt},
+				message.URIContent{
+					URI:      filePath,
+					MIMEType: "video/mp4", // YouTube videos are treated as MP4 by Gemini
+				},
 			},
-		},
+		}
+	} else {
+		// For local files, read content and use BinaryContent
+		fileData, mimeType, err := r.readFileContent(filePath)
+		if err != nil {
+			result.Error = fmt.Sprintf("Error reading file: %s", err)
+			return result
+		}
+
+		userMessage = message.Message{
+			Role: message.User,
+			Parts: []message.ContentPart{
+				message.TextContent{Text: analysisPrompt},
+				message.BinaryContent{
+					Path:     filePath,
+					MIMEType: mimeType,
+					Data:     fileData,
+				},
+			},
+		}
 	}
 
 	// Send to Gemini for analysis
@@ -349,13 +380,6 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 	}
 
 	result.Analysis = analysis
-
-	// Log successful analysis
-	logging.Info("ReadMedia analysis completed successfully",
-		"filePath", filePath,
-		"mediaType", params.MediaType,
-		"responseLength", len(analysis),
-		"response", analysis)
 
 	return result
 }

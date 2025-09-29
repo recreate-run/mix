@@ -61,19 +61,4 @@ function generateClientId() {
   return newId;
 }
 
-/**
- * Track events with standardized properties
- */
-export function trackEvent(
-  eventName: string,
-  properties: Record<string, any> = {}
-) {
-  posthog.capture(eventName, {
-    ...properties,
-    app_version: '0.1.0',
-    timestamp: new Date().toISOString(),
-  });
-}
 
-// Alias for tracking events
-export const safeTrackEvent = trackEvent;

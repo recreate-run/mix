@@ -7,11 +7,11 @@ Use for displaying/viewing media files:
 1. Visual Display Requests:
    - "Show me the image", "Display this video", "Let me see the file"
    - "Preview the media", "View this content", "Present the file"
-   - Showcasing completed creative outputs and deliverables
+   - Showcasing completed media outputs and deliverables
 
 2. File Presentation (not content analysis):
    - When users want to SEE the actual media file
-   - Presenting finished work or creative deliverables
+   - Presenting finished work or media deliverables
    - Showing examples and reference materials for visual context
 
 3. After Media Processing Tasks - Display media outputs from:
@@ -176,7 +176,7 @@ outputs (required): Array of media outputs to showcase
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
-- Use for any media display - Not limited to creative outputs; great for previews and references
+- Useit it to show previews and references
 - Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
 
 This tool transforms file paths into beautiful media displays in the conversation interface.

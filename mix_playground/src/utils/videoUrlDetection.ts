@@ -1,6 +1,6 @@
 // Video URL detection utilities for attachment previews
 
-export interface VideoUrlInfo {
+interface VideoUrlInfo {
   url: string;
   platform: 'youtube' | 'vimeo' | 'direct' | 'unknown';
   videoId?: string;
@@ -98,18 +98,6 @@ export function createVideoUrlAttachment(videoInfo: VideoUrlInfo) {
   };
 }
 
-/**
- * Checks if a string contains any video URLs
- */
-export function hasVideoUrls(text: string): boolean {
-  const allPatterns = [
-    ...VIDEO_URL_PATTERNS.youtube,
-    ...VIDEO_URL_PATTERNS.vimeo,
-    ...VIDEO_URL_PATTERNS.direct
-  ];
-  
-  return allPatterns.some(pattern => pattern.test(text));
-}
 
 /**
  * Converts a YouTube URL to its embed format
