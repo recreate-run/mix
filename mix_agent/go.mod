@@ -28,6 +28,7 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/coder/websocket v1.8.13 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
+	github.com/pdfcpu/pdfcpu v0.11.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 )

@@ -28,6 +28,7 @@ type ReadMediaParams struct {
 	WordCount     int    `json:"word_count,omitempty"`
 	AudioMode     string `json:"audio_mode,omitempty"`
 	VideoMode     string `json:"video_mode,omitempty"`
+	PdfPages      string `json:"pdf_pages,omitempty"`
 }
 
 type readMediaTool struct{}
@@ -103,6 +104,10 @@ func (r *readMediaTool) Info() ToolInfo {
 				"type":        "string",
 				"enum":        []string{"description"},
 				"description": "Video analysis mode (required for video type)",
+			},
+			"pdf_pages": map[string]any{
+				"type":        "string",
+				"description": "PDF page selection: single page '5' or ranges '1-3,7,10-12' (PDF only)",
 			},
 		},
 		Required: []string{"media_type", "prompt"},
@@ -201,6 +206,16 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 	// Validate word count
 	if params.WordCount != 0 && (params.WordCount < MinWordCount || params.WordCount > MaxWordCount) {
 		return fmt.Errorf("word_count must be between %d and %d", MinWordCount, MaxWordCount)
+	}
+
+	// Validate PDF pages parameter
+	if params.PdfPages != "" {
+		if params.MediaType != "pdf" {
+			return fmt.Errorf("pdf_pages parameter can only be used with media_type 'pdf'")
+		}
+		if err := ValidatePageSelection(params.PdfPages); err != nil {
+			return fmt.Errorf("invalid pdf_pages parameter: %w", err)
+		}
 	}
 
 	// Validate paths are absolute (skip for URLs)
@@ -391,6 +406,23 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 			return result
 		}
 
+		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
+		var wasTruncated bool
+		if params.MediaType == "pdf" {
+			extractedData, truncated, err := ExtractPDFPages(fileData, params.PdfPages)
+			if err != nil {
+				result.Error = fmt.Sprintf("Error extracting PDF pages from URL: %s", err)
+				return result
+			}
+			fileData = extractedData
+			wasTruncated = truncated
+		}
+
+		// Append truncation notice to prompt if PDF was auto-truncated
+		if wasTruncated {
+			analysisPrompt += "\n\nNote: This PDF has been truncated at the tenth page."
+		}
+
 		userMessage = message.Message{
 			Role: message.User,
 			Parts: []message.ContentPart{
@@ -408,6 +440,23 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		if err != nil {
 			result.Error = fmt.Sprintf("Error reading file: %s", err)
 			return result
+		}
+
+		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
+		var wasTruncated bool
+		if params.MediaType == "pdf" {
+			extractedData, truncated, err := ExtractPDFPages(fileData, params.PdfPages)
+			if err != nil {
+				result.Error = fmt.Sprintf("Error extracting PDF pages: %s", err)
+				return result
+			}
+			fileData = extractedData
+			wasTruncated = truncated
+		}
+
+		// Append truncation notice to prompt if PDF was auto-truncated
+		if wasTruncated {
+			analysisPrompt += "\n\nNote: This PDF has been truncated at the tenth page."
 		}
 
 		userMessage = message.Message{
