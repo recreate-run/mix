@@ -120,6 +120,12 @@ func (r *readMediaTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 		return NewTextErrorResponse(err.Error()), nil
 	}
 
+	// Check if Gemini API key is configured before processing any files
+	if err := r.validateGeminiAPIKey(ctx); err != nil {
+		logging.Error("Gemini API key not configured")
+		return NewTextErrorResponse("Gemini API key not configured. Please set your API key."), nil
+	}
+
 	// Get session context
 	sessionID, messageID := GetContextValues(ctx)
 	if sessionID == "" || messageID == "" {
@@ -212,6 +218,25 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 
 	if !filepath.IsAbs(targetPath) {
 		return fmt.Errorf("file_path and directory_path must be absolute paths")
+	}
+
+	return nil
+}
+
+func (r *readMediaTool) validateGeminiAPIKey(ctx context.Context) error {
+	// Get API credentials
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		return fmt.Errorf("API credentials service not available")
+	}
+
+	apiKey, err := credentialsService.GetAPIKey(ctx, models.ProviderGemini)
+	if err != nil {
+		return fmt.Errorf("failed to get Gemini API key: %w", err)
+	}
+
+	if apiKey == "" {
+		return fmt.Errorf("Gemini API key not configured")
 	}
 
 	return nil
@@ -327,10 +352,10 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		MediaType: params.MediaType,
 	}
 
-	// Create Gemini provider
+	// Create Gemini provider (API key already validated)
 	geminiProvider, err := r.createGeminiProvider()
 	if err != nil {
-		result.Error = fmt.Sprintf("Error creating Gemini provider: %s", err)
+		result.Error = fmt.Sprintf("Unexpected error creating Gemini provider: %s", err)
 		return result
 	}
 
