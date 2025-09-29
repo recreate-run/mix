@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,6 +54,7 @@ const (
 var supportedImageTypes = []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
 var supportedAudioTypes = []string{".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 var supportedVideoTypes = []string{".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv"}
+var supportedPDFTypes = []string{".pdf"}
 
 func NewReadMediaTool() BaseTool {
 	return &readMediaTool{}
@@ -73,7 +75,7 @@ func (r *readMediaTool) Info() ToolInfo {
 			},
 			"media_type": map[string]any{
 				"type":        "string",
-				"enum":        []string{"image", "audio", "video"},
+				"enum":        []string{"image", "audio", "video", "pdf"},
 				"description": "Type of media analysis to perform",
 			},
 			"prompt": map[string]any{
@@ -173,8 +175,8 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 	}
 
 	// Validate analysis type
-	if params.MediaType != "image" && params.MediaType != "audio" && params.MediaType != "video" {
-		return fmt.Errorf("media_type must be 'image', 'audio', or 'video'")
+	if params.MediaType != "image" && params.MediaType != "audio" && params.MediaType != "video" && params.MediaType != "pdf" {
+		return fmt.Errorf("media_type must be 'image', 'audio', 'video', or 'pdf'")
 	}
 
 	// Validate type-specific requirements
@@ -207,12 +209,9 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 		targetPath = params.DirectoryPath
 	}
 
-	// Skip absolute path validation for URLs (YouTube, etc.)
+	// Skip absolute path validation for URLs
 	if params.FilePath != "" && isURL(params.FilePath) {
-		// URLs are only supported for video media type
-		if params.MediaType != "video" {
-			return fmt.Errorf("URLs are only supported for video media type")
-		}
+		// URLs are supported for all media types
 		return nil
 	}
 
@@ -279,6 +278,8 @@ func (r *readMediaTool) findSupportedFiles(dirPath string, mediaType string, rec
 		supportedExts = supportedAudioTypes
 	case "video":
 		supportedExts = supportedVideoTypes
+	case "pdf":
+		supportedExts = supportedPDFTypes
 	}
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
@@ -330,6 +331,12 @@ func (r *readMediaTool) isSupportedFile(filePath string, mediaType string) bool 
 				return true
 			}
 		}
+	case "pdf":
+		for _, supportedExt := range supportedPDFTypes {
+			if ext == supportedExt {
+				return true
+			}
+		}
 	}
 
 	return false
@@ -364,7 +371,7 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 
 	// Create message with appropriate content type
 	var userMessage message.Message
-	if isURL(filePath) && (strings.Contains(filePath, "youtube.com") || strings.Contains(filePath, "youtu.be")) {
+	if isURL(filePath) && isYouTubeURL(filePath) {
 		// For YouTube URLs, use URIContent with native Gemini support
 		userMessage = message.Message{
 			Role: message.User,
@@ -373,6 +380,25 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 				message.URIContent{
 					URI:      filePath,
 					MIMEType: "video/mp4", // YouTube videos are treated as MP4 by Gemini
+				},
+			},
+		}
+	} else if isURL(filePath) {
+		// For all other URLs, download to memory and use BinaryContent
+		fileData, mimeType, err := r.downloadURLToMemory(filePath)
+		if err != nil {
+			result.Error = fmt.Sprintf("Error downloading from URL: %s", err)
+			return result
+		}
+
+		userMessage = message.Message{
+			Role: message.User,
+			Parts: []message.ContentPart{
+				message.TextContent{Text: analysisPrompt},
+				message.BinaryContent{
+					Path:     filePath,
+					MIMEType: mimeType,
+					Data:     fileData,
 				},
 			},
 		}
@@ -433,6 +459,49 @@ func (r *readMediaTool) readFileContent(filePath string) ([]byte, string, error)
 			mimeType = "audio/" + strings.TrimPrefix(ext, ".")
 		case contains(supportedVideoTypes, ext):
 			mimeType = "video/" + strings.TrimPrefix(ext, ".")
+		case contains(supportedPDFTypes, ext):
+			mimeType = "application/pdf"
+		default:
+			mimeType = "application/octet-stream"
+		}
+	}
+
+	return data, mimeType, nil
+}
+
+func (r *readMediaTool) downloadURLToMemory(url string) ([]byte, string, error) {
+	// Download the media file from URL
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to download from URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check for HTTP errors
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("failed to download: HTTP %d", resp.StatusCode)
+	}
+
+	// Read the response body
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read data: %w", err)
+	}
+
+	// Get MIME type from Content-Type header
+	mimeType := resp.Header.Get("Content-Type")
+	if mimeType == "" {
+		// Fallback to extension-based detection
+		ext := strings.ToLower(filepath.Ext(url))
+		switch {
+		case contains(supportedImageTypes, ext):
+			mimeType = "image/" + strings.TrimPrefix(ext, ".")
+		case contains(supportedAudioTypes, ext):
+			mimeType = "audio/" + strings.TrimPrefix(ext, ".")
+		case contains(supportedVideoTypes, ext):
+			mimeType = "video/" + strings.TrimPrefix(ext, ".")
+		case contains(supportedPDFTypes, ext):
+			mimeType = "application/pdf"
 		default:
 			mimeType = "application/octet-stream"
 		}
@@ -490,6 +559,8 @@ func (r *readMediaTool) buildAnalysisPrompt(params ReadMediaParams) string {
 		}
 	case "video":
 		promptPrefix = "Analyze this video content, describing both visual and audio elements. "
+	case "pdf":
+		promptPrefix = "Analyze this PDF document, including both text content and visual elements such as charts, diagrams, and tables. "
 	}
 
 	return fmt.Sprintf("%s%s\n\nPlease provide approximately %d words in your response.", promptPrefix, params.Prompt, wordCount)
@@ -533,6 +604,11 @@ func (r *readMediaTool) generateSummary(results []ReadMediaResult) string {
 	}
 
 	return fmt.Sprintf("Analyzed %d file(s) successfully, %d failed.", successCount, errorCount)
+}
+
+// Helper function to check if a URL is a YouTube URL
+func isYouTubeURL(url string) bool {
+	return strings.Contains(url, "youtube.com") || strings.Contains(url, "youtu.be")
 }
 
 // Helper function to check if a slice contains a string

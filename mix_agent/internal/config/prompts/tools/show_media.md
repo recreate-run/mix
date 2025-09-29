@@ -202,7 +202,8 @@ outputs (required): Array of media outputs to showcase
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
-- Useit it to show previews and references
+- Use this tool to show previews and references
 - Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
+- Always convert Excel files (.xlsx, .xls) to CSV format before displaying with this tool
 
 This tool transforms file paths into beautiful media displays in the conversation interface.

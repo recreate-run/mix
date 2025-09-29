@@ -654,10 +654,11 @@ func (g *geminiClient) isSupportedInlineFormat(mimeType string) bool {
 	// Supported inline formats according to Gemini API docs
 	supportedInlineFormats := []string{
 		"image/png",
-		"image/jpeg", 
+		"image/jpeg",
 		"image/webp",
 		"image/heic",
 		"image/heif",
+		"application/pdf",
 	}
 	
 	for _, supported := range supportedInlineFormats {
