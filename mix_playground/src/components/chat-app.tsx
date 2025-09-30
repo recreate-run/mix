@@ -459,28 +459,47 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       return;
     }
 
+    // Get the message BEFORE the one we want to edit (to rewind to that point)
+    const previousMessageIndex = messageIndex - 1;
+    if (previousMessageIndex < 0) {
+      // If this is the first message, we need to clear the entire session
+      // For now, just pre-populate and let user know they need to delete messages manually
+      setText(messageToEdit.content);
+      setFeedbackMessage('This is the first message. Edit and resubmit.');
+      setTimeout(() => setFeedbackMessage(null), 3000);
+      return;
+    }
+
+    const previousMessage = messages[previousMessageIndex];
+    if (!previousMessage?.id) {
+      return;
+    }
+
     try {
-      // Call backend to rewind session to this message
+      // Rewind to the message BEFORE the one we want to edit
+      // This deletes the message we're editing and everything after it
       await rewindSession.mutateAsync({
         sessionId: session.id,
-        messageId: messageToEdit.id,
+        messageId: previousMessage.id,
         cleanupMedia: true,
       });
 
       // Pre-populate input with the message content for editing
       setText(messageToEdit.content);
 
+      // Copy attachments if any
+      if (messageToEdit.attachments && messageToEdit.attachments.length > 0) {
+        // TODO: Handle attachments if needed
+      }
+
       // Show success feedback
-      setFeedbackMessage('Conversation rewound successfully');
+      setFeedbackMessage('Ready to edit message');
       setTimeout(() => {
         setFeedbackMessage(null);
       }, 2000);
     } catch (error) {
       console.error('Failed to rewind conversation:', error);
-      // Show error feedback
       setFeedbackMessage(`Error: Failed to rewind conversation`);
-
-      // Auto-hide after 3 seconds
       setTimeout(() => {
         setFeedbackMessage(null);
       }, 3000);
