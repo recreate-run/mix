@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"mix/internal/config"
@@ -25,10 +26,10 @@ type ReadMediaParams struct {
 	MediaType     string `json:"media_type"`
 	Prompt        string `json:"prompt"`
 	Recursive     bool   `json:"recursive,omitempty"`
-	WordCount     int    `json:"word_count,omitempty"`
 	AudioMode     string `json:"audio_mode,omitempty"`
 	VideoMode     string `json:"video_mode,omitempty"`
 	PdfPages      string `json:"pdf_pages,omitempty"`
+	VideoInterval string `json:"video_interval,omitempty"`
 }
 
 type readMediaTool struct{}
@@ -47,9 +48,6 @@ type ReadMediaResponse struct {
 
 const (
 	ReadMediaToolName = "ReadMedia"
-	DefaultWordCount  = 200
-	MaxWordCount      = 1000
-	MinWordCount      = 50
 )
 
 var supportedImageTypes = []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
@@ -88,13 +86,6 @@ func (r *readMediaTool) Info() ToolInfo {
 				"default":     false,
 				"description": "Process directories recursively",
 			},
-			"word_count": map[string]any{
-				"type":        "integer",
-				"minimum":     MinWordCount,
-				"maximum":     MaxWordCount,
-				"default":     DefaultWordCount,
-				"description": "Target word count for analysis",
-			},
 			"audio_mode": map[string]any{
 				"type":        "string",
 				"enum":        []string{"transcript", "description"},
@@ -108,6 +99,10 @@ func (r *readMediaTool) Info() ToolInfo {
 			"pdf_pages": map[string]any{
 				"type":        "string",
 				"description": "PDF page selection: single page '5' or ranges '1-3,7,10-12' (PDF only)",
+			},
+			"video_interval": map[string]any{
+				"type":        "string",
+				"description": "Video time interval: timestamps '00:20:50-00:26:10' or '20:50-26:10' (video only)",
 			},
 		},
 		Required: []string{"media_type", "prompt"},
@@ -203,11 +198,6 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 		return fmt.Errorf("video_mode must be 'description'")
 	}
 
-	// Validate word count
-	if params.WordCount != 0 && (params.WordCount < MinWordCount || params.WordCount > MaxWordCount) {
-		return fmt.Errorf("word_count must be between %d and %d", MinWordCount, MaxWordCount)
-	}
-
 	// Validate PDF pages parameter
 	if params.PdfPages != "" {
 		if params.MediaType != "pdf" {
@@ -215,6 +205,17 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 		}
 		if err := ValidatePageSelection(params.PdfPages); err != nil {
 			return fmt.Errorf("invalid pdf_pages parameter: %w", err)
+		}
+	}
+
+	// Validate video interval parameter
+	if params.VideoInterval != "" {
+		if params.MediaType != "video" {
+			return fmt.Errorf("video_interval parameter can only be used with media_type 'video'")
+		}
+		// Validate the interval format by trying to parse it
+		if _, _, err := parseVideoInterval(params.VideoInterval); err != nil {
+			return fmt.Errorf("invalid video_interval parameter: %w", err)
 		}
 	}
 
@@ -384,6 +385,28 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 	// Prepare analysis prompt
 	analysisPrompt := r.buildAnalysisPrompt(params)
 
+	// Parse video interval if provided
+	var startOffset, endOffset string
+	var videoTruncated bool
+	if params.VideoInterval != "" {
+		var err error
+		startOffset, endOffset, err = parseVideoInterval(params.VideoInterval)
+		if err != nil {
+			result.Error = fmt.Sprintf("Error parsing video interval: %s", err)
+			return result
+		}
+	} else if params.MediaType == "video" {
+		// Auto-truncate videos to first 10 minutes when no interval specified
+		startOffset = "0s"
+		endOffset = "600s" // 10 minutes = 600 seconds
+		videoTruncated = true
+	}
+
+	// Append truncation notice if video was auto-truncated
+	if videoTruncated {
+		analysisPrompt += "\n\nNote: This video has been truncated to the first 10 minutes."
+	}
+
 	// Create message with appropriate content type
 	var userMessage message.Message
 	if isURL(filePath) && isYouTubeURL(filePath) {
@@ -393,8 +416,10 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 			Parts: []message.ContentPart{
 				message.TextContent{Text: analysisPrompt},
 				message.URIContent{
-					URI:      filePath,
-					MIMEType: "video/mp4", // YouTube videos are treated as MP4 by Gemini
+					URI:         filePath,
+					MIMEType:    "video/mp4", // YouTube videos are treated as MP4 by Gemini
+					StartOffset: startOffset,
+					EndOffset:   endOffset,
 				},
 			},
 		}
@@ -428,9 +453,11 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 			Parts: []message.ContentPart{
 				message.TextContent{Text: analysisPrompt},
 				message.BinaryContent{
-					Path:     filePath,
-					MIMEType: mimeType,
-					Data:     fileData,
+					Path:        filePath,
+					MIMEType:    mimeType,
+					Data:        fileData,
+					StartOffset: startOffset,
+					EndOffset:   endOffset,
 				},
 			},
 		}
@@ -464,9 +491,11 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 			Parts: []message.ContentPart{
 				message.TextContent{Text: analysisPrompt},
 				message.BinaryContent{
-					Path:     filePath,
-					MIMEType: mimeType,
-					Data:     fileData,
+					Path:        filePath,
+					MIMEType:    mimeType,
+					Data:        fileData,
+					StartOffset: startOffset,
+					EndOffset:   endOffset,
 				},
 			},
 		}
@@ -591,11 +620,6 @@ func (r *readMediaTool) createGeminiProvider() (interfaces.Provider, error) {
 }
 
 func (r *readMediaTool) buildAnalysisPrompt(params ReadMediaParams) string {
-	wordCount := params.WordCount
-	if wordCount == 0 {
-		wordCount = DefaultWordCount
-	}
-
 	var promptPrefix string
 	switch params.MediaType {
 	case "image":
@@ -612,7 +636,7 @@ func (r *readMediaTool) buildAnalysisPrompt(params ReadMediaParams) string {
 		promptPrefix = "Analyze this PDF document, including both text content and visual elements such as charts, diagrams, and tables. "
 	}
 
-	return fmt.Sprintf("%s%s\n\nPlease provide approximately %d words in your response.", promptPrefix, params.Prompt, wordCount)
+	return fmt.Sprintf("%s%s", promptPrefix, params.Prompt)
 }
 
 func (r *readMediaTool) sendToGemini(ctx context.Context, geminiProvider interfaces.Provider, userMessage message.Message) (string, error) {
@@ -668,4 +692,83 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// parseTimestamp converts a timestamp string (HH:MM:SS or MM:SS) to seconds
+func parseTimestamp(timestamp string) (int, error) {
+	parts := strings.Split(timestamp, ":")
+
+	var hours, minutes, seconds int
+	var err error
+
+	switch len(parts) {
+	case 2:
+		// MM:SS format
+		minutes, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, fmt.Errorf("invalid minutes: %w", err)
+		}
+		seconds, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return 0, fmt.Errorf("invalid seconds: %w", err)
+		}
+	case 3:
+		// HH:MM:SS format
+		hours, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, fmt.Errorf("invalid hours: %w", err)
+		}
+		minutes, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return 0, fmt.Errorf("invalid minutes: %w", err)
+		}
+		seconds, err = strconv.Atoi(parts[2])
+		if err != nil {
+			return 0, fmt.Errorf("invalid seconds: %w", err)
+		}
+	default:
+		return 0, fmt.Errorf("timestamp must be in HH:MM:SS or MM:SS format")
+	}
+
+	// Validate ranges
+	if minutes < 0 || minutes >= 60 {
+		return 0, fmt.Errorf("minutes must be between 0 and 59")
+	}
+	if seconds < 0 || seconds >= 60 {
+		return 0, fmt.Errorf("seconds must be between 0 and 59")
+	}
+	if hours < 0 {
+		return 0, fmt.Errorf("hours must be non-negative")
+	}
+
+	totalSeconds := hours*3600 + minutes*60 + seconds
+	return totalSeconds, nil
+}
+
+// parseVideoInterval parses a video interval string and returns start/end offsets in Gemini format
+func parseVideoInterval(interval string) (string, string, error) {
+	parts := strings.Split(interval, "-")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("video_interval must be in format 'start-end' (e.g., '00:20:50-00:26:10')")
+	}
+
+	startTimestamp := strings.TrimSpace(parts[0])
+	endTimestamp := strings.TrimSpace(parts[1])
+
+	startSeconds, err := parseTimestamp(startTimestamp)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid start timestamp: %w", err)
+	}
+
+	endSeconds, err := parseTimestamp(endTimestamp)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid end timestamp: %w", err)
+	}
+
+	if startSeconds >= endSeconds {
+		return "", "", fmt.Errorf("start timestamp must be before end timestamp")
+	}
+
+	// Format as Gemini API expects: "1250s", "1570s"
+	return fmt.Sprintf("%ds", startSeconds), fmt.Sprintf("%ds", endSeconds), nil
 }
