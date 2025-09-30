@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Toaster } from 'sonner';
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -20,6 +21,7 @@ function RootComponent() {
         <TooltipProvider>
           <Outlet />
         </TooltipProvider>
+        <Toaster position='top-right' />
       </ThemeProvider>
     </QueryClientProvider>
   );

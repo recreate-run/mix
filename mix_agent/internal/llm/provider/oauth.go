@@ -230,7 +230,6 @@ func (cs *CredentialStorage) StoreOAuthCredentials(provider string, accessToken,
 		return fmt.Errorf("failed to save credential store: %w", err)
 	}
 
-	logging.Info("OAuth credentials stored for provider", "provider", provider)
 	return nil
 }
 
@@ -269,7 +268,6 @@ func (cs *CredentialStorage) ClearOAuthCredentials(provider string) error {
 		return fmt.Errorf("failed to save credential store: %w", err)
 	}
 
-	logging.Info("OAuth credentials cleared for provider", "provider", provider)
 	return nil
 }
 
@@ -363,34 +361,26 @@ func (flow *OAuthFlow) OpenBrowser() error {
 
 // ExchangeCodeForTokens exchanges the authorization code for tokens
 func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials, error) {
-	// Log original auth code info for debugging
-	logging.Info("Starting token exchange with auth code", "length", len(authCode), "has_hash", strings.Contains(authCode, "#"))
-
 	// Parse authorization code in format "code#state"
 	authCode = strings.TrimSpace(authCode)
-	logging.Info("Processing authorization code", "raw_length", len(authCode), "trimmed_length", len(strings.TrimSpace(authCode)))
 
 	// Try to extract code and state using different methods
 	var codePart, statePart string
 
 	// Method 1: Simple split on #
 	splits := strings.Split(authCode, "#")
-	logging.Info("Authorization code parts", "parts_count", len(splits), "contains_hash", strings.Contains(authCode, "#"))
 
 	if len(splits) == 2 {
 		// Standard format: code#state
 		codePart = strings.TrimSpace(splits[0])
 		statePart = strings.TrimSpace(splits[1])
-		logging.Info("Using standard format code#state")
 	} else if len(splits) > 2 {
 		// Multiple # characters - take first part as code, rest as state
 		codePart = strings.TrimSpace(splits[0])
 		statePart = strings.TrimSpace(strings.Join(splits[1:], "#"))
-		logging.Info("Found multiple # characters in auth code")
 	} else {
 		// Try to parse as URL parameters (backup)
 		if strings.Contains(authCode, "code=") && strings.Contains(authCode, "state=") {
-			logging.Info("Trying to parse auth code as URL parameters")
 			// Extract code parameter
 			codeParts := strings.Split(authCode, "code=")
 			if len(codeParts) >= 2 {
@@ -416,20 +406,11 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 		return nil, fmt.Errorf("state part is empty")
 	}
 
-	logging.Info("Extracted code and state", "code_length", len(codePart), "state_length", len(statePart))
-
 	// Verify state matches (we'll proceed with a warning)
 	if statePart != flow.State {
 		logging.Warn("State mismatch: expected %s, got %s - proceeding anyway", flow.State, statePart)
-		// Log more details about the state mismatch
-		if len(flow.State) >= 10 && len(statePart) >= 10 {
-			logging.Info("State details", "expected_length", len(flow.State), "received_length", len(statePart),
-				"expected_prefix", flow.State[:10], "received_prefix", statePart[:10])
-		}
 		// Update the flow's state to match the callback state for the token exchange
 		flow.State = statePart
-	} else {
-		logging.Info("State matches correctly")
 	}
 
 	data := map[string]string{
@@ -475,8 +456,6 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-
-	logging.Info("Token exchange response: status=%d, body_length=%d, content_type=%s", resp.StatusCode, len(body), resp.Header.Get("Content-Type"))
 
 	if resp.StatusCode != http.StatusOK {
 		logging.Warn("Token exchange failed with status %d: %s", resp.StatusCode, string(body))
@@ -659,7 +638,6 @@ func (cs *CredentialStorage) StoreOpenAICredentials(provider string, credentials
 		return fmt.Errorf("failed to save credential store: %w", err)
 	}
 
-	logging.Info("OpenAI OAuth credentials stored for provider", "provider", provider)
 	return nil
 }
 
@@ -712,11 +690,9 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, 
 			if err == nil && len(providers) > 0 {
 				// Use the first available provider as a fallback
 				provider = providers[0]
-				logging.Info("Using first available provider from credentials", "provider", provider)
 			} else {
 				// Default to Anthropic if no providers found
 				provider = models.ProviderAnthropic
-				logging.Info("No provider specified and none found in database, defaulting to Anthropic")
 			}
 		}
 	}
