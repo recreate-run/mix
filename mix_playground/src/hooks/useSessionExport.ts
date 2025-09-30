@@ -16,7 +16,7 @@ interface ExportSessionOptions {
  */
 export function useSessionExport() {
   return useMutation<unknown, Error, ExportSessionOptions>({
-    mutationFn: async ({ sessionId, sessionTitle }) => {
+    mutationFn: async ({ sessionId }) => {
       // Use the SDK's export method - returns ExportSessionResponse with result property
       const response = await mix.sessions.exportSession({ id: sessionId });
       const data = response.result;
@@ -42,7 +42,7 @@ export function useSessionExport() {
 
       return { filePath, data };
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       toast.success('Session exported to Downloads folder');
     },
     onError: (error) => {
