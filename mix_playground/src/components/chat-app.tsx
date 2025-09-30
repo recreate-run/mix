@@ -14,7 +14,7 @@ import {
   AIInputTools,
 } from '@/components/ui/kibo-ui/ai/input';
 import { useFileReference } from '@/hooks/useFileReference';
-import { useForkSession } from '@/hooks/useForkSession';
+import { useRewindSession } from '@/hooks/useRewindSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 // import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
@@ -22,9 +22,6 @@ import { useActiveSession, useCreateSession } from '@/hooks/useSession';
 import { useSessionMessages } from '@/hooks/useSessionMessages';
 import { usePreferences, formatCurrentModel } from '@/hooks/usePreferences';
 import { useBoundStore } from '@/stores';
-import {
-  type Attachment,
-} from '@/stores/attachmentSlice';
 import { buildSessionFileUrl } from '@/utils/attachmentUtils';
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
@@ -68,11 +65,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // Mode toggles and session management
   const [isPlanMode, setIsPlanMode] = useState(false);
-  const pendingForkTextRef = useRef<{
-    text: string;
-    attachments: Attachment[];
-    referenceMap: Map<string, string>;
-  } | null>(null);
 
   // Component lifecycle refs
   const interruptedMessageAddedRef = useRef(false);
@@ -92,28 +84,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const sessionMessages = useSessionMessages(sessionId);
   const sseStream = usePersistentSSE(session?.id || '');
   // const { apps: openApps } = useAppList();
-  const forkSession = useForkSession();
+  const rewindSession = useRewindSession();
   const createSession = useCreateSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: preferences } = usePreferences();
 
-  // Handle session changes: fork text loading and UI state clearing
+  // Handle session changes: clear UI state when switching sessions
   useEffect(() => {
     if (session?.id && session.id !== previousSessionIdRef.current) {
-      // Handle pending fork first (deterministic order)
-      if (pendingForkTextRef.current) {
-        setText(pendingForkTextRef.current.text);
-        useBoundStore
-          .getState()
-          .setHistoryState(
-            pendingForkTextRef.current.attachments,
-            pendingForkTextRef.current.referenceMap
-          );
-        pendingForkTextRef.current = null;
-      }
-      // Then handle session clearing (only if no fork was processed and not initial load)
-      else if (previousSessionIdRef.current !== '') {
+      // Clear input when switching to a different session (but not on initial load)
+      if (previousSessionIdRef.current !== '') {
         setText('');
         clearAttachments();
         interruptedMessageAddedRef.current = false;
@@ -471,45 +452,38 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     // For 'keep-planning', no additional action needed
   };
 
-  // Handle forking conversation at a specific message
-  const handleForkMessage = async (messageIndex: number) => {
-    const messageToFork = messages[messageIndex];
-    if (!messageToFork || messageToFork.from !== 'user' || !session?.id) {
+  // Handle editing (rewinding) conversation to a specific message
+  const handleEditMessage = async (messageIndex: number) => {
+    const messageToEdit = messages[messageIndex];
+    if (!messageToEdit || messageToEdit.from !== 'user' || !session?.id || !messageToEdit.id) {
       return;
     }
 
     try {
-      // Call backend to fork session and copy messages
-      const newSession = await forkSession.mutateAsync({
-        sourceSessionId: session.id,
-        messageIndex,
-        title: `Forked: ${session.title || 'Chat Session'}`,
+      // Call backend to rewind session to this message
+      await rewindSession.mutateAsync({
+        sessionId: session.id,
+        messageId: messageToEdit.id,
+        cleanupMedia: true,
       });
 
-      // Queue fork text BEFORE navigation to prevent race condition
-      pendingForkTextRef.current = {
-        text: messageToFork.content,
-        attachments: [],
-        referenceMap: new Map()
-      };
+      // Pre-populate input with the message content for editing
+      setText(messageToEdit.content);
 
-      // Navigate to the forked session
-      navigate({
-        to: '/$sessionId',
-        params: { sessionId: newSession.id },
-        replace: true,
-      });
+      // Show success feedback
+      setFeedbackMessage('Conversation rewound successfully');
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 2000);
     } catch (error) {
-      console.error('Failed to fork conversation:', error);
+      console.error('Failed to rewind conversation:', error);
       // Show error feedback
-      setFeedbackMessage(`Error: Failed to fork conversation`);
+      setFeedbackMessage(`Error: Failed to rewind conversation`);
 
       // Auto-hide after 3 seconds
       setTimeout(() => {
         setFeedbackMessage(null);
       }, 3000);
-
-      // Don't add error to chat - handled by notification
     }
   };
 
@@ -550,7 +524,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {/* Conversation Display */}
           <ConversationDisplay
             messages={messages}
-            onForkMessage={handleForkMessage}
+            onEditMessage={handleEditMessage}
             onPlanAction={handlePlanAction}
             onUpdateMessage={(index, updatedMessage) => {
               setMessages(prev => [

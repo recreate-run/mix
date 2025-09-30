@@ -343,7 +343,7 @@ interface ConversationDisplayProps {
     action: 'proceed' | 'keep-planning',
     messageIndex: number
   ) => void;
-  onForkMessage?: (index: number) => void;
+  onEditMessage?: (index: number) => void;
   onUpdateMessage?: (index: number, updatedMessage: UIMessage) => void;
   setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
   sessionId?: string;
@@ -496,7 +496,7 @@ export function ConversationDisplay({
   messages,
   sseStream,
   onPlanAction,
-  onForkMessage,
+  onEditMessage,
   onUpdateMessage,
   setUserMessageRef,
   sessionId,
@@ -622,11 +622,11 @@ export function ConversationDisplay({
                     </AIMessageContent.Content>
                     <AIMessageContent.Toolbar>
                       <MessageCopyButton content={message.content} />
-                      {onForkMessage && (
+                      {onEditMessage && (
                         <Button
                           className="text-muted-foreground hover:text-foreground"
                           disabled={sseStream.processing}
-                          onClick={() => onForkMessage(index)}
+                          onClick={() => onEditMessage(index)}
                           size="sm"
                           variant="ghost"
                         >
