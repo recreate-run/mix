@@ -21,13 +21,9 @@ import (
 )
 
 type ReadMediaParams struct {
-	FilePath      string `json:"file_path,omitempty"`
-	DirectoryPath string `json:"directory_path,omitempty"`
+	FilePath      string `json:"file_path"`
 	MediaType     string `json:"media_type"`
 	Prompt        string `json:"prompt"`
-	Recursive     bool   `json:"recursive,omitempty"`
-	AudioMode     string `json:"audio_mode,omitempty"`
-	VideoMode     string `json:"video_mode,omitempty"`
 	PdfPages      string `json:"pdf_pages,omitempty"`
 	VideoInterval string `json:"video_interval,omitempty"`
 }
@@ -66,11 +62,7 @@ func (r *readMediaTool) Info() ToolInfo {
 		Parameters: map[string]any{
 			"file_path": map[string]any{
 				"type":        "string",
-				"description": "Path to single file for analysis",
-			},
-			"directory_path": map[string]any{
-				"type":        "string",
-				"description": "Path to directory for batch processing",
+				"description": "Path to file or URL for analysis",
 			},
 			"media_type": map[string]any{
 				"type":        "string",
@@ -81,21 +73,6 @@ func (r *readMediaTool) Info() ToolInfo {
 				"type":        "string",
 				"description": "Analysis prompt for the media content",
 			},
-			"recursive": map[string]any{
-				"type":        "boolean",
-				"default":     false,
-				"description": "Process directories recursively",
-			},
-			"audio_mode": map[string]any{
-				"type":        "string",
-				"enum":        []string{"transcript", "description"},
-				"description": "Audio analysis mode (required for audio type)",
-			},
-			"video_mode": map[string]any{
-				"type":        "string",
-				"enum":        []string{"description"},
-				"description": "Video analysis mode (required for video type)",
-			},
 			"pdf_pages": map[string]any{
 				"type":        "string",
 				"description": "PDF page selection: single page '5' or ranges '1-3,7,10-12' (PDF only)",
@@ -105,7 +82,7 @@ func (r *readMediaTool) Info() ToolInfo {
 				"description": "Video time interval: timestamps '00:20:50-00:26:10' or '20:50-26:10' (video only)",
 			},
 		},
-		Required: []string{"media_type", "prompt"},
+		Required: []string{"file_path", "media_type", "prompt"},
 	}
 }
 
@@ -165,37 +142,14 @@ func (r *readMediaTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 }
 
 func (r *readMediaTool) validateParams(params ReadMediaParams) error {
-	// Validate mutually exclusive file/directory paths
-	if params.FilePath != "" && params.DirectoryPath != "" {
-		return fmt.Errorf("cannot specify both file_path and directory_path")
-	}
-
-	if params.FilePath == "" && params.DirectoryPath == "" {
-		return fmt.Errorf("must specify either file_path or directory_path")
+	// Validate file_path is provided
+	if params.FilePath == "" {
+		return fmt.Errorf("file_path is required")
 	}
 
 	// Validate analysis type
 	if params.MediaType != "image" && params.MediaType != "audio" && params.MediaType != "video" && params.MediaType != "pdf" {
 		return fmt.Errorf("media_type must be 'image', 'audio', 'video', or 'pdf'")
-	}
-
-	// Validate type-specific requirements
-	if params.MediaType == "audio" && params.AudioMode == "" {
-		return fmt.Errorf("audio_mode is required when media_type is 'audio'")
-	}
-
-	if params.MediaType == "video" && params.VideoMode == "" {
-		return fmt.Errorf("video_mode is required when media_type is 'video'")
-	}
-
-	// Validate audio mode
-	if params.AudioMode != "" && params.AudioMode != "transcript" && params.AudioMode != "description" {
-		return fmt.Errorf("audio_mode must be 'transcript' or 'description'")
-	}
-
-	// Validate video mode
-	if params.VideoMode != "" && params.VideoMode != "description" {
-		return fmt.Errorf("video_mode must be 'description'")
 	}
 
 	// Validate PDF pages parameter
@@ -213,26 +167,14 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 		if params.MediaType != "video" {
 			return fmt.Errorf("video_interval parameter can only be used with media_type 'video'")
 		}
-		// Validate the interval format by trying to parse it
 		if _, _, err := parseVideoInterval(params.VideoInterval); err != nil {
 			return fmt.Errorf("invalid video_interval parameter: %w", err)
 		}
 	}
 
-	// Validate paths are absolute (skip for URLs)
-	targetPath := params.FilePath
-	if targetPath == "" {
-		targetPath = params.DirectoryPath
-	}
-
-	// Skip absolute path validation for URLs
-	if params.FilePath != "" && isURL(params.FilePath) {
-		// URLs are supported for all media types
-		return nil
-	}
-
-	if !filepath.IsAbs(targetPath) {
-		return fmt.Errorf("file_path and directory_path must be absolute paths")
+	// Validate path is absolute for local files (skip for URLs)
+	if !isURL(params.FilePath) && !filepath.IsAbs(params.FilePath) {
+		return fmt.Errorf("file_path must be an absolute path")
 	}
 
 	return nil
@@ -258,71 +200,17 @@ func (r *readMediaTool) validateGeminiAPIKey(ctx context.Context) error {
 }
 
 func (r *readMediaTool) getFilesToProcess(params ReadMediaParams) ([]string, error) {
-	var files []string
-
-	if params.FilePath != "" {
-		// Check if it's a URL (YouTube, etc.)
-		if isURL(params.FilePath) {
-			// For URLs, just return the URL as the "file" to process
-			files = append(files, params.FilePath)
-		} else {
-			// Single local file
-			if r.isSupportedFile(params.FilePath, params.MediaType) {
-				files = append(files, params.FilePath)
-			}
-		}
-	} else {
-		// Directory processing
-		var err error
-		files, err = r.findSupportedFiles(params.DirectoryPath, params.MediaType, params.Recursive)
-		if err != nil {
-			return nil, err
-		}
+	// For URLs, return as-is
+	if isURL(params.FilePath) {
+		return []string{params.FilePath}, nil
 	}
 
-	return files, nil
-}
-
-func (r *readMediaTool) findSupportedFiles(dirPath string, mediaType string, recursive bool) ([]string, error) {
-	var files []string
-	var supportedExts []string
-
-	switch mediaType {
-	case "image":
-		supportedExts = supportedImageTypes
-	case "audio":
-		supportedExts = supportedAudioTypes
-	case "video":
-		supportedExts = supportedVideoTypes
-	case "pdf":
-		supportedExts = supportedPDFTypes
+	// For local files, validate support
+	if !r.isSupportedFile(params.FilePath, params.MediaType) {
+		return nil, fmt.Errorf("unsupported file type for media_type '%s': %s", params.MediaType, params.FilePath)
 	}
 
-	walkFn := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			if !recursive && path != dirPath {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		ext := strings.ToLower(filepath.Ext(path))
-		for _, supportedExt := range supportedExts {
-			if ext == supportedExt {
-				files = append(files, path)
-				break
-			}
-		}
-
-		return nil
-	}
-
-	err := filepath.Walk(dirPath, walkFn)
-	return files, err
+	return []string{params.FilePath}, nil
 }
 
 func (r *readMediaTool) isSupportedFile(filePath string, mediaType string) bool {
@@ -382,8 +270,8 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		return result
 	}
 
-	// Prepare analysis prompt
-	analysisPrompt := r.buildAnalysisPrompt(params)
+	// Use the prompt directly
+	analysisPrompt := params.Prompt
 
 	// Parse video interval if provided
 	var startOffset, endOffset string
@@ -432,20 +320,13 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		}
 
 		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
-		var wasTruncated bool
 		if params.MediaType == "pdf" {
-			extractedData, truncated, err := ExtractPDFPages(fileData, params.PdfPages)
+			var err error
+			fileData, analysisPrompt, err = processPDFContent(fileData, params.PdfPages, analysisPrompt)
 			if err != nil {
 				result.Error = fmt.Sprintf("Error extracting PDF pages from URL: %s", err)
 				return result
 			}
-			fileData = extractedData
-			wasTruncated = truncated
-		}
-
-		// Append truncation notice to prompt if PDF was auto-truncated
-		if wasTruncated {
-			analysisPrompt += "\n\nNote: This PDF has been truncated at the tenth page."
 		}
 
 		userMessage = message.Message{
@@ -470,20 +351,13 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		}
 
 		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
-		var wasTruncated bool
 		if params.MediaType == "pdf" {
-			extractedData, truncated, err := ExtractPDFPages(fileData, params.PdfPages)
+			var err error
+			fileData, analysisPrompt, err = processPDFContent(fileData, params.PdfPages, analysisPrompt)
 			if err != nil {
 				result.Error = fmt.Sprintf("Error extracting PDF pages: %s", err)
 				return result
 			}
-			fileData = extractedData
-			wasTruncated = truncated
-		}
-
-		// Append truncation notice to prompt if PDF was auto-truncated
-		if wasTruncated {
-			analysisPrompt += "\n\nNote: This PDF has been truncated at the tenth page."
 		}
 
 		userMessage = message.Message{
@@ -526,23 +400,7 @@ func (r *readMediaTool) readFileContent(filePath string) ([]byte, string, error)
 	}
 
 	// Detect MIME type
-	mimeType := mime.TypeByExtension(filepath.Ext(filePath))
-	if mimeType == "" {
-		// Fallback MIME type detection
-		ext := strings.ToLower(filepath.Ext(filePath))
-		switch {
-		case contains(supportedImageTypes, ext):
-			mimeType = "image/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedAudioTypes, ext):
-			mimeType = "audio/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedVideoTypes, ext):
-			mimeType = "video/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedPDFTypes, ext):
-			mimeType = "application/pdf"
-		default:
-			mimeType = "application/octet-stream"
-		}
-	}
+	mimeType := detectMIMEType(filePath)
 
 	return data, mimeType, nil
 }
@@ -566,23 +424,10 @@ func (r *readMediaTool) downloadURLToMemory(url string) ([]byte, string, error) 
 		return nil, "", fmt.Errorf("failed to read data: %w", err)
 	}
 
-	// Get MIME type from Content-Type header
+	// Get MIME type from Content-Type header, fallback to extension-based detection
 	mimeType := resp.Header.Get("Content-Type")
 	if mimeType == "" {
-		// Fallback to extension-based detection
-		ext := strings.ToLower(filepath.Ext(url))
-		switch {
-		case contains(supportedImageTypes, ext):
-			mimeType = "image/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedAudioTypes, ext):
-			mimeType = "audio/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedVideoTypes, ext):
-			mimeType = "video/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedPDFTypes, ext):
-			mimeType = "application/pdf"
-		default:
-			mimeType = "application/octet-stream"
-		}
+		mimeType = detectMIMEType(url)
 	}
 
 	return data, mimeType, nil
@@ -617,26 +462,6 @@ func (r *readMediaTool) createGeminiProvider() (interfaces.Provider, error) {
 	}
 
 	return geminiProvider, nil
-}
-
-func (r *readMediaTool) buildAnalysisPrompt(params ReadMediaParams) string {
-	var promptPrefix string
-	switch params.MediaType {
-	case "image":
-		promptPrefix = "Analyze this image and "
-	case "audio":
-		if params.AudioMode == "transcript" {
-			promptPrefix = "Provide an accurate transcription of this audio content. "
-		} else {
-			promptPrefix = "Analyze this audio content and describe "
-		}
-	case "video":
-		promptPrefix = "Analyze this video content, describing both visual and audio elements. "
-	case "pdf":
-		promptPrefix = "Analyze this PDF document, including both text content and visual elements such as charts, diagrams, and tables. "
-	}
-
-	return fmt.Sprintf("%s%s", promptPrefix, params.Prompt)
 }
 
 func (r *readMediaTool) sendToGemini(ctx context.Context, geminiProvider interfaces.Provider, userMessage message.Message) (string, error) {
@@ -677,6 +502,45 @@ func (r *readMediaTool) generateSummary(results []ReadMediaResult) string {
 	}
 
 	return fmt.Sprintf("Analyzed %d file(s) successfully, %d failed.", successCount, errorCount)
+}
+
+// detectMIMEType detects the MIME type for a file path or URL
+func detectMIMEType(path string) string {
+	// Try standard MIME type detection first
+	mimeType := mime.TypeByExtension(filepath.Ext(path))
+	if mimeType != "" {
+		return mimeType
+	}
+
+	// Fallback to extension-based detection
+	ext := strings.ToLower(filepath.Ext(path))
+	switch {
+	case contains(supportedImageTypes, ext):
+		return "image/" + strings.TrimPrefix(ext, ".")
+	case contains(supportedAudioTypes, ext):
+		return "audio/" + strings.TrimPrefix(ext, ".")
+	case contains(supportedVideoTypes, ext):
+		return "video/" + strings.TrimPrefix(ext, ".")
+	case contains(supportedPDFTypes, ext):
+		return "application/pdf"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+// processPDFContent handles PDF page extraction and appends truncation notice if needed
+func processPDFContent(fileData []byte, pdfPages string, analysisPrompt string) ([]byte, string, error) {
+	extractedData, truncated, err := ExtractPDFPages(fileData, pdfPages)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Append truncation notice to prompt if PDF was auto-truncated
+	if truncated {
+		analysisPrompt += "\n\nNote: This PDF has been truncated at the tenth page."
+	}
+
+	return extractedData, analysisPrompt, nil
 }
 
 // Helper function to check if a URL is a YouTube URL
