@@ -1,6 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getBackendUrl } from '@/utils/backendUrl';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { downloadDir } from '@tauri-apps/api/path';
+import { mix } from '@/lib/mix-sdk';
 
 interface ExportSessionOptions {
   sessionId: string;
@@ -9,52 +12,40 @@ interface ExportSessionOptions {
 
 /**
  * Hook to export a session's complete transcript as a JSON file
+ * Shows native save dialog with pre-filled filename
  */
 export function useSessionExport() {
-  return useMutation({
-    mutationFn: async ({ sessionId, sessionTitle }: ExportSessionOptions) => {
-      const backendUrl = getBackendUrl();
-      const url = `${backendUrl}/api/sessions/${sessionId}/export`;
+  return useMutation<unknown, Error, ExportSessionOptions>({
+    mutationFn: async ({ sessionId, sessionTitle }) => {
+      // Use the SDK's export method - returns ExportSessionResponse with result property
+      const response = await mix.sessions.exportSession({ id: sessionId });
+      const data = response.result;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      // Create filename using session ID
+      const filename = `${sessionId}.json`;
+
+      // Get Downloads directory path
+      const downloadsPath = await downloadDir();
+      const defaultPath = `${downloadsPath}${filename}`;
+
+      // Show native save dialog with pre-filled path
+      const filePath = await save({
+        defaultPath: defaultPath
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to export session: ${response.statusText}`);
+      if (!filePath) {
+        throw new Error('Save cancelled');
       }
 
-      // Get the JSON data
-      const data = await response.json();
+      // Write the file using Tauri's file system API
+      await writeTextFile(filePath, JSON.stringify(data, null, 2));
 
-      // Create a blob and trigger download
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: 'application/json',
-      });
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-
-      // Use session title for filename if available, otherwise use session ID
-      const sanitizedTitle = sessionTitle
-        ? sessionTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()
-        : sessionId;
-      a.download = `session_${sanitizedTitle}_transcript.json`;
-
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
-
-      return data;
+      return { filePath, data };
     },
-    onSuccess: () => {
-      toast.success('Session exported successfully');
+    onSuccess: (result) => {
+      toast.success('Session exported to Downloads folder');
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error('Export failed', {
         description: error.message,
       });

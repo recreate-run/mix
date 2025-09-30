@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { IconDownload } from '@tabler/icons-react';
 import {
   AIInput,
   AIInputSubmit,
@@ -21,6 +22,7 @@ import { usePersistentSSE } from '@/hooks/usePersistentSSE';
 import { useActiveSession, useCreateSession } from '@/hooks/useSession';
 import { useSessionMessages } from '@/hooks/useSessionMessages';
 import { usePreferences, formatCurrentModel } from '@/hooks/usePreferences';
+import { useSessionExport } from '@/hooks/useSessionExport';
 import { useBoundStore } from '@/stores';
 import { buildSessionFileUrl } from '@/utils/attachmentUtils';
 // import type { ToolCall } from '@/types/common';
@@ -31,6 +33,8 @@ import {
   shouldShowSlashCommands,
   slashCommands,
 } from '@/utils/slash-commands';
+import { getDisplayTitle } from '@/utils/sessionUtils';
+import { Button } from '@/components/ui/button';
 import { AttachmentPreview } from './attachment-preview';
 import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
@@ -86,6 +90,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // const { apps: openApps } = useAppList();
   const rewindSession = useRewindSession();
   const createSession = useCreateSession();
+  const exportSessionMutation = useSessionExport();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: preferences } = usePreferences();
@@ -506,6 +511,20 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     }
   };
 
+  // Handle session export
+  const handleExport = async () => {
+    if (!session?.id || exportSessionMutation.isPending) return;
+
+    try {
+      await exportSessionMutation.mutateAsync({
+        sessionId: session.id,
+        sessionTitle: getDisplayTitle(session),
+      });
+    } catch (error) {
+      console.error('Failed to export session:', error);
+    }
+  };
+
   // Button status and disabled state now computed by enhanced hook
   const isSubmitDisabled = sseStream.buttonStatus === 'ready'
     ? (!text && attachments.length === 0) ||
@@ -530,6 +549,25 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         )}
 
         <div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
+          {/* Session header with export button */}
+          {session && (
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-foreground truncate flex-1">
+                {getDisplayTitle(session)}
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExport}
+                disabled={exportSessionMutation.isPending}
+                title="Export session transcript"
+                className="ml-2"
+              >
+                <IconDownload className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           {/* Loading indicator for messages */}
           {sessionMessages.isLoading && (
             <div className="flex items-center justify-center p-4 text-muted-foreground">

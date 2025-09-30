@@ -60,8 +60,13 @@
       "allow": [{ "path": "$HOME/**/*" }]
     },
     {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$HOME/**/*" }]
+    },
+    "dialog:allow-save",
+    {
       "identifier": "shell:allow-open"
-  
+
     }
   ]
 }
