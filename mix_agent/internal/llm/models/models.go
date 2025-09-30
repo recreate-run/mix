@@ -103,6 +103,7 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 		}
 	case ProviderAnthropic:
 		return []ModelID{
+			Claude45Sonnet,
 			Claude4Sonnet,
 			Claude37Sonnet,
 			Claude4Opus,
