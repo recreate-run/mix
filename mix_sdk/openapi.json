@@ -1472,6 +1472,68 @@
         ]
       }
     },
+    "/api/sessions/{id}/export": {
+      "get": {
+        "description": "Export complete session transcript with all messages, tool calls, reasoning, and metadata as JSON",
+        "operationId": "exportSession",
+        "parameters": [
+          {
+            "description": "Session ID to export",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportSession"
+                }
+              }
+            },
+            "description": "Session transcript exported successfully",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Suggests filename for download",
+                "schema": {
+                  "example": "attachment; filename=session_abc123_transcript.json",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Export session transcript",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
     "/api/sessions/{id}/files": {
       "get": {
         "description": "List all files in session storage directory",
