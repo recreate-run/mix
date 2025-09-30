@@ -25,9 +25,11 @@ export function useSessionExport() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5); // Format: YYYY-MM-DDTHH-MM-SS
       const filename = `${sessionId}_${timestamp}.json`;
 
-      // Get Downloads directory path
+      // Get Downloads directory path and ensure proper path separator
       const downloadsPath = await downloadDir();
-      const defaultPath = `${downloadsPath}${filename}`;
+      const defaultPath = downloadsPath.endsWith('/')
+        ? `${downloadsPath}${filename}`
+        : `${downloadsPath}/${filename}`;
 
       // Show native save dialog with pre-filled path
       const filePath = await save({
