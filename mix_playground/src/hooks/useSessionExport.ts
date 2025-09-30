@@ -21,8 +21,9 @@ export function useSessionExport() {
       const response = await mix.sessions.exportSession({ id: sessionId });
       const data = response.result;
 
-      // Create filename using session ID
-      const filename = `${sessionId}.json`;
+      // Create filename with session ID and timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5); // Format: YYYY-MM-DDTHH-MM-SS
+      const filename = `${sessionId}_${timestamp}.json`;
 
       // Get Downloads directory path
       const downloadsPath = await downloadDir();
