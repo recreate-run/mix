@@ -936,7 +936,6 @@ paths:
       summary: "Get user preferences"
       tags:
         - "Preferences"
-      x-speakeasy-name-override: get
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1043,7 +1042,6 @@ paths:
       summary: "Update user preferences"
       tags:
         - "Preferences"
-      x-speakeasy-name-override: update
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1102,7 +1100,6 @@ paths:
       summary: "Get available providers"
       tags:
         - "Preferences"
-      x-speakeasy-name-override: getProviders
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1177,7 +1174,6 @@ paths:
       summary: "Reset preferences"
       tags:
         - "Preferences"
-      x-speakeasy-name-override: reset
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1481,6 +1477,7 @@ paths:
       summary: "Cancel agent processing"
       tags:
         - "Messages"
+      x-speakeasy-group: "sessions"
       x-speakeasy-name-override: "cancelProcessing"
       x-codeSamples:
         - lang: python
@@ -1538,7 +1535,6 @@ paths:
       summary: "List session files"
       tags:
         - "Files"
-      x-speakeasy-name-override: list
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1616,7 +1612,6 @@ paths:
       summary: "Upload file to session"
       tags:
         - "Files"
-      x-speakeasy-name-override: upload
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1686,7 +1681,6 @@ paths:
       summary: "Delete session file"
       tags:
         - "Files"
-      x-speakeasy-name-override: delete
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1767,7 +1761,6 @@ paths:
       summary: "Get session file"
       tags:
         - "Files"
-      x-speakeasy-name-override: get
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -1904,7 +1897,7 @@ paths:
       summary: "List session messages"
       tags:
         - "Messages"
-      x-speakeasy-name-override: "getSession"
+      x-speakeasy-name-override: "listSession"
       x-codeSamples:
         - lang: python
           label: Python (SDK)
@@ -2005,6 +1998,84 @@ paths:
                 id: "<id>",
                 requestBody: {
                   text: "<value>",
+                },
+              });
+
+              console.log(result);
+            }
+
+            run();
+  "/api/sessions/{id}/rewind":
+    post:
+      description: "Delete messages after a specified message in the current session, optionally cleaning up media files created after that point"
+      operationId: "rewindSession"
+      parameters:
+        - description: "Session ID to rewind"
+          in: "path"
+          name: "id"
+          required: true
+          schema:
+            type: "string"
+      requestBody:
+        content:
+          "application/json":
+            schema:
+              properties:
+                "cleanupMedia":
+                  default: true
+                  description: "Whether to clean up media files created after the rewind point (based on file timestamp)"
+                  type: "boolean"
+                "messageId":
+                  description: "ID of the last message to keep. All messages after this message will be deleted."
+                  type: "string"
+              required:
+                - "messageId"
+              type: "object"
+        required: true
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/SessionData"}
+          description: "Session rewound successfully"
+        "400":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Invalid request - messageId is required"
+        "404":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Session or message not found"
+      summary: "Rewind a session"
+      tags:
+        - "Sessions"
+      x-codeSamples:
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.rewind_session(id="<id>", message_id="<id>", cleanup_media=True)
+
+                # Handle response
+                print(res)
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.sessions.rewindSession({
+                id: "<id>",
+                requestBody: {
+                  messageId: "<id>",
                 },
               });
 
@@ -2118,6 +2189,7 @@ paths:
       summary: "Health check"
       tags:
         - "System"
+      x-speakeasy-name-override: "getHealth"
       x-codeSamples:
         - lang: python
           label: Python (SDK)
