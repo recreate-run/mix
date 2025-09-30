@@ -1935,6 +1935,83 @@
         ]
       }
     },
+    "/api/sessions/{id}/rewind": {
+      "post": {
+        "description": "Delete messages after a specified message in the current session, optionally cleaning up media files created after that point",
+        "operationId": "rewindSession",
+        "parameters": [
+          {
+            "description": "Session ID to rewind",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "cleanupMedia": {
+                    "default": true,
+                    "description": "Whether to clean up media files created after the rewind point (based on file timestamp)",
+                    "type": "boolean"
+                  },
+                  "messageId": {
+                    "description": "ID of the last message to keep. All messages after this message will be deleted.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "messageId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionData"
+                }
+              }
+            },
+            "description": "Session rewound successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request - messageId is required"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Session or message not found"
+          }
+        },
+        "summary": "Rewind a session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
     "/api/tools/status": {
       "get": {
         "description": "Get status and authentication information for all available tools and categories",
