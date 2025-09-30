@@ -272,6 +272,40 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/sessions/{id}/export": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "exportSession",
+					"summary":     "Export session transcript",
+					"description": "Export complete session transcript with all messages, tool calls, reasoning, and metadata as JSON",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID to export"),
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Session transcript exported successfully",
+							"headers": map[string]interface{}{
+								"Content-Disposition": map[string]interface{}{
+									"description": "Suggests filename for download",
+									"schema": map[string]interface{}{
+										"type":    "string",
+										"example": "attachment; filename=session_abc123_transcript.json",
+									},
+								},
+							},
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/ExportSession",
+									},
+								},
+							},
+						},
+						"404": createErrorResponse("Session not found"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			// Message Operations
 			"/api/sessions/{id}/messages": map[string]interface{}{
 				"post": map[string]interface{}{
