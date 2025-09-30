@@ -1498,6 +1498,158 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"required": []string{"id", "sessionId", "role", "userInput"},
 				},
+				"ExportSession": map[string]interface{}{
+					"type": "object",
+					"description": "Comprehensive session export with all messages, tool calls, and metadata",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Session identifier",
+						},
+						"title": map[string]interface{}{
+							"type":        "string",
+							"description": "Session title",
+						},
+						"userMessageCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of user messages",
+						},
+						"assistantMessageCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of assistant messages",
+						},
+						"toolCallCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total number of tool calls",
+						},
+						"promptTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total prompt tokens used",
+						},
+						"completionTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total completion tokens used",
+						},
+						"cost": map[string]interface{}{
+							"type":        "number",
+							"format":      "double",
+							"description": "Total cost of session",
+						},
+						"createdAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Session creation timestamp",
+						},
+						"updatedAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Session last update timestamp",
+						},
+						"messages": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"$ref": "#/components/schemas/ExportMessage",
+							},
+							"description": "Complete list of messages with full details",
+						},
+					},
+					"required": []string{"id", "title", "messages"},
+				},
+				"ExportMessage": map[string]interface{}{
+					"type": "object",
+					"description": "Complete message information for export",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Message identifier",
+						},
+						"role": map[string]interface{}{
+							"type":        "string",
+							"description": "Message role (user, assistant, tool)",
+						},
+						"content": map[string]interface{}{
+							"type":        "string",
+							"description": "Message content",
+						},
+						"toolCalls": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"$ref": "#/components/schemas/ExportToolCall",
+							},
+							"description": "Tool calls with complete information",
+						},
+						"reasoning": map[string]interface{}{
+							"type":        "string",
+							"description": "Reasoning content (optional)",
+						},
+						"reasoningDuration": map[string]interface{}{
+							"type":        "integer",
+							"description": "Reasoning duration in milliseconds (optional)",
+						},
+						"model": map[string]interface{}{
+							"type":        "string",
+							"description": "Model used for this message (optional)",
+						},
+						"finishReason": map[string]interface{}{
+							"type":        "string",
+							"description": "Completion finish reason (optional)",
+						},
+						"createdAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Message creation timestamp",
+						},
+						"updatedAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Message update timestamp",
+						},
+					},
+					"required": []string{"id", "role", "content", "createdAt", "updatedAt"},
+				},
+				"ExportToolCall": map[string]interface{}{
+					"type": "object",
+					"description": "Complete tool call information for export",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool call identifier",
+						},
+						"name": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool name",
+						},
+						"input": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool input as JSON string",
+						},
+						"inputJson": map[string]interface{}{
+							"type":        "object",
+							"description": "Parsed tool input (optional)",
+						},
+						"type": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool type",
+						},
+						"finished": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether tool execution finished",
+						},
+						"result": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool execution result (optional)",
+						},
+						"metadata": map[string]interface{}{
+							"type":        "string",
+							"description": "Additional tool metadata (optional)",
+						},
+						"isError": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether execution resulted in error (optional)",
+						},
+					},
+					"required": []string{"id", "name", "input", "type", "finished"},
+				},
 				"ToolCallData": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
