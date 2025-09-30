@@ -29,6 +29,7 @@ type Service interface {
 	Delete(ctx context.Context, id string) error
 	ListUserMessageHistory(ctx context.Context, limit, offset int64) ([]Message, error)
 	CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error
+	DeleteAfterIndex(ctx context.Context, sessionID string, messageIndex int64) error
 }
 
 type service struct {
@@ -391,4 +392,29 @@ func unmarshallParts(data []byte) ([]ContentPart, error) {
 	}
 
 	return parts, nil
+}
+
+// DeleteAfterIndex deletes all messages in a session after the specified index (0-based)
+// The message at messageIndex is kept, all messages after it are deleted
+// If messageIndex >= message count, no messages are deleted
+func (s *service) DeleteAfterIndex(ctx context.Context, sessionID string, messageIndex int64) error {
+	// Get all messages for the session
+	messages, err := s.List(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to list messages for deletion: %w", err)
+	}
+
+	// Validate messageIndex - if at or beyond end, nothing to delete
+	if messageIndex >= int64(len(messages)) {
+		return nil
+	}
+
+	// Delete messages after the specified index (messageIndex is inclusive - we keep messages 0..messageIndex)
+	for i := int(messageIndex) + 1; i < len(messages); i++ {
+		if err := s.Delete(ctx, messages[i].ID); err != nil {
+			return fmt.Errorf("failed to delete message at index %d (id=%s): %w", i, messages[i].ID, err)
+		}
+	}
+
+	return nil
 }

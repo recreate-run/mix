@@ -106,6 +106,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.HandleGetSession)
 	mux.HandleFunc("POST /api/sessions", sessionHandler.HandleCreateSession)
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	mux.HandleFunc("POST /api/sessions/{id}/rewind", sessionHandler.HandleRewindSession)
 	mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.HandleDeleteSession)
 
 	// Message endpoints

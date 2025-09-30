@@ -241,6 +241,37 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/sessions/{id}/rewind": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "rewindSession",
+					"summary":     "Rewind a session",
+					"description": "Delete messages after a specified message in the current session, optionally cleaning up media files created after that point",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID to rewind"),
+					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"messageId"},
+						"properties": map[string]interface{}{
+							"messageId": map[string]interface{}{
+								"type":        "string",
+								"description": "ID of the last message to keep. All messages after this message will be deleted.",
+							},
+							"cleanupMedia": map[string]interface{}{
+								"type":        "boolean",
+								"default":     true,
+								"description": "Whether to clean up media files created after the rewind point (based on file timestamp)",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", getSessionDataSchema(), "Session rewound successfully"),
+						"400": createErrorResponse("Invalid request - messageId is required"),
+						"404": createErrorResponse("Session or message not found"),
+					},
+				},
+			},
 			// Message Operations
 			"/api/sessions/{id}/messages": map[string]interface{}{
 				"post": map[string]interface{}{
