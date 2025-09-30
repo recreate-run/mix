@@ -92,9 +92,11 @@ func (iuc ImageURLContent) String() string {
 func (ImageURLContent) isPart() {}
 
 type BinaryContent struct {
-	Path     string
-	MIMEType string
-	Data     []byte
+	Path        string
+	MIMEType    string
+	Data        []byte
+	StartOffset string // Video metadata: start time offset (e.g., "1250s")
+	EndOffset   string // Video metadata: end time offset (e.g., "1570s")
 }
 
 func (bc BinaryContent) String(provider models.ModelProvider) string {
@@ -108,8 +110,10 @@ func (bc BinaryContent) String(provider models.ModelProvider) string {
 func (BinaryContent) isPart() {}
 
 type URIContent struct {
-	URI      string `json:"uri"`
-	MIMEType string `json:"mime_type"`
+	URI         string `json:"uri"`
+	MIMEType    string `json:"mime_type"`
+	StartOffset string `json:"start_offset,omitempty"` // Video metadata: start time offset (e.g., "1250s")
+	EndOffset   string `json:"end_offset,omitempty"`   // Video metadata: end time offset (e.g., "1570s")
 }
 
 func (uc URIContent) String() string {

@@ -63,10 +63,30 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 			for _, binaryContent := range msg.BinaryContent() {
 				// Handle images and videos via inline data for supported formats
 				if g.isSupportedInlineFormat(binaryContent.MIMEType) || g.isSupportedVideoFormat(binaryContent.MIMEType) {
-					parts = append(parts, &genai.Part{InlineData: &genai.Blob{
+					part := &genai.Part{InlineData: &genai.Blob{
 						MIMEType: binaryContent.MIMEType,
 						Data:     binaryContent.Data,
-					}})
+					}}
+
+					// Add video metadata if provided
+					if binaryContent.StartOffset != "" && binaryContent.EndOffset != "" {
+						startDuration, err := time.ParseDuration(binaryContent.StartOffset)
+						if err != nil {
+							logging.Warn("Failed to parse video start offset", "offset", binaryContent.StartOffset, "error", err)
+						} else {
+							endDuration, err := time.ParseDuration(binaryContent.EndOffset)
+							if err != nil {
+								logging.Warn("Failed to parse video end offset", "offset", binaryContent.EndOffset, "error", err)
+							} else {
+								part.VideoMetadata = &genai.VideoMetadata{
+									StartOffset: startDuration,
+									EndOffset:   endDuration,
+								}
+							}
+						}
+					}
+
+					parts = append(parts, part)
 				} else {
 					// For unsupported inline formats, log warning and skip
 					// Note: Video upload via File API would require additional implementation
@@ -76,7 +96,27 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 			}
 			for _, uriContent := range msg.URIContent() {
 				// Handle URIs using Gemini's native URI support
-				parts = append(parts, genai.NewPartFromURI(uriContent.URI, uriContent.MIMEType))
+				part := genai.NewPartFromURI(uriContent.URI, uriContent.MIMEType)
+
+				// Add video metadata if provided
+				if uriContent.StartOffset != "" && uriContent.EndOffset != "" {
+					startDuration, err := time.ParseDuration(uriContent.StartOffset)
+					if err != nil {
+						logging.Warn("Failed to parse video start offset", "offset", uriContent.StartOffset, "error", err)
+					} else {
+						endDuration, err := time.ParseDuration(uriContent.EndOffset)
+						if err != nil {
+							logging.Warn("Failed to parse video end offset", "offset", uriContent.EndOffset, "error", err)
+						} else {
+							part.VideoMetadata = &genai.VideoMetadata{
+								StartOffset: startDuration,
+								EndOffset:   endDuration,
+							}
+						}
+					}
+				}
+
+				parts = append(parts, part)
 			}
 			history = append(history, &genai.Content{
 				Parts: parts,
@@ -654,10 +694,11 @@ func (g *geminiClient) isSupportedInlineFormat(mimeType string) bool {
 	// Supported inline formats according to Gemini API docs
 	supportedInlineFormats := []string{
 		"image/png",
-		"image/jpeg", 
+		"image/jpeg",
 		"image/webp",
 		"image/heic",
 		"image/heif",
+		"application/pdf",
 	}
 	
 	for _, supported := range supportedInlineFormats {

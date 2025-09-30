@@ -47,7 +47,7 @@ export function FileUploadButton({
           },
           {
             name: 'Documents',
-            extensions: ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf']
+            extensions: ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'csv', 'xls', 'xlsx']
           }
         ]
       });
@@ -167,6 +167,9 @@ function getMimeType(fileName: string): string {
     txt: 'text/plain',
     md: 'text/markdown',
     rtf: 'application/rtf',
+    csv: 'text/csv',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     
     // Code
     js: 'text/javascript',

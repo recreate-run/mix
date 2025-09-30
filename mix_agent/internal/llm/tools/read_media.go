@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"mix/internal/config"
@@ -19,14 +21,11 @@ import (
 )
 
 type ReadMediaParams struct {
-	FilePath      string `json:"file_path,omitempty"`
-	DirectoryPath string `json:"directory_path,omitempty"`
+	FilePath      string `json:"file_path"`
 	MediaType     string `json:"media_type"`
 	Prompt        string `json:"prompt"`
-	Recursive     bool   `json:"recursive,omitempty"`
-	WordCount     int    `json:"word_count,omitempty"`
-	AudioMode     string `json:"audio_mode,omitempty"`
-	VideoMode     string `json:"video_mode,omitempty"`
+	PdfPages      string `json:"pdf_pages,omitempty"`
+	VideoInterval string `json:"video_interval,omitempty"`
 }
 
 type readMediaTool struct{}
@@ -45,14 +44,12 @@ type ReadMediaResponse struct {
 
 const (
 	ReadMediaToolName = "ReadMedia"
-	DefaultWordCount  = 200
-	MaxWordCount      = 1000
-	MinWordCount      = 50
 )
 
 var supportedImageTypes = []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
 var supportedAudioTypes = []string{".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 var supportedVideoTypes = []string{".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv"}
+var supportedPDFTypes = []string{".pdf"}
 
 func NewReadMediaTool() BaseTool {
 	return &readMediaTool{}
@@ -65,45 +62,27 @@ func (r *readMediaTool) Info() ToolInfo {
 		Parameters: map[string]any{
 			"file_path": map[string]any{
 				"type":        "string",
-				"description": "Path to single file for analysis",
-			},
-			"directory_path": map[string]any{
-				"type":        "string",
-				"description": "Path to directory for batch processing",
+				"description": "Path to file or URL for analysis",
 			},
 			"media_type": map[string]any{
 				"type":        "string",
-				"enum":        []string{"image", "audio", "video"},
+				"enum":        []string{"image", "audio", "video", "pdf"},
 				"description": "Type of media analysis to perform",
 			},
 			"prompt": map[string]any{
 				"type":        "string",
 				"description": "Analysis prompt for the media content",
 			},
-			"recursive": map[string]any{
-				"type":        "boolean",
-				"default":     false,
-				"description": "Process directories recursively",
-			},
-			"word_count": map[string]any{
-				"type":        "integer",
-				"minimum":     MinWordCount,
-				"maximum":     MaxWordCount,
-				"default":     DefaultWordCount,
-				"description": "Target word count for analysis",
-			},
-			"audio_mode": map[string]any{
+			"pdf_pages": map[string]any{
 				"type":        "string",
-				"enum":        []string{"transcript", "description"},
-				"description": "Audio analysis mode (required for audio type)",
+				"description": "PDF page selection: single page '5' or ranges '1-3,7,10-12' (PDF only)",
 			},
-			"video_mode": map[string]any{
+			"video_interval": map[string]any{
 				"type":        "string",
-				"enum":        []string{"description"},
-				"description": "Video analysis mode (required for video type)",
+				"description": "Video time interval: timestamps '00:20:50-00:26:10' or '20:50-26:10' (video only)",
 			},
 		},
-		Required: []string{"media_type", "prompt"},
+		Required: []string{"file_path", "media_type", "prompt"},
 	}
 }
 
@@ -163,61 +142,39 @@ func (r *readMediaTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 }
 
 func (r *readMediaTool) validateParams(params ReadMediaParams) error {
-	// Validate mutually exclusive file/directory paths
-	if params.FilePath != "" && params.DirectoryPath != "" {
-		return fmt.Errorf("cannot specify both file_path and directory_path")
-	}
-
-	if params.FilePath == "" && params.DirectoryPath == "" {
-		return fmt.Errorf("must specify either file_path or directory_path")
+	// Validate file_path is provided
+	if params.FilePath == "" {
+		return fmt.Errorf("file_path is required")
 	}
 
 	// Validate analysis type
-	if params.MediaType != "image" && params.MediaType != "audio" && params.MediaType != "video" {
-		return fmt.Errorf("media_type must be 'image', 'audio', or 'video'")
+	if params.MediaType != "image" && params.MediaType != "audio" && params.MediaType != "video" && params.MediaType != "pdf" {
+		return fmt.Errorf("media_type must be 'image', 'audio', 'video', or 'pdf'")
 	}
 
-	// Validate type-specific requirements
-	if params.MediaType == "audio" && params.AudioMode == "" {
-		return fmt.Errorf("audio_mode is required when media_type is 'audio'")
-	}
-
-	if params.MediaType == "video" && params.VideoMode == "" {
-		return fmt.Errorf("video_mode is required when media_type is 'video'")
-	}
-
-	// Validate audio mode
-	if params.AudioMode != "" && params.AudioMode != "transcript" && params.AudioMode != "description" {
-		return fmt.Errorf("audio_mode must be 'transcript' or 'description'")
-	}
-
-	// Validate video mode
-	if params.VideoMode != "" && params.VideoMode != "description" {
-		return fmt.Errorf("video_mode must be 'description'")
-	}
-
-	// Validate word count
-	if params.WordCount != 0 && (params.WordCount < MinWordCount || params.WordCount > MaxWordCount) {
-		return fmt.Errorf("word_count must be between %d and %d", MinWordCount, MaxWordCount)
-	}
-
-	// Validate paths are absolute (skip for URLs)
-	targetPath := params.FilePath
-	if targetPath == "" {
-		targetPath = params.DirectoryPath
-	}
-
-	// Skip absolute path validation for URLs (YouTube, etc.)
-	if params.FilePath != "" && isURL(params.FilePath) {
-		// URLs are only supported for video media type
-		if params.MediaType != "video" {
-			return fmt.Errorf("URLs are only supported for video media type")
+	// Validate PDF pages parameter
+	if params.PdfPages != "" {
+		if params.MediaType != "pdf" {
+			return fmt.Errorf("pdf_pages parameter can only be used with media_type 'pdf'")
 		}
-		return nil
+		if err := ValidatePageSelection(params.PdfPages); err != nil {
+			return fmt.Errorf("invalid pdf_pages parameter: %w", err)
+		}
 	}
 
-	if !filepath.IsAbs(targetPath) {
-		return fmt.Errorf("file_path and directory_path must be absolute paths")
+	// Validate video interval parameter
+	if params.VideoInterval != "" {
+		if params.MediaType != "video" {
+			return fmt.Errorf("video_interval parameter can only be used with media_type 'video'")
+		}
+		if _, _, err := parseVideoInterval(params.VideoInterval); err != nil {
+			return fmt.Errorf("invalid video_interval parameter: %w", err)
+		}
+	}
+
+	// Validate path is absolute for local files (skip for URLs)
+	if !isURL(params.FilePath) && !filepath.IsAbs(params.FilePath) {
+		return fmt.Errorf("file_path must be an absolute path")
 	}
 
 	return nil
@@ -243,69 +200,17 @@ func (r *readMediaTool) validateGeminiAPIKey(ctx context.Context) error {
 }
 
 func (r *readMediaTool) getFilesToProcess(params ReadMediaParams) ([]string, error) {
-	var files []string
-
-	if params.FilePath != "" {
-		// Check if it's a URL (YouTube, etc.)
-		if isURL(params.FilePath) {
-			// For URLs, just return the URL as the "file" to process
-			files = append(files, params.FilePath)
-		} else {
-			// Single local file
-			if r.isSupportedFile(params.FilePath, params.MediaType) {
-				files = append(files, params.FilePath)
-			}
-		}
-	} else {
-		// Directory processing
-		var err error
-		files, err = r.findSupportedFiles(params.DirectoryPath, params.MediaType, params.Recursive)
-		if err != nil {
-			return nil, err
-		}
+	// For URLs, return as-is
+	if isURL(params.FilePath) {
+		return []string{params.FilePath}, nil
 	}
 
-	return files, nil
-}
-
-func (r *readMediaTool) findSupportedFiles(dirPath string, mediaType string, recursive bool) ([]string, error) {
-	var files []string
-	var supportedExts []string
-
-	switch mediaType {
-	case "image":
-		supportedExts = supportedImageTypes
-	case "audio":
-		supportedExts = supportedAudioTypes
-	case "video":
-		supportedExts = supportedVideoTypes
+	// For local files, validate support
+	if !r.isSupportedFile(params.FilePath, params.MediaType) {
+		return nil, fmt.Errorf("unsupported file type for media_type '%s': %s", params.MediaType, params.FilePath)
 	}
 
-	walkFn := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			if !recursive && path != dirPath {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		ext := strings.ToLower(filepath.Ext(path))
-		for _, supportedExt := range supportedExts {
-			if ext == supportedExt {
-				files = append(files, path)
-				break
-			}
-		}
-
-		return nil
-	}
-
-	err := filepath.Walk(dirPath, walkFn)
-	return files, err
+	return []string{params.FilePath}, nil
 }
 
 func (r *readMediaTool) isSupportedFile(filePath string, mediaType string) bool {
@@ -326,6 +231,12 @@ func (r *readMediaTool) isSupportedFile(filePath string, mediaType string) bool 
 		}
 	case "video":
 		for _, supportedExt := range supportedVideoTypes {
+			if ext == supportedExt {
+				return true
+			}
+		}
+	case "pdf":
+		for _, supportedExt := range supportedPDFTypes {
 			if ext == supportedExt {
 				return true
 			}
@@ -359,20 +270,75 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		return result
 	}
 
-	// Prepare analysis prompt
-	analysisPrompt := r.buildAnalysisPrompt(params)
+	// Use the prompt directly
+	analysisPrompt := params.Prompt
+
+	// Parse video interval if provided
+	var startOffset, endOffset string
+	var videoTruncated bool
+	if params.VideoInterval != "" {
+		var err error
+		startOffset, endOffset, err = parseVideoInterval(params.VideoInterval)
+		if err != nil {
+			result.Error = fmt.Sprintf("Error parsing video interval: %s", err)
+			return result
+		}
+	} else if params.MediaType == "video" {
+		// Auto-truncate videos to first 10 minutes when no interval specified
+		startOffset = "0s"
+		endOffset = "600s" // 10 minutes = 600 seconds
+		videoTruncated = true
+	}
+
+	// Append truncation notice if video was auto-truncated
+	if videoTruncated {
+		analysisPrompt += "\n\nNote: This video has been truncated to the first 10 minutes."
+	}
 
 	// Create message with appropriate content type
 	var userMessage message.Message
-	if isURL(filePath) && (strings.Contains(filePath, "youtube.com") || strings.Contains(filePath, "youtu.be")) {
+	if isURL(filePath) && isYouTubeURL(filePath) {
 		// For YouTube URLs, use URIContent with native Gemini support
 		userMessage = message.Message{
 			Role: message.User,
 			Parts: []message.ContentPart{
 				message.TextContent{Text: analysisPrompt},
 				message.URIContent{
-					URI:      filePath,
-					MIMEType: "video/mp4", // YouTube videos are treated as MP4 by Gemini
+					URI:         filePath,
+					MIMEType:    "video/mp4", // YouTube videos are treated as MP4 by Gemini
+					StartOffset: startOffset,
+					EndOffset:   endOffset,
+				},
+			},
+		}
+	} else if isURL(filePath) {
+		// For all other URLs, download to memory and use BinaryContent
+		fileData, mimeType, err := r.downloadURLToMemory(filePath)
+		if err != nil {
+			result.Error = fmt.Sprintf("Error downloading from URL: %s", err)
+			return result
+		}
+
+		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
+		if params.MediaType == "pdf" {
+			var err error
+			fileData, analysisPrompt, err = processPDFContent(fileData, params.PdfPages, analysisPrompt)
+			if err != nil {
+				result.Error = fmt.Sprintf("Error extracting PDF pages from URL: %s", err)
+				return result
+			}
+		}
+
+		userMessage = message.Message{
+			Role: message.User,
+			Parts: []message.ContentPart{
+				message.TextContent{Text: analysisPrompt},
+				message.BinaryContent{
+					Path:        filePath,
+					MIMEType:    mimeType,
+					Data:        fileData,
+					StartOffset: startOffset,
+					EndOffset:   endOffset,
 				},
 			},
 		}
@@ -384,14 +350,26 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 			return result
 		}
 
+		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
+		if params.MediaType == "pdf" {
+			var err error
+			fileData, analysisPrompt, err = processPDFContent(fileData, params.PdfPages, analysisPrompt)
+			if err != nil {
+				result.Error = fmt.Sprintf("Error extracting PDF pages: %s", err)
+				return result
+			}
+		}
+
 		userMessage = message.Message{
 			Role: message.User,
 			Parts: []message.ContentPart{
 				message.TextContent{Text: analysisPrompt},
 				message.BinaryContent{
-					Path:     filePath,
-					MIMEType: mimeType,
-					Data:     fileData,
+					Path:        filePath,
+					MIMEType:    mimeType,
+					Data:        fileData,
+					StartOffset: startOffset,
+					EndOffset:   endOffset,
 				},
 			},
 		}
@@ -422,20 +400,34 @@ func (r *readMediaTool) readFileContent(filePath string) ([]byte, string, error)
 	}
 
 	// Detect MIME type
-	mimeType := mime.TypeByExtension(filepath.Ext(filePath))
+	mimeType := detectMIMEType(filePath)
+
+	return data, mimeType, nil
+}
+
+func (r *readMediaTool) downloadURLToMemory(url string) ([]byte, string, error) {
+	// Download the media file from URL
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to download from URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check for HTTP errors
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("failed to download: HTTP %d", resp.StatusCode)
+	}
+
+	// Read the response body
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read data: %w", err)
+	}
+
+	// Get MIME type from Content-Type header, fallback to extension-based detection
+	mimeType := resp.Header.Get("Content-Type")
 	if mimeType == "" {
-		// Fallback MIME type detection
-		ext := strings.ToLower(filepath.Ext(filePath))
-		switch {
-		case contains(supportedImageTypes, ext):
-			mimeType = "image/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedAudioTypes, ext):
-			mimeType = "audio/" + strings.TrimPrefix(ext, ".")
-		case contains(supportedVideoTypes, ext):
-			mimeType = "video/" + strings.TrimPrefix(ext, ".")
-		default:
-			mimeType = "application/octet-stream"
-		}
+		mimeType = detectMIMEType(url)
 	}
 
 	return data, mimeType, nil
@@ -470,29 +462,6 @@ func (r *readMediaTool) createGeminiProvider() (interfaces.Provider, error) {
 	}
 
 	return geminiProvider, nil
-}
-
-func (r *readMediaTool) buildAnalysisPrompt(params ReadMediaParams) string {
-	wordCount := params.WordCount
-	if wordCount == 0 {
-		wordCount = DefaultWordCount
-	}
-
-	var promptPrefix string
-	switch params.MediaType {
-	case "image":
-		promptPrefix = "Analyze this image and "
-	case "audio":
-		if params.AudioMode == "transcript" {
-			promptPrefix = "Provide an accurate transcription of this audio content. "
-		} else {
-			promptPrefix = "Analyze this audio content and describe "
-		}
-	case "video":
-		promptPrefix = "Analyze this video content, describing both visual and audio elements. "
-	}
-
-	return fmt.Sprintf("%s%s\n\nPlease provide approximately %d words in your response.", promptPrefix, params.Prompt, wordCount)
 }
 
 func (r *readMediaTool) sendToGemini(ctx context.Context, geminiProvider interfaces.Provider, userMessage message.Message) (string, error) {
@@ -535,6 +504,50 @@ func (r *readMediaTool) generateSummary(results []ReadMediaResult) string {
 	return fmt.Sprintf("Analyzed %d file(s) successfully, %d failed.", successCount, errorCount)
 }
 
+// detectMIMEType detects the MIME type for a file path or URL
+func detectMIMEType(path string) string {
+	// Try standard MIME type detection first
+	mimeType := mime.TypeByExtension(filepath.Ext(path))
+	if mimeType != "" {
+		return mimeType
+	}
+
+	// Fallback to extension-based detection
+	ext := strings.ToLower(filepath.Ext(path))
+	switch {
+	case contains(supportedImageTypes, ext):
+		return "image/" + strings.TrimPrefix(ext, ".")
+	case contains(supportedAudioTypes, ext):
+		return "audio/" + strings.TrimPrefix(ext, ".")
+	case contains(supportedVideoTypes, ext):
+		return "video/" + strings.TrimPrefix(ext, ".")
+	case contains(supportedPDFTypes, ext):
+		return "application/pdf"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+// processPDFContent handles PDF page extraction and appends truncation notice if needed
+func processPDFContent(fileData []byte, pdfPages string, analysisPrompt string) ([]byte, string, error) {
+	extractedData, truncated, err := ExtractPDFPages(fileData, pdfPages)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Append truncation notice to prompt if PDF was auto-truncated
+	if truncated {
+		analysisPrompt += "\n\nNote: This PDF has been truncated at the tenth page."
+	}
+
+	return extractedData, analysisPrompt, nil
+}
+
+// Helper function to check if a URL is a YouTube URL
+func isYouTubeURL(url string) bool {
+	return strings.Contains(url, "youtube.com") || strings.Contains(url, "youtu.be")
+}
+
 // Helper function to check if a slice contains a string
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
@@ -543,4 +556,83 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// parseTimestamp converts a timestamp string (HH:MM:SS or MM:SS) to seconds
+func parseTimestamp(timestamp string) (int, error) {
+	parts := strings.Split(timestamp, ":")
+
+	var hours, minutes, seconds int
+	var err error
+
+	switch len(parts) {
+	case 2:
+		// MM:SS format
+		minutes, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, fmt.Errorf("invalid minutes: %w", err)
+		}
+		seconds, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return 0, fmt.Errorf("invalid seconds: %w", err)
+		}
+	case 3:
+		// HH:MM:SS format
+		hours, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, fmt.Errorf("invalid hours: %w", err)
+		}
+		minutes, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return 0, fmt.Errorf("invalid minutes: %w", err)
+		}
+		seconds, err = strconv.Atoi(parts[2])
+		if err != nil {
+			return 0, fmt.Errorf("invalid seconds: %w", err)
+		}
+	default:
+		return 0, fmt.Errorf("timestamp must be in HH:MM:SS or MM:SS format")
+	}
+
+	// Validate ranges
+	if minutes < 0 || minutes >= 60 {
+		return 0, fmt.Errorf("minutes must be between 0 and 59")
+	}
+	if seconds < 0 || seconds >= 60 {
+		return 0, fmt.Errorf("seconds must be between 0 and 59")
+	}
+	if hours < 0 {
+		return 0, fmt.Errorf("hours must be non-negative")
+	}
+
+	totalSeconds := hours*3600 + minutes*60 + seconds
+	return totalSeconds, nil
+}
+
+// parseVideoInterval parses a video interval string and returns start/end offsets in Gemini format
+func parseVideoInterval(interval string) (string, string, error) {
+	parts := strings.Split(interval, "-")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("video_interval must be in format 'start-end' (e.g., '00:20:50-00:26:10')")
+	}
+
+	startTimestamp := strings.TrimSpace(parts[0])
+	endTimestamp := strings.TrimSpace(parts[1])
+
+	startSeconds, err := parseTimestamp(startTimestamp)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid start timestamp: %w", err)
+	}
+
+	endSeconds, err := parseTimestamp(endTimestamp)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid end timestamp: %w", err)
+	}
+
+	if startSeconds >= endSeconds {
+		return "", "", fmt.Errorf("start timestamp must be before end timestamp")
+	}
+
+	// Format as Gemini API expects: "1250s", "1570s"
+	return fmt.Sprintf("%ds", startSeconds), fmt.Sprintf("%ds", endSeconds), nil
 }

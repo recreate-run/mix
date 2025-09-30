@@ -9,4 +9,5 @@ export const CACHE_KEYS = {
   toolsStatus: ['tools', 'status'] as const,
   animationSchema: (animationName: string) => ['gsap', 'animation', 'schema', animationName] as const,
   animationList: ['gsap', 'animations'] as const,
+  csvData: (url: string) => ['csv', 'data', url] as const,
 } as const;
