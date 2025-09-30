@@ -58,6 +58,9 @@
       "endpoints": [
         "https://api.github.com/repos/recreate-run/mix/releases/latest/download/latest.json"
       ]
+    },
+    "shell": {
+      "open": "((mailto:\\w+)|(tel:\\w+)|(https?://\\w+)).+|(\\./|/|file://|[A-Za-z]:[/\\\\]).+"
     }
   }
 }
