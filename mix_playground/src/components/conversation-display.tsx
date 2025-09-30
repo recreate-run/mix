@@ -19,7 +19,7 @@ const getMediaSrc = (path: string, sessionId: string): string => {
   }
   return convertToAssetServerUrl(path, sessionId);
 };
-import { Check, Copy, Download, Pencil } from 'lucide-react';
+import { Check, Copy, Download, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -629,8 +629,10 @@ export function ConversationDisplay({
                           onClick={() => onEditMessage(index)}
                           size="sm"
                           variant="ghost"
+                          title="Rewind to this message"
+                          aria-label="Rewind conversation to this message"
                         >
-                          <Pencil className="size-4" />
+                          <Undo2 className="size-4" />
                         </Button>
                       )}
                     </AIMessageContent.Toolbar>
