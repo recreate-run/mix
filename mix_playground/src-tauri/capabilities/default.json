@@ -60,12 +60,8 @@
       "allow": [{ "path": "$HOME/**/*" }]
     },
     {
-      "identifier": "shell:allow-open",
-      "allow": [
-        {
-          "validator": "^((mailto:\\w+)|(tel:\\w+)|(https?://\\w+)).+|^(\\.?/|file://|[A-Za-z]:[/\\\\])"
-        }
-      ]
+      "identifier": "shell:allow-open"
+  
     }
   ]
 }
