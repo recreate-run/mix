@@ -68,6 +68,7 @@ func (p *SupabaseProvider) Upload(ctx context.Context, key string, data io.Reade
 
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("x-upsert", "true") // Allow overwriting existing files
 	req.ContentLength = size
 
 	resp, err := p.httpClient.Do(req)
