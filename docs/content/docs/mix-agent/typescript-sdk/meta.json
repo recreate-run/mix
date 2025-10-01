@@ -1,9 +1,0 @@
-{
-  "title": "TypeScript SDK",
-  "description": "Documentation for the Mix TypeScript SDK",
-  "icon": "FileJs",
-  "pages": [
-    "quickstart",
-    "examples"
-  ]
-}
