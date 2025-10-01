@@ -38,13 +38,13 @@ function Footer({
             <h3 className="text-lg font-medium">Resources</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/docs/mix-agent" className="text-muted-foreground hover:text-primary">Mix Agent</Link>
+                <Link href="/docs" className="text-muted-foreground hover:text-primary">Documentation</Link>
               </li>
               <li>
-                <Link href="/docs/mix-playground" className="text-muted-foreground hover:text-primary">Mix Playground</Link>
+                <Link href="/blog" className="text-muted-foreground hover:text-primary">Blog</Link>
               </li>
               <li>
-                <Link href="/docs/sdk" className="text-muted-foreground hover:text-primary">SDK</Link>
+                <Link href="/docs/api" className="text-muted-foreground hover:text-primary">API Reference</Link>
               </li>
               <li>
                 <Link href={config.links.github} className="text-muted-foreground hover:text-primary">GitHub</Link>
