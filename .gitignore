@@ -70,12 +70,16 @@ temp/
 *.temp
 
 **/*.db
+**/*.db-shm
+**/*.db-wal
 fumadocs-dev/
 .claude/settings.local.json
 
+# Mix data directories (except docs/content/docs/mix which should be tracked)
+.mix/
+**/internal/**/.mix/
+**/integration_tests/**/.mix/
 
-# **/*mix/
-# .mix.json
 storage/
 
 planning/
