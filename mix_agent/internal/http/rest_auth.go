@@ -114,7 +114,6 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 	// Track successful authentication
 	if h.app.Analytics != nil {
 		h.app.Analytics.TrackProviderAuth(ctx, string(provider), true, "api_key")
-		logging.Info("Tracked successful API key authentication", "provider", provider)
 	}
 
 	response := map[string]interface{}{
@@ -181,8 +180,6 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 	if provider == "anthropic" || provider == "openai" {
 		if err := credentialsService.DeleteOAuthCredentials(ctx, provider); err != nil {
 			logging.Warn("Failed to delete OAuth credentials", "error", err, "provider", provider)
-		} else {
-			logging.Info("OAuth credentials deleted successfully", "provider", provider)
 		}
 	}
 
@@ -454,7 +451,6 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	if h.app.Analytics != nil {
 		ctx := r.Context()
 		h.app.Analytics.TrackProviderAuth(ctx, req.Provider, true, "oauth")
-		logging.Info("Tracked successful OAuth authentication", "provider", req.Provider)
 	}
 
 	// Return success response

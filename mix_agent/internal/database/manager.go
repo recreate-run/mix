@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
-	"mix/internal/logging"
 )
 
 // Manager manages database connections through providers
@@ -35,8 +33,6 @@ func NewManager(config Config) (*Manager, error) {
 
 // Connect establishes a database connection and runs migrations
 func (m *Manager) Connect(ctx context.Context) error {
-	logging.Info("Using database provider", "type", m.provider.Type())
-
 	// Connect to the database
 	if err := m.provider.Connect(ctx); err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)

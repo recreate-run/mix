@@ -49,7 +49,6 @@ func (p *SQLiteProvider) Connect(ctx context.Context) error {
 	dbPath := filepath.Join(p.config.DataDir, filename)
 
 	// Open the SQLite database
-	logging.Info("Connecting to SQLite database", "path", dbPath)
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)

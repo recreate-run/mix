@@ -1,5 +1,6 @@
-import { IconTrash } from '@tabler/icons-react';
+import { IconTrash, IconFolder } from '@tabler/icons-react';
 import { ask } from '@tauri-apps/plugin-dialog';
+import { open } from '@tauri-apps/plugin-shell';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -51,6 +52,18 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
     }
   };
 
+  const handleOpenFolder = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // Open the session's storage directory in system file manager
+      const storagePath = `/Users/vaibhavagarwal/Documents/recreate/mix/storage/${session.id}`;
+      console.log('Opening storage path:', storagePath);
+      await open(storagePath);
+    } catch (error) {
+      console.error('Failed to open storage folder:', error);
+    }
+  };
+
 
   const formatDate = (date: Date) => {
     const now = new Date();
@@ -71,7 +84,7 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
       className={`group/session-item overflow-hidden ${session.isDeleting ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
         }`}
     >
-      <div className="flex transition-transform duration-200 ease-out translate-x-0 will-change-transform group-hover/session-item:translate-x-[-40px]">
+      <div className="flex transition-transform duration-200 ease-out translate-x-0 will-change-transform group-hover/session-item:translate-x-[-80px]">
         <SidebarMenuButton
           className="flex h-auto hover:bg-transparent flex-col items-start gap-1 py-2 pr-2 min-h-[60px] w-full flex-shrink-0"
           isActive={isActive}
@@ -87,10 +100,19 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
           </div>
         </SidebarMenuButton>
         <Button
-          className=" bg-red-500 hover:bg-red-500 flex-shrink-0 min-h-[60px] flex items-center justify-center cursor-pointer"
+          className="bg-blue-500 hover:bg-blue-600 flex-shrink-0 min-h-[60px] flex items-center justify-center cursor-pointer"
+          onClick={handleOpenFolder}
+          size="icon"
+          title="Open storage folder"
+        >
+          <IconFolder />
+        </Button>
+        <Button
+          className="bg-red-500 hover:bg-red-500 flex-shrink-0 min-h-[60px] flex items-center justify-center cursor-pointer"
           disabled={deleteSessionMutation.isPending || session.isDeleting}
           onClick={handleDelete}
           size="icon"
+          title="Delete session"
         >
           <IconTrash />
         </Button>

@@ -21,10 +21,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { logoutProvider } from "@/handlers/logout-command-handler";
 import { authenticateWithApiKey, startOAuthFlow } from "@/handlers/login-command-handler";
 import { useProviders } from "@/hooks/useProviders";
+import { useToolsStatus } from "@/hooks/useTools";
 import { ProvidersLoadingSkeleton } from "@/components/provider-skeleton";
 import { OAuthCodeDialog } from "@/components/oauth-code-dialog";
-import { WebSearchToolsCard } from "@/components/web-search-tools-card";
-import { MultimodalAnalyzersCard } from "@/components/multimodal-analyzers-card";
+import { ToolCard } from "@/components/tool-card";
+import { Search, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -39,12 +40,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Fetch providers with TanStack Query
   const { data: allProviders = [], isLoading: loadingProviders, refetch } = useProviders();
 
+  // Fetch tools status
+  const { data: toolsStatus, isLoading: loadingTools } = useToolsStatus();
+
   // Login/logout state
   const [loggingOutProvider, setLoggingOutProvider] = useState<string | null>(null);
   const [loginInProgress, setLoginInProgress] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [selectedAuthMethod, setSelectedAuthMethod] = useState<Record<string, 'api_key' | 'oauth'>>({});
-  
+
   // OAuth code dialog state
   const [oauthCodeDialog, setOauthCodeDialog] = useState<{
     open: boolean;
@@ -133,7 +137,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
               await shellOpen(authUrl);
               toast.info('OAuth browser opened. Please complete authentication in the browser.');
-              
+
               // Show OAuth code dialog after opening browser
               setOauthCodeDialog({
                 open: true,
@@ -145,7 +149,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               try {
                 window.open(authUrl, '_blank', 'width=600,height=800');
                 toast.info('OAuth window opened. Please complete authentication in the new window.');
-                
+
                 // Show OAuth code dialog after opening browser
                 setOauthCodeDialog({
                   open: true,
@@ -185,184 +189,198 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Settings
-          </DialogTitle>
-          <DialogDescription>
-            Manage your providers, tools, and authentication settings.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Settings
+            </DialogTitle>
+            <DialogDescription>
+              Manage your providers, tools, and authentication settings.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="overflow-y-auto max-h-[60vh] min-h-[500px] space-y-6">
-          {/* Providers Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <IconServer className="h-5 w-5" />
-                <CardTitle>AI Providers</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingProviders ? (
-                <ProvidersLoadingSkeleton />
-              ) : allProviders.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">
-                    No providers available.
-                  </p>
+          <div className="overflow-y-auto max-h-[60vh] min-h-[500px] space-y-6">
+            {/* Providers Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <IconServer className="h-5 w-5" />
+                  <CardTitle>AI Providers</CardTitle>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {allProviders.map((provider) => (
-                    <div
-                      key={provider.id}
-                      className="p-4 border rounded-lg"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{provider.displayName}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            {provider.authenticated ? (
-                              <>
-                                <Badge variant="outline" className="text-xs text-green-600 border-green-600">
-                                  ✓ Authenticated
-                                </Badge>
-                                {provider.isPreferred && (
-                                  <Badge variant="default" className="text-xs">
-                                    Preferred
+              </CardHeader>
+              <CardContent>
+                {loadingProviders ? (
+                  <ProvidersLoadingSkeleton />
+                ) : allProviders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">
+                      No providers available.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {allProviders.map((provider) => (
+                      <div
+                        key={provider.id}
+                        className="p-4 border rounded-lg"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{provider.displayName}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {provider.authenticated ? (
+                                <>
+                                  <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                                    ✓ Authenticated
                                   </Badge>
-                                )}
-                              </>
-                            ) : (
-                              <Badge variant="outline" className="text-xs text-muted-foreground">
-                                Not authenticated
-                              </Badge>
-                            )}
+                                  {provider.isPreferred && (
+                                    <Badge variant="default" className="text-xs">
+                                      Preferred
+                                    </Badge>
+                                  )}
+                                </>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  Not authenticated
+                                </Badge>
+                              )}
+                            </div>
                           </div>
+
+                          {provider.authenticated ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleProviderLogout(provider.id)}
+                              disabled={!!loggingOutProvider}
+                              className="flex items-center gap-2"
+                            >
+                              {loggingOutProvider === provider.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <IconLogout className="h-4 w-4" />
+                              )}
+                              Logout
+                            </Button>
+                          ) : null}
                         </div>
 
-                        {provider.authenticated ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleProviderLogout(provider.id)}
-                            disabled={!!loggingOutProvider}
-                            className="flex items-center gap-2"
-                          >
-                            {loggingOutProvider === provider.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <IconLogout className="h-4 w-4" />
-                            )}
-                            Logout
-                          </Button>
-                        ) : null}
-                      </div>
-
-                      {!provider.authenticated && (
-                        <div className="mt-4 space-y-3">
-                          {/* Authentication method selection */}
-                          {provider.authMethods.length > 1 && (
-                            <div>
-                              <Label className="text-sm font-medium">Authentication Method</Label>
-                              <RadioGroup
-                                value={selectedAuthMethod[provider.id] || provider.authMethods[0]}
-                                onValueChange={(value: string) => handleAuthMethodChange(provider.id, value as 'api_key' | 'oauth')}
-                                className="flex gap-6 mt-2"
-                              >
-                                {provider.authMethods.includes('api_key') && (
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="api_key" id={`${provider.id}-api-key`} />
-                                    <Label htmlFor={`${provider.id}-api-key`} className="text-sm">API Key</Label>
-                                  </div>
-                                )}
-                                {provider.authMethods.includes('oauth') && (
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="oauth" id={`${provider.id}-oauth`} />
-                                    <Label htmlFor={`${provider.id}-oauth`} className="text-sm">OAuth</Label>
-                                  </div>
-                                )}
-                              </RadioGroup>
-                            </div>
-                          )}
-
-                          {/* API Key input or OAuth button */}
-                          <div>
-                            {(selectedAuthMethod[provider.id] || provider.authMethods[0]) === 'api_key' ? (
-                              <div className="space-y-2">
-                                <Label htmlFor={`${provider.id}-key`} className="text-sm font-medium">
-                                  API Key {provider.apiKeyFormat && (
-                                    <span className="text-xs text-muted-foreground">({provider.apiKeyFormat})</span>
+                        {!provider.authenticated && (
+                          <div className="mt-4 space-y-3">
+                            {/* Authentication method selection */}
+                            {provider.authMethods.length > 1 && (
+                              <div>
+                                <Label className="text-sm font-medium">Authentication Method</Label>
+                                <RadioGroup
+                                  value={selectedAuthMethod[provider.id] || provider.authMethods[0]}
+                                  onValueChange={(value: string) => handleAuthMethodChange(provider.id, value as 'api_key' | 'oauth')}
+                                  className="flex gap-6 mt-2"
+                                >
+                                  {provider.authMethods.includes('api_key') && (
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="api_key" id={`${provider.id}-api-key`} />
+                                      <Label htmlFor={`${provider.id}-api-key`} className="text-sm">API Key</Label>
+                                    </div>
                                   )}
-                                </Label>
-                                <div className="flex gap-2">
-                                  <Input
-                                    id={`${provider.id}-key`}
-                                    type="password"
-                                    placeholder={provider.apiKeyFormat || "Enter API key..."}
-                                    value={apiKeys[provider.id] || ''}
-                                    onChange={(e) => handleApiKeyChange(provider.id, e.target.value)}
-                                    disabled={loginInProgress[provider.id]}
-                                    className="flex-1"
-                                  />
+                                  {provider.authMethods.includes('oauth') && (
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="oauth" id={`${provider.id}-oauth`} />
+                                      <Label htmlFor={`${provider.id}-oauth`} className="text-sm">OAuth</Label>
+                                    </div>
+                                  )}
+                                </RadioGroup>
+                              </div>
+                            )}
+
+                            {/* API Key input or OAuth button */}
+                            <div>
+                              {(selectedAuthMethod[provider.id] || provider.authMethods[0]) === 'api_key' ? (
+                                <div className="space-y-2">
+                                  <Label htmlFor={`${provider.id}-key`} className="text-sm font-medium">
+                                    API Key {provider.apiKeyFormat && (
+                                      <span className="text-xs text-muted-foreground">({provider.apiKeyFormat})</span>
+                                    )}
+                                  </Label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      id={`${provider.id}-key`}
+                                      type="password"
+                                      placeholder={provider.apiKeyFormat || "Enter API key..."}
+                                      value={apiKeys[provider.id] || ''}
+                                      onChange={(e) => handleApiKeyChange(provider.id, e.target.value)}
+                                      disabled={loginInProgress[provider.id]}
+                                      className="flex-1"
+                                    />
+                                    <Button
+                                      onClick={() => handleLogin(provider.id)}
+                                      disabled={loginInProgress[provider.id] || !apiKeys[provider.id]?.trim()}
+                                      size="sm"
+                                      className="flex items-center gap-2"
+                                    >
+                                      {loginInProgress[provider.id] ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <IconLogin className="h-4 w-4" />
+                                      )}
+                                      Login
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
                                   <Button
                                     onClick={() => handleLogin(provider.id)}
-                                    disabled={loginInProgress[provider.id] || !apiKeys[provider.id]?.trim()}
-                                    size="sm"
+                                    disabled={loginInProgress[provider.id]}
                                     className="flex items-center gap-2"
+                                    size="sm"
                                   >
                                     {loginInProgress[provider.id] ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
                                       <IconLogin className="h-4 w-4" />
                                     )}
-                                    Login
+                                    Connect with OAuth
                                   </Button>
                                 </div>
-                              </div>
-                            ) : (
-                              <div>
-                                <Button
-                                  onClick={() => handleLogin(provider.id)}
-                                  disabled={loginInProgress[provider.id]}
-                                  className="flex items-center gap-2"
-                                  size="sm"
-                                >
-                                  {loginInProgress[provider.id] ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <IconLogin className="h-4 w-4" />
-                                  )}
-                                  Connect with OAuth
-                                </Button>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Tools & Agents Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold">Tools & Agents</h3>
+            {/* Tools & Agents Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Tools & Subagents</h3>
+              </div>
+
+              {!loadingTools && toolsStatus?.categories && Object.entries(toolsStatus.categories).map(([categoryId, category]) => {
+                // Map category IDs to icons
+                const categoryIcons: Record<string, React.ReactNode> = {
+                  web_search: <Search className="h-5 w-5" />,
+                  multimodal_analyzer: <Eye className="h-5 w-5" />,
+                };
+
+                return (
+                  <ToolCard
+                    key={categoryId}
+                    categoryDisplayName={category.displayName}
+                    icon={categoryIcons[categoryId] || <Settings className="h-5 w-5" />}
+                    tools={category.tools}
+                  />
+                );
+              })}
             </div>
-            
-            <WebSearchToolsCard />
-            <MultimodalAnalyzersCard />
           </div>
-        </div>
-      </DialogContent>
+        </DialogContent>
       </Dialog>
-      
+
       {/* OAuth Code Dialog */}
       <OAuthCodeDialog
         open={oauthCodeDialog.open}

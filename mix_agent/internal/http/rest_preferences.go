@@ -65,7 +65,6 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 	if err != nil {
 		// If preferences don't exist, return an empty response with available providers
 		if err == sql.ErrNoRows {
-			logging.Info("No user preferences found, returning empty preferences")
 			WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
 				"preferences":         nil,
 				"available_providers": models.GetProviders(),
@@ -124,7 +123,6 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 	if err != nil {
 		// If preferences don't exist, create default ones
 		if err == sql.ErrNoRows {
-			logging.Info("No user preferences found, creating defaults")
 			currentPrefs, err = userPrefs.CreateDefaultUserPreferences(ctx)
 			if err != nil {
 				logging.Error("Failed to create default user preferences", "error", err)
@@ -289,7 +287,6 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 	
 	// Clear all cached session providers to ensure new sessions use updated preferences
 	if coderAgent != nil {
-		logging.Info("Clearing all session provider caches due to preference update")
 		coderAgent.ClearAllSessionProviders()
 	} else {
 		logging.Warn("Could not clear session provider cache: coderAgent is nil")

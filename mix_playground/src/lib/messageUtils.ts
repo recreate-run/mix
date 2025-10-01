@@ -134,6 +134,7 @@ const convertBackendMessageToUI = async (
   }
 
   return {
+    id: backendMessage.id,
     content: text,
     from: backendMessage.role === 'user' ? 'user' : 'assistant',
     toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,

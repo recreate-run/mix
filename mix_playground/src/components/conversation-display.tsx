@@ -19,9 +19,10 @@ const getMediaSrc = (path: string, sessionId: string): string => {
   }
   return convertToAssetServerUrl(path, sessionId);
 };
-import { Check, Copy, Pencil } from 'lucide-react';
+import { Check, Copy, Download, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   AIMessage,
   AIMessageContent,
@@ -72,17 +73,132 @@ type StreamingState = {
   };
 };
 
+// Helper to get file extension from media type and path
+const getFileExtension = (media: MediaOutput): string => {
+  // Try to extract extension from path first
+  const pathMatch = media.path.match(/\.([^./?#]+)(?:[?#]|$)/);
+  if (pathMatch) {
+    return `.${pathMatch[1]}`;
+  }
+
+  // Fallback to media type
+  const extensionMap: Record<string, string> = {
+    image: '.jpg',
+    video: '.mp4',
+    audio: '.mp3',
+    pdf: '.pdf',
+    csv: '.csv',
+    gsap_animation: '.json',
+  };
+
+  return extensionMap[media.type] || '';
+};
+
+// Media Download Button Component
+const MediaDownloadButton = ({ media, sessionId }: { media: MediaOutput; sessionId: string }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    // For YouTube videos, open in new tab instead of downloading
+    if (media.type === 'youtube') {
+      window.open(media.path, '_blank');
+      return;
+    }
+
+    setIsDownloading(true);
+
+    try {
+      // For GSAP animations, download the config as JSON
+      if (media.type === 'gsap_animation' && media.config) {
+        const configJson = JSON.stringify(media.config, null, 2);
+        const blob = new Blob([configJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const filename = `${media.title || 'animation'}.json`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success('Download complete', {
+          description: filename,
+        });
+
+        setIsDownloading(false);
+        return;
+      }
+
+      // For all other media types, fetch as blob and trigger download
+      const mediaUrl = getMediaSrc(media.path, sessionId);
+      const response = await fetch(mediaUrl);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch media: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      // Create filename with proper extension
+      const extension = getFileExtension(media);
+      const filename = media.title
+        ? (media.title.includes('.') ? media.title : `${media.title}${extension}`)
+        : `media${extension}`;
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Download complete', {
+        description: filename,
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Download failed', {
+        description: 'Opening in new tab instead',
+      });
+      // Fallback: try opening in new tab
+      const mediaUrl = getMediaSrc(media.path, sessionId);
+      window.open(mediaUrl, '_blank');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  return (
+    <Button
+      className="text-muted-foreground hover:text-foreground"
+      onClick={handleDownload}
+      size="sm"
+      variant="ghost"
+      title={media.type === 'youtube' ? 'Open in YouTube' : 'Download media'}
+      disabled={isDownloading}
+    >
+      <Download className="size-4" />
+    </Button>
+  );
+};
+
 // Main Media Player Component
 const MainMediaPlayer = ({ media, sessionId }: { media: MediaOutput; sessionId: string }) => {
   return (
     <div className="mb-2 space-y-2">
-      <div>
-        <h3 className="font-semibold">{media.title}</h3>
-        {media.description && (
-          <p className="mt-1 text-muted-foreground text-sm">
-            {media.description}
-          </p>
-        )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1">
+          <h3 className="font-semibold">{media.title}</h3>
+          {media.description && (
+            <p className="mt-1 text-muted-foreground text-sm">
+              {media.description}
+            </p>
+          )}
+        </div>
+        <MediaDownloadButton media={media} sessionId={sessionId} />
       </div>
 
       {media.type === 'image' && (
@@ -227,7 +343,7 @@ interface ConversationDisplayProps {
     action: 'proceed' | 'keep-planning',
     messageIndex: number
   ) => void;
-  onForkMessage?: (index: number) => void;
+  onEditMessage?: (index: number) => void;
   onUpdateMessage?: (index: number, updatedMessage: UIMessage) => void;
   setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
   sessionId?: string;
@@ -380,7 +496,7 @@ export function ConversationDisplay({
   messages,
   sseStream,
   onPlanAction,
-  onForkMessage,
+  onEditMessage,
   onUpdateMessage,
   setUserMessageRef,
   sessionId,
@@ -506,15 +622,17 @@ export function ConversationDisplay({
                     </AIMessageContent.Content>
                     <AIMessageContent.Toolbar>
                       <MessageCopyButton content={message.content} />
-                      {onForkMessage && (
+                      {onEditMessage && (
                         <Button
                           className="text-muted-foreground hover:text-foreground"
                           disabled={sseStream.processing}
-                          onClick={() => onForkMessage(index)}
+                          onClick={() => onEditMessage(index)}
                           size="sm"
                           variant="ghost"
+                          title="Rewind to this message"
+                          aria-label="Rewind conversation to this message"
                         >
-                          <Pencil className="size-4" />
+                          <Undo2 className="size-4" />
                         </Button>
                       )}
                     </AIMessageContent.Toolbar>

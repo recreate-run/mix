@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { IconDownload } from '@tabler/icons-react';
 import {
   AIInput,
   AIInputSubmit,
@@ -14,17 +15,15 @@ import {
   AIInputTools,
 } from '@/components/ui/kibo-ui/ai/input';
 import { useFileReference } from '@/hooks/useFileReference';
-import { useForkSession } from '@/hooks/useForkSession';
+import { useRewindSession } from '@/hooks/useRewindSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 // import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
 import { useActiveSession, useCreateSession } from '@/hooks/useSession';
 import { useSessionMessages } from '@/hooks/useSessionMessages';
 import { usePreferences, formatCurrentModel } from '@/hooks/usePreferences';
+import { useSessionExport } from '@/hooks/useSessionExport';
 import { useBoundStore } from '@/stores';
-import {
-  type Attachment,
-} from '@/stores/attachmentSlice';
 import { buildSessionFileUrl } from '@/utils/attachmentUtils';
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
@@ -34,6 +33,8 @@ import {
   shouldShowSlashCommands,
   slashCommands,
 } from '@/utils/slash-commands';
+import { getDisplayTitle } from '@/utils/sessionUtils';
+import { Button } from '@/components/ui/button';
 import { AttachmentPreview } from './attachment-preview';
 import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
@@ -68,11 +69,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // Mode toggles and session management
   const [isPlanMode, setIsPlanMode] = useState(false);
-  const pendingForkTextRef = useRef<{
-    text: string;
-    attachments: Attachment[];
-    referenceMap: Map<string, string>;
-  } | null>(null);
 
   // Component lifecycle refs
   const interruptedMessageAddedRef = useRef(false);
@@ -92,28 +88,18 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const sessionMessages = useSessionMessages(sessionId);
   const sseStream = usePersistentSSE(session?.id || '');
   // const { apps: openApps } = useAppList();
-  const forkSession = useForkSession();
+  const rewindSession = useRewindSession();
   const createSession = useCreateSession();
+  const exportSessionMutation = useSessionExport();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: preferences } = usePreferences();
 
-  // Handle session changes: fork text loading and UI state clearing
+  // Handle session changes: clear UI state when switching sessions
   useEffect(() => {
     if (session?.id && session.id !== previousSessionIdRef.current) {
-      // Handle pending fork first (deterministic order)
-      if (pendingForkTextRef.current) {
-        setText(pendingForkTextRef.current.text);
-        useBoundStore
-          .getState()
-          .setHistoryState(
-            pendingForkTextRef.current.attachments,
-            pendingForkTextRef.current.referenceMap
-          );
-        pendingForkTextRef.current = null;
-      }
-      // Then handle session clearing (only if no fork was processed and not initial load)
-      else if (previousSessionIdRef.current !== '') {
+      // Clear input when switching to a different session (but not on initial load)
+      if (previousSessionIdRef.current !== '') {
         setText('');
         clearAttachments();
         interruptedMessageAddedRef.current = false;
@@ -471,45 +457,71 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     // For 'keep-planning', no additional action needed
   };
 
-  // Handle forking conversation at a specific message
-  const handleForkMessage = async (messageIndex: number) => {
-    const messageToFork = messages[messageIndex];
-    if (!messageToFork || messageToFork.from !== 'user' || !session?.id) {
+  // Handle editing (rewinding) conversation to a specific message
+  const handleEditMessage = async (messageIndex: number) => {
+    const messageToEdit = messages[messageIndex];
+    if (!messageToEdit || messageToEdit.from !== 'user' || !session?.id || !messageToEdit.id) {
+      return;
+    }
+
+    // Get the message BEFORE the one we want to edit (to rewind to that point)
+    const previousMessageIndex = messageIndex - 1;
+    if (previousMessageIndex < 0) {
+      // If this is the first message, we need to clear the entire session
+      // For now, just pre-populate and let user know they need to delete messages manually
+      setText(messageToEdit.content);
+      setFeedbackMessage('This is the first message. Edit and resubmit.');
+      setTimeout(() => setFeedbackMessage(null), 3000);
+      return;
+    }
+
+    const previousMessage = messages[previousMessageIndex];
+    if (!previousMessage?.id) {
       return;
     }
 
     try {
-      // Call backend to fork session and copy messages
-      const newSession = await forkSession.mutateAsync({
-        sourceSessionId: session.id,
-        messageIndex,
-        title: `Forked: ${session.title || 'Chat Session'}`,
+      // Rewind to the message BEFORE the one we want to edit
+      // This deletes the message we're editing and everything after it
+      await rewindSession.mutateAsync({
+        sessionId: session.id,
+        messageId: previousMessage.id,
+        cleanupMedia: true,
       });
 
-      // Queue fork text BEFORE navigation to prevent race condition
-      pendingForkTextRef.current = {
-        text: messageToFork.content,
-        attachments: [],
-        referenceMap: new Map()
-      };
+      // Pre-populate input with the message content for editing
+      setText(messageToEdit.content);
 
-      // Navigate to the forked session
-      navigate({
-        to: '/$sessionId',
-        params: { sessionId: newSession.id },
-        replace: true,
-      });
+      // Copy attachments if any
+      if (messageToEdit.attachments && messageToEdit.attachments.length > 0) {
+        // TODO: Handle attachments if needed
+      }
+
+      // Show success feedback
+      setFeedbackMessage('Ready to edit message');
+      setTimeout(() => {
+        setFeedbackMessage(null);
+      }, 2000);
     } catch (error) {
-      console.error('Failed to fork conversation:', error);
-      // Show error feedback
-      setFeedbackMessage(`Error: Failed to fork conversation`);
-
-      // Auto-hide after 3 seconds
+      console.error('Failed to rewind conversation:', error);
+      setFeedbackMessage(`Error: Failed to rewind conversation`);
       setTimeout(() => {
         setFeedbackMessage(null);
       }, 3000);
+    }
+  };
 
-      // Don't add error to chat - handled by notification
+  // Handle session export
+  const handleExport = async () => {
+    if (!session?.id || exportSessionMutation.isPending) return;
+
+    try {
+      await exportSessionMutation.mutateAsync({
+        sessionId: session.id,
+        sessionTitle: getDisplayTitle(session),
+      });
+    } catch (error) {
+      console.error('Failed to export session:', error);
     }
   };
 
@@ -537,6 +549,25 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         )}
 
         <div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
+          {/* Session header with export button */}
+          {session && (
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-foreground truncate flex-1">
+                {getDisplayTitle(session)}
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExport}
+                disabled={exportSessionMutation.isPending}
+                title="Export session transcript"
+                className="ml-2"
+              >
+                <IconDownload className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           {/* Loading indicator for messages */}
           {sessionMessages.isLoading && (
             <div className="flex items-center justify-center p-4 text-muted-foreground">
@@ -550,7 +581,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {/* Conversation Display */}
           <ConversationDisplay
             messages={messages}
-            onForkMessage={handleForkMessage}
+            onEditMessage={handleEditMessage}
             onPlanAction={handlePlanAction}
             onUpdateMessage={(index, updatedMessage) => {
               setMessages(prev => [

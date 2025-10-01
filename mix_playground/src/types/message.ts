@@ -34,6 +34,7 @@ export type TimelineEntry =
   };
 
 export interface UIMessage {
+  id?: string;
   content: string;
   from: 'user' | 'assistant';
   frontend_only?: boolean;

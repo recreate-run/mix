@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"unicode"
 
 	"mix/internal/app"
@@ -48,9 +49,23 @@ func sanitizeFilename(filename string) string {
 			result = append(result, r)
 		}
 	}
-	
+
+	// Handle dots - replace all except the one before the file extension
+	withoutSpaces := string(result)
+	lastDotPos := strings.LastIndex(withoutSpaces, ".")
+
+	if lastDotPos > 0 { // > 0 to preserve hidden files starting with .
+		basename := withoutSpaces[:lastDotPos]
+		extension := withoutSpaces[lastDotPos:] // includes the dot
+
+		// Replace dots in basename with underscores
+		basename = strings.ReplaceAll(basename, ".", "_")
+
+		withoutSpaces = basename + extension
+	}
+
 	// Collapse multiple consecutive underscores into a single underscore
-	sanitized := regexp.MustCompile(`_+`).ReplaceAllString(string(result), "_")
+	sanitized := regexp.MustCompile(`_+`).ReplaceAllString(withoutSpaces, "_")
 	return sanitized
 }
 

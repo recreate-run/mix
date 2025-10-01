@@ -241,6 +241,71 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/sessions/{id}/rewind": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "rewindSession",
+					"summary":     "Rewind a session",
+					"description": "Delete messages after a specified message in the current session, optionally cleaning up media files created after that point",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID to rewind"),
+					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"messageId"},
+						"properties": map[string]interface{}{
+							"messageId": map[string]interface{}{
+								"type":        "string",
+								"description": "ID of the last message to keep. All messages after this message will be deleted.",
+							},
+							"cleanupMedia": map[string]interface{}{
+								"type":        "boolean",
+								"default":     true,
+								"description": "Whether to clean up media files created after the rewind point (based on file timestamp)",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", getSessionDataSchema(), "Session rewound successfully"),
+						"400": createErrorResponse("Invalid request - messageId is required"),
+						"404": createErrorResponse("Session or message not found"),
+					},
+				},
+			},
+			"/api/sessions/{id}/export": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "exportSession",
+					"summary":     "Export session transcript",
+					"description": "Export complete session transcript with all messages, tool calls, reasoning, and metadata as JSON",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID to export"),
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Session transcript exported successfully",
+							"headers": map[string]interface{}{
+								"Content-Disposition": map[string]interface{}{
+									"description": "Suggests filename for download",
+									"schema": map[string]interface{}{
+										"type":    "string",
+										"example": "attachment; filename=session_abc123_transcript.json",
+									},
+								},
+							},
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/ExportSession",
+									},
+								},
+							},
+						},
+						"404": createErrorResponse("Session not found"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			// Message Operations
 			"/api/sessions/{id}/messages": map[string]interface{}{
 				"post": map[string]interface{}{
@@ -1432,6 +1497,158 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 					"required": []string{"id", "sessionId", "role", "userInput"},
+				},
+				"ExportSession": map[string]interface{}{
+					"type": "object",
+					"description": "Comprehensive session export with all messages, tool calls, and metadata",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Session identifier",
+						},
+						"title": map[string]interface{}{
+							"type":        "string",
+							"description": "Session title",
+						},
+						"userMessageCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of user messages",
+						},
+						"assistantMessageCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of assistant messages",
+						},
+						"toolCallCount": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total number of tool calls",
+						},
+						"promptTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total prompt tokens used",
+						},
+						"completionTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Total completion tokens used",
+						},
+						"cost": map[string]interface{}{
+							"type":        "number",
+							"format":      "double",
+							"description": "Total cost of session",
+						},
+						"createdAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Session creation timestamp",
+						},
+						"updatedAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Session last update timestamp",
+						},
+						"messages": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"$ref": "#/components/schemas/ExportMessage",
+							},
+							"description": "Complete list of messages with full details",
+						},
+					},
+					"required": []string{"id", "title", "messages"},
+				},
+				"ExportMessage": map[string]interface{}{
+					"type": "object",
+					"description": "Complete message information for export",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Message identifier",
+						},
+						"role": map[string]interface{}{
+							"type":        "string",
+							"description": "Message role (user, assistant, tool)",
+						},
+						"content": map[string]interface{}{
+							"type":        "string",
+							"description": "Message content",
+						},
+						"toolCalls": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"$ref": "#/components/schemas/ExportToolCall",
+							},
+							"description": "Tool calls with complete information",
+						},
+						"reasoning": map[string]interface{}{
+							"type":        "string",
+							"description": "Reasoning content (optional)",
+						},
+						"reasoningDuration": map[string]interface{}{
+							"type":        "integer",
+							"description": "Reasoning duration in milliseconds (optional)",
+						},
+						"model": map[string]interface{}{
+							"type":        "string",
+							"description": "Model used for this message (optional)",
+						},
+						"finishReason": map[string]interface{}{
+							"type":        "string",
+							"description": "Completion finish reason (optional)",
+						},
+						"createdAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Message creation timestamp",
+						},
+						"updatedAt": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Message update timestamp",
+						},
+					},
+					"required": []string{"id", "role", "content", "createdAt", "updatedAt"},
+				},
+				"ExportToolCall": map[string]interface{}{
+					"type": "object",
+					"description": "Complete tool call information for export",
+					"properties": map[string]interface{}{
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool call identifier",
+						},
+						"name": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool name",
+						},
+						"input": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool input as JSON string",
+						},
+						"inputJson": map[string]interface{}{
+							"type":        "object",
+							"description": "Parsed tool input (optional)",
+						},
+						"type": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool type",
+						},
+						"finished": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether tool execution finished",
+						},
+						"result": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool execution result (optional)",
+						},
+						"metadata": map[string]interface{}{
+							"type":        "string",
+							"description": "Additional tool metadata (optional)",
+						},
+						"isError": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether execution resulted in error (optional)",
+						},
+					},
+					"required": []string{"id", "name", "input", "type", "finished"},
 				},
 				"ToolCallData": map[string]interface{}{
 					"type": "object",

@@ -6,7 +6,6 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "shell:default",
     "macos-permissions:default",
     "shell:allow-spawn",
     "dialog:allow-confirm",
@@ -59,6 +58,15 @@
     {
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "$HOME/**/*" }]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$HOME/**/*" }]
+    },
+    "dialog:allow-save",
+    {
+      "identifier": "shell:allow-open"
+
     }
   ]
 }

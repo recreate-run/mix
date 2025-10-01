@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"mix/internal/app"
+	session2 "mix/internal/session"
 )
 
 // Prompt size limits
@@ -303,4 +304,110 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 
 	// Return 204 No Content for successful deletion
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// RewindSessionRequest represents the request body for rewinding a session
+type RewindSessionRequest struct {
+	MessageID    string `json:"messageId"`    // Keep messages up to and including this message ID, delete rest
+	CleanupMedia bool   `json:"cleanupMedia"` // Whether to clean up associated media files
+}
+
+// HandleRewindSession handles POST /api/sessions/{id}/rewind
+func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	var req RewindSessionRequest
+	if err := parseJSONBody(r, &req); err != nil {
+		sendValidationError(w, "body", err.Error())
+		return
+	}
+
+	if req.MessageID == "" {
+		sendValidationError(w, "messageId", "message ID is required")
+		return
+	}
+
+	ctx := r.Context()
+
+	// Verify session exists
+	_, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Get all messages to find the rewind point
+	allMessages, err := h.app.Messages.List(ctx, sessionID)
+	if err != nil {
+		sendInternalError(w, "fetching messages", err)
+		return
+	}
+
+	// Find the message with the given ID and get its timestamp
+	var rewindTimestamp int64
+	var messageIndex int = -1
+	for i, msg := range allMessages {
+		if msg.ID == req.MessageID {
+			rewindTimestamp = msg.CreatedAt
+			messageIndex = i
+			break
+		}
+	}
+
+	if messageIndex == -1 {
+		sendNotFoundError(w, "Message", req.MessageID)
+		return
+	}
+
+	// Delete messages after the rewind point
+	err = h.app.Messages.DeleteAfterIndex(ctx, sessionID, int64(messageIndex))
+	if err != nil {
+		sendInternalError(w, "rewinding session", err)
+		return
+	}
+
+	// Clean up media files created after rewind timestamp
+	if req.CleanupMedia {
+		sessionStorageDir := session2.GetSessionStoragePath(sessionID, h.app.StorageConfig)
+		err := session2.CleanupMediaByTimestamp(sessionStorageDir, rewindTimestamp)
+		if err != nil {
+			// Log error but don't fail the request - media cleanup is non-critical
+			fmt.Printf("Warning: Failed to cleanup media for session %s: %v\n", sessionID, err)
+		}
+	}
+
+	// Get updated session data
+	updatedSession, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendInternalError(w, "fetching session", err)
+		return
+	}
+
+	result := SessionData{
+		ID:                    updatedSession.ID,
+		Title:                 updatedSession.Title,
+		UserMessageCount:      updatedSession.UserMessageCount,
+		AssistantMessageCount: updatedSession.AssistantMessageCount,
+		ToolCallCount:         updatedSession.ToolCallCount,
+		PromptTokens:          updatedSession.PromptTokens,
+		CompletionTokens:      updatedSession.CompletionTokens,
+		Cost:                  updatedSession.Cost,
+		CreatedAt:             time.Unix(updatedSession.CreatedAt, 0),
+	}
+
+	sendJSONResponse(w, http.StatusOK, result)
 }
