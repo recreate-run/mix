@@ -1,0 +1,16 @@
+---
+title: Design Decisions
+description: Why Mix was built like this
+---
+## HTTP server interface instead of stdio 
+
+| Aspect | HTTP Interface ✅ | Stdio Interface ❌ |
+|--------|------------------|-------------------|
+| **Testing** | Simple `curl` commands test any endpoint instantly | Requires subprocess spawning, input/output coordination |
+| **Debugging Tools** | Browser DevTools, Postman, network inspectors work out-of-box | Must build custom logging, parsing, and inspection tools |
+| **Error Handling** | Clear HTTP status codes plus structured JSON-RPC error responses | Cryptic stderr messages, silent failures, process hangs |
+| **SDK Generation** | OpenAPI spec enables automatic SDK generation for multiple languages | Requires custom protocol parsers and hand-written client libraries |
+
+
+This HTTP-first approach enables Mix's flexible architecture where a single Go backend serves multiple clients (Tauri desktop app, CLI tools, external integrations) through standard HTTP communication. 
+

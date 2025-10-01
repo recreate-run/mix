@@ -1,0 +1,119 @@
+---
+title: Troubleshooting
+description: Quick solutions for common development environment issues and debugging steps.
+---
+
+# Troubleshooting
+
+Quick solutions to resolve common issues with the Mix development environment.
+
+## Quick Diagnostics
+
+Run these commands first to identify common issues:
+
+```bash
+make test-all      # Run all validation tests
+make tail-log      # Check current logs
+```
+
+## Development Environment Issues
+
+### Services Won't Start (`make dev` fails)
+
+**Check for port conflicts:**
+```bash
+lsof -i :8088      # Backend port
+lsof -i :1420      # Frontend port
+```
+
+**Kill conflicting processes:**
+```bash
+lsof -ti :8088 | xargs kill -9
+lsof -ti :1420 | xargs kill -9
+```
+
+**Install missing dependencies:**
+```bash
+make install-deps
+```
+
+### Backend Service Issues
+
+**Backend fails to start or crashes:**
+```bash
+make tail-log      # Check for errors
+make test-env      # Validate configuration
+```
+
+**Common fixes:**
+- Ensure `.env` file has required variables
+- Check database connection in logs
+- Verify Go compilation succeeds
+
+### Frontend Connection Issues
+
+**Frontend can't connect to backend:**
+
+1. **Check backend URL** in `tauri_app/.env`:
+   ```
+   VITE_BACKEND_URL=http://localhost:8088
+   ```
+
+2. **Test connection:**
+   ```bash
+   make test-connection
+   ```
+
+3. **Verify backend is running:**
+   ```bash
+   lsof -i :8088
+   ```
+
+## Environment Variables
+
+**Required variables in `.env`:**
+```bash
+POSTHOG_API_KEY=your_key_here
+SIDECAR_ENABLED=false
+VITE_BACKEND_URL=http://localhost:8088
+```
+
+**Validate environment:**
+```bash
+make test-env
+```
+
+## Build Issues
+
+**Frontend build fails:**
+```bash
+cd tauri_app && bun i    # Reinstall dependencies
+make tail-log            # Check for TypeScript errors
+```
+
+**Missing tools:**
+```bash
+make test-env            # Check required tools
+```
+
+## Debugging Commands
+
+| Command | Purpose |
+|---------|---------|
+| `make test-all` | Run all validation tests |
+| `make test-env` | Check environment variables |
+| `make test-connection` | Test frontend-backend connection |
+| `make tail-log` | View recent logs |
+| `lsof -i :PORT` | Check what's using a port |
+
+## Getting Help
+
+If issues persist after trying these solutions:
+
+1. Run `make test-all` and save the output
+2. Check detailed logs with `make tail-log`
+3. Create a GitHub issue with:
+   - Problem description
+   - Steps to reproduce
+   - Output from validation tests
+   - Relevant log sections

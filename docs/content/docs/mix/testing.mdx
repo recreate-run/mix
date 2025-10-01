@@ -1,0 +1,42 @@
+---
+title: Testing
+description: Integration testing approach for fast iteration and production confidence
+---
+
+Mix uses **integration tests instead of unit tests** for fast iteration and production confidence. Tests validate real system behavior, not mocked interactions.
+
+## Testing Philosophy
+
+### Integration Over Unit Tests
+
+Mix prioritizes integration tests because they:
+- Test the entire stack in one operation
+- Catch real integration issues that mocks miss
+- Require no brittle mock maintenance
+- Provide confidence that production deployments work
+
+### Zero Mocking Approach
+
+**Nothing is mocked.** Every test uses:
+- Real SQLite database with full schema
+- Real LLM agent processing with tool execution
+- Real HTTP servers and SSE streaming
+- Real file system operations
+
+Each test runs in complete isolation with unique databases and directories.
+
+## What's Tested
+
+**REST API Tests** validate session management, message processing, command system, and error handling through actual HTTP endpoints.
+
+**SSE Tests** validate real-time event streaming, agent processing, tool execution, and persistent connections.
+
+All tests use the complete application stack - if tests pass, the system works end-to-end.
+
+## Trade-offs
+
+**Benefits:** High production confidence, fast development iteration, simple maintenance, real bug detection.
+
+**Costs:** Slower execution (seconds not milliseconds), dependency on external LLM services, less granular failure isolation.
+
+This approach optimizes for development velocity and deployment confidence over test execution speed.
