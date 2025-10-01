@@ -2717,7 +2717,9 @@
               "tool_execution_start",
               "tool_execution_complete",
               "permission",
-              "summarize"
+              "summarize",
+              "session_created",
+              "session_deleted"
             ],
             "type": "string"
           },
@@ -2898,6 +2900,8 @@
             "error": "#/components/schemas/SSEErrorEvent",
             "heartbeat": "#/components/schemas/SSEHeartbeatEvent",
             "permission": "#/components/schemas/SSEPermissionEvent",
+            "session_created": "#/components/schemas/SSESessionCreatedEvent",
+            "session_deleted": "#/components/schemas/SSESessionDeletedEvent",
             "summarize": "#/components/schemas/SSESummarizeEvent",
             "thinking": "#/components/schemas/SSEThinkingEvent",
             "tool": "#/components/schemas/SSEToolEvent",
@@ -2939,6 +2943,12 @@
           },
           {
             "$ref": "#/components/schemas/SSESummarizeEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSESessionCreatedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSESessionDeletedEvent"
           }
         ],
         "type": "object"
@@ -3020,6 +3030,83 @@
                   "toolName",
                   "description",
                   "action"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSESessionCreatedEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "createdAt": {
+                    "description": "Unix timestamp when the session was created",
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  "sessionId": {
+                    "description": "ID of the newly created session",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Title of the newly created session",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Event type",
+                    "example": "session_created",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "sessionId",
+                  "title",
+                  "createdAt"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSESessionDeletedEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "sessionId": {
+                    "description": "ID of the deleted session",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Event type",
+                    "example": "session_deleted",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "sessionId"
                 ],
                 "type": "object"
               }

@@ -21,10 +21,17 @@ import (
 
 // Connection represents a single SSE connection
 type Connection struct {
-	SessionID string
-	Messages  chan string
-	Done      chan struct{}
-	closeOnce sync.Once
+	SessionID       string
+	Messages        chan string
+	BroadcastEvents chan BroadcastEvent
+	Done            chan struct{}
+	closeOnce       sync.Once
+}
+
+// BroadcastEvent represents an SSE event to be broadcast to all connections
+type BroadcastEvent struct {
+	EventType string
+	Data      interface{}
 }
 
 
@@ -38,6 +45,9 @@ type ConnectionRegistry struct {
 var registry = &ConnectionRegistry{
 	connections: make(map[string]map[*Connection]struct{}),
 }
+
+// Global session event broadcaster - ensures single subscription
+var sessionEventBroadcaster sync.Once
 
 // Register adds a connection to the registry
 func (r *ConnectionRegistry) Register(sessionID string, conn *Connection) {
@@ -69,10 +79,52 @@ func (r *ConnectionRegistry) Broadcast(sessionID, message string) {
 	defer r.mu.RUnlock()
 
 	connections := r.connections[sessionID]
-	
+
 	for conn := range connections {
 		select {
 		case conn.Messages <- message:
+		case <-conn.Done:
+		default:
+		}
+	}
+}
+
+// BroadcastToAll sends an SSE event to all active connections regardless of session
+func (r *ConnectionRegistry) BroadcastToAll(eventType string, data interface{}) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	event := BroadcastEvent{
+		EventType: eventType,
+		Data:      data,
+	}
+
+	for _, connections := range r.connections {
+		for conn := range connections {
+			select {
+			case conn.BroadcastEvents <- event:
+			case <-conn.Done:
+			default:
+			}
+		}
+	}
+}
+
+// BroadcastEvent broadcasts a structured event to all connections for a specific session
+func (r *ConnectionRegistry) BroadcastEvent(sessionID string, eventType string, data interface{}) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	connections := r.connections[sessionID]
+
+	event := BroadcastEvent{
+		EventType: eventType,
+		Data:      data,
+	}
+
+	for conn := range connections {
+		select {
+		case conn.BroadcastEvents <- event:
 		case <-conn.Done:
 		default:
 		}
@@ -141,9 +193,10 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 
 	// Create connection
 	conn := &Connection{
-		SessionID: sessionID,
-		Messages:  make(chan string, 100),
-		Done:      make(chan struct{}),
+		SessionID:       sessionID,
+		Messages:        make(chan string, 100),
+		BroadcastEvents: make(chan BroadcastEvent, 50),
+		Done:            make(chan struct{}),
 	}
 
 	// Register connection and ensure cleanup
@@ -153,6 +206,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 		conn.closeOnce.Do(func() {
 			close(conn.Done)
 			close(conn.Messages)
+			close(conn.BroadcastEvents)
 		})
 	}()
 
@@ -204,6 +258,31 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 		}
 	}()
 
+	// Initialize global session event broadcaster (runs exactly once)
+	sessionEventBroadcaster.Do(func() {
+		go func() {
+			// Use background context - this subscription outlives individual connections
+			sessionEvents := app.Sessions.Subscribe(context.Background())
+			for sessionEvent := range sessionEvents {
+				if sessionEvent.Type == pubsub.CreatedEvent {
+					evt := SessionCreatedEvent{
+						Type:      "session_created",
+						SessionID: sessionEvent.Payload.ID,
+						Title:     sessionEvent.Payload.Title,
+						CreatedAt: sessionEvent.Payload.CreatedAt,
+					}
+					registry.BroadcastToAll("session_created", evt)
+				} else if sessionEvent.Type == pubsub.DeletedEvent {
+					evt := SessionDeletedEvent{
+						Type:      "session_deleted",
+						SessionID: sessionEvent.Payload.ID,
+					}
+					registry.BroadcastToAll("session_deleted", evt)
+				}
+			}
+		}()
+	})
+
 	// Heartbeat to prevent browser timeout
 	heartbeat := time.NewTicker(45 * time.Second)
 	defer heartbeat.Stop()
@@ -233,6 +312,16 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 			}
 
 			if err := processMessage(ctx, app, sseWriter, sessionID, message); err != nil {
+				return
+			}
+
+		case event, ok := <-conn.BroadcastEvents:
+			if !ok {
+				return
+			}
+
+			// Write broadcast event to SSE stream
+			if err := sseWriter.WriteEvent(event.EventType, event.Data); err != nil {
 				return
 			}
 		}
@@ -311,7 +400,6 @@ func handleRegularMessage(ctx context.Context, app *app.App, sseWriter *SSEWrite
 		}
 		return nil
 	}
-	
 
 	for {
 		select {
@@ -339,9 +427,13 @@ func handleRegularMessage(ctx context.Context, app *app.App, sseWriter *SSEWrite
 				return nil
 			}
 
+			// Write to the current SSE connection
 			if err := WriteAgentEventAsSSE(sseWriter, event); err != nil {
 				return err
 			}
+
+			// ALSO broadcast to all other SSE connections for this session
+			BroadcastAgentEventToSSE(sessionID, event)
 
 			if event.Error != nil || event.Done {
 				return nil
