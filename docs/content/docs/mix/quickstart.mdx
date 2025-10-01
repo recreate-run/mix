@@ -1,0 +1,61 @@
+---
+title: Quickstart 
+description: Get up and running with Mix
+---
+
+
+## Quick start (Python SDK)
+
+```bash
+https://github.com/recreate-run/mix-python-sdk.git
+cd mix-python-sdk
+```
+
+### Demos
+
+Create a tiktok videos
+
+```bash
+uv run examples/tiktok_video.py
+```
+
+Multimodal search
+
+```bash
+uv run examples/web_search_multimodal.py
+```
+
+Modiying/Replacing the system prompt
+
+```bash
+uv run examples/system_prompt_change.py
+```
+
+## Quick start (Playground)
+
+Mix comes with a GUI playground for testing and debugging SDK workflows. It's built from the [Mix typescript SDK](https://github.com/recreate-run/mix-typescript-sdk)
+
+```bash
+git clone https://github.com/recreate-run/mix.git
+make dev
+```
+
+Authenticate LLM providers and tool API's usring the settings dialog (gear icon at the bottom left)
+
+1. We recommend claude-sonnet-4 via the oauth (claude code account) or the anthropic API key using the Settings dialog.
+2. Set Gemini API key for the `ReadMedia tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
+3. Set Brave API key for the `Search` tool. Available for free from [Brave](https://brave.com/search/api/)
+
+### Demos
+
+```bash
+Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
+```
+
+```bash
+Find the best videos about kerala puttu and show.
+```
+
+```bash
+Show 3 most interesting 5 second highlights from this video
+```
