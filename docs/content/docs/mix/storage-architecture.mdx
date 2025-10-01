@@ -1,0 +1,109 @@
+---
+title: Storage
+description: Two-tier file storage system with shared uploads and session-specific storage
+---
+
+Mix employs a sophisticated two-tier storage architecture that separates user-managed collaborative files from agent-managed private working files. This design enables both file sharing across sessions and private agent workspaces.
+
+## Storage Overview
+
+<Mermaid
+  chart="
+graph TD
+    User[User File Upload]
+    API[Upload API<br/>POST /api/sessions/id/files/upload]
+    Shared[Shared Uploads<br/>/storage/uploads/]
+    Agent[AI Agent Operations]
+    Session[Session Storage<br/>/storage/session-id/]
+    Serve[File Serving<br/>GET /api/sessions/id/files/filename]
+
+    User --> API
+    API --> Shared
+    Agent --> Session
+    Session --> Serve
+    Shared --> Serve
+"
+/>
+
+## Rationale
+
+This architecture separates user collaboration from agent workspace needs, solving three key problems:
+
+**Workspace Pollution**: Agent temp files, logs, and processing outputs don't clutter the user's shared file space.
+
+**Processing Isolation**: Multiple sessions can process the same shared file independently without conflicts.
+
+**Clean UX**: Users manage collaborative files; agents handle implementation details in private storage.
+
+### Key Design Decisions
+
+**Two Storage Tiers**: Shared storage for user collaboration + session storage for agent workspace. Single namespace would mix user assets with agent artifacts.
+
+**Agent-Managed Sessions**: Agents handle session files programmatically. User CRUD access would expose implementation details unnecessarily.
+
+**Session-First Priority**: Session files override shared files during serving, allowing agents to create processed versions without breaking originals for other sessions.
+
+## Two-Tier Architecture
+
+### 1. Shared Uploads Storage (`/storage/uploads/`)
+**Purpose**: User-managed collaborative files accessible by all sessions
+- **Who manages**: Users via upload API
+- **Access**: All sessions can read these files
+- **Use cases**: Shared documents, media files, project assets
+- **API operations**: Upload, list, delete, serve
+
+### 2. Session Storage (`/storage/{session-id}/`)
+**Purpose**: Agent-managed private working space per session
+- **Who manages**: AI agents programmatically
+- **Access**: Only the owning session can read these files
+- **Use cases**: Temporary files, processed data, agent-generated content
+- **API operations**: Serve only (agents manage via file system)
+
+## File Serving Priority
+
+When a file is requested via `/api/sessions/{session-id}/files/{filename}`, the system uses this priority order:
+
+1. **Session storage first**: Check `/storage/{session-id}/{filename}`
+2. **Shared uploads fallback**: Check `/storage/uploads/{filename}` if not found in session
+
+This allows agents to "override" shared files with session-specific versions while maintaining access to collaborative files.
+
+
+## Agent Workflow
+
+Agents can download files from shared uploads and create session-specific versions:
+
+1. **Access shared file**: Agent reads from `/storage/uploads/{filename}`
+2. **Process/modify**: Agent processes the file contents
+3. **Store in session**: Agent writes to `/storage/{session-id}/{filename}`
+4. **Serve processed version**: Subsequent requests serve the session version
+
+This enables agents to work with user files while maintaining private working copies.
+
+### Session Isolation
+- **Private storage**: Session files are inaccessible to other sessions
+- **Secure serving**: Session ID must match to access session-specific files
+- **Agent-only management**: Users cannot directly manipulate session storage
+
+## Storage Paths
+
+```
+/storage/
+├── uploads/           # Shared files (user-managed)
+│   ├── document.pdf
+│   ├── image.jpg
+│   └── data.csv
+├── {session-1-uuid}/  # Session 1 private files (agent-managed)
+│   ├── processed.csv
+│   └── temp-output.txt
+└── {session-2-uuid}/  # Session 2 private files (agent-managed)
+    ├── analysis.json
+    └── filtered-data.csv
+```
+
+## Key Files
+
+- [mix_agent/internal/session/storage.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/session/storage.go): Core storage management functions that define the two-tier structure with GetSessionStoragePath() and GetUploadsStoragePath()
+- [mix_agent/internal/http/session_asset_server.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/session_asset_server.go): Implements two-tier file serving logic with session storage priority over shared uploads
+- [mix_agent/internal/http/rest_files.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/rest_files.go): Implements file management REST APIs including upload, listing, and deletion with secure path validation
+- [mix_agent/internal/app/app.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/app/app.go): Application initialization that sets up storage configuration and directory structure

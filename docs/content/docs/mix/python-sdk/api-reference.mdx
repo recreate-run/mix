@@ -1,0 +1,321 @@
+---
+title: "API Reference"
+description: "Comprehensive reference for the Mix Python SDK API endpoints"
+---
+
+
+The Mix Python SDK provides access to all API endpoints through a set of modules. Each module contains methods that correspond to specific API operations. Both synchronous and asynchronous versions are available for all operations.
+
+## Available Modules
+
+The SDK is organized into the following modules:
+
+- `sessions` - Session management
+- `messages` - Message handling
+- `auth` - Authentication operations
+- `authentication` - Authentication status
+- `files` - File operations
+- `permissions` - Permission management
+- `preferences` - User preferences
+- `system` - System operations
+
+## Sessions
+
+Methods for managing sessions.
+
+### List Sessions
+
+```python
+# Synchronous
+client.sessions.list() -> list[SessionData]
+
+# Asynchronous
+await client.sessions.list() -> list[SessionData]
+```
+
+Retrieves a list of all available sessions with their metadata.
+
+### Create Session
+
+```python
+# Synchronous
+client.sessions.create(title="My Session") -> SessionData
+
+# Asynchronous
+await client.sessions.create(title="My Session") -> SessionData
+```
+
+Creates a new session with the required title. Each session gets an isolated storage directory.
+
+### Get Session
+
+```python
+# Synchronous
+client.sessions.get(id="session_id") -> SessionData
+
+# Asynchronous
+await client.sessions.get(id="session_id") -> SessionData
+```
+
+Retrieves detailed information about a specific session.
+
+### Delete Session
+
+```python
+# Synchronous
+client.sessions.delete(id="session_id") -> None
+
+# Asynchronous
+await client.sessions.delete(id="session_id") -> None
+```
+
+Permanently deletes a session and all its data.
+
+### Fork Session
+
+```python
+# Synchronous
+client.sessions.fork(
+    id="session_id", 
+    title="Forked Session", 
+    message_index=5
+) -> SessionData
+
+# Asynchronous
+await client.sessions.fork(
+    id="session_id", 
+    title="Forked Session", 
+    message_index=5
+) -> SessionData
+```
+
+Creates a new session based on an existing session, copying messages up to a specified index.
+
+## Messages
+
+Methods for handling messages within sessions.
+
+### Send Message
+
+```python
+# Synchronous
+client.messages.send(
+    session_id="session_id", 
+    content="Hello, Mix!"
+) -> MessageData
+
+# Asynchronous
+await client.messages.send(
+    session_id="session_id", 
+    content="Hello, Mix!"
+) -> MessageData
+```
+
+Sends a new message to a session.
+
+### Get Session Messages
+
+```python
+# Synchronous
+client.messages.get_session(session_id="session_id") -> list[MessageData]
+
+# Asynchronous
+await client.messages.get_session(session_id="session_id") -> list[MessageData]
+```
+
+Retrieves all messages for a specific session.
+
+### Cancel Processing
+
+```python
+# Synchronous
+client.messages.cancel_processing(message_id="message_id") -> None
+
+# Asynchronous
+await client.messages.cancel_processing(message_id="message_id") -> None
+```
+
+Cancels the processing of a message.
+
+## System
+
+Methods for system operations.
+
+### List MCP Servers
+
+```python
+# Synchronous
+client.system.list_mcp_servers() -> list[MCPServer]
+
+# Asynchronous
+await client.system.list_mcp_servers() -> list[MCPServer]
+```
+
+Lists all available MCP (Model Control Protocol) servers.
+
+## Authentication
+
+Methods for managing authentication.
+
+### Get Status
+
+```python
+# Synchronous
+client.authentication.get_status() -> AuthenticationStatus
+
+# Asynchronous
+await client.authentication.get_status() -> AuthenticationStatus
+```
+
+Gets the current authentication status.
+
+### Store API Key
+
+```python
+# Synchronous
+client.auth.store_api_key(
+    provider="anthropic", 
+    api_key="sk-your-key"
+) -> None
+
+# Asynchronous
+await client.auth.store_api_key(
+    provider="anthropic", 
+    api_key="sk-your-key"
+) -> None
+```
+
+Stores an API key for a specific provider.
+
+### Delete Credentials
+
+```python
+# Synchronous
+client.auth.delete_credentials(provider="anthropic") -> None
+
+# Asynchronous
+await client.auth.delete_credentials(provider="anthropic") -> None
+```
+
+Deletes credentials for a specific provider.
+
+### Validate Provider
+
+```python
+# Synchronous
+client.auth.validate_preferred_provider() -> ValidateProviderResponse
+
+# Asynchronous
+await client.auth.validate_preferred_provider() -> ValidateProviderResponse
+```
+
+Validates whether the current preferred provider is properly authenticated.
+
+## Permissions
+
+Methods for managing permissions.
+
+### Grant Permission
+
+```python
+# Synchronous
+client.permissions.grant(permission="file_access") -> None
+
+# Asynchronous
+await client.permissions.grant(permission="file_access") -> None
+```
+
+Grants a permission.
+
+### Deny Permission
+
+```python
+# Synchronous
+client.permissions.deny(permission="file_access") -> None
+
+# Asynchronous
+await client.permissions.deny(permission="file_access") -> None
+```
+
+Denies a permission.
+
+## Preferences
+
+Methods for managing user preferences.
+
+### Get Preferences
+
+```python
+# Synchronous
+client.preferences.get_preferences() -> UserPreferencesResponse
+
+# Asynchronous
+await client.preferences.get_preferences() -> UserPreferencesResponse
+```
+
+Returns the current user preferences including provider and model settings.
+
+### Update Preferences
+
+```python
+# Synchronous
+client.preferences.update_preferences(
+    preferred_provider="anthropic",
+    main_agent_model="claude-4-sonnet"
+) -> UserPreferencesResponse
+
+# Asynchronous
+await client.preferences.update_preferences(
+    preferred_provider="anthropic",
+    main_agent_model="claude-4-sonnet"
+) -> UserPreferencesResponse
+```
+
+Updates the user preferences.
+
+### Get Available Providers
+
+```python
+# Synchronous
+client.preferences.get_available_providers() -> dict[str, ProviderInfo]
+
+# Asynchronous
+await client.preferences.get_available_providers() -> dict[str, ProviderInfo]
+```
+
+Returns information about all available providers and their models.
+
+### Reset Preferences
+
+```python
+# Synchronous
+client.preferences.reset_preferences() -> UserPreferencesResponse
+
+# Asynchronous
+await client.preferences.reset_preferences() -> UserPreferencesResponse
+```
+
+Resets all user preferences to their default values.
+
+## Data Models
+
+The SDK uses structured data models for all requests and responses:
+
+```python
+# Example of SessionData model
+class SessionData:
+    id: str
+    title: str
+    created_at: str
+    # Additional fields...
+
+# Example of MessageData model
+class MessageData:
+    id: str
+    role: str  # "user" or "assistant"
+    content: str
+    created_at: str
+    # Additional fields...
+```
+
+For detailed information about request and response types, refer to the Python type hints in the SDK source code.

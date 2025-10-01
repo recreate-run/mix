@@ -1,0 +1,39 @@
+---
+title: Quickstart
+description: "Learn how to create and configure the Mix SDK client"
+---
+
+
+To interact with the Mix server, you need to create a client instance. The client provides access to all the available API endpoints.
+
+```npm
+npm i mix-typescript SDK
+```
+
+
+## Basic Client Creation
+
+Create a new file in the folder  '/src/lib' and add this
+
+```tsx title="src/lib/mix-sdk.ts"
+import { Mix } from 'mix-typescript-sdk';
+
+const client = new Mix({
+  serverURL: 'http://localhost:8088',
+});
+```
+
+Then import and use it in your application:
+
+```typescript
+// In your application code
+import mix from './lib/mix-sdk';
+
+// Use the client
+const sessions = await mix.sessions.list();
+console.log(sessions)
+```
+
+## Next Steps
+
+Once you've created a client and set your preferences, you can start using the available API endpoints. See the [API Reference](/docs/sdk/typescript-sdk/api-reference) for details on each endpoint.

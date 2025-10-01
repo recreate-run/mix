@@ -74,7 +74,7 @@ fumadocs-dev/
 .claude/settings.local.json
 
 
-**/*mix/
+# **/*mix/
 # .mix.json
 storage/
 
