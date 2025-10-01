@@ -2,9 +2,7 @@ package http
 
 import (
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"unicode"
@@ -25,15 +23,13 @@ type FileInfo struct {
 
 // FileHandler handles REST endpoints for session file operations
 type FileHandler struct {
-	app           *app.App
-	storageConfig session.Config
+	app *app.App
 }
 
 // NewFileHandler creates a new file handler
-func NewFileHandler(app *app.App, storageConfig session.Config) *FileHandler {
+func NewFileHandler(app *app.App) *FileHandler {
 	return &FileHandler{
-		app:           app,
-		storageConfig: storageConfig,
+		app: app,
 	}
 }
 
@@ -117,45 +113,23 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	// Get filename from upload and sanitize it
 	originalFilename := header.Filename
 	filename := sanitizeFilename(originalFilename)
-	
-	// Use os.Root for secure file operations - prevents path traversal
-	root, err := session.GetUploadsRoot(h.storageConfig)
-	if err != nil {
-		sendInternalError(w, "getting uploads root", err)
-		return
-	}
-	defer root.Close()
 
-	// Create file using Root - this prevents path traversal attacks
-	dst, err := root.Create(filename)
+	// Upload to storage provider (Supabase or local)
+	storageKey := fmt.Sprintf("uploads/%s", filename)
+	uploadedFileInfo, err := h.app.StorageProvider.Upload(r.Context(), storageKey, file, header.Header.Get("Content-Type"))
 	if err != nil {
-		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
-		return
-	}
-	defer dst.Close()
-
-	// Copy uploaded file to destination
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		sendInternalError(w, "saving file", err)
-		return
-	}
-
-	// Get file info for response using Root
-	fileInfo, err := root.Stat(filename)
-	if err != nil {
-		sendInternalError(w, "getting file info", err)
+		sendInternalError(w, "uploading file", err)
 		return
 	}
 
 	result := FileInfo{
 		Name:     filename,
-		Size:     fileInfo.Size(),
-		Modified: fileInfo.ModTime().Unix(),
-		IsDir:    fileInfo.IsDir(),
-		URL:      fmt.Sprintf("http://localhost:8088/api/sessions/%s/files/%s", sessionID, filename),
+		Size:     uploadedFileInfo.Size,
+		Modified: 0, // Storage provider doesn't track modification time
+		IsDir:    false,
+		URL:      uploadedFileInfo.PublicURL,
 	}
-	
+
 	// Include original filename if it was different from stored name
 	if originalFilename != filename {
 		result.OriginalName = &originalFilename
@@ -195,35 +169,24 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get uploads storage directory
-	uploadsDir := session.GetUploadsStoragePath(h.storageConfig)
-
-	// Read uploads files
-	entries, err := os.ReadDir(uploadsDir)
+	// List files from storage provider
+	storageFiles, err := h.app.StorageProvider.List(ctx, "uploads/")
 	if err != nil {
-		if os.IsNotExist(err) {
-			// Uploads directory doesn't exist yet, return empty list
-			sendJSONResponse(w, http.StatusOK, []FileInfo{})
-			return
-		}
-		sendInternalError(w, "reading uploads directory", err)
+		sendInternalError(w, "listing files", err)
 		return
 	}
 
-	// Build file list from uploads files
-	files := make([]FileInfo, 0, len(entries))
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			continue // Skip entries we can't get info for
-		}
-
+	// Build file list
+	files := make([]FileInfo, 0, len(storageFiles))
+	for _, storageFile := range storageFiles {
+		// Extract filename from key (remove "uploads/" prefix)
+		name := strings.TrimPrefix(storageFile.Key, "uploads/")
 		files = append(files, FileInfo{
-			Name:     info.Name(),
-			Size:     info.Size(),
-			Modified: info.ModTime().Unix(),
-			IsDir:    info.IsDir(),
-			URL:      fmt.Sprintf("http://localhost:8088/api/sessions/%s/files/%s", sessionID, info.Name()),
+			Name:     name,
+			Size:     storageFile.Size,
+			Modified: 0, // Storage provider doesn't track modification time
+			IsDir:    false,
+			URL:      storageFile.PublicURL,
 		})
 	}
 
@@ -268,33 +231,9 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use os.Root for secure file operations
-	root, err := session.GetUploadsRoot(h.storageConfig)
-	if err != nil {
-		sendInternalError(w, "getting uploads root", err)
-		return
-	}
-	defer root.Close()
-
-	// Check if file exists and get info using Root - prevents path traversal
-	fileInfo, err := root.Stat(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			sendNotFoundError(w, "File", filename)
-			return
-		}
-		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
-		return
-	}
-
-	// Check if it's a directory - this API is for files only
-	if fileInfo.IsDir() {
-		sendValidationError(w, "filename", "cannot delete directories, only files are supported")
-		return
-	}
-
-	// Delete the file using Root
-	err = root.Remove(filename)
+	// Delete file from storage provider
+	storageKey := fmt.Sprintf("uploads/%s", filename)
+	err = h.app.StorageProvider.Delete(ctx, storageKey)
 	if err != nil {
 		sendInternalError(w, "deleting file", err)
 		return

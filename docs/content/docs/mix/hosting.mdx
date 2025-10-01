@@ -1,0 +1,216 @@
+---
+title: Hosting Mix Backend
+description: Deploy Mix backend for production web apps with storage configuration
+---
+
+Mix is an **SDK-first agentic backbone** - users integrate Mix SDKs into their web apps and host the Mix backend server. This guide covers everything you need to deploy Mix for production.
+
+## Architecture Overview
+
+```
+Your Web App (React/Next.js)
+    ↓ HTTP/REST API
+Mix Backend (Go Server)
+    ↓
+Storage (Local/S3/R2/MinIO)
+Database (SQLite/Turso)
+```
+
+**Key Concept**: Mix backend is an HTTP server that your web app communicates with via REST API. The backend handles AI orchestration, tool execution, and file storage.
+
+## Quick Start
+
+### 1. Clone and Build
+
+```bash
+git clone https://github.com/recreate-run/mix.git
+cd mix/mix_agent
+go build -o mix-server
+```
+
+### 2. Configure Backend
+
+Create `.env` file:
+
+```bash
+
+# Database (default: Local SQLite)
+DATABASE_TYPE=sqlite
+
+# Storage (default: local filesystem)
+STORAGE_TYPE=local
+STORAGE_ENDPOINT=./storage
+```
+
+### 3. Run Backend
+
+```bash
+./mix-server serve
+# Backend runs on http://localhost:8088
+```
+
+### 4. Integrate SDK in Your Web App
+
+**TypeScript Example:**
+
+```typescript
+import { Mix } from 'mix-typescript-sdk';
+
+const client = new Mix({
+  serverURL: 'http://localhost:8088'  // Your hosted backend
+});
+
+// Create session
+const session = await client.sessions.create({
+  title: 'Video Processing'
+});
+
+// Upload file
+const file = new File([blob], 'video.mp4');
+const uploaded = await client.files.upload({
+  id: session.id,
+  requestBody: { file }
+});
+
+// Send message
+await client.messages.send({
+  id: session.id,
+  requestBody: {
+    text: 'Create 5 second highlights'
+  }
+});
+```
+
+**Python Example:**
+
+```python
+from mix_sdk import MixClient
+
+client = MixClient(base_url='http://localhost:8088')
+
+# Create session
+session = client.sessions.create(title='Video Processing')
+
+# Upload file
+with open('video.mp4', 'rb') as f:
+    uploaded = client.files.upload(session_id=session.id, file=f)
+
+# Send message
+client.messages.send(
+    session_id=session.id,
+    text='Create 5 second highlights'
+)
+```
+
+## Storage Configuration
+
+**For production**: Use S3-compatible storage (required for load balancing, CDN, and redundancy).
+
+Mix supports any S3-compatible provider:
+
+### Cloudflare R2 (Recommended)
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+STORAGE_BUCKET=mix-storage
+STORAGE_ACCESS_KEY=your-r2-access-key
+STORAGE_SECRET_KEY=your-r2-secret-key
+STORAGE_PUBLIC_URL_BASE=https://pub-<hash>.r2.dev
+STORAGE_REGION=auto
+```
+
+**Setup**: [Cloudflare R2 Dashboard](https://dash.cloudflare.com) → Create bucket → Generate API tokens
+
+**Pricing**: $0.015/GB storage, **FREE egress** (huge savings for video streaming)
+
+### MinIO (Self-Hosted)
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=minio.yourdomain.com:9000
+STORAGE_BUCKET=mix-storage
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET_KEY=minioadmin
+STORAGE_FORCE_PATH_STYLE=true
+STORAGE_USE_SSL=false  # true for production
+```
+
+**Setup**: [MinIO Quickstart](https://min.io/docs/minio/linux/operations/install-deploy-manage.html)
+
+```bash
+# Docker setup
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address ":9001"
+```
+
+### AWS S3 (Enterprise)
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=s3.us-east-1.amazonaws.com
+STORAGE_BUCKET=my-bucket
+STORAGE_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+STORAGE_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
+STORAGE_REGION=us-east-1
+```
+
+**Pricing**: $0.023/GB storage + $0.09/GB egress
+
+### Backblaze B2 (Budget)
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=https://s3.us-west-000.backblazeb2.com
+STORAGE_BUCKET=my-bucket
+STORAGE_ACCESS_KEY=${B2_APPLICATION_KEY_ID}
+STORAGE_SECRET_KEY=${B2_APPLICATION_KEY}
+```
+
+**Pricing**: $0.006/GB storage + $0.01/GB egress (first 3x free)
+
+### Storage Configuration Fields
+
+| Field | Required | Description | Example |
+|-------|----------|-------------|---------|
+| `STORAGE_TYPE` | Yes | `local` or `s3` | `s3` |
+| `STORAGE_ENDPOINT` | Yes | S3 endpoint URL or local path | `https://xxx.r2.cloudflarestorage.com` |
+| `STORAGE_BUCKET` | Yes (S3) | Bucket name | `mix-storage` |
+| `STORAGE_ACCESS_KEY` | Yes (S3) | Access key ID | `your-access-key` |
+| `STORAGE_SECRET_KEY` | Yes (S3) | Secret access key | `your-secret-key` |
+| `STORAGE_REGION` | No | AWS region | `us-east-1` (default) |
+| `STORAGE_USE_SSL` | No | Use HTTPS | `true` (default) |
+| `STORAGE_FORCE_PATH_STYLE` | No | Path-style URLs (MinIO needs this) | `false` (default) |
+| `STORAGE_PUBLIC_URL_BASE` | No | Custom CDN domain | `https://cdn.yourdomain.com` |
+
+## Database Configuration
+
+### SQLite (Default)
+
+Local SQLite database for single-server deployments:
+
+```bash
+DATABASE_TYPE=sqlite
+DATABASE_SQLITE_DATADIR=.mix
+DATABASE_SQLITE_FILENAME=mix.db
+```
+
+### Turso (Hosted SQLite)
+
+For distributed/multi-instance deployments:
+
+```bash
+DATABASE_TYPE=turso
+DATABASE_TURSO_URL=libsql://my-db.turso.io
+DATABASE_TURSO_AUTH_TOKEN=your-auth-token
+```
+
+**Setup**: [Turso Dashboard](https://turso.tech)
+
+## Next Steps
+
+- Integrate [TypeScript SDK](/docs/mix/typescript-sdk) in your web app
+- Configure [Python SDK](/docs/mix/python-sdk) for backend workflows
+- Read [Storage Architecture](/docs/mix/storage-architecture) for deep dive

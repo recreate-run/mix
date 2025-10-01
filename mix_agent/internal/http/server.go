@@ -25,8 +25,8 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	authHandler := NewAuthHandler(app)
 	toolsHandler := NewToolsHandler(app)
 
-	// Create session-aware asset handler using app's storage config
-	fileHandler := NewFileHandler(app, app.StorageConfig)
+	// Create session-aware asset handler
+	fileHandler := NewFileHandler(app)
 	sessionAssetHandler := NewSessionAssetHandler(app, app.StorageConfig)
 
 	// Create dedicated HTTP mux with CORS middleware

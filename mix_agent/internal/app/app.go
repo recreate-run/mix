@@ -16,16 +16,18 @@ import (
 	"mix/internal/message"
 	"mix/internal/permission"
 	"mix/internal/session"
+	"mix/internal/storage"
 )
 
 type App struct {
-	Sessions      session.Service
-	Messages      message.Service
-	History       history.Service
-	Permissions   permission.Service
-	Analytics     analytics.Service
-	StorageConfig session.Config
-	
+	Sessions        session.Service
+	Messages        message.Service
+	History         history.Service
+	Permissions     permission.Service
+	Analytics       analytics.Service
+	StorageConfig   session.Config
+	StorageProvider storage.Provider
+
 	CoderAgent agent.Service
 }
 
@@ -37,6 +39,32 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	if err := session.Initialize(storageConfig); err != nil {
 		return nil, fmt.Errorf("failed to initialize storage system: %w", err)
 	}
+
+	// Initialize storage provider
+	storageProviderConfig := storage.LoadConfigFromEnv()
+	logging.Info("Loaded storage config from environment",
+		"type", storageProviderConfig.Type,
+		"endpoint", storageProviderConfig.Endpoint,
+		"bucket", storageProviderConfig.Bucket,
+		"has_access_key", storageProviderConfig.AccessKey != "")
+
+	storageProvider, err := storage.NewProvider(storageProviderConfig)
+	if err != nil {
+		logging.Warn("Failed to initialize storage provider, falling back to local storage", "error", err)
+		// Fallback to local storage
+		storageProviderConfig = storage.Config{
+			Type:     storage.ProviderTypeLocal,
+			Endpoint: storageConfig.BasePath,
+		}
+		storageProvider, err = storage.NewProvider(storageProviderConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize local storage provider: %w", err)
+		}
+	}
+	logging.Info("Storage provider initialized successfully",
+		"type", storageProviderConfig.Type,
+		"endpoint", storageProviderConfig.Endpoint,
+		"bucket", storageProviderConfig.Bucket)
 
 	// Create session service with storage configuration
 	sessions := session.NewService(q, storageConfig)
@@ -74,18 +102,18 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	messages := message.NewTrackingService(baseMessageService, analyticsService)
 
 	app := &App{
-		Sessions:      sessions,
-		Messages:      messages,
-		History:       files,
-		Permissions:   permission.NewPermissionService(sessions, storageConfig),
-		Analytics:     analyticsService,
-		StorageConfig: storageConfig,
+		Sessions:        sessions,
+		Messages:        messages,
+		History:         files,
+		Permissions:     permission.NewPermissionService(sessions, storageConfig),
+		Analytics:       analyticsService,
+		StorageConfig:   storageConfig,
+		StorageProvider: storageProvider,
 	}
 
 	// Create MCP manager for this agent
 	mcpManager := agent.NewMCPClientManager()
 
-	var err error
 	app.CoderAgent, err = agent.NewAgent(
 		config.AgentMain,
 		app.Sessions,
@@ -167,6 +195,13 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 func (app *App) Shutdown() {
 	if app.CoderAgent != nil {
 		app.CoderAgent.Shutdown()
+	}
+
+	// Clean up storage provider
+	if app.StorageProvider != nil {
+		if err := app.StorageProvider.Close(); err != nil {
+			logging.Error("Failed to close storage provider", "error", err)
+		}
 	}
 
 	// Clean up analytics service
