@@ -27,6 +27,28 @@ type TaskParams struct {
 	SubagentType string `json:"subagent_type"`
 }
 
+func (b *taskTool) getToolsForSubagentType(subagentType string) []tools.BaseTool {
+	switch subagentType {
+	case "general-purpose":
+		// General-purpose agent with full access to all tools except MCP
+		return []tools.BaseTool{
+			tools.NewGlobTool(),
+			tools.NewGrepTool(b.permissions),
+			tools.NewReadTextTool(b.permissions),
+			tools.NewEditTool(b.permissions, nil), // history not needed for sub-agents
+			tools.NewWriteTool(b.permissions, nil), // history not needed for sub-agents
+			tools.NewWebFetchTool(b.permissions),
+			tools.NewWebSearchTool(b.permissions),
+			tools.NewReadMediaTool(),
+			tools.NewTodoWriteTool(),
+			NewTaskTool(b.sessions, b.messages, b.permissions),
+		}
+	default:
+		// Default to limited read-only tools for safety
+		return TaskAgentTools(b.permissions, b.sessions, b.messages)
+	}
+}
+
 func (b *taskTool) Info() tools.ToolInfo {
 	return tools.ToolInfo{
 		Name:        TaskToolName,
@@ -69,13 +91,16 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 		return tools.ToolResponse{}, fmt.Errorf("session_id and message_id are required")
 	}
 
-	agent, err := NewAgent("sub", b.sessions, b.messages, TaskAgentTools(b.permissions), session.DefaultConfig())
+	agentTools := b.getToolsForSubagentType(params.SubagentType)
+	agent, err := NewAgent("sub", b.sessions, b.messages, agentTools, session.DefaultConfig())
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}
 	defer agent.Shutdown()
 
-	session, err := b.sessions.Create(ctx, "New Agent Session", "", "default")
+	// Use suppress-publish context to prevent SSE broadcasting of internal sub-agent session
+	suppressCtx := session.WithSuppressPublish(ctx)
+	session, err := b.sessions.Create(suppressCtx, "New Agent Session", "", "default")
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}
@@ -140,6 +165,12 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error saving parent session: %s", err)
 	}
+
+	// Clean up the temporary sub-agent session (use suppress context to avoid SSE broadcast)
+	if err := b.sessions.Delete(suppressCtx, session.ID); err != nil {
+		fmt.Printf("[TASK TOOL] Warning: failed to delete sub-agent session %s: %v\n", session.ID, err)
+	}
+
 	return tools.NewTextResponse(content), nil
 }
 

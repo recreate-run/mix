@@ -43,12 +43,18 @@ the user's intent
 6. If the agent description mentions that it should be used proactively,
 then you should try your best to use it without the user having to ask for
 it first. Use your judgement.
+7. If the user specifies that they want you to run agents "in parallel", you
+MUST send a single message with multiple Task tool use content blocks. For
+example, if you need to launch both a code-reviewer agent and a test-runner
+agent in parallel, send a single message with both tool calls.
 
 Example usage:
 
 <example_agent_descriptions>
 "code-reviewer": use this agent after you are done writing a signficant
 piece of code
+"greeting-responder": use this agent when to respond to user greetings with
+a friendly joke
 </example_agent_description>
 
 <example>
@@ -72,4 +78,14 @@ now use the code-reviewer agent to review the code
 </commentary>
 assistant: Now let me use the code-reviewer agent to review the code
 assistant: Uses the Task tool to launch the with the code-reviewer agent
+</example>
+
+<example>
+user: "Hello"
+<commentary>
+Since the user is greeting, use the greeting-responder agent to respond with
+a friendly joke
+</commentary>
+assistant: "I'm going to use the Task tool to launch the with the
+greeting-responder agent"
 </example>
