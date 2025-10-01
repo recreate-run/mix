@@ -1,5 +1,6 @@
-import { docs } from '@/.source';
+import { docs, blogPosts } from '@/.source';
 import { loader } from 'fumadocs-core/source';
+import { createMDXSource } from 'fumadocs-mdx';
 import { createElement } from 'react';
 import { BookOpen, Rocket, Settings, FileText, Terminal, Smartphone } from 'lucide-react';
 
@@ -21,4 +22,10 @@ export const source = loader({
     if (icon && icon in icons)
       return createElement(icons[icon as keyof typeof icons]);
   },
+});
+
+// Blog source loader
+export const blog = loader({
+  baseUrl: '/blog',
+  source: createMDXSource(blogPosts),
 });

@@ -1,0 +1,114 @@
+---
+title: Building AI-Powered Workflows with Mix
+description: Explore how to create automated workflows using Mix Agent's powerful API and tool system.
+author: Mix Team
+date: 2025-09-25
+tags: [automation, workflows, tutorial]
+---
+
+# Building AI-Powered Workflows with Mix
+
+Mix Agent isn't just a chatbot - it's a powerful platform for building automated AI workflows. Let's explore how to create sophisticated automation using Mix's API.
+
+## Understanding Tools
+
+Mix Agent comes with a rich set of built-in tools:
+
+- **File Operations**: Read, write, and edit files
+- **Code Execution**: Run bash commands and Python scripts
+- **Search Tools**: Glob patterns and grep for finding code
+- **Web Tools**: Search the web and fetch content
+
+## Creating Custom Workflows
+
+Here's an example of a code review workflow:
+
+```typescript
+import { MixClient } from '@mixlabs/mix-sdk';
+
+async function codeReviewWorkflow(files: string[]) {
+  const client = new MixClient();
+  const session = await client.sessions.create();
+
+  // Upload files for review
+  for (const file of files) {
+    await client.files.upload(session.id, file);
+  }
+
+  // Request review
+  const review = await client.messages.send(session.id, {
+    content: 'Review these files for potential bugs and improvements',
+  });
+
+  return review;
+}
+```
+
+## Streaming Events
+
+For long-running workflows, use streaming to get real-time updates:
+
+```typescript
+const stream = client.streaming.streamEvents(sessionId);
+
+for await (const event of stream) {
+  if (event.type === 'tool_use') {
+    console.log(`Using tool: ${event.tool.name}`);
+  }
+}
+```
+
+## Best Practices
+
+1. **Break complex tasks** into smaller steps
+2. **Use sessions** to maintain context
+3. **Stream events** for progress tracking
+4. **Handle errors** at each step
+5. **Clean up resources** when done
+
+## Real-World Examples
+
+### Automated Documentation
+
+Generate documentation from code:
+
+```python
+from mix import MixClient
+
+client = MixClient()
+session = client.sessions.create()
+
+# Upload source files
+client.files.upload(session.id, "src/api.ts")
+
+# Generate docs
+response = client.messages.send(
+    session_id=session.id,
+    content="Generate API documentation from this file"
+)
+```
+
+### Code Migration
+
+Automate code migrations across your codebase:
+
+```typescript
+// Find all files to migrate
+const files = await glob('**/*.js');
+
+// Create migration session
+const session = await client.sessions.create();
+
+// Process each file
+for (const file of files) {
+  await client.messages.send(session.id, {
+    content: `Migrate ${file} from CommonJS to ESM`,
+  });
+}
+```
+
+## Conclusion
+
+Mix Agent's flexible architecture makes it perfect for building custom AI workflows. Start small, iterate, and build powerful automation that saves time and improves code quality.
+
+Explore our [API reference](/docs/api) to learn more about available endpoints and capabilities.

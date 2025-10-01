@@ -1,0 +1,75 @@
+---
+title: Deep Dive into Mix SDKs
+description: Learn how to integrate Mix into your applications using our TypeScript and Python SDKs.
+author: Mix Team
+date: 2025-09-28
+tags: [sdk, tutorial, integration]
+---
+
+# Deep Dive into Mix SDKs
+
+Mix provides powerful SDKs for both TypeScript and Python, making it easy to integrate AI capabilities into your applications. Let's explore how to use them effectively.
+
+## TypeScript SDK
+
+The TypeScript SDK offers a type-safe way to interact with Mix Agent:
+
+```typescript
+import { MixClient } from '@mixlabs/mix-sdk';
+
+const client = new MixClient({
+  baseUrl: 'http://localhost:8080',
+});
+
+// Create a session
+const session = await client.sessions.create();
+
+// Send a message
+const response = await client.messages.send(session.id, {
+  content: 'Help me refactor this function',
+});
+```
+
+### Key Features
+
+- **Full TypeScript support** with auto-completion
+- **Streaming responses** for real-time interaction
+- **File upload** capabilities
+- **Session management** utilities
+
+## Python SDK
+
+The Python SDK provides a Pythonic interface for Mix:
+
+```python
+from mix import MixClient
+
+client = MixClient(base_url="http://localhost:8080")
+
+# Create a session
+session = client.sessions.create()
+
+# Send a message
+response = client.messages.send(
+    session_id=session.id,
+    content="Explain this algorithm"
+)
+```
+
+### Advanced Usage
+
+Both SDKs support advanced features like:
+
+- **Streaming events** for real-time updates
+- **File management** for uploading project files
+- **Custom preferences** for AI behavior
+- **Permission handling** for secure operations
+
+## Best Practices
+
+1. **Reuse sessions** for related conversations
+2. **Handle errors gracefully** with try-catch blocks
+3. **Stream responses** for better user experience
+4. **Clean up sessions** when done
+
+Check out our [SDK documentation](/docs/sdk) for comprehensive guides and examples.
