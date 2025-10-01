@@ -1,6 +1,7 @@
 import {
   defineConfig,
   defineDocs,
+  defineCollections,
   frontmatterSchema,
   metaSchema,
 } from 'fumadocs-mdx/config';
@@ -17,6 +18,18 @@ export const docs = defineDocs({
   meta: {
     schema: metaSchema,
   },
+});
+
+// Blog collection configuration
+export const blogPosts = defineCollections({
+  type: 'doc',
+  dir: 'content/blog',
+  schema: frontmatterSchema.extend({
+    author: z.string(),
+    date: z.string().or(z.date()),
+    tags: z.array(z.string()).optional(),
+    image: z.string().optional(),
+  }),
 });
 
 export default defineConfig({

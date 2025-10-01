@@ -2,7 +2,7 @@
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/Sarath?style=social)](https://x.com/intent/user?screen_name=sarath_suresh_m)
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
-[![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/mix-agent)
+[![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/mix)
 
 Mix is the best agentic backbone for your multimodal app. It comes with a GUI playground for testing and debugging SDK workflows.
 

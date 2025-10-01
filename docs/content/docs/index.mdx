@@ -1,0 +1,64 @@
+---
+title: Documentation
+description: Complete documentation for Mix - AI agent platform for developers
+---
+
+Mix is an open-source AI agent platform that helps developers build better software faster. It provides a powerful backend, interactive DevTools, and SDKs for TypeScript and Python.
+
+## Quick Start
+
+Get up and running with Mix in minutes:
+
+```bash
+# Install Mix
+npm install -g mix-agent
+
+# Start the server
+mix-agent start
+```
+
+Then use the TypeScript SDK:
+
+```typescript
+import { Mix } from 'mix-typescript-sdk';
+
+const client = new Mix({ serverURL: 'http://localhost:8088' });
+const sessions = await client.sessions.list();
+```
+
+Or Python SDK:
+
+```python
+from mix import MixClient
+
+client = MixClient(base_url="http://localhost:8088")
+sessions = client.sessions.list()
+```
+
+## Core Features
+
+- 🚀 **HTTP API Server** - RESTful backend for AI orchestration
+- 🎨 **DevTools** - Interactive desktop app built with Tauri
+- 📦 **Type-Safe SDKs** - TypeScript and Python support
+- 🤖 **Multi-Provider AI** - Anthropic, OpenAI, Google, and more
+- 📁 **Session Management** - Persistent conversation storage
+- ⚡ **Real-time Streaming** - Server-Sent Events for live responses
+
+## Documentation
+
+<Cards>
+  <Card
+    href="/docs/mix"
+    title="Mix"
+    description="Backend HTTP API server, DevTools, SDKs, AI orchestration, and tool integration"
+  />
+  <Card
+    href="/docs/api"
+    title="API Reference"
+    description="Complete REST API reference for all Mix endpoints"
+  />
+</Cards>
+
+## What Makes Mix Different?
+
+Mix is **open-source** and **local-first**. Your data stays on your machine. No vendor lock-in, switch between AI providers freely. Built for developers who need powerful AI automation without sacrificing control.
