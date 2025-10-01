@@ -94,7 +94,6 @@ export default async function BlogPostPage(props: Props) {
 			</PageArticle>
 			{toc.length > 0 && (
 				<PageTOC>
-					<PageTOCTitle />
 					<PageTOCItems />
 				</PageTOC>
 			)}
