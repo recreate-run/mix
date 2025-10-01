@@ -101,9 +101,23 @@ Assistant: I'll show you that YouTube video as an embedded player.
 *Uses show_media tool with:*
 
 - Path: <https://www.youtube.com/watch?v=example123>
-- Type: youtube
+- Type: video
 - Title: YouTube Reference Video
 - Description: External video content for reference
+</example>
+
+<example>
+User: Show me the section from 1:30 to 2:00 of this YouTube video: https://www.youtube.com/watch?v=example456
+Assistant: I'll show you that specific 30-second segment from the YouTube video.
+
+*Uses show_media tool with:*
+
+- Path: <https://www.youtube.com/watch?v=example456>
+- Type: video
+- Title: YouTube Video Highlight
+- Description: Tutorial section showing key concept
+- StartTime: 90
+- Duration: 30
 </example>
 
 <example>
@@ -175,7 +189,7 @@ Assistant: I've identified key segments from your demo video.
 outputs (required): Array of media outputs to showcase
 
 - path: HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media URL
-- type: "image", "video", "audio", "gsap_animation", "youtube", "pdf", or "csv"
+- type: "image", "video", "audio", "gsap_animation", "pdf", or "csv"
 - title: Display title
 - description: Project context (optional)
 - config: Animation configuration JSON (required for gsap_animation)
@@ -203,7 +217,6 @@ outputs (required): Array of media outputs to showcase
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
 - Use this tool to show previews and references
-- Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
 - Always convert Excel files (.xlsx, .xls) to CSV format before displaying with this tool
 
 This tool transforms file paths into beautiful media displays in the conversation interface.

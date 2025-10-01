@@ -100,7 +100,7 @@ const MediaDownloadButton = ({ media, sessionId }: { media: MediaOutput; session
 
   const handleDownload = async () => {
     // For YouTube videos, open in new tab instead of downloading
-    if (media.type === 'youtube') {
+    if (media.type === 'video' && isYouTubeUrl(media.path)) {
       window.open(media.path, '_blank');
       return;
     }
@@ -177,7 +177,7 @@ const MediaDownloadButton = ({ media, sessionId }: { media: MediaOutput; session
       onClick={handleDownload}
       size="sm"
       variant="ghost"
-      title={media.type === 'youtube' ? 'Open in YouTube' : 'Download media'}
+      title={media.type === 'video' && isYouTubeUrl(media.path) ? 'Open in YouTube' : 'Download media'}
       disabled={isDownloading}
     >
       <Download className="size-4" />
@@ -216,10 +216,55 @@ const MainMediaPlayer = ({ media, sessionId }: { media: MediaOutput; sessionId: 
       )}
 
       {media.type === 'video' && (
-        <LazyVideoPlayer
-          media={media}
-          sessionId={sessionId}
-        />
+        <>
+          {isYouTubeUrl(media.path) ? (
+            <div className="overflow-hidden rounded-md">
+              <iframe
+                src={(() => {
+                  const baseUrl = getMediaSrc(media.path, sessionId);
+                  if (media.startTime !== undefined || media.duration !== undefined) {
+                    try {
+                      const url = new URL(baseUrl);
+                      if (media.startTime !== undefined) {
+                        url.searchParams.set('start', media.startTime.toString());
+                      }
+                      if (media.duration !== undefined && media.startTime !== undefined) {
+                        url.searchParams.set('end', (media.startTime + media.duration).toString());
+                      }
+                      return url.toString();
+                    } catch {
+                      return baseUrl;
+                    }
+                  }
+                  return baseUrl;
+                })()}
+                title={media.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                className="aspect-video w-full min-w-xl bg-black"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget
+                    .nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
+                }}
+              />
+              <div
+                className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
+                style={{ display: 'none' }}
+              >
+                Failed to load YouTube video: {media.path}
+              </div>
+            </div>
+          ) : (
+            <LazyVideoPlayer
+              media={media}
+              sessionId={sessionId}
+            />
+          )}
+        </>
       )}
 
       {media.type === 'audio' && (
@@ -249,32 +294,6 @@ const MainMediaPlayer = ({ media, sessionId }: { media: MediaOutput; sessionId: 
 
       {media.type === 'gsap_animation' && media.config && (
         <GsapAnimationPreview config={media.config as any} />
-      )}
-
-      {media.type === 'youtube' && (
-        <div className="overflow-hidden rounded-md">
-          <iframe
-            src={getMediaSrc(media.path, sessionId)}
-            title={media.title}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            referrerPolicy="strict-origin-when-cross-origin"
-            allowFullScreen
-            className="aspect-video w-full min-w-xl bg-black"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const fallback = e.currentTarget
-                .nextElementSibling as HTMLElement;
-              if (fallback) fallback.style.display = 'block';
-            }}
-          />
-          <div
-            className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
-            style={{ display: 'none' }}
-          >
-            Failed to load YouTube video: {media.path}
-          </div>
-        </div>
       )}
 
       {media.type === 'pdf' && (
