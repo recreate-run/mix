@@ -8,6 +8,9 @@
     "index",
     "quickstart",
     "design-decisions",
+    "---SDKs---",
+    "typescript-sdk",
+    "python-sdk",
     "---Architecture---",
     "architecture-overview",
     "concurrency-architecture",
@@ -22,7 +25,7 @@
     "---Development---",
     "ai-coding",
     "testing",
-     "---Others---",
+    "---Others---",
     "security-privacy"
   ]
 }
