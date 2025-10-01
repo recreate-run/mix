@@ -7,6 +7,7 @@ import (
 	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -243,11 +244,8 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 	return nil, fmt.Errorf("invalid thumbnail format, use: 100 (box), w100 (width), or h100 (height)")
 }
 
-// generateThumbnailPath creates a consistent cache path for thumbnails in uploads directory
-func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
-	uploadsStorageDir := session.GetUploadsStoragePath(h.storageConfig)
-	thumbnailDir := filepath.Join(uploadsStorageDir, ".thumbnails")
-
+// generateThumbnailKey creates a consistent storage key for thumbnails
+func (h *SessionAssetHandler) generateThumbnailKey(sessionID, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
 	// Create hash of original path for consistent naming
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(originalPath)))
 
@@ -270,11 +268,13 @@ func (h *SessionAssetHandler) generateThumbnailPath(sessionID, originalPath stri
 		filename = fmt.Sprintf("%s_unknown%s.jpg", hash, timeSuffix)
 	}
 
-	return filepath.Join(thumbnailDir, filename)
+	return fmt.Sprintf("thumbnails/%s", filename)
 }
 
 // serveThumbnail handles thumbnail generation and serving for both videos and images
 func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Request, sessionID, mediaPath, thumbParam, timeParam string) error {
+	ctx := r.Context()
+
 	// Parse thumbnail specification
 	spec, err := h.parseThumbnailSpec(thumbParam)
 	if err != nil {
@@ -293,39 +293,88 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Generate thumbnail path with time offset
-	thumbnailPath := h.generateThumbnailPath(sessionID, mediaPath, spec, timeOffset)
+	// Generate thumbnail storage key with time offset
+	thumbnailKey := h.generateThumbnailKey(sessionID, mediaPath, spec, timeOffset)
 
-	// Check if thumbnail already exists
-	if _, err := os.Stat(thumbnailPath); err == nil {
-		// Serve existing thumbnail
-		w.Header().Set("Content-Type", "image/jpeg")
-		http.ServeFile(w, r, thumbnailPath)
-		return nil
+	// Check if thumbnail already exists in storage
+	exists, err := h.app.StorageProvider.Exists(ctx, thumbnailKey)
+	if err != nil {
+		logging.Error("Failed to check thumbnail existence", "key", thumbnailKey, "error", err)
+		// Continue to generate - non-fatal error
+	} else if exists {
+		// For remote storage (Supabase), redirect to public URL
+		// For local storage, download and serve the file
+		publicURL := h.app.StorageProvider.GetPublicURL(thumbnailKey)
+		if strings.HasPrefix(publicURL, "file://") {
+			// Local storage - download and serve
+			reader, err := h.app.StorageProvider.Download(ctx, thumbnailKey)
+			if err != nil {
+				logging.Error("Failed to download existing thumbnail", "key", thumbnailKey, "error", err)
+				// Continue to regenerate
+			} else {
+				defer reader.Close()
+				w.Header().Set("Content-Type", "image/jpeg")
+				w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+				_, err = io.Copy(w, reader)
+				if err != nil {
+					logging.Error("Failed to serve thumbnail", "key", thumbnailKey, "error", err)
+				}
+				return nil
+			}
+		} else {
+			// Remote storage - redirect to public URL
+			http.Redirect(w, r, publicURL, http.StatusFound)
+			return nil
+		}
 	}
 
-	// Create thumbnails directory if it doesn't exist
-	thumbnailDir := filepath.Dir(thumbnailPath)
-	if err := os.MkdirAll(thumbnailDir, 0755); err != nil {
-		return fmt.Errorf("failed to create thumbnail directory: %v", err)
+	// Generate thumbnail to temporary file
+	tmpFile, err := os.CreateTemp("", "thumbnail-*.jpg")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %v", err)
 	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath) // Clean up temp file after upload
 
 	// Generate thumbnail using FFmpeg based on file type
 	if isVideoFile(mediaPath) {
-		if err := h.generateVideoThumbnail(mediaPath, thumbnailPath, spec, timeOffset); err != nil {
+		if err := h.generateVideoThumbnail(mediaPath, tmpPath, spec, timeOffset); err != nil {
 			return err
 		}
 	} else if isImageFile(mediaPath) {
-		if err := h.generateImageThumbnail(mediaPath, thumbnailPath, spec); err != nil {
+		if err := h.generateImageThumbnail(mediaPath, tmpPath, spec); err != nil {
 			return err
 		}
 	} else {
 		return fmt.Errorf("unsupported file type for thumbnail generation")
 	}
 
-	// Serve the generated thumbnail
-	w.Header().Set("Content-Type", "image/jpeg")
-	http.ServeFile(w, r, thumbnailPath)
+	// Upload thumbnail to storage provider
+	thumbnailFile, err := os.Open(tmpPath)
+	if err != nil {
+		return fmt.Errorf("failed to open generated thumbnail: %v", err)
+	}
+	defer thumbnailFile.Close()
+
+	_, err = h.app.StorageProvider.Upload(ctx, thumbnailKey, thumbnailFile, "image/jpeg")
+	if err != nil {
+		return fmt.Errorf("failed to upload thumbnail: %v", err)
+	}
+
+	// Get public URL and check if it's local or remote
+	publicURL := h.app.StorageProvider.GetPublicURL(thumbnailKey)
+	if strings.HasPrefix(publicURL, "file://") {
+		// Local storage - serve the file directly
+		thumbnailFile.Seek(0, 0) // Reset file pointer to beginning
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+		io.Copy(w, thumbnailFile)
+		return nil
+	}
+
+	// Remote storage - redirect to public URL
+	http.Redirect(w, r, publicURL, http.StatusFound)
 	return nil
 }
 

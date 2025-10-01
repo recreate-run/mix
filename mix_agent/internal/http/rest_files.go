@@ -179,6 +179,11 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	// Build file list
 	files := make([]FileInfo, 0, len(storageFiles))
 	for _, storageFile := range storageFiles {
+		// Skip thumbnail files - they should not be visible in file listings
+		if strings.HasPrefix(storageFile.Key, "thumbnails/") || strings.Contains(storageFile.Key, "/.thumbnails/") {
+			continue
+		}
+
 		// Extract filename from key (remove "uploads/" prefix)
 		name := strings.TrimPrefix(storageFile.Key, "uploads/")
 		files = append(files, FileInfo{
