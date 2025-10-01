@@ -1,216 +1,178 @@
 ---
-title: Hosting Mix Backend
-description: Deploy Mix backend for production web apps with storage configuration
+title: Hosting & Deployment
+description: Deploy Mix with local or cloud storage backends
 ---
 
-Mix is an **SDK-first agentic backbone** - users integrate Mix SDKs into their web apps and host the Mix backend server. This guide covers everything you need to deploy Mix for production.
+Mix can be deployed with different storage backends depending on your needs. This guide covers deployment options and configuration for production environments.
 
-## Architecture Overview
+## Storage Backend Options
 
-```
-Your Web App (React/Next.js)
-    ↓ HTTP/REST API
-Mix Backend (Go Server)
-    ↓
-Storage (Local/S3/R2/MinIO)
-Database (SQLite/Turso)
-```
+### Local Storage (Self-Hosted)
 
-**Key Concept**: Mix backend is an HTTP server that your web app communicates with via REST API. The backend handles AI orchestration, tool execution, and file storage.
+Best for self-hosted deployments where you have control over the server filesystem.
 
-## Quick Start
+**Pros:**
+- Zero external dependencies
+- No additional cost
+- Simple setup
+- Full data control
 
-### 1. Clone and Build
+**Cons:**
+- Limited scalability
+- No built-in CDN
+- Manual backup required
 
-```bash
-git clone https://github.com/recreate-run/mix.git
-cd mix/mix_agent
-go build -o mix-server
-```
-
-### 2. Configure Backend
-
-Create `.env` file:
+**Configuration:**
 
 ```bash
-
-# Database (default: Local SQLite)
-DATABASE_TYPE=sqlite
-
-# Storage (default: local filesystem)
+# .env
 STORAGE_TYPE=local
-STORAGE_ENDPOINT=./storage
 ```
 
-### 3. Run Backend
+That's it! Local storage requires no additional configuration.
+
+### Supabase Storage (Cloud)
+
+Best for production deployments with multiple instances or when you need cloud-hosted files.
+
+**Pros:**
+- Scalable cloud storage
+- Built-in CDN for fast file delivery
+- Automatic backups
+- Public URLs for files
+- Easy to set up
+
+**Cons:**
+- Requires Supabase account
+- External dependency
+- Potential costs at scale
+
+**Setup Steps:**
+
+1. **Create a Supabase project** at [supabase.com](https://supabase.com)
+
+2. **Create a storage bucket:**
+   - Go to Storage in Supabase dashboard
+   - Create a new bucket named `mix-storage` (or your preferred name)
+   - Make it **public** for file access
+
+3. **Get your credentials:**
+   - **Project URL**: Found in Settings → API → Project URL
+   - **Service Role Key**: Found in Settings → API → service_role key (NOT the anon key)
+   - **Bucket Name**: The name you chose (e.g., `mix-storage`)
+
+4. **Configure Mix:**
 
 ```bash
-./mix-server serve
-# Backend runs on http://localhost:8088
-```
-
-### 4. Integrate SDK in Your Web App
-
-**TypeScript Example:**
-
-```typescript
-import { Mix } from 'mix-typescript-sdk';
-
-const client = new Mix({
-  serverURL: 'http://localhost:8088'  // Your hosted backend
-});
-
-// Create session
-const session = await client.sessions.create({
-  title: 'Video Processing'
-});
-
-// Upload file
-const file = new File([blob], 'video.mp4');
-const uploaded = await client.files.upload({
-  id: session.id,
-  requestBody: { file }
-});
-
-// Send message
-await client.messages.send({
-  id: session.id,
-  requestBody: {
-    text: 'Create 5 second highlights'
-  }
-});
-```
-
-**Python Example:**
-
-```python
-from mix_sdk import MixClient
-
-client = MixClient(base_url='http://localhost:8088')
-
-# Create session
-session = client.sessions.create(title='Video Processing')
-
-# Upload file
-with open('video.mp4', 'rb') as f:
-    uploaded = client.files.upload(session_id=session.id, file=f)
-
-# Send message
-client.messages.send(
-    session_id=session.id,
-    text='Create 5 second highlights'
-)
-```
-
-## Storage Configuration
-
-**For production**: Use S3-compatible storage (required for load balancing, CDN, and redundancy).
-
-Mix supports any S3-compatible provider:
-
-### Cloudflare R2 (Recommended)
-
-```bash
-STORAGE_TYPE=s3
-STORAGE_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+# .env
+STORAGE_TYPE=supabase
+STORAGE_ENDPOINT=https://your-project.supabase.co
 STORAGE_BUCKET=mix-storage
-STORAGE_ACCESS_KEY=your-r2-access-key
-STORAGE_SECRET_KEY=your-r2-secret-key
-STORAGE_PUBLIC_URL_BASE=https://pub-<hash>.r2.dev
-STORAGE_REGION=auto
+STORAGE_ACCESS_KEY=your_service_role_key_here
 ```
 
-**Setup**: [Cloudflare R2 Dashboard](https://dash.cloudflare.com) → Create bucket → Generate API tokens
+⚠️ **Important**: Use the `service_role` key, NOT the `anon` or `publishable` key. The service role key has full access to storage operations.
 
-**Pricing**: $0.015/GB storage, **FREE egress** (huge savings for video streaming)
+## How Storage Works
 
-### MinIO (Self-Hosted)
+Mix uses a **StorageProvider abstraction** that makes storage backend transparent:
+
+- **File uploads** are automatically stored using the configured provider
+- **Thumbnails** are generated and stored in the same provider
+- **File serving** adapts based on storage type:
+  - **Local**: Files served directly via HTTP
+  - **Supabase**: Redirects to Supabase public URLs
+
+All file operations (upload, download, list, delete) work identically regardless of storage backend.
+
+## Environment Variables
+
+### Required for All Deployments
 
 ```bash
-STORAGE_TYPE=s3
-STORAGE_ENDPOINT=minio.yourdomain.com:9000
-STORAGE_BUCKET=mix-storage
-STORAGE_ACCESS_KEY=minioadmin
-STORAGE_SECRET_KEY=minioadmin
-STORAGE_FORCE_PATH_STYLE=true
-STORAGE_USE_SSL=false  # true for production
+# Database (Turso)
+MIX_DB_TYPE=turso
+MIX_DB_TURSO_URL=your_turso_database_url
+MIX_DB_TURSO_AUTH_TOKEN=your_turso_auth_token
+
+# Frontend URLs (adjust for your deployment)
+VITE_BACKEND_URL=https://your-backend-url.com
+VITE_GSAP_URL=https://your-gsap-url.com
 ```
 
-**Setup**: [MinIO Quickstart](https://min.io/docs/minio/linux/operations/install-deploy-manage.html)
+### Storage Configuration
 
 ```bash
-# Docker setup
-docker run -p 9000:9000 -p 9001:9001 \
-  -e MINIO_ROOT_USER=minioadmin \
-  -e MINIO_ROOT_PASSWORD=minioadmin \
-  minio/minio server /data --console-address ":9001"
+# Local storage (default)
+STORAGE_TYPE=local
+
+# OR Supabase storage
+STORAGE_TYPE=supabase
+STORAGE_ENDPOINT=https://project.supabase.co
+STORAGE_BUCKET=bucket-name
+STORAGE_ACCESS_KEY=service_role_key
 ```
 
-### AWS S3 (Enterprise)
+## Deployment Checklist
 
-```bash
-STORAGE_TYPE=s3
-STORAGE_ENDPOINT=s3.us-east-1.amazonaws.com
-STORAGE_BUCKET=my-bucket
-STORAGE_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
-STORAGE_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
-STORAGE_REGION=us-east-1
-```
+- [ ] Database configured (Turso URL and auth token)
+- [ ] Storage provider chosen and configured
+- [ ] Environment variables set correctly
+- [ ] If using Supabase: service_role key (not anon key)
+- [ ] If using Supabase: bucket is public
+- [ ] Frontend URLs point to correct backend
+- [ ] Test file upload and thumbnail generation
+- [ ] Verify files are stored in correct location (local vs Supabase)
 
-**Pricing**: $0.023/GB storage + $0.09/GB egress
+## Troubleshooting
 
-### Backblaze B2 (Budget)
+### Files not appearing in Supabase
 
-```bash
-STORAGE_TYPE=s3
-STORAGE_ENDPOINT=https://s3.us-west-000.backblazeb2.com
-STORAGE_BUCKET=my-bucket
-STORAGE_ACCESS_KEY=${B2_APPLICATION_KEY_ID}
-STORAGE_SECRET_KEY=${B2_APPLICATION_KEY}
-```
+**Check:**
+1. Is `STORAGE_TYPE=supabase` set?
+2. Are you using the `service_role` key (not anon key)?
+3. Is the bucket public?
+4. Check backend logs for upload errors
 
-**Pricing**: $0.006/GB storage + $0.01/GB egress (first 3x free)
+### Thumbnails not working
 
-### Storage Configuration Fields
+**Check:**
+1. Is FFmpeg installed on the server? (required for video thumbnails)
+2. Check backend logs for thumbnail generation errors
+3. Verify storage provider has write access
 
-| Field | Required | Description | Example |
-|-------|----------|-------------|---------|
-| `STORAGE_TYPE` | Yes | `local` or `s3` | `s3` |
-| `STORAGE_ENDPOINT` | Yes | S3 endpoint URL or local path | `https://xxx.r2.cloudflarestorage.com` |
-| `STORAGE_BUCKET` | Yes (S3) | Bucket name | `mix-storage` |
-| `STORAGE_ACCESS_KEY` | Yes (S3) | Access key ID | `your-access-key` |
-| `STORAGE_SECRET_KEY` | Yes (S3) | Secret access key | `your-secret-key` |
-| `STORAGE_REGION` | No | AWS region | `us-east-1` (default) |
-| `STORAGE_USE_SSL` | No | Use HTTPS | `true` (default) |
-| `STORAGE_FORCE_PATH_STYLE` | No | Path-style URLs (MinIO needs this) | `false` (default) |
-| `STORAGE_PUBLIC_URL_BASE` | No | Custom CDN domain | `https://cdn.yourdomain.com` |
+### 404 errors on existing files
 
-## Database Configuration
+**Cause:** Files were uploaded to local storage, but you switched to Supabase (or vice versa)
 
-### SQLite (Default)
+**Solution:** Migrate files to new storage provider (see Migration section above)
 
-Local SQLite database for single-server deployments:
+## Cost Considerations
 
-```bash
-DATABASE_TYPE=sqlite
-DATABASE_SQLITE_DATADIR=.mix
-DATABASE_SQLITE_FILENAME=mix.db
-```
+### Local Storage
+- **Storage**: Server disk space cost
+- **Bandwidth**: Server bandwidth cost
+- **Scaling**: Requires larger server or external CDN
 
-### Turso (Hosted SQLite)
+### Supabase Storage
+- **Free tier**: 1GB storage, 2GB bandwidth/month
+- **Paid**: ~$0.021/GB storage, ~$0.09/GB bandwidth
+- **Scaling**: Automatic, pay-as-you-go
 
-For distributed/multi-instance deployments:
+For small projects (less than 1GB files, less than 2GB bandwidth/month), Supabase free tier is sufficient.
 
-```bash
-DATABASE_TYPE=turso
-DATABASE_TURSO_URL=libsql://my-db.turso.io
-DATABASE_TURSO_AUTH_TOKEN=your-auth-token
-```
+## Production Best Practices
 
-**Setup**: [Turso Dashboard](https://turso.tech)
+1. **Use Supabase for production** deployments with multiple instances
+2. **Use local storage** for self-hosted single-instance deployments
+3. **Always use service_role key** for Supabase (never commit to git!)
+4. **Set bucket to public** for file access
+5. **Monitor storage usage** in Supabase dashboard
+6. **Enable backups** for local storage deployments
+7. **Use environment variables** for all secrets (never hardcode)
 
 ## Next Steps
 
-- Integrate [TypeScript SDK](/docs/mix/typescript-sdk) in your web app
-- Configure [Python SDK](/docs/mix/python-sdk) for backend workflows
-- Read [Storage Architecture](/docs/mix/storage-architecture) for deep dive
+- [Storage Architecture](/docs/mix/storage-architecture): Deep dive into storage system
+- [Security & Privacy](/docs/mix/security-privacy): Security considerations
+- [Troubleshooting](/docs/mix/troubleshooting): Common issues and solutions
