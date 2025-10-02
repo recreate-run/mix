@@ -1,61 +1,147 @@
 ---
-title: Quickstart 
-description: Get up and running with Mix
+title: Quickstart
+description: Get up and running with Mix in 5 minutes
 ---
 
+Choose your path to get started with Mix:
 
-## Quick start (Python SDK)
+## Quickstart with DevTools
 
-```bash
-https://github.com/recreate-run/mix-python-sdk.git
-cd mix-python-sdk
-```
+The fastest way to see Mix in action. Built with Tauri and the [Mix TypeScript SDK](https://github.com/recreate-run/mix-typescript-sdk).
 
-### Demos
-
-Create a tiktok videos
-
-```bash
-uv run examples/tiktok_video.py
-```
-
-Multimodal search
-
-```bash
-uv run examples/web_search_multimodal.py
-```
-
-Modiying/Replacing the system prompt
-
-```bash
-uv run examples/system_prompt_change.py
-```
-
-## Quick start (Playground)
-
-Mix comes with a GUI playground for testing and debugging SDK workflows. It's built from the [Mix typescript SDK](https://github.com/recreate-run/mix-typescript-sdk)
+### 1. Install and Run
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
+cd mix
 make dev
 ```
 
-Authenticate LLM providers and tool API's usring the settings dialog (gear icon at the bottom left)
+### 2. Configure Authentication
 
-1. We recommend claude-sonnet-4 via the oauth (claude code account) or the anthropic API key using the Settings dialog.
-2. Set Gemini API key for the `ReadMedia tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
-3. Set Brave API key for the `Search` tool. Available for free from [Brave](https://brave.com/search/api/)
+Click the ⚙️ **Settings** icon (bottom left) to configure AI providers.
 
-### Demos
+#### Anthropic (Recommended)
 
-```bash
-Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
+**Option A: OAuth (Easiest)**
+1. Click **"Sign in with Claude Code"**
+2. Authorize in your browser
+3. Done! ✅
+
+**Option B: API Key**
+1. Get your API key from [Anthropic Console](https://console.anthropic.com/)
+2. Click **"Use API Key"** in Settings
+3. Paste your key
+4. Select **claude-sonnet-4** as your model
+
+#### Google Gemini (For ReadMedia tool)
+1. Get free API key from [AI Studio](https://aistudio.google.com/api-keys)
+2. Paste in **Google** section in Settings
+3. Used for image/video analysis
+
+#### Brave Search (For web search)
+1. Get free API key from [Brave Search API](https://brave.com/search/api/)
+2. Paste in **Brave** section in Settings
+3. Used for web searches
+
+### 3. Try It Out
+
+Type these prompts in the chat:
+
+```
+Find the top cat video and create a 5 sec tiktok video from it.
+Add a title animation and export to a video
 ```
 
-```bash
+```
 Find the best videos about kerala puttu and show.
 ```
 
-```bash
+```
 Show 3 most interesting 5 second highlights from this video
 ```
+
+---
+
+## Quickstart with SDK
+
+Build AI workflows programmatically with the Python SDK.
+
+### 1. Prerequisites
+
+Make sure Mix backend is running (see DevTools quickstart above).
+
+### 2. Install SDK
+
+```bash
+git clone https://github.com/recreate-run/mix-python-sdk.git
+cd mix-python-sdk
+```
+
+### 3. Run Examples
+
+```bash
+# Create TikTok-style videos
+uv run examples/tiktok_video.py
+
+# Multimodal web search
+uv run examples/web_search_multimodal.py
+
+# Customize system prompts
+uv run examples/system_prompt_change.py
+```
+
+### 4. Build Your Own
+
+```python
+from mix_python_sdk import Mix
+
+# Create client
+client = Mix(server_url="http://localhost:8088")
+
+# Create a session
+session = client.sessions.create(title="My First Workflow")
+
+# Send a message
+message = client.messages.send(
+    session_id=session.id,
+    content="Analyze this image and create a summary"
+)
+
+print(message)
+```
+
+---
+
+## Next Steps
+
+<Cards>
+  <Card title="Examples" href="/docs/mix/examples">
+    Explore real-world use cases and workflows
+  </Card>
+
+  <Card title="API Reference" href="/docs/api">
+    Complete API documentation
+  </Card>
+
+  <Card title="Tools" href="/docs/mix/tools">
+    Available tools for your workflows
+  </Card>
+
+  <Card title="Troubleshooting" href="/docs/mix/troubleshooting">
+    Common issues and solutions
+  </Card>
+</Cards>
+
+## Troubleshooting
+
+**DevTools won't start?**
+- Check port 8088 is not in use: `lsof -i :8088`
+- Try `make clean && make dev`
+
+**Authentication failed?**
+- Verify API keys are correct
+- Check internet connection for OAuth
+- Try the alternative auth method
+
+**Need help?** Check [Troubleshooting](/docs/mix/troubleshooting) or open an issue on [GitHub](https://github.com/recreate-run/mix).
