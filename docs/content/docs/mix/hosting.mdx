@@ -47,31 +47,40 @@ Best for production deployments with multiple instances or when you need cloud-h
 - External dependency
 - Potential costs at scale
 
-**Setup Steps:**
-
-1. **Create a Supabase project** at [supabase.com](https://supabase.com)
-
-2. **Create a storage bucket:**
-   - Go to Storage in Supabase dashboard
-   - Create a new bucket named `mix-storage` (or your preferred name)
-   - Make it **public** for file access
-
-3. **Get your credentials:**
-   - **Project URL**: Found in Settings → API → Project URL
-   - **Service Role Key**: Found in Settings → API → service_role key (NOT the anon key)
-   - **Bucket Name**: The name you chose (e.g., `mix-storage`)
-
-4. **Configure Mix:**
+**Automated Setup (Recommended):**
 
 ```bash
-# .env
+./scripts/setup-supabase.sh
+```
+
+This script will:
+1. Install Supabase CLI if needed
+2. Authenticate with your Supabase account (browser-based)
+3. Let you select or create a project
+4. Automatically fetch API keys
+5. Create storage bucket
+6. Update your `.env` file
+
+Everything configured in one command!
+
+**Manual Setup (Alternative):**
+
+If you prefer manual configuration:
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Go to Settings → API and copy:
+   - Project URL
+   - service_role key (NOT anon key)
+3. Add to `.env`:
+
+```bash
 STORAGE_TYPE=supabase
 STORAGE_ENDPOINT=https://your-project.supabase.co
 STORAGE_BUCKET=mix-storage
 STORAGE_ACCESS_KEY=your_service_role_key_here
 ```
 
-⚠️ **Important**: Use the `service_role` key, NOT the `anon` or `publishable` key. The service role key has full access to storage operations.
+⚠️ **Important**: Use the `service_role` key, NOT the `anon` or `publishable` key.
 
 ## How Storage Works
 

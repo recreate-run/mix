@@ -25,6 +25,24 @@ STORAGE_ENDPOINT=./storage
 
 This is the default configuration if no storage variables are set. Files are stored in the `./storage` directory.
 
+### Supabase Storage (Automated Setup)
+
+**Recommended for production.** Run the automated setup script:
+
+```bash
+./scripts/setup-supabase.sh
+```
+
+The script will:
+- Install Supabase CLI (if needed)
+- Authenticate with your Supabase account
+- Let you choose or create a project
+- Fetch API keys automatically
+- Create storage bucket
+- Update your `.env` file
+
+That's it! No manual configuration needed.
+
 ### S3-Compatible Storage
 
 To use S3-compatible storage, configure these environment variables:
