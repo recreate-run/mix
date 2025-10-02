@@ -11,6 +11,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/commands"
+	"mix/internal/llm/agent"
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
@@ -218,19 +219,26 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Send message to agent
-	done, err := h.app.CoderAgent.RunWithPlanMode(ctx, sessionID, req.Text, req.PlanMode)
+	events, err := h.app.CoderAgent.RunWithPlanMode(ctx, sessionID, req.Text, req.PlanMode)
 	if err != nil {
 		sendInternalError(w, "sending message to agent", err)
 		return
 	}
 
-	// Wait for response
-	result := <-done
+	// Forward all events to active SSE connections while processing
+	var lastEvent agent.AgentEvent
+	for event := range events {
+		// Broadcast event to all SSE connections for this session
+		BroadcastAgentEventToSSE(sessionID, event)
+
+		// Store last event for REST response
+		lastEvent = event
+	}
 
 	// Check for processing errors
-	if result.Error != nil {
+	if lastEvent.Error != nil {
 		// Convert error to user-friendly message
-		errorMessage := result.Error.Error()
+		errorMessage := lastEvent.Error.Error()
 
 		// Special handling for auth errors
 		if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
@@ -245,18 +253,18 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		sendInternalError(w, "agent processing", result.Error)
+		sendInternalError(w, "agent processing", lastEvent.Error)
 		return
 	}
 
 	// Extract text content from the response message
 	response := ""
-	if result.Message.Content().String() != "" {
-		response = result.Message.Content().String()
+	if lastEvent.Message.Content().String() != "" {
+		response = lastEvent.Message.Content().String()
 	}
 
 	messageData := MessageData{
-		ID:                result.Message.ID,
+		ID:                lastEvent.Message.ID,
 		Role:              "user",
 		UserInput:         req.Text,
 		AssistantResponse: response,

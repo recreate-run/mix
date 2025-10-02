@@ -16,7 +16,8 @@ import type {
   SSEContentEvent,
   SSECompleteEvent,
   SSEErrorEvent,
-  SSEPermissionEvent
+  SSEPermissionEvent,
+  SSESessionCreatedEvent
 } from 'mix-typescript-sdk/models/sseeventstream';
 
 
@@ -51,6 +52,7 @@ type PersistentSSEState = {
     maxAttempts: number;
   };
   permissionRequests: SSEPermissionRequest[];
+  newlyCreatedSessionId: string | null;
 };
 
 type PersistentSSEHook = PersistentSSEState & {
@@ -68,6 +70,7 @@ type PersistentSSEHook = PersistentSSEState & {
 
   cancelMessage: () => Promise<void>;
   resetCancelledState: () => void;
+  clearNewlyCreatedSession: () => void;
   grantPermission: (id: string) => Promise<void>;
   denyPermission: (id: string) => Promise<void>;
 };
@@ -90,6 +93,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     timeline: [],
     rateLimit: undefined,
     permissionRequests: [],
+    newlyCreatedSessionId: null,
   });
 
   const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
@@ -376,6 +380,26 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
             break;
           }
 
+          case 'session_created': {
+            const sessionCreatedEvent = event as SSESessionCreatedEvent;
+
+            // Store the newly created session ID for navigation
+            setState(prev => ({
+              ...prev,
+              newlyCreatedSessionId: sessionCreatedEvent.data.sessionId,
+            }));
+
+            // Global session events - invalidate sessions list cache for real-time updates
+            queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
+            break;
+          }
+
+          case 'session_deleted': {
+            // Global session events - invalidate sessions list cache for real-time updates
+            queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
+            break;
+          }
+
           default: {
             // Handle any other event types that might be added in the future
             console.warn('Unknown event type:', (event as SSEEventStream).event);
@@ -427,6 +451,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       reasoningDuration: null,
       timeline: [],
       permissionRequests: [],
+      newlyCreatedSessionId: null,
     });
 
     // Create new abort controller for this session
@@ -548,6 +573,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     setState((prev) => ({ ...prev, cancelled: false }));
   }, []);
 
+  const clearNewlyCreatedSession = useCallback(function () {
+    setState((prev) => ({ ...prev, newlyCreatedSessionId: null }));
+  }, []);
+
   const grantPermission = useCallback(async function (id: string) {
     try {
       await mix.permissions.grant({ id });
@@ -667,6 +696,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     isSubmitDisabled,
     cancelMessage,
     resetCancelledState,
+    clearNewlyCreatedSession,
     grantPermission,
     denyPermission,
   };

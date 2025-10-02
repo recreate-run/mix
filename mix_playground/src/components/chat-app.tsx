@@ -86,7 +86,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const { data: session, isLoading: sessionLoading } =
     useActiveSession(sessionId);
   const sessionMessages = useSessionMessages(sessionId);
-  const sseStream = usePersistentSSE(session?.id || '');
+  const sseStream = usePersistentSSE(sessionId);
   // const { apps: openApps } = useAppList();
   const rewindSession = useRewindSession();
   const createSession = useCreateSession();
@@ -107,6 +107,21 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       previousSessionIdRef.current = session.id;
     }
   }, [session?.id]);
+
+  // Handle navigation to newly created sessions
+  useEffect(() => {
+    if (sseStream.newlyCreatedSessionId && sseStream.newlyCreatedSessionId !== sessionId) {
+      // Navigate to the newly created session
+      navigate({
+        to: '/$sessionId',
+        params: { sessionId: sseStream.newlyCreatedSessionId },
+        replace: true,
+      });
+
+      // Clear the state after navigation
+      sseStream.clearNewlyCreatedSession();
+    }
+  }, [sseStream.newlyCreatedSessionId, sessionId, navigate, sseStream.clearNewlyCreatedSession]);
 
 
   // Load messages when session messages data changes
