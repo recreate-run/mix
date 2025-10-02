@@ -175,7 +175,3 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 		Content: message,
 	}, nil
 }
-
-func isURL(path string) bool {
-	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://")
-}

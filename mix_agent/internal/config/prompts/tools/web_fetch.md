@@ -10,7 +10,7 @@ Usage notes:
 - IMPORTANT: If an MCP-provided web fetch tool is available, prefer using that tool instead of this one, as it may have fewer restrictions. All MCP-provided tools start with "mcp__".
 - Do not use this tool for: YouTube
 - The URL must be a fully-formed valid URL
-- HTTP URLs will be automatically upgraded to HTTPS
+- So, never use this tool for HTTP URL's. HTTP URLs will be automatically upgraded to HTTPS for security. Always use curl for HTTP url's
 - The prompt should describe what information you want to extract from the page
 - This tool is read-only and does not modify any files
 - Results may be summarized if the content is very large
