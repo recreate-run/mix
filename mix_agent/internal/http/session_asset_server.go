@@ -135,51 +135,64 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 		return // File was found and served from session storage
 	}
 
-	// Fall back to shared uploads storage
-	// Use os.Root for secure file operations
-	root, err := session.GetUploadsRoot(h.storageConfig)
+	// Fall back to shared uploads storage using StorageProvider
+	uploadKey := "uploads/" + filename
+
+	// Check file existence in storage
+	exists, err := h.app.StorageProvider.Exists(ctx, uploadKey)
 	if err != nil {
-		sendInternalError(w, "getting uploads root", err)
+		sendInternalError(w, "checking file existence", err)
 		return
 	}
-	defer root.Close()
-
-	// Check file existence using Root - prevents path traversal
-	fileInfo, err := root.Stat(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			sendNotFoundError(w, "File", filename)
-			return
-		}
-		sendValidationError(w, "filename", fmt.Sprintf("invalid filename or path traversal attempt: %s", err.Error()))
+	if !exists {
+		sendNotFoundError(w, "File", filename)
 		return
 	}
-
-	// Don't serve directories
-	if fileInfo.IsDir() {
-		http.Error(w, "Cannot serve directory", http.StatusBadRequest)
-		return
-	}
-
-	// Get the actual file path for thumbnail generation and serving
-	uploadsDir := session.GetUploadsStoragePath(h.storageConfig)
-	filePath := filepath.Join(uploadsDir, filename)
 
 	// Check if thumbnail is requested
 	if thumbParam := r.URL.Query().Get("thumb"); thumbParam != "" {
-
 		// Generate thumbnails for video and image files
-		if !isVideoFile(filePath) && !isImageFile(filePath) {
-			logging.Error("Thumbnail request rejected: file type not supported", "filePath", filePath)
+		if !isVideoFile(filename) && !isImageFile(filename) {
+			logging.Error("Thumbnail request rejected: file type not supported", "filename", filename)
 			http.Error(w, "Thumbnails only supported for video and image files", http.StatusBadRequest)
 			return
 		}
 
+		// Download original file from storage to temp location for thumbnail generation
+		reader, err := h.app.StorageProvider.Download(ctx, uploadKey)
+		if err != nil {
+			logging.Error("Failed to download original file for thumbnail", "uploadKey", uploadKey, "error", err)
+			sendInternalError(w, "downloading original file", err)
+			return
+		}
+		defer reader.Close()
+
+		// Create temp file with proper extension for ffmpeg
+		ext := filepath.Ext(filename)
+		tempFile, err := os.CreateTemp("", "thumb-*"+ext)
+		if err != nil {
+			logging.Error("Failed to create temp file", "error", err)
+			sendInternalError(w, "creating temp file", err)
+			return
+		}
+		tempPath := tempFile.Name()
+		defer os.Remove(tempPath) // Clean up temp file
+
+		// Write downloaded content to temp file
+		if _, err := io.Copy(tempFile, reader); err != nil {
+			tempFile.Close()
+			logging.Error("Failed to write temp file", "error", err)
+			sendInternalError(w, "writing temp file", err)
+			return
+		}
+		tempFile.Close()
+
 		// Parse optional time parameter for video segments
 		timeParam := r.URL.Query().Get("time")
 
-		if err := h.serveThumbnail(w, r, sessionID, filePath, thumbParam, timeParam); err != nil {
-			logging.Error("Thumbnail generation failed", "filePath", filePath, "error", err)
+		// Generate thumbnail using temp file
+		if err := h.serveThumbnail(w, r, sessionID, tempPath, thumbParam, timeParam); err != nil {
+			logging.Error("Thumbnail generation failed", "tempPath", tempPath, "error", err)
 			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -191,16 +204,20 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
 
-	// Serve the file using Root for security
-	file, err := root.Open(filename)
+	// Download and serve the file from storage
+	reader, err := h.app.StorageProvider.Download(ctx, uploadKey)
 	if err != nil {
-		sendInternalError(w, "opening file", err)
+		sendInternalError(w, "downloading file", err)
 		return
 	}
-	defer file.Close()
+	defer reader.Close()
 
 	// Serve content with proper headers
-	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", filename))
+	if _, err := io.Copy(w, reader); err != nil {
+		logging.Error("Failed to serve file", "uploadKey", uploadKey, "error", err)
+		return
+	}
 }
 
 // parseThumbnailSpec parses and validates thumbnail specification
@@ -278,6 +295,7 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	// Parse thumbnail specification
 	spec, err := h.parseThumbnailSpec(thumbParam)
 	if err != nil {
+		logging.Error("Failed to parse thumbnail spec", "thumbParam", thumbParam, "error", err)
 		return err
 	}
 
@@ -331,6 +349,7 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	// Generate thumbnail to temporary file
 	tmpFile, err := os.CreateTemp("", "thumbnail-*.jpg")
 	if err != nil {
+		logging.Error("Failed to create temp file for thumbnail", "error", err)
 		return fmt.Errorf("failed to create temp file: %v", err)
 	}
 	tmpPath := tmpFile.Name()
@@ -340,30 +359,36 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	// Generate thumbnail using FFmpeg based on file type
 	if isVideoFile(mediaPath) {
 		if err := h.generateVideoThumbnail(mediaPath, tmpPath, spec, timeOffset); err != nil {
+			logging.Error("Failed to generate video thumbnail", "error", err)
 			return err
 		}
 	} else if isImageFile(mediaPath) {
 		if err := h.generateImageThumbnail(mediaPath, tmpPath, spec); err != nil {
+			logging.Error("Failed to generate image thumbnail", "error", err)
 			return err
 		}
 	} else {
+		logging.Error("Unsupported file type for thumbnail", "mediaPath", mediaPath)
 		return fmt.Errorf("unsupported file type for thumbnail generation")
 	}
 
 	// Upload thumbnail to storage provider
 	thumbnailFile, err := os.Open(tmpPath)
 	if err != nil {
+		logging.Error("Failed to open generated thumbnail", "tmpPath", tmpPath, "error", err)
 		return fmt.Errorf("failed to open generated thumbnail: %v", err)
 	}
 	defer thumbnailFile.Close()
 
 	_, err = h.app.StorageProvider.Upload(ctx, thumbnailKey, thumbnailFile, "image/jpeg")
 	if err != nil {
+		logging.Error("Failed to upload thumbnail to storage", "key", thumbnailKey, "error", err)
 		return fmt.Errorf("failed to upload thumbnail: %v", err)
 	}
 
 	// Get public URL and check if it's local or remote
 	publicURL := h.app.StorageProvider.GetPublicURL(thumbnailKey)
+
 	if strings.HasPrefix(publicURL, "file://") {
 		// Local storage - serve the file directly
 		thumbnailFile.Seek(0, 0) // Reset file pointer to beginning
