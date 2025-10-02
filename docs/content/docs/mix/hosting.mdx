@@ -98,6 +98,25 @@ All file operations (upload, download, list, delete) work identically regardless
 
 ### Required for All Deployments
 
+#### Database (Turso)
+
+**Automated Setup (Recommended):**
+
+```bash
+./scripts/setup-turso.sh
+```
+
+This script will:
+1. Install Turso CLI if needed
+2. Authenticate with your Turso account (browser-based)
+3. Let you select or create a database
+4. Automatically fetch database URL and auth token
+5. Update your `.env` file
+
+Everything configured in one command! For manual setup or more details, see [Database Configuration](/docs/mix/database).
+
+**Manual Configuration (Alternative):**
+
 ```bash
 # Database (Turso)
 MIX_DB_TYPE=turso
