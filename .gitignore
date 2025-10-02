@@ -80,7 +80,14 @@ fumadocs-dev/
 **/internal/**/.mix/
 **/integration_tests/**/.mix/
 
-storage/
+# Storage data directories (but NOT the internal/storage package code)
+/storage/
+mix_agent/storage/
+**/integration_tests/storage/
+packages/gsap_animations/storage/
+
+# Keep the storage package code
+!mix_agent/internal/storage/
 
 planning/
 speakeasy_docs/

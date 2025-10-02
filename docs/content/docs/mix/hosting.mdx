@@ -1,0 +1,178 @@
+---
+title: Hosting & Deployment
+description: Deploy Mix with local or cloud storage backends
+---
+
+Mix can be deployed with different storage backends depending on your needs. This guide covers deployment options and configuration for production environments.
+
+## Storage Backend Options
+
+### Local Storage (Self-Hosted)
+
+Best for self-hosted deployments where you have control over the server filesystem.
+
+**Pros:**
+- Zero external dependencies
+- No additional cost
+- Simple setup
+- Full data control
+
+**Cons:**
+- Limited scalability
+- No built-in CDN
+- Manual backup required
+
+**Configuration:**
+
+```bash
+# .env
+STORAGE_TYPE=local
+```
+
+That's it! Local storage requires no additional configuration.
+
+### Supabase Storage (Cloud)
+
+Best for production deployments with multiple instances or when you need cloud-hosted files.
+
+**Pros:**
+- Scalable cloud storage
+- Built-in CDN for fast file delivery
+- Automatic backups
+- Public URLs for files
+- Easy to set up
+
+**Cons:**
+- Requires Supabase account
+- External dependency
+- Potential costs at scale
+
+**Setup Steps:**
+
+1. **Create a Supabase project** at [supabase.com](https://supabase.com)
+
+2. **Create a storage bucket:**
+   - Go to Storage in Supabase dashboard
+   - Create a new bucket named `mix-storage` (or your preferred name)
+   - Make it **public** for file access
+
+3. **Get your credentials:**
+   - **Project URL**: Found in Settings → API → Project URL
+   - **Service Role Key**: Found in Settings → API → service_role key (NOT the anon key)
+   - **Bucket Name**: The name you chose (e.g., `mix-storage`)
+
+4. **Configure Mix:**
+
+```bash
+# .env
+STORAGE_TYPE=supabase
+STORAGE_ENDPOINT=https://your-project.supabase.co
+STORAGE_BUCKET=mix-storage
+STORAGE_ACCESS_KEY=your_service_role_key_here
+```
+
+⚠️ **Important**: Use the `service_role` key, NOT the `anon` or `publishable` key. The service role key has full access to storage operations.
+
+## How Storage Works
+
+Mix uses a **StorageProvider abstraction** that makes storage backend transparent:
+
+- **File uploads** are automatically stored using the configured provider
+- **Thumbnails** are generated and stored in the same provider
+- **File serving** adapts based on storage type:
+  - **Local**: Files served directly via HTTP
+  - **Supabase**: Redirects to Supabase public URLs
+
+All file operations (upload, download, list, delete) work identically regardless of storage backend.
+
+## Environment Variables
+
+### Required for All Deployments
+
+```bash
+# Database (Turso)
+MIX_DB_TYPE=turso
+MIX_DB_TURSO_URL=your_turso_database_url
+MIX_DB_TURSO_AUTH_TOKEN=your_turso_auth_token
+
+# Frontend URLs (adjust for your deployment)
+VITE_BACKEND_URL=https://your-backend-url.com
+VITE_GSAP_URL=https://your-gsap-url.com
+```
+
+### Storage Configuration
+
+```bash
+# Local storage (default)
+STORAGE_TYPE=local
+
+# OR Supabase storage
+STORAGE_TYPE=supabase
+STORAGE_ENDPOINT=https://project.supabase.co
+STORAGE_BUCKET=bucket-name
+STORAGE_ACCESS_KEY=service_role_key
+```
+
+## Deployment Checklist
+
+- [ ] Database configured (Turso URL and auth token)
+- [ ] Storage provider chosen and configured
+- [ ] Environment variables set correctly
+- [ ] If using Supabase: service_role key (not anon key)
+- [ ] If using Supabase: bucket is public
+- [ ] Frontend URLs point to correct backend
+- [ ] Test file upload and thumbnail generation
+- [ ] Verify files are stored in correct location (local vs Supabase)
+
+## Troubleshooting
+
+### Files not appearing in Supabase
+
+**Check:**
+1. Is `STORAGE_TYPE=supabase` set?
+2. Are you using the `service_role` key (not anon key)?
+3. Is the bucket public?
+4. Check backend logs for upload errors
+
+### Thumbnails not working
+
+**Check:**
+1. Is FFmpeg installed on the server? (required for video thumbnails)
+2. Check backend logs for thumbnail generation errors
+3. Verify storage provider has write access
+
+### 404 errors on existing files
+
+**Cause:** Files were uploaded to local storage, but you switched to Supabase (or vice versa)
+
+**Solution:** Migrate files to new storage provider (see Migration section above)
+
+## Cost Considerations
+
+### Local Storage
+- **Storage**: Server disk space cost
+- **Bandwidth**: Server bandwidth cost
+- **Scaling**: Requires larger server or external CDN
+
+### Supabase Storage
+- **Free tier**: 1GB storage, 2GB bandwidth/month
+- **Paid**: ~$0.021/GB storage, ~$0.09/GB bandwidth
+- **Scaling**: Automatic, pay-as-you-go
+
+For small projects (less than 1GB files, less than 2GB bandwidth/month), Supabase free tier is sufficient.
+
+## Production Best Practices
+
+1. **Use Supabase for production** deployments with multiple instances
+2. **Use local storage** for self-hosted single-instance deployments
+3. **Always use service_role key** for Supabase (never commit to git!)
+4. **Set bucket to public** for file access
+5. **Monitor storage usage** in Supabase dashboard
+6. **Enable backups** for local storage deployments
+7. **Use environment variables** for all secrets (never hardcode)
+
+## Next Steps
+
+- [Storage Architecture](/docs/mix/storage-architecture): Deep dive into storage system
+- [Security & Privacy](/docs/mix/security-privacy): Security considerations
+- [Troubleshooting](/docs/mix/troubleshooting): Common issues and solutions
