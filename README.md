@@ -20,10 +20,10 @@ git clone https://github.com/recreate-run/mix.git
 make dev
 ```
 
-Authenticate LLM providers and tool API's usring the settings dialog (gear icon at the bottom left)
+Authenticate LLM providers and tool API's using the settings dialog (gear icon at the bottom left)
 
 1. We recommend claude-sonnet-4 via the oauth (claude code account) or the anthropic API key using the Settings dialog.
-2. Set Gemini API key for the `ReadMedia tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
+2. Set Gemini API key for the `ReadMedia` tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
 3. Set Brave API key for the `Search` tool. Available for free from [Brave](https://brave.com/search/api/)
 
 ### Demos
@@ -49,7 +49,7 @@ Show 3 most interesting 5 second highlights from this video
 ## Quick start (Python SDK)
 
 ```bash
-https://github.com/recreate-run/mix-python-sdk.git
+git clone https://github.com/recreate-run/mix-python-sdk.git
 cd mix-python-sdk
 ```
 
@@ -69,7 +69,7 @@ uv run examples/web_search_multimodal.py
 
 <https://github.com/user-attachments/assets/d73791e4-5377-4522-b76c-0df9f1bdd81f>
 
-Modiying/Replacing the system prompt
+Modifying/Replacing the system prompt
 
 ```bash
 uv run examples/system_prompt_change.py
@@ -79,7 +79,7 @@ uv run examples/system_prompt_change.py
 
 - Support for hosted SQLite/LibSQL databases (eg. turso)
 - Image/Video generation
-- REST cients in other languages
+- REST clients in other languages
 
 ## Tech Stack
 
@@ -95,4 +95,4 @@ uv run examples/system_prompt_change.py
 
 ## Thanks
 
-1. All third part software that we've used in the project, especadd. ially ffmpeg, gsap and the archived opencode project
+1. All third party software that we've used in the project, especially ffmpeg, gsap and the archived opencode project
