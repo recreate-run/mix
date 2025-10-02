@@ -320,28 +320,19 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 		logging.Error("Failed to check thumbnail existence", "key", thumbnailKey, "error", err)
 		// Continue to generate - non-fatal error
 	} else if exists {
-		// For remote storage (Supabase), redirect to public URL
-		// For local storage, download and serve the file
-		publicURL := h.app.StorageProvider.GetPublicURL(thumbnailKey)
-		if strings.HasPrefix(publicURL, "file://") {
-			// Local storage - download and serve
-			reader, err := h.app.StorageProvider.Download(ctx, thumbnailKey)
-			if err != nil {
-				logging.Error("Failed to download existing thumbnail", "key", thumbnailKey, "error", err)
-				// Continue to regenerate
-			} else {
-				defer reader.Close()
-				w.Header().Set("Content-Type", "image/jpeg")
-				w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
-				_, err = io.Copy(w, reader)
-				if err != nil {
-					logging.Error("Failed to serve thumbnail", "key", thumbnailKey, "error", err)
-				}
-				return nil
-			}
+		// Download and serve existing thumbnail directly (works for both local and remote storage)
+		reader, err := h.app.StorageProvider.Download(ctx, thumbnailKey)
+		if err != nil {
+			logging.Error("Failed to download existing thumbnail", "key", thumbnailKey, "error", err)
+			// Continue to regenerate
 		} else {
-			// Remote storage - redirect to public URL
-			http.Redirect(w, r, publicURL, http.StatusFound)
+			defer reader.Close()
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+			_, err = io.Copy(w, reader)
+			if err != nil {
+				logging.Error("Failed to serve thumbnail", "key", thumbnailKey, "error", err)
+			}
 			return nil
 		}
 	}
@@ -386,20 +377,11 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 		return fmt.Errorf("failed to upload thumbnail: %v", err)
 	}
 
-	// Get public URL and check if it's local or remote
-	publicURL := h.app.StorageProvider.GetPublicURL(thumbnailKey)
-
-	if strings.HasPrefix(publicURL, "file://") {
-		// Local storage - serve the file directly
-		thumbnailFile.Seek(0, 0) // Reset file pointer to beginning
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
-		io.Copy(w, thumbnailFile)
-		return nil
-	}
-
-	// Remote storage - redirect to public URL
-	http.Redirect(w, r, publicURL, http.StatusFound)
+	// Serve the thumbnail directly (works for both local and remote storage)
+	thumbnailFile.Seek(0, 0) // Reset file pointer to beginning
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+	io.Copy(w, thumbnailFile)
 	return nil
 }
 
