@@ -169,9 +169,6 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
 
     // Show success toast notification 
     try {
-      // Use a simple toast first to see if it works
-      toast("Model updated");
-
       // Then try the more complex version
       toast.success("Model updated", {
         description: `${modelId} is now your default model for ${providerName}`,

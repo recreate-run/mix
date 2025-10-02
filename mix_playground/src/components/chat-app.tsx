@@ -566,10 +566,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         <div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
           {/* Session header with export button */}
           {session && (
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-foreground truncate flex-1">
-                {getDisplayTitle(session)}
-              </h2>
+            <div className="flex items-center justify-end mb-4">
               <Button
                 variant="ghost"
                 size="sm"
