@@ -5,6 +5,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { ChatApp } from '@/components/chat-app';
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useActiveSession } from '@/hooks/useSession';
+import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/$sessionId')({
   component: SessionApp,
@@ -12,11 +13,13 @@ export const Route = createFileRoute('/$sessionId')({
 
 const LAST_SESSION_KEY = "mix-last-session-id";
 
+// SessionContent component handles sidebar collapse padding
+
 function FloatingToggle() {
   const { state } = useSidebar();
-  
+
   if (state === 'expanded') return null;
-  
+
   return (
     <div className="fixed top-0 left-0 h-full w-12 z-50">
       <div className="h-full w-full bg-sidebar border-r border-sidebar-border shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center cursor-pointer group">
@@ -25,6 +28,21 @@ function FloatingToggle() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SessionContent({ sessionId }: { sessionId: string }) {
+  const { state } = useSidebar();
+
+  return (
+    <SidebarInset className={cn(
+      "flex h-screen flex-col transition-all duration-200",
+      state === 'collapsed' && "pl-12"
+    )}>
+      <FloatingToggle />
+      {/* Always render ChatApp - it will handle loading states internally */}
+      <ChatApp sessionId={sessionId} />
+    </SidebarInset>
   );
 }
 
@@ -60,11 +78,7 @@ function SessionApp() {
       }
     >
       <AppSidebar sessionId={sessionId} variant="inset" />
-      <SidebarInset className="flex h-screen flex-col">
-        <FloatingToggle />
-        {/* Always render ChatApp - it will handle loading states internally */}
-        <ChatApp sessionId={sessionId} />
-      </SidebarInset>
+      <SessionContent sessionId={sessionId} />
     </SidebarProvider>
   );
 }

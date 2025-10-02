@@ -81,7 +81,7 @@ func TestMediaShowcaseToolInfo(t *testing.T) {
 	assert.True(t, exists)
 	enumSlice, ok := enumValues.([]string)
 	assert.True(t, ok)
-	expectedTypes := []string{"image", "video", "audio", "gsap_animation", "youtube"}
+	expectedTypes := []string{"image", "video", "audio", "gsap_animation", "pdf", "csv"}
 	assert.ElementsMatch(t, expectedTypes, enumSlice)
 
 	// Test required fields
@@ -305,7 +305,7 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 			input: `{
 				"outputs": [{
 					"path": "https://youtube.com/watch?v=abc123",
-					"type": "youtube",
+					"type": "video",
 					"title": "YouTube Video",
 					"description": "A YouTube video"
 				}]
@@ -631,7 +631,7 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 					},
 					{
 						"path": "https://youtube.com/watch?v=123",
-						"type": "youtube",
+						"type": "video",
 						"title": "YouTube 1"
 					}
 				]

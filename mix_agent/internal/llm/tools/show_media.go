@@ -45,7 +45,7 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 						"type": map[string]any{
 							"type":        "string",
 							"description": "Media type",
-							"enum":        []string{"image", "video", "audio", "gsap_animation", "youtube", "pdf", "csv"},
+							"enum":        []string{"image", "video", "audio", "gsap_animation", "pdf", "csv"},
 						},
 						"title": map[string]any{
 							"type":        "string",
@@ -108,7 +108,6 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 			"video":          true,
 			"audio":          true,
 			"gsap_animation": true,
-			"youtube":        true,
 			"pdf":            true,
 			"csv":            true,
 		}

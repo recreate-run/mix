@@ -42,10 +42,15 @@ func CoderAgentTools(
 	)
 }
 
-func TaskAgentTools(permissions permission.Service) []tools.BaseTool {
+func TaskAgentTools(
+	permissions permission.Service,
+	sessions session.Service,
+	messages message.Service,
+) []tools.BaseTool {
 	return []tools.BaseTool{
 		tools.NewGlobTool(),
 		tools.NewGrepTool(permissions),
 		tools.NewReadTextTool(permissions),
+		NewTaskTool(sessions, messages, permissions),
 	}
 }

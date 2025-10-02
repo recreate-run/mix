@@ -85,6 +85,18 @@ type ContentEvent struct {
 	Content string `json:"content"`
 }
 
+type SessionCreatedEvent struct {
+	Type      string `json:"type"`
+	SessionID string `json:"sessionId"`
+	Title     string `json:"title"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type SessionDeletedEvent struct {
+	Type      string `json:"type"`
+	SessionID string `json:"sessionId"`
+}
+
 // SSEWriter handles session-scoped SSE writing with automatic compliance
 type SSEWriter struct {
 	w         http.ResponseWriter

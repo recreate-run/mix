@@ -1,9 +1,9 @@
 ---
 title: Storage
-description: Two-tier file storage system with shared uploads and session-specific storage
+description: Two-tier file storage system with pluggable backends (local, Supabase) for shared uploads and session-specific storage
 ---
 
-Mix employs a sophisticated two-tier storage architecture that separates user-managed collaborative files from agent-managed private working files. This design enables both file sharing across sessions and private agent workspaces.
+Mix employs a sophisticated two-tier storage architecture with pluggable storage backends that separates user-managed collaborative files from agent-managed private working files. This design enables both file sharing across sessions and private agent workspaces, with support for local filesystem or cloud storage (Supabase).
 
 ## Storage Overview
 
@@ -24,6 +24,40 @@ graph TD
     Shared --> Serve
 "
 />
+
+## Storage Provider Abstraction
+
+Mix uses a pluggable storage provider system that abstracts storage operations behind a common interface. This allows seamless switching between storage backends:
+
+### Supported Providers
+
+**Local Storage** (default): Files stored on local filesystem at `./storage/`
+- Zero configuration required
+- Perfect for development and self-hosted deployments
+- Files served directly via HTTP
+
+**Supabase Storage**: Files stored in Supabase cloud storage
+- Simple 4-field configuration (endpoint, bucket, access key, type)
+- Automatic thumbnail generation and storage
+- Files served via Supabase public URLs
+- Ideal for production deployments
+
+### Configuration
+
+Storage provider is configured via environment variables in `.env`:
+
+```bash
+# Local storage (default)
+STORAGE_TYPE=local
+
+# Supabase storage
+STORAGE_TYPE=supabase
+STORAGE_ENDPOINT=https://your-project.supabase.co
+STORAGE_BUCKET=mix-storage
+STORAGE_ACCESS_KEY=your_service_role_key
+```
+
+All file operations (upload, download, delete, list) automatically use the configured provider, making storage backend transparent to application logic.
 
 ## Rationale
 
@@ -87,12 +121,17 @@ This enables agents to work with user files while maintaining private working co
 
 ## Storage Paths
 
+### Local Storage Structure
+
 ```
 /storage/
 ├── uploads/           # Shared files (user-managed)
 │   ├── document.pdf
 │   ├── image.jpg
 │   └── data.csv
+├── thumbnails/        # Generated thumbnails (automatic)
+│   ├── {hash}_box200_t1.0.jpg
+│   └── {hash}_w300.jpg
 ├── {session-1-uuid}/  # Session 1 private files (agent-managed)
 │   ├── processed.csv
 │   └── temp-output.txt
@@ -101,9 +140,30 @@ This enables agents to work with user files while maintaining private working co
     └── filtered-data.csv
 ```
 
+### Supabase Storage Keys
+
+When using Supabase, files are stored with the following key structure:
+
+```
+uploads/{filename}              # User-uploaded files
+thumbnails/{hash}_{spec}.jpg    # Generated thumbnails
+```
+
+Thumbnails are automatically filtered from file listings and are not visible to users in the @ command.
+
 ## Key Files
 
-- [mix_agent/internal/session/storage.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/session/storage.go): Core storage management functions that define the two-tier structure with GetSessionStoragePath() and GetUploadsStoragePath()
-- [mix_agent/internal/http/session_asset_server.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/session_asset_server.go): Implements two-tier file serving logic with session storage priority over shared uploads
-- [mix_agent/internal/http/rest_files.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/rest_files.go): Implements file management REST APIs including upload, listing, and deletion with secure path validation
-- [mix_agent/internal/app/app.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/app/app.go): Application initialization that sets up storage configuration and directory structure
+### Storage Provider System
+- [mix_agent/internal/storage/provider.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/storage/provider.go): Core Provider interface and configuration structures defining storage abstraction
+- [mix_agent/internal/storage/local_provider.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/storage/local_provider.go): Local filesystem implementation of storage provider
+- [mix_agent/internal/storage/supabase_provider.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/storage/supabase_provider.go): Supabase cloud storage implementation using REST API
+- [mix_agent/internal/storage/factory.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/storage/factory.go): Factory for creating storage providers based on configuration
+- [mix_agent/internal/storage/config.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/storage/config.go): Environment variable loading and validation
+
+### HTTP Handlers
+- [mix_agent/internal/http/session_asset_server.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/session_asset_server.go): File serving and thumbnail generation using StorageProvider
+- [mix_agent/internal/http/rest_files.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/rest_files.go): File management REST APIs (upload, list, delete) with thumbnail filtering
+
+### Legacy Session Storage
+- [mix_agent/internal/session/storage.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/session/storage.go): Session-specific storage paths (still used for agent workspace)
+- [mix_agent/internal/app/app.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/app/app.go): Application initialization with StorageProvider setup

@@ -1,0 +1,387 @@
+---
+title: Storage Configuration
+description: Flexible storage backend supporting local filesystem and S3-compatible providers
+---
+
+Mix supports pluggable storage backends, allowing you to choose between local filesystem storage (default) or any S3-compatible object storage provider (Cloudflare R2, AWS S3, MinIO, Backblaze B2, and more).
+
+## Overview
+
+The storage system provides a unified interface for storing and serving files (uploads, session data, generated thumbnails) with support for:
+
+- **Local filesystem** - Default, zero-configuration option
+- **S3-compatible storage** - Production-ready scalable storage supporting multiple providers
+
+## Configuration
+
+Storage is configured via environment variables in your `.env` file:
+
+### Local Storage (Default)
+
+```bash
+STORAGE_TYPE=local
+STORAGE_ENDPOINT=./storage
+```
+
+This is the default configuration if no storage variables are set. Files are stored in the `./storage` directory.
+
+### Supabase Storage (Automated Setup)
+
+**Recommended for production.** Run the automated setup script:
+
+```bash
+./scripts/setup-supabase.sh
+```
+
+The script will:
+- Install Supabase CLI (if needed)
+- Authenticate with your Supabase account
+- Let you choose or create a project
+- Fetch API keys automatically
+- Create storage bucket
+- Update your `.env` file
+
+That's it! No manual configuration needed.
+
+### S3-Compatible Storage
+
+To use S3-compatible storage, configure these environment variables:
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=https://your-endpoint.com
+STORAGE_BUCKET=your-bucket-name
+STORAGE_ACCESS_KEY=your-access-key
+STORAGE_SECRET_KEY=your-secret-key
+STORAGE_REGION=auto
+STORAGE_PUBLIC_URL_BASE=https://your-cdn-url.com
+STORAGE_USE_SSL=true
+STORAGE_FORCE_PATH_STYLE=false
+```
+
+## Supported S3-Compatible Providers
+
+Mix's S3 storage implementation works with any provider that implements the S3 API:
+
+### Cloudflare R2 (Recommended)
+
+Zero egress fees make R2 ideal for video/media applications:
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+STORAGE_BUCKET=mix-storage
+STORAGE_ACCESS_KEY=your-r2-access-key
+STORAGE_SECRET_KEY=your-r2-secret-key
+STORAGE_PUBLIC_URL_BASE=https://pub-<hash>.r2.dev
+STORAGE_REGION=auto
+```
+
+**Benefits**:
+- $0.015/GB storage
+- **Zero egress fees** (huge savings for video streaming)
+- Built-in CDN
+- S3-compatible API
+
+### AWS S3
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=s3.us-east-1.amazonaws.com
+STORAGE_BUCKET=my-bucket
+STORAGE_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+STORAGE_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
+STORAGE_REGION=us-east-1
+```
+
+### MinIO (Self-Hosted)
+
+Perfect for on-premise or development environments:
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=minio.yourdomain.com:9000
+STORAGE_BUCKET=mix-storage
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET_KEY=minioadmin
+STORAGE_FORCE_PATH_STYLE=true
+STORAGE_USE_SSL=false
+```
+
+### Backblaze B2
+
+Low-cost option with S3-compatible API:
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=https://s3.us-west-000.backblazeb2.com
+STORAGE_BUCKET=my-bucket
+STORAGE_ACCESS_KEY=${B2_APPLICATION_KEY_ID}
+STORAGE_SECRET_KEY=${B2_APPLICATION_KEY}
+STORAGE_REGION=us-west-000
+```
+
+### Other Providers
+
+The S3 implementation also works with:
+- **DigitalOcean Spaces**
+- **Linode Object Storage**
+- **Wasabi**
+- **Scaleway Object Storage**
+- **Google Cloud Storage** (via S3 interoperability mode)
+- **Storj**
+- **Supabase Storage**
+
+## Configuration Options
+
+### Required Fields
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `STORAGE_TYPE` | Storage backend type | `local` or `s3` |
+| `STORAGE_ENDPOINT` | Storage endpoint URL or path | `./storage` (local) or `https://endpoint.com` (S3) |
+
+### S3-Specific Fields
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `STORAGE_BUCKET` | Yes | S3 bucket name | - |
+| `STORAGE_ACCESS_KEY` | Yes | S3 access key ID | - |
+| `STORAGE_SECRET_KEY` | Yes | S3 secret access key | - |
+| `STORAGE_REGION` | No | S3 region | `auto` |
+| `STORAGE_PUBLIC_URL_BASE` | No | Custom CDN/public URL base | - |
+| `STORAGE_USE_SSL` | No | Use HTTPS for S3 connections | `true` |
+| `STORAGE_FORCE_PATH_STYLE` | No | Use path-style S3 URLs | `false` |
+
+## Migration from Local to S3
+
+### Step 1: Set Up S3 Provider
+
+1. Create a bucket in your chosen S3-compatible provider
+2. Generate access credentials
+3. Configure public access policies if needed
+
+### Step 2: Update Configuration
+
+Add S3 configuration to your `.env` file:
+
+```bash
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=https://your-endpoint.com
+STORAGE_BUCKET=mix-storage
+STORAGE_ACCESS_KEY=your-access-key
+STORAGE_SECRET_KEY=your-secret-key
+```
+
+### Step 3: Migrate Existing Files (Optional)
+
+Use a tool like `rclone` or `aws-cli` to sync existing local files to S3:
+
+```bash
+# Using rclone
+rclone sync ./storage r2:mix-storage \
+  --s3-endpoint="https://your-endpoint.com" \
+  --s3-access-key-id="your-access-key" \
+  --s3-secret-access-key="your-secret-key"
+
+# Using AWS CLI
+aws s3 sync ./storage s3://mix-storage \
+  --endpoint-url="https://your-endpoint.com"
+```
+
+### Step 4: Restart Mix
+
+```bash
+make dev
+```
+
+Mix will now use S3 for all new file uploads and operations.
+
+## Storage Architecture
+
+### Directory Structure
+
+**Local Storage**:
+```
+storage/
+├── uploads/              # User-uploaded files
+│   ├── file1.jpg
+│   └── .thumbnails/     # Auto-generated thumbnails
+├── {session-id}/        # Session-specific files
+│   └── output.mp4
+```
+
+**S3 Storage**:
+```
+bucket/
+├── uploads/
+│   ├── file1.jpg
+│   └── .thumbnails/
+└── sessions/
+    └── {session-id}/
+        └── output.mp4
+```
+
+### File Access
+
+- **Local**: Files served directly by Mix backend
+- **S3**: Files accessible via public URLs or presigned URLs
+
+### Thumbnail Generation
+
+Thumbnails for images and videos are automatically generated and cached:
+
+- **Local**: Stored in `.thumbnails` subdirectories
+- **S3**: Uploaded to storage and served via CDN
+
+## Security Considerations
+
+### Local Storage
+
+- Path traversal protection via `os.Root`
+- Files served through backend with access control
+
+### S3 Storage
+
+- Bucket policies control public access
+- Presigned URLs for temporary access to private files
+- Server-side encryption (SSE)
+- In-transit encryption via HTTPS
+
+### Credentials
+
+- Store credentials in `.env` file (never commit to git)
+- Use secret management systems in production:
+  - AWS Secrets Manager
+  - HashiCorp Vault
+  - Kubernetes Secrets
+
+Add to `.gitignore`:
+```
+.env
+```
+
+## Performance
+
+### CDN Integration
+
+Use a CDN for optimal performance with S3 storage:
+
+```bash
+STORAGE_PUBLIC_URL_BASE=https://cdn.yourdomain.com
+```
+
+### Caching
+
+- Thumbnail URLs are cached with long TTL
+- ETags used for cache validation
+- Metadata cached in memory
+
+### Large Files
+
+- Automatic multipart uploads for files >100MB
+- Streaming for downloads (no memory buffering)
+- Progress reporting support
+
+## Cost Optimization
+
+### Provider Comparison
+
+For media-heavy applications (recommended order):
+
+1. **Cloudflare R2** - $0.015/GB, **free egress** ⭐
+2. **Backblaze B2** - $0.006/GB, $0.01/GB egress
+3. **MinIO** - Free (self-hosted), hosting costs only
+4. **AWS S3** - $0.023/GB, $0.09/GB egress
+
+### Optimization Tips
+
+- Compress videos before upload
+- Implement lifecycle policies (auto-delete old files)
+- Monitor storage usage
+- Clean up old thumbnails periodically
+
+## Troubleshooting
+
+### "Failed to initialize storage provider"
+
+Check that all required S3 credentials are set:
+```bash
+echo $STORAGE_ACCESS_KEY
+echo $STORAGE_SECRET_KEY
+echo $STORAGE_BUCKET
+```
+
+### "Bucket not found"
+
+The bucket will be created automatically. If this fails, create it manually in your S3 provider's console.
+
+### "Access Denied"
+
+Verify:
+1. Credentials are correct
+2. Bucket exists
+3. IAM/access policies allow read/write operations
+
+### Files not accessible
+
+Check `STORAGE_PUBLIC_URL_BASE` is set correctly for your provider's public URL format.
+
+## API Reference
+
+The storage provider interface supports:
+
+- `Upload(key, data, contentType)` - Upload file
+- `Download(key)` - Download file
+- `Delete(key)` - Delete file
+- `List(prefix)` - List files with prefix
+- `Exists(key)` - Check file existence
+- `GetPublicURL(key)` - Get public URL
+- `GetPresignedURL(key, expiry)` - Get temporary signed URL
+
+## Best Practices
+
+1. **Development**: Use local storage for simplicity
+2. **Production**: Use S3 with CDN for scalability
+3. **Testing**: Use MinIO for S3-compatible testing locally
+4. **Staging**: Use separate bucket from production
+5. **Backups**: Enable versioning on S3 buckets
+
+## Examples
+
+### Basic Setup (Local)
+
+```bash
+# .env
+STORAGE_TYPE=local
+STORAGE_ENDPOINT=./storage
+```
+
+### Production Setup (Cloudflare R2)
+
+```bash
+# .env
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=https://abc123.r2.cloudflarestorage.com
+STORAGE_BUCKET=mix-production
+STORAGE_ACCESS_KEY=your-r2-access-key
+STORAGE_SECRET_KEY=your-r2-secret-key
+STORAGE_PUBLIC_URL_BASE=https://cdn.example.com
+STORAGE_REGION=auto
+```
+
+### Development with MinIO
+
+```bash
+# Start MinIO locally
+docker run -p 9000:9000 -p 9001:9001 minio/minio server /data --console-address ":9001"
+
+# .env
+STORAGE_TYPE=s3
+STORAGE_ENDPOINT=localhost:9000
+STORAGE_BUCKET=mix-dev
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET_KEY=minioadmin
+STORAGE_USE_SSL=false
+STORAGE_FORCE_PATH_STYLE=true
+```

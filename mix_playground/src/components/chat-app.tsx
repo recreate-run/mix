@@ -86,7 +86,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   const { data: session, isLoading: sessionLoading } =
     useActiveSession(sessionId);
   const sessionMessages = useSessionMessages(sessionId);
-  const sseStream = usePersistentSSE(session?.id || '');
+  const sseStream = usePersistentSSE(sessionId);
   // const { apps: openApps } = useAppList();
   const rewindSession = useRewindSession();
   const createSession = useCreateSession();
@@ -107,6 +107,21 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       previousSessionIdRef.current = session.id;
     }
   }, [session?.id]);
+
+  // Handle navigation to newly created sessions
+  useEffect(() => {
+    if (sseStream.newlyCreatedSessionId && sseStream.newlyCreatedSessionId !== sessionId) {
+      // Navigate to the newly created session
+      navigate({
+        to: '/$sessionId',
+        params: { sessionId: sseStream.newlyCreatedSessionId },
+        replace: true,
+      });
+
+      // Clear the state after navigation
+      sseStream.clearNewlyCreatedSession();
+    }
+  }, [sseStream.newlyCreatedSessionId, sessionId, navigate, sseStream.clearNewlyCreatedSession]);
 
 
   // Load messages when session messages data changes
@@ -536,7 +551,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       : !session?.id || sessionLoading || sseStream.isSubmitDisabled;
 
   return (
-    <div className="fl flex h-full w-full p-8">
+    <div className="relative flex h-full w-full p-8">
       <div className="flex-1 overflow-y-auto">
         {/* Feedback message notification */}
         {feedbackMessage && (
@@ -551,10 +566,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         <div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
           {/* Session header with export button */}
           {session && (
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-foreground truncate flex-1">
-                {getDisplayTitle(session)}
-              </h2>
+            <div className="flex items-center justify-end mb-4">
               <Button
                 variant="ghost"
                 size="sm"

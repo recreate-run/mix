@@ -103,6 +103,32 @@ export const PlaylistSidebar = ({
     }
 
     if (media.type === 'video') {
+      // Check if it's a YouTube URL first
+      const youtubeThumbnail = getYouTubeThumbnail(media.path);
+      if (youtubeThumbnail) {
+        return (
+          <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
+            <img
+              alt={`${media.title} thumbnail`}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                console.error('YouTube thumbnail failed to load:', {
+                  src: e.currentTarget.src,
+                  media: media,
+                  thumbnailUrl: youtubeThumbnail,
+                  error: e
+                });
+              }}
+              src={youtubeThumbnail}
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play className="h-3 w-3 text-white drop-shadow-sm" />
+            </div>
+          </div>
+        );
+      }
+
+      // Regular video handling
       // Use sourceVideo for highlights, fallback to path for regular videos
       const videoPath = media.sourceVideo || media.path;
       const videoUrl = getMediaSrc(videoPath, sessionId);
@@ -115,7 +141,6 @@ export const PlaylistSidebar = ({
           thumbnailUrl += `&time=${media.startTime}`;
         }
       }
-
 
       return (
         <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -141,34 +166,6 @@ export const PlaylistSidebar = ({
           </div>
         </div>
       );
-    }
-
-    if (media.type === 'youtube') {
-      const thumbnailUrl = getYouTubeThumbnail(media.path);
-
-
-      if (thumbnailUrl) {
-        return (
-          <div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
-            <img
-              alt={`${media.title} thumbnail`}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                console.error('YouTube thumbnail failed to load:', {
-                  src: e.currentTarget.src,
-                  media: media,
-                  thumbnailUrl: thumbnailUrl,
-                  error: e
-                });
-              }}
-              src={thumbnailUrl}
-            />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <Play className="h-3 w-3 text-white drop-shadow-sm" />
-            </div>
-          </div>
-        );
-      }
     }
 
     // Fallback  - show icon in colored box

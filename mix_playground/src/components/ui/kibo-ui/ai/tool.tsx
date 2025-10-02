@@ -56,9 +56,33 @@ const formatToolContent = (
   // Only apply special key-value formatting for "barch" tool
   const shouldApplyKeyValueFormatting = toolName?.toLowerCase() === 'bash';
 
+  // For Task tool, only show the prompt parameter
+  const isTaskTool = toolName?.toLowerCase() === 'task';
+
   let processedContent = '';
 
-  if (shouldApplyKeyValueFormatting) {
+  if (isTaskTool) {
+    // Handle Task tool - extract only the "prompt" parameter
+    if (typeof content === 'object' && content !== null) {
+      const promptValue = content['prompt'];
+      processedContent = promptValue ? safeStringify(promptValue) : '';
+    } else {
+      // Try to parse as JSON if it's a string
+      const stringContent = String(content);
+      const trimmed = stringContent.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          const promptValue = parsed['prompt'];
+          processedContent = promptValue ? safeStringify(promptValue) : stringContent;
+        } catch {
+          processedContent = stringContent;
+        }
+      } else {
+        processedContent = stringContent;
+      }
+    }
+  } else if (shouldApplyKeyValueFormatting) {
     // Handle object input for barch tool
     if (typeof content === 'object' && content !== null) {
       const entries = Object.entries(content);
