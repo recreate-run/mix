@@ -11,69 +11,69 @@ Mix is the best agentic backbone for your multimodal app. It comes with a GUI pl
 - All project data is stored plain text and native media files - absolutely no lock-in.
 - The backend is an HTTP server, meaning that the frontend is just one of possible clients. Check out our python and typescript SDK's  
 
-## Quick start (Playground)
+## Quickstart with DevTools
 
-Mix comes with a GUI playground for testing and debugging SDK workflows. It's built from the [Mix typescript SDK](https://github.com/recreate-run/mix-typescript-sdk)
+Mix comes with an interactive DevTools playground for testing and debugging workflows. Built with Tauri and the [Mix TypeScript SDK](https://github.com/recreate-run/mix-typescript-sdk).
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
+cd mix
 make dev
 ```
 
-Authenticate LLM providers and tool API's using the settings dialog (gear icon at the bottom left)
+**Authentication:** Configure LLM providers using the settings dialog (⚙️ gear icon at bottom left)
 
-1. We recommend claude-sonnet-4 via the oauth (claude code account) or the anthropic API key using the Settings dialog.
-2. Set Gemini API key for the `ReadMedia` tool. Available for free from [AI Studio](https://aistudio.google.com/api-keys)
-3. Set Brave API key for the `Search` tool. Available for free from [Brave](https://brave.com/search/api/)
+1. **Anthropic** - Claude Sonnet 4 via OAuth (Claude Code account) or API key
+2. **Google** - Gemini API key for `ReadMedia` tool ([Get free key](https://aistudio.google.com/api-keys))
+3. **Brave** - API key for `Search` tool ([Get free key](https://brave.com/search/api/))
 
-### Demos
+**Try these prompts:**
 
-```bash
+```
 Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
 
 <https://github.com/user-attachments/assets/13d45f7b-88d0-46dc-8407-bc9226dec9e9>
 
-```bash
+```
 Find the best videos about kerala puttu and show.
 ```
 
 <https://github.com/user-attachments/assets/303bc48d-848b-47a7-a6a1-c4b0673334a2>
 
-```bash
+```
 Show 3 most interesting 5 second highlights from this video
 ```
 
 <https://github.com/user-attachments/assets/d9417ed7-0c1c-403c-bbe9-b63746547ab8>
 
-## Quick start (Python SDK)
+## Quickstart with SDK
+
+Build AI workflows with the Python SDK. Uses [uv](https://docs.astral.sh/uv/) for fast package management.
+
+**Prerequisites:** Mix backend must be running (see DevTools quickstart above)
 
 ```bash
 git clone https://github.com/recreate-run/mix-python-sdk.git
 cd mix-python-sdk
 ```
 
-### Demos
-
-Create a tiktok videos
+**Run examples:**
 
 ```bash
+# Create TikTok-style videos
 uv run examples/tiktok_video.py
-```
 
-Multimodal search
-
-```bash
+# Multimodal web search
 uv run examples/web_search_multimodal.py
-```
 
-<https://github.com/user-attachments/assets/d73791e4-5377-4522-b76c-0df9f1bdd81f>
-
-Modifying/Replacing the system prompt
-
-```bash
+# Customize system prompts
 uv run examples/system_prompt_change.py
 ```
+
+**Multimodal search demo:**
+
+<https://github.com/user-attachments/assets/d73791e4-5377-4522-b76c-0df9f1bdd81f>
 
 ## Roadmap
 
