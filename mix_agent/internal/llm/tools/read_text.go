@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +49,7 @@ func (r *readTextTool) Info() ToolInfo {
 		Parameters: map[string]any{
 			"file_path": map[string]any{
 				"type":        "string",
-				"description": "The absolute path to the file to read",
+				"description": "The absolute path to the file to read, or a URL (http/https)",
 			},
 			"offset": map[string]any{
 				"type":        "integer",
@@ -75,72 +76,81 @@ func (r *readTextTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 		return NewTextErrorResponse("file_path is required"), nil
 	}
 
-	// Require absolute paths only
 	filePath := params.FilePath
-	if !filepath.IsAbs(filePath) {
+	isURLPath := isURL(filePath)
+
+	// Require absolute paths for local files, but allow URLs
+	if !isURLPath && !filepath.IsAbs(filePath) {
 		return NewTextErrorResponse("file_path must be an absolute path, not a relative path"), nil
 	}
 
-	// Check permissions before reading the file
+	// Check permissions before reading the file (skip for URLs)
 	sessionID, messageID := GetContextValues(ctx)
 	if sessionID == "" || messageID == "" {
 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for reading a file")
 	}
 
-	// Request permission to read the file
-	p := r.permissions.Request(
-		permission.CreatePermissionRequest{
-			SessionID:   sessionID,
-			Path:        filePath,
-			ToolName:    ReadTextToolName,
-			Action:      fmt.Sprintf("Read file: %s", filePath),
-			Description: fmt.Sprintf("Read file: %s", filePath),
-			Params: ReadTextParams{
-				FilePath: filePath,
-				Offset:   params.Offset,
-				Limit:    params.Limit,
+	// Request permission for local files only
+	if !isURLPath {
+		p := r.permissions.Request(
+			permission.CreatePermissionRequest{
+				SessionID:   sessionID,
+				Path:        filePath,
+				ToolName:    ReadTextToolName,
+				Action:      fmt.Sprintf("Read file: %s", filePath),
+				Description: fmt.Sprintf("Read file: %s", filePath),
+				Params: ReadTextParams{
+					FilePath: filePath,
+					Offset:   params.Offset,
+					Limit:    params.Limit,
+				},
 			},
-		},
-	)
-	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
-	}
+		)
+		if !p {
+			return ToolResponse{}, permission.ErrorPermissionDenied
+		}
 
-	// Check if file exists
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// Try to offer suggestions for similarly named files
-			dir := filepath.Dir(filePath)
-			base := filepath.Base(filePath)
+		// Check if file exists
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// Try to offer suggestions for similarly named files
+				dir := filepath.Dir(filePath)
+				base := filepath.Base(filePath)
 
-			dirEntries, dirErr := os.ReadDir(dir)
-			if dirErr == nil {
-				var suggestions []string
-				for _, entry := range dirEntries {
-					if strings.Contains(strings.ToLower(entry.Name()), strings.ToLower(base)) ||
-						strings.Contains(strings.ToLower(base), strings.ToLower(entry.Name())) {
-						suggestions = append(suggestions, filepath.Join(dir, entry.Name()))
-						if len(suggestions) >= 3 {
-							break
+				dirEntries, dirErr := os.ReadDir(dir)
+				if dirErr == nil {
+					var suggestions []string
+					for _, entry := range dirEntries {
+						if strings.Contains(strings.ToLower(entry.Name()), strings.ToLower(base)) ||
+							strings.Contains(strings.ToLower(base), strings.ToLower(entry.Name())) {
+							suggestions = append(suggestions, filepath.Join(dir, entry.Name()))
+							if len(suggestions) >= 3 {
+								break
+							}
 						}
+					}
+
+					if len(suggestions) > 0 {
+						return NewTextErrorResponse(fmt.Sprintf("File not found: %s\n\nDid you mean one of these?\n%s",
+							filePath, strings.Join(suggestions, "\n"))), nil
 					}
 				}
 
-				if len(suggestions) > 0 {
-					return NewTextErrorResponse(fmt.Sprintf("File not found: %s\n\nDid you mean one of these?\n%s",
-						filePath, strings.Join(suggestions, "\n"))), nil
-				}
+				return NewTextErrorResponse(fmt.Sprintf("File not found: %s", filePath)), nil
 			}
-
-			return NewTextErrorResponse(fmt.Sprintf("File not found: %s", filePath)), nil
+			return ToolResponse{}, fmt.Errorf("error accessing file: %w", err)
 		}
-		return ToolResponse{}, fmt.Errorf("error accessing file: %w", err)
-	}
 
-	// Check if it's a directory
-	if fileInfo.IsDir() {
-		return NewTextErrorResponse(fmt.Sprintf("Path is a directory, not a file: %s", filePath)), nil
+		// Check if it's a directory
+		if fileInfo.IsDir() {
+			return NewTextErrorResponse(fmt.Sprintf("Path is a directory, not a file: %s", filePath)), nil
+		}
+
+		// Check if it's a binary file and reject it
+		if isBinaryFile(filePath) {
+			return NewTextErrorResponse(fmt.Sprintf("Cannot read binary file: %s", filePath)), nil
+		}
 	}
 
 	// Set default limit if not provided
@@ -148,18 +158,21 @@ func (r *readTextTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 		params.Limit = DefaultReadLimit
 	}
 
-	// Check if it's a binary file and reject it
-	if isBinaryFile(filePath) {
-		return NewTextErrorResponse(fmt.Sprintf("Cannot read binary file: %s", filePath)), nil
-	}
+	// Read content from URL or local file
+	var content string
+	var lineCount int
+	var err error
 
-
-
-
-	// Read the file content
-	content, lineCount, err := readTextFile(filePath, params.Offset, params.Limit)
-	if err != nil {
-		return ToolResponse{}, fmt.Errorf("error reading file: %w", err)
+	if isURLPath {
+		content, lineCount, err = readTextFromURL(filePath, params.Offset, params.Limit)
+		if err != nil {
+			return NewTextErrorResponse(fmt.Sprintf("error reading from URL: %s", err)), nil
+		}
+	} else {
+		content, lineCount, err = readTextFile(filePath, params.Offset, params.Limit)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("error reading file: %w", err)
+		}
 	}
 
 	// Handle empty files
@@ -358,4 +371,90 @@ func isBinaryContent(filePath string) bool {
 	}
 
 	return false
+}
+
+// readTextFromURL downloads and reads text content from a URL
+func readTextFromURL(url string, offset, limit int) (string, int, error) {
+	// Download the content from URL
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to download from URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check for HTTP errors
+	if resp.StatusCode != http.StatusOK {
+		return "", 0, fmt.Errorf("failed to download: HTTP %d", resp.StatusCode)
+	}
+
+	// Check Content-Type to ensure it's text-based
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "" && !isTextContentType(contentType) {
+		return "", 0, fmt.Errorf("URL content is not text (Content-Type: %s)", contentType)
+	}
+
+	// Read and process the content using the same logic as local files
+	return readTextFromReader(resp.Body, offset, limit)
+}
+
+// isTextContentType checks if a Content-Type header indicates text content
+func isTextContentType(contentType string) bool {
+	// Remove parameters (e.g., "text/html; charset=utf-8" -> "text/html")
+	contentType = strings.Split(contentType, ";")[0]
+	contentType = strings.TrimSpace(strings.ToLower(contentType))
+
+	textTypes := []string{
+		"text/",
+		"application/json",
+		"application/xml",
+		"application/javascript",
+		"application/x-yaml",
+		"application/yaml",
+	}
+
+	for _, textType := range textTypes {
+		if strings.HasPrefix(contentType, textType) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// readTextFromReader reads text content from an io.Reader
+func readTextFromReader(reader io.Reader, offset, limit int) (string, int, error) {
+	lineCount := 0
+
+	scanner := NewLineScanner(reader)
+	if offset > 0 {
+		for lineCount < offset && scanner.Scan() {
+			lineCount++
+		}
+		if err := scanner.Err(); err != nil {
+			return "", 0, err
+		}
+	}
+
+	var lines []string
+	lineCount = offset
+
+	for scanner.Scan() && len(lines) < limit {
+		lineCount++
+		lineText := scanner.Text()
+		if len(lineText) > MaxLineLength {
+			lineText = lineText[:MaxLineLength] + "..."
+		}
+		lines = append(lines, lineText)
+	}
+
+	// Continue scanning to get total line count
+	for scanner.Scan() {
+		lineCount++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", 0, err
+	}
+
+	return strings.Join(lines, "\n"), lineCount, nil
 }
