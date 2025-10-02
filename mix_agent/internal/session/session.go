@@ -12,6 +12,22 @@ import (
 	"github.com/google/uuid"
 )
 
+// Context key for suppressing session event publishing (used for internal/sub-agent sessions)
+type contextKey string
+
+const suppressPublishKey contextKey = "suppress_session_publish"
+
+// WithSuppressPublish returns a context that suppresses session event publishing
+func WithSuppressPublish(ctx context.Context) context.Context {
+	return context.WithValue(ctx, suppressPublishKey, true)
+}
+
+// shouldPublish checks if session events should be published based on context
+func shouldPublish(ctx context.Context) bool {
+	suppress, _ := ctx.Value(suppressPublishKey).(bool)
+	return !suppress
+}
+
 type Session struct {
 	ID                    string
 	ParentSessionID       string
@@ -74,9 +90,11 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 		return Session{}, fmt.Errorf("session data conversion failed: %w", err)
 	}
 
-	err = s.Publish(ctx, pubsub.CreatedEvent, session)
-	if err != nil {
-		return Session{}, fmt.Errorf("session event publication failed: %w", err)
+	if shouldPublish(ctx) {
+		err = s.Publish(ctx, pubsub.CreatedEvent, session)
+		if err != nil {
+			return Session{}, fmt.Errorf("session event publication failed: %w", err)
+		}
 	}
 	return session, nil
 }
@@ -108,9 +126,11 @@ func (s *service) Fork(ctx context.Context, sourceSessionID string, title string
 		return Session{}, err
 	}
 
-	err = s.Publish(ctx, pubsub.CreatedEvent, session)
-	if err != nil {
-		return Session{}, err
+	if shouldPublish(ctx) {
+		err = s.Publish(ctx, pubsub.CreatedEvent, session)
+		if err != nil {
+			return Session{}, err
+		}
 	}
 	return session, nil
 }
@@ -141,9 +161,11 @@ func (s *service) Delete(ctx context.Context, id string) error {
 		fmt.Printf("Failed to delete session storage directory for %s: %v\n", session.ID, err)
 	}
 
-	err = s.Publish(ctx, pubsub.DeletedEvent, session)
-	if err != nil {
-		return err
+	if shouldPublish(ctx) {
+		err = s.Publish(ctx, pubsub.DeletedEvent, session)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -197,9 +219,11 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	err = s.Publish(ctx, pubsub.UpdatedEvent, session)
-	if err != nil {
-		return Session{}, err
+	if shouldPublish(ctx) {
+		err = s.Publish(ctx, pubsub.UpdatedEvent, session)
+		if err != nil {
+			return Session{}, err
+		}
 	}
 	return session, nil
 }
