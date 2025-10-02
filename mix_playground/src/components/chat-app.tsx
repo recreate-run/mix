@@ -127,6 +127,20 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Load messages when session messages data changes
   useEffect(() => {
     if (sessionMessages.data && sessionId) {
+      console.log('[CHAT-MESSAGES-UPDATE] Setting messages from query', {
+        timestamp: new Date().toISOString(),
+        sessionId,
+        messageCount: sessionMessages.data.length,
+        lastMessageFrom: sessionMessages.data[sessionMessages.data.length - 1]?.from,
+        lastMessagePreview: sessionMessages.data[sessionMessages.data.length - 1]?.content?.substring(0, 50),
+        currentStreamingState: {
+          processing: sseStream.processing,
+          completed: sseStream.completed,
+          cancelled: sseStream.cancelled,
+          hasFinalContent: !!sseStream.finalContent,
+          finalContentLength: sseStream.finalContent?.length || 0,
+        }
+      });
       setMessages(sessionMessages.data);
     } else if (sessionMessages.error) {
       // Show error message in chat
@@ -139,6 +153,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ]);
     } else if (!sessionMessages.isLoading && !sessionMessages.data) {
       // Clear messages only if not loading AND we explicitly have no data (avoid flash of empty state)
+      console.log('[CHAT-MESSAGES-UPDATE] Clearing messages - no data available', {
+        timestamp: new Date().toISOString(),
+        sessionId,
+      });
       setMessages([]);
     }
   }, [sessionMessages.data, sessionMessages.error, sessionMessages.isLoading, sessionId]);

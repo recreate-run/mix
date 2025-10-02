@@ -335,13 +335,27 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
           case 'complete': {
             const completeEvent = event as SSECompleteEvent;
-            setState(prev => ({
-              ...prev,
-              reasoning: completeEvent.data.reasoning || null,
-              reasoningDuration: completeEvent.data.reasoningDuration || null,
-              completed: true,
-              processing: false,
-            }));
+            setState(prev => {
+              console.log('[SSE-COMPLETE] Message streaming completed', {
+                timestamp: new Date().toISOString(),
+                sessionId,
+                finalContent: prev.finalContent?.substring(0, 100) + '...',
+                finalContentLength: prev.finalContent?.length || 0,
+                timelineLength: prev.timeline.length,
+                toolCallsCount: prev.toolCalls.length,
+                aboutToSet: {
+                  completed: true,
+                  processing: false,
+                }
+              });
+              return {
+                ...prev,
+                reasoning: completeEvent.data.reasoning || null,
+                reasoningDuration: completeEvent.data.reasoningDuration || null,
+                completed: true,
+                processing: false,
+              };
+            });
             break;
           }
 
@@ -503,6 +517,18 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         throw new Error('No session ID available');
       }
 
+      console.log('[SSE-SEND] Resetting streaming state for new message', {
+        timestamp: new Date().toISOString(),
+        sessionId,
+        previousState: {
+          completed: state.completed,
+          processing: state.processing,
+          finalContentLength: state.finalContent?.length || 0,
+          timelineLength: state.timeline?.length || 0,
+          toolCallsCount: state.toolCalls?.length || 0,
+        }
+      });
+
       setState((prev) => ({
         ...prev,
         error: null,
@@ -629,6 +655,13 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
       // Persist cancelled streaming content before it gets cleared
       if (state.cancelled && (state.finalContent || state.timeline?.length || state.toolCalls?.length)) {
+        console.log('[SSE-SUBMIT] Persisting cancelled content before new message', {
+          timestamp: new Date().toISOString(),
+          sessionId,
+          cancelledContentLength: state.finalContent?.length || 0,
+          timelineLength: state.timeline?.length || 0,
+          toolCallsCount: state.toolCalls?.length || 0,
+        });
         const cancelledMessage: UIMessage = {
           content: state.finalContent || '',
           from: 'assistant',
@@ -685,6 +718,17 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   // Stream completion handling - invalidate cache when streaming completes
   useEffect(() => {
     if (state.completed && (state.finalContent || state.toolCalls.length > 0) && !state.processing) {
+      console.log('[SSE-INVALIDATE] Invalidating session messages query', {
+        timestamp: new Date().toISOString(),
+        sessionId,
+        reason: 'Streaming completed',
+        state: {
+          completed: state.completed,
+          processing: state.processing,
+          finalContentLength: state.finalContent?.length || 0,
+          toolCallsCount: state.toolCalls.length,
+        }
+      });
       queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessionMessages(sessionId) });
     }
   }, [state.completed, state.finalContent, state.processing, state.toolCalls.length, sessionId, queryClient]);
