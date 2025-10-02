@@ -551,7 +551,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       : !session?.id || sessionLoading || sseStream.isSubmitDisabled;
 
   return (
-    <div className="fl flex h-full w-full p-8">
+    <div className="relative flex h-full w-full p-8">
       <div className="flex-1 overflow-y-auto">
         {/* Feedback message notification */}
         {feedbackMessage && (

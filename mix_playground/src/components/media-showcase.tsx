@@ -73,7 +73,7 @@ const MainMediaPlayer = ({
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen
-                className="aspect-video w-full min-w-xl bg-black"
+                className="aspect-video w-full bg-black"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                   const fallback = e.currentTarget
@@ -132,7 +132,7 @@ const MainMediaPlayer = ({
             src={getMediaSrc(media.path, sessionId)}
             title={media.title}
             frameBorder="0"
-            className="aspect-[4/5] w-full min-w-xl bg-white"
+            className="aspect-[4/5] w-full bg-white"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const fallback = e.currentTarget
