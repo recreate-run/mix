@@ -73,7 +73,8 @@ if ! command -v turso &> /dev/null; then
         if curl -sSfL https://get.tur.so/install.sh | bash; then
             print_success "Turso CLI installed successfully!"
             # Reload shell to get turso in PATH
-            export PATH="$HOME/.turso:$PATH"
+            export PATH="$HOME/.turso/bin:$PATH"
+
         else
             print_error "Failed to install Turso CLI. Please install it manually."
             exit 1
