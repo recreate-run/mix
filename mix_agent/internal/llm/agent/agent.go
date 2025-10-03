@@ -1307,4 +1307,23 @@ func (a *agent) ClearAllSessionProviders() {
 	} else {
 		logging.Error("Failed to update main agent provider", "error", err)
 	}
+
+	// Refresh title and summarize providers (they always use AgentMain config)
+	if a.titleProvider != nil {
+		newTitleProvider, err := createAgentProvider(config.AgentMain)
+		if err == nil {
+			a.titleProvider = newTitleProvider
+		} else {
+			logging.Error("Failed to refresh title provider", "error", err)
+		}
+	}
+
+	if a.summarizeProvider != nil {
+		newSummarizeProvider, err := createAgentProvider(config.AgentMain)
+		if err == nil {
+			a.summarizeProvider = newSummarizeProvider
+		} else {
+			logging.Error("Failed to refresh summarize provider", "error", err)
+		}
+	}
 }

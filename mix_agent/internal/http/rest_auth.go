@@ -447,6 +447,13 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	// Clean up the OAuth flow
 	llmprovider.CleanupOAuthFlow(req.State)
 
+	// Refresh all agent providers to pick up the new OAuth credentials
+	// This is critical for title generation and summarization to work
+	if h.app.CoderAgent != nil {
+		h.app.CoderAgent.ClearAllSessionProviders()
+		logging.Info("Refreshed agent providers after OAuth login")
+	}
+
 	// Track successful authentication
 	if h.app.Analytics != nil {
 		ctx := r.Context()
