@@ -93,7 +93,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	} else if opts.apiKey != "" {
 		// Use database API key (passed in opts.apiKey from caller)
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
-		logging.Info("Initialized OpenAI client with database API key authentication")
+		// logging.Info("Initialized OpenAI client with database API key authentication")
 	} else {
 		// No auth available
 		logging.Warn("No authentication method available for OpenAI - neither OAuth nor database API key")
