@@ -1,0 +1,258 @@
+---
+title: "Streaming Input Mode"
+description: "Persistent, interactive sessions with real-time streaming (Recommended)"
+---
+
+Streaming input mode is the **preferred** way to use the Mix Python SDK. It provides full access to the agent's capabilities and enables rich, interactive experiences.
+
+## Overview
+
+Streaming mode allows the agent to operate as a long-lived process that:
+- Takes in user input continuously
+- Handles interruptions gracefully
+- Surfaces permission requests in real-time
+- Manages session state automatically
+- Streams thinking, tool execution, and responses
+
+## How It Works
+
+<Mermaid
+  chart="
+sequenceDiagram
+    participant App as Your Application
+    participant Mix as Mix Client
+    participant Agent as Claude Agent
+    participant Tools as Tools/File System
+
+    App->>Mix: Create Session
+    Mix->>Agent: Initialize Session
+    App->>Mix: stream_events(session_id)
+    Mix-->>App: SSE Connection Opened
+    App->>Mix: send_streaming_message()
+    Mix->>Agent: Process Message
+    Agent-->>Mix: Thinking Events
+    Mix-->>App: SSE: Thinking Delta
+    Agent->>Tools: Execute Tools
+    Tools-->>Agent: Results
+    Agent-->>Mix: Tool Events
+    Mix-->>App: SSE: Tool Status
+    Agent-->>Mix: Content Delta
+    Mix-->>App: SSE: Response Chunks
+    Agent-->>Mix: Complete Event
+    Mix-->>App: SSE: Complete
+"
+/>
+
+## When to Use Streaming Input
+
+Use streaming input when you need:
+
+✅ **Real-time feedback** - Show AI thinking process and tool execution
+✅ **Long-running tasks** - Handle multi-step workflows with tool calls
+✅ **Interactive conversations** - Build chat interfaces with context
+✅ **File operations** - Upload/download files within sessions
+✅ **Permission handling** - Request user approval for sensitive operations
+
+## Implementation Example
+
+### Basic Streaming Pattern
+
+```python
+from mix_python_sdk import Mix
+from mix_python_sdk.models import (
+    SendMessageRequestBody,
+    SSEEventStream,
+    SSEThinkingEvent,
+    SSEContentEvent,
+    SSEToolEvent,
+    SSECompleteEvent,
+)
+import json
+
+def stream_message(mix: Mix, session_id: str, message: str):
+    """Stream a message and process events in real-time"""
+
+    # Open SSE stream
+    stream_response = mix.streaming.stream_events(session_id=session_id)
+
+    # Send message
+    mix.streaming.send_streaming_message(
+        id=session_id,
+        content=json.dumps(SendMessageRequestBody(text=message).model_dump()),
+    )
+
+    # Process events
+    with stream_response.result as event_stream:
+        for event in event_stream:
+            if isinstance(event, SSEThinkingEvent):
+                print(f"🤔 Thinking: {event.data.content}", end="", flush=True)
+
+            elif isinstance(event, SSEContentEvent):
+                print(f"📝 Response: {event.data.content}", end="", flush=True)
+
+            elif isinstance(event, SSEToolEvent):
+                print(f"\n🔧 Tool: {event.data.name} - {event.data.status}")
+                if event.data.input:
+                    print(f"   Input: {event.data.input}")
+                if event.data.output:
+                    print(f"   Output: {event.data.output}")
+
+            elif isinstance(event, SSECompleteEvent):
+                print("\n✅ Complete!")
+                break
+```
+
+### With Session Management
+
+```python
+from mix_python_sdk import Mix
+import os
+
+def main():
+    with Mix(server_url=os.getenv("MIX_SERVER_URL")) as mix:
+        # Create session
+        session = mix.sessions.create(title="Interactive Chat")
+        print(f"Session created: {session.id}")
+
+        # Stream multiple messages
+        messages = [
+            "What's the weather like?",
+            "Can you search for recent news about AI?",
+            "Summarize the top 3 articles"
+        ]
+
+        for msg in messages:
+            print(f"\n👤 User: {msg}")
+            stream_message(mix, session.id, msg)
+
+        # Clean up
+        mix.sessions.delete(id=session.id)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Advanced: Handling Interruptions
+
+```python
+from mix_python_sdk import Mix
+from mix_python_sdk.models import SSEEventStream, SSEErrorEvent
+import signal
+import sys
+
+class StreamingSession:
+    def __init__(self, mix: Mix, session_id: str):
+        self.mix = mix
+        self.session_id = session_id
+        self.interrupted = False
+
+        # Handle Ctrl+C
+        signal.signal(signal.SIGINT, self.handle_interrupt)
+
+    def handle_interrupt(self, signum, frame):
+        """Gracefully handle interruption"""
+        print("\n⚠️  Interrupting...")
+        self.interrupted = True
+        # Cancel current operation
+        self.mix.sessions.cancel_session_processing(id=self.session_id)
+
+    def stream_with_interruption(self, message: str):
+        stream_response = self.mix.streaming.stream_events(
+            session_id=self.session_id
+        )
+
+        self.mix.streaming.send_streaming_message(
+            id=self.session_id,
+            content=json.dumps(SendMessageRequestBody(text=message).model_dump()),
+        )
+
+        with stream_response.result as event_stream:
+            for event in event_stream:
+                if self.interrupted:
+                    print("Stopped by user")
+                    break
+
+                # Process events...
+                if isinstance(event, SSEErrorEvent):
+                    print(f"❌ Error: {event.data.error}")
+                    break
+```
+
+## Event Types
+
+The streaming API emits these event types:
+
+| Event Type | Description | Data Fields |
+|------------|-------------|-------------|
+| `SSEThinkingEvent` | AI reasoning process | `content` - thinking text |
+| `SSEContentEvent` | Response text chunks | `content` - response text |
+| `SSEToolEvent` | Tool execution updates | `name`, `status`, `input`, `output` |
+| `SSEErrorEvent` | Error occurred | `error` - error message |
+| `SSECompleteEvent` | Stream finished | - |
+
+## Best Practices
+
+### 1. Always Use Context Managers
+
+```python
+# ✅ Good - Auto-cleanup
+with Mix(server_url=url) as mix:
+    session = mix.sessions.create(title="Chat")
+    stream_message(mix, session.id, "Hello")
+
+# ❌ Bad - Manual cleanup required
+mix = Mix(server_url=url)
+session = mix.sessions.create(title="Chat")
+# ... might leak resources
+mix.close()
+```
+
+### 2. Handle All Event Types
+
+```python
+# ✅ Good - Comprehensive handling
+for event in event_stream:
+    if isinstance(event, SSEThinkingEvent):
+        # Handle thinking
+    elif isinstance(event, SSEContentEvent):
+        # Handle content
+    elif isinstance(event, SSEToolEvent):
+        # Handle tools
+    elif isinstance(event, SSEErrorEvent):
+        # Handle errors
+    elif isinstance(event, SSECompleteEvent):
+        break
+
+# ❌ Bad - Missing error handling
+for event in event_stream:
+    if isinstance(event, SSEContentEvent):
+        print(event.data.content)
+```
+
+### 3. Clean Up Sessions
+
+```python
+# ✅ Good - Explicit cleanup
+try:
+    session = mix.sessions.create(title="Task")
+    stream_message(mix, session.id, "Do something")
+finally:
+    mix.sessions.delete(id=session.id)
+
+# ❌ Bad - Sessions accumulate
+session = mix.sessions.create(title="Task")
+stream_message(mix, session.id, "Do something")
+# No cleanup
+```
+
+## Limitations
+
+- **Network Dependency**: Requires stable connection for SSE
+- **Single Active Stream**: One stream per session at a time
+- **Memory Usage**: Long sessions accumulate history (use session limits)
+
+## Next Steps
+
+- Learn about [Single Message Input](/docs/mix/python-sdk/guides/single-message-input) for one-shot queries
+- Explore [Session Management](/docs/mix/python-sdk/guides/session-management) patterns
+- See [File Handling](/docs/mix/python-sdk/guides/file-handling) for uploads/downloads
