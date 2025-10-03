@@ -1,64 +1,59 @@
 ---
 title: Documentation
-description: Complete documentation for Mix - AI agent platform for developers
+description: Open-source agentic AI backbone for multimodal apps
 ---
 
-Mix is an open-source AI agent platform that helps developers build better software faster. It provides a powerful backend, interactive DevTools, and SDKs for TypeScript and Python.
+Mix is an open-source AI orchestration platform for building multimodal AI workflows. It comes with DevTools for testing, SDKs for building, and an HTTP API for integration.
 
-## Quick Start
+## Choose Your Path
 
-Get up and running with Mix in minutes:
-
-```bash
-# Install Mix
-npm install -g mix-agent
-
-# Start the server
-mix-agent start
-```
-
-Then use the TypeScript SDK:
-
-```typescript
-import { Mix } from 'mix-typescript-sdk';
-
-const client = new Mix({ serverURL: 'http://localhost:8088' });
-const sessions = await client.sessions.list();
-```
-
-Or Python SDK:
-
-```python
-from mix import MixClient
-
-client = MixClient(base_url="http://localhost:8088")
-sessions = client.sessions.list()
-```
-
-## Core Features
-
-- 🚀 **HTTP API Server** - RESTful backend for AI orchestration
-- 🎨 **DevTools** - Interactive desktop app built with Tauri
-- 📦 **Type-Safe SDKs** - TypeScript and Python support
-- 🤖 **Multi-Provider AI** - Anthropic, OpenAI, Google, and more
-- 📁 **Session Management** - Persistent conversation storage
-- ⚡ **Real-time Streaming** - Server-Sent Events for live responses
+<Cards>
+  <Card
+    href="/docs/mix/quickstart#quickstart-with-devtools"
+    title="Start with DevTools"
+    description="Interactive GUI playground for testing and debugging workflows. Built with Tauri."
+  />
+  <Card
+    href="/docs/mix/quickstart#quickstart-with-sdk"
+    title="Start with SDK"
+    description="Build AI workflows programmatically with Python or TypeScript SDKs."
+  />
+</Cards>
 
 ## Documentation
 
 <Cards>
   <Card
-    href="/docs/mix"
-    title="Mix"
-    description="Backend HTTP API server, DevTools, SDKs, AI orchestration, and tool integration"
+    href="/docs/mix/quickstart"
+    title="Quickstart"
+    description="Get up and running in 5 minutes with DevTools or SDK"
+  />
+  <Card
+    href="/docs/mix/examples"
+    title="Examples & Demos"
+    description="Real-world use cases: video creation, web search, multimodal workflows"
   />
   <Card
     href="/docs/api"
     title="API Reference"
-    description="Complete REST API reference for all Mix endpoints"
+    description="Complete REST API documentation for all Mix endpoints"
+  />
+  <Card
+    href="/docs/mix/python-sdk/installation"
+    title="Python SDK"
+    description="Install and use the Mix Python SDK in your applications"
   />
 </Cards>
 
-## What Makes Mix Different?
+## Why Mix?
 
-Mix is **open-source** and **local-first**. Your data stays on your machine. No vendor lock-in, switch between AI providers freely. Built for developers who need powerful AI automation without sacrificing control.
+- **Open Source** - Apache 2.0 license, fully open and free to use
+- **Multimodal** - Built for video, images, and text workflows
+- **HTTP-First** - RESTful API makes integration and debugging easy
+- **Multi-Provider** - Support for Anthropic, OpenAI, Google, and more
+
+## Need Help?
+
+- [Quickstart Guide](/docs/mix/quickstart) - Get started in 5 minutes
+- [Troubleshooting](/docs/mix/troubleshooting) - Common issues and solutions
+- [GitHub Discussions](https://github.com/recreate-run/mix/discussions) - Ask questions and share ideas
