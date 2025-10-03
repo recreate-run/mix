@@ -102,35 +102,6 @@ STORAGE_BUCKET=bucket-name
 STORAGE_ACCESS_KEY=service_role_key
 ```
 
-## Deployment Checklist
-
-- [ ] Database configured (Turso URL and auth token)
-- [ ] Storage provider chosen and configured
-- [ ] Environment variables set correctly
-- [ ] If using Supabase: service_role key (not anon key)
-- [ ] If using Supabase: bucket is public
-- [ ] Frontend URLs point to correct backend
-- [ ] Test file upload and thumbnail generation
-- [ ] Verify files are stored in correct location (local vs Supabase)
-
-<div style={{ textAlign: 'center', margin: '20px 0', padding: '40px', background: '#f5f5f5', borderRadius: '8px' }}>
-  📸 Screenshot placeholder: Successful file upload with thumbnail generation
-</div>
-
-## Cost Considerations
-
-### Local Storage
-- **Storage**: Server disk space cost
-- **Bandwidth**: Server bandwidth cost
-- **Scaling**: Requires larger server or external CDN
-
-### Supabase Storage
-- **Free tier**: 1GB storage, 2GB bandwidth/month
-- **Paid**: ~$0.021/GB storage, ~$0.09/GB bandwidth
-- **Scaling**: Automatic, pay-as-you-go
-
-For small projects (less than 1GB files, less than 2GB bandwidth/month), Supabase free tier is sufficient.
-
 ## Production Best Practices
 
 1. **Use Supabase for production** deployments with multiple instances
