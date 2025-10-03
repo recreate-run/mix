@@ -25,6 +25,7 @@ import { usePreferences, formatCurrentModel } from '@/hooks/usePreferences';
 import { useSessionExport } from '@/hooks/useSessionExport';
 import { useBoundStore } from '@/stores';
 import { buildSessionFileUrl } from '@/utils/attachmentUtils';
+import { CACHE_KEYS } from '@/lib/cache-keys';
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
 import type { UIMessage } from '@/types/message';
@@ -105,7 +106,11 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         interruptedMessageAddedRef.current = false;
       }
       previousSessionIdRef.current = session.id;
+
+      // Invalidate preferences to fetch fresh data for the new session
+      queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id]);
 
   // Handle navigation to newly created sessions

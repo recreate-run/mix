@@ -1,0 +1,262 @@
+---
+title: "Typescript SDK"
+description: "Reference for the Typescript SDK"
+---
+
+
+## Installation
+
+
+```npm
+npm add mix-typescript-sdk
+```
+
+## Quickstart
+TBD
+
+
+## Setting Up the Client
+
+```typescript
+import { Mix } from 'mix-typescript-sdk';
+
+const client = new Mix({
+  serverURL: 'http://localhost:8088',
+});
+```
+
+## Working with Sessions
+
+### Creating a New Session
+
+```typescript
+async function createNewSession() {
+  try {
+    const session = await client.sessions.create({
+      title: "My New Session"
+    });
+    console.log("Created session:", session.id);
+    return session;
+  } catch (error) {
+    console.error("Failed to create session:", error);
+    throw error;
+  }
+}
+```
+
+### Listing All Sessions
+
+```typescript
+async function listAllSessions() {
+  try {
+    const sessions = await client.sessions.list();
+    console.log(`Found ${sessions.length} sessions`);
+    return sessions;
+  } catch (error) {
+    console.error("Failed to list sessions:", error);
+    throw error;
+  }
+}
+```
+
+### Getting a Specific Session
+
+```typescript
+async function getSessionById(sessionId: string) {
+  try {
+    const session = await client.sessions.get({
+      id: sessionId
+    });
+    console.log("Retrieved session:", session.title);
+    return session;
+  } catch (error) {
+    console.error(`Failed to get session ${sessionId}:`, error);
+    throw error;
+  }
+}
+```
+
+### Deleting a Session
+
+```typescript
+async function deleteSession(sessionId: string) {
+  try {
+    await client.sessions.delete({
+      id: sessionId
+    });
+    console.log(`Session ${sessionId} deleted successfully`);
+  } catch (error) {
+    console.error(`Failed to delete session ${sessionId}:`, error);
+    throw error;
+  }
+}
+```
+
+## Selecting Provider and Model
+
+```typescript
+async function selectProviderAndModel() {
+  try {
+    // Get available providers and models
+    const providers = await client.preferences.getAvailableProviders();
+    console.log('Available providers:', Object.keys(providers));
+    
+    // Set preferred provider and model
+    await client.preferences.updatePreferences({
+      preferred_provider: 'anthropic',
+      main_agent_model: 'claude-4-sonnet'
+    });
+    
+    console.log('Provider and model selected successfully');
+  } catch (error) {
+    console.error('Failed to select provider and model:', error);
+    throw error;
+  }
+}
+```
+
+## Working with Messages
+
+### Sending a Message
+
+```typescript
+async function sendMessage(sessionId: string, content: string) {
+  try {
+    const message = await client.messages.send({
+      sessionId,
+      content
+    });
+    console.log("Message sent with ID:", message.id);
+    return message;
+  } catch (error) {
+    console.error("Failed to send message:", error);
+    throw error;
+  }
+}
+```
+
+### Getting Session Messages
+
+```typescript
+async function getSessionMessages(sessionId: string) {
+  try {
+    const messages = await client.messages.getSession({
+      sessionId
+    });
+    console.log(`Retrieved ${messages.length} messages for session ${sessionId}`);
+    return messages;
+  } catch (error) {
+    console.error(`Failed to get messages for session ${sessionId}:`, error);
+    throw error;
+  }
+}
+```
+
+## Integration with React and TanStack Query
+
+For React applications, you can use TanStack Query to integrate with the Mix SDK:
+
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import mix from './lib/mix-sdk';
+
+// Hook for listing sessions
+export function useSessionsList() {
+  return useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => mix.sessions.list(),
+  });
+}
+
+// Hook for creating a session
+export function useCreateSession() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (title: string) => mix.sessions.create({ title }),
+    onSuccess: () => {
+      // Invalidate the sessions list query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+    },
+  });
+}
+
+// Hook for getting a specific session
+export function useSession(sessionId: string) {
+  return useQuery({
+    queryKey: ['session', sessionId],
+    queryFn: () => mix.sessions.get({ id: sessionId }),
+    enabled: !!sessionId, // Only run the query if sessionId is provided
+  });
+}
+
+// Hook for getting session messages
+export function useSessionMessages(sessionId: string) {
+  return useQuery({
+    queryKey: ['messages', sessionId],
+    queryFn: () => mix.messages.getSession({ sessionId }),
+    enabled: !!sessionId,
+  });
+}
+
+// Hook for sending a message
+export function useSendMessage() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ sessionId, content }: { sessionId: string, content: string }) => 
+      mix.messages.send({ sessionId, content }),
+    onSuccess: (_, variables) => {
+      // Invalidate the session messages query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ['messages', variables.sessionId] });
+    },
+  });
+}
+```
+
+Using these hooks in a component:
+
+```typescript
+function ChatComponent({ sessionId }) {
+  const { data: session, isLoading: sessionLoading } = useSession(sessionId);
+  const { data: messages, isLoading: messagesLoading } = useSessionMessages(sessionId);
+  const { mutate: sendMessage, isPending: isSending } = useSendMessage();
+  const [inputValue, setInputValue] = useState('');
+
+  const handleSend = () => {
+    if (inputValue.trim()) {
+      sendMessage({ sessionId, content: inputValue });
+      setInputValue('');
+    }
+  };
+
+  if (sessionLoading || messagesLoading) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div>
+      <h1>{session?.title}</h1>
+      <div className="messages">
+        {messages?.map((message) => (
+          <div key={message.id} className={`message ${message.role}`}>
+            {message.content}
+          </div>
+        ))}
+      </div>
+      <div className="input">
+        <input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          disabled={isSending}
+        />
+        <button onClick={handleSend} disabled={isSending}>
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+These examples demonstrate common patterns for using the Mix SDK in both Node.js and browser environments. For more detailed examples, refer to the specific API documentation for each module.

@@ -13,11 +13,14 @@ Tauri desktop app that connects to Mix Agent backend via the Mix TypeScript SDK.
 Start Mix Playground desktop application.
 
 ### 2. Configure Provider
+
+
 1. Click **Settings** icon
 2. Choose provider (Anthropic, OpenAI, etc.)
 3. Select **OAuth** or **API Key** authentication
 4. Complete authentication flow
 5. Select a model from available options
+<video src="/videos/oauth.mp4" controls autoPlay loop muted className="w-full rounded-lg" />
 
 ### 3. Start Chatting
 Type your message and press Enter. AI responds in real-time.
@@ -49,17 +52,19 @@ Type your message and press Enter. AI responds in real-time.
 - **Anthropic** (Claude models)
 - **OpenAI** (GPT models)
 - **OpenRouter** (Multiple providers)
-- **Google** (Gemini models)
 
 ### Authentication Methods
 - **OAuth**: Browser-based secure authentication (recommended)
 - **API Key**: Direct key entry from provider dashboard
 
 ### Model Selection
+
+
 1. Authenticate with provider first
-2. Provider card shows available models
-3. Click model to set as active
-4. Current model marked with ⭐
+2. /model command will display all the providers
+3. Provider card shows available models
+4. Click model to set as active
+<video src="/videos/model_sel.mp4" controls autoPlay loop muted className="w-full rounded-lg" />
 
 ## File Attachments
 

@@ -100,6 +100,7 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 		return []ModelID{
 			OpenRouterDeepSeekV31,
 			OpenRouterZAIGLM45Air,
+			OpenRouterZAIGLM46,
 		}
 	case ProviderAnthropic:
 		return []ModelID{
