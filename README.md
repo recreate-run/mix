@@ -24,7 +24,7 @@ make dev
 **Authentication:** Configure LLM providers using the settings dialog (⚙️ gear icon at bottom left)
 
 1. **Anthropic** - Claude Sonnet 4 via OAuth (Claude Code account) or API key
-2. **Google** - Gemini API key for `ReadMedia` tool ([Get free key](https://aistudio.google.com/api-keys))
+2. **Gemini** - Gemini API key for `ReadMedia` tool ([Get free key](https://aistudio.google.com/api-keys))
 3. **Brave** - API key for `Search` tool ([Get free key](https://brave.com/search/api/))
 
 **Try these prompts:**

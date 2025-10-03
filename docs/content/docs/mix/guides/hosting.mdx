@@ -3,24 +3,11 @@ title: Hosting & Deployment
 description: Deploy Mix with local or cloud storage backends
 ---
 
-Mix can be deployed with different storage backends depending on your needs. This guide covers deployment options and configuration for production environments.
+Deploy Mix with local storage for self-hosted setups or Supabase for cloud deployments.
 
 ## Storage Backend Options
 
-### Local Storage (Self-Hosted)
-
-Best for self-hosted deployments where you have control over the server filesystem.
-
-**Pros:**
-- Zero external dependencies
-- No additional cost
-- Simple setup
-- Full data control
-
-**Cons:**
-- Limited scalability
-- No built-in CDN
-- Manual backup required
+### Local (Only for testing)
 
 **Configuration:**
 
@@ -34,18 +21,6 @@ That's it! Local storage requires no additional configuration.
 ### Supabase Storage (Cloud)
 
 Best for production deployments with multiple instances or when you need cloud-hosted files.
-
-**Pros:**
-- Scalable cloud storage
-- Built-in CDN for fast file delivery
-- Automatic backups
-- Public URLs for files
-- Easy to set up
-
-**Cons:**
-- Requires Supabase account
-- External dependency
-- Potential costs at scale
 
 **Automated Setup (Recommended):**
 
@@ -63,24 +38,10 @@ This script will:
 
 Everything configured in one command!
 
-**Manual Setup (Alternative):**
+<div style={{ textAlign: 'center', margin: '20px 0', padding: '40px', background: '#f5f5f5', borderRadius: '8px' }}>
+  📸 Screenshot placeholder: Supabase setup script in action
+</div>
 
-If you prefer manual configuration:
-
-1. Create a Supabase project at [supabase.com](https://supabase.com)
-2. Go to Settings → API and copy:
-   - Project URL
-   - service_role key (NOT anon key)
-3. Add to `.env`:
-
-```bash
-STORAGE_TYPE=supabase
-STORAGE_ENDPOINT=https://your-project.supabase.co
-STORAGE_BUCKET=mix-storage
-STORAGE_ACCESS_KEY=your_service_role_key_here
-```
-
-⚠️ **Important**: Use the `service_role` key, NOT the `anon` or `publishable` key.
 
 ## How Storage Works
 
@@ -141,16 +102,29 @@ STORAGE_BUCKET=bucket-name
 STORAGE_ACCESS_KEY=service_role_key
 ```
 
-## Deployment Checklist
+## Production Best Practices
 
-- [ ] Database configured (Turso URL and auth token)
-- [ ] Storage provider chosen and configured
-- [ ] Environment variables set correctly
-- [ ] If using Supabase: service_role key (not anon key)
-- [ ] If using Supabase: bucket is public
-- [ ] Frontend URLs point to correct backend
-- [ ] Test file upload and thumbnail generation
-- [ ] Verify files are stored in correct location (local vs Supabase)
+1. **Use Supabase for production** deployments with multiple instances
+2. **Use local storage** for self-hosted single-instance deployments
+3. **Always use service_role key** for Supabase (never commit to git!)
+4. **Set bucket to public** for file access
+5. **Monitor storage usage** in Supabase dashboard
+6. **Enable backups** for local storage deployments
+7. **Use environment variables** for all secrets (never hardcode)
+
+## Next Steps
+
+<Cards>
+  <Card title="Storage Architecture" href="/docs/mix/architecture/storage-architecture">
+    Deep dive into storage system design and patterns
+  </Card>
+  <Card title="Security & Privacy" href="/docs/mix/security-privacy">
+    Security considerations for your deployment
+  </Card>
+  <Card title="Troubleshooting" href="/docs/mix/troubleshooting">
+    Common issues and solutions
+  </Card>
+</Cards>
 
 ## Troubleshooting
 
@@ -174,33 +148,3 @@ STORAGE_ACCESS_KEY=service_role_key
 **Cause:** Files were uploaded to local storage, but you switched to Supabase (or vice versa)
 
 **Solution:** Migrate files to new storage provider (see Migration section above)
-
-## Cost Considerations
-
-### Local Storage
-- **Storage**: Server disk space cost
-- **Bandwidth**: Server bandwidth cost
-- **Scaling**: Requires larger server or external CDN
-
-### Supabase Storage
-- **Free tier**: 1GB storage, 2GB bandwidth/month
-- **Paid**: ~$0.021/GB storage, ~$0.09/GB bandwidth
-- **Scaling**: Automatic, pay-as-you-go
-
-For small projects (less than 1GB files, less than 2GB bandwidth/month), Supabase free tier is sufficient.
-
-## Production Best Practices
-
-1. **Use Supabase for production** deployments with multiple instances
-2. **Use local storage** for self-hosted single-instance deployments
-3. **Always use service_role key** for Supabase (never commit to git!)
-4. **Set bucket to public** for file access
-5. **Monitor storage usage** in Supabase dashboard
-6. **Enable backups** for local storage deployments
-7. **Use environment variables** for all secrets (never hardcode)
-
-## Next Steps
-
-- [Storage Architecture](/docs/mix/storage-architecture): Deep dive into storage system
-- [Security & Privacy](/docs/mix/security-privacy): Security considerations
-- [Troubleshooting](/docs/mix/troubleshooting): Common issues and solutions

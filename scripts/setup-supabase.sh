@@ -111,19 +111,12 @@ projects_json=$(supabase projects list --output json 2>/dev/null)
 if [ -z "$projects_json" ] || [ "$projects_json" == "null" ] || [ "$projects_json" == "[]" ]; then
     print_warning "No Supabase projects found!"
     echo ""
-    echo "📋 Steps to create a new Supabase project:"
+    echo "Steps to create a new Supabase project:"
     echo ""
-    echo "  1. Visit: ${BLUE}https://supabase.com/dashboard/projects${NC}"
-    echo "  2. Click '${GREEN}New Project${NC}' button"
-    echo "  3. Fill in the details:"
-    echo "     • Project name (e.g., 'my-mix-project')"
-    echo "     • Database password (save this!)"
-    echo "     • Region (choose closest to you)"
-    echo "  4. Click '${GREEN}Create new project${NC}'"
-    echo "  5. Wait 1-2 minutes for setup to complete"
-    echo "  6. Run this script again: ${BLUE}./scripts/setup-supabase.sh${NC}"
+    echo "  1. Visit: https://supabase.com/dashboard/projects"
+    echo "  2. Create a new project (free tier is sufficient)"
+    echo "  3. Run this script again: ./scripts/setup-supabase.sh"
     echo ""
-    print_info "The setup will complete in 1-2 minutes. Come back and re-run this script!"
     exit 0
 fi
 

@@ -122,12 +122,19 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Construct absolute URL from request
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
 	result := FileInfo{
 		Name:     filename,
 		Size:     uploadedFileInfo.Size,
 		Modified: 0, // Storage provider doesn't track modification time
 		IsDir:    false,
-		URL:      uploadedFileInfo.PublicURL,
+		URL:      fmt.Sprintf("%s/api/sessions/%s/files/%s", baseURL, sessionID, filename),
 	}
 
 	// Include original filename if it was different from stored name
@@ -176,6 +183,13 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Construct absolute URL from request
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
 	// Build file list
 	files := make([]FileInfo, 0, len(storageFiles))
 	for _, storageFile := range storageFiles {
@@ -191,7 +205,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 			Size:     storageFile.Size,
 			Modified: 0, // Storage provider doesn't track modification time
 			IsDir:    false,
-			URL:      storageFile.PublicURL,
+			URL:      fmt.Sprintf("%s/api/sessions/%s/files/%s", baseURL, sessionID, name),
 		})
 	}
 

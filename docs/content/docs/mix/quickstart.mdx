@@ -3,13 +3,7 @@ title: Quickstart
 description: Get up and running with Mix in 5 minutes
 ---
 
-Choose your path to get started with Mix:
-
-## Quickstart with DevTools
-
-The fastest way to see Mix in action. Built with Tauri and the [Mix TypeScript SDK](https://github.com/recreate-run/mix-typescript-sdk).
-
-### 1. Install and Run
+Install and launch the agent along with the devools. This is the recommended setup for local testing
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
@@ -17,101 +11,26 @@ cd mix
 make dev
 ```
 
-### 2. Configure Authentication
-
-Click the ⚙️ **Settings** icon (bottom left) to configure AI providers.
-
-#### Anthropic (Recommended)
-
-**Option A: OAuth (Easiest)**
-1. Click **"Sign in with Claude Code"**
-2. Authorize in your browser
-3. Done! ✅
-
-**Option B: API Key**
-1. Get your API key from [Anthropic Console](https://console.anthropic.com/)
-2. Click **"Use API Key"** in Settings
-3. Paste your key
-4. Select **claude-sonnet-4** as your model
-
-#### Google Gemini (For ReadMedia tool)
-1. Get free API key from [AI Studio](https://aistudio.google.com/api-keys)
-2. Paste in **Google** section in Settings
-3. Used for image/video analysis
-
-#### Brave Search (For web search)
-1. Get free API key from [Brave Search API](https://brave.com/search/api/)
-2. Paste in **Brave** section in Settings
-3. Used for web searches
-
-### 3. Try It Out
-
-Type these prompts in the chat:
-
-```
-Find the top cat video and create a 5 sec tiktok video from it.
-Add a title animation and export to a video
-```
-
-```
-Find the best videos about kerala puttu and show.
-```
-
-```
-Show 3 most interesting 5 second highlights from this video
-```
-
----
-
-## Quickstart with SDK
-
-Build AI workflows programmatically with the Python SDK.
-
-### 1. Prerequisites
-
-Make sure Mix backend is running (see DevTools quickstart above).
-
-### 2. Install SDK
+Rename the `.env.example` file to `.env` and add your credentials
 
 ```bash
-git clone https://github.com/recreate-run/mix-python-sdk.git
-cd mix-python-sdk
+ANTHROPIC_API_KEY=your_key_here
+GEMINI_API_KEY=your_key_here
+BRAVE_API_KEY=your_key_here
 ```
 
-### 3. Run Examples
+- Anthropic API key / Claude code subscription
+- Brave API key for web search tool free ([Get free key](https://brave.com/search/api/))
+- Gemini API key for `ReadMedia` tool ([Get free key](https://aistudio.google.com/api-keys))
+
+Run a demo 
 
 ```bash
-# Create TikTok-style videos
-uv run examples/tiktok_video.py
-
-# Multimodal web search
-uv run examples/web_search_multimodal.py
-
-# Customize system prompts
-uv run examples/system_prompt_change.py
+cd python_examples
+uv sync
+uv run demos/portfolio_analysis.py
 ```
 
-### 4. Build Your Own
-
-```python
-from mix_python_sdk import Mix
-
-# Create client
-client = Mix(server_url="http://localhost:8088")
-
-# Create a session
-session = client.sessions.create(title="My First Workflow")
-
-# Send a message
-message = client.messages.send(
-    session_id=session.id,
-    content="Analyze this image and create a summary"
-)
-
-print(message)
-```
-
----
 
 ## Next Steps
 
