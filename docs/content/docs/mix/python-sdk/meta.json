@@ -5,8 +5,6 @@
   "pages": [
     "installation",
     "client",
-    "guides",
-    "api-reference",
-    "examples"
+    "guides"
   ]
 }
