@@ -34,7 +34,7 @@ func (b *taskTool) getToolsForSubagentType(subagentType string) []tools.BaseTool
 		return []tools.BaseTool{
 			tools.NewGlobTool(),
 			tools.NewGrepTool(b.permissions),
-			tools.NewReadTextTool(b.permissions),
+			tools.NewReadTextTool(),
 			tools.NewEditTool(b.permissions, nil), // history not needed for sub-agents
 			tools.NewWriteTool(b.permissions, nil), // history not needed for sub-agents
 			tools.NewWebFetchTool(b.permissions),

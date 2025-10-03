@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"mix/internal/logging"
-	"mix/internal/permission"
 )
 
 type ReadTextParams struct {
@@ -22,7 +21,6 @@ type ReadTextParams struct {
 }
 
 type readTextTool struct {
-	permissions permission.Service
 }
 
 type ReadTextResponseMetadata struct {
@@ -36,10 +34,8 @@ const (
 	MaxLineLength    = 2000
 )
 
-func NewReadTextTool(permissions permission.Service) BaseTool {
-	return &readTextTool{
-		permissions: permissions,
-	}
+func NewReadTextTool() BaseTool {
+	return &readTextTool{}
 }
 
 func (r *readTextTool) Info() ToolInfo {
@@ -84,32 +80,8 @@ func (r *readTextTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 		return NewTextErrorResponse("file_path must be an absolute path, not a relative path"), nil
 	}
 
-	// Check permissions before reading the file (skip for URLs)
-	sessionID, messageID := GetContextValues(ctx)
-	if sessionID == "" || messageID == "" {
-		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for reading a file")
-	}
-
-	// Request permission for local files only
+	// Validate local files only (skip for URLs)
 	if !isURLPath {
-		p := r.permissions.Request(
-			permission.CreatePermissionRequest{
-				SessionID:   sessionID,
-				Path:        filePath,
-				ToolName:    ReadTextToolName,
-				Action:      fmt.Sprintf("Read file: %s", filePath),
-				Description: fmt.Sprintf("Read file: %s", filePath),
-				Params: ReadTextParams{
-					FilePath: filePath,
-					Offset:   params.Offset,
-					Limit:    params.Limit,
-				},
-			},
-		)
-		if !p {
-			return ToolResponse{}, permission.ErrorPermissionDenied
-		}
-
 		// Check if file exists
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {

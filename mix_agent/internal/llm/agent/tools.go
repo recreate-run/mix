@@ -28,7 +28,7 @@ func CoderAgentTools(
 			tools.NewEditTool(permissions, history),
 			tools.NewGlobTool(),
 			tools.NewGrepTool(permissions),
-			tools.NewReadTextTool(permissions),
+			tools.NewReadTextTool(),
 			tools.NewWebFetchTool(permissions),
 			tools.NewWebSearchTool(permissions),
 			tools.NewWriteTool(permissions, history),
@@ -50,7 +50,7 @@ func TaskAgentTools(
 	return []tools.BaseTool{
 		tools.NewGlobTool(),
 		tools.NewGrepTool(permissions),
-		tools.NewReadTextTool(permissions),
+		tools.NewReadTextTool(),
 		NewTaskTool(sessions, messages, permissions),
 	}
 }
