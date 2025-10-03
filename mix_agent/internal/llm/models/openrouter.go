@@ -25,6 +25,7 @@ const (
 	OpenRouterDeepSeekR1Free ModelID = "openrouter.deepseek-r1-free"
 	OpenRouterDeepSeekV31    ModelID = "openrouter.deepseek-v3.1"
 	OpenRouterZAIGLM45Air    ModelID = "openrouter.zai-glm-4.5-air"
+	OpenRouterZAIGLM46       ModelID = "openrouter.zai-glm-4.6"
 	OpenRouterSonomaDusk     ModelID = "openrouter.sonoma-dusk-alpha"
 	OpenRouterSonomaSky      ModelID = "openrouter.sonoma-sky-alpha"
 )
@@ -301,6 +302,20 @@ var OpenRouterModels = map[ModelID]Model{
 		CostPer1MOut:        0,
 		CostPer1MOutCached:  0,
 		ContextWindow:       131_072,
+		DefaultMaxTokens:    1000,
+		CanReason:           true,
+		SupportsAttachments: false,
+	},
+	OpenRouterZAIGLM46: {
+		ID:                  OpenRouterZAIGLM46,
+		Name:                "OpenRouter – Z.AI GLM 4.6",
+		Provider:            ProviderOpenRouter,
+		APIModel:            "z-ai/glm-4.6",
+		CostPer1MIn:         0.50,
+		CostPer1MInCached:   0,
+		CostPer1MOut:        1.75,
+		CostPer1MOutCached:  0,
+		ContextWindow:       202_752,
 		DefaultMaxTokens:    1000,
 		CanReason:           true,
 		SupportsAttachments: false,
