@@ -1,0 +1,380 @@
+---
+title: "Session Management"
+description: "Managing persistent conversation contexts and state"
+---
+
+Sessions in Mix provide **persistent conversation contexts** where files, messages, and state are maintained across interactions. Understanding session lifecycle is crucial for building effective AI applications.
+
+## What is a Session?
+
+A session is a persistent workspace that contains:
+- **Message history** - Full conversation context
+- **Files** - Uploaded documents, images, data
+- **State** - Session-specific preferences and settings
+- **Tool context** - Results from previous tool executions
+
+## Session Lifecycle
+
+<Mermaid
+  chart="
+graph LR
+    A[Create Session] --> B[Use Session]
+    B --> C{Done?}
+    C -->|No| B
+    C -->|Yes| D[Delete Session]
+    D --> E[Resources Released]
+"
+/>
+
+## Creating Sessions
+
+### Basic Creation
+
+```python
+from mix_python_sdk import Mix
+
+with Mix(server_url="http://localhost:8088") as mix:
+    # Create new session
+    session = mix.sessions.create(title="My Analysis")
+
+    print(f"Session ID: {session.id}")
+    print(f"Title: {session.title}")
+    print(f"Created: {session.created_at}")
+```
+
+### With Custom Configuration
+
+```python
+session = mix.sessions.create(
+    title="Portfolio Analysis",
+    preferences={
+        "main_agent_model": "claude-4-sonnet",
+        "temperature": 0.7
+    }
+)
+```
+
+## Listing Sessions
+
+### Get All Sessions
+
+```python
+sessions = mix.sessions.list_sessions()
+
+for session in sessions:
+    print(f"ID: {session.id}")
+    print(f"Title: {session.title}")
+    print(f"Created: {session.created_at}")
+    print(f"Files: {len(session.files) if session.files else 0}")
+    print("---")
+```
+
+### Find Specific Session
+
+```python
+def find_session_by_title(mix: Mix, title: str):
+    """Find session by title"""
+    sessions = mix.sessions.list_sessions()
+
+    for session in sessions:
+        if session.title == title:
+            return session
+
+    return None
+
+# Usage
+session = find_session_by_title(mix, "Portfolio Analysis")
+if session:
+    print(f"Found session: {session.id}")
+else:
+    print("Session not found")
+```
+
+## Getting Session Details
+
+```python
+# Get complete session info
+session_data = mix.sessions.get_session(id=session.id)
+
+print(f"Session: {session_data.title}")
+print(f"Messages: {len(session_data.messages)}")
+print(f"Files: {len(session_data.files)}")
+print(f"Last activity: {session_data.updated_at}")
+```
+
+## Deleting Sessions
+
+### Single Session
+
+```python
+# Delete session
+mix.sessions.delete(id=session.id)
+print("Session deleted")
+```
+
+### Cleanup Pattern
+
+```python
+def cleanup_old_sessions(mix: Mix, max_age_hours: int = 24):
+    """Delete sessions older than specified hours"""
+    from datetime import datetime, timedelta
+
+    sessions = mix.sessions.list_sessions()
+    cutoff = datetime.now() - timedelta(hours=max_age_hours)
+
+    deleted = 0
+    for session in sessions:
+        if session.created_at < cutoff:
+            mix.sessions.delete(id=session.id)
+            deleted += 1
+
+    print(f"Deleted {deleted} old sessions")
+
+# Run cleanup
+cleanup_old_sessions(mix, max_age_hours=24)
+```
+
+### Bulk Deletion
+
+```python
+def delete_all_sessions(mix: Mix, confirm: bool = False):
+    """Delete all sessions (use with caution)"""
+    if not confirm:
+        raise ValueError("Set confirm=True to delete all sessions")
+
+    sessions = mix.sessions.list_sessions()
+
+    for session in sessions:
+        mix.sessions.delete(id=session.id)
+
+    print(f"Deleted {len(sessions)} sessions")
+
+# Usage - requires explicit confirmation
+delete_all_sessions(mix, confirm=True)
+```
+
+## Session Patterns
+
+### Long-Running Session
+
+For ongoing work that spans multiple script runs:
+
+```python
+class PersistentSession:
+    def __init__(self, mix: Mix, title: str):
+        self.mix = mix
+        self.title = title
+        self.session_id = None
+
+    def get_or_create(self):
+        """Reuse existing session or create new one"""
+        # Try to find existing session
+        sessions = self.mix.sessions.list_sessions()
+        for session in sessions:
+            if session.title == self.title:
+                self.session_id = session.id
+                print(f"Resumed session: {self.session_id}")
+                return session.id
+
+        # Create new session
+        session = self.mix.sessions.create(title=self.title)
+        self.session_id = session.id
+        print(f"Created session: {self.session_id}")
+        return session.id
+
+# Usage across multiple runs
+persistent = PersistentSession(mix, "Data Analysis Project")
+session_id = persistent.get_or_create()
+```
+
+### Temporary Session
+
+For short-lived tasks with automatic cleanup:
+
+```python
+from contextlib import contextmanager
+
+@contextmanager
+def temporary_session(mix: Mix, title: str):
+    """Auto-cleanup session context manager"""
+    session = mix.sessions.create(title=title)
+
+    try:
+        yield session
+    finally:
+        mix.sessions.delete(id=session.id)
+        print(f"Cleaned up session: {session.id}")
+
+# Usage
+with temporary_session(mix, "Quick Task") as session:
+    response = mix.messages.send_message(
+        id=session.id,
+        request_body={"text": "Analyze this data"}
+    )
+    print(response.content)
+# Session auto-deleted here
+```
+
+### Multi-User Sessions
+
+Manage sessions per user in a multi-tenant application:
+
+```python
+class UserSessionManager:
+    def __init__(self, mix: Mix):
+        self.mix = mix
+        self.user_sessions = {}
+
+    def get_user_session(self, user_id: str):
+        """Get or create session for user"""
+        if user_id in self.user_sessions:
+            return self.user_sessions[user_id]
+
+        # Create session for user
+        session = self.mix.sessions.create(
+            title=f"User {user_id} Session"
+        )
+        self.user_sessions[user_id] = session.id
+        return session.id
+
+    def cleanup_user_session(self, user_id: str):
+        """Remove user's session"""
+        if user_id in self.user_sessions:
+            session_id = self.user_sessions[user_id]
+            self.mix.sessions.delete(id=session_id)
+            del self.user_sessions[user_id]
+
+# Usage
+manager = UserSessionManager(mix)
+session_id = manager.get_user_session("user123")
+```
+
+## Session Context
+
+### Accessing Message History
+
+```python
+session = mix.sessions.get_session(id=session_id)
+
+print(f"Total messages: {len(session.messages)}")
+
+for msg in session.messages[-5:]:  # Last 5 messages
+    role = "User" if msg.role == "user" else "Assistant"
+    print(f"{role}: {msg.content[:100]}...")
+```
+
+### Accessing Session Files
+
+```python
+session = mix.sessions.get_session(id=session_id)
+
+print(f"Files in session: {len(session.files)}")
+
+for file in session.files:
+    print(f"- {file.name} ({file.size} bytes)")
+```
+
+## Advanced: Session Forking
+
+Create a copy of session state to experiment:
+
+```python
+# Fork session (if supported)
+new_session = mix.sessions.fork_session(
+    id=original_session_id,
+    title="Forked Analysis"
+)
+
+print(f"Forked to new session: {new_session.id}")
+```
+
+## Best Practices
+
+### 1. Always Clean Up
+
+```python
+# ✅ Good - Guaranteed cleanup
+try:
+    session = mix.sessions.create(title="Task")
+    # Do work...
+finally:
+    mix.sessions.delete(id=session.id)
+
+# ❌ Bad - May leak sessions
+session = mix.sessions.create(title="Task")
+# Do work...
+# Forgot to delete
+```
+
+### 2. Use Meaningful Titles
+
+```python
+# ✅ Good - Descriptive titles
+session = mix.sessions.create(title="Q4 Portfolio Analysis - 2024-03-10")
+
+# ❌ Bad - Generic titles
+session = mix.sessions.create(title="Session 1")
+```
+
+### 3. Limit Session Size
+
+```python
+# ✅ Good - Bounded context
+def manage_session_size(mix: Mix, session_id: str, max_messages: int = 50):
+    """Keep session size manageable"""
+    session = mix.sessions.get_session(id=session_id)
+
+    if len(session.messages) > max_messages:
+        # Create new session, optionally copy summary
+        new_session = mix.sessions.create(
+            title=f"{session.title} (continued)"
+        )
+        return new_session.id
+
+    return session_id
+```
+
+### 4. Handle Session Errors
+
+```python
+# ✅ Good - Graceful error handling
+try:
+    session = mix.sessions.get_session(id=session_id)
+except Exception as e:
+    print(f"Session not found: {e}")
+    # Create new session as fallback
+    session = mix.sessions.create(title="Recovery Session")
+```
+
+## Common Pitfalls
+
+### ❌ Not Deleting Sessions
+
+```python
+# Bad - sessions accumulate
+for i in range(100):
+    session = mix.sessions.create(title=f"Task {i}")
+    # Do work...
+    # No cleanup - now have 100 sessions!
+```
+
+### ❌ Hardcoding Session IDs
+
+```python
+# Bad - session may not exist
+SESSION_ID = "abc-123-def"
+response = mix.messages.send_message(id=SESSION_ID, ...)  # May fail
+```
+
+### ❌ Sharing Sessions Across Users
+
+```python
+# Bad - privacy/security risk
+global_session_id = "shared-session"  # All users see each other's data
+```
+
+## Next Steps
+
+- Learn about [Streaming Input](/docs/mix/python-sdk/guides/streaming-input) for real-time sessions
+- Explore [File Handling](/docs/mix/python-sdk/guides/file-handling) within sessions
+- See [Examples](/docs/mix/python-sdk/examples) for complete patterns
