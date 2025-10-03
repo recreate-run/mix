@@ -9,8 +9,8 @@
     "quickstart",
     "devtools",
     "---SDKs---",
-    "typescript-sdk",
-    "python-sdk",
+    "sdk/typescript-sdk",
+    "sdk/python-sdk",
     "---Guides---",
     "guides/hosting",
     "guides/prototyping-with-devtools",
@@ -18,14 +18,13 @@
     "---Concept---",
     "architecture",
     "---Usage---",
-    "cli-mode",
-    "http-mode",
-    "tools",
-    "troubleshooting",
-    "security-privacy",
+    "usage/http-mode",
+    "usage/tools",
+    "usage/troubleshooting",
+    "usage/security-privacy",
     "---Development---",
-    "ai-coding",
-    "testing"
+    "development/ai-coding",
+    "development/testing"
 
   ]
 }
