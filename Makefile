@@ -46,9 +46,9 @@ help:
 	@echo "  install-air - Install Air if not present"
 	@echo "  tail-log    - Show the last 100 lines of the log"
 	@echo "  test-env    - Validate environment variables and configuration"
-	@echo "  test-connection - Test connection between frontend and backend"
+	@echo "  test-connection - Test connection between frontend and backend (requires running servers)"
 	@echo "  test-installation - Test if all dependencies are installed"
-	@echo "  test-all    - Run all validation tests"
+	@echo "  test-all    - Run all environment validation tests (no running servers required)"
 	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
 	@echo "  frontend-format - Run knip linter on frontend code"
 	@echo "  frontend-lint - Run knip linter on frontend code"
@@ -184,8 +184,8 @@ test-dev-env:
 test-installation:
 	@./scripts/test_installation.sh
 
-test-all: test-env test-dev-env test-connection test-installation
-	@echo "All validation tests completed."
+test-all: test-env test-dev-env test-installation
+	@echo "✅ All validation tests completed."
 
 # Run Go tests with coverage
 go-test:

@@ -10,13 +10,6 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Timeout for service startup (in seconds)
-STARTUP_TIMEOUT=15
-# Port for backend service
-BACKEND_PORT=8088
-# Port for frontend service
-FRONTEND_PORT=1420
-
 echo -e "${BOLD}Development Environment Validation${NC}"
 echo "-------------------------------"
 
@@ -95,29 +88,8 @@ if [ $ENV_EXIT_CODE -ne 0 ]; then
   ERRORS=$((ERRORS + 1))
 fi
 
-# Step 5: Check if ports are available
-echo -e "\n${BOLD}5. Checking if required ports are available...${NC}"
-check_port_available() {
-  local port=$1
-  local service=$2
-
-  # Check if port is in use
-  if lsof -i :$port -sTCP:LISTEN > /dev/null 2>&1; then
-    echo -e "⚠️  ${YELLOW}Port $port is already in use (needed by $service)${NC}"
-    echo -e "   This might mean the dev server is already running."
-    # Not incrementing errors - port in use could be normal
-    return 1
-  else
-    echo -e "✅ ${GREEN}Port $port is available for $service${NC}"
-    return 0
-  fi
-}
-
-check_port_available $BACKEND_PORT "backend"
-check_port_available $FRONTEND_PORT "frontend"
-
-# Step 6: Build directory structure check
-echo -e "\n${BOLD}6. Checking build directories...${NC}"
+# Step 5: Build directory structure check
+echo -e "\n${BOLD}5. Checking build directories...${NC}"
 if [ -d "./mix_agent/build/debug" ]; then
   echo -e "✅ ${GREEN}Backend build directory exists${NC}"
 else
