@@ -137,6 +137,21 @@ export function DemoCards({ demos }: DemoCardsProps) {
           </Link>
         </div>
       </div>
+
+      {/* Creative Freedom Message */}
+      <div className="max-w-3xl mx-auto mt-20 text-center">
+        <div className="inline-block px-3 py-1 rounded-full bg-fd-primary/10 text-fd-primary text-sm font-medium mb-4">
+          Build Anything
+        </div>
+        <h3 className="text-2xl font-bold mb-4">
+          These are just starting points
+        </h3>
+        <p className="text-fd-muted-foreground text-lg leading-relaxed">
+          Mix is a flexible multimodal AI platform. Use your creativity to build automated video editing workflows,
+          intelligent data analysis pipelines, content generation systems, or anything else you can imagine.
+          The examples show what's possible—what you build is up to you.
+        </p>
+      </div>
     </div>
   );
 }
