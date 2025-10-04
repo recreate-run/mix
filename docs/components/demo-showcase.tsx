@@ -1,7 +1,8 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import Link from 'next/link';
+import { Check, Copy, ExternalLink, BookOpen } from 'lucide-react';
 
 interface DemoShowcaseProps {
   icon: string;
@@ -11,6 +12,7 @@ interface DemoShowcaseProps {
   code: string;
   videoSrc: string;
   videoCaption?: string;
+  githubUrl?: string;
 }
 
 export function DemoShowcase({
@@ -20,7 +22,8 @@ export function DemoShowcase({
   fileName,
   code,
   videoSrc,
-  videoCaption
+  videoCaption,
+  githubUrl
 }: DemoShowcaseProps) {
   const [copied, setCopied] = useState(false);
 
@@ -91,6 +94,19 @@ export function DemoShowcase({
             {videoCaption}
           </p>
         )}
+        {githubUrl && (
+          <div className="mt-6 text-center">
+            <Link
+              href={githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm border rounded-lg hover:bg-fd-muted transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              View on GitHub
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -117,6 +133,32 @@ export function DemoSection({
       </div>
       <div className="space-y-24">
         {children}
+      </div>
+
+      {/* Try Examples CTA */}
+      <div className="max-w-4xl mx-auto mt-24">
+        <div className="relative rounded-2xl border bg-gradient-to-br from-fd-primary/5 to-fd-primary/10 p-8 overflow-hidden">
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <BookOpen className="h-6 w-6 text-fd-primary" />
+              <h3 className="text-2xl font-bold">Try These Examples</h3>
+            </div>
+            <p className="text-fd-muted-foreground mb-6 max-w-2xl">
+              Explore more real-world examples and build your own AI workflows. Our cookbooks include portfolio analysis, video processing, web search, and more.
+            </p>
+            <Link
+              href="https://github.com/recreate-run/mix-cookbooks"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-fd-primary text-fd-primary-foreground rounded-lg hover:bg-fd-primary/90 transition-colors font-medium"
+            >
+              View Cookbook Examples
+              <ExternalLink className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-fd-primary/10 blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-32 w-32 rounded-full bg-fd-primary/10 blur-3xl"></div>
+        </div>
       </div>
     </div>
   );

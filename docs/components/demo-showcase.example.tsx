@@ -17,6 +17,7 @@ export const homepageDemos: Demo[] = [
     fileName: "portfolio_analysis.py",
     videoSrc: "/videos/financial_portfolio_demo.mp4",
     videoCaption: "Watch Mix upload data, analyze trends, and generate interactive charts",
+    githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/portfolio_analysis.py",
     code: `from mix_python_sdk import Mix
 
 with Mix(server_url="http://localhost:8088") as mix:
@@ -31,6 +32,7 @@ with Mix(server_url="http://localhost:8088") as mix:
     fileName: "video_search.py",  // Filename shown in code block
     videoSrc: "/videos/your-video-demo.mp4",  // Video path (put video in docs/public/videos/)
     videoCaption: "AI finds, analyzes, and extracts highlights from videos",  // Optional caption
+    githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/your_demo.py",  // Optional GitHub link
     code: `from mix_python_sdk import Mix
 
 with Mix(server_url="http://localhost:8088") as mix:
@@ -51,8 +53,10 @@ with Mix(server_url="http://localhost:8088") as mix:
  *
  * The page.tsx automatically maps over the homepageDemos array and renders each demo.
  * Demos are displayed with:
- * - Code block on left with syntax highlighting
- * - Video on right with 16:9 aspect ratio
+ * - Code block on left with syntax highlighting and copy button
+ * - Video on right (maintains aspect ratio)
  * - Responsive layout (stacks on mobile)
  * - Proper spacing between multiple demos
+ * - Demo-specific GitHub links (if githubUrl is provided)
+ * - "Browse All Examples" link to cookbook repository
  */

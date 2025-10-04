@@ -12,6 +12,7 @@ export interface Demo {
   code: string;
   videoSrc: string;
   videoCaption?: string;
+  githubUrl?: string;
 }
 
 export const homepageDemos: Demo[] = [
@@ -22,6 +23,7 @@ export const homepageDemos: Demo[] = [
     fileName: "portfolio_analysis.py",
     videoSrc: "/videos/financial_portfolio_demo.mp4",
     videoCaption: "Watch Mix upload data, analyze trends, and generate interactive charts",
+    githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/portfolio_analysis.py",
     code: `from mix_python_sdk import Mix
 
 with Mix(server_url="http://localhost:8088") as mix:
@@ -61,6 +63,7 @@ with Mix(server_url="http://localhost:8088") as mix:
     fileName: "web_search_multimodal.py",
     videoSrc: "/videos/launch_devtools.mp4", // Replace with actual video when available
     videoCaption: "AI searches for videos, finds key moments, and downloads highlights",
+    githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/web_search_multimodal.py",
     code: `from mix_python_sdk import Mix
 
 with Mix(server_url="http://localhost:8088") as mix:

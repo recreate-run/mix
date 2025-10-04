@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Demo } from '@/lib/demos';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, ExternalLink, BookOpen } from 'lucide-react';
 
 interface DemoCardsProps {
   demos: Demo[];
@@ -29,7 +30,7 @@ export function DemoCards({ demos }: DemoCardsProps) {
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold mb-3">See It In Action</h2>
         <p className="text-fd-muted-foreground max-w-2xl mx-auto">
-          Explore real-world examples of Mix multimodal capabilities
+          Explore real-world examples of Mix SDK capabilities
         </p>
       </div>
 
@@ -108,6 +109,32 @@ export function DemoCards({ demos }: DemoCardsProps) {
               </p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Demo-specific link or general CTA */}
+      <div className="max-w-7xl mx-auto mt-12">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          {demos[selectedDemo].githubUrl && (
+            <Link
+              href={demos[selectedDemo].githubUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm border rounded-lg hover:bg-fd-muted transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              View {demos[selectedDemo].title} on GitHub
+            </Link>
+          )}
+          <Link
+            href="https://github.com/recreate-run/mix-cookbooks"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm border rounded-lg hover:bg-fd-muted transition-colors"
+          >
+            <BookOpen className="h-4 w-4" />
+            Browse All Examples
+          </Link>
         </div>
       </div>
     </div>
