@@ -26,6 +26,7 @@ export function initPostHog() {
       autocapture: false,
       capture_pageview: false,
       capture_pageleave: false,
+      capture_performance: false, // Disable web vitals tracking
       disable_session_recording: true,
       disable_surveys: true,
       disable_scroll_properties: true,
