@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Demo } from '@/lib/demos';
+import { Check, Copy } from 'lucide-react';
 
 interface DemoCardsProps {
   demos: Demo[];
@@ -9,6 +10,17 @@ interface DemoCardsProps {
 
 export function DemoCards({ demos }: DemoCardsProps) {
   const [selectedDemo, setSelectedDemo] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(demos[selectedDemo].code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   if (demos.length === 0) return null;
 
@@ -48,15 +60,28 @@ export function DemoCards({ demos }: DemoCardsProps) {
           {/* Code section */}
           <div className="space-y-4">
             <div className="rounded-xl border bg-fd-card overflow-hidden shadow-lg">
-              <div className="bg-fd-muted/50 px-4 py-2 border-b flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-red-500/20"></div>
-                  <div className="h-3 w-3 rounded-full bg-yellow-500/20"></div>
-                  <div className="h-3 w-3 rounded-full bg-green-500/20"></div>
+              <div className="bg-fd-muted/50 px-4 py-2 border-b flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="h-3 w-3 rounded-full bg-red-500/20"></div>
+                    <div className="h-3 w-3 rounded-full bg-yellow-500/20"></div>
+                    <div className="h-3 w-3 rounded-full bg-green-500/20"></div>
+                  </div>
+                  <span className="text-xs text-fd-muted-foreground ml-2">
+                    {demos[selectedDemo].fileName}
+                  </span>
                 </div>
-                <span className="text-xs text-fd-muted-foreground ml-2">
-                  {demos[selectedDemo].fileName}
-                </span>
+                <button
+                  onClick={copyToClipboard}
+                  className="p-1.5 rounded-md hover:bg-fd-muted transition-colors text-fd-muted-foreground hover:text-fd-foreground"
+                  title="Copy code"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
               </div>
               <pre className="p-6 overflow-x-auto text-sm leading-relaxed">
                 <code className="language-python">{demos[selectedDemo].code}</code>

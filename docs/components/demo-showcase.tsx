@@ -1,4 +1,7 @@
-import { ReactNode } from 'react';
+'use client';
+
+import { ReactNode, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 
 interface DemoShowcaseProps {
   icon: string;
@@ -19,6 +22,18 @@ export function DemoShowcase({
   videoSrc,
   videoCaption
 }: DemoShowcaseProps) {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start max-w-7xl mx-auto">
       <div className="space-y-4 flex flex-col">
@@ -33,13 +48,26 @@ export function DemoShowcase({
         </div>
 
         <div className="rounded-xl border bg-fd-card overflow-hidden shadow-lg">
-          <div className="bg-fd-muted/50 px-4 py-2 border-b flex items-center gap-2">
-            <div className="flex gap-1.5">
-              <div className="h-3 w-3 rounded-full bg-red-500/20"></div>
-              <div className="h-3 w-3 rounded-full bg-yellow-500/20"></div>
-              <div className="h-3 w-3 rounded-full bg-green-500/20"></div>
+          <div className="bg-fd-muted/50 px-4 py-2 border-b flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5">
+                <div className="h-3 w-3 rounded-full bg-red-500/20"></div>
+                <div className="h-3 w-3 rounded-full bg-yellow-500/20"></div>
+                <div className="h-3 w-3 rounded-full bg-green-500/20"></div>
+              </div>
+              <span className="text-xs text-fd-muted-foreground ml-2">{fileName}</span>
             </div>
-            <span className="text-xs text-fd-muted-foreground ml-2">{fileName}</span>
+            <button
+              onClick={copyToClipboard}
+              className="p-1.5 rounded-md hover:bg-fd-muted transition-colors text-fd-muted-foreground hover:text-fd-foreground"
+              title="Copy code"
+            >
+              {copied ? (
+                <Check className="h-4 w-4 text-green-500" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </button>
           </div>
           <pre className="p-6 overflow-x-auto text-sm leading-relaxed">
             <code className="language-python">{code}</code>
