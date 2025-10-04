@@ -85,5 +85,34 @@ with Mix(server_url="http://localhost:8088") as mix:
     )`
   },
 
+  {
+    icon: "🎬",
+    title: "TikTok Video Creation",
+    description: "Generate viral-style videos with AI",
+    fileName: "tiktok_video.py",
+    videoSrc: "/videos/launch_devtools.mp4", // Replace with actual video when available
+    videoCaption: "AI finds trending content, creates short videos with animations",
+    githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/tiktok_video.py",
+    code: `from mix_python_sdk import Mix
+
+with Mix(server_url="http://localhost:8088") as mix:
+    # Configure AI provider
+    mix.preferences.update_preferences(
+        preferred_provider="anthropic",
+        main_agent_model="claude-sonnet-4-5"
+    )
+
+    # Create video generation session
+    session = mix.sessions.create(
+        title="TikTok Video Creation"
+    )
+
+    # AI finds content, creates video, adds animations
+    mix.streaming.send_streaming_message(
+        id=session.id,
+        content="Find the top cat video and create a 5 sec tiktok video from it. Add a title animation. Export it and show."
+    )`
+  },
+
   // Add more demos here - they will automatically show on homepage
 ];
