@@ -67,7 +67,6 @@ Guides pages:
 - Self-contained, concise, non-ambiguous steps
 - NO pros/cons sections
 - MUST include: 3+ screenshot/video placeholders
-- troubleshooting section at the very end
 
 ## Content
 

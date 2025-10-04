@@ -44,20 +44,7 @@ Mix uses a pluggable storage provider system that abstracts storage operations b
 
 ### Configuration
 
-Storage provider is configured via environment variables in `.env`:
-
-```bash
-# Local storage (default)
-STORAGE_TYPE=local
-
-# Supabase storage
-STORAGE_TYPE=supabase
-STORAGE_ENDPOINT=https://your-project.supabase.co
-STORAGE_BUCKET=mix-storage
-STORAGE_ACCESS_KEY=your_service_role_key
-```
-
-All file operations (upload, download, delete, list) automatically use the configured provider, making storage backend transparent to application logic.
+Storage providers are selected through environment variables, with local storage as the default. The system requires only the storage type and provider-specific credentials (endpoint, bucket, access key for Supabase). All file operations automatically use the configured provider, making the storage backend transparent to application logic.
 
 ## Rationale
 
@@ -123,33 +110,11 @@ This enables agents to work with user files while maintaining private working co
 
 ### Local Storage Structure
 
-```
-/storage/
-├── uploads/           # Shared files (user-managed)
-│   ├── document.pdf
-│   ├── image.jpg
-│   └── data.csv
-├── thumbnails/        # Generated thumbnails (automatic)
-│   ├── {hash}_box200_t1.0.jpg
-│   └── {hash}_w300.jpg
-├── {session-1-uuid}/  # Session 1 private files (agent-managed)
-│   ├── processed.csv
-│   └── temp-output.txt
-└── {session-2-uuid}/  # Session 2 private files (agent-managed)
-    ├── analysis.json
-    └── filtered-data.csv
-```
+Local storage uses a three-level directory hierarchy under `/storage/`: the `uploads/` directory for shared user files, `thumbnails/` for automatically generated image previews, and individual session directories (named by session UUID) containing agent-managed private files.
 
 ### Supabase Storage Keys
 
-When using Supabase, files are stored with the following key structure:
-
-```
-uploads/{filename}              # User-uploaded files
-thumbnails/{hash}_{spec}.jpg    # Generated thumbnails
-```
-
-Thumbnails are automatically filtered from file listings and are not visible to users in the @ command.
+Supabase storage mirrors this structure using object keys: `uploads/{filename}` for user files and `thumbnails/{hash}_{spec}.jpg` for generated previews. Thumbnails are automatically filtered from file listings and remain invisible to users in file selection interfaces.
 
 ## Key Files
 

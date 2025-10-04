@@ -1,0 +1,60 @@
+---
+title: Setting Up Turso Database
+description: Configure Turso as your Mix database backend
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+## Overview
+
+This guide walks you through configuring Turso as your database backend for Mix using an automated setup script.
+
+<Steps>
+<Step>
+
+### Install and Authenticate
+
+Install the Turso CLI and authenticate your account.
+
+<Tabs items={['macOS', 'Linux']}>
+  <Tab value="macOS">
+    ```bash
+    brew install tursodatabase/tap/turso
+    ```
+  </Tab>
+  <Tab value="Linux">
+    ```bash
+    curl -sSfL https://get.tur.so/install.sh | bash
+    ```
+  </Tab>
+</Tabs>
+
+After installation, authenticate your account:
+
+```bash
+turso auth login
+```
+
+<video src="/videos/turso_auth.mp4" controls loop muted className="w-full rounded-lg" />
+
+</Step>
+
+<Step>
+
+### Run the Setup Script
+
+Execute the automated setup script from your project root to complete database configuration.
+
+```bash
+./scripts/setup-turso.sh
+```
+
+<video src="/videos/setup_turso.mp4" controls loop muted className="w-full rounded-lg" />
+
+</Step>
+</Steps>
+
+## Next Steps
+
+Start the development server with `make dev` to begin using Turso database in Mix.

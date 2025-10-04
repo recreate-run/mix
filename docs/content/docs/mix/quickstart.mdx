@@ -3,7 +3,9 @@ title: Quickstart
 description: Get up and running with Mix in 5 minutes
 ---
 
-Install and launch the agent along with the devools. This is the recommended setup for local testing
+## Installation
+
+Install and launch the agent along with the devtools. This is the recommended setup for local testing.
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
@@ -11,7 +13,9 @@ cd mix
 make dev
 ```
 
-Rename the `.env.example` file to `.env` and add your credentials
+## Configuration
+
+Rename the `.env.example` file to `.env` and add your credentials:
 
 ```bash
 ANTHROPIC_API_KEY=your_key_here
@@ -23,7 +27,9 @@ BRAVE_API_KEY=your_key_here
 - Brave API key for web search tool free ([Get free key](https://brave.com/search/api/))
 - Gemini API key for `ReadMedia` tool ([Get free key](https://aistudio.google.com/api-keys))
 
-Run a demo 
+## Run a Demo
+
+Test your installation with a portfolio analysis example:
 
 ```bash
 cd python_examples
