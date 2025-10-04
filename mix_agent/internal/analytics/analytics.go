@@ -24,6 +24,10 @@ const (
 	EventSessionDeleted = "session_deleted"
 	EventSessionRewound = "session_rewound"
 
+	// File operation events
+	EventFileUploaded = "file_uploaded"
+	EventFileDeleted  = "file_deleted"
+
 	// Properties
 	PropSessionID      = "session_id"
 	PropMessageID      = "message_id"
@@ -57,6 +61,14 @@ const (
 	PropRewindToMessageID  = "rewind_to_message_id"
 	PropMessagesDeleted    = "messages_deleted_count"
 	PropCleanupMedia       = "cleanup_media"
+
+	// File-specific properties
+	PropFileSizeBytes    = "file_size_bytes"
+	PropFileType         = "file_type"
+	PropFileNameSanitized = "file_name_sanitized"
+	PropIsMedia          = "is_media"
+	PropFileName         = "file_name"
+	PropFileExisted      = "file_existed"
 )
 
 // Service defines the analytics tracking interface
@@ -86,6 +98,12 @@ type Service interface {
 
 	// TrackSessionRewound tracks session rewind events
 	TrackSessionRewound(ctx context.Context, sessionID, messageID string, messagesDeleted int, cleanupMedia bool) error
+
+	// TrackFileUploaded tracks file upload events
+	TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized bool, isMedia bool) error
+
+	// TrackFileDeleted tracks file deletion events
+	TrackFileDeleted(ctx context.Context, sessionID, fileName string, fileExisted bool) error
 
 	// Close closes the analytics client
 	Close() error
@@ -440,6 +458,64 @@ func (s *analyticsService) TrackSessionRewound(ctx context.Context, sessionID, m
 	if err != nil {
 		logging.Error("Failed to track session rewound: %v", err)
 		return fmt.Errorf("failed to track session rewound: %w", err)
+	}
+
+	return nil
+}
+
+// TrackFileUploaded tracks file upload events
+func (s *analyticsService) TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized bool, isMedia bool) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropFileSizeBytes, fileSizeBytes).
+		Set(PropFileType, fileType).
+		Set(PropFileNameSanitized, fileNameSanitized).
+		Set(PropIsMedia, isMedia)
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventFileUploaded,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track file uploaded: %v", err)
+		return fmt.Errorf("failed to track file uploaded: %w", err)
+	}
+
+	return nil
+}
+
+// TrackFileDeleted tracks file deletion events
+func (s *analyticsService) TrackFileDeleted(ctx context.Context, sessionID, fileName string, fileExisted bool) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropFileName, fileName).
+		Set(PropFileExisted, fileExisted)
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventFileDeleted,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track file deleted: %v", err)
+		return fmt.Errorf("failed to track file deleted: %w", err)
 	}
 
 	return nil
