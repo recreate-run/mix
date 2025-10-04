@@ -38,7 +38,7 @@ function Footer({
             <h3 className="text-lg font-medium">Resources</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/docs" className="text-muted-foreground hover:text-primary">Documentation</Link>
+                <Link href="/docs/mix" className="text-muted-foreground hover:text-primary">Documentation</Link>
               </li>
               <li>
                 <Link href="/blog" className="text-muted-foreground hover:text-primary">Blog</Link>
