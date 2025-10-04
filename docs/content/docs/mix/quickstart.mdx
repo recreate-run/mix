@@ -3,9 +3,13 @@ title: Quickstart
 description: Get up and running with Mix in 5 minutes
 ---
 
-## Installation
+import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-Install and launch the agent along with the devtools. This is the recommended setup for local testing.
+<Steps>
+<Step>
+### Install and Start Mix
+
+Clone the Mix repository and start the development server:
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
@@ -13,48 +17,60 @@ cd mix
 make dev
 ```
 
-## Configuration
+This will start both the backend agent and devtools. Leave this terminal running.
+</Step>
 
-Rename the `.env.example` file to `.env` and add your credentials:
+<Step>
+### Setup Examples
+
+Open a **new terminal tab** and clone the examples repository:
 
 ```bash
-ANTHROPIC_API_KEY=your_key_here
-GEMINI_API_KEY=your_key_here
-BRAVE_API_KEY=your_key_here
+git clone https://github.com/recreate-run/mix-cookbooks.git
+cd mix-cookbooks/python_examples
+uv sync
+```
+</Step>
+
+<Step>
+### Configure API Keys
+
+In the `mix-cookbooks/python_examples` directory, rename `.env.example` to `.env`:
+
+```bash
+cp .env.example .env
 ```
 
-- Anthropic API key / Claude code subscription
-- Brave API key for web search tool free ([Get free key](https://brave.com/search/api/))
-- Gemini API key for `ReadMedia` tool ([Get free key](https://aistudio.google.com/api-keys))
-
-## Run a Demo
-
-Test your installation with a portfolio analysis example:
+Then edit `.env` and add your API keys. **At minimum, you need an Anthropic API key** to run the demo:
 
 ```bash
-cd python_examples
-uv sync
+ANTHROPIC_API_KEY=your_key_here  # Required
+GEMINI_API_KEY=your_key_here     # Optional - for ReadMedia tool
+BRAVE_API_KEY=your_key_here      # Optional - for web search
+```
+
+- **Anthropic API key**: Required ([Claude API](https://console.anthropic.com/) or Claude Code subscription)
+- **Brave API key**: Optional, for web search tool ([Get free key](https://brave.com/search/api/))
+- **Gemini API key**: Optional, for `ReadMedia` tool ([Get free key](https://aistudio.google.com/api-keys))
+</Step>
+
+<Step>
+### Run Your First Demo
+
+From the `mix-cookbooks/python_examples` directory, run:
+
+```bash
 uv run demos/portfolio_analysis.py
 ```
+</Step>
+</Steps>
 
+**Need help?** Check [Troubleshooting](/docs/mix/troubleshooting).
 
 ## Next Step
 
 <Cards>
-  <Card title="Cookbook examples" href="https://github.com/recreate-run/mix-cookbooks/tree/main/python_examples">
-    Explore real-world use cases and workflows
+  <Card title="More examples" href="https://github.com/recreate-run/mix-cookbooks/tree/main/python_examples">
+    Try out more examples
   </Card>
 </Cards>
-
-## Troubleshooting
-
-**DevTools won't start?**
-- Check port 8088 is not in use: `lsof -i :8088`
-- Try `make clean && make dev`
-
-**Authentication failed?**
-- Verify API keys are correct
-- Check internet connection for OAuth
-- Try the alternative auth method
-
-**Need help?** Check [Troubleshooting](/docs/mix/troubleshooting) or open an issue on [GitHub](https://github.com/recreate-run/mix).
