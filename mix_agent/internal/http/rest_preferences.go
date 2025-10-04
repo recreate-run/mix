@@ -284,7 +284,46 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to update preferences", "DATABASE_ERROR")
 		return
 	}
-	
+
+	// Track preferences update
+	if h.app.Analytics != nil {
+		fieldsChanged := []string{}
+		updates := make(map[string]interface{})
+
+		if request.PreferredProvider != nil {
+			fieldsChanged = append(fieldsChanged, "preferred_provider")
+			updates["preferred_provider"] = *request.PreferredProvider
+		}
+		if request.MainAgentModel != nil {
+			fieldsChanged = append(fieldsChanged, "main_agent_model")
+			updates["main_agent_model"] = *request.MainAgentModel
+		}
+		if request.MainAgentMaxTokens != nil {
+			fieldsChanged = append(fieldsChanged, "main_agent_max_tokens")
+			updates["main_agent_max_tokens"] = *request.MainAgentMaxTokens
+		}
+		if request.MainAgentReasoningEffort != nil {
+			fieldsChanged = append(fieldsChanged, "main_agent_reasoning_effort")
+			updates["main_agent_reasoning_effort"] = *request.MainAgentReasoningEffort
+		}
+		if request.SubAgentModel != nil {
+			fieldsChanged = append(fieldsChanged, "sub_agent_model")
+			updates["sub_agent_model"] = *request.SubAgentModel
+		}
+		if request.SubAgentMaxTokens != nil {
+			fieldsChanged = append(fieldsChanged, "sub_agent_max_tokens")
+			updates["sub_agent_max_tokens"] = *request.SubAgentMaxTokens
+		}
+		if request.SubAgentReasoningEffort != nil {
+			fieldsChanged = append(fieldsChanged, "sub_agent_reasoning_effort")
+			updates["sub_agent_reasoning_effort"] = *request.SubAgentReasoningEffort
+		}
+
+		if len(fieldsChanged) > 0 {
+			h.app.Analytics.TrackPreferencesUpdated(ctx, fieldsChanged, updates)
+		}
+	}
+
 	// Clear all cached session providers to ensure new sessions use updated preferences
 	if coderAgent != nil {
 		coderAgent.ClearAllSessionProviders()
@@ -337,9 +376,18 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 
 	ctx := r.Context()
 
+	// Get current preferences before resetting for analytics
+	currentPrefs, err := userPrefs.GetUserPreferences(ctx)
+	previousProvider := ""
+	previousModel := ""
+	if err == nil {
+		previousProvider = getStringValue(currentPrefs.PreferredProvider)
+		previousModel = getStringValue(currentPrefs.MainAgentModel)
+	}
+
 	// Reset preferences to defaults via user preferences service
 	// Reset main agent to defaults
-	err := userPrefs.UpdateMainAgentPreferences(ctx, "claude-4-sonnet", 4096, "")
+	err = userPrefs.UpdateMainAgentPreferences(ctx, "claude-4-sonnet", 4096, "")
 	if err != nil {
 		logging.Error("Failed to reset main agent preferences", "error", err)
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to reset main agent", "DATABASE_ERROR")
@@ -368,6 +416,11 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 		logging.Error("Failed to reset user preferences", "error", err)
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to reset preferences", "DATABASE_ERROR")
 		return
+	}
+
+	// Track preferences reset
+	if h.app.Analytics != nil {
+		h.app.Analytics.TrackPreferencesReset(ctx, previousProvider, previousModel)
 	}
 
 	response := UserPreferencesResponse{

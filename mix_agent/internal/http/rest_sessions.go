@@ -187,6 +187,13 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Track session creation
+	if h.app.Analytics != nil {
+		hasCustomPrompt := req.CustomSystemPrompt != ""
+		customPromptLength := len(req.CustomSystemPrompt)
+		h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
+	}
+
 	result := SessionData{
 		ID:                    session.ID,
 		Title:                 session.Title,
@@ -291,7 +298,25 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	ctx := r.Context()
-	err := h.app.Sessions.Delete(ctx, sessionID)
+
+	// Get session data before deletion for analytics
+	session, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Calculate session age in seconds
+	sessionAgeSeconds := time.Now().Unix() - session.CreatedAt
+
+	// Get message count for analytics
+	messages, err := h.app.Messages.List(ctx, sessionID)
+	messageCount := 0
+	if err == nil {
+		messageCount = len(messages)
+	}
+
+	err = h.app.Sessions.Delete(ctx, sessionID)
 	if err != nil {
 		// Check if the error is because the session doesn't exist
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no rows") {
@@ -300,6 +325,11 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 		}
 		sendInternalError(w, "deleting session", err)
 		return
+	}
+
+	// Track session deletion
+	if h.app.Analytics != nil {
+		h.app.Analytics.TrackSessionDeleted(ctx, sessionID, sessionAgeSeconds, messageCount, session.Cost)
 	}
 
 	// Return 204 No Content for successful deletion
@@ -373,6 +403,9 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Calculate messages to be deleted for analytics
+	messagesDeleted := len(allMessages) - messageIndex - 1
+
 	// Delete messages after the rewind point
 	err = h.app.Messages.DeleteAfterIndex(ctx, sessionID, int64(messageIndex))
 	if err != nil {
@@ -388,6 +421,11 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 			// Log error but don't fail the request - media cleanup is non-critical
 			fmt.Printf("Warning: Failed to cleanup media for session %s: %v\n", sessionID, err)
 		}
+	}
+
+	// Track session rewind
+	if h.app.Analytics != nil {
+		h.app.Analytics.TrackSessionRewound(ctx, sessionID, req.MessageID, messagesDeleted, req.CleanupMedia)
 	}
 
 	// Get updated session data

@@ -8,6 +8,7 @@ import {
 import { useCommandHandlers } from "@/hooks/command-slash/useCommandHandlers";
 import { useCommandPaletteState } from "@/hooks/command-slash/useCommandPaletteState";
 import type { CommandSlashProps } from "@/types/command-slash";
+import { trackSlashCommand } from "@/lib/posthog";
 import { CommandsListView } from "./command-slash/CommandsListView";
 import { HelpMenuView } from "./command-slash/HelpMenuView";
 import { MCPServersView } from "./command-slash/MCPServersView";
@@ -54,6 +55,11 @@ export function CommandSlash({
 
 	// Command execution handler
 	const handleCommandExecution = (commandId: string) => {
+		// Track slash command usage
+		trackSlashCommand(commandId, {
+			session_id: sessionId,
+		});
+
 		// Clear search when navigating to avoid confusing states
 		state.setSearchQuery("");
 

@@ -142,6 +142,28 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		result.OriginalName = &originalFilename
 	}
 
+	// Track file upload
+	if h.app.Analytics != nil {
+		// Determine file type from extension
+		fileType := ""
+		if idx := strings.LastIndex(filename, "."); idx != -1 {
+			fileType = filename[idx+1:]
+		}
+
+		// Check if it's a media file (image or video)
+		isMedia := false
+		mediaExtensions := map[string]bool{
+			"jpg": true, "jpeg": true, "png": true, "gif": true, "webp": true,
+			"mp4": true, "webm": true, "mov": true, "avi": true,
+		}
+		if mediaExtensions[strings.ToLower(fileType)] {
+			isMedia = true
+		}
+
+		fileNameSanitized := originalFilename != filename
+		h.app.Analytics.TrackFileUploaded(ctx, sessionID, uploadedFileInfo.Size, fileType, fileNameSanitized, isMedia)
+	}
+
 	sendJSONResponse(w, http.StatusCreated, result)
 }
 
@@ -253,9 +275,16 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	// Delete file from storage provider
 	storageKey := fmt.Sprintf("uploads/%s", filename)
 	err = h.app.StorageProvider.Delete(ctx, storageKey)
+	fileExisted := err == nil
+
 	if err != nil {
 		sendInternalError(w, "deleting file", err)
 		return
+	}
+
+	// Track file deletion
+	if h.app.Analytics != nil {
+		h.app.Analytics.TrackFileDeleted(ctx, sessionID, filename, fileExisted)
 	}
 
 	// Return 204 No Content for successful deletion
