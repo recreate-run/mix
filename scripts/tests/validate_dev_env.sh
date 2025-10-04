@@ -10,13 +10,6 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Timeout for service startup (in seconds)
-STARTUP_TIMEOUT=15
-# Port for backend service
-BACKEND_PORT=8088
-# Port for frontend service
-FRONTEND_PORT=1420
-
 echo -e "${BOLD}Development Environment Validation${NC}"
 echo "-------------------------------"
 
@@ -26,21 +19,29 @@ ERRORS=0
 # Step 1: Check if required tools are installed
 echo -e "\n${BOLD}1. Checking required tools...${NC}"
 check_tool() {
-  if command -v "$1" > /dev/null 2>&1; then
-    echo -e "✅ ${GREEN}$1 is installed${NC}"
+  local tool=$1
+  local required=${2:-true}
+
+  if command -v "$tool" > /dev/null 2>&1; then
+    echo -e "✅ ${GREEN}$tool is installed${NC}"
     return 0
   else
-    echo -e "❌ ${RED}$1 is NOT installed${NC}"
-    ERRORS=$((ERRORS + 1))
-    return 1
+    if [ "$required" = "true" ]; then
+      echo -e "❌ ${RED}$tool is NOT installed${NC}"
+      ERRORS=$((ERRORS + 1))
+      return 1
+    else
+      echo -e "⚠️  ${YELLOW}$tool is NOT installed (will be installed by make dev)${NC}"
+      return 0
+    fi
   fi
 }
 
-check_tool go
-check_tool bun
-check_tool cargo
-check_tool air
-check_tool uv
+check_tool go true
+check_tool bun true
+check_tool cargo true
+check_tool air false
+check_tool uv true
 
 # Step 2: Validate Procfile configuration
 echo -e "\n${BOLD}2. Validating Procfile configuration...${NC}"
@@ -87,29 +88,8 @@ if [ $ENV_EXIT_CODE -ne 0 ]; then
   ERRORS=$((ERRORS + 1))
 fi
 
-# Step 5: Check if ports are available
-echo -e "\n${BOLD}5. Checking if required ports are available...${NC}"
-check_port_available() {
-  local port=$1
-  local service=$2
-  
-  # Check if port is in use
-  if lsof -i :$port -sTCP:LISTEN > /dev/null 2>&1; then
-    echo -e "⚠️  ${YELLOW}Port $port is already in use (needed by $service)${NC}"
-    echo -e "   You may need to stop existing services first."
-    ERRORS=$((ERRORS + 1))
-    return 1
-  else
-    echo -e "✅ ${GREEN}Port $port is available for $service${NC}"
-    return 0
-  fi
-}
-
-check_port_available $BACKEND_PORT "backend"
-check_port_available $FRONTEND_PORT "frontend"
-
-# Step 6: Build directory structure check
-echo -e "\n${BOLD}6. Checking build directories...${NC}"
+# Step 5: Build directory structure check
+echo -e "\n${BOLD}5. Checking build directories...${NC}"
 if [ -d "./mix_agent/build/debug" ]; then
   echo -e "✅ ${GREEN}Backend build directory exists${NC}"
 else

@@ -18,26 +18,32 @@ ERRORS=0
 check_command() {
   local cmd=$1
   local name=$2
+  local required=${3:-true}
   echo -n "Checking for $name... "
-  
+
   if command -v "$cmd" >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Found $(command -v "$cmd")${NC}"
     return 0
   else
-    echo -e "${RED}✗ Not found${NC}"
-    ERRORS=$((ERRORS + 1))
-    return 1
+    if [ "$required" = "true" ]; then
+      echo -e "${RED}✗ Not found${NC}"
+      ERRORS=$((ERRORS + 1))
+      return 1
+    else
+      echo -e "${YELLOW}✗ Not found (will be installed by make dev)${NC}"
+      return 0
+    fi
   fi
 }
 
 # Check required commands
-check_command ffmpeg "FFmpeg"
-check_command go "Go"
-check_command cargo "Rust/Cargo"
-check_command bun "Bun"
-check_command uv "UV (Python package manager)"
-check_command rg "ripgrep"
-check_command air "Air (Go hot reload)"
+check_command ffmpeg "FFmpeg" true
+check_command go "Go" true
+check_command cargo "Rust/Cargo" true
+check_command bun "Bun" true
+check_command uv "UV (Python package manager)" true
+check_command rg "ripgrep" true
+check_command air "Air (Go hot reload)" false
 
 # Check for build directories
 echo -e "\n${BOLD}Checking directory structure${NC}"

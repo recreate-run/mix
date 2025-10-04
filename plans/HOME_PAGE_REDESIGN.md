@@ -596,7 +596,7 @@ Mix combines the power of agentic SDKs with the flexibility of HTTP APIs and the
     <div className="cta-links">
       <a href="https://github.com/recreate-run/mix">⭐ Star on GitHub</a>
       <a href="https://github.com/recreate-run/mix/discussions">💬 Join Discussions</a>
-      <a href="/docs/mix/troubleshooting">🛟 Get Help</a>
+      <a href="/docs/mix/usage/troubleshooting">🛟 Get Help</a>
     </div>
   </div>
 </div>
