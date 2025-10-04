@@ -87,8 +87,34 @@ export function DemoCards({ demos }: DemoCardsProps) {
         </div>
       </div>
 
+      {/* Demo-specific link or general CTA */}
+      <div className="max-w-7xl mx-auto mt-12">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          {demos[selectedDemo].githubUrl && (
+            <Link
+              href={demos[selectedDemo].githubUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-2 border-fd-primary/30 rounded-xl hover:bg-fd-primary/10 hover:border-fd-primary transition-all hover:shadow-lg hover:shadow-fd-primary/20 hover:scale-105"
+            >
+              <ExternalLink className="h-4 w-4 group-hover:rotate-12 transition-transform" />
+              Try on GitHub
+            </Link>
+          )}
+          <Link
+            href="https://github.com/recreate-run/mix-cookbooks"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-2 border-fd-border/50 rounded-xl hover:bg-fd-muted hover:border-fd-border transition-all hover:shadow-lg hover:scale-105"
+          >
+            <BookOpen className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            Browse All Examples
+          </Link>
+        </div>
+      </div>
+
       {/* Demo selector cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-16 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12 max-w-6xl mx-auto">
         {demos.map((demo, index) => (
           <button
             key={index}
@@ -123,32 +149,6 @@ export function DemoCards({ demos }: DemoCardsProps) {
             </div>
           </button>
         ))}
-      </div>
-
-      {/* Demo-specific link or general CTA */}
-      <div className="max-w-7xl mx-auto mt-8">
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          {demos[selectedDemo].githubUrl && (
-            <Link
-              href={demos[selectedDemo].githubUrl!}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-2 border-fd-primary/30 rounded-xl hover:bg-fd-primary/10 hover:border-fd-primary transition-all hover:shadow-lg hover:shadow-fd-primary/20 hover:scale-105"
-            >
-              <ExternalLink className="h-4 w-4 group-hover:rotate-12 transition-transform" />
-              Try on GitHub
-            </Link>
-          )}
-          <Link
-            href="https://github.com/recreate-run/mix-cookbooks"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-2 border-fd-border/50 rounded-xl hover:bg-fd-muted hover:border-fd-border transition-all hover:shadow-lg hover:scale-105"
-          >
-            <BookOpen className="h-4 w-4 group-hover:scale-110 transition-transform" />
-            Browse All Examples
-          </Link>
-        </div>
       </div>
     </div>
   );
