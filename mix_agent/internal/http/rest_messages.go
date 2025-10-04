@@ -416,6 +416,12 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 	// Convert to comprehensive export format
 	exportData := h.convertToExportSession(session, messages)
 
+	// Track session export
+	if h.app.Analytics != nil {
+		totalTokens := session.PromptTokens + session.CompletionTokens
+		h.app.Analytics.TrackSessionExported(ctx, sessionID, len(messages), session.Cost, totalTokens)
+	}
+
 	// Set content disposition header for file download
 	filename := fmt.Sprintf("session_%s_transcript.json", sessionID)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
