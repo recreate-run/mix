@@ -19,6 +19,11 @@ const (
 	EventToolCall       = "tool_call"
 	EventProviderAuth   = "provider_auth"
 
+	// Session lifecycle events
+	EventSessionCreated = "session_created"
+	EventSessionDeleted = "session_deleted"
+	EventSessionRewound = "session_rewound"
+
 	// Properties
 	PropSessionID      = "session_id"
 	PropMessageID      = "message_id"
@@ -29,7 +34,7 @@ const (
 	PropModel          = "model"
 	PropSuccess        = "success"
 	PropError          = "error"
-	
+
 	// Provider-specific properties
 	PropProvider           = "provider"
 	PropProviderModel      = "provider_model"
@@ -41,6 +46,17 @@ const (
 	PropTokenUsageCached   = "token_usage_cached"
 	PropCost               = "cost"
 	PropAuthMethod         = "auth_method"
+
+	// Session-specific properties
+	PropTitle              = "title"
+	PropHasCustomPrompt    = "has_custom_prompt"
+	PropPromptMode         = "prompt_mode"
+	PropCustomPromptLength = "custom_prompt_length"
+	PropSessionAgeSeconds  = "session_age_seconds"
+	PropMessageCount       = "message_count"
+	PropRewindToMessageID  = "rewind_to_message_id"
+	PropMessagesDeleted    = "messages_deleted_count"
+	PropCleanupMedia       = "cleanup_media"
 )
 
 // Service defines the analytics tracking interface
@@ -61,7 +77,16 @@ type Service interface {
 	
 	// TrackProviderAuth tracks authentication events for providers
 	TrackProviderAuth(ctx context.Context, provider string, success bool, authMethod string) error
-	
+
+	// TrackSessionCreated tracks session creation events
+	TrackSessionCreated(ctx context.Context, sessionID, title string, hasCustomPrompt bool, promptMode string, customPromptLength int) error
+
+	// TrackSessionDeleted tracks session deletion events
+	TrackSessionDeleted(ctx context.Context, sessionID string, ageSeconds int64, messageCount int, cost float64) error
+
+	// TrackSessionRewound tracks session rewind events
+	TrackSessionRewound(ctx context.Context, sessionID, messageID string, messagesDeleted int, cleanupMedia bool) error
+
 	// Close closes the analytics client
 	Close() error
 }
@@ -326,6 +351,97 @@ func (s *analyticsService) TrackProviderAuth(ctx context.Context,
 		return fmt.Errorf("failed to track provider auth: %w", err)
 	}
 	
+	return nil
+}
+
+// TrackSessionCreated tracks session creation events
+func (s *analyticsService) TrackSessionCreated(ctx context.Context, sessionID, title string, hasCustomPrompt bool, promptMode string, customPromptLength int) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropTitle, title).
+		Set(PropHasCustomPrompt, hasCustomPrompt).
+		Set(PropPromptMode, promptMode)
+
+	if hasCustomPrompt {
+		props = props.Set(PropCustomPromptLength, customPromptLength)
+	}
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventSessionCreated,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track session created: %v", err)
+		return fmt.Errorf("failed to track session created: %w", err)
+	}
+
+	return nil
+}
+
+// TrackSessionDeleted tracks session deletion events
+func (s *analyticsService) TrackSessionDeleted(ctx context.Context, sessionID string, ageSeconds int64, messageCount int, cost float64) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropSessionAgeSeconds, ageSeconds).
+		Set(PropMessageCount, messageCount).
+		Set(PropCost, cost)
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventSessionDeleted,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track session deleted: %v", err)
+		return fmt.Errorf("failed to track session deleted: %w", err)
+	}
+
+	return nil
+}
+
+// TrackSessionRewound tracks session rewind events
+func (s *analyticsService) TrackSessionRewound(ctx context.Context, sessionID, messageID string, messagesDeleted int, cleanupMedia bool) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropRewindToMessageID, messageID).
+		Set(PropMessagesDeleted, messagesDeleted).
+		Set(PropCleanupMedia, cleanupMedia)
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventSessionRewound,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track session rewound: %v", err)
+		return fmt.Errorf("failed to track session rewound: %w", err)
+	}
+
 	return nil
 }
 
