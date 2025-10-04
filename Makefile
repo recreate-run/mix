@@ -83,7 +83,7 @@ install-deps: install
 	@echo "Installing capture script dependencies..."
 	# cd mix_agent && bun install
 	@echo "Installing Tauri app dependencies..."
-	cd mix_playground && bun i
+	cd mix_dev_tool && bun i
 	@echo "Installing GSAP animations dependencies..."
 	cd packages/gsap_animations && bun install
 	@echo "✅ All dependencies installed!"
@@ -195,19 +195,19 @@ go-test:
 # Run TypeScript typecheck on frontend code
 frontend-typecheck:
 	@echo "Running frontend TypeScript typecheck..."
-	cd mix_playground && bun run typecheck
+	cd mix_dev_tool && bun run typecheck
 
 frontend-format:
 	@echo "Running biome formatter on frontend..."
-	cd mix_playground && bunx biome format --write
+	cd mix_dev_tool && bunx biome format --write
 
 frontend-lint:
 	@echo "Running biome linter on frontend..."
-	cd mix_playground && bunx biome check --write
+	cd mix_dev_tool && bunx biome check --write
 
 frontend-knip:
 	@echo "Running knip linter on frontend..."
-	cd mix_playground && bun knip
+	cd mix_dev_tool && bun knip
 
 # Run golangci-lint on Go backend code
 go-lint:
@@ -240,10 +240,10 @@ clean:
 	@rm -rf mix_agent/build || true
 	@rm -f mix_agent/mix || true
 	@cd mix_agent && go clean || true
-	@echo "Cleaning Tauri frontend (mix_playground)..."
-	@rm -rf mix_playground/node_modules || true
-	@rm -rf mix_playground/src-tauri/target || true
-	@rm -rf mix_playground/dist || true
+	@echo "Cleaning Tauri frontend (mix_dev_tool)..."
+	@rm -rf mix_dev_tool/node_modules || true
+	@rm -rf mix_dev_tool/src-tauri/target || true
+	@rm -rf mix_dev_tool/dist || true
 	@echo "Cleaning GSAP animations (packages/gsap_animations)..."
 	@rm -rf packages/gsap_animations/build || true
 	@rm -rf packages/gsap_animations/tmp || true

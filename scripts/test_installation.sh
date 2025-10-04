@@ -43,7 +43,7 @@ check_command air "Air (Go hot reload)"
 echo -e "\n${BOLD}Checking directory structure${NC}"
 dirs=(
   "mix_agent/build/debug"
-  "mix_playground"
+  "mix_dev_tool"
   "scripts"
 )
 
@@ -70,7 +70,7 @@ fi
 
 # Check frontend environment file
 echo -e "\n${BOLD}Checking frontend environment file${NC}"
-if [ -f "mix_playground/.env" ]; then
+if [ -f "mix_dev_tool/.env" ]; then
   echo -e "${GREEN}✓ Frontend .env file exists${NC}"
 else
   echo -e "${GREEN}ℹ No frontend .env file found${NC}"
