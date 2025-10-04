@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 
 	"mix/internal/logging"
@@ -94,8 +95,11 @@ func NewAnalyticsService(apiKey string) Service {
 		}
 	}
 
-	// Create a random UUID for anonymous tracking if no distinctID is provided
-	distinct := "anonymous_user"
+	// Check for USER_NAME environment variable, fall back to anonymous_user
+	distinct := os.Getenv("POSTHON_USER_NAME")
+	if distinct == "" {
+		distinct = "anonymous_user"
+	}
 
 	return &analyticsService{
 		client:   client,
