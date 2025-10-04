@@ -1508,6 +1508,72 @@ paths:
             }
 
             run();
+  "/api/sessions/{id}/export":
+    get:
+      description: "Export complete session transcript with all messages, tool calls, reasoning, and metadata as JSON"
+      operationId: "exportSession"
+      parameters:
+        - description: "Session ID to export"
+          in: "path"
+          name: "id"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ExportSession"}
+          description: "Session transcript exported successfully"
+          headers:
+            "Content-Disposition":
+              description: "Suggests filename for download"
+              schema:
+                example: "attachment; filename=session_abc123_transcript.json"
+                type: "string"
+              example: "attachment; filename=session_abc123_transcript.json"
+        "404":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Session not found"
+        "500":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Internal server error"
+      summary: "Export session transcript"
+      tags:
+        - "Sessions"
+      x-codeSamples:
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.export_session(id="<id>")
+
+                # Handle response
+                print(res)
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.sessions.exportSession({
+                id: "<id>",
+              });
+
+              console.log(result);
+            }
+
+            run();
   "/api/sessions/{id}/files":
     get:
       description: "List all files in session storage directory"
@@ -2443,6 +2509,131 @@ components:
       required:
         - "error"
       type: "object"
+    "ExportMessage":
+      description: "Complete message information for export"
+      properties:
+        "content":
+          description: "Message content"
+          type: "string"
+        "createdAt":
+          description: "Message creation timestamp"
+          format: "date-time"
+          type: "string"
+        "finishReason":
+          description: "Completion finish reason (optional)"
+          type: "string"
+        "id":
+          description: "Message identifier"
+          type: "string"
+        "model":
+          description: "Model used for this message (optional)"
+          type: "string"
+        "reasoning":
+          description: "Reasoning content (optional)"
+          type: "string"
+        "reasoningDuration":
+          description: "Reasoning duration in milliseconds (optional)"
+          type: "integer"
+        "role":
+          description: "Message role (user, assistant, tool)"
+          type: "string"
+        "toolCalls":
+          description: "Tool calls with complete information"
+          items: {"$ref": "#/components/schemas/ExportToolCall"}
+          type: "array"
+        "updatedAt":
+          description: "Message update timestamp"
+          format: "date-time"
+          type: "string"
+      required:
+        - "id"
+        - "role"
+        - "content"
+        - "createdAt"
+        - "updatedAt"
+      type: "object"
+    "ExportSession":
+      description: "Comprehensive session export with all messages, tool calls, and metadata"
+      properties:
+        "assistantMessageCount":
+          description: "Number of assistant messages"
+          type: "integer"
+        "completionTokens":
+          description: "Total completion tokens used"
+          type: "integer"
+        "cost":
+          description: "Total cost of session"
+          format: "double"
+          type: "number"
+        "createdAt":
+          description: "Session creation timestamp"
+          format: "date-time"
+          type: "string"
+        "id":
+          description: "Session identifier"
+          type: "string"
+        "messages":
+          description: "Complete list of messages with full details"
+          items: {"$ref": "#/components/schemas/ExportMessage"}
+          type: "array"
+        "promptTokens":
+          description: "Total prompt tokens used"
+          type: "integer"
+        "title":
+          description: "Session title"
+          type: "string"
+        "toolCallCount":
+          description: "Total number of tool calls"
+          type: "integer"
+        "updatedAt":
+          description: "Session last update timestamp"
+          format: "date-time"
+          type: "string"
+        "userMessageCount":
+          description: "Number of user messages"
+          type: "integer"
+      required:
+        - "id"
+        - "title"
+        - "messages"
+      type: "object"
+    "ExportToolCall":
+      description: "Complete tool call information for export"
+      properties:
+        "finished":
+          description: "Whether tool execution finished"
+          type: "boolean"
+        "id":
+          description: "Tool call identifier"
+          type: "string"
+        "input":
+          description: "Tool input as JSON string"
+          type: "string"
+        "inputJson":
+          description: "Parsed tool input (optional)"
+          type: "object"
+        "isError":
+          description: "Whether execution resulted in error (optional)"
+          type: "boolean"
+        "metadata":
+          description: "Additional tool metadata (optional)"
+          type: "string"
+        "name":
+          description: "Tool name"
+          type: "string"
+        "result":
+          description: "Tool execution result (optional)"
+          type: "string"
+        "type":
+          description: "Tool type"
+          type: "string"
+      required:
+        - "id"
+        - "name"
+        - "input"
+        - "type"
+        - "finished"
+      type: "object"
     "FileInfo":
       properties:
         "isDir":
@@ -2528,6 +2719,8 @@ components:
             - "tool_execution_complete"
             - "permission"
             - "summarize"
+            - "session_created"
+            - "session_deleted"
           type: "string"
         "id":
           description: "Unique sequential event identifier for ordering and reconnection"
@@ -2643,6 +2836,8 @@ components:
           "error": "#/components/schemas/SSEErrorEvent"
           "heartbeat": "#/components/schemas/SSEHeartbeatEvent"
           "permission": "#/components/schemas/SSEPermissionEvent"
+          "session_created": "#/components/schemas/SSESessionCreatedEvent"
+          "session_deleted": "#/components/schemas/SSESessionDeletedEvent"
           "summarize": "#/components/schemas/SSESummarizeEvent"
           "thinking": "#/components/schemas/SSEThinkingEvent"
           "tool": "#/components/schemas/SSEToolEvent"
@@ -2661,6 +2856,8 @@ components:
         - {"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"}
         - {"$ref": "#/components/schemas/SSEPermissionEvent"}
         - {"$ref": "#/components/schemas/SSESummarizeEvent"}
+        - {"$ref": "#/components/schemas/SSESessionCreatedEvent"}
+        - {"$ref": "#/components/schemas/SSESessionDeletedEvent"}
       type: "object"
     "SSEHeartbeatEvent":
       allOf:
@@ -2713,6 +2910,55 @@ components:
                 - "toolName"
                 - "description"
                 - "action"
+              type: "object"
+          required:
+            - "data"
+          type: "object"
+    "SSESessionCreatedEvent":
+      allOf:
+        - {"$ref": "#/components/schemas/SSEBaseEvent"}
+        - properties:
+            "data":
+              properties:
+                "createdAt":
+                  description: "Unix timestamp when the session was created"
+                  format: "int64"
+                  type: "integer"
+                "sessionId":
+                  description: "ID of the newly created session"
+                  type: "string"
+                "title":
+                  description: "Title of the newly created session"
+                  type: "string"
+                "type":
+                  description: "Event type"
+                  example: "session_created"
+                  type: "string"
+              required:
+                - "type"
+                - "sessionId"
+                - "title"
+                - "createdAt"
+              type: "object"
+          required:
+            - "data"
+          type: "object"
+    "SSESessionDeletedEvent":
+      allOf:
+        - {"$ref": "#/components/schemas/SSEBaseEvent"}
+        - properties:
+            "data":
+              properties:
+                "sessionId":
+                  description: "ID of the deleted session"
+                  type: "string"
+                "type":
+                  description: "Event type"
+                  example: "session_deleted"
+                  type: "string"
+              required:
+                - "type"
+                - "sessionId"
               type: "object"
           required:
             - "data"
