@@ -663,37 +663,42 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 					)}
 
 					{session?.id && (
-						<AIInput
-							className="border bg-stone-200/60 backdrop-blur-xl dark:bg-stone-700/60"
-							onSubmit={handleSubmit}
+						<FileDropZone
+							onUploadError={handleFileUploadError}
+							onUploadSuccess={handleFileUploadSuccess}
+							sessionId={session.id}
 						>
-							<AIInputTextarea
-								autoFocus
-								availableCommands={slashCommands.map((cmd) => cmd.name)}
-								availableFiles={fileRef.files.map((file) => file.name)}
-								onChange={(e) => {
-									handleTextChange(e.target.value);
-									if (!inputElement) {
-										setInputElement(e.target);
-									}
-								}}
-								onKeyDown={handleKeyDown}
-								onPaste={handlePaste}
-								value={text}
-							/>
-							<AIInputToolbar>
-								<AIInputTools>
-									<div className="absolute bottom-1 left-1 flex">
-										{/* File Upload Button */}
-										<FileUploadButton
-											className="ml-1"
-											onUploadError={handleFileUploadError}
-											onUploadSuccess={handleFileUploadSuccess}
-											sessionId={session.id}
-										/>
+							<AIInput
+								className="border bg-stone-200/60 backdrop-blur-xl dark:bg-stone-700/60"
+								onSubmit={handleSubmit}
+							>
+								<AIInputTextarea
+									autoFocus
+									availableCommands={slashCommands.map((cmd) => cmd.name)}
+									availableFiles={fileRef.files.map((file) => file.name)}
+									onChange={(e) => {
+										handleTextChange(e.target.value);
+										if (!inputElement) {
+											setInputElement(e.target);
+										}
+									}}
+									onKeyDown={handleKeyDown}
+									onPaste={handlePaste}
+									value={text}
+								/>
+								<AIInputToolbar>
+									<AIInputTools>
+										<div className="absolute bottom-1 left-1 flex">
+											{/* File Upload Button */}
+											<FileUploadButton
+												className="ml-1"
+												onUploadError={handleFileUploadError}
+												onUploadSuccess={handleFileUploadSuccess}
+												sessionId={session.id}
+											/>
 
-										{/* Plan Mode selection, hidden for now */}
-										{/* <Select
+											{/* Plan Mode selection, hidden for now */}
+											{/* <Select
                         onValueChange={(value) => setIsPlanMode(value === 'plan')}
                         value={isPlanMode ? 'plan' : 'edit'}
                       >
@@ -708,20 +713,21 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                           <SelectItem value="plan">plan</SelectItem>
                         </SelectContent>
                       </Select> */}
-									</div>
+										</div>
 
-									{/* Current Model Display */}
-									<div className="absolute right-14 bottom-1 text-muted-foreground text-xs">
-										{formatCurrentModel(preferences)}
-									</div>
-								</AIInputTools>
-								<AIInputSubmit
-									disabled={isSubmitDisabled}
-									onPauseClick={handleCancelClick}
-									status={sseStream.buttonStatus}
-								/>
-							</AIInputToolbar>
-						</AIInput>
+										{/* Current Model Display */}
+										<div className="absolute right-14 bottom-1 text-muted-foreground text-xs">
+											{formatCurrentModel(preferences)}
+										</div>
+									</AIInputTools>
+									<AIInputSubmit
+										disabled={isSubmitDisabled}
+										onPauseClick={handleCancelClick}
+										status={sseStream.buttonStatus}
+									/>
+								</AIInputToolbar>
+							</AIInput>
+						</FileDropZone>
 					)}
 
 					{/* Unified Command System */}
