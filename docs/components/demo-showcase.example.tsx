@@ -51,12 +51,14 @@ with Mix(server_url="http://localhost:8088") as mix:
 /**
  * That's it! No need to touch page.tsx
  *
- * The page.tsx automatically maps over the homepageDemos array and renders each demo.
- * Demos are displayed with:
- * - Code block on left with syntax highlighting and copy button
- * - Video on right (maintains aspect ratio)
+ * The page.tsx automatically uses DemoCards component to render interactive demo cards.
+ *
+ * Features:
+ * - Clickable demo cards at the top for easy browsing
+ * - Selected demo shows code + video below
+ * - Code block with syntax highlighting and copy button
+ * - Video maintains aspect ratio
  * - Responsive layout (stacks on mobile)
- * - Proper spacing between multiple demos
  * - Demo-specific GitHub links (if githubUrl is provided)
  * - "Browse All Examples" link to cookbook repository
  */
