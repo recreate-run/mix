@@ -87,51 +87,8 @@ export function DemoCards({ demos }: DemoCardsProps) {
         </div>
       </div>
 
-      {/* Demo selector cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-16 max-w-6xl mx-auto">
-        {demos.map((demo, index) => (
-          <button
-            key={index}
-            onClick={() => setSelectedDemo(index)}
-            className={`group relative p-6 rounded-2xl text-left transition-all duration-300 ${
-              selectedDemo === index
-                ? 'bg-gradient-to-br from-fd-primary/10 via-fd-primary/5 to-transparent border-2 border-fd-primary shadow-lg shadow-fd-primary/20 scale-[1.02]'
-                : 'bg-fd-card border-2 border-fd-border/50 hover:border-fd-primary/30 hover:shadow-lg hover:scale-[1.01]'
-            }`}
-          >
-            {selectedDemo === index && (
-              <div className="absolute inset-0 bg-gradient-to-br from-fd-primary/5 to-transparent rounded-2xl blur-xl -z-10" />
-            )}
-            <div className="flex items-start gap-4 mb-3">
-              <div className={`text-3xl p-3 rounded-xl transition-all ${
-                selectedDemo === index
-                  ? 'bg-fd-primary/10 ring-2 ring-fd-primary/20'
-                  : 'bg-fd-muted/50 group-hover:bg-fd-primary/5'
-              }`}>
-                {demo.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className={`font-bold text-base mb-1 transition-colors ${
-                  selectedDemo === index ? 'text-fd-primary' : 'text-fd-foreground'
-                }`}>
-                  {demo.title}
-                </h3>
-                <p className="text-sm text-fd-muted-foreground leading-relaxed">
-                  {demo.description}
-                </p>
-              </div>
-            </div>
-            {selectedDemo === index && (
-              <div className="mt-4 pt-3 border-t border-fd-primary/20">
-                <span className="text-xs font-medium text-fd-primary">Currently viewing</span>
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
-
       {/* Demo-specific link or general CTA */}
-      <div className="max-w-7xl mx-auto mt-8">
+      <div className="max-w-7xl mx-auto mt-12">
         <div className="flex items-center justify-center gap-4 flex-wrap">
           {demos[selectedDemo].githubUrl && (
             <Link
@@ -154,6 +111,35 @@ export function DemoCards({ demos }: DemoCardsProps) {
             Browse All Examples
           </Link>
         </div>
+      </div>
+
+      {/* Demo selector cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12 max-w-6xl mx-auto">
+        {demos.map((demo, index) => (
+          <button
+            key={index}
+            onClick={() => setSelectedDemo(index)}
+            className={`group relative p-6 rounded-2xl text-left transition-all duration-300 ${
+              selectedDemo === index
+                ? 'bg-gradient-to-br from-fd-primary/10 via-fd-primary/5 to-transparent border-2 border-fd-primary shadow-lg shadow-fd-primary/20 scale-[1.02]'
+                : 'bg-fd-card border-2 border-fd-border/50 hover:border-fd-primary/30 hover:shadow-lg hover:scale-[1.01]'
+            }`}
+          >
+            {selectedDemo === index && (
+              <div className="absolute inset-0 bg-gradient-to-br from-fd-primary/5 to-transparent rounded-2xl blur-xl -z-10" />
+            )}
+            <div>
+              <h3 className={`font-bold text-base mb-2 transition-colors ${
+                selectedDemo === index ? 'text-fd-primary' : 'text-fd-foreground'
+              }`}>
+                {demo.title}
+              </h3>
+              <p className="text-sm text-fd-muted-foreground leading-relaxed">
+                {demo.description}
+              </p>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );
