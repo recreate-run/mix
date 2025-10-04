@@ -1,15 +1,15 @@
 import { open } from '@tauri-apps/plugin-dialog';
 import { readFile } from '@tauri-apps/plugin-fs';
-import { Paperclip, Loader2 } from 'lucide-react';
+import { Loader2, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { useBoundStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { useBoundStore } from '@/stores';
 import {
+  AUDIO_EXTENSIONS,
   getFileTypeFromExtension,
   IMAGE_EXTENSIONS,
   VIDEO_EXTENSIONS,
-  AUDIO_EXTENSIONS,
 } from '@/utils/fileTypes';
 
 interface FileUploadButtonProps {
@@ -124,17 +124,17 @@ export function FileUploadButton({
 
   return (
     <Button
-      type="button"
-      variant="ghost"
-      size="icon"
       className={cn(
         'h-8 w-8 text-muted-foreground hover:text-foreground',
         'rounded-lg transition-colors',
         className
       )}
-      onClick={handleFileSelect}
       disabled={fileUpload.isPending}
+      onClick={handleFileSelect}
+      size="icon"
       title="Upload files"
+      type="button"
+      variant="ghost"
     >
       {fileUpload.isPending ? (
         <Loader2 className="h-4 w-4 animate-spin" />

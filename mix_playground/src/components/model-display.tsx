@@ -26,8 +26,8 @@ export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
             <div className="grid grid-cols-1 gap-2">
               {data.models.map((model) => (
                 <Button
-                  key={model.id}
                   className={`w-full justify-between ${model.isSelected ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
+                  key={model.id}
                   onClick={() => handleSelect(model.id)}
                   variant={model.isSelected ? 'default' : 'outline'}
                 >

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
-import type { SessionData } from '@/types/common';
 import { invalidateSessionCaches } from '@/lib/session-cache';
+import type { SessionData } from '@/types/common';
 
 interface RewindSessionParams {
   sessionId: string;

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { isYouTubeUrl } from '@/utils/videoUrlDetection';
-import type { MediaOutput } from '@/types/media';
 import { toast } from 'sonner';
+import type { MediaOutput } from '@/types/media';
+import { isYouTubeUrl } from '@/utils/videoUrlDetection';
 
 // Helper to get file extension from media type and path
 const getFileExtension = (media: MediaOutput): string => {

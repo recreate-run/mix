@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchAnimationSchema, type AnimationSchema } from '@/utils/gsapApi';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import { getGsapUrl } from '@/utils/backendUrl';
+import { type AnimationSchema, fetchAnimationSchema } from '@/utils/gsapApi';
 
 async function loadAnimationSchema(
   animationName: string

@@ -1,10 +1,10 @@
-import { isYouTubeUrl } from '@/utils/videoUrlDetection';
-import type { MediaOutput } from '@/types/media';
 import { useState } from 'react';
-import { MediaDownloadButton } from './media-download-button';
+import type { MediaOutput } from '@/types/media';
+import { isYouTubeUrl } from '@/utils/videoUrlDetection';
+import { CsvViewer } from './CsvViewer';
 import { GsapAnimationPreview } from './gsap/GsapAnimationPreview';
 import { LazyVideoPlayer } from './LazyVideoPlayer';
-import { CsvViewer } from './CsvViewer';
+import { MediaDownloadButton } from './media-download-button';
 import { PlaylistSidebar } from './playlist-sidebar';
 
 // Main Media Player Component
@@ -29,9 +29,9 @@ const MainMediaPlayer = ({
           )}
         </div>
         <MediaDownloadButton
+          getMediaSrc={getMediaSrc}
           media={media}
           sessionId={sessionId}
-          getMediaSrc={getMediaSrc}
         />
       </div>
 
@@ -53,6 +53,17 @@ const MainMediaPlayer = ({
           {isYouTubeUrl(media.path) ? (
             <div className="overflow-hidden rounded-md">
               <iframe
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="aspect-video w-full bg-black"
+                frameBorder="0"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget
+                    .nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'block';
+                }}
+                referrerPolicy="strict-origin-when-cross-origin"
                 src={(() => {
                   const baseUrl = getMediaSrc(media.path, sessionId);
                   if (
@@ -84,17 +95,6 @@ const MainMediaPlayer = ({
                   return baseUrl;
                 })()}
                 title={media.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-                className="aspect-video w-full bg-black"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const fallback = e.currentTarget
-                    .nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'block';
-                }}
               />
               <div
                 className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
@@ -141,16 +141,16 @@ const MainMediaPlayer = ({
       {media.type === 'pdf' && (
         <div className="overflow-hidden rounded-md">
           <iframe
-            src={getMediaSrc(media.path, sessionId)}
-            title={media.title}
-            frameBorder="0"
             className="aspect-[4/5] w-full bg-white"
+            frameBorder="0"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const fallback = e.currentTarget
                 .nextElementSibling as HTMLElement;
               if (fallback) fallback.style.display = 'block';
             }}
+            src={getMediaSrc(media.path, sessionId)}
+            title={media.title}
           />
           <div
             className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
@@ -163,8 +163,8 @@ const MainMediaPlayer = ({
 
       {media.type === 'csv' && (
         <CsvViewer
-          url={getMediaSrc(media.path, sessionId)}
           title={media.title}
+          url={getMediaSrc(media.path, sessionId)}
         />
       )}
     </div>
@@ -189,9 +189,9 @@ export const MediaShowcase = ({
   if (mediaOutputs.length === 1) {
     return (
       <MainMediaPlayer
+        getMediaSrc={getMediaSrc}
         media={mediaOutputs[0]}
         sessionId={sessionId}
-        getMediaSrc={getMediaSrc}
       />
     );
   }
@@ -200,9 +200,9 @@ export const MediaShowcase = ({
   return (
     <div className="space-y-4">
       <MainMediaPlayer
+        getMediaSrc={getMediaSrc}
         media={mediaOutputs[selectedIndex]}
         sessionId={sessionId}
-        getMediaSrc={getMediaSrc}
       />
       <PlaylistSidebar
         mediaOutputs={mediaOutputs}

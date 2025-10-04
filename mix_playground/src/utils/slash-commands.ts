@@ -1,10 +1,10 @@
 import {
   Clock,
   Command,
+  Cpu,
   HelpCircle,
   RefreshCw,
   Shield,
-  Cpu,
 } from 'lucide-react';
 
 interface SlashCommand {

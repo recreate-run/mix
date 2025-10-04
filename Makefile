@@ -1,4 +1,4 @@
-.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go_lint go-test generate-mix_sdk gsap-server
+.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go-lint go-test generate-mix_sdk gsap-server
 
 # Variables
 BINARY_NAME=mix
@@ -27,7 +27,6 @@ help:
 	@echo "  install     - Install system dependencies (one-time setup)"
 	@echo "  install-deps - Install project dependencies"
 	@echo "  build       - Build optimized binary for current platform"
-	@echo "  build-sidecar - Build Tauri-compatible sidecar binary with platform suffix"
 	@echo "  build-all   - Build binaries for all platforms and architectures"
 	@echo "  build-macos - Build for all macOS architectures (Intel + Apple Silicon)"
 	@echo "  build-linux - Build for all Linux architectures (x64 + ARM64)"
@@ -54,7 +53,7 @@ help:
 	@echo "  frontend-format - Run knip linter on frontend code"
 	@echo "  frontend-lint - Run knip linter on frontend code"
 	@echo "  frontend-knip - Run biome linter on frontend code"
-	@echo "  go_lint     - Run golangci-lint on Go backend code"
+	@echo "  go-lint     - Run golangci-lint on Go backend code"
 	@echo "  go-test     - Run Go tests with coverage"
 	@echo "  generate-openapi - Generate JSON OpenAPI spec"
 	@echo "  help        - Show this help message"
@@ -108,12 +107,6 @@ build:
 	@echo "Building optimized binary for current platform..."
 	@$(MAKE) _build-optimized OUTPUT_PATH=$(BUILD_DIR)/release/$(BINARY_NAME)
 	@echo "Binary built: $(BUILD_DIR)/release/$(BINARY_NAME)"
-
-# Build Tauri-compatible sidecar binary with platform-specific naming
-build-sidecar:
-	@echo "Building optimized Tauri sidecar binary for platform: $(TARGET_TRIPLE)"
-	@$(MAKE) _build-optimized OUTPUT_PATH=build/release/$(BINARY_NAME)-$(TARGET_TRIPLE)
-	@echo "Tauri sidecar binary built: $(BUILD_DIR)/release/$(BINARY_NAME)-$(TARGET_TRIPLE)"
 
 # Cross-platform build targets
 build-all: build-macos build-linux build-windows
@@ -210,14 +203,14 @@ frontend-format:
 
 frontend-lint:
 	@echo "Running biome linter on frontend..."
-	cd mix_playground && bunx biome lint --write
+	cd mix_playground && bunx biome check --write
 
 frontend-knip:
 	@echo "Running knip linter on frontend..."
 	cd mix_playground && bun knip
 
 # Run golangci-lint on Go backend code
-go_lint:
+go-lint:
 	@echo "Running golangci-lint on Go backend code..."
 	cd mix_agent && golangci-lint run ./...
 

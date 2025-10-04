@@ -1,7 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { IconServer, IconLogout, IconLogin } from '@tabler/icons-react';
-import { Loader2, Settings } from 'lucide-react';
+import { IconLogin, IconLogout, IconServer } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Eye, Loader2, Search, Settings } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { OAuthCodeDialog } from '@/components/oauth-code-dialog';
+import { ProvidersLoadingSkeleton } from '@/components/provider-skeleton';
+import { ToolCard } from '@/components/tool-card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -9,24 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { logoutProvider } from '@/handlers/logout-command-handler';
 import {
   authenticateWithApiKey,
   startOAuthFlow,
 } from '@/handlers/login-command-handler';
+import { logoutProvider } from '@/handlers/logout-command-handler';
 import { useProviders } from '@/hooks/useProviders';
 import { useToolsStatus } from '@/hooks/useTools';
-import { ProvidersLoadingSkeleton } from '@/components/provider-skeleton';
-import { OAuthCodeDialog } from '@/components/oauth-code-dialog';
-import { ToolCard } from '@/components/tool-card';
-import { Search, Eye } from 'lucide-react';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -222,7 +221,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog onOpenChange={onOpenChange} open={open}>
         <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -255,7 +254,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 ) : (
                   <div className="space-y-3">
                     {allProviders.map((provider) => (
-                      <div key={provider.id} className="rounded-lg border p-4">
+                      <div className="rounded-lg border p-4" key={provider.id}>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium">
@@ -265,15 +264,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                               {provider.authenticated ? (
                                 <>
                                   <Badge
-                                    variant="outline"
                                     className="border-green-600 text-green-600 text-xs"
+                                    variant="outline"
                                   >
                                     ✓ Authenticated
                                   </Badge>
                                   {provider.isPreferred && (
                                     <Badge
-                                      variant="default"
                                       className="text-xs"
+                                      variant="default"
                                     >
                                       Preferred
                                     </Badge>
@@ -281,8 +280,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                 </>
                               ) : (
                                 <Badge
-                                  variant="outline"
                                   className="text-muted-foreground text-xs"
+                                  variant="outline"
                                 >
                                   Not authenticated
                                 </Badge>
@@ -292,11 +291,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
                           {provider.authenticated ? (
                             <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleProviderLogout(provider.id)}
-                              disabled={!!loggingOutProvider}
                               className="flex items-center gap-2"
+                              disabled={!!loggingOutProvider}
+                              onClick={() => handleProviderLogout(provider.id)}
+                              size="sm"
+                              variant="outline"
                             >
                               {loggingOutProvider === provider.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -317,27 +316,27 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                   Authentication Method
                                 </Label>
                                 <RadioGroup
-                                  value={
-                                    selectedAuthMethod[provider.id] ||
-                                    provider.authMethods[0]
-                                  }
+                                  className="mt-2 flex gap-6"
                                   onValueChange={(value: string) =>
                                     handleAuthMethodChange(
                                       provider.id,
                                       value as 'api_key' | 'oauth'
                                     )
                                   }
-                                  className="mt-2 flex gap-6"
+                                  value={
+                                    selectedAuthMethod[provider.id] ||
+                                    provider.authMethods[0]
+                                  }
                                 >
                                   {provider.authMethods.includes('api_key') && (
                                     <div className="flex items-center space-x-2">
                                       <RadioGroupItem
-                                        value="api_key"
                                         id={`${provider.id}-api-key`}
+                                        value="api_key"
                                       />
                                       <Label
-                                        htmlFor={`${provider.id}-api-key`}
                                         className="text-sm"
+                                        htmlFor={`${provider.id}-api-key`}
                                       >
                                         API Key
                                       </Label>
@@ -346,12 +345,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                   {provider.authMethods.includes('oauth') && (
                                     <div className="flex items-center space-x-2">
                                       <RadioGroupItem
-                                        value="oauth"
                                         id={`${provider.id}-oauth`}
+                                        value="oauth"
                                       />
                                       <Label
-                                        htmlFor={`${provider.id}-oauth`}
                                         className="text-sm"
+                                        htmlFor={`${provider.id}-oauth`}
                                       >
                                         OAuth
                                       </Label>
@@ -367,8 +366,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                 provider.authMethods[0]) === 'api_key' ? (
                                 <div className="space-y-2">
                                   <Label
-                                    htmlFor={`${provider.id}-key`}
                                     className="font-medium text-sm"
+                                    htmlFor={`${provider.id}-key`}
                                   >
                                     API Key{' '}
                                     {provider.apiKeyFormat && (
@@ -379,30 +378,30 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                   </Label>
                                   <div className="flex gap-2">
                                     <Input
+                                      className="flex-1"
+                                      disabled={loginInProgress[provider.id]}
                                       id={`${provider.id}-key`}
-                                      type="password"
-                                      placeholder={
-                                        provider.apiKeyFormat ||
-                                        'Enter API key...'
-                                      }
-                                      value={apiKeys[provider.id] || ''}
                                       onChange={(e) =>
                                         handleApiKeyChange(
                                           provider.id,
                                           e.target.value
                                         )
                                       }
-                                      disabled={loginInProgress[provider.id]}
-                                      className="flex-1"
+                                      placeholder={
+                                        provider.apiKeyFormat ||
+                                        'Enter API key...'
+                                      }
+                                      type="password"
+                                      value={apiKeys[provider.id] || ''}
                                     />
                                     <Button
-                                      onClick={() => handleLogin(provider.id)}
+                                      className="flex items-center gap-2"
                                       disabled={
                                         loginInProgress[provider.id] ||
                                         !apiKeys[provider.id]?.trim()
                                       }
+                                      onClick={() => handleLogin(provider.id)}
                                       size="sm"
-                                      className="flex items-center gap-2"
                                     >
                                       {loginInProgress[provider.id] ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -416,9 +415,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                               ) : (
                                 <div>
                                   <Button
-                                    onClick={() => handleLogin(provider.id)}
-                                    disabled={loginInProgress[provider.id]}
                                     className="flex items-center gap-2"
+                                    disabled={loginInProgress[provider.id]}
+                                    onClick={() => handleLogin(provider.id)}
                                     size="sm"
                                   >
                                     {loginInProgress[provider.id] ? (
@@ -458,13 +457,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
                     return (
                       <ToolCard
-                        key={categoryId}
                         categoryDisplayName={category.displayName}
                         icon={
                           categoryIcons[categoryId] || (
                             <Settings className="h-5 w-5" />
                           )
                         }
+                        key={categoryId}
                         tools={category.tools}
                       />
                     );
@@ -477,12 +476,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
       {/* OAuth Code Dialog */}
       <OAuthCodeDialog
-        open={oauthCodeDialog.open}
+        oauthState={oauthCodeDialog.oauthState}
         onOpenChange={(open) =>
           setOauthCodeDialog((prev) => ({ ...prev, open }))
         }
-        provider={oauthCodeDialog.provider}
-        oauthState={oauthCodeDialog.oauthState}
         onSuccess={() => {
           // Refresh providers data after successful authentication
           refetch();
@@ -492,6 +489,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             [oauthCodeDialog.provider]: false,
           }));
         }}
+        open={oauthCodeDialog.open}
+        provider={oauthCodeDialog.provider}
       />
     </>
   );

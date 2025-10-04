@@ -1,24 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { mix } from '@/lib/mix-sdk';
-import type { TimelineEntry, UIMessage } from '@/types/message';
-import type { ToolCall } from '@/types/common';
-import type { Attachment } from '@/stores/attachmentSlice';
-import { expandFileReferences } from '@/utils/attachmentUtils';
-import { CACHE_KEYS } from '@/lib/cache-keys';
 import type { SendMessageRequestBody } from 'mix-typescript-sdk/models/operations/sendmessage';
 import type {
-  SSEEventStream,
-  SSEToolEvent,
-  SSEToolExecutionStartEvent,
-  SSEToolExecutionCompleteEvent,
-  SSEThinkingEvent,
-  SSEContentEvent,
   SSECompleteEvent,
+  SSEContentEvent,
   SSEErrorEvent,
+  SSEEventStream,
   SSEPermissionEvent,
   SSESessionCreatedEvent,
+  SSEThinkingEvent,
+  SSEToolEvent,
+  SSEToolExecutionCompleteEvent,
+  SSEToolExecutionStartEvent,
 } from 'mix-typescript-sdk/models/sseeventstream';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { CACHE_KEYS } from '@/lib/cache-keys';
+import { mix } from '@/lib/mix-sdk';
+import type { Attachment } from '@/stores/attachmentSlice';
+import type { ToolCall } from '@/types/common';
+import type { TimelineEntry, UIMessage } from '@/types/message';
+import { expandFileReferences } from '@/utils/attachmentUtils';
 
 export type SSEPermissionRequest = {
   id: string;
@@ -252,7 +252,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
               toolCallsMap.current.set(toolCall.id, toolCall);
 
               // Add to timeline when tool is first seen
-              if (timelineRef.current.some(
+              if (
+                timelineRef.current.some(
                   (entry) =>
                     entry.type === 'tool' && entry.content.id === toolCall.id
                 )
@@ -604,36 +605,33 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     [sessionId]
   );
 
-  const cancelMessage = useCallback(
-    async () => {
-      if (!sessionId) {
-        throw new Error('No session ID available');
-      }
+  const cancelMessage = useCallback(async () => {
+    if (!sessionId) {
+      throw new Error('No session ID available');
+    }
 
-      setState((prev) => ({ ...prev, cancelling: true, error: null }));
+    setState((prev) => ({ ...prev, cancelling: true, error: null }));
 
-      try {
-        await mix.messages.cancelProcessing({ id: sessionId });
+    try {
+      await mix.messages.cancelProcessing({ id: sessionId });
 
-        setState((prev) => ({
-          ...prev,
-          processing: false,
-          cancelling: false,
-          cancelled: true,
-          error: null,
-        }));
-      } catch (error) {
-        setState((prev) => ({
-          ...prev,
-          cancelling: false,
-          error:
-            error instanceof Error ? error.message : 'Failed to cancel message',
-        }));
-        throw error;
-      }
-    },
-    [sessionId]
-  );
+      setState((prev) => ({
+        ...prev,
+        processing: false,
+        cancelling: false,
+        cancelled: true,
+        error: null,
+      }));
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        cancelling: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to cancel message',
+      }));
+      throw error;
+    }
+  }, [sessionId]);
 
   const resetCancelledState = useCallback(() => {
     setState((prev) => ({ ...prev, cancelled: false }));

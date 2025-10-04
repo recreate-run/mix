@@ -1,11 +1,11 @@
-import { IconTrash, IconFolder } from '@tabler/icons-react';
+import { IconFolder, IconTrash } from '@tabler/icons-react';
+import { useNavigate } from '@tanstack/react-router';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { open } from '@tauri-apps/plugin-shell';
-import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import type { SessionData } from '@/types/common';
 import { useDeleteSession } from '@/hooks/useSessionsList';
+import type { SessionData } from '@/types/common';
 import { getDisplayTitle } from '@/utils/sessionUtils';
 
 interface SessionItemProps {

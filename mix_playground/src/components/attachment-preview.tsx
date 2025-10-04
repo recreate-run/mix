@@ -6,8 +6,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { removeFileReferences } from '@/utils/attachmentUtils';
 import { generatePreviewUrl } from '@/utils/assetServer';
+import { removeFileReferences } from '@/utils/attachmentUtils';
 import {
   AudioPreview,
   DefaultPreview,

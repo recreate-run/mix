@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import { mix } from '@/lib/mix-sdk';
 import type { LoginProviderInfo } from '@/types/message';
 
 // Authentication method constants
@@ -48,7 +48,7 @@ async function fetchProviders(): Promise<LoginProviderInfo[]> {
         id: providerId,
         displayName: cleanName,
         authMethods: AUTH_METHODS[providerId] || ['api_key'],
-        authenticated: isAuthenticated,
+        authenticated: isAuthenticated ?? false,
         apiKeyFormat: API_KEY_FORMATS[providerId] || 'API key',
         isPreferred,
       });

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CACHE_KEYS } from '@/lib/cache-keys';
 import { mix } from '@/lib/mix-sdk';
 import type { Session } from '@/types/common';
-import { CACHE_KEYS } from '@/lib/cache-keys';
 
 interface CreateSessionParams {
   title: string;

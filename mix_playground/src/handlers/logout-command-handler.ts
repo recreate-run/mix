@@ -1,6 +1,6 @@
+import { toast } from 'sonner';
 import { mix } from '@/lib/mix-sdk';
 import type { UIMessage } from '@/types/message';
-import { toast } from 'sonner';
 
 /**
  * Logs out from the specified provider by deleting credentials

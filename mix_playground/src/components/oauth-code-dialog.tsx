@@ -1,4 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,9 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
 import { mix } from '@/lib/mix-sdk';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface OAuthCodeDialogProps {
   open: boolean;
@@ -69,7 +69,7 @@ export function OAuthCodeDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Complete OAuth Authentication</DialogTitle>
@@ -83,30 +83,30 @@ export function OAuthCodeDialog({
           <div className="grid gap-2">
             <Label htmlFor="auth-code">Authorization Code</Label>
             <Input
+              className="font-mono text-sm"
+              disabled={isSubmitting}
               id="auth-code"
-              placeholder="Enter the authorization code from your browser"
-              value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={isSubmitting}
-              className="font-mono text-sm"
+              placeholder="Enter the authorization code from your browser"
+              value={code}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button
+            disabled={isSubmitting}
+            onClick={() => onOpenChange(false)}
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
           >
             Cancel
           </Button>
           <Button
-            type="button"
-            onClick={handleSubmit}
             disabled={isSubmitting || !code.trim()}
+            onClick={handleSubmit}
+            type="button"
           >
             {isSubmitting ? 'Authenticating...' : 'Complete Authentication'}
           </Button>

@@ -4,16 +4,17 @@ import { convertToAssetServerUrl } from '@/utils/assetServer';
 const isURL = (path: string): boolean => {
   return path.startsWith('http://') || path.startsWith('https://');
 };
-import { PictureInPicture } from 'lucide-react';
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { useThrottledCallback } from '@tanstack/react-pacer';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { VideoPlayerProps } from '@/types/media';
+
 import {
   IconPlayerPauseFilled,
   IconPlayerPlayFilled,
 } from '@tabler/icons-react';
+import { useThrottledCallback } from '@tanstack/react-pacer';
+import { PictureInPicture } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { VideoPlayerProps } from '@/types/media';
 
 export const VideoPlayer = ({
   path,
@@ -331,8 +332,8 @@ export const VideoPlayer = ({
 
       <div
         className={`relative rounded-md ${isVertical ? 'max-w-[360px]' : 'max-w-4xl'} focus:outline-none`}
-        tabIndex={0}
         onKeyDown={handleKeyDown}
+        tabIndex={0}
       >
         {isLoading && <Skeleton className="aspect-auto" />}
         <video
@@ -355,11 +356,12 @@ export const VideoPlayer = ({
             if (
               isSegment &&
               startTime !== undefined &&
-              !hasInitialized.current && video
+              !hasInitialized.current &&
+              video
             ) {
-                video.currentTime = startTime;
-                hasInitialized.current = true;
-              }
+              video.currentTime = startTime;
+              hasInitialized.current = true;
+            }
 
             // Sync timeline position after metadata loads
             syncTimelinePosition();
@@ -424,10 +426,10 @@ export const VideoPlayer = ({
                 <div className="mb-1 flex items-center justify-between gap-2 rounded-2xl transition-opacity hover:bg-black/30">
                   {/* Play/Pause Button */}
                   <Button
+                    className="rounded-full border-0 text-white hover:bg-white/20"
                     onClick={handlePlayPause}
                     size="icon"
                     variant="ghost"
-                    className="rounded-full border-0 text-white hover:bg-white/20"
                   >
                     {isPlaying ? (
                       <IconPlayerPauseFilled className="size-6" />
@@ -446,11 +448,11 @@ export const VideoPlayer = ({
 
                   {/* Picture-in-Picture Button */}
                   <Button
+                    className=" rounded-full border-0"
                     onClick={handlePictureInPicture}
                     size="icon"
-                    variant={'ghost'}
                     title="Picture-in-Picture"
-                    className=" rounded-full border-0"
+                    variant={'ghost'}
                   >
                     <PictureInPicture className="size-4" />
                   </Button>
@@ -458,23 +460,23 @@ export const VideoPlayer = ({
 
                 {/* Progress Bar */}
                 <div
-                  ref={progressBarRef}
                   className={`relative h-[5px] w-full rounded-full bg-white ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                   }`}
                   onClick={handleProgressClick}
                   onMouseDown={handleProgressMouseDown}
+                  ref={progressBarRef}
                 >
                   <div
-                    ref={progressFillRef}
                     className="h-full rounded-full bg-white"
+                    ref={progressFillRef}
                     style={{ width: '0%' }}
                   />
                   <div
-                    ref={progressDotRef}
                     className={`absolute top-1/2 left-0 h-3 w-3 rounded-full bg-white shadow-lg ${
                       isDragging ? 'scale-125' : ''
                     } transition-transform`}
+                    ref={progressDotRef}
                     style={{
                       transform: `translateY(-50%) ${isDragging ? 'scale(1.25)' : ''}`,
                       left: '0%',
@@ -489,10 +491,10 @@ export const VideoPlayer = ({
                 <div className="flex items-center gap-2">
                   {/* Play/Pause Button */}
                   <Button
+                    className="shrink-0 rounded-full border-0 text-white hover:bg-white/20"
                     onClick={handlePlayPause}
                     size="icon"
                     variant="ghost"
-                    className="shrink-0 rounded-full border-0 text-white hover:bg-white/20"
                   >
                     {isPlaying ? (
                       <IconPlayerPauseFilled className="size-6" />
@@ -503,23 +505,23 @@ export const VideoPlayer = ({
 
                   {/* Progress Bar */}
                   <div
-                    ref={progressBarRef}
                     className={`relative h-1 flex-1 rounded-full rounded-lg bg-neutral-600/40 py-[5px] backdrop-blur-sm ${
                       isDragging ? 'cursor-grabbing' : 'cursor-grab'
                     }`}
                     onClick={handleProgressClick}
                     onMouseDown={handleProgressMouseDown}
+                    ref={progressBarRef}
                   >
                     <div
-                      ref={progressFillRef}
                       className="h-full rounded-full bg-white"
+                      ref={progressFillRef}
                       style={{ width: '0%' }}
                     />
                     <div
-                      ref={progressDotRef}
                       className={`absolute top-1/2 left-0 size-3 rounded-full bg-white shadow-lg ${
                         isDragging ? 'scale-125' : ''
                       } transition-transform`}
+                      ref={progressDotRef}
                       style={{
                         transform: `translateY(-50%) ${isDragging ? 'scale(1.25)' : ''}`,
                         left: '0%',
@@ -536,11 +538,11 @@ export const VideoPlayer = ({
 
                   {/* Picture-in-Picture Button */}
                   <Button
+                    className="h-8 w-8 shrink-0 rounded-full border-0 text-white hover:bg-white/20"
                     onClick={handlePictureInPicture}
                     size="icon"
-                    variant={'ghost'}
                     title="Picture-in-Picture"
-                    className="h-8 w-8 shrink-0 rounded-full border-0 text-white hover:bg-white/20"
+                    variant={'ghost'}
                   >
                     <PictureInPicture className="size-4" />
                   </Button>
@@ -556,6 +558,7 @@ export const VideoPlayer = ({
             <div className="text-center">
               <p>Video temporarily unavailable</p>
               <Button
+                className="mt-3 text-white underline hover:bg-transparent hover:no-underline"
                 onClick={() => {
                   setHasError(false);
                   setIsLoading(true);
@@ -564,7 +567,6 @@ export const VideoPlayer = ({
                   }
                 }}
                 variant="ghost"
-                className="mt-3 text-white underline hover:bg-transparent hover:no-underline"
               >
                 Retry
               </Button>

@@ -10,8 +10,8 @@ import {
 } from '@/components/ui/command';
 import type { useFileReference } from '@/hooks/useFileReference';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { getFileTypeFromExtension } from '@/utils/fileTypes';
 import { generatePreviewUrl } from '@/utils/assetServer';
+import { getFileTypeFromExtension } from '@/utils/fileTypes';
 
 interface CommandFileReferenceProps {
   fileRef: ReturnType<typeof useFileReference>;
@@ -28,7 +28,7 @@ const MediaThumbnail = ({
   sessionId: string;
 }) => {
   // Safety checks
-  if (!((file && file.name ) && sessionId)) {
+  if (!(file && file.name && sessionId)) {
     console.error('MediaThumbnail: Missing required props', {
       file,
       sessionId,

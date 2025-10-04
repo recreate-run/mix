@@ -1,8 +1,8 @@
-import { isYouTubeUrl } from '@/utils/videoUrlDetection';
-import type { MediaOutput } from '@/types/media';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaDownload } from '@/hooks/use-media-download';
+import type { MediaOutput } from '@/types/media';
+import { isYouTubeUrl } from '@/utils/videoUrlDetection';
 
 export const MediaDownloadButton = ({
   media,
@@ -22,15 +22,15 @@ export const MediaDownloadButton = ({
   return (
     <Button
       className="text-muted-foreground hover:text-foreground"
+      disabled={isDownloading}
       onClick={downloadMedia}
       size="sm"
-      variant="ghost"
       title={
         media.type === 'video' && isYouTubeUrl(media.path)
           ? 'Open in YouTube'
           : 'Download media'
       }
-      disabled={isDownloading}
+      variant="ghost"
     >
       <Download className="size-4" />
     </Button>

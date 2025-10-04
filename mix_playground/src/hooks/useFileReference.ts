@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useBoundStore } from '@/stores';
 import type { Attachment } from '@/stores/attachmentSlice';
-import { useSessionFiles } from './useSessionFiles';
 import { buildSessionFileUrl } from '@/utils/attachmentUtils';
+import { useSessionFiles } from './useSessionFiles';
 
 export function useFileReference(
   text: string,

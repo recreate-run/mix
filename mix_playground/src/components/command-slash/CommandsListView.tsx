@@ -1,5 +1,5 @@
-import { CommandGroup, CommandItem } from '@/components/ui/command';
 import type { LucideIcon } from 'lucide-react';
+import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { slashCommands } from '@/utils/slash-commands';
 
 interface CommandsListViewProps {

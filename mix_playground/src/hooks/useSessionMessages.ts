@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import type { BackendMessage } from 'mix-typescript-sdk/models';
+import { CACHE_KEYS } from '@/lib/cache-keys';
 import { convertBackendMessagesToUI } from '@/lib/messageUtils';
 import { mix } from '@/lib/mix-sdk';
 import type { UIMessage } from '@/types/message';
-import { CACHE_KEYS } from '@/lib/cache-keys';
-import type { BackendMessage } from 'mix-typescript-sdk/models';
 
 async function loadSessionMessages(
   sessionId: string

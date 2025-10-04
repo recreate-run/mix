@@ -1,13 +1,13 @@
 import { stat } from '@tauri-apps/plugin-fs';
+import type { BackendMessage } from 'mix-typescript-sdk/models';
 import type { Attachment } from '@/stores/attachmentSlice';
+import type { ToolCall, ToolCallData } from '@/types/common';
+import type { MediaOutput } from '@/types/media';
+import type { TimelineEntry, UIMessage } from '@/types/message';
 import {
   createFileAttachment,
   createFolderAttachment,
 } from '@/utils/attachmentUtils';
-import type { ToolCall, ToolCallData } from '@/types/common';
-import type { MediaOutput } from '@/types/media';
-import type { UIMessage, TimelineEntry } from '@/types/message';
-import type { BackendMessage } from 'mix-typescript-sdk/models';
 
 interface ParsedContent {
   text: string;

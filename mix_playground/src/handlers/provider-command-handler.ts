@@ -69,12 +69,12 @@ export async function handleProviderSelection(
         },
       };
     }
-      // No models available, just show success message
-      return {
-        content: `✅ Successfully set **${providerName}** as your default provider${providerData?.models?.length ? '' : '\n\nNo models available for this provider.'}`,
-        from: 'assistant',
-        frontend_only: true,
-      };
+    // No models available, just show success message
+    return {
+      content: `✅ Successfully set **${providerName}** as your default provider${providerData?.models?.length ? '' : '\n\nNo models available for this provider.'}`,
+      from: 'assistant',
+      frontend_only: true,
+    };
   } catch (error) {
     return {
       content: `Failed to update provider preference: ${error instanceof Error ? error.message : 'Unknown error'}`,

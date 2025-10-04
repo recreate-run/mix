@@ -1,6 +1,3 @@
-import { convertToAssetServerUrl } from '@/utils/assetServer';
-import { isYouTubeUrl, getYouTubeEmbedUrl } from '@/utils/videoUrlDetection';
-import type { ToolCall } from '@/types/common';
 import { Check, Copy, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,18 +17,21 @@ import {
   AIToolStep,
 } from '@/components/ui/kibo-ui/ai/tool';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
+import type { ToolCall } from '@/types/common';
 import type { TimelineEntry, UIMessage } from '@/types/message';
+import { convertToAssetServerUrl } from '@/utils/assetServer';
+import { getYouTubeEmbedUrl, isYouTubeUrl } from '@/utils/videoUrlDetection';
 import { ConversationLoader } from './conversation-loader';
-import { MessageAttachmentDisplay } from './message-attachment-display';
-import { PlanDisplay } from './plan-display';
-import { RateLimitDisplay } from './rate-limit-display';
-import { ResponseRenderer } from './response-renderer';
-import { TodoList } from './todo-list';
-import { StatusUI } from './status-ui';
-import { ProviderDisplay } from './provider-display';
-import { ModelDisplay } from './model-display';
 import { EmptyStateDisplay } from './empty-state-display';
 import { MediaShowcase } from './media-showcase';
+import { MessageAttachmentDisplay } from './message-attachment-display';
+import { ModelDisplay } from './model-display';
+import { PlanDisplay } from './plan-display';
+import { ProviderDisplay } from './provider-display';
+import { RateLimitDisplay } from './rate-limit-display';
+import { ResponseRenderer } from './response-renderer';
+import { StatusUI } from './status-ui';
+import { TodoList } from './todo-list';
 
 type StreamingState = {
   processing: boolean;
@@ -175,37 +175,38 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 
       return (
         <AIReasoning
-          key={`thinking-group-${index}`}
           className="mb-4 w-full"
           duration={duration > 0 ? duration : undefined}
           isStreaming={false}
+          key={`thinking-group-${index}`}
         >
           <AIReasoningTrigger />
           <AIReasoningContent>{totalContent}</AIReasoningContent>
         </AIReasoning>
       );
-    }if (group.type === 'content') {
+    }
+    if (group.type === 'content') {
       const contentText = group.entry.content as string;
       return (
-        <div key={`content-${group.entry.id}`} className="mb-4">
+        <div className="mb-4" key={`content-${group.entry.id}`}>
           <ResponseRenderer content={contentText} />
         </div>
       );
     }
-      const toolCall = group.entry.content as ToolCall;
-      return (
-        <AIToolLadder key={`tool-${group.entry.id}`}>
-          <AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
-            <AIToolHeader
-              description={toolCall.description}
-              name={toolCall.name}
-              status={toolCall.status}
-              toolCall={toolCall}
-            />
-            <AIToolContent toolCall={toolCall} />
-          </AIToolStep>
-        </AIToolLadder>
-      );
+    const toolCall = group.entry.content as ToolCall;
+    return (
+      <AIToolLadder key={`tool-${group.entry.id}`}>
+        <AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
+          <AIToolHeader
+            description={toolCall.description}
+            name={toolCall.name}
+            status={toolCall.status}
+            toolCall={toolCall}
+          />
+          <AIToolContent toolCall={toolCall} />
+        </AIToolStep>
+      </AIToolLadder>
+    );
   });
 };
 
@@ -347,9 +348,9 @@ export function ConversationDisplay({
                     {message.mediaOutputs && sessionId ? (
                       <>
                         <MediaShowcase
+                          getMediaSrc={getMediaSrc}
                           mediaOutputs={message.mediaOutputs}
                           sessionId={sessionId}
-                          getMediaSrc={getMediaSrc}
                         />
                         <AIMessageContent.Content>
                           {/* Render timeline-based interleaved thinking and tools */}
@@ -413,13 +414,13 @@ export function ConversationDisplay({
                       <MessageCopyButton content={message.content} />
                       {onEditMessage && (
                         <Button
+                          aria-label="Rewind conversation to this message"
                           className="text-muted-foreground hover:text-foreground"
                           disabled={sseStream.processing}
                           onClick={() => onEditMessage(index)}
                           size="sm"
-                          variant="ghost"
                           title="Rewind to this message"
-                          aria-label="Rewind conversation to this message"
+                          variant="ghost"
                         >
                           <Undo2 className="size-4" />
                         </Button>

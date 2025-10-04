@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { LoadingScreen } from '@/components/loading/LoadingScreen';
 import { useCreateSession } from '@/hooks/useSession';
 import { useSessionsList } from '@/hooks/useSessionsList';
-import { LoadingScreen } from '@/components/loading/LoadingScreen';
 
 export const Route = createFileRoute('/')({
   component: AutoRedirectHome,

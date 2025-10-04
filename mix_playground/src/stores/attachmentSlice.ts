@@ -1,6 +1,6 @@
 import {
-  detectVideoUrls,
   createVideoUrlAttachment,
+  detectVideoUrls,
 } from '@/utils/videoUrlDetection';
 
 export type Attachment = {

@@ -24,13 +24,13 @@ export function StatusUI({ statusState }: StatusUIProps) {
         <div className="space-y-2">
           {statusState.providers.map((provider) => (
             <Button
-              key={provider.id}
-              variant="outline"
               className={`w-full justify-start ${
                 provider.isPreferred ? 'border-2 border-primary' : ''
               }`}
-              // All buttons are disabled in status view
               disabled={true}
+              key={provider.id}
+              // All buttons are disabled in status view
+              variant="outline"
             >
               {provider.displayName}
               {provider.authenticated && (

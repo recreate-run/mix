@@ -7,13 +7,13 @@ import { SettingsDialog } from '@/components/settings-dialog';
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarFooter,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { useCreateSession } from '@/hooks/useSession';
@@ -61,7 +61,7 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 
   return (
     <>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog onOpenChange={setSettingsOpen} open={settingsOpen} />
       <Sidebar collapsible="offcanvas" {...props}>
         <SidebarContent>
           <SidebarGroup>
@@ -99,12 +99,12 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
                     const isActive = sessionId === session.id;
                     return (
                       <SessionItem
+                        allSessions={sortedSessions}
+                        currentSessionId={sessionId}
                         isActive={isActive}
                         key={session.id}
                         onClick={handleSessionSelect}
                         session={session}
-                        currentSessionId={sessionId}
-                        allSessions={sortedSessions}
                       />
                     );
                   })

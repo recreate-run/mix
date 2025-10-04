@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRootRoute, Link, Outlet } from '@tanstack/react-router';
 import { useState } from 'react';
+import { Toaster } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Toaster } from 'sonner';
 
 export const Route = createRootRoute({
   component: RootComponent,

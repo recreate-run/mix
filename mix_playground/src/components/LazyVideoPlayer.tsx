@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MediaOutput } from '@/types/media';
 import { VideoPlayer } from './video-player';
 
@@ -33,14 +33,14 @@ export const LazyVideoPlayer = ({ media, sessionId }: LazyVideoPlayerProps) => {
   }, [media.path]); // Reset when media path changes
 
   return (
-    <div ref={containerRef} className="min-h-[200px]">
+    <div className="min-h-[200px]" ref={containerRef}>
       {isVisible ? (
         <VideoPlayer
           duration={media.duration}
           path={media.path}
+          sessionId={sessionId}
           startTime={media.startTime}
           title=""
-          sessionId={sessionId}
         />
       ) : (
         <div className="flex h-48 items-center justify-center rounded-md bg-stone-700/30">

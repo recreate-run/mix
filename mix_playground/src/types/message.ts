@@ -3,8 +3,8 @@ import type { ToolCall } from './common';
 import type { MediaOutput } from './media';
 import type {
   HierarchicalModelData,
-  ProviderInfo,
   ModelInfo,
+  ProviderInfo,
 } from './provider';
 
 // Login-specific provider info that requires authMethods

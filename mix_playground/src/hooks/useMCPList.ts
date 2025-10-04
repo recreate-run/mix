@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { mix } from '@/lib/mix-sdk';
 import type { ListMcpServersResponse } from 'mix-typescript-sdk/models/operations/listmcpservers';
+import { mix } from '@/lib/mix-sdk';
 
 // Use SDK types directly
 type MCPServerData = ListMcpServersResponse;

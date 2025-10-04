@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mix } from '@/lib/mix-sdk';
-import { CACHE_KEYS } from '@/lib/cache-keys';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { CACHE_KEYS } from '@/lib/cache-keys';
+import { mix } from '@/lib/mix-sdk';
 
 interface ToolInfo {
   provider: string;
@@ -47,8 +47,8 @@ async function fetchToolsStatus(): Promise<ToolsStatus> {
               provider: tool.provider || '',
               displayName: tool.displayName || tool.provider || '',
               description: tool.description || '',
-              authenticated: tool.authenticated,
-              apiKeyRequired: tool.apiKeyRequired,
+              authenticated: tool.authenticated ?? false,
+              apiKeyRequired: tool.apiKeyRequired ?? false,
             })),
           };
         });

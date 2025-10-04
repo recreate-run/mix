@@ -5,17 +5,17 @@ import {
   CommandList,
   Command as CommandPrimitive,
 } from '@/components/ui/command';
-import { useCommandPaletteState } from '@/hooks/command-slash/useCommandPaletteState';
 import { useCommandHandlers } from '@/hooks/command-slash/useCommandHandlers';
+import { useCommandPaletteState } from '@/hooks/command-slash/useCommandPaletteState';
 import type { CommandSlashProps } from '@/types/command-slash';
-import { PermissionsView } from './command-slash/PermissionsView';
-import { SessionsView } from './command-slash/SessionsView';
+import { CommandsListView } from './command-slash/CommandsListView';
+import { HelpMenuView } from './command-slash/HelpMenuView';
 import { MCPServersView } from './command-slash/MCPServersView';
 import { MCPToolsView } from './command-slash/MCPToolsView';
-import { ProvidersView } from './command-slash/ProvidersView';
 import { ModelSelectionView } from './command-slash/ModelSelectionView';
-import { HelpMenuView } from './command-slash/HelpMenuView';
-import { CommandsListView } from './command-slash/CommandsListView';
+import { PermissionsView } from './command-slash/PermissionsView';
+import { ProvidersView } from './command-slash/ProvidersView';
+import { SessionsView } from './command-slash/SessionsView';
 
 export function CommandSlash({
   onClose,
@@ -212,9 +212,9 @@ export function CommandSlash({
             if (state.isShowingSessions) {
               return (
                 <SessionsView
-                  sessionId={sessionId}
                   onBackToCommands={() => handleSelect('back-to-commands')}
                   onNavigateToSession={handleNavigateToSession}
+                  sessionId={sessionId}
                 />
               );
             }
@@ -241,8 +241,8 @@ export function CommandSlash({
             if (state.isShowingMCPTools && state.selectedMCPServer) {
               return (
                 <MCPToolsView
-                  selectedMCPServer={state.selectedMCPServer}
                   onBackToServers={() => handleSelect('back-to-mcp')}
+                  selectedMCPServer={state.selectedMCPServer}
                 />
               );
             }
@@ -262,10 +262,10 @@ export function CommandSlash({
             if (state.isShowingStatus && state.statusData) {
               return (
                 <ProvidersView
-                  type="status"
-                  providers={state.statusData.providers}
                   onBackToCommands={() => handleSelect('back-to-commands')}
                   onProviderSelect={handlers.handleProviderSelectionSpecial}
+                  providers={state.statusData.providers}
+                  type="status"
                 />
               );
             }
@@ -277,11 +277,11 @@ export function CommandSlash({
               return (
                 <ModelSelectionView
                   hierarchicalModelData={state.hierarchicalModelData}
-                  selectedProvider={state.selectedProvider}
                   onBackToCommands={() => handleSelect('back-to-commands')}
                   onBackToProviders={() => handleSelect('back-to-providers')}
-                  onProviderSelect={handleProviderSelect}
                   onModelSelect={handlers.handleModelSelectionSpecial}
+                  onProviderSelect={handleProviderSelect}
+                  selectedProvider={state.selectedProvider}
                 />
               );
             }

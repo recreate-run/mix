@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import { mix } from '@/lib/mix-sdk';
 
 interface UploadFileParams {
   sessionId: string;

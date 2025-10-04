@@ -4,8 +4,8 @@ import {
   CommandGroup,
   CommandItem,
 } from '@/components/ui/command';
-import { useSessionsList } from '@/hooks/useSessionsList';
 import { useActiveSession } from '@/hooks/useSession';
+import { useSessionsList } from '@/hooks/useSessionsList';
 import { formatMessageCounts } from '@/types/common';
 import { getDisplayTitle } from '@/utils/sessionUtils';
 import { BackButton } from './shared/BackButton';
@@ -68,10 +68,10 @@ export function SessionsView({
 
         return (
           <CommandItem
+            className={isActive ? 'bg-accent' : ''}
             key={session.id}
             onSelect={() => handleSessionSelect(session.id)}
             value={getDisplayTitle(session)}
-            className={isActive ? 'bg-accent' : ''}
           >
             <Clock className="size-4 text-muted-foreground" />
             <div className="flex-1">

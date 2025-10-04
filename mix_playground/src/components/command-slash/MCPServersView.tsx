@@ -50,8 +50,8 @@ export function MCPServersView({
             <div className="flex items-center gap-2 font-medium text-sm">
               {server.name}
               <StatusBadge
-                status={server.connected ? 'connected' : 'disconnected'}
                 label={server.status}
+                status={server.connected ? 'connected' : 'disconnected'}
               />
             </div>
             <div className="text-muted-foreground text-xs">

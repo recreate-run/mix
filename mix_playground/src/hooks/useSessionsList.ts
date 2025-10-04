@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { mix } from '@/lib/mix-sdk';
-import type { SessionData } from '@/types/common';
 import type { SessionData as SDKSessionData } from 'mix-typescript-sdk/models';
-import { CACHE_KEYS } from '@/lib/cache-keys';
-import { invalidateSessionCaches } from '@/lib/session-cache';
 import { toast } from 'sonner';
+import { CACHE_KEYS } from '@/lib/cache-keys';
+import { mix } from '@/lib/mix-sdk';
+import { invalidateSessionCaches } from '@/lib/session-cache';
+import type { SessionData } from '@/types/common';
 
 export const TITLE_TRUNCATE_LENGTH = 100;
 
@@ -66,7 +66,8 @@ function findNextSession(
   // Try next session, then previous
   if (currentIndex < sessions.length - 1) {
     return sessions[currentIndex + 1].id;
-  }if (currentIndex > 0) {
+  }
+  if (currentIndex > 0) {
     return sessions[currentIndex - 1].id;
   }
 

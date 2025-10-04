@@ -1,6 +1,6 @@
-import { mix } from '@/lib/mix-sdk';
-import type { UIMessage, LoginProviderInfo } from '@/types/message';
 import { toast } from 'sonner'; // Import directly from package
+import { mix } from '@/lib/mix-sdk';
+import type { LoginProviderInfo, UIMessage } from '@/types/message';
 
 // Map of API key formats for different providers
 const API_KEY_FORMATS: Record<string, string> = {
@@ -49,7 +49,7 @@ export async function handleLoginCommand(): Promise<UIMessage> {
         id: providerId,
         displayName: data.displayName || providerId,
         authMethods: AUTH_METHODS[providerId] || ['api_key'], // Required for login
-        authenticated: status.providers?.[providerId]?.authenticated,
+        authenticated: status.providers?.[providerId]?.authenticated ?? false,
         apiKeyFormat: API_KEY_FORMATS[providerId] || 'API key',
         isPreferred: providerId === preferredProvider,
       };

@@ -104,20 +104,20 @@ export async function handleStatusCommand(): Promise<UIMessage> {
         },
       };
     }
-      // No authenticated providers
-      return {
-        content:
-          '❌ **Not authenticated with any provider**\n\nSelect a provider to authenticate:',
-        from: 'assistant',
-        frontend_only: true,
-        status: {
-          providers: formattedProviders,
-          hasAuthenticatedProvider,
-        },
-        statusData: {
-          providers: formattedProviders,
-        },
-      };
+    // No authenticated providers
+    return {
+      content:
+        '❌ **Not authenticated with any provider**\n\nSelect a provider to authenticate:',
+      from: 'assistant',
+      frontend_only: true,
+      status: {
+        providers: formattedProviders,
+        hasAuthenticatedProvider,
+      },
+      statusData: {
+        providers: formattedProviders,
+      },
+    };
   } catch (error) {
     return {
       content: `Failed to check authentication status: ${error instanceof Error ? error.message : 'Unknown error'}`,

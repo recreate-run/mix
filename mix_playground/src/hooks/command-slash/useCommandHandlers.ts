@@ -1,16 +1,16 @@
 import { useCallback } from 'react';
 import {
-  handleStatusCommand,
-  handleProviderSelection,
-} from '@/handlers/status-command-handler';
-import {
-  startOAuthFlow,
   authenticateWithApiKey,
   handleOAuthCallback,
+  startOAuthFlow,
 } from '@/handlers/login-command-handler';
 import {
-  handleUnifiedModelCommand,
+  handleProviderSelection,
+  handleStatusCommand,
+} from '@/handlers/status-command-handler';
+import {
   handleModelSelectionInHierarchy,
+  handleUnifiedModelCommand,
 } from '@/handlers/unified-model-command-handler';
 import type { CommandSlashProps, ViewState } from '@/types/command-slash';
 
@@ -46,19 +46,19 @@ export function useCommandHandlers({
         });
         goToView('status');
       } else if (statusResult.suppressChatMessage) {
-          if (
-            statusResult.content.includes('Failed') ||
-            statusResult.content.includes('❌')
-          ) {
-            onFeedbackMessage?.(
-              `Error: ${statusResult.content.replace('❌', '').trim()}`
-            );
-          } else if (statusResult.content.includes('✅')) {
-            onFeedbackMessage?.(statusResult.content.replace('✅', '').trim());
-          }
-        } else {
-          onAddMessage?.(statusResult);
+        if (
+          statusResult.content.includes('Failed') ||
+          statusResult.content.includes('❌')
+        ) {
+          onFeedbackMessage?.(
+            `Error: ${statusResult.content.replace('❌', '').trim()}`
+          );
+        } else if (statusResult.content.includes('✅')) {
+          onFeedbackMessage?.(statusResult.content.replace('✅', '').trim());
         }
+      } else {
+        onAddMessage?.(statusResult);
+      }
     } catch (error) {
       console.error('Status command failed:', error);
       onFeedbackMessage?.('Error: Failed to check authentication status');
@@ -74,8 +74,8 @@ export function useCommandHandlers({
         setHierarchicalModelData(modelResult.hierarchicalModel);
         goToView('hierarchical-model');
       } else if (!modelResult.suppressChatMessage) {
-          onAddMessage?.(modelResult);
-        }
+        onAddMessage?.(modelResult);
+      }
     } catch (error) {
       console.error('Model command failed:', error);
       onFeedbackMessage?.('Error: Failed to load model selection');

@@ -1,7 +1,8 @@
-import { useNavigate } from '@tanstack/react-router';
-import { useQueryClient } from '@tanstack/react-query';
-import { type FormEventHandler, useEffect, useRef, useState } from 'react';
 import { IconDownload } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
+import { type FormEventHandler, useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   AIInput,
   AIInputSubmit,
@@ -10,27 +11,26 @@ import {
   AIInputTools,
 } from '@/components/ui/kibo-ui/ai/input';
 import { useFileReference } from '@/hooks/useFileReference';
-import { useRewindSession } from '@/hooks/useRewindSession';
 import { useMessageHistoryNavigation } from '@/hooks/useMessageHistoryNavigation';
 // import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from '@/hooks/usePersistentSSE';
+import { formatCurrentModel, usePreferences } from '@/hooks/usePreferences';
+import { useRewindSession } from '@/hooks/useRewindSession';
 import { useActiveSession, useCreateSession } from '@/hooks/useSession';
-import { useSessionMessages } from '@/hooks/useSessionMessages';
-import { usePreferences, formatCurrentModel } from '@/hooks/usePreferences';
 import { useSessionExport } from '@/hooks/useSessionExport';
-import { useBoundStore } from '@/stores';
-import { buildSessionFileUrl } from '@/utils/attachmentUtils';
+import { useSessionMessages } from '@/hooks/useSessionMessages';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import { useBoundStore } from '@/stores';
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
 import type { UIMessage } from '@/types/message';
+import { buildSessionFileUrl } from '@/utils/attachmentUtils';
+import { getDisplayTitle } from '@/utils/sessionUtils';
 import {
   handleSlashCommandNavigation,
   shouldShowSlashCommands,
   slashCommands,
 } from '@/utils/slash-commands';
-import { getDisplayTitle } from '@/utils/sessionUtils';
-import { Button } from '@/components/ui/button';
 import { AttachmentPreview } from './attachment-preview';
 import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
@@ -608,12 +608,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {session && (
             <div className="mb-4 flex items-center justify-end">
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleExport}
-                disabled={exportSessionMutation.isPending}
-                title="Export session transcript"
                 className="ml-2"
+                disabled={exportSessionMutation.isPending}
+                onClick={handleExport}
+                size="sm"
+                title="Export session transcript"
+                variant="ghost"
               >
                 <IconDownload className="h-4 w-4" />
               </Button>
@@ -657,8 +657,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               attachments={attachments}
               onTextChange={setText}
               referenceMap={referenceMap}
-              text={text}
               sessionId={session.id}
+              text={text}
             />
           )}
 
@@ -686,10 +686,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                   {/* File Upload Button */}
                   {session?.id && (
                     <FileUploadButton
-                      sessionId={session.id}
-                      onUploadSuccess={handleFileUploadSuccess}
-                      onUploadError={handleFileUploadError}
                       className="ml-1"
+                      onUploadError={handleFileUploadError}
+                      onUploadSuccess={handleFileUploadSuccess}
+                      sessionId={session.id}
                     />
                   )}
 
@@ -727,21 +727,21 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {/* Unified Command System */}
           {showCommands && (
             <CommandSlash
+              onAddMessage={(message) =>
+                setMessages((prev) => [...prev, message])
+              }
               onClose={() => {
                 // Close the command palette UI
                 setShowCommands(false);
                 setShowSlashCommands(false);
               }}
-              sessionId={sessionId}
               onFeedbackMessage={setFeedbackMessage}
               onNewSession={handleNewSession}
               onQueryClientInvalidate={(keys) =>
                 queryClient.invalidateQueries({ queryKey: keys })
               }
               onSubmitMessage={submitMessage}
-              onAddMessage={(message) =>
-                setMessages((prev) => [...prev, message])
-              }
+              sessionId={sessionId}
             />
           )}
 

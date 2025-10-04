@@ -115,13 +115,13 @@ export function LoadingScreen({
       >
         <div className="relative mb-4">
           <img
-            src="/mix_logo_transparent.png"
             alt="Mix Logo"
             className={`mx-auto size-48 object-contain transition-all duration-2000 ease-out ${
               logoVisible
                 ? 'scale-100 animate-pulse-subtle opacity-100'
                 : 'scale-75 opacity-0'
             }`}
+            src="/mix_logo_transparent.png"
           />
           <div className="flex items-center justify-center text-muted-foreground text-sm">
             <span>The multimodal agents SDK</span>
@@ -132,7 +132,7 @@ export function LoadingScreen({
         {/* Animated Commands with enhanced styling */}
         <div className="slide-in-from-bottom relative animate-in delay-500 duration-1000">
           <div className="relative rounded-xl border border-border/50 bg-card/50 p-6 shadow-2xl backdrop-blur-sm [&_.dot-flow-container]:text-foreground [&_.dot-loader_.active]:bg-primary [&_.dot-loader_.h-1\\.5]:bg-muted/30">
-            <DotFlow items={commands} isPlaying={true} />
+            <DotFlow isPlaying={true} items={commands} />
           </div>
         </div>
       </div>

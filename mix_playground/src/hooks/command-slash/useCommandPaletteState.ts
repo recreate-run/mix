@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import type {
-  ViewState,
   AuthMethod,
+  HelpData,
   HierarchicalModelData,
   StatusData,
-  HelpData,
+  ViewState,
 } from '@/types/command-slash';
 
 export function useCommandPaletteState() {

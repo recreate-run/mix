@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import type { BackendMessage } from 'mix-typescript-sdk/models';
 import { useCallback } from 'react';
 import { mix } from '@/lib/mix-sdk';
-import type { BackendMessage } from 'mix-typescript-sdk/models';
 
 interface MessageHistoryItem {
   id: string;

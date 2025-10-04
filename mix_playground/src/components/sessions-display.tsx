@@ -1,7 +1,7 @@
 import { AIResponse } from '@/components/ui/kibo-ui/ai/response';
-import type { SessionData } from '@/types/common';
-import { getTotalMessages, getExchangeCount } from '@/types/common';
 import { formatTokens } from '@/lib/utils';
+import type { SessionData } from '@/types/common';
+import { getExchangeCount, getTotalMessages } from '@/types/common';
 
 interface SessionsData {
   type: string;

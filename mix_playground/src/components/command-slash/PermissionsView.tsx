@@ -65,10 +65,10 @@ export function PermissionsView({ onBackToCommands }: PermissionsViewProps) {
         const Icon = permission.icon;
         return (
           <CommandItem
+            className="flex items-center justify-between"
             key={permission.id}
             onSelect={() => handlePermissionSelect(permission.id)}
             value={permission.label}
-            className="flex items-center justify-between"
           >
             <Icon className="size-4 text-muted-foreground" />
             <div className="flex-1">

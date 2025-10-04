@@ -1,10 +1,10 @@
 import { readDir } from '@tauri-apps/plugin-fs';
 import type { Attachment } from '@/stores/attachmentSlice';
 import {
+  getAudioExtensions,
   getFileType,
   getImageExtensions,
   getVideoExtensions,
-  getAudioExtensions,
   type SupportedFileTypes,
 } from '@/utils/fileTypes';
 

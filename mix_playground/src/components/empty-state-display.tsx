@@ -4,9 +4,9 @@ export function EmptyStateDisplay() {
       {/* Mix Logo */}
       <div className="space-y-4 text-center">
         <img
-          src="/mix_logo.png"
           alt="Mix Logo"
           className="slide-in-from-top mx-auto mb-6 size-48 animate-in object-contain duration-1000"
+          src="/mix_logo.png"
         />
         {/* <div className="text-2xl text-muted-foreground animate-in slide-in-from-bottom duration-1000">
           The multimodal agents SDK

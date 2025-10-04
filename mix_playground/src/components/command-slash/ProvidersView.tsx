@@ -4,7 +4,7 @@ import {
   CommandGroup,
   CommandItem,
 } from '@/components/ui/command';
-import type { Provider, LoginProvider } from '@/types/command-slash';
+import type { LoginProvider, Provider } from '@/types/command-slash';
 import { BackButton } from './shared/BackButton';
 import { StatusBadge } from './shared/StatusBadge';
 
@@ -82,10 +82,10 @@ export function ProvidersView({
 
         return (
           <CommandItem
+            className={isDisabled ? 'cursor-not-allowed opacity-50' : ''}
             key={provider.id}
             onSelect={() => handleProviderSelect(provider.id)}
             value={provider.displayName}
-            className={isDisabled ? 'cursor-not-allowed opacity-50' : ''}
           >
             <Settings className="size-4 text-muted-foreground" />
             <div className="flex-1">

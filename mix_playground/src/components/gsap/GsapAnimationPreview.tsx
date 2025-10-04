@@ -1,10 +1,9 @@
+import { Check, Copy, RefreshCw } from 'lucide-react';
 import type React from 'react';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
@@ -13,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Copy, Check, RefreshCw } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { useAnimationSchema } from '@/hooks/useAnimationSchema';
 
@@ -155,10 +155,10 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
           // Dropdown for string options
           return (
             <Select
-              value={value ?? param.default}
               onValueChange={(selectedValue) =>
                 updateParameter(paramKey, selectedValue)
               }
+              value={value ?? param.default}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select option..." />
@@ -173,37 +173,37 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
             </Select>
           );
         }
-          // Text input
-          return (
-            <Input
-              value={value ?? param.default}
-              onChange={(e) => updateParameter(paramKey, e.target.value)}
-              placeholder={param.description}
-            />
-          );
+        // Text input
+        return (
+          <Input
+            onChange={(e) => updateParameter(paramKey, e.target.value)}
+            placeholder={param.description}
+            value={value ?? param.default}
+          />
+        );
 
       case 'number':
         return (
           <div className="space-y-2">
             <Input
-              type="number"
-              min={param.min}
               max={param.max}
-              value={value ?? param.default}
+              min={param.min}
               onChange={(e) =>
                 updateParameter(paramKey, Number(e.target.value))
               }
+              type="number"
+              value={value ?? param.default}
             />
             {param.min !== undefined && param.max !== undefined && (
               <Input
-                type="range"
-                min={param.min}
+                className="w-full"
                 max={param.max}
-                value={value ?? param.default}
+                min={param.min}
                 onChange={(e) =>
                   updateParameter(paramKey, Number(e.target.value))
                 }
-                className="w-full"
+                type="range"
+                value={value ?? param.default}
               />
             )}
           </div>
@@ -221,16 +221,16 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
         return (
           <div className="flex items-center gap-2">
             <Input
+              className="w-16"
+              onChange={(e) => updateParameter(paramKey, e.target.value)}
               type="color"
               value={value ?? param.default}
-              onChange={(e) => updateParameter(paramKey, e.target.value)}
-              className="w-16"
             />
             <Input
+              className="flex-1"
+              onChange={(e) => updateParameter(paramKey, e.target.value)}
               type="text"
               value={value ?? param.default}
-              onChange={(e) => updateParameter(paramKey, e.target.value)}
-              className="flex-1"
             />
           </div>
         );
@@ -238,8 +238,8 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
       default:
         return (
           <Input
-            value={String(value ?? param.default)}
             onChange={(e) => updateParameter(paramKey, e.target.value)}
+            value={String(value ?? param.default)}
           />
         );
     }
@@ -250,20 +250,20 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
       {/* Animation Preview */}
       <div className="flex-1">
         <div
-          ref={setContainerNode}
           className="relative rounded-lg"
+          ref={setContainerNode}
           style={{
             width: `${containerDimensions.width}px`,
             height: `${containerDimensions.height}px`,
           }}
         >
           <iframe
-            ref={iframeRef}
-            src={effectiveIframeUrl}
             className="h-full w-full rounded-lg border bg-transparent"
+            ref={iframeRef}
+            sandbox="allow-scripts allow-same-origin"
+            src={effectiveIframeUrl}
             style={{ transform: 'scale(1)', transformOrigin: 'top left' }}
             title="GSAP Animation Preview"
-            sandbox="allow-scripts allow-same-origin"
           />
         </div>
       </div>
@@ -286,14 +286,14 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
                 <div className="space-y-2">
                   <Label>Duration (ms): {config.duration}</Label>
                   <Input
-                    type="range"
-                    min="1000"
+                    className="w-full"
                     max="10000"
-                    value={config.duration}
+                    min="1000"
                     onChange={(e) =>
                       updateParameter('duration', Number(e.target.value))
                     }
-                    className="w-full"
+                    type="range"
+                    value={config.duration}
                   />
                 </div>
               )}
@@ -310,7 +310,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
               {/* Schema Parameters */}
               {schema?.parameters?.length
                 ? schema.parameters.map((param) => (
-                    <div key={param.name} className="space-y-2">
+                    <div className="space-y-2" key={param.name}>
                       <Label className="font-medium text-sm">
                         {param.name}
                         {param.description && (
@@ -346,16 +346,16 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
                     <Label className="font-medium text-sm">Current URL</Label>
                     <div className="flex items-center gap-2">
                       <Input
-                        value={iframeUrl}
-                        readOnly
                         className="flex-1 font-mono"
+                        readOnly
                         style={{ fontSize: '12px' }}
+                        value={iframeUrl}
                       />
                       <Button
-                        onClick={() => copyToClipboard(iframeUrl)}
-                        variant="outline"
-                        size="sm"
                         className="shrink-0"
+                        onClick={() => copyToClipboard(iframeUrl)}
+                        size="sm"
+                        variant="outline"
                       >
                         {isCopied ? (
                           <Check className="h-3 w-3" />

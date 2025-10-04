@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
+import { mix } from '@/lib/mix-sdk';
 import type { Attachment } from '@/stores/attachmentSlice';
 import { getFileTypeFromExtension } from '@/utils/fileTypes';
 

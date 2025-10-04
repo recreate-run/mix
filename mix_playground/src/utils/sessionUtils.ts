@@ -1,5 +1,5 @@
-import type { SessionData, Session } from '@/types/common';
 import { TITLE_TRUNCATE_LENGTH } from '@/hooks/useSessionsList';
+import type { Session, SessionData } from '@/types/common';
 
 /**
  * Helper function to get display title for a session.

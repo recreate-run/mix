@@ -30,9 +30,9 @@ export function ProviderDisplay({ data, onUpdate }: ProviderDisplayProps) {
           <div className="grid grid-cols-1 gap-2">
             {data.providers.map((provider) => (
               <Button
-                key={provider.id}
                 className={`w-full justify-between ${provider.isPreferred ? 'bg-primary text-primary-foreground hover:bg-primary/90' : provider.authenticated ? '' : 'opacity-50'}`}
                 disabled={!provider.authenticated}
+                key={provider.id}
                 onClick={() => handleSelect(provider.id)}
                 variant={provider.isPreferred ? 'default' : 'outline'}
               >

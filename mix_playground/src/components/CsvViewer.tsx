@@ -1,11 +1,11 @@
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-  TableCaption,
 } from '@/components/ui/table';
 import { useCsvData } from '@/hooks/useCsv';
 
@@ -64,7 +64,7 @@ export const CsvViewer = ({ url }: CsvViewerProps) => {
           <TableHeader>
             <TableRow>
               {csvData.headers.map((header, index) => (
-                <TableHead key={index} className="bg-muted/50 font-medium">
+                <TableHead className="bg-muted/50 font-medium" key={index}>
                   {header || `Column ${index + 1}`}
                 </TableHead>
               ))}
@@ -74,7 +74,7 @@ export const CsvViewer = ({ url }: CsvViewerProps) => {
             {displayRows.map((row, rowIndex) => (
               <TableRow key={rowIndex}>
                 {csvData.headers.map((_, colIndex) => (
-                  <TableCell key={colIndex} className="max-w-xs truncate">
+                  <TableCell className="max-w-xs truncate" key={colIndex}>
                     {row[colIndex] || ''}
                   </TableCell>
                 ))}

@@ -1,6 +1,6 @@
-import { mix } from '@/lib/mix-sdk';
-import type { UIMessage, ProviderWithModels } from '@/types';
 import { toast } from 'sonner';
+import { mix } from '@/lib/mix-sdk';
+import type { ProviderWithModels, UIMessage } from '@/types';
 
 /**
  * Format providers with their models for the hierarchical UI
@@ -16,7 +16,7 @@ function formatProvidersWithModels(
 } {
   const providers: ProviderWithModels[] = [];
   let hasAuthenticatedProvider = false;
-  let preferredProvider: string | undefined ;
+  let preferredProvider: string | undefined;
 
   Object.entries(authProviders).forEach(([id, authProvider]) => {
     // Extract the base name without the star symbol

@@ -1,19 +1,19 @@
 import {
+  CheckIcon,
   ChevronDownIcon,
   ClockIcon,
-  XCircleIcon,
   CopyIcon,
-  CheckIcon,
+  XCircleIcon,
 } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
+import { cn } from '@/lib/utils';
 
 const TOOL_CONTENT_TRUNCATE_LIMIT = 80;
 
@@ -29,8 +29,8 @@ export const AITool = ({
   ...props
 }: AIToolProps) => (
   <Collapsible
-    defaultOpen={true}
     className={cn('not-prose mb-4 w-full rounded-md border', className)}
+    defaultOpen={true}
     {...props}
   />
 );
@@ -302,10 +302,10 @@ export const AIToolParameters = ({
   return (
     <div className={cn('flex items-center gap-2', className)} {...props}>
       <Button
-        variant="ghost"
-        size="icon"
         onClick={handleCopy}
+        size="icon"
         title={isCopied ? 'Copied!' : 'Copy parameters'}
+        variant="ghost"
       >
         {isCopied ? <CheckIcon /> : <CopyIcon />}
       </Button>
@@ -362,11 +362,11 @@ export const AIToolResult = ({
         )}
       >
         <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleCopy}
           className="absolute top-1 left-1 z-10 size-6"
+          onClick={handleCopy}
+          size="icon"
           title={isCopied ? 'Copied!' : 'Copy result'}
+          variant="ghost"
         >
           {isCopied ? (
             <CheckIcon className="size-3 text-green-600" />
@@ -429,8 +429,8 @@ export const AIToolStep = ({
       {/* Tool content */}
       <div className="min-w-0 flex-1">
         <Collapsible
-          defaultOpen={false}
           className={cn('not-prose w-full rounded-md ', className)}
+          defaultOpen={false}
           {...props}
         >
           {children}
