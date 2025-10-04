@@ -8,6 +8,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 		<DocsLayout
 			tree={source.pageTree}
 			{...baseOptions}
+			containerProps={{ className: "pb-52" }}
 			sidebar={{
 				defaultOpenLevel: 1,
 				collapsible: true,

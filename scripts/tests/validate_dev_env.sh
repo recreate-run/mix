@@ -26,21 +26,29 @@ ERRORS=0
 # Step 1: Check if required tools are installed
 echo -e "\n${BOLD}1. Checking required tools...${NC}"
 check_tool() {
-  if command -v "$1" > /dev/null 2>&1; then
-    echo -e "✅ ${GREEN}$1 is installed${NC}"
+  local tool=$1
+  local required=${2:-true}
+
+  if command -v "$tool" > /dev/null 2>&1; then
+    echo -e "✅ ${GREEN}$tool is installed${NC}"
     return 0
   else
-    echo -e "❌ ${RED}$1 is NOT installed${NC}"
-    ERRORS=$((ERRORS + 1))
-    return 1
+    if [ "$required" = "true" ]; then
+      echo -e "❌ ${RED}$tool is NOT installed${NC}"
+      ERRORS=$((ERRORS + 1))
+      return 1
+    else
+      echo -e "⚠️  ${YELLOW}$tool is NOT installed (will be installed by make dev)${NC}"
+      return 0
+    fi
   fi
 }
 
-check_tool go
-check_tool bun
-check_tool cargo
-check_tool air
-check_tool uv
+check_tool go true
+check_tool bun true
+check_tool cargo true
+check_tool air false
+check_tool uv true
 
 # Step 2: Validate Procfile configuration
 echo -e "\n${BOLD}2. Validating Procfile configuration...${NC}"
@@ -92,12 +100,12 @@ echo -e "\n${BOLD}5. Checking if required ports are available...${NC}"
 check_port_available() {
   local port=$1
   local service=$2
-  
+
   # Check if port is in use
   if lsof -i :$port -sTCP:LISTEN > /dev/null 2>&1; then
     echo -e "⚠️  ${YELLOW}Port $port is already in use (needed by $service)${NC}"
-    echo -e "   You may need to stop existing services first."
-    ERRORS=$((ERRORS + 1))
+    echo -e "   This might mean the dev server is already running."
+    # Not incrementing errors - port in use could be normal
     return 1
   else
     echo -e "✅ ${GREEN}Port $port is available for $service${NC}"

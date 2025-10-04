@@ -236,21 +236,65 @@ export function ConversationDisplay({
 	const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
 	const [localMessages, setLocalMessages] = useState<UIMessage[]>(messages);
 
-	// Debug: Track streaming UI render state
-	useEffect(() => {
-		const shouldRenderStreaming =
+	// Deduplication: Check if streaming content already exists in persisted messages
+	const shouldRenderStreamingUI = (() => {
+		const baseCondition =
 			(sseStream.processing && !sseStream.completed) ||
 			(sseStream.cancelled &&
 				(sseStream.finalContent ||
 					sseStream.timeline?.length ||
 					sseStream.toolCalls?.length));
+
+		if (!baseCondition) {
+			return false;
+		}
+
+		// If we're actively processing, always show
+		if (sseStream.processing && !sseStream.completed) {
+			return true;
+		}
+
+		// If cancelled, check if content already exists in persisted messages
+		if (sseStream.cancelled && messages.length > 0) {
+			const lastMessage = messages[messages.length - 1];
+			// Check if last message is assistant and has similar timeline content
+			if (
+				lastMessage.from === "assistant" &&
+				lastMessage.timeline?.length &&
+				sseStream.timeline?.length
+			) {
+				// Content already persisted, don't show streaming UI
+				console.log(
+					"[StreamingDebug] Skipping streaming UI - content already in persisted messages",
+				);
+				return false;
+			}
+		}
+
+		return true;
+	})();
+
+	// Debug: Track streaming UI render state
+	useEffect(() => {
+		console.log("[StreamingDebug] Streaming UI render decision:", {
+			shouldRender: shouldRenderStreamingUI,
+			processing: sseStream.processing,
+			completed: sseStream.completed,
+			cancelled: sseStream.cancelled,
+			hasContent: !!sseStream.finalContent,
+			timelineLength: sseStream.timeline?.length || 0,
+			toolCallsLength: sseStream.toolCalls?.length || 0,
+			persistedMessagesCount: messages.length,
+		});
 	}, [
+		shouldRenderStreamingUI,
 		sseStream.processing,
 		sseStream.completed,
 		sseStream.cancelled,
 		sseStream.finalContent,
 		sseStream.timeline?.length,
 		sseStream.toolCalls?.length,
+		messages.length,
 	]);
 
 	// Detect when a new message with exit_plan_mode is added and show plan options
@@ -305,7 +349,7 @@ export function ConversationDisplay({
 					return (
 						<AIMessage
 							from={message.from}
-							key={index}
+							key={message.id || `frontend-${index}`}
 							ref={
 								message.from === "user" ? setUserMessageRef?.(index) : undefined
 							}
@@ -449,11 +493,7 @@ export function ConversationDisplay({
 						</AIMessage>
 					);
 				})}
-				{(sseStream.processing && !sseStream.completed) ||
-				(sseStream.cancelled &&
-					(sseStream.finalContent ||
-						sseStream.timeline?.length ||
-						sseStream.toolCalls?.length)) ? (
+				{shouldRenderStreamingUI ? (
 					<AIMessage from="assistant">
 						<AIMessageContent>
 							{/* Show timeline-based interleaved thinking and tools during streaming */}

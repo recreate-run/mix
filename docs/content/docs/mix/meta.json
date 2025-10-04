@@ -13,18 +13,18 @@
 		"sdk/python-sdk",
 		"---Guides---",
 		"guides/hosting",
-		"guides/prototyping-with-devtools",
+		"guides/using-devtools",
 		"guides/supabase-setup",
 		"guides/turso-setup",
 		"---Concept---",
 		"architecture",
 		"---Usage---",
-		"usage/http-mode",
 		"usage/tools",
 		"usage/troubleshooting",
 		"usage/security-privacy",
 		"---Development---",
 		"development/ai-coding",
+		"development/http-endpoints",
 		"development/testing"
 	]
 }
