@@ -32,6 +32,10 @@ const (
 	EventSessionExported = "session_exported"
 	EventVideoExported   = "video_exported"
 
+	// Preferences events
+	EventPreferencesUpdated = "preferences_updated"
+	EventPreferencesReset   = "preferences_reset"
+
 	// Properties
 	PropSessionID      = "session_id"
 	PropMessageID      = "message_id"
@@ -84,6 +88,18 @@ const (
 	PropDuration          = "duration"
 	PropUploadedToS3      = "uploaded_to_s3"
 	PropExportDurationMs  = "export_duration_ms"
+
+	// Preferences-specific properties
+	PropFieldsChanged              = "fields_changed"
+	PropPreferredProvider          = "preferred_provider"
+	PropMainAgentModel             = "main_agent_model"
+	PropMainAgentMaxTokens         = "main_agent_max_tokens"
+	PropMainAgentReasoningEffort   = "main_agent_reasoning_effort"
+	PropSubAgentModel              = "sub_agent_model"
+	PropSubAgentMaxTokens          = "sub_agent_max_tokens"
+	PropSubAgentReasoningEffort    = "sub_agent_reasoning_effort"
+	PropPreviousProvider           = "previous_provider"
+	PropPreviousModel              = "previous_model"
 )
 
 // Service defines the analytics tracking interface
@@ -125,6 +141,12 @@ type Service interface {
 
 	// TrackVideoExported tracks video export events
 	TrackVideoExported(ctx context.Context, url string, fps int, aspectRatio string, height int, duration float64, uploadedToS3 bool, exportDurationMs int64) error
+
+	// TrackPreferencesUpdated tracks user preferences update events
+	TrackPreferencesUpdated(ctx context.Context, fieldsChanged []string, updates map[string]interface{}) error
+
+	// TrackPreferencesReset tracks user preferences reset events
+	TrackPreferencesReset(ctx context.Context, previousProvider, previousModel string) error
 
 	// Close closes the analytics client
 	Close() error
@@ -599,6 +621,64 @@ func (s *analyticsService) TrackVideoExported(ctx context.Context, url string, f
 	if err != nil {
 		logging.Error("Failed to track video exported: %v", err)
 		return fmt.Errorf("failed to track video exported: %w", err)
+	}
+
+	return nil
+}
+
+// TrackPreferencesUpdated tracks user preferences update events
+func (s *analyticsService) TrackPreferencesUpdated(ctx context.Context, fieldsChanged []string, updates map[string]interface{}) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropFieldsChanged, fieldsChanged)
+
+	// Add each update field to properties
+	for key, value := range updates {
+		props = props.Set(key, value)
+	}
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventPreferencesUpdated,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track preferences updated: %v", err)
+		return fmt.Errorf("failed to track preferences updated: %w", err)
+	}
+
+	return nil
+}
+
+// TrackPreferencesReset tracks user preferences reset events
+func (s *analyticsService) TrackPreferencesReset(ctx context.Context, previousProvider, previousModel string) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropPreviousProvider, previousProvider).
+		Set(PropPreviousModel, previousModel)
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventPreferencesReset,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track preferences reset: %v", err)
+		return fmt.Errorf("failed to track preferences reset: %w", err)
 	}
 
 	return nil
