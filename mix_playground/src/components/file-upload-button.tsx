@@ -11,12 +11,15 @@ import {
   IMAGE_EXTENSIONS,
   VIDEO_EXTENSIONS,
 } from '@/utils/fileTypes';
+import { useState } from 'react';
 
 interface FileUploadButtonProps {
   sessionId: string;
   className?: string;
   onUploadSuccess?: (fileName: string) => void;
   onUploadError?: (error: string) => void;
+  enableDropZone?: boolean;
+  dropZoneClassName?: string;
 }
 
 export function FileUploadButton({
@@ -24,9 +27,41 @@ export function FileUploadButton({
   className,
   onUploadSuccess,
   onUploadError,
+  enableDropZone = false,
+  dropZoneClassName,
 }: FileUploadButtonProps) {
   const fileUpload = useFileUpload();
   const addAttachment = useBoundStore((state) => state.addAttachment);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  // Shared file processing logic
+  const processFile = async (file: File) => {
+    try {
+      // Upload file using our hook
+      const result = await fileUpload.mutateAsync({
+        sessionId,
+        file,
+      });
+
+      // Add to attachment store for UI preview
+      addAttachment({
+        id: `file:${result.name}`,
+        name: result.name,
+        type: getFileTypeFromExtension(result.name),
+        path: `/api/sessions/${sessionId}/files/${result.name}`,
+        extension: result.name.split('.').pop(),
+        isDirectory: false,
+      });
+
+      // Call success callback
+      onUploadSuccess?.(result.name);
+    } catch (error) {
+      console.error(`Failed to upload file ${file.name}:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      onUploadError?.(`Failed to upload ${file.name}: ${errorMessage}`);
+    }
+  };
 
   const handleFileSelect = async () => {
     try {
@@ -87,24 +122,8 @@ export function FileUploadButton({
             type: getMimeType(fileName),
           });
 
-          // Upload file using our hook
-          const result = await fileUpload.mutateAsync({
-            sessionId,
-            file,
-          });
-
-          // Add to attachment store for UI preview
-          addAttachment({
-            id: `file:${result.name}`,
-            name: result.name,
-            type: getFileTypeFromExtension(result.name),
-            path: `/api/sessions/${sessionId}/files/${result.name}`,
-            extension: result.name.split('.').pop(),
-            isDirectory: false,
-          });
-
-          // Call success callback
-          onUploadSuccess?.(result.name);
+          // Process file
+          await processFile(file);
         } catch (error) {
           console.error(`Failed to upload file ${filePath}:`, error);
           const errorMessage =
@@ -119,6 +138,36 @@ export function FileUploadButton({
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       onUploadError?.(`Failed to open file picker: ${errorMessage}`);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    // Process each dropped file
+    for (const file of files) {
+      await processFile(file);
     }
   };
 
