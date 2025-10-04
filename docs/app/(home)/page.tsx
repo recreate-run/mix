@@ -9,6 +9,8 @@ import {
 	PageHeaderHeading,
 } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { DemoCards } from "@/components/demo-cards";
+import { homepageDemos } from "@/lib/demos";
 import { config } from "@/lib/config";
 
 const title = "Multimodal Agent SDK";
@@ -43,7 +45,7 @@ export default function HomePage() {
 	return (
 		<>
 			<div className="flex flex-col">
-				<div className="flex items-center justify-center py-4 flex-none min-h-screen">
+				<div className="flex items-center justify-center py-4 flex-none">
 					<div className="container px-4 pb-8">
 						<PageHeader className="mb-6">
 							<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl">{title}</PageHeaderHeading>
@@ -59,6 +61,10 @@ export default function HomePage() {
 						</PageHeader>
 					</div>
 				</div>
+
+				{homepageDemos.length > 0 && (
+					<DemoCards demos={homepageDemos} />
+				)}
 
 				<Footer />
 			</div>
