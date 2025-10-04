@@ -24,7 +24,7 @@ export function initPostHog() {
       api_host: 'https://eu.i.posthog.com',
       defaults: '2025-05-24',
       autocapture: false,
-      capture_pageview: true,
+      capture_pageview: false,
       persistence: 'localStorage',
       bootstrap: {
         distinctID: clientId,

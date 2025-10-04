@@ -245,29 +245,29 @@ export function ConversationDisplay({
           sseStream.timeline?.length ||
           sseStream.toolCalls?.length));
 
-    console.log('[CONVERSATION-DISPLAY] Streaming UI render check', {
-      timestamp: new Date().toISOString(),
-      shouldRenderStreaming,
-      conditions: {
-        processing: sseStream.processing,
-        completed: sseStream.completed,
-        cancelled: sseStream.cancelled,
-        hasFinalContent: !!sseStream.finalContent,
-        finalContentLength: sseStream.finalContent?.length || 0,
-        timelineLength: sseStream.timeline?.length || 0,
-        toolCallsCount: sseStream.toolCalls?.length || 0,
-      },
-      conditionBreakdown: {
-        processingAndNotCompleted: sseStream.processing && !sseStream.completed,
-        cancelledWithContent:
-          sseStream.cancelled &&
-          !!(
-            sseStream.finalContent ||
-            sseStream.timeline?.length ||
-            sseStream.toolCalls?.length
-          ),
-      },
-    });
+    // console.log('[CONVERSATION-DISPLAY] Streaming UI render check', {
+    //   timestamp: new Date().toISOString(),
+    //   shouldRenderStreaming,
+    //   conditions: {
+    //     processing: sseStream.processing,
+    //     completed: sseStream.completed,
+    //     cancelled: sseStream.cancelled,
+    //     hasFinalContent: !!sseStream.finalContent,
+    //     finalContentLength: sseStream.finalContent?.length || 0,
+    //     timelineLength: sseStream.timeline?.length || 0,
+    //     toolCallsCount: sseStream.toolCalls?.length || 0,
+    //   },
+    //   conditionBreakdown: {
+    //     processingAndNotCompleted: sseStream.processing && !sseStream.completed,
+    //     cancelledWithContent:
+    //       sseStream.cancelled &&
+    //       !!(
+    //         sseStream.finalContent ||
+    //         sseStream.timeline?.length ||
+    //         sseStream.toolCalls?.length
+    //       ),
+    //   },
+    // });
   }, [
     sseStream.processing,
     sseStream.completed,
@@ -280,13 +280,13 @@ export function ConversationDisplay({
   // Detect when a new message with exit_plan_mode is added and show plan options
   // Update localMessages when messages prop changes
   useEffect(() => {
-    console.log('[CONVERSATION-DISPLAY] Messages array updated', {
-      timestamp: new Date().toISOString(),
-      messageCount: messages.length,
-      lastMessageFrom: messages[messages.length - 1]?.from,
-      lastMessageHasTimeline: !!messages[messages.length - 1]?.timeline,
-      lastMessageHasToolCalls: !!messages[messages.length - 1]?.toolCalls,
-    });
+    // console.log('[CONVERSATION-DISPLAY] Messages array updated', {
+    //   timestamp: new Date().toISOString(),
+    //   messageCount: messages.length,
+    //   lastMessageFrom: messages[messages.length - 1]?.from,
+    //   lastMessageHasTimeline: !!messages[messages.length - 1]?.timeline,
+    //   lastMessageHasToolCalls: !!messages[messages.length - 1]?.toolCalls,
+    // });
     setLocalMessages(messages);
   }, [messages]);
 
