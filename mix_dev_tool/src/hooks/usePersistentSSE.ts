@@ -356,6 +356,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "complete": {
 							const completeEvent = event as SSECompleteEvent;
+							console.log("[StreamingDebug] Stream completed:", {
+								sessionId,
+								hadReasoning: !!completeEvent.data.reasoning,
+								reasoningDuration: completeEvent.data.reasoningDuration,
+							});
 							setState((prev) => {
 								return {
 									...prev,
@@ -364,8 +369,15 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 										completeEvent.data.reasoningDuration || null,
 									completed: true,
 									processing: false,
+									// Clear streaming state to prevent replay confusion after reload
+									finalContent: null,
+									timeline: [],
+									toolCalls: [],
 								};
 							});
+							// Clear refs as well
+							toolCallsMap.current.clear();
+							timelineRef.current = [];
 							break;
 						}
 
@@ -543,6 +555,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				throw new Error("No session ID available");
 			}
 
+			console.log("[StreamingDebug] Starting new streaming message:", {
+				sessionId,
+				contentLength: content.length,
+			});
+
 			setState((prev) => ({
 				...prev,
 				error: null,
@@ -567,7 +584,14 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 					id: sessionId,
 					requestBody: { content },
 				});
+				console.log(
+					"[StreamingDebug] Message sent to backend successfully, streaming started",
+				);
 			} catch (error) {
+				console.error("[StreamingDebug] Failed to send message to backend:", {
+					error: error instanceof Error ? error.message : String(error),
+					sessionId,
+				});
 				setState((prev) => ({
 					...prev,
 					error:
@@ -750,6 +774,14 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			(state.finalContent || state.toolCalls.length > 0) &&
 			!state.processing
 		) {
+			console.log(
+				"[StreamingDebug] Stream completed, invalidating cache to fetch persisted messages:",
+				{
+					sessionId,
+					hadContent: !!state.finalContent,
+					toolCallsCount: state.toolCalls.length,
+				},
+			);
 			queryClient.invalidateQueries({
 				queryKey: CACHE_KEYS.sessionMessages(sessionId),
 			});

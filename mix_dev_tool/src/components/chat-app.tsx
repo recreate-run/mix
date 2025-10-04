@@ -133,8 +133,19 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 	// Load messages when session messages data changes
 	useEffect(() => {
 		if (sessionMessages.data && sessionId) {
+			console.log("[StreamingDebug] Loading persisted messages from backend:", {
+				count: sessionMessages.data.length,
+				sessionId,
+				lastMessage: sessionMessages.data[
+					sessionMessages.data.length - 1
+				]?.content?.substring(0, 50),
+			});
 			setMessages(sessionMessages.data);
 		} else if (sessionMessages.error) {
+			console.error("[StreamingDebug] Failed to load messages:", {
+				error: sessionMessages.error.message,
+				sessionId,
+			});
 			// Show error message in chat
 			setMessages([
 				{
@@ -144,12 +155,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 				},
 			]);
 		}
-	}, [
-		sessionMessages.data,
-		sessionMessages.error,
-		sessionMessages.isLoading,
-		sessionId,
-	]);
+	}, [sessionMessages.data, sessionMessages.error, sessionId]);
 
 	// Apps functionality removed - UI attachment system is separate from API fields
 
@@ -425,9 +431,22 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 				planMode:
 					overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
 				onUserMessage: (userMessage) => {
+					console.log("[StreamingDebug] User message added optimistically:", {
+						content: userMessage.content.substring(0, 50),
+						attachmentCount: userMessage.attachments?.length || 0,
+						currentMessageCount: messages.length,
+					});
 					setMessages((prev) => [...prev, userMessage]);
 				},
 				onCancelledContentPersist: (cancelledMessage) => {
+					console.log(
+						"[StreamingDebug] Persisting cancelled streaming content:",
+						{
+							hasContent: !!cancelledMessage.content,
+							hasTimeline: !!cancelledMessage.timeline?.length,
+							hasToolCalls: !!cancelledMessage.toolCalls?.length,
+						},
+					);
 					setMessages((prev) => [...prev, cancelledMessage]);
 				},
 			});
@@ -435,7 +454,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 			// Restore input on error
 			setText(messageText);
 			// Note: attachments are already cleared, would need more complex state management to restore them
-			console.error("Failed to submit message:", error);
+			console.error("[StreamingDebug] Failed to submit message:", error);
 		}
 	};
 
