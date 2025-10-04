@@ -57,9 +57,9 @@ export function DemoCards({ demos }: DemoCardsProps) {
 
       {/* Selected demo showcase */}
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-          {/* Code section */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+          {/* Code section - takes 2 columns */}
+          <div className="lg:col-span-2 space-y-4">
             <div className="rounded-xl border bg-fd-card overflow-hidden shadow-lg">
               <div className="bg-fd-muted/50 px-4 py-2 border-b flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -84,27 +84,29 @@ export function DemoCards({ demos }: DemoCardsProps) {
                   )}
                 </button>
               </div>
-              <pre className="p-6 overflow-x-auto text-sm leading-relaxed">
+              <pre className="p-6 overflow-x-auto text-sm leading-relaxed max-h-[600px] overflow-y-auto">
                 <code className="language-python">{demos[selectedDemo].code}</code>
               </pre>
             </div>
           </div>
 
-          {/* Video section */}
-          <div className="lg:sticky lg:top-8">
-            <div className="rounded-xl overflow-hidden border shadow-2xl bg-fd-card">
-              <video
-                key={selectedDemo} // Force re-render when demo changes
-                src={demos[selectedDemo].videoSrc}
-                controls
-                className="w-full h-auto"
-                poster={demos[selectedDemo].videoSrc}
-              >
-                Your browser does not support the video tag.
-              </video>
+          {/* Video section - takes 3 columns */}
+          <div className="lg:col-span-3 lg:sticky lg:top-8">
+            <div className="rounded-2xl overflow-hidden border-2 border-fd-primary/20 shadow-2xl bg-gradient-to-br from-fd-card to-fd-muted/30 p-1">
+              <div className="rounded-xl overflow-hidden bg-black aspect-video">
+                <video
+                  key={selectedDemo} // Force re-render when demo changes
+                  src={demos[selectedDemo].videoSrc}
+                  controls
+                  className="w-full h-full object-contain"
+                  poster={demos[selectedDemo].videoSrc}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
             </div>
             {demos[selectedDemo].videoCaption && (
-              <p className="text-sm text-fd-muted-foreground mt-4 text-center">
+              <p className="text-sm text-fd-muted-foreground mt-6 text-center font-medium">
                 {demos[selectedDemo].videoCaption}
               </p>
             )}
