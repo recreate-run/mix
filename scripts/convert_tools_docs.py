@@ -106,7 +106,7 @@ def convert_md_to_mdx(source_dir, dest_dir):
         )
 
         # Write directly to destination directory (no subfolders)
-        mdx_filename = md_file.stem + ".mdx"
+        mdx_filename = md_file.stem.replace("_", "-") + ".mdx"
         mdx_file = dest_path / mdx_filename
 
         with open(mdx_file, "w", encoding="utf-8") as f:
@@ -122,7 +122,7 @@ def main():
     """Main execution function."""
     # Define paths
     source_dir = "mix_agent/internal/config/prompts/tools"
-    dest_dir = "docs/content/docs/mix/tools"
+    dest_dir = "docs/content/docs/mix/usage/tools"
 
     print("Converting MD files to MDX with Jinja2 templating...")
     print(f"Source: {source_dir}")
