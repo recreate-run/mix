@@ -107,6 +107,19 @@ graph TB
 />
 ```
 
+Steps (sequential instructions):
+
+```markdown
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<Steps>
+<Step>
+### Step Title
+Content here
+</Step>
+</Steps>
+```
+
 ## API Documentation
 
 DO NOT manually edit `content/docs/api/` - Auto-generated from OpenAPI specs.

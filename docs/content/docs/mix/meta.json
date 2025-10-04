@@ -14,7 +14,7 @@
 		"---Guides---",
 		"guides/hosting",
 		"guides/prototyping-with-devtools",
-		"guides/supbase-setup",
+		"guides/supabase-setup",
 		"guides/turso-setup",
 		"---Concept---",
 		"architecture",
