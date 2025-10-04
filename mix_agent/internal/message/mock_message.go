@@ -48,6 +48,11 @@ func (m *MockService) CopyMessagesToSession(ctx context.Context, sourceSessionID
 	return args.Error(0)
 }
 
+func (m *MockService) DeleteAfterIndex(ctx context.Context, sessionID string, messageIndex int64) error {
+	args := m.Called(ctx, sessionID, messageIndex)
+	return args.Error(0)
+}
+
 func (m *MockService) Subscribe(ctx context.Context) <-chan pubsub.Event[Message] {
 	args := m.Called(ctx)
 	return args.Get(0).(<-chan pubsub.Event[Message])
