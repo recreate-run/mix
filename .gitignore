@@ -15,12 +15,12 @@ mix_agent/tmp/
 mix_agent/vendor/
 
 # Tauri app
-mix_playground/node_modules/
-mix_playground/dist/
-mix_playground/.next/
-mix_playground/.turbo/
-mix_playground/target/
-mix_playground/src-tauri/target/
+mix_dev_tool/node_modules/
+mix_dev_tool/dist/
+mix_dev_tool/.next/
+mix_dev_tool/.turbo/
+mix_dev_tool/target/
+mix_dev_tool/src-tauri/target/
 
 # Dependencies
 node_modules/

@@ -9,7 +9,7 @@ echo "🔍 Running pre-commit checks..."
 
 # Get the list of staged files
 STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
-STAGED_FRONTEND_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E 'mix_playground/.*\.(ts|tsx|js|jsx|json)$' || true)
+STAGED_FRONTEND_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E 'mix_dev_tool/.*\.(ts|tsx|js|jsx|json)$' || true)
 
 # Flag to track if we need to re-stage files
 RESTAGE=false
@@ -23,9 +23,9 @@ if [ -n "$STAGED_FRONTEND_FILES" ]; then
     # make frontend-lint
 
     # Check if formatting changed any files
-    if ! git diff --exit-code mix_playground/ > /dev/null 2>&1; then
+    if ! git diff --exit-code mix_dev_tool/ > /dev/null 2>&1; then
         echo "✅ Auto-formatted frontend files, re-staging changes..."
-        git add mix_playground/
+        git add mix_dev_tool/
         RESTAGE=true
     fi
 fi

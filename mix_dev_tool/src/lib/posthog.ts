@@ -45,7 +45,7 @@ export function initPostHog() {
 		});
 
 		// Send initialization event
-		posthog.capture("mix_playground_initialized", {
+		posthog.capture("mix_dev_tool_initialized", {
 			version: "0.1.0",
 			timestamp: new Date().toISOString(),
 		});

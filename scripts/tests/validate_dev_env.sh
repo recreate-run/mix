@@ -117,7 +117,7 @@ else
   # Not incrementing errors as this will be created
 fi
 
-if [ -d "./mix_playground/target" ]; then
+if [ -d "./mix_dev_tool/target" ]; then
   echo -e "✅ ${GREEN}Frontend build directory exists${NC}"
 else
   echo -e "⚠️  ${YELLOW}Frontend build directory doesn't exist, will be created at runtime${NC}"

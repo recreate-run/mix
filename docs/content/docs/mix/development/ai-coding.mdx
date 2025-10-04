@@ -14,7 +14,7 @@ The `CLAUDE.md` file contains AI-specific development guidelines that override d
 - **Shoreman Process Manager**: `scripts/shoreman.sh` runs both frontend and backend simultaneously
 - **Auto-reload**: Backend uses Go Air for hot reloading, frontend uses Vite's built-in HMR
 - **Unified Logging**: All process output is aggregated with timestamps and color-coded by service
-- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `mix_playground/src/vite-console-forward-plugin.ts`
+- **Console Log Forwarding**: Browser console logs are forwarded to terminal via `mix_dev_tool/src/vite-console-forward-plugin.ts`
 
 ### Development Monitoring
 
@@ -28,7 +28,7 @@ All development output (backend compilation, frontend builds, runtime logs, brow
 
 ```
 ├── mix_agent/          # Go backend service
-├── mix_playground/  # Tauri desktop application
+├── mix_dev_tool/  # Tauri desktop application
 ├── .gitignore          # Monorepo gitignore
 └── README.md           # This file
 ```
