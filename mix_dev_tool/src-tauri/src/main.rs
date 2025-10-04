@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mix_playground_lib::run()
+    mix_dev_tool_lib::run()
 }

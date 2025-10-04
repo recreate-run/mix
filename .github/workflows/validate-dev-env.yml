@@ -59,7 +59,7 @@ jobs:
 
       - name: Create minimum required directories
         run: |
-          mkdir -p mix_playground
+          mkdir -p mix_dev_tool
           mkdir -p mix_agent/build/debug
           
       - name: Run Environment Variable Validation
