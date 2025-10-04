@@ -49,12 +49,12 @@ export default function HomePage() {
 							<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl">{title}</PageHeaderHeading>
 							<PageHeaderDescription className="mb-4 text-sm">{description}</PageHeaderDescription>
 							<PageActions>
-								<Button asChild size="sm">
-									<Link href="/docs/mix/quickstart">Get Started</Link>
-								</Button>
-								<Button asChild variant="outline" size="sm">
-									<Link href="/docs/mix">View Docs</Link>
-								</Button>
+								<Link href="/docs/mix/quickstart">
+									<Button size="sm">Get Started</Button>
+								</Link>
+								<Link href="/docs/mix">
+									<Button variant="outline" size="sm">View Docs</Button>
+								</Link>
 							</PageActions>
 						</PageHeader>
 					</div>
