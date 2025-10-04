@@ -60,7 +60,7 @@ export function initPostHog() {
  */
 function generateClientId() {
 	// Check for USER_NAME environment variable first (matching backend)
-	const userName = import.meta.env.POSTHOG_USER_NAME;
+	const userName = import.meta.env.VITE_POSTHOG_USER_NAME;
 	if (userName && userName.trim() !== "") {
 		return userName.trim();
 	}
