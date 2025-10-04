@@ -1,6 +1,5 @@
 {
 	"files": {
-		"experimentalScannerIgnores": ["src/routeTree.gen.ts"],
-		"includes": ["src/**/*.ts", "src/**/*.tsx"]
+		"experimentalScannerIgnores": ["src/routeTree.gen.ts"]
 	}
 }

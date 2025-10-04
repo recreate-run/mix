@@ -133,23 +133,23 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 	// Load messages when session messages data changes
 	useEffect(() => {
 		if (sessionMessages.data && sessionId) {
-			console.log("[CHAT-MESSAGES-UPDATE] Setting messages from query", {
-				timestamp: new Date().toISOString(),
-				sessionId,
-				messageCount: sessionMessages.data.length,
-				lastMessageFrom:
-					sessionMessages.data[sessionMessages.data.length - 1]?.from,
-				lastMessagePreview: sessionMessages.data[
-					sessionMessages.data.length - 1
-				]?.content?.substring(0, 50),
-				currentStreamingState: {
-					processing: sseStream.processing,
-					completed: sseStream.completed,
-					cancelled: sseStream.cancelled,
-					hasFinalContent: !!sseStream.finalContent,
-					finalContentLength: sseStream.finalContent?.length || 0,
-				},
-			});
+			// console.log("[CHAT-MESSAGES-UPDATE] Setting messages from query", {
+			// 	timestamp: new Date().toISOString(),
+			// 	sessionId,
+			// 	messageCount: sessionMessages.data.length,
+			// 	lastMessageFrom:
+			// 		sessionMessages.data[sessionMessages.data.length - 1]?.from,
+			// 	lastMessagePreview: sessionMessages.data[
+			// 		sessionMessages.data.length - 1
+			// 	]?.content?.substring(0, 50),
+			// 	currentStreamingState: {
+			// 		processing: sseStream.processing,
+			// 		completed: sseStream.completed,
+			// 		cancelled: sseStream.cancelled,
+			// 		hasFinalContent: !!sseStream.finalContent,
+			// 		finalContentLength: sseStream.finalContent?.length || 0,
+			// 	},
+			// });
 			setMessages(sessionMessages.data);
 		} else if (sessionMessages.error) {
 			// Show error message in chat
