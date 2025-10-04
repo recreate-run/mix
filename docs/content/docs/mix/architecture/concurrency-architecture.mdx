@@ -20,21 +20,11 @@ The concurrency system operates at two levels: **Session-Level Concurrency** (mu
 
 ### 1. Session-Level Concurrency
 
-**Implementation:**
-```go
-// Session cancellation tracking
-activeContexts sync.Map  // Maps session ID to context.CancelFunc
-```
-
-**Result:** Multiple requests per session run simultaneously without blocking.
+The agent maintains session cancellation tracking through a thread-safe map that associates each session ID with its context cancellation function. This enables multiple requests per session to run simultaneously without blocking.
 
 ### 2. Tool-Level Concurrency
 
-**Implementation:**
-```go
-// Execute all tools concurrently
-toolResults, err := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
-```
+The agent executes all tools in a message concurrently using a dependency-aware execution engine. This approach analyzes tool relationships and runs independent operations in parallel while respecting dependencies.
 
 ### 3. Tool Dependencies
 
@@ -63,6 +53,6 @@ Parallel tool execution provides 2-5x performance improvements. Multiple file re
 
 ## Key Files
 
-- [mix_agent/internal/llm/agent/agent.go](Core agent service implementing session-level concurrency)
-- [mix_agent/internal/llm/agent/concurrency_tools.go](Parallel tool execution engine)
-- [mix_agent/internal/http/sse.go](Concurrent SSE streaming support)
+- `mix_agent/internal/llm/agent/agent.go`: Core agent service implementing session-level concurrency
+- `mix_agent/internal/llm/agent/concurrency_tools.go`: Parallel tool execution engine
+- `mix_agent/internal/http/sse.go`: Concurrent SSE streaming support

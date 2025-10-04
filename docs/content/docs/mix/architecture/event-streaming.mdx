@@ -162,8 +162,8 @@ sequenceDiagram
 
 ## Key Files
 
-- [mix_agent/internal/llm/provider/provider.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/llm/provider/provider.go): Provider layer that handles LLM communication and streams raw provider events via StreamResponse() method
-- [mix_agent/internal/llm/agent/agent.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/llm/agent/agent.go): Agent orchestration layer that processes provider events, executes tools, and publishes AgentEvent types
-- [mix_agent/internal/pubsub/broker.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/pubsub/broker.go): Core pubsub broadcasting system that manages event subscriptions and distribution across multiple subscribers
-- [mix_agent/internal/http/sse.go](https://github.com/recreate-run/mix/blob/main/mix_agent/internal/http/sse.go): SSE client delivery layer that manages persistent HTTP connections and streams events to frontend clients
+- `mix_agent/internal/llm/provider/provider.go`: Provider layer handling LLM communication and raw event streaming
+- `mix_agent/internal/llm/agent/agent.go`: Agent orchestration layer for event processing and tool execution
+- `mix_agent/internal/pubsub/broker.go`: Pub/sub broadcasting system for event distribution
+- `mix_agent/internal/http/sse.go`: SSE client delivery layer for streaming events to clients
 

@@ -7,14 +7,14 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 ## Overview
 
-Configure Supabase to store and manage files in Mix. Our script automates project linking, authentication, and bucket creation.
+This guide walks you through configuring Supabase as your storage backend for Mix using an automated setup script.
 
 <Steps>
 <Step>
 
 ### Create a Supabase Project
 
-Register a new account at [supabase.com](https://supabase.com) or sign in. Create a project by providing a project name, database password, and selecting your preferred region. The project setup completes in 1-2 minutes.
+Register a new account at [supabase.com](https://supabase.com) or sign in. Create a project with a name, database password, and region. Setup completes in 1-2 minutes.
 
 <video src="/videos/supabase_project_creation.mp4" controls loop muted className="w-full rounded-lg" />
 
@@ -24,7 +24,7 @@ Register a new account at [supabase.com](https://supabase.com) or sign in. Creat
 
 ### Run the Setup Script
 
-Execute the automated setup script from your project root. The script installs the Supabase CLI if needed, authenticates your account, displays your projects for selection, retrieves API keys, creates a storage bucket, and updates your `.env` file with the configuration.
+Execute the automated setup script from your project root. The script handles CLI installation, authentication, project selection, and `.env` configuration.
 
 ```bash
 ./scripts/setup-supabase.sh
