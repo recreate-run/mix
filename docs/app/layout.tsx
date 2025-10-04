@@ -1,6 +1,6 @@
 import '@/app/global.css';
 import { RootProvider } from 'fumadocs-ui/provider';
-import { Inter } from 'next/font/google';
+import { Inter, Space_Mono } from 'next/font/google';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
@@ -16,9 +16,15 @@ const inter = Inter({
   subsets: ['latin'],
 });
 
+const spaceMono = Space_Mono({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-space-mono',
+});
+
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
+    <html lang="en" className={`${inter.className} ${spaceMono.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-[100vh]" suppressHydrationWarning>
         <RootProvider
           search={{

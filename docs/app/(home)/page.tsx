@@ -48,7 +48,7 @@ export default function HomePage() {
 				<div className="flex items-center justify-center py-4 flex-none">
 					<div className="container px-4 pb-8">
 						<PageHeader className="mb-6">
-							<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl">{title}</PageHeaderHeading>
+							<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl font-[family-name:var(--font-space-mono)]">{title}</PageHeaderHeading>
 							<PageHeaderDescription className="mb-4 text-sm">{description}</PageHeaderDescription>
 							<PageActions>
 								<Link href="/docs/mix/quickstart">
