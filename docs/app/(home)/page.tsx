@@ -45,11 +45,11 @@ export default function HomePage() {
 	return (
 		<>
 			<div className="flex flex-col">
-				<div className="flex items-center justify-center pt-4 pb-2 flex-none">
+				<div className="flex items-center justify-center flex-none -mt-10">
 					<div className="container px-4">
-						<PageHeader className="mb-4">
+						<PageHeader>
 							<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl font-[family-name:var(--font-space-mono)]">{title}</PageHeaderHeading>
-							<PageHeaderDescription className="mb-4 text-sm">{description}</PageHeaderDescription>
+							<PageHeaderDescription className=" text-sm">{description}</PageHeaderDescription>
 							<PageActions>
 								<Link href="/docs/mix/quickstart">
 									<Button size="sm">Get Started</Button>

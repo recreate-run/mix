@@ -26,14 +26,7 @@ export function DemoCards({ demos }: DemoCardsProps) {
   if (demos.length === 0) return null;
 
   return (
-    <div className="container px-4 py-16">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold mb-3">See It In Action</h2>
-        <p className="text-fd-muted-foreground max-w-2xl mx-auto">
-          Explore real-world examples of Mix SDK capabilities
-        </p>
-      </div>
-
+    <div className="container px-4 pb-8">
       {/* Selected demo showcase */}
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
