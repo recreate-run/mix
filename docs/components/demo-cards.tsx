@@ -102,7 +102,7 @@ export function DemoCards({ demos }: DemoCardsProps) {
             {selectedDemo === index && (
               <div className="absolute inset-0 bg-gradient-to-br from-fd-primary/5 to-transparent rounded-2xl blur-xl -z-10" />
             )}
-            <div className="flex items-start gap-4 mb-3">
+            <div className="flex items-start gap-4">
               <div className={`text-3xl p-3 rounded-xl transition-all ${
                 selectedDemo === index
                   ? 'bg-fd-primary/10 ring-2 ring-fd-primary/20'
@@ -121,11 +121,6 @@ export function DemoCards({ demos }: DemoCardsProps) {
                 </p>
               </div>
             </div>
-            {selectedDemo === index && (
-              <div className="mt-4 pt-3 border-t border-fd-primary/20">
-                <span className="text-xs font-medium text-fd-primary">Currently viewing</span>
-              </div>
-            )}
           </button>
         ))}
       </div>
