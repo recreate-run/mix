@@ -21,6 +21,8 @@ Use for displaying/viewing media files:
    - When users want to SEE the actual media file
    - Presenting finished work or media deliverables
    - Showing examples and reference materials for visual context
+   - Displaying PDF documents, reports, and documentation
+   - Showcasing CSV data files and spreadsheets
 
 3. After Media Processing Tasks - Display media outputs from:
    - Video editing (trimming, effects, filters, color correction, edited clips)
@@ -46,7 +48,7 @@ Skip using this tool when:
 1. Content Analysis Requests: "What's in this image?", "Describe this file", "Analyze this"
 2. Information Extraction: "Explain what you see", "What does this show?"
 3. File doesn't exist: Media file paths are invalid or inaccessible
-4. Non-media content: Documents, data files, or other non-visual/audio content
+4. Non-media content: Text documents or other non-visual/audio/data content
 
 ## Examples of When to Use Media Showcase
 
@@ -107,9 +109,23 @@ Assistant: I'll show you that YouTube video as an embedded player.
 *Uses show_media tool with:*
 
 - Path: <https://www.youtube.com/watch?v=example123>
-- Type: youtube
+- Type: video
 - Title: YouTube Reference Video
 - Description: External video content for reference
+</example>
+
+<example>
+User: Show me the section from 1:30 to 2:00 of this YouTube video: https://www.youtube.com/watch?v=example456
+Assistant: I'll show you that specific 30-second segment from the YouTube video.
+
+*Uses show_media tool with:*
+
+- Path: <https://www.youtube.com/watch?v=example456>
+- Type: video
+- Title: YouTube Video Highlight
+- Description: Tutorial section showing key concept
+- StartTime: 90
+- Duration: 30
 </example>
 
 <example>
@@ -122,6 +138,30 @@ Assistant: I'll display that audio track from the URL.
 - Type: audio
 - Title: SoundCloud Track
 - Description: Remote audio content from SoundCloud
+</example>
+
+<example>
+User: Display this project documentation: https://example.com/docs/project-spec.pdf
+Assistant: I'll show you that PDF document for review.
+
+*Uses show_media tool with:*
+
+- Path: <https://example.com/docs/project-spec.pdf>
+- Type: pdf
+- Title: Project Specification
+- Description: Technical documentation for project requirements
+</example>
+
+<example>
+User: Show me the sales data CSV file: https://example.com/data/sales-report.csv
+Assistant: I'll display that CSV file for you to review.
+
+*Uses show_media tool with:*
+
+- Path: <https://example.com/data/sales-report.csv>
+- Type: csv
+- Title: Sales Report Data
+- Description: Monthly sales figures and analytics
 </example>
 
 <example>
@@ -157,7 +197,7 @@ Assistant: I've identified key segments from your demo video.
 outputs (required): Array of media outputs to showcase
 
 - path: HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media URL
-- type: "image", "video", "audio", "gsap_animation", or "youtube"
+- type: "image", "video", "audio", "gsap_animation", "pdf", or "csv"
 - title: Display title
 - description: Project context (optional)
 - config: Animation configuration JSON (required for gsap_animation)
@@ -184,8 +224,8 @@ outputs (required): Array of media outputs to showcase
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials
 - Multiple outputs supported - Display multiple related media files at once
-- Useit it to show previews and references
-- Always use `type: "youtube"` for YouTube URLs (youtube.com, youtu.be). This enables proper YouTube iframe embedding with controls and full-screen support
+- Use this tool to show previews and references
+- Always convert Excel files (.xlsx, .xls) to CSV format before displaying with this tool
 
 This tool transforms file paths into beautiful media displays in the conversation interface.
 
