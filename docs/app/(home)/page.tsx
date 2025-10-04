@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Announcement } from "@/components/announcement";
 import { Footer } from "@/components/footer";
 import {
 	PageActions,
@@ -12,9 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { config } from "@/lib/config";
 
-const title = "Claude Code for Multimodal tasks";
+const title = "Multimodal Agent SDK";
 const description =
-	"Automate marketing video generation, analyze session recordings, and orchestrate complex workflows across Blender, Figma, Logic Pro, and more. Built for startups who need AI-powered creative automation.";
+	"SDK-first agent platform that analyzes videos, reads images, searches the web, and orchestrates complex workflows.";
 
 export const metadata: Metadata = {
 	title,
@@ -47,9 +46,16 @@ export default function HomePage() {
 				<div className="flex items-center justify-center py-4 flex-none min-h-screen">
 					<div className="container px-4 pb-8">
 						<PageHeader className="mb-6">
-							<Announcement />
 							<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl">{title}</PageHeaderHeading>
 							<PageHeaderDescription className="mb-4 text-sm">{description}</PageHeaderDescription>
+							<PageActions>
+								<Button asChild size="sm">
+									<Link href="/docs/mix/quickstart">Get Started</Link>
+								</Button>
+								<Button asChild variant="outline" size="sm">
+									<Link href="/docs/mix">View Docs</Link>
+								</Button>
+							</PageActions>
 						</PageHeader>
 					</div>
 				</div>
