@@ -1,5 +1,5 @@
-import { TITLE_TRUNCATE_LENGTH } from '@/hooks/useSessionsList';
-import type { Session, SessionData } from '@/types/common';
+import { TITLE_TRUNCATE_LENGTH } from "@/hooks/useSessionsList";
+import type { Session, SessionData } from "@/types/common";
 
 /**
  * Helper function to get display title for a session.
@@ -9,32 +9,32 @@ import type { Session, SessionData } from '@/types/common';
  * @returns A truncated display title string
  */
 export const getDisplayTitle = (session: SessionData | Session): string => {
-  const firstUserMessage =
-    'firstUserMessage' in session ? session.firstUserMessage : undefined;
+	const firstUserMessage =
+		"firstUserMessage" in session ? session.firstUserMessage : undefined;
 
-  if (!firstUserMessage || firstUserMessage.trim() === '') {
-    // New sessions won't have a first user message yet - use session title as fallback
-    return session.title;
-  }
+	if (!firstUserMessage || firstUserMessage.trim() === "") {
+		// New sessions won't have a first user message yet - use session title as fallback
+		return session.title;
+	}
 
-  // Try to parse JSON and extract text from the parts structure
-  let displayText = firstUserMessage;
-  try {
-    const parsed = JSON.parse(firstUserMessage);
-    // Find the first text part in the parts array
-    const textPart = parsed.find((part: any) => part.type === 'text');
-    if (textPart?.data?.text) {
-      displayText = textPart.data.text;
-    }
-  } catch {
-    // If parsing fails, use the raw message as fallback (likely plain text message)
-    displayText = firstUserMessage;
-  }
+	// Try to parse JSON and extract text from the parts structure
+	let displayText = firstUserMessage;
+	try {
+		const parsed = JSON.parse(firstUserMessage);
+		// Find the first text part in the parts array
+		const textPart = parsed.find((part: any) => part.type === "text");
+		if (textPart?.data?.text) {
+			displayText = textPart.data.text;
+		}
+	} catch {
+		// If parsing fails, use the raw message as fallback (likely plain text message)
+		displayText = firstUserMessage;
+	}
 
-  const truncated =
-    displayText.length > TITLE_TRUNCATE_LENGTH
-      ? `${displayText.substring(0, TITLE_TRUNCATE_LENGTH)}...`
-      : displayText;
+	const truncated =
+		displayText.length > TITLE_TRUNCATE_LENGTH
+			? `${displayText.substring(0, TITLE_TRUNCATE_LENGTH)}...`
+			: displayText;
 
-  return truncated;
+	return truncated;
 };
