@@ -28,6 +28,10 @@ const (
 	EventFileUploaded = "file_uploaded"
 	EventFileDeleted  = "file_deleted"
 
+	// Export events
+	EventSessionExported = "session_exported"
+	EventVideoExported   = "video_exported"
+
 	// Properties
 	PropSessionID      = "session_id"
 	PropMessageID      = "message_id"
@@ -63,12 +67,23 @@ const (
 	PropCleanupMedia       = "cleanup_media"
 
 	// File-specific properties
-	PropFileSizeBytes    = "file_size_bytes"
-	PropFileType         = "file_type"
+	PropFileSizeBytes     = "file_size_bytes"
+	PropFileType          = "file_type"
 	PropFileNameSanitized = "file_name_sanitized"
-	PropIsMedia          = "is_media"
-	PropFileName         = "file_name"
-	PropFileExisted      = "file_existed"
+	PropIsMedia           = "is_media"
+	PropFileName          = "file_name"
+	PropFileExisted       = "file_existed"
+
+	// Export-specific properties
+	PropExportFormat      = "export_format"
+	PropTotalTokens       = "total_tokens"
+	PropURL               = "url"
+	PropFPS               = "fps"
+	PropAspectRatio       = "aspect_ratio"
+	PropHeight            = "height"
+	PropDuration          = "duration"
+	PropUploadedToS3      = "uploaded_to_s3"
+	PropExportDurationMs  = "export_duration_ms"
 )
 
 // Service defines the analytics tracking interface
@@ -104,6 +119,12 @@ type Service interface {
 
 	// TrackFileDeleted tracks file deletion events
 	TrackFileDeleted(ctx context.Context, sessionID, fileName string, fileExisted bool) error
+
+	// TrackSessionExported tracks session export events
+	TrackSessionExported(ctx context.Context, sessionID string, messageCount int, cost float64, totalTokens int64) error
+
+	// TrackVideoExported tracks video export events
+	TrackVideoExported(ctx context.Context, url string, fps int, aspectRatio string, height int, duration float64, uploadedToS3 bool, exportDurationMs int64) error
 
 	// Close closes the analytics client
 	Close() error
@@ -516,6 +537,68 @@ func (s *analyticsService) TrackFileDeleted(ctx context.Context, sessionID, file
 	if err != nil {
 		logging.Error("Failed to track file deleted: %v", err)
 		return fmt.Errorf("failed to track file deleted: %w", err)
+	}
+
+	return nil
+}
+
+// TrackSessionExported tracks session export events
+func (s *analyticsService) TrackSessionExported(ctx context.Context, sessionID string, messageCount int, cost float64, totalTokens int64) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropSessionID, sessionID).
+		Set(PropMessageCount, messageCount).
+		Set(PropCost, cost).
+		Set(PropTotalTokens, totalTokens).
+		Set(PropExportFormat, "json")
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventSessionExported,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track session exported: %v", err)
+		return fmt.Errorf("failed to track session exported: %w", err)
+	}
+
+	return nil
+}
+
+// TrackVideoExported tracks video export events
+func (s *analyticsService) TrackVideoExported(ctx context.Context, url string, fps int, aspectRatio string, height int, duration float64, uploadedToS3 bool, exportDurationMs int64) error {
+	if !s.enabled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	props := posthog.NewProperties().
+		Set(PropURL, url).
+		Set(PropFPS, fps).
+		Set(PropAspectRatio, aspectRatio).
+		Set(PropHeight, height).
+		Set(PropDuration, duration).
+		Set(PropUploadedToS3, uploadedToS3).
+		Set(PropExportDurationMs, exportDurationMs)
+
+	err := s.client.Enqueue(posthog.Capture{
+		DistinctId: s.distinct,
+		Event:      EventVideoExported,
+		Properties: props,
+	})
+
+	if err != nil {
+		logging.Error("Failed to track video exported: %v", err)
+		return fmt.Errorf("failed to track video exported: %w", err)
 	}
 
 	return nil
