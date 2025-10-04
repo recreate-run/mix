@@ -21,7 +21,7 @@ export function initPostHog() {
 
     // Initialize PostHog with the correct settings
     posthog.init('phc_M2rmsW9YkY5KVfxFZxbhT7TnEpHxKL9kPVML0dMEn4o', {
-      api_host: 'https://eu.i.posthog.com',
+      api_host: 'https://eu.posthog.com',
       defaults: '2025-05-24',
       autocapture: false,
       capture_pageview: true,
