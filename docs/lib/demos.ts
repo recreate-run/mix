@@ -61,7 +61,7 @@ with Mix(server_url="http://localhost:8088") as mix:
     title: "Multimodal Web Search",
     description: "Search, analyze, and extract video highlights",
     fileName: "web_search_multimodal.py",
-    videoSrc: "/videos/launch_devtools.mp4", // Replace with actual video when available
+    videoSrc: "/videos/multimodal_web_search.mp4", // Replace with actual video when available
     videoCaption: "AI searches for videos, finds key moments, and downloads highlights",
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/web_search_multimodal.py",
     code: `from mix_python_sdk import Mix
