@@ -101,7 +101,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	authHandler := httphandlers.NewAuthHandler(testApp)
 
 	// Create file management handlers
-	fileHandler := httphandlers.NewFileHandler(testApp, testApp.StorageConfig)
+	fileHandler := httphandlers.NewFileHandler(testApp)
 	sessionAssetHandler := httphandlers.NewSessionAssetHandler(testApp, testApp.StorageConfig)
 
 	// Set up HTTP multiplexer with all REST endpoints

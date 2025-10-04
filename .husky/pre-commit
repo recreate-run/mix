@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# Pre-commit hook for Mix project
+# Runs formatting and linting before allowing commits
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Get the list of staged files
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+STAGED_FRONTEND_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E 'mix_playground/.*\.(ts|tsx|js|jsx|json)$' || true)
+
+# Flag to track if we need to re-stage files
+RESTAGE=false
+
+# Run frontend formatting and linting if there are staged frontend files
+if [ -n "$STAGED_FRONTEND_FILES" ]; then
+    echo "📝 Formatting frontend code..."
+    make frontend-format
+
+    # echo "🔎 Linting frontend code..."
+    # make frontend-lint
+
+    # Check if formatting changed any files
+    if ! git diff --exit-code mix_playground/ > /dev/null 2>&1; then
+        echo "✅ Auto-formatted frontend files, re-staging changes..."
+        git add mix_playground/
+        RESTAGE=true
+    fi
+fi
+
+# Run Go linting if there are staged Go files
+# if [ -n "$STAGED_GO_FILES" ]; then
+#     echo "🔎 Linting Go code..."
+#     if ! make go-lint; then
+#         echo "❌ Go linting failed. Please fix the errors before committing."
+#         exit 1
+#     fi
+# fi
+
+if [ "$RESTAGE" = true ]; then
+    echo "✨ Formatted files have been re-staged"
+fi
+
+echo "✅ All pre-commit checks passed!"
+exit 0

@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { LoadingScreen } from "@/components/loading/LoadingScreen";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionsList } from "@/hooks/useSessionsList";
-import { LoadingScreen } from "@/components/loading/LoadingScreen";
 
 export const Route = createFileRoute("/")({
 	component: AutoRedirectHome,
@@ -28,26 +28,41 @@ function AutoRedirectHome() {
 			try {
 				// Try to use last session
 				const lastSessionId = localStorage.getItem(LAST_SESSION_KEY);
-				if (lastSessionId && sessions.some(s => s.id === lastSessionId)) {
-					navigate({ to: "/$sessionId", params: { sessionId: lastSessionId }, replace: true });
+				if (lastSessionId && sessions.some((s) => s.id === lastSessionId)) {
+					navigate({
+						to: "/$sessionId",
+						params: { sessionId: lastSessionId },
+						replace: true,
+					});
 					return;
 				}
 
 				// Use most recent session if available
 				if (sessions.length > 0) {
 					const mostRecent = sessions.reduce((latest, session) =>
-						new Date(session.createdAt) > new Date(latest.createdAt) ? session : latest
+						new Date(session.createdAt) > new Date(latest.createdAt)
+							? session
+							: latest,
 					);
 					localStorage.setItem(LAST_SESSION_KEY, mostRecent.id);
-					navigate({ to: "/$sessionId", params: { sessionId: mostRecent.id }, replace: true });
+					navigate({
+						to: "/$sessionId",
+						params: { sessionId: mostRecent.id },
+						replace: true,
+					});
 					return;
 				}
 
 				// Create first session for fresh database
-				const newSession = await createSession.mutateAsync({ title: "New Session" });
+				const newSession = await createSession.mutateAsync({
+					title: "New Session",
+				});
 				localStorage.setItem(LAST_SESSION_KEY, newSession.id);
-				navigate({ to: "/$sessionId", params: { sessionId: newSession.id }, replace: true });
-
+				navigate({
+					to: "/$sessionId",
+					params: { sessionId: newSession.id },
+					replace: true,
+				});
 			} catch (err) {
 				console.error("Failed to handle session redirect:", err);
 				setIsHandling(false);
@@ -67,6 +82,7 @@ function AutoRedirectHome() {
 		);
 	}
 
-
-	return <LoadingScreen duration={4} onComplete={() => setAnimationComplete(true)} />;
+	return (
+		<LoadingScreen duration={4} onComplete={() => setAnimationComplete(true)} />
+	);
 }

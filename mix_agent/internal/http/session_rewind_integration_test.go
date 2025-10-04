@@ -300,7 +300,7 @@ func TestSessionRewindToEmpty(t *testing.T) {
 	validateObjectResponse(t, resp, http.StatusOK)
 
 	// Verify only 1 message remains
-	ctx := context.Background()
+	ctx = context.Background()
 	remainingMessages, err := app.Messages.List(ctx, sessionID)
 	if err != nil {
 		t.Fatalf("Failed to list messages after rewind: %v", err)
