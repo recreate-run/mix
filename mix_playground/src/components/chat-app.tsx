@@ -35,6 +35,7 @@ import { AttachmentPreview } from './attachment-preview';
 import { CommandFileReference } from './command-file-reference';
 import { CommandSlash } from './command-slash';
 import { ConversationDisplay } from './conversation-display';
+import { FileDropZone } from './file-drop-zone';
 import { FileUploadButton } from './file-upload-button';
 import { PermissionDialog } from './permission-dialog';
 
@@ -662,67 +663,73 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             />
           )}
 
-          <AIInput
-            className="border bg-stone-200/60 backdrop-blur-xl dark:bg-stone-700/60"
-            onSubmit={handleSubmit}
-          >
-            <AIInputTextarea
-              autoFocus
-              availableCommands={slashCommands.map((cmd) => cmd.name)}
-              availableFiles={fileRef.files.map((file) => file.name)}
-              onChange={(e) => {
-                handleTextChange(e.target.value);
-                if (!inputElement) {
-                  setInputElement(e.target);
-                }
-              }}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              value={text}
-            />
-            <AIInputToolbar>
-              <AIInputTools>
-                <div className="absolute bottom-1 left-1 flex">
-                  {/* File Upload Button */}
-                  {session?.id && (
-                    <FileUploadButton
-                      className="ml-1"
-                      onUploadError={handleFileUploadError}
-                      onUploadSuccess={handleFileUploadSuccess}
-                      sessionId={session.id}
-                    />
-                  )}
+          {session?.id && (
+            <FileDropZone
+              onUploadError={handleFileUploadError}
+              onUploadSuccess={handleFileUploadSuccess}
+              sessionId={session.id}
+            >
+              <AIInput
+                className="border bg-stone-200/60 backdrop-blur-xl dark:bg-stone-700/60"
+                onSubmit={handleSubmit}
+              >
+                <AIInputTextarea
+                  autoFocus
+                  availableCommands={slashCommands.map((cmd) => cmd.name)}
+                  availableFiles={fileRef.files.map((file) => file.name)}
+                  onChange={(e) => {
+                    handleTextChange(e.target.value);
+                    if (!inputElement) {
+                      setInputElement(e.target);
+                    }
+                  }}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  value={text}
+                />
+                <AIInputToolbar>
+                  <AIInputTools>
+                    <div className="absolute bottom-1 left-1 flex">
+                      {/* File Upload Button */}
+                      <FileUploadButton
+                        className="ml-1"
+                        onUploadError={handleFileUploadError}
+                        onUploadSuccess={handleFileUploadSuccess}
+                        sessionId={session.id}
+                      />
 
-                  {/* Plan Mode selection, hidden for now */}
-                  {/* <Select
-                    onValueChange={(value) => setIsPlanMode(value === 'plan')}
-                    value={isPlanMode ? 'plan' : 'edit'}
-                  >
-                    <SelectTrigger
-                      className="border-none bg-transparent text-muted-foreground hover:bg-transparent focus:border-none focus:ring-0 dark:bg-transparent hover:dark:bg-transparent"
-                      size="sm"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="edit">create</SelectItem>
-                      <SelectItem value="plan">plan</SelectItem>
-                    </SelectContent>
-                  </Select> */}
-                </div>
+                      {/* Plan Mode selection, hidden for now */}
+                      {/* <Select
+                        onValueChange={(value) => setIsPlanMode(value === 'plan')}
+                        value={isPlanMode ? 'plan' : 'edit'}
+                      >
+                        <SelectTrigger
+                          className="border-none bg-transparent text-muted-foreground hover:bg-transparent focus:border-none focus:ring-0 dark:bg-transparent hover:dark:bg-transparent"
+                          size="sm"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="edit">create</SelectItem>
+                          <SelectItem value="plan">plan</SelectItem>
+                        </SelectContent>
+                      </Select> */}
+                    </div>
 
-                {/* Current Model Display */}
-                <div className="absolute right-14 bottom-1 text-muted-foreground text-xs">
-                  {formatCurrentModel(preferences)}
-                </div>
-              </AIInputTools>
-              <AIInputSubmit
-                disabled={isSubmitDisabled}
-                onPauseClick={handleCancelClick}
-                status={sseStream.buttonStatus}
-              />
-            </AIInputToolbar>
-          </AIInput>
+                    {/* Current Model Display */}
+                    <div className="absolute right-14 bottom-1 text-muted-foreground text-xs">
+                      {formatCurrentModel(preferences)}
+                    </div>
+                  </AIInputTools>
+                  <AIInputSubmit
+                    disabled={isSubmitDisabled}
+                    onPauseClick={handleCancelClick}
+                    status={sseStream.buttonStatus}
+                  />
+                </AIInputToolbar>
+              </AIInput>
+            </FileDropZone>
+          )}
 
           {/* Unified Command System */}
           {showCommands && (

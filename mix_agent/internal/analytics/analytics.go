@@ -182,7 +182,7 @@ func NewAnalyticsService(apiKey string) Service {
 	}
 
 	// Check for USER_NAME environment variable, fall back to anonymous_user
-	distinct := os.Getenv("POSTHON_USER_NAME")
+	distinct := os.Getenv("POSTHOG_USER_NAME")
 	if distinct == "" {
 		distinct = "anonymous_user"
 	}

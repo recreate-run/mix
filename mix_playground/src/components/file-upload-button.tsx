@@ -171,7 +171,7 @@ export function FileUploadButton({
     }
   };
 
-  return (
+  const buttonElement = (
     <Button
       className={cn(
         'h-8 w-8 text-muted-foreground hover:text-foreground',
@@ -181,7 +181,7 @@ export function FileUploadButton({
       disabled={fileUpload.isPending}
       onClick={handleFileSelect}
       size="icon"
-      title="Upload files"
+      title="Upload files (click or drag & drop)"
       type="button"
       variant="ghost"
     >
@@ -192,6 +192,31 @@ export function FileUploadButton({
       )}
     </Button>
   );
+
+  // If drop zone is enabled, wrap the button with drag and drop handlers
+  if (enableDropZone) {
+    return (
+      <div
+        className={cn(
+          'relative transition-all',
+          isDraggingOver && 'opacity-80',
+          dropZoneClassName
+        )}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {buttonElement}
+        {isDraggingOver && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10">
+            <span className="text-xs text-primary">Drop files here</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return buttonElement;
 }
 
 // Helper function to determine MIME type from file extension

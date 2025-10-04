@@ -24,12 +24,16 @@ export function initPostHog() {
       api_host: 'https://eu.posthog.com',
       defaults: '2025-05-24',
       autocapture: false,
-      capture_pageview: false, // Disabled - too noisy for desktop app
+      capture_pageview: false,
+      capture_pageleave: false,
+      disable_session_recording: true,
+      disable_surveys: true,
+      disable_scroll_properties: true,
       persistence: 'localStorage',
       bootstrap: {
         distinctID: clientId,
       },
-      debug: false, // Set to false in production
+      debug: false,
     });
 
     // Identify the user with the client ID and set app properties
@@ -55,7 +59,7 @@ export function initPostHog() {
  */
 function generateClientId() {
   // Check for USER_NAME environment variable first (matching backend)
-  const userName = import.meta.env.POSTHON_USER_NAME;
+  const userName = import.meta.env.VITE_POSTHOG_USER_NAME;
   if (userName && userName.trim() !== '') {
     return userName.trim();
   }
