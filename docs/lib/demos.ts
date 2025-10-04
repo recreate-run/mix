@@ -5,7 +5,6 @@
  */
 
 export interface Demo {
-  icon: string;
   title: string;
   description: string;
   fileName: string;
@@ -17,7 +16,6 @@ export interface Demo {
 
 export const homepageDemos: Demo[] = [
   {
-    icon: "📊",
     title: "Portfolio Analysis",
     description: "Upload CSV, get AI-powered insights",
     fileName: "portfolio_analysis.py",
@@ -57,7 +55,6 @@ with Mix(server_url="http://localhost:8088") as mix:
   },
 
   {
-    icon: "🔍",
     title: "Multimodal Web Search",
     description: "Search, analyze, and extract video highlights",
     fileName: "web_search_multimodal.py",
@@ -86,7 +83,6 @@ with Mix(server_url="http://localhost:8088") as mix:
   },
 
   {
-    icon: "🎬",
     title: "TikTok Video Creation",
     description: "Generate viral-style videos with AI",
     fileName: "tiktok_video.py",
