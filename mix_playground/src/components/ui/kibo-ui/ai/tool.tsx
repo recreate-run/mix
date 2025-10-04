@@ -1,4 +1,10 @@
-import { ChevronDownIcon, ClockIcon, XCircleIcon, CopyIcon, CheckIcon } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  ClockIcon,
+  XCircleIcon,
+  CopyIcon,
+  CheckIcon,
+} from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   Collapsible,
@@ -34,7 +40,8 @@ const safeStringify = (value: unknown): string => {
   if (value === null) return 'null';
   if (value === undefined) return 'undefined';
   if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return String(value);
   if (typeof value === 'object') {
     try {
       return JSON.stringify(value);
@@ -74,7 +81,9 @@ const formatToolContent = (
         try {
           const parsed = JSON.parse(trimmed);
           const promptValue = parsed['prompt'];
-          processedContent = promptValue ? safeStringify(promptValue) : stringContent;
+          processedContent = promptValue
+            ? safeStringify(promptValue)
+            : stringContent;
         } catch {
           processedContent = stringContent;
         }
@@ -100,9 +109,14 @@ const formatToolContent = (
       if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
         try {
           const parsed = JSON.parse(trimmed);
-          if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          if (
+            typeof parsed === 'object' &&
+            parsed !== null &&
+            !Array.isArray(parsed)
+          ) {
             const values = Object.values(parsed).map(safeStringify);
-            processedContent = values.length === 1 ? values[0] : values.join(', ');
+            processedContent =
+              values.length === 1 ? values[0] : values.join(', ');
           } else {
             processedContent = stringContent;
           }
@@ -113,8 +127,11 @@ const formatToolContent = (
         // Check for simple key:value or key=value patterns
         const keyValueMatches = trimmed.match(/[:=]\s*([^,:=]+)/g);
         if (keyValueMatches && keyValueMatches.length > 0) {
-          const values = keyValueMatches.map(match => match.replace(/^[:=]\s*/, '').trim());
-          processedContent = values.length === 1 ? values[0] : values.join(', ');
+          const values = keyValueMatches.map((match) =>
+            match.replace(/^[:=]\s*/, '').trim()
+          );
+          processedContent =
+            values.length === 1 ? values[0] : values.join(', ');
         } else {
           processedContent = stringContent;
         }
@@ -167,7 +184,10 @@ const extractToolContent = (toolCall?: {
   let content: string | Record<string, unknown> = '';
   if (toolCall.result) {
     content = toolCall.result;
-  } else if (toolCall.parameters && Object.keys(toolCall.parameters).length > 0) {
+  } else if (
+    toolCall.parameters &&
+    Object.keys(toolCall.parameters).length > 0
+  ) {
     content = toolCall.parameters;
   } else if (toolCall.error) {
     content = toolCall.error;
@@ -211,9 +231,7 @@ export const AIToolHeader = ({
       <div className="flex items-center gap-2">
         <span className="font-medium text-xs">{name}</span>
         {toolContent && (
-          <span className="text-xs text-muted-foreground">
-            {toolContent}
-          </span>
+          <span className="text-xs text-muted-foreground">{toolContent}</span>
         )}
         {status === 'running' && description && (
           <span className="text-xs text-muted-foreground animate-pulse">
@@ -247,9 +265,16 @@ export const AIToolContent = ({
   >
     {toolCall && (
       <>
-        <AIToolParameters parameters={toolCall.parameters} toolName={toolCall.name} />
+        <AIToolParameters
+          parameters={toolCall.parameters}
+          toolName={toolCall.name}
+        />
         {(toolCall.result || toolCall.error) && (
-          <AIToolResult error={toolCall.error} result={toolCall.result} toolName={toolCall.name} />
+          <AIToolResult
+            error={toolCall.error}
+            result={toolCall.result}
+            toolName={toolCall.name}
+          />
         )}
       </>
     )}
@@ -280,13 +305,9 @@ export const AIToolParameters = ({
         variant="ghost"
         size="icon"
         onClick={handleCopy}
-        title={isCopied ? "Copied!" : "Copy parameters"}
+        title={isCopied ? 'Copied!' : 'Copy parameters'}
       >
-        {isCopied ? (
-          <CheckIcon />
-        ) : (
-          <CopyIcon />
-        )}
+        {isCopied ? <CheckIcon /> : <CopyIcon />}
       </Button>
       <pre className="overflow-x-scroll whitespace-pre text-muted-foreground text-xs">
         {formattedContent}
@@ -312,16 +333,18 @@ export const AIToolResult = ({
   }
 
   const displayContent = error || result;
-  const formattedContent = typeof displayContent === 'string'
-    ? formatToolContent(displayContent, toolName)
-    : displayContent;
+  const formattedContent =
+    typeof displayContent === 'string'
+      ? formatToolContent(displayContent, toolName)
+      : displayContent;
 
   const { isCopied, copyToClipboard } = useCopyToClipboard();
 
   const handleCopy = () => {
-    const contentToCopy = typeof formattedContent === 'string'
-      ? formattedContent
-      : String(formattedContent);
+    const contentToCopy =
+      typeof formattedContent === 'string'
+        ? formattedContent
+        : String(formattedContent);
     copyToClipboard(contentToCopy);
   };
 
@@ -343,7 +366,7 @@ export const AIToolResult = ({
           size="icon"
           onClick={handleCopy}
           className="absolute left-1 top-1 z-10 size-6"
-          title={isCopied ? "Copied!" : "Copy result"}
+          title={isCopied ? 'Copied!' : 'Copy result'}
         >
           {isCopied ? (
             <CheckIcon className="size-3 text-green-600" />

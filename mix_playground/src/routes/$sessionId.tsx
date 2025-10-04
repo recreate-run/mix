@@ -3,7 +3,12 @@ import '@/styles/App.css';
 import { useEffect } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ChatApp } from '@/components/chat-app';
-import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+} from '@/components/ui/sidebar';
 import { useActiveSession } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
 
@@ -11,7 +16,7 @@ export const Route = createFileRoute('/$sessionId')({
   component: SessionApp,
 });
 
-const LAST_SESSION_KEY = "mix-last-session-id";
+const LAST_SESSION_KEY = 'mix-last-session-id';
 
 // SessionContent component handles sidebar collapse padding
 
@@ -35,10 +40,12 @@ function SessionContent({ sessionId }: { sessionId: string }) {
   const { state } = useSidebar();
 
   return (
-    <SidebarInset className={cn(
-      "flex h-screen flex-col transition-all duration-200",
-      state === 'collapsed' && "pl-12"
-    )}>
+    <SidebarInset
+      className={cn(
+        'flex h-screen flex-col transition-all duration-200',
+        state === 'collapsed' && 'pl-12'
+      )}
+    >
       <FloatingToggle />
       {/* Always render ChatApp - it will handle loading states internally */}
       <ChatApp sessionId={sessionId} />

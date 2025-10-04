@@ -1,5 +1,9 @@
 import { Clock } from 'lucide-react';
-import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import { useSessionsList } from '@/hooks/useSessionsList';
 import { useActiveSession } from '@/hooks/useSession';
 import { formatMessageCounts } from '@/types/common';
@@ -34,11 +38,9 @@ export function SessionsView({
   };
 
   // Sort sessions chronologically (most recent first)
-  const sortedSessions = sessions
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+  const sortedSessions = sessions.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   const handleSessionSelect = (sessionId: string) => {
     onNavigateToSession(sessionId);
@@ -54,13 +56,13 @@ export function SessionsView({
 
   return (
     <CommandGroup heading={`Sessions (${sortedSessions.length})`}>
-        <BackButton
-          label="Back to Commands"
-          onSelect={onBackToCommands}
-          value="back-to-commands"
-        />
+      <BackButton
+        label="Back to Commands"
+        onSelect={onBackToCommands}
+        value="back-to-commands"
+      />
 
-        {sortedSessions.map((session) => {
+      {sortedSessions.map((session) => {
         const isActive = activeSession.data?.id === session.id;
         const createdDate = new Date(session.createdAt);
 

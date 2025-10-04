@@ -7,17 +7,14 @@ interface LazyVideoPlayerProps {
   sessionId: string;
 }
 
-export const LazyVideoPlayer = ({ 
-  media, 
-  sessionId 
-}: LazyVideoPlayerProps) => {
+export const LazyVideoPlayer = ({ media, sessionId }: LazyVideoPlayerProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Reset visibility state when media changes
     setIsVisible(false);
-    
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {

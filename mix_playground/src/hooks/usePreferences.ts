@@ -17,7 +17,9 @@ export function usePreferences() {
 }
 
 // Helper function to format the current model display
-export function formatCurrentModel(preferences: GetPreferencesResponse | undefined): string {
+export function formatCurrentModel(
+  preferences: GetPreferencesResponse | undefined
+): string {
   if (!preferences?.preferences) {
     return 'No model selected';
   }
@@ -29,12 +31,15 @@ export function formatCurrentModel(preferences: GetPreferencesResponse | undefin
   }
 
   // Get the display name for the provider
-  const providerDisplayName = preferences.availableProviders[preferredProvider]?.displayName || preferredProvider;
+  const providerDisplayName =
+    preferences.availableProviders[preferredProvider]?.displayName ||
+    preferredProvider;
 
   // Shorten long model names for better display
-  const shortModelName = mainAgentModel.length > 25
-    ? `${mainAgentModel.substring(0, 22)}...`
-    : mainAgentModel;
+  const shortModelName =
+    mainAgentModel.length > 25
+      ? `${mainAgentModel.substring(0, 22)}...`
+      : mainAgentModel;
 
   return `${providerDisplayName}: ${shortModelName}`;
 }

@@ -43,23 +43,26 @@ async function fetchToolsStatus(): Promise<ToolsStatus> {
         Object.entries(response.categories).forEach(([key, category]) => {
           transformedCategories[key] = {
             displayName: category.displayName || key,
-            tools: (category.tools || []).map(tool => ({
+            tools: (category.tools || []).map((tool) => ({
               provider: tool.provider || '',
               displayName: tool.displayName || tool.provider || '',
               description: tool.description || '',
               authenticated: tool.authenticated || false,
-              apiKeyRequired: tool.apiKeyRequired || false
-            }))
+              apiKeyRequired: tool.apiKeyRequired || false,
+            })),
           };
         });
       }
 
       return {
-        categories: transformedCategories
+        categories: transformedCategories,
       };
     } catch (sdkError) {
       // SDK validation error - likely a mismatch between SDK schema and API response
-      console.warn('SDK validation error, returning empty structure:', sdkError);
+      console.warn(
+        'SDK validation error, returning empty structure:',
+        sdkError
+      );
       return { categories: {} };
     }
   } catch (error) {
@@ -85,7 +88,7 @@ export function useStoreCredentials() {
         // Use the SDK authentication API for storing credentials
         await mix.authentication.storeApiKey({
           provider: request.provider as any,
-          apiKey: request.api_key
+          apiKey: request.api_key,
         });
         return { status: 'success', provider: request.provider };
       } catch (error) {

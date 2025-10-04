@@ -7,7 +7,8 @@ export const CACHE_KEYS = {
   preferences: ['preferences'] as const,
   tools: ['tools'] as const,
   toolsStatus: ['tools', 'status'] as const,
-  animationSchema: (animationName: string) => ['gsap', 'animation', 'schema', animationName] as const,
+  animationSchema: (animationName: string) =>
+    ['gsap', 'animation', 'schema', animationName] as const,
   animationList: ['gsap', 'animations'] as const,
   csvData: (url: string) => ['csv', 'data', url] as const,
 } as const;

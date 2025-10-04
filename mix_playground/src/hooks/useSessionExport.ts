@@ -22,7 +22,10 @@ export function useSessionExport() {
       const data = response.result;
 
       // Create filename with session ID and timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5); // Format: YYYY-MM-DDTHH-MM-SS
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')
+        .slice(0, -5); // Format: YYYY-MM-DDTHH-MM-SS
       const filename = `${sessionId}_${timestamp}.json`;
 
       // Get Downloads directory path and ensure proper path separator
@@ -33,7 +36,7 @@ export function useSessionExport() {
 
       // Show native save dialog with pre-filled path
       const filePath = await save({
-        defaultPath: defaultPath
+        defaultPath: defaultPath,
       });
 
       if (!filePath) {

@@ -14,12 +14,19 @@ export function useCommandPaletteState() {
 
   // Selection states
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(null);
-  const [selectedAuthMethod, setSelectedAuthMethod] = useState<AuthMethod | null>(null);
+  const [selectedMCPServer, setSelectedMCPServer] = useState<string | null>(
+    null
+  );
+  const [selectedAuthMethod, setSelectedAuthMethod] =
+    useState<AuthMethod | null>(null);
 
   // Command data states
-  const [hierarchicalModelData, setHierarchicalModelData] = useState<HierarchicalModelData | undefined>(undefined);
-  const [statusData, setStatusData] = useState<StatusData | undefined>(undefined);
+  const [hierarchicalModelData, setHierarchicalModelData] = useState<
+    HierarchicalModelData | undefined
+  >(undefined);
+  const [statusData, setStatusData] = useState<StatusData | undefined>(
+    undefined
+  );
   const [helpData, setHelpData] = useState<HelpData | undefined>(undefined);
 
   // Refs for tracking initialization
@@ -35,7 +42,6 @@ export function useCommandPaletteState() {
     setSelectedMCPServer(null);
     setSelectedAuthMethod(null);
   };
-
 
   // View navigation helpers
   const goToView = (view: ViewState) => {

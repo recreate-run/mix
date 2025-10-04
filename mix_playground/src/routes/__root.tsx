@@ -21,7 +21,7 @@ function RootComponent() {
         <TooltipProvider>
           <Outlet />
         </TooltipProvider>
-        <Toaster position='top-right' />
+        <Toaster position="top-right" />
       </ThemeProvider>
     </QueryClientProvider>
   );

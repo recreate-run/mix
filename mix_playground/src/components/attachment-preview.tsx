@@ -35,16 +35,21 @@ export const AttachmentPreview = ({
   const removeAttachment = useBoundStore((state) => state.removeAttachment);
   const removeReference = useBoundStore((state) => state.removeReference);
 
-
   const handleRemoveItem = (index: number) => {
     const attachmentToRemove = attachments[index];
     if (attachmentToRemove) {
       let identifier: string;
-      
+
       if (attachmentToRemove.url) {
         // For URL attachments, remove the URL directly from text
         identifier = attachmentToRemove.url;
-        const updatedText = text.replace(new RegExp(attachmentToRemove.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+        const updatedText = text.replace(
+          new RegExp(
+            attachmentToRemove.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+            'g'
+          ),
+          ''
+        );
         onTextChange?.(updatedText);
       } else {
         identifier = attachmentToRemove.path!;
@@ -52,7 +57,11 @@ export const AttachmentPreview = ({
 
       // For non-URL attachments, use the existing file reference removal logic
       if (!attachmentToRemove.url) {
-        const updatedText = removeFileReferences(text, referenceMap, identifier);
+        const updatedText = removeFileReferences(
+          text,
+          referenceMap,
+          identifier
+        );
         onTextChange?.(updatedText);
       }
 
@@ -80,9 +89,19 @@ export const AttachmentPreview = ({
               <TooltipTrigger asChild>
                 <div className="relative">
                   {attachment.type === 'image' ? (
-                    <ImagePreview attachment={attachment} previewUrl={generatePreviewUrl(attachment, sessionId)} />
+                    <ImagePreview
+                      attachment={attachment}
+                      previewUrl={generatePreviewUrl(attachment, sessionId)}
+                    />
                   ) : attachment.type === 'video' ? (
-                    <VideoPreview attachment={attachment} previewUrl={attachment.url ? undefined : generatePreviewUrl(attachment, sessionId)} />
+                    <VideoPreview
+                      attachment={attachment}
+                      previewUrl={
+                        attachment.url
+                          ? undefined
+                          : generatePreviewUrl(attachment, sessionId)
+                      }
+                    />
                   ) : attachment.type === 'audio' ? (
                     <AudioPreview attachment={attachment} />
                   ) : attachment.type === 'text' ? (
@@ -98,18 +117,18 @@ export const AttachmentPreview = ({
                 <p>
                   {attachment.type === 'folder' && attachment.mediaCount
                     ? (() => {
-                      const { images, videos, audios } =
-                        attachment.mediaCount;
-                      const total = images + videos + audios;
-                      if (total === 0) {
-                        return `${attachment.name} - no media files`;
-                      }
-                      const parts = [];
-                      if (images > 0) parts.push(`${images}i`);
-                      if (videos > 0) parts.push(`${videos}v`);
-                      if (audios > 0) parts.push(`${audios}a`);
-                      return `${attachment.name} ${parts.join('/')}`;
-                    })()
+                        const { images, videos, audios } =
+                          attachment.mediaCount;
+                        const total = images + videos + audios;
+                        if (total === 0) {
+                          return `${attachment.name} - no media files`;
+                        }
+                        const parts = [];
+                        if (images > 0) parts.push(`${images}i`);
+                        if (videos > 0) parts.push(`${videos}v`);
+                        if (audios > 0) parts.push(`${audios}a`);
+                        return `${attachment.name} ${parts.join('/')}`;
+                      })()
                     : attachment.name}
                 </p>
               </TooltipContent>

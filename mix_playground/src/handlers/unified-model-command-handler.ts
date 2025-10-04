@@ -1,6 +1,6 @@
-import { mix } from "@/lib/mix-sdk";
-import { UIMessage, ProviderWithModels } from "@/types";
-import { toast } from "sonner";
+import { mix } from '@/lib/mix-sdk';
+import { UIMessage, ProviderWithModels } from '@/types';
+import { toast } from 'sonner';
 
 /**
  * Format providers with their models for the hierarchical UI
@@ -21,8 +21,8 @@ function formatProvidersWithModels(
   Object.entries(authProviders).forEach(([id, authProvider]) => {
     // Extract the base name without the star symbol
     const name = authProvider.displayName || id;
-    const cleanName = name.replace(" ⭐", "");
-    const isPreferred = name.includes("⭐");
+    const cleanName = name.replace(' ⭐', '');
+    const isPreferred = name.includes('⭐');
 
     if (isPreferred) {
       preferredProvider = id;
@@ -36,7 +36,7 @@ function formatProvidersWithModels(
     const formattedModels = models.map((modelId: string) => ({
       id: modelId,
       displayName: modelId,
-      isSelected: modelId === currentModel
+      isSelected: modelId === currentModel,
     }));
 
     // Sort models - selected first, then alphabetically
@@ -53,9 +53,9 @@ function formatProvidersWithModels(
       displayName: cleanName,
       authenticated: authProvider.authenticated,
       authMethod: authProvider.authMethod,
-      authMethods: ["api_key"], // Default auth methods, could be enhanced to read from config
+      authMethods: ['api_key'], // Default auth methods, could be enhanced to read from config
       isPreferred,
-      models: formattedModels
+      models: formattedModels,
     });
 
     if (authProvider.authenticated) {
@@ -82,7 +82,7 @@ function formatProvidersWithModels(
   return {
     providers,
     hasAuthenticatedProvider,
-    preferredProvider
+    preferredProvider,
   };
 }
 
@@ -94,61 +94,64 @@ export async function handleUnifiedModelCommand(): Promise<UIMessage> {
     // Get authentication status and preferences
     const [authStatus, preferences] = await Promise.all([
       mix.authentication.getAuthStatus(),
-      mix.preferences.get()
+      mix.preferences.get(),
     ]);
 
     // Format providers with their models
-    const { providers, hasAuthenticatedProvider, preferredProvider } = formatProvidersWithModels(
-      authStatus.providers || {},
-      preferences.availableProviders || {},
-      preferences.preferences?.mainAgentModel
-    );
+    const { providers, hasAuthenticatedProvider, preferredProvider } =
+      formatProvidersWithModels(
+        authStatus.providers || {},
+        preferences.availableProviders || {},
+        preferences.preferences?.mainAgentModel
+      );
 
     if (!hasAuthenticatedProvider) {
       return {
-        content: "Not authenticated with any provider. Please authenticate using API keys or OAuth through your provider's authentication flow.",
-        from: "assistant",
-        frontend_only: true
+        content:
+          "Not authenticated with any provider. Please authenticate using API keys or OAuth through your provider's authentication flow.",
+        from: 'assistant',
+        frontend_only: true,
       };
     }
 
     // Return hierarchical data for CMDK wrapped in UIMessage
     return {
-      content: "",
-      from: "assistant",
+      content: '',
+      from: 'assistant',
       frontend_only: true,
       hierarchicalModel: {
         providers,
         currentProvider: preferredProvider,
-        currentModel: preferences.preferences?.mainAgentModel
-      }
+        currentModel: preferences.preferences?.mainAgentModel,
+      },
     };
-
   } catch (error) {
     return {
-      content: `Failed to get providers and models: ${error instanceof Error ? error.message : "Unknown error"}`,
-      from: "assistant",
+      content: `Failed to get providers and models: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true
+      suppressChatMessage: true,
     };
   }
 }
 
-
 /**
  * Handles the selection of a model (second level of hierarchy)
  */
-export async function handleModelSelectionInHierarchy(providerId: string, modelId: string): Promise<UIMessage> {
+export async function handleModelSelectionInHierarchy(
+  providerId: string,
+  modelId: string
+): Promise<UIMessage> {
   try {
     if (!modelId || !providerId) {
-      throw new Error("No model or provider selected");
+      throw new Error('No model or provider selected');
     }
 
     // Update preferences with the selected model and provider
     await mix.preferences.update({
       preferredProvider: providerId,
       mainAgentModel: modelId,
-      subAgentModel: modelId  // Also update the sub agent model for consistency
+      subAgentModel: modelId, // Also update the sub agent model for consistency
     });
 
     // Verify the update was successful
@@ -156,42 +159,43 @@ export async function handleModelSelectionInHierarchy(providerId: string, modelI
     const savedModel = verifyPrefs.preferences?.mainAgentModel;
 
     if (savedModel !== modelId) {
-      throw new Error("Failed to update model preference");
+      throw new Error('Failed to update model preference');
     }
 
     // Get provider display name and clean it
     const authStatus = await mix.authentication.getAuthStatus();
-    const rawProviderName = authStatus.providers?.[providerId]?.displayName || providerId;
-    const providerName = rawProviderName.replace(" ⭐", "");
+    const rawProviderName =
+      authStatus.providers?.[providerId]?.displayName || providerId;
+    const providerName = rawProviderName.replace(' ⭐', '');
 
     // This function is called directly from the chat-app component
     // The caller needs to invalidate the preferences cache to show updated model info
 
-    // Show success toast notification 
+    // Show success toast notification
     try {
       // Then try the more complex version
-      toast.success("Model updated", {
+      toast.success('Model updated', {
         description: `${modelId} is now your default model for ${providerName}`,
-        duration: 3000
+        duration: 3000,
       });
-      console.log("Toast notifications triggered for model update");
+      console.log('Toast notifications triggered for model update');
     } catch (toastError) {
-      console.error("Failed to show toast:", toastError);
+      console.error('Failed to show toast:', toastError);
     }
 
     return {
       content: `✅ Successfully set ${modelId} as your default model for ${providerName}`,
-      from: "assistant",
+      from: 'assistant',
       frontend_only: true,
-      shouldInvalidatePreferencesCache: true,  // Signal to invalidate preferences cache
-      suppressChatMessage: true  // Hide this success message from the chat UI
+      shouldInvalidatePreferencesCache: true, // Signal to invalidate preferences cache
+      suppressChatMessage: true, // Hide this success message from the chat UI
     };
   } catch (error) {
     return {
-      content: `Failed to update model preference: ${error instanceof Error ? error.message : "Unknown error"}`,
-      from: "assistant",
+      content: `Failed to update model preference: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true
+      suppressChatMessage: true,
     };
   }
 }

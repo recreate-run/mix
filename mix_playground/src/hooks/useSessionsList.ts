@@ -4,7 +4,7 @@ import type { SessionData } from '@/types/common';
 import type { SessionData as SDKSessionData } from 'mix-typescript-sdk/models';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import { invalidateSessionCaches } from '@/lib/session-cache';
-import { toast } from "sonner";
+import { toast } from 'sonner';
 
 export const TITLE_TRUNCATE_LENGTH = 100;
 
@@ -18,14 +18,21 @@ async function loadSessionsList(): Promise<SessionData[]> {
 
   // Ensure response is an array
   if (!Array.isArray(response)) {
-    console.error("❌ API response is not an array:", typeof response, response);
+    console.error(
+      '❌ API response is not an array:',
+      typeof response,
+      response
+    );
     return [];
   }
 
   // Transform SDK SessionData to match local interface (Date -> string)
   const transformedSessions = response.map((session: SDKSessionData) => ({
     ...session,
-    createdAt: session.createdAt instanceof Date ? session.createdAt.toISOString() : session.createdAt
+    createdAt:
+      session.createdAt instanceof Date
+        ? session.createdAt.toISOString()
+        : session.createdAt,
   }));
 
   return transformedSessions;
@@ -46,21 +53,23 @@ async function deleteSession(sessionId: string): Promise<void> {
   await mix.sessions.delete({ id: sessionId });
 }
 
-
 // Simple utility to find next session for navigation
-function findNextSession(sessions: SessionData[], deletedSessionId: string): string | null {
+function findNextSession(
+  sessions: SessionData[],
+  deletedSessionId: string
+): string | null {
   if (sessions.length <= 1) return null;
-  
-  const currentIndex = sessions.findIndex(s => s.id === deletedSessionId);
+
+  const currentIndex = sessions.findIndex((s) => s.id === deletedSessionId);
   if (currentIndex === -1) return null;
-  
+
   // Try next session, then previous
   if (currentIndex < sessions.length - 1) {
     return sessions[currentIndex + 1].id;
   } else if (currentIndex > 0) {
     return sessions[currentIndex - 1].id;
   }
-  
+
   return null;
 }
 
@@ -93,23 +102,31 @@ export function useDeleteSession(options: UseDeleteSessionOptions = {}) {
       await queryClient.cancelQueries({ queryKey: CACHE_KEYS.sessions });
 
       // Optimistically mark session as deleting (don't remove yet)
-      queryClient.setQueryData<SessionData[]>(CACHE_KEYS.sessions, (oldSessions = []) =>
-        oldSessions.map(session =>
-          session.id === deletedSessionId
-            ? { ...session, isDeleting: true }
-            : session
-        )
+      queryClient.setQueryData<SessionData[]>(
+        CACHE_KEYS.sessions,
+        (oldSessions = []) =>
+          oldSessions.map((session) =>
+            session.id === deletedSessionId
+              ? { ...session, isDeleting: true }
+              : session
+          )
       );
     },
     onSuccess: (_, deletedSessionId) => {
       // Now actually remove the session from cache
-      queryClient.setQueryData<SessionData[]>(CACHE_KEYS.sessions, (oldSessions = []) =>
-        oldSessions.filter(session => session.id !== deletedSessionId)
+      queryClient.setQueryData<SessionData[]>(
+        CACHE_KEYS.sessions,
+        (oldSessions = []) =>
+          oldSessions.filter((session) => session.id !== deletedSessionId)
       );
 
       // Remove the individual session cache entries
-      queryClient.removeQueries({ queryKey: CACHE_KEYS.session(deletedSessionId) });
-      queryClient.removeQueries({ queryKey: CACHE_KEYS.sessionMessages(deletedSessionId) });
+      queryClient.removeQueries({
+        queryKey: CACHE_KEYS.session(deletedSessionId),
+      });
+      queryClient.removeQueries({
+        queryKey: CACHE_KEYS.sessionMessages(deletedSessionId),
+      });
 
       invalidateSessionCaches(queryClient, deletedSessionId);
 
@@ -121,15 +138,17 @@ export function useDeleteSession(options: UseDeleteSessionOptions = {}) {
     },
     onError: (error, deletedSessionId) => {
       // Just undo the graying out
-      queryClient.setQueryData<SessionData[]>(CACHE_KEYS.sessions, (oldSessions = []) =>
-        oldSessions.map(session =>
-          session.id === deletedSessionId
-            ? { ...session, isDeleting: false }
-            : session
-        )
+      queryClient.setQueryData<SessionData[]>(
+        CACHE_KEYS.sessions,
+        (oldSessions = []) =>
+          oldSessions.map((session) =>
+            session.id === deletedSessionId
+              ? { ...session, isDeleting: false }
+              : session
+          )
       );
 
-      toast("Failed to delete session", {
+      toast('Failed to delete session', {
         description: error.message,
       });
     },

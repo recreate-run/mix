@@ -1,9 +1,4 @@
-import {
-  AudioLines,
-  ImageIcon,
-  NotebookPen,
-  VideoIcon,
-} from 'lucide-react';
+import { AudioLines, ImageIcon, NotebookPen, VideoIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
   Command,
@@ -27,27 +22,33 @@ interface CommandFileReferenceProps {
 // Media thumbnail component
 const MediaThumbnail = ({
   file,
-  sessionId
+  sessionId,
 }: {
   file: Attachment;
   sessionId: string;
 }) => {
   // Safety checks
   if (!file || !file.name || !sessionId) {
-    console.error('MediaThumbnail: Missing required props', { file, sessionId });
+    console.error('MediaThumbnail: Missing required props', {
+      file,
+      sessionId,
+    });
     return <ImageIcon className="size-4 text-red-500" />;
   }
 
   const fileType = getFileTypeFromExtension(file.name);
 
-  const previewUrl = generatePreviewUrl({ path: file.name, type: fileType }, sessionId);
+  const previewUrl = generatePreviewUrl(
+    { path: file.name, type: fileType },
+    sessionId
+  );
 
   // Log errors if generatePreviewUrl failed for media files
   if (!previewUrl && (fileType === 'image' || fileType === 'video')) {
     console.error('❌ Preview URL generation failed for media file:', {
       name: file.name,
       type: fileType,
-      sessionId
+      sessionId,
     });
   }
 
@@ -119,18 +120,15 @@ export function CommandFileReference({
   onClose,
   sessionId,
 }: CommandFileReferenceProps) {
-
-
   const [selectedValue, setSelectedValue] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Filter files based on search query
   const filteredFiles = searchQuery.trim()
     ? fileRef.files.filter((file) =>
-      file.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+        file.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     : fileRef.files;
-
 
   const handleSelect = (value: string) => {
     // Clear search query and selected value to prevent state interference
@@ -190,10 +188,7 @@ export function CommandFileReference({
                         onSelect={() => handleSelect(`file:${file.name}`)}
                         value={`file:${file.name}`}
                       >
-                        <MediaThumbnail
-                          file={file}
-                          sessionId={sessionId}
-                        />
+                        <MediaThumbnail file={file} sessionId={sessionId} />
                         <div className="flex-1">
                           <div className="font-medium text-sm">{file.name}</div>
                           {file.extension && (
@@ -207,7 +202,6 @@ export function CommandFileReference({
                   })}
                 </CommandGroup>
               )}
-
             </>
           ) : (
             <CommandEmpty>

@@ -7,17 +7,16 @@ interface BackButtonProps {
   value?: string;
 }
 
-export function BackButton({ label, onSelect, value = 'back' }: BackButtonProps) {
+export function BackButton({
+  label,
+  onSelect,
+  value = 'back',
+}: BackButtonProps) {
   return (
-    <CommandItem
-      onSelect={onSelect}
-      value={value}
-    >
+    <CommandItem onSelect={onSelect} value={value}>
       <ArrowLeft className="size-4 text-muted-foreground" />
       <div className="flex-1">
-        <div className="font-medium text-sm">
-          {label}
-        </div>
+        <div className="font-medium text-sm">{label}</div>
       </div>
     </CommandItem>
   );

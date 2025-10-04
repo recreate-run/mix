@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom/client';
 import { routeTree } from './routeTree.gen';
 
 // Import and initialize PostHog
-import { initPostHog } from './lib/posthog'
+import { initPostHog } from './lib/posthog';
 
 // Initialize PostHog analytics
 initPostHog();

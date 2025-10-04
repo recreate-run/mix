@@ -21,41 +21,49 @@ interface GsapAnimationPreviewProps {
   config: any; // Accept any configuration format from the endpoint
 }
 
-
 export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
-  config: initialConfig
+  config: initialConfig,
 }) => {
   // Use configuration directly as received from the endpoint
   const [config, setConfig] = useState(initialConfig);
   const [isVisible, setIsVisible] = useState<boolean>(true);
-  const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
+  const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(
+    null
+  );
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { isCopied, copyToClipboard } = useCopyToClipboard();
 
-  const animationName = config.url ? (() => {
-    try {
-      const url = new URL(config.url);
-      const path = url.pathname.substring(1).split('?')[0];
+  const animationName = config.url
+    ? (() => {
+        try {
+          const url = new URL(config.url);
+          const path = url.pathname.substring(1).split('?')[0];
 
-      // Handle format: 'animations/name/preview'
-      if (path.startsWith('animations/')) {
-        const parts = path.split('/');
-        return parts[1]; // Get the animation name (second part)
-      }
+          // Handle format: 'animations/name/preview'
+          if (path.startsWith('animations/')) {
+            const parts = path.split('/');
+            return parts[1]; // Get the animation name (second part)
+          }
 
-      console.error(`[GsapAnimationPreview] Unsupported URL format: ${path}`);
-      return null;
-    } catch (error) {
-      console.error(`[GsapAnimationPreview] Error parsing URL:`, error);
-      return null;
-    }
-  })() : null;
-
+          console.error(
+            `[GsapAnimationPreview] Unsupported URL format: ${path}`
+          );
+          return null;
+        } catch (error) {
+          console.error(`[GsapAnimationPreview] Error parsing URL:`, error);
+          return null;
+        }
+      })()
+    : null;
 
   // Load animation schema using TanStack Query
-  const { data: schema, isLoading: isLoadingSchema, error: schemaError } = useAnimationSchema({
+  const {
+    data: schema,
+    isLoading: isLoadingSchema,
+    error: schemaError,
+  } = useAnimationSchema({
     animationName,
-    enabled: !!animationName
+    enabled: !!animationName,
   });
 
   // Log schema errors for debugging
@@ -73,7 +81,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
       },
       {
         threshold: 0.1, // Trigger when 10% of the iframe container is visible
-        rootMargin: '50px' // Start loading slightly before it comes into view
+        rootMargin: '50px', // Start loading slightly before it comes into view
       }
     );
 
@@ -94,7 +102,8 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
       const [width, height] = rawAspectRatio.split('/').map(Number);
       aspectRatio = width && height ? width / height : 9 / 16;
     } else {
-      aspectRatio = typeof rawAspectRatio === 'number' ? rawAspectRatio : 9 / 16;
+      aspectRatio =
+        typeof rawAspectRatio === 'number' ? rawAspectRatio : 9 / 16;
     }
 
     const isLandscape = aspectRatio > 1;
@@ -132,11 +141,9 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
   const updateParameter = (key: string, value: any) => {
     setConfig((prev: any) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
-
-
 
   // Render parameter control based on schema
   const renderParameterControl = (param: any, value: any) => {
@@ -149,7 +156,9 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
           return (
             <Select
               value={value ?? param.default}
-              onValueChange={(selectedValue) => updateParameter(paramKey, selectedValue)}
+              onValueChange={(selectedValue) =>
+                updateParameter(paramKey, selectedValue)
+              }
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select option..." />
@@ -182,15 +191,19 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
               min={param.min}
               max={param.max}
               value={value ?? param.default}
-              onChange={(e) => updateParameter(paramKey, Number(e.target.value))}
+              onChange={(e) =>
+                updateParameter(paramKey, Number(e.target.value))
+              }
             />
-            {(param.min !== undefined && param.max !== undefined) && (
+            {param.min !== undefined && param.max !== undefined && (
               <Input
                 type="range"
                 min={param.min}
                 max={param.max}
                 value={value ?? param.default}
-                onChange={(e) => updateParameter(paramKey, Number(e.target.value))}
+                onChange={(e) =>
+                  updateParameter(paramKey, Number(e.target.value))
+                }
                 className="w-full"
               />
             )}
@@ -233,7 +246,6 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
     }
   };
 
-
   return (
     <div className="gsap-animation-preview my-4 flex gap-8">
       {/* Animation Preview */}
@@ -243,7 +255,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
           className="relative rounded-lg"
           style={{
             width: `${containerDimensions.width}px`,
-            height: `${containerDimensions.height}px`
+            height: `${containerDimensions.height}px`,
           }}
         >
           <iframe
@@ -279,43 +291,53 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
                     min="1000"
                     max="10000"
                     value={config.duration}
-                    onChange={(e) => updateParameter('duration', Number(e.target.value))}
+                    onChange={(e) =>
+                      updateParameter('duration', Number(e.target.value))
+                    }
                     className="w-full"
                   />
                 </div>
               )}
 
               {/* Add separator if both common parameters and schema parameters exist */}
-              {((config.text || config.overlayText || config.displayText) ||
-                (config.textColor || config.style?.color) ||
+              {(config.text ||
+                config.overlayText ||
+                config.displayText ||
+                config.textColor ||
+                config.style?.color ||
                 config.duration !== undefined) &&
-                schema?.parameters?.length && (
-                  <Separator />
-                )}
+                schema?.parameters?.length && <Separator />}
 
               {/* Schema Parameters */}
-              {schema?.parameters?.length ? (
-                schema.parameters.map((param) => (
-                  <div key={param.name} className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      {param.name}
-                      {param.description && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {param.description}
-                        </span>
-                      )}
-                    </Label>
-                    {renderParameterControl(param, config[param.name])}
-                  </div>
-                ))
-              ) : !((config.text || config.overlayText || config.displayText) ||
-                (config.textColor || config.style?.color) ||
-                config.duration !== undefined) && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No parameters available</p>
-                  <p className="text-xs mt-2">Animation will use default settings</p>
-                </div>
-              )}
+              {schema?.parameters?.length
+                ? schema.parameters.map((param) => (
+                    <div key={param.name} className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        {param.name}
+                        {param.description && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {param.description}
+                          </span>
+                        )}
+                      </Label>
+                      {renderParameterControl(param, config[param.name])}
+                    </div>
+                  ))
+                : !(
+                    config.text ||
+                    config.overlayText ||
+                    config.displayText ||
+                    config.textColor ||
+                    config.style?.color ||
+                    config.duration !== undefined
+                  ) && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No parameters available</p>
+                      <p className="text-xs mt-2">
+                        Animation will use default settings
+                      </p>
+                    </div>
+                  )}
 
               {/* URL Preview Section */}
               {iframeUrl && (

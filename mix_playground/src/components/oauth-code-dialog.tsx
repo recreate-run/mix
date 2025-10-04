@@ -74,7 +74,8 @@ export function OAuthCodeDialog({
         <DialogHeader>
           <DialogTitle>Complete OAuth Authentication</DialogTitle>
           <DialogDescription>
-            After authorizing in your browser, copy and paste the authorization code here to complete the authentication process.
+            After authorizing in your browser, copy and paste the authorization
+            code here to complete the authentication process.
           </DialogDescription>
         </DialogHeader>
 

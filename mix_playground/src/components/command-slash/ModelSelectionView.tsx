@@ -1,5 +1,9 @@
 import { Settings } from 'lucide-react';
-import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import type { HierarchicalModelData } from '@/types';
 import { BackButton } from './shared/BackButton';
 import { StatusBadge } from './shared/StatusBadge';
@@ -43,34 +47,36 @@ export function ModelSelectionView({
       <CommandGroup
         heading={`${provider.displayName} Models (${provider.models.length})`}
       >
-          <BackButton
-            label="Back to Providers"
-            onSelect={onBackToProviders}
-            value="back-to-providers"
-          />
+        <BackButton
+          label="Back to Providers"
+          onSelect={onBackToProviders}
+          value="back-to-providers"
+        />
 
-          {provider.models.map((model) => (
-            <CommandItem
-              key={model.id}
-              onSelect={() => handleModelSelect(model.id)}
-              value={model.displayName}
-            >
-              <Settings className="size-4 text-muted-foreground" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 font-medium text-sm">
-                  {model.displayName}
-                  {model.isSelected && <StatusBadge status="current" />}
-                </div>
+        {provider.models.map((model) => (
+          <CommandItem
+            key={model.id}
+            onSelect={() => handleModelSelect(model.id)}
+            value={model.displayName}
+          >
+            <Settings className="size-4 text-muted-foreground" />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 font-medium text-sm">
+                {model.displayName}
+                {model.isSelected && <StatusBadge status="current" />}
               </div>
-            </CommandItem>
-          ))}
+            </div>
+          </CommandItem>
+        ))}
       </CommandGroup>
     );
   }
 
   // Show provider selection
   const handleProviderSelect = (providerId: string) => {
-    const provider = hierarchicalModelData.providers.find((p) => p.id === providerId);
+    const provider = hierarchicalModelData.providers.find(
+      (p) => p.id === providerId
+    );
     if (provider && !provider.authenticated) {
       // Don't allow selection of unauthenticated providers
       return;
@@ -83,47 +89,49 @@ export function ModelSelectionView({
   }
 
   return (
-    <CommandGroup heading={`Providers (${hierarchicalModelData.providers.length})`}>
-        <BackButton
-          label="Back to Commands"
-          onSelect={onBackToCommands}
-          value="back-to-commands"
-        />
+    <CommandGroup
+      heading={`Providers (${hierarchicalModelData.providers.length})`}
+    >
+      <BackButton
+        label="Back to Commands"
+        onSelect={onBackToCommands}
+        value="back-to-commands"
+      />
 
-        {hierarchicalModelData.providers.map((provider) => {
-          const isDisabled = !provider.authenticated;
+      {hierarchicalModelData.providers.map((provider) => {
+        const isDisabled = !provider.authenticated;
 
-          return (
-            <CommandItem
-              key={provider.id}
-              onSelect={() => {
-                if (!isDisabled) {
-                  handleProviderSelect(provider.id);
-                }
-              }}
-              value={provider.displayName}
-              className={isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-            >
-              <Settings className="size-4 text-muted-foreground" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 font-medium text-sm">
-                  {provider.displayName}
-                  <div className="flex items-center gap-2">
-                    {provider.isPreferred && <StatusBadge status="preferred" />}
-                    {!provider.authenticated && (
-                      <StatusBadge status="not-authenticated" />
-                    )}
-                  </div>
-                </div>
-                <div className="text-muted-foreground text-xs">
-                  {`${provider.models.length} models available${
-                    provider.authenticated ? ' • Authenticated' : ''
-                  }`}
+        return (
+          <CommandItem
+            key={provider.id}
+            onSelect={() => {
+              if (!isDisabled) {
+                handleProviderSelect(provider.id);
+              }
+            }}
+            value={provider.displayName}
+            className={isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+          >
+            <Settings className="size-4 text-muted-foreground" />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 font-medium text-sm">
+                {provider.displayName}
+                <div className="flex items-center gap-2">
+                  {provider.isPreferred && <StatusBadge status="preferred" />}
+                  {!provider.authenticated && (
+                    <StatusBadge status="not-authenticated" />
+                  )}
                 </div>
               </div>
-            </CommandItem>
-          );
-        })}
+              <div className="text-muted-foreground text-xs">
+                {`${provider.models.length} models available${
+                  provider.authenticated ? ' • Authenticated' : ''
+                }`}
+              </div>
+            </div>
+          </CommandItem>
+        );
+      })}
     </CommandGroup>
   );
 }

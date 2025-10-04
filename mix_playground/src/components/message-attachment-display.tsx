@@ -26,15 +26,27 @@ export function MessageAttachmentDisplay({
         const renderPreview = () => {
           switch (attachment.type) {
             case 'image':
-              return <ImagePreview 
-                attachment={attachment} 
-                previewUrl={sessionId ? generatePreviewUrl(attachment, sessionId) : undefined}
-              />;
+              return (
+                <ImagePreview
+                  attachment={attachment}
+                  previewUrl={
+                    sessionId
+                      ? generatePreviewUrl(attachment, sessionId)
+                      : undefined
+                  }
+                />
+              );
             case 'video':
-              return <VideoPreview 
-                attachment={attachment} 
-                previewUrl={sessionId ? generatePreviewUrl(attachment, sessionId) : undefined}
-              />;
+              return (
+                <VideoPreview
+                  attachment={attachment}
+                  previewUrl={
+                    sessionId
+                      ? generatePreviewUrl(attachment, sessionId)
+                      : undefined
+                  }
+                />
+              );
             case 'audio':
               return <AudioPreview attachment={attachment} />;
             case 'text':

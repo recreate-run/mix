@@ -6,7 +6,9 @@ import type { ListMcpServersResponse } from 'mix-typescript-sdk/models/operation
 type MCPServerData = ListMcpServersResponse;
 
 // Transform SDK response - validate and ensure tools array is never null
-function transformMCPServerData(sdkData: ListMcpServersResponse): MCPServerData {
+function transformMCPServerData(
+  sdkData: ListMcpServersResponse
+): MCPServerData {
   return {
     ...sdkData,
     tools: sdkData.tools ?? [], // Convert null/undefined to empty array

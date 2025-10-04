@@ -1,8 +1,8 @@
-import { CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { handleModelSelection } from "@/handlers/model-command-handler";
-import { ModelDisplayProps } from "@/types/provider";
+import { CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { handleModelSelection } from '@/handlers/model-command-handler';
+import { ModelDisplayProps } from '@/types/provider';
 
 export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
   const handleSelect = async (modelId: string) => {
@@ -10,7 +10,7 @@ export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
     const result = await handleModelSelection(modelId);
     onUpdate(result);
   };
-  
+
   return (
     <Card>
       <CardContent className="p-4">
@@ -21,7 +21,7 @@ export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
               Provider: <strong>{data.provider.displayName}</strong>
             </span>
           </div>
-          
+
           {data.models.length > 0 ? (
             <div className="grid grid-cols-1 gap-2">
               {data.models.map((model) => (
@@ -29,7 +29,7 @@ export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
                   key={model.id}
                   className={`w-full justify-between ${model.isSelected ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
                   onClick={() => handleSelect(model.id)}
-                  variant={model.isSelected ? "default" : "outline"}
+                  variant={model.isSelected ? 'default' : 'outline'}
                 >
                   <span>{model.displayName}</span>
                   {model.isSelected && <CheckCircle className="h-4 w-4" />}
@@ -41,10 +41,10 @@ export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
               <p>No models available for this provider.</p>
             </div>
           )}
-          
+
           {/* Help text */}
           <p className="text-sm text-muted-foreground mt-4">
-            Select a model to use with {data.provider.displayName}. 
+            Select a model to use with {data.provider.displayName}.
             {data.currentModel ? ` Current model: ${data.currentModel}` : ''}
           </p>
         </div>

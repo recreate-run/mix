@@ -5,18 +5,23 @@ import { getBackendUrl } from './backendUrl';
  * Convert filename to session-based HTTP asset server URL
  * Files are served from /api/sessions/{sessionId}/files/{filename}
  */
-export const convertToAssetServerUrl = (filename: string, sessionId: string): string => {
+export const convertToAssetServerUrl = (
+  filename: string,
+  sessionId: string
+): string => {
   if (!sessionId) {
     throw new Error('Session ID is required for asset server URL');
   }
-  
+
   if (!filename) {
     throw new Error('Filename is required for asset server URL');
   }
 
   // Extract filename from path if full path is provided
-  const cleanFilename = filename.includes('/') ? filename.split('/').pop()! : filename;
-  
+  const cleanFilename = filename.includes('/')
+    ? filename.split('/').pop()!
+    : filename;
+
   return `${getBackendUrl()}/api/sessions/${sessionId}/files/${encodeURIComponent(cleanFilename)}`;
 };
 

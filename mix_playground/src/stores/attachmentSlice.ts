@@ -1,4 +1,7 @@
-import { detectVideoUrls, createVideoUrlAttachment } from '@/utils/videoUrlDetection';
+import {
+  detectVideoUrls,
+  createVideoUrlAttachment,
+} from '@/utils/videoUrlDetection';
 
 export type Attachment = {
   id: string;
@@ -36,7 +39,6 @@ export interface AttachmentSlice {
   getMediaFiles: () => Attachment[];
   addUrlAttachments: (text: string) => void;
 }
-
 
 export const createAttachmentSlice = (
   set: (
@@ -157,7 +159,9 @@ export const createAttachmentSlice = (
       const attachment = createVideoUrlAttachment(videoInfo);
 
       // Skip if URL attachment already exists
-      if (state.attachments.some(existing => existing.url === videoInfo.url)) {
+      if (
+        state.attachments.some((existing) => existing.url === videoInfo.url)
+      ) {
         continue;
       }
 
@@ -179,13 +183,11 @@ export const createAttachmentSlice = (
     if (hasChanges) {
       set(() => ({
         attachments: newAttachments,
-        referenceMap: newReferenceMap
+        referenceMap: newReferenceMap,
       }));
     }
   },
 });
-
-
 
 // Get attachments that are still referenced in text
 const getReferencedAttachments = (
@@ -194,7 +196,8 @@ const getReferencedAttachments = (
 ): Attachment[] => {
   return attachments.filter((attachment) => {
     // Handle file/folder references
-    const hasFileReference = text.includes(`@${attachment.name}`) ||
+    const hasFileReference =
+      text.includes(`@${attachment.name}`) ||
       text.includes(`@../${attachment.name}`);
 
     // Handle URL references (URLs are referenced directly, not with @ prefix)

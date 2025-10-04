@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
-import { LoginProviderInfo } from "@/types/message";
+import { LoginProviderInfo } from '@/types/message';
 
 // Authentication method constants
 const AUTH_METHODS: Record<string, ('api_key' | 'oauth')[]> = {
@@ -22,7 +22,7 @@ async function fetchProviders(): Promise<LoginProviderInfo[]> {
   // Get authentication status and available providers
   const [authStatus, preferencesResponse] = await Promise.all([
     mix.authentication.getAuthStatus(),
-    mix.preferences.get()
+    mix.preferences.get(),
   ]);
 
   if (!preferencesResponse.availableProviders) {
@@ -33,24 +33,27 @@ async function fetchProviders(): Promise<LoginProviderInfo[]> {
   const providers: LoginProviderInfo[] = [];
 
   // Process all available providers
-  Object.entries(preferencesResponse.availableProviders).forEach(([providerId, data]: [string, any]) => {
-    const authProvider = authStatus.providers?.[providerId];
-    const isAuthenticated = authProvider?.authenticated || false;
+  Object.entries(preferencesResponse.availableProviders).forEach(
+    ([providerId, data]: [string, any]) => {
+      const authProvider = authStatus.providers?.[providerId];
+      const isAuthenticated = authProvider?.authenticated || false;
 
-    // Extract clean display name
-    const name = data.displayName || authProvider?.displayName || providerId;
-    const cleanName = name.replace(' ⭐', '');
-    const isPreferred = name.includes('⭐') || providerId === preferredProvider;
+      // Extract clean display name
+      const name = data.displayName || authProvider?.displayName || providerId;
+      const cleanName = name.replace(' ⭐', '');
+      const isPreferred =
+        name.includes('⭐') || providerId === preferredProvider;
 
-    providers.push({
-      id: providerId,
-      displayName: cleanName,
-      authMethods: AUTH_METHODS[providerId] || ['api_key'],
-      authenticated: isAuthenticated,
-      apiKeyFormat: API_KEY_FORMATS[providerId] || 'API key',
-      isPreferred
-    });
-  });
+      providers.push({
+        id: providerId,
+        displayName: cleanName,
+        authMethods: AUTH_METHODS[providerId] || ['api_key'],
+        authenticated: isAuthenticated,
+        apiKeyFormat: API_KEY_FORMATS[providerId] || 'API key',
+        isPreferred,
+      });
+    }
+  );
 
   // Sort providers - authenticated and preferred first, then unauthenticated
   providers.sort((a, b) => {

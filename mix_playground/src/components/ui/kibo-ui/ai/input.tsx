@@ -25,7 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { TextParser } from '@/lib/textParser';
 import { cn } from '@/lib/utils';
 
-
 export type AIInputProps = HTMLAttributes<HTMLFormElement>;
 
 export const AIInput = ({ className, ...props }: AIInputProps) => (

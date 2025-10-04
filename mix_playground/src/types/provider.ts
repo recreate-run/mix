@@ -5,9 +5,9 @@ export interface ProviderInfo {
   id: string;
   displayName: string;
   authenticated: boolean;
-  authMethod?: "api_key" | "oauth";
+  authMethod?: 'api_key' | 'oauth';
   isPreferred?: boolean;
-  authMethods: ("api_key" | "oauth")[]; // Available auth methods for this provider
+  authMethods: ('api_key' | 'oauth')[]; // Available auth methods for this provider
 }
 
 /**

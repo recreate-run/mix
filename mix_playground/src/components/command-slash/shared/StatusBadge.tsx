@@ -1,5 +1,11 @@
 interface StatusBadgeProps {
-  status: 'current' | 'preferred' | 'authenticated' | 'not-authenticated' | 'connected' | 'disconnected';
+  status:
+    | 'current'
+    | 'preferred'
+    | 'authenticated'
+    | 'not-authenticated'
+    | 'connected'
+    | 'disconnected';
   label?: string;
 }
 
@@ -42,9 +48,5 @@ export function StatusBadge({ status, label }: StatusBadgeProps) {
     }
   };
 
-  return (
-    <span className={getBadgeStyles()}>
-      {label || getDefaultLabel()}
-    </span>
-  );
+  return <span className={getBadgeStyles()}>{label || getDefaultLabel()}</span>;
 }

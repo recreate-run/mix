@@ -10,12 +10,13 @@ export function useFileReference(
   sessionId?: string
 ) {
   const [selected, setSelected] = useState(0);
-  
+
   const addAttachment = useBoundStore((state) => state.addAttachment);
   const addReference = useBoundStore((state) => state.addReference);
 
   // Get session files using our new hook
-  const { data: sessionFiles = [], isLoading: isLoadingFolder } = useSessionFiles(sessionId);
+  const { data: sessionFiles = [], isLoading: isLoadingFolder } =
+    useSessionFiles(sessionId);
 
   // Filter files to exclude directories (session files are flat)
   const files = sessionFiles.filter((file) => !file.isDirectory);
@@ -23,7 +24,8 @@ export function useFileReference(
   // Detect "@" trigger
   const words = text.split(' ');
   const lastWord = words[words.length - 1];
-  const show = lastWord.startsWith('@') && !lastWord.includes('/') && !!sessionId;
+  const show =
+    lastWord.startsWith('@') && !lastWord.includes('/') && !!sessionId;
 
   // Reset selection when files change
   useEffect(() => {

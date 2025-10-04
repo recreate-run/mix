@@ -1,9 +1,4 @@
-import {
-  Accessibility,
-  Folder,
-  Mic,
-  Monitor,
-} from 'lucide-react';
+import { Accessibility, Folder, Mic, Monitor } from 'lucide-react';
 import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -18,9 +13,7 @@ interface PermissionsViewProps {
   onBackToCommands: () => void;
 }
 
-export function PermissionsView({
-  onBackToCommands,
-}: PermissionsViewProps) {
+export function PermissionsView({ onBackToCommands }: PermissionsViewProps) {
   const accessibility = useAccessibilityPermission(true);
   const fullDiskAccess = useFullDiskAccessPermission(true);
   const screenRecording = useScreenRecordingPermission(true);
@@ -53,7 +46,6 @@ export function PermissionsView({
     },
   ];
 
-
   const handlePermissionSelect = (permissionId: string) => {
     const permission = permissions.find((p) => p.id === permissionId);
     if (permission && !permission.hook.isGranted) {
@@ -63,13 +55,13 @@ export function PermissionsView({
 
   return (
     <CommandGroup heading="System Permissions">
-        <BackButton
-          label="Back to Commands"
-          onSelect={onBackToCommands}
-          value="back-to-commands"
-        />
+      <BackButton
+        label="Back to Commands"
+        onSelect={onBackToCommands}
+        value="back-to-commands"
+      />
 
-        {permissions.map((permission) => {
+      {permissions.map((permission) => {
         const Icon = permission.icon;
         return (
           <CommandItem

@@ -3,7 +3,9 @@ import { fetchAnimationSchema, type AnimationSchema } from '@/utils/gsapApi';
 import { CACHE_KEYS } from '@/lib/cache-keys';
 import { getGsapUrl } from '@/utils/backendUrl';
 
-async function loadAnimationSchema(animationName: string): Promise<AnimationSchema | null> {
+async function loadAnimationSchema(
+  animationName: string
+): Promise<AnimationSchema | null> {
   const baseServerUrl = getGsapUrl();
 
   if (!animationName) {
@@ -22,7 +24,10 @@ interface UseAnimationSchemaOptions {
   enabled?: boolean;
 }
 
-export function useAnimationSchema({ animationName, enabled = true }: UseAnimationSchemaOptions = {}) {
+export function useAnimationSchema({
+  animationName,
+  enabled = true,
+}: UseAnimationSchemaOptions = {}) {
   return useQuery({
     queryKey: animationName ? CACHE_KEYS.animationSchema(animationName) : [],
     queryFn: () => loadAnimationSchema(animationName!),

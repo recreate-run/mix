@@ -63,66 +63,66 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
     <>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarContent>
-        <SidebarGroup>
-          <div className="flex items-center justify-between">
-            <SidebarGroupLabel>Sessions</SidebarGroupLabel>
-            <SidebarTrigger className="size-6" />
-          </div>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {/* New Session Button */}
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleNewSession}>
-                  <IconPlus className="size-4" />
-                  <span>New Session</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+        <SidebarContent>
+          <SidebarGroup>
+            <div className="flex items-center justify-between">
+              <SidebarGroupLabel>Sessions</SidebarGroupLabel>
+              <SidebarTrigger className="size-6" />
+            </div>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {/* New Session Button */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={handleNewSession}>
+                    <IconPlus className="size-4" />
+                    <span>New Session</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
 
-              {/* Sessions List */}
-              {sessionsLoading ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton disabled>
-                    <IconClock className="size-4" />
-                    <span>Loading sessions...</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ) : sortedSessions.length === 0 ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton disabled>
-                    <IconClock className="size-4" />
-                    <span>No sessions</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ) : (
-                sortedSessions.map((session) => {
-                  const isActive = sessionId === session.id;
-                  return (
-                    <SessionItem
-                      isActive={isActive}
-                      key={session.id}
-                      onClick={handleSessionSelect}
-                      session={session}
-                      currentSessionId={sessionId}
-                      allSessions={sortedSessions}
-                    />
-                  );
-                })
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
-              <IconSettings className="size-4" />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+                {/* Sessions List */}
+                {sessionsLoading ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton disabled>
+                      <IconClock className="size-4" />
+                      <span>Loading sessions...</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ) : sortedSessions.length === 0 ? (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton disabled>
+                      <IconClock className="size-4" />
+                      <span>No sessions</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ) : (
+                  sortedSessions.map((session) => {
+                    const isActive = sessionId === session.id;
+                    return (
+                      <SessionItem
+                        isActive={isActive}
+                        key={session.id}
+                        onClick={handleSessionSelect}
+                        session={session}
+                        currentSessionId={sessionId}
+                        allSessions={sortedSessions}
+                      />
+                    );
+                  })
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
+                <IconSettings className="size-4" />
+                <span>Settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
       </Sidebar>
     </>
   );

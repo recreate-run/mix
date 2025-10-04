@@ -28,7 +28,10 @@ export const CsvViewer = ({ url }: CsvViewerProps) => {
   if (error) {
     return (
       <div className="flex h-48 items-center justify-center rounded-md bg-stone-700/30">
-        <div className="text-stone-400">Failed to load CSV: {error instanceof Error ? error.message : 'Unknown error'}</div>
+        <div className="text-stone-400">
+          Failed to load CSV:{' '}
+          {error instanceof Error ? error.message : 'Unknown error'}
+        </div>
       </div>
     );
   }
@@ -53,7 +56,8 @@ export const CsvViewer = ({ url }: CsvViewerProps) => {
             {csvData.totalRows} rows × {csvData.totalColumns} columns
             {hasMoreRows && (
               <span className="text-muted-foreground">
-                {' '}(showing first {maxDisplayRows} rows)
+                {' '}
+                (showing first {maxDisplayRows} rows)
               </span>
             )}
           </TableCaption>

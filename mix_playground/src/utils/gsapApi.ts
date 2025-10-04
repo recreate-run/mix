@@ -16,7 +16,6 @@ interface ParameterSchema {
   options?: string[];
 }
 
-
 // Fetch schema for a specific animation
 export async function fetchAnimationSchema(
   animationName: string,
@@ -29,16 +28,21 @@ export async function fetchAnimationSchema(
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.error(`[GSAP API] Failed to fetch animation schema: ${response.status} ${response.statusText}`);
-      throw new Error(`Failed to fetch animation schema: ${response.statusText}`);
+      console.error(
+        `[GSAP API] Failed to fetch animation schema: ${response.status} ${response.statusText}`
+      );
+      throw new Error(
+        `Failed to fetch animation schema: ${response.statusText}`
+      );
     }
 
     const schema = await response.json();
     return schema;
   } catch (error) {
-    console.error(`[GSAP API] Error fetching animation schema for ${animationName}:`, error);
+    console.error(
+      `[GSAP API] Error fetching animation schema for ${animationName}:`,
+      error
+    );
     return null;
   }
 }
-
-

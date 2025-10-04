@@ -1,22 +1,22 @@
-import { mix } from "@/lib/mix-sdk";
-import { UIMessage, LoginProviderInfo } from "@/types/message";
-import { toast } from "sonner"; // Import directly from package
+import { mix } from '@/lib/mix-sdk';
+import { UIMessage, LoginProviderInfo } from '@/types/message';
+import { toast } from 'sonner'; // Import directly from package
 
 // Map of API key formats for different providers
 const API_KEY_FORMATS: Record<string, string> = {
-  "anthropic": "sk-ant-...",
-  "openai": "sk-...",
-  "openrouter": "sk-...",
-  "gemini": "AI...",
+  anthropic: 'sk-ant-...',
+  openai: 'sk-...',
+  openrouter: 'sk-...',
+  gemini: 'AI...',
   // Add more as needed
 };
 
 // Map of supported auth methods for different providers
-const AUTH_METHODS: Record<string, ("api_key" | "oauth")[]> = {
-  "anthropic": ["api_key", "oauth"],
-  "openai": ["api_key"],
-  "openrouter": ["api_key"],
-  "gemini": ["api_key"],
+const AUTH_METHODS: Record<string, ('api_key' | 'oauth')[]> = {
+  anthropic: ['api_key', 'oauth'],
+  openai: ['api_key'],
+  openrouter: ['api_key'],
+  gemini: ['api_key'],
   // Add more as needed
 };
 
@@ -35,41 +35,43 @@ export async function handleLoginCommand(): Promise<UIMessage> {
     const hasExistingPreferences = !!response.preferences;
 
     if (!response.availableProviders) {
-      throw new Error("Failed to fetch available providers");
+      throw new Error('Failed to fetch available providers');
     }
 
     // Determine the preferred provider from preferences if it exists
     const preferredProvider = response.preferences?.preferredProvider;
 
     // Map available providers from API response for login
-    const providers: LoginProviderInfo[] = Object.entries(response.availableProviders).map(([providerId, data]: [string, any]) => {
+    const providers: LoginProviderInfo[] = Object.entries(
+      response.availableProviders
+    ).map(([providerId, data]: [string, any]) => {
       return {
         id: providerId,
         displayName: data.displayName || providerId,
-        authMethods: AUTH_METHODS[providerId] || ["api_key"], // Required for login
+        authMethods: AUTH_METHODS[providerId] || ['api_key'], // Required for login
         authenticated: status.providers?.[providerId]?.authenticated || false,
-        apiKeyFormat: API_KEY_FORMATS[providerId] || "API key",
-        isPreferred: providerId === preferredProvider
+        apiKeyFormat: API_KEY_FORMATS[providerId] || 'API key',
+        isPreferred: providerId === preferredProvider,
       };
     });
     // Return message with login data for hooks
     return {
-      content: hasExistingPreferences ?
-        `Using preferences with preferred provider: ${preferredProvider}` :
-        "No existing preferences found. Please select a provider to authenticate with.",
-      from: "assistant",
+      content: hasExistingPreferences
+        ? `Using preferences with preferred provider: ${preferredProvider}`
+        : 'No existing preferences found. Please select a provider to authenticate with.',
+      from: 'assistant',
       frontend_only: true,
       loginData: {
         providers,
-        hasExistingPreferences: hasExistingPreferences
-      }
+        hasExistingPreferences: hasExistingPreferences,
+      },
     };
   } catch (error) {
     return {
-      content: `Failed to initialize login: ${error instanceof Error ? error.message : "Unknown error"}`,
-      from: "assistant",
+      content: `Failed to initialize login: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true
+      suppressChatMessage: true,
     };
   }
 }
@@ -85,13 +87,15 @@ export async function authenticateWithApiKey(
     // Store API key using the SDK
     await mix.authentication.storeApiKey({
       provider: provider as any,
-      apiKey
+      apiKey,
     });
 
     // Validate the saved API key by checking auth status
     const authStatus = await mix.authentication.getAuthStatus();
     if (!authStatus.providers?.[provider]?.authenticated) {
-      throw new Error(`API key was stored but provider ${provider} is not showing as authenticated. Please try again.`);
+      throw new Error(
+        `API key was stored but provider ${provider} is not showing as authenticated. Please try again.`
+      );
     }
 
     // Update preferences to use this provider as the preferred one
@@ -104,34 +108,37 @@ export async function authenticateWithApiKey(
 
     // Show success toast notification
     try {
-      toast.success("Authentication successful", {
+      toast.success('Authentication successful', {
         description: `Successfully authenticated with ${provider}`,
-        duration: 3000
+        duration: 3000,
       });
-      console.log("Toast notification triggered for API key login");
+      console.log('Toast notification triggered for API key login');
     } catch (toastError) {
-      console.error("Failed to show toast:", toastError);
+      console.error('Failed to show toast:', toastError);
     }
 
     return {
       content: `✅ Successfully authenticated with ${provider} using API key`,
-      from: "assistant",
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true  // Hide this success message from the chat UI
+      suppressChatMessage: true, // Hide this success message from the chat UI
     };
   } catch (error) {
     // Try to delete the API key if authentication failed
     try {
       await mix.authentication.deleteCredentials({ provider });
     } catch (deleteError) {
-      console.error('Failed to clean up API key after authentication failure:', deleteError);
+      console.error(
+        'Failed to clean up API key after authentication failure:',
+        deleteError
+      );
     }
 
     return {
-      content: `❌ Failed to authenticate: ${error instanceof Error ? error.message : "Unknown error"}`,
-      from: "assistant",
+      content: `❌ Failed to authenticate: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true
+      suppressChatMessage: true,
     };
   }
 }
@@ -143,14 +150,14 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
   try {
     // Start OAuth flow using the SDK
     const result = await mix.authentication.startOAuthFlow({
-      provider
+      provider,
     });
 
     if (!result.authUrl) {
       return {
-        content: "❌ Failed to start OAuth flow: No authorization URL returned",
-        from: "assistant",
-        frontend_only: true
+        content: '❌ Failed to start OAuth flow: No authorization URL returned',
+        from: 'assistant',
+        frontend_only: true,
       };
     }
 
@@ -158,36 +165,41 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
     // Get available providers to include in response
     const preferencesResponse = await mix.preferences.get();
     if (!preferencesResponse.availableProviders) {
-      throw new Error("Failed to fetch available providers for OAuth flow");
+      throw new Error('Failed to fetch available providers for OAuth flow');
     }
 
-    const providers: LoginProviderInfo[] = Object.entries(preferencesResponse.availableProviders).map(([providerId, data]: [string, any]) => {
+    const providers: LoginProviderInfo[] = Object.entries(
+      preferencesResponse.availableProviders
+    ).map(([providerId, data]: [string, any]) => {
       return {
         id: providerId,
         displayName: data.displayName || providerId,
-        authMethods: AUTH_METHODS[providerId] || ["api_key"], // Required for login
+        authMethods: AUTH_METHODS[providerId] || ['api_key'], // Required for login
         authenticated: false, // During OAuth flow, not yet authenticated
-        apiKeyFormat: API_KEY_FORMATS[providerId] || "API key"
+        apiKeyFormat: API_KEY_FORMATS[providerId] || 'API key',
       };
     });
 
-
     return {
       content: `If the browser doesn't open automatically, you can click or copy this URL: ${result.authUrl}`,
-      from: "assistant",
+      from: 'assistant',
       frontend_only: true,
       loginData: {
         providers,
         hasExistingPreferences: false,
-        oauthState: result.state
-      }
+        oauthState: result.state,
+      },
     };
   } catch (error) {
-    let errorMessage = error instanceof Error ? error.message : "Unknown error";
+    let errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
     // Check for structured error response
     if (typeof error === 'object' && error !== null && 'type' in error) {
-      const errorObj = error as { type?: string, message?: string, code?: number };
+      const errorObj = error as {
+        type?: string;
+        message?: string;
+        code?: number;
+      };
 
       if (errorObj.type === 'OAUTH_NOT_SUPPORTED') {
         errorMessage = `OAuth is not supported for ${provider}. Please use API key authentication instead.`;
@@ -198,9 +210,9 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
 
     return {
       content: `❌ ${errorMessage}`,
-      from: "assistant",
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true
+      suppressChatMessage: true,
     };
   }
 }
@@ -218,31 +230,30 @@ export async function handleOAuthCallback(
     await mix.authentication.handleOAuthCallback({
       provider,
       code,
-      state  // Pass the state parameter received from the initial OAuth response
+      state, // Pass the state parameter received from the initial OAuth response
     });
 
     // Update preferences to use this provider as the preferred one
     await mix.preferences.update({ preferredProvider: provider });
 
     // Show success toast notification
-    toast.success("OAuth authentication successful", {
+    toast.success('OAuth authentication successful', {
       description: `Successfully authenticated with ${provider}`,
-      duration: 3000
+      duration: 3000,
     });
 
     return {
       content: `✅ Successfully authenticated with ${provider} using OAuth`,
-      from: "assistant",
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true  // Hide this success message from the chat UI
+      suppressChatMessage: true, // Hide this success message from the chat UI
     };
   } catch (error) {
     return {
-      content: `❌ Failed to complete OAuth: ${error instanceof Error ? error.message : "Unknown error"}`,
-      from: "assistant",
+      content: `❌ Failed to complete OAuth: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      from: 'assistant',
       frontend_only: true,
-      suppressChatMessage: true
+      suppressChatMessage: true,
     };
   }
 }
-

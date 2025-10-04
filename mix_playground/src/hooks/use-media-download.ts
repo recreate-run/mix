@@ -79,7 +79,9 @@ export const useMediaDownload = (
       // Create filename with proper extension
       const extension = getFileExtension(media);
       const filename = media.title
-        ? (media.title.includes('.') ? media.title : `${media.title}${extension}`)
+        ? media.title.includes('.')
+          ? media.title
+          : `${media.title}${extension}`
         : `media${extension}`;
 
       a.download = filename;

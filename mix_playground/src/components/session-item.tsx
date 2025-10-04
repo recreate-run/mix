@@ -8,7 +8,6 @@ import type { SessionData } from '@/types/common';
 import { useDeleteSession } from '@/hooks/useSessionsList';
 import { getDisplayTitle } from '@/utils/sessionUtils';
 
-
 interface SessionItemProps {
   session: SessionData;
   isActive: boolean;
@@ -17,16 +16,26 @@ interface SessionItemProps {
   allSessions: SessionData[];
 }
 
-export function SessionItem({ session, isActive, onClick, currentSessionId, allSessions }: SessionItemProps) {
+export function SessionItem({
+  session,
+  isActive,
+  onClick,
+  currentSessionId,
+  allSessions,
+}: SessionItemProps) {
   const navigate = useNavigate();
-  
+
   // Simple delete hook with navigation callback - no circular dependencies
   const deleteSessionMutation = useDeleteSession({
     allSessions,
     currentSessionId,
     onNavigate: (nextSessionId) => {
       if (nextSessionId) {
-        navigate({ to: '/$sessionId', params: { sessionId: nextSessionId }, replace: true });
+        navigate({
+          to: '/$sessionId',
+          params: { sessionId: nextSessionId },
+          replace: true,
+        });
       } else {
         navigate({ to: '/', replace: true });
       }
@@ -64,7 +73,6 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
     }
   };
 
-
   const formatDate = (date: Date) => {
     const now = new Date();
     const diffDays = Math.floor(
@@ -81,8 +89,11 @@ export function SessionItem({ session, isActive, onClick, currentSessionId, allS
 
   return (
     <SidebarMenuItem
-      className={`group/session-item overflow-hidden ${session.isDeleting ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
-        }`}
+      className={`group/session-item overflow-hidden ${
+        session.isDeleting
+          ? 'opacity-50 cursor-not-allowed pointer-events-none'
+          : ''
+      }`}
     >
       <div className="flex transition-transform duration-200 ease-out translate-x-0 will-change-transform group-hover/session-item:translate-x-[-80px]">
         <SidebarMenuButton

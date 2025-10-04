@@ -13,7 +13,10 @@ interface AttachmentItemPreviewProps {
   previewUrl?: string;
 }
 
-export const ImagePreview = ({ attachment, previewUrl }: AttachmentItemPreviewProps) => {
+export const ImagePreview = ({
+  attachment,
+  previewUrl,
+}: AttachmentItemPreviewProps) => {
   if (!previewUrl) {
     return (
       <div className="flex size-14 items-center justify-center rounded-lg">
@@ -42,10 +45,13 @@ export const ImagePreview = ({ attachment, previewUrl }: AttachmentItemPreviewPr
   );
 };
 
-export const VideoPreview = ({ attachment, previewUrl }: AttachmentItemPreviewProps) => {
+export const VideoPreview = ({
+  attachment,
+  previewUrl,
+}: AttachmentItemPreviewProps) => {
   // For URL-based attachments, use thumbnailUrl if available, otherwise use previewUrl
   const thumbnailSrc = attachment.thumbnailUrl || previewUrl;
-  
+
   if (!thumbnailSrc) {
     return (
       <div className="flex size-14 items-center justify-center rounded-lg border-2 border-dashed border-gray-300">
@@ -70,9 +76,13 @@ export const VideoPreview = ({ attachment, previewUrl }: AttachmentItemPreviewPr
       {/* Platform indicator for URL videos */}
       {attachment.platform && (
         <div className="absolute top-1 left-1 rounded bg-black/60 px-1 py-0.5 text-white text-xs font-medium">
-          {attachment.platform === 'youtube' ? 'YT' : 
-           attachment.platform === 'vimeo' ? 'VM' : 
-           attachment.platform === 'direct' ? 'MP4' : 'VID'}
+          {attachment.platform === 'youtube'
+            ? 'YT'
+            : attachment.platform === 'vimeo'
+              ? 'VM'
+              : attachment.platform === 'direct'
+                ? 'MP4'
+                : 'VID'}
         </div>
       )}
       <VideoIcon
@@ -111,7 +121,6 @@ export const FolderPreview = ({ attachment }: AttachmentItemPreviewProps) => {
     </div>
   );
 };
-
 
 export const DefaultPreview = ({
   attachment: _,

@@ -23,7 +23,8 @@ const extractContentData = (content: string): ParsedContent => {
     };
   } catch {
     // Extract media URLs from plain text
-    const mediaUrlRegex = /https?:\/\/[^\s]+\/api\/sessions\/[^\s]+\/files\/[^\s]+/g;
+    const mediaUrlRegex =
+      /https?:\/\/[^\s]+\/api\/sessions\/[^\s]+\/files\/[^\s]+/g;
     const mediaUrls = content.match(mediaUrlRegex) || [];
 
     // Remove media URLs from text to get clean text
@@ -39,7 +40,6 @@ const extractContentData = (content: string): ParsedContent => {
   }
 };
 
-
 const convertMediaToAttachments = async (
   mediaPaths: string[]
 ): Promise<Attachment[]> => {
@@ -50,7 +50,12 @@ const convertMediaToAttachments = async (
       let attachment: Attachment | null = null;
 
       // Check if this is a server URL (from reloaded session) - can be full URL or relative path
-      if ((mediaPath.startsWith('http') || mediaPath.startsWith('/api/sessions/')) && mediaPath.includes('/api/sessions/') && mediaPath.includes('/files/')) {
+      if (
+        (mediaPath.startsWith('http') ||
+          mediaPath.startsWith('/api/sessions/')) &&
+        mediaPath.includes('/api/sessions/') &&
+        mediaPath.includes('/files/')
+      ) {
         // Extract filename from server URL
         const urlParts = mediaPath.split('/');
         const filename = decodeURIComponent(urlParts[urlParts.length - 1]);
@@ -125,12 +130,14 @@ const convertBackendMessageToUI = async (
   // Create timeline from stored reasoning if available
   let timeline: TimelineEntry[] | undefined;
   if (backendMessage.reasoning && backendMessage.reasoning.trim()) {
-    timeline = [{
-      type: 'thinking',
-      timestamp: Date.now(), // Could be derived from message timestamp
-      content: backendMessage.reasoning,
-      id: `stored-reasoning-${backendMessage.id}`
-    }];
+    timeline = [
+      {
+        type: 'thinking',
+        timestamp: Date.now(), // Could be derived from message timestamp
+        content: backendMessage.reasoning,
+        id: `stored-reasoning-${backendMessage.id}`,
+      },
+    ];
   }
 
   return {

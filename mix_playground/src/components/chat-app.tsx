@@ -1,11 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  type FormEventHandler,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type FormEventHandler, useEffect, useRef, useState } from 'react';
 import { IconDownload } from '@tabler/icons-react';
 import {
   AIInput,
@@ -62,7 +57,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // UI Interaction Mode 2: Command Palette (full modal triggered by "/" alone)
   const [showCommands, setShowCommands] = useState(false);
 
-
   // Input management and focus handling
   const [inputElement, setInputElement] = useState<HTMLTextAreaElement | null>(
     null
@@ -115,7 +109,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
   // Handle navigation to newly created sessions
   useEffect(() => {
-    if (sseStream.newlyCreatedSessionId && sseStream.newlyCreatedSessionId !== sessionId) {
+    if (
+      sseStream.newlyCreatedSessionId &&
+      sseStream.newlyCreatedSessionId !== sessionId
+    ) {
       // Navigate to the newly created session
       navigate({
         to: '/$sessionId',
@@ -126,8 +123,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Clear the state after navigation
       sseStream.clearNewlyCreatedSession();
     }
-  }, [sseStream.newlyCreatedSessionId, sessionId, navigate, sseStream.clearNewlyCreatedSession]);
-
+  }, [
+    sseStream.newlyCreatedSessionId,
+    sessionId,
+    navigate,
+    sseStream.clearNewlyCreatedSession,
+  ]);
 
   // Load messages when session messages data changes
   useEffect(() => {
@@ -136,15 +137,18 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         timestamp: new Date().toISOString(),
         sessionId,
         messageCount: sessionMessages.data.length,
-        lastMessageFrom: sessionMessages.data[sessionMessages.data.length - 1]?.from,
-        lastMessagePreview: sessionMessages.data[sessionMessages.data.length - 1]?.content?.substring(0, 50),
+        lastMessageFrom:
+          sessionMessages.data[sessionMessages.data.length - 1]?.from,
+        lastMessagePreview: sessionMessages.data[
+          sessionMessages.data.length - 1
+        ]?.content?.substring(0, 50),
         currentStreamingState: {
           processing: sseStream.processing,
           completed: sseStream.completed,
           cancelled: sseStream.cancelled,
           hasFinalContent: !!sseStream.finalContent,
           finalContentLength: sseStream.finalContent?.length || 0,
-        }
+        },
       });
       setMessages(sessionMessages.data);
     } else if (sessionMessages.error) {
@@ -156,26 +160,25 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           frontend_only: true,
         },
       ]);
-    } else if (!sessionMessages.isLoading && !sessionMessages.data) {
-      // Clear messages only if not loading AND we explicitly have no data (avoid flash of empty state)
-      console.log('[CHAT-MESSAGES-UPDATE] Clearing messages - no data available', {
-        timestamp: new Date().toISOString(),
-        sessionId,
-      });
-      setMessages([]);
     }
-  }, [sessionMessages.data, sessionMessages.error, sessionMessages.isLoading, sessionId]);
+  }, [
+    sessionMessages.data,
+    sessionMessages.error,
+    sessionMessages.isLoading,
+    sessionId,
+  ]);
 
   // Apps functionality removed - UI attachment system is separate from API fields
 
   const fileRef = useFileReference(text, setText, session?.id);
 
-
   // Handle file upload success
   const handleFileUploadSuccess = (fileName: string) => {
     // Add file reference to text input (same behavior as "@" menu)
     const displayReference = `@${fileName}`;
-    const newText = text ? `${text} ${displayReference} ` : `${displayReference} `;
+    const newText = text
+      ? `${text} ${displayReference} `
+      : `${displayReference} `;
     setText(newText);
 
     // Add reference mapping with full URL to ensure consistency with media array
@@ -186,7 +189,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       ...prev,
       {
         content: `File uploaded successfully: ${fileName}`,
-        from: "assistant",
+        from: 'assistant',
         frontend_only: true,
       },
     ]);
@@ -242,14 +245,19 @@ export function ChatApp({ sessionId }: ChatAppProps) {
     const pastedText = e.clipboardData.getData('text');
 
     // Only process if pasted content might contain URLs
-    if (pastedText.includes('http') || pastedText.includes('youtu') || pastedText.includes('vimeo')) {
+    if (
+      pastedText.includes('http') ||
+      pastedText.includes('youtu') ||
+      pastedText.includes('vimeo')
+    ) {
       const textarea = e.currentTarget;
       const selectionStart = textarea.selectionStart;
       const selectionEnd = textarea.selectionEnd;
       const currentText = text; // Use React state for reliability
 
       // Calculate what the text will be after paste operation
-      const finalText = currentText.substring(0, selectionStart) +
+      const finalText =
+        currentText.substring(0, selectionStart) +
         pastedText +
         currentText.substring(selectionEnd);
 
@@ -299,7 +307,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       setShowCommands(false);
     }
   };
-
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle Shift+Tab for plan mode toggle
@@ -378,15 +385,15 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       // Reset interrupted message guard when processing completes
       interruptedMessageAddedRef.current = false;
     }
-  }, [
-    sseStream.completed,
-    sseStream.finalContent,
-    sseStream.processing,
-  ]);
+  }, [sseStream.completed, sseStream.finalContent, sseStream.processing]);
 
   // Handle streaming errors - simple and clean
   useEffect(() => {
-    if (sseStream.error && !sseStream.error.includes('cancelled') && !sseStream.cancelled) {
+    if (
+      sseStream.error &&
+      !sseStream.error.includes('cancelled') &&
+      !sseStream.cancelled
+    ) {
       setMessages((prev) => [
         ...prev,
         {
@@ -432,7 +439,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         text: messageText,
         attachments,
         referenceMap,
-        planMode: overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
+        planMode:
+          overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
         onUserMessage: (userMessage) => {
           setMessages((prev) => [...prev, userMessage]);
         },
@@ -498,7 +506,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   // Handle editing (rewinding) conversation to a specific message
   const handleEditMessage = async (messageIndex: number) => {
     const messageToEdit = messages[messageIndex];
-    if (!messageToEdit || messageToEdit.from !== 'user' || !session?.id || !messageToEdit.id) {
+    if (
+      !messageToEdit ||
+      messageToEdit.from !== 'user' ||
+      !session?.id ||
+      !messageToEdit.id
+    ) {
       return;
     }
 
@@ -564,24 +577,28 @@ export function ChatApp({ sessionId }: ChatAppProps) {
   };
 
   // Button status and disabled state now computed by enhanced hook
-  const isSubmitDisabled = sseStream.buttonStatus === 'ready'
-    ? (!text && attachments.length === 0) ||
-    !session?.id ||
-    sessionLoading ||
-    sseStream.isSubmitDisabled
-    : sseStream.buttonStatus === 'paused'
-      ? true // Disable button completely during cancellation
-      : !session?.id || sessionLoading || sseStream.isSubmitDisabled;
+  const isSubmitDisabled =
+    sseStream.buttonStatus === 'ready'
+      ? (!text && attachments.length === 0) ||
+        !session?.id ||
+        sessionLoading ||
+        sseStream.isSubmitDisabled
+      : sseStream.buttonStatus === 'paused'
+        ? true // Disable button completely during cancellation
+        : !session?.id || sessionLoading || sseStream.isSubmitDisabled;
 
   return (
     <div className="relative flex h-full w-full p-8">
       <div className="flex-1 overflow-y-auto">
         {/* Feedback message notification */}
         {feedbackMessage && (
-          <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-5 duration-300 ${feedbackMessage.startsWith("Error:")
-            ? "bg-destructive text-destructive-foreground"
-            : "bg-primary text-primary-foreground"
-            }`}>
+          <div
+            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-5 duration-300 ${
+              feedbackMessage.startsWith('Error:')
+                ? 'bg-destructive text-destructive-foreground'
+                : 'bg-primary text-primary-foreground'
+            }`}
+          >
             {feedbackMessage}
           </div>
         )}
@@ -619,10 +636,10 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             onEditMessage={handleEditMessage}
             onPlanAction={handlePlanAction}
             onUpdateMessage={(index, updatedMessage) => {
-              setMessages(prev => [
+              setMessages((prev) => [
                 ...prev.slice(0, index),
                 updatedMessage,
-                ...prev.slice(index + 1)
+                ...prev.slice(index + 1),
               ]);
             }}
             sessionId={session?.id}
@@ -666,7 +683,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
             <AIInputToolbar>
               <AIInputTools>
                 <div className="absolute bottom-1 left-1 flex">
-
                   {/* File Upload Button */}
                   {session?.id && (
                     <FileUploadButton
@@ -693,16 +709,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                       <SelectItem value="plan">plan</SelectItem>
                     </SelectContent>
                   </Select> */}
-
-
-
                 </div>
 
                 {/* Current Model Display */}
                 <div className="absolute bottom-1 right-14 text-xs text-muted-foreground">
                   {formatCurrentModel(preferences)}
                 </div>
-
               </AIInputTools>
               <AIInputSubmit
                 disabled={isSubmitDisabled}
@@ -723,9 +735,13 @@ export function ChatApp({ sessionId }: ChatAppProps) {
               sessionId={sessionId}
               onFeedbackMessage={setFeedbackMessage}
               onNewSession={handleNewSession}
-              onQueryClientInvalidate={(keys) => queryClient.invalidateQueries({ queryKey: keys })}
+              onQueryClientInvalidate={(keys) =>
+                queryClient.invalidateQueries({ queryKey: keys })
+              }
               onSubmitMessage={submitMessage}
-              onAddMessage={(message) => setMessages((prev) => [...prev, message])}
+              onAddMessage={(message) =>
+                setMessages((prev) => [...prev, message])
+              }
             />
           )}
 

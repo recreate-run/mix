@@ -25,7 +25,6 @@ export interface LoginProvider extends Provider {
   apiKeyFormat?: string;
 }
 
-
 export interface StatusData {
   providers: Provider[];
 }
@@ -54,4 +53,3 @@ export type ViewState =
   | 'hierarchical-models'
   | 'status'
   | 'help';
-

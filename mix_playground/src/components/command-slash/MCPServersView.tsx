@@ -1,5 +1,9 @@
 import { Plug } from 'lucide-react';
-import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import { useMCPList } from '@/hooks/useMCPList';
 import { BackButton } from './shared/BackButton';
 import { StatusBadge } from './shared/StatusBadge';
@@ -35,27 +39,27 @@ export function MCPServersView({
         value="back-to-commands"
       />
 
-        {mcpServers.map((server) => (
-          <CommandItem
-            key={server.name}
-            onSelect={() => handleServerSelect(server.name)}
-            value={server.name}
-          >
-            <Plug className="size-4 text-muted-foreground" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 font-medium text-sm">
-                {server.name}
-                <StatusBadge
-                  status={server.connected ? 'connected' : 'disconnected'}
-                  label={server.status}
-                />
-              </div>
-              <div className="text-muted-foreground text-xs">
-                {server.tools?.length || 0} tools available
-              </div>
+      {mcpServers.map((server) => (
+        <CommandItem
+          key={server.name}
+          onSelect={() => handleServerSelect(server.name)}
+          value={server.name}
+        >
+          <Plug className="size-4 text-muted-foreground" />
+          <div className="flex-1">
+            <div className="flex items-center gap-2 font-medium text-sm">
+              {server.name}
+              <StatusBadge
+                status={server.connected ? 'connected' : 'disconnected'}
+                label={server.status}
+              />
             </div>
-          </CommandItem>
-        ))}
+            <div className="text-muted-foreground text-xs">
+              {server.tools?.length || 0} tools available
+            </div>
+          </div>
+        </CommandItem>
+      ))}
     </CommandGroup>
   );
 }

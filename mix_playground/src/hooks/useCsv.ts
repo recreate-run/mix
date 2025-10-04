@@ -56,7 +56,7 @@ const parseCSV = (csvText: string): ParsedCsv => {
   // Parse data rows
   for (let i = 1; i < lines.length; i++) {
     const row = parseLine(lines[i]);
-    if (row.length > 0 && row.some(cell => cell.length > 0)) {
+    if (row.length > 0 && row.some((cell) => cell.length > 0)) {
       rows.push(row);
     }
   }

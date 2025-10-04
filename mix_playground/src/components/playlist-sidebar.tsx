@@ -10,7 +10,10 @@ const isURL = (path: string): boolean => {
 
 // Helper function to detect local asset server URLs (localhost URLs that need thumbnail params)
 const isLocalAssetServerURL = (path: string): boolean => {
-  return path.startsWith('http://localhost:') || path.startsWith('https://localhost:');
+  return (
+    path.startsWith('http://localhost:') ||
+    path.startsWith('https://localhost:')
+  );
 };
 
 // Helper function to get media source URL
@@ -22,7 +25,7 @@ const getMediaSrc = (path: string, sessionId: string): string => {
 const getYouTubeVideoId = (url: string): string | null => {
   const patterns = [
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
-    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/,
   ];
 
   for (const pattern of patterns) {
@@ -76,12 +79,12 @@ export const PlaylistSidebar = ({
   };
 
   const renderThumbnail = (media: MediaOutput) => {
-
     if (media.type === 'image') {
       const imageUrl = getMediaSrc(media.path, sessionId);
       // Only add thumbnail parameter for local files, use URL directly for remote images
-      const thumbnailUrl = isURL(media.path) ? imageUrl : `${imageUrl}?thumb=100`;
-
+      const thumbnailUrl = isURL(media.path)
+        ? imageUrl
+        : `${imageUrl}?thumb=100`;
 
       return (
         <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -93,7 +96,7 @@ export const PlaylistSidebar = ({
                 src: e.currentTarget.src,
                 media: media,
                 sessionId: sessionId,
-                error: e
+                error: e,
               });
             }}
             src={thumbnailUrl}
@@ -116,7 +119,7 @@ export const PlaylistSidebar = ({
                   src: e.currentTarget.src,
                   media: media,
                   thumbnailUrl: youtubeThumbnail,
-                  error: e
+                  error: e,
                 });
               }}
               src={youtubeThumbnail}
@@ -137,7 +140,11 @@ export const PlaylistSidebar = ({
       let thumbnailUrl = videoUrl;
       if (!isURL(videoPath) || isLocalAssetServerURL(videoPath)) {
         thumbnailUrl = `${videoUrl}?thumb=100`;
-        if (media.startTime !== undefined && typeof media.startTime === 'number' && media.startTime >= 0) {
+        if (
+          media.startTime !== undefined &&
+          typeof media.startTime === 'number' &&
+          media.startTime >= 0
+        ) {
           thumbnailUrl += `&time=${media.startTime}`;
         }
       }
@@ -148,16 +155,23 @@ export const PlaylistSidebar = ({
             alt={`${media.title} thumbnail`}
             className="h-full w-full object-cover"
             onError={(e) => {
-              console.error('Video thumbnail failed to load:', JSON.stringify({
-                src: e.currentTarget.src,
-                media: media,
-                sessionId: sessionId,
-                videoPath: media.sourceVideo || media.path,
-                startTime: media.startTime,
-                thumbnailUrl: thumbnailUrl,
-                errorType: e.type,
-                errorTarget: e.target
-              }, null, 2));
+              console.error(
+                'Video thumbnail failed to load:',
+                JSON.stringify(
+                  {
+                    src: e.currentTarget.src,
+                    media: media,
+                    sessionId: sessionId,
+                    videoPath: media.sourceVideo || media.path,
+                    startTime: media.startTime,
+                    thumbnailUrl: thumbnailUrl,
+                    errorType: e.type,
+                    errorTarget: e.target,
+                  },
+                  null,
+                  2
+                )
+              );
             }}
             src={thumbnailUrl}
           />
@@ -185,10 +199,11 @@ export const PlaylistSidebar = ({
         <div className="flex gap-3 pb-2">
           {mediaOutputs.map((media, index) => (
             <button
-              className={`min-w-32 rounded-md bg-stone-700/30 p-2 text-left transition-colors ${selectedIndex === index
-                ? ' border border-primary/30'
-                : 'hover:bg-stone-700/30'
-                }`}
+              className={`min-w-32 rounded-md bg-stone-700/30 p-2 text-left transition-colors ${
+                selectedIndex === index
+                  ? ' border border-primary/30'
+                  : 'hover:bg-stone-700/30'
+              }`}
               key={index}
               onClick={() => onSelect(index)}
             >

@@ -1,4 +1,8 @@
-import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import type { HelpData } from '@/types/command-slash';
 import { BackButton } from './shared/BackButton';
 
@@ -15,14 +19,17 @@ export function HelpMenuView({
   onClose,
   onExecuteCommand,
 }: HelpMenuViewProps) {
-  const handleHelpItemSelect = async (item: typeof helpData.menuItems[0]) => {
+  const handleHelpItemSelect = async (item: (typeof helpData.menuItems)[0]) => {
     if (item.action === 'link' && item.url) {
       // Open external link using Tauri shell with fallback
       try {
         const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
         await shellOpen(item.url);
       } catch (shellError) {
-        console.warn('Tauri shell failed, falling back to window.open:', shellError);
+        console.warn(
+          'Tauri shell failed, falling back to window.open:',
+          shellError
+        );
         try {
           window.open(item.url, '_blank', 'noopener,noreferrer');
         } catch (windowError) {
@@ -61,9 +68,7 @@ export function HelpMenuView({
             </div>
           </div>
           {item.action === 'link' && (
-            <div className="text-xs text-muted-foreground">
-              external
-            </div>
+            <div className="text-xs text-muted-foreground">external</div>
           )}
         </CommandItem>
       ))}

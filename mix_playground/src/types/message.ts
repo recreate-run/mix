@@ -1,13 +1,17 @@
 import type { Attachment } from '@/stores/attachmentSlice';
 import type { ToolCall } from './common';
 import type { MediaOutput } from './media';
-import type { HierarchicalModelData, ProviderInfo, ModelInfo } from './provider';
+import type {
+  HierarchicalModelData,
+  ProviderInfo,
+  ModelInfo,
+} from './provider';
 
 // Login-specific provider info that requires authMethods
 export interface LoginProviderInfo {
   id: string;
   displayName: string;
-  authMethods: ("api_key" | "oauth")[];
+  authMethods: ('api_key' | 'oauth')[];
   authenticated: boolean;
   apiKeyFormat?: string;
   isPreferred?: boolean;
@@ -15,23 +19,23 @@ export interface LoginProviderInfo {
 
 export type TimelineEntry =
   | {
-    type: 'thinking';
-    timestamp: number;
-    content: string;
-    id: string;
-  }
+      type: 'thinking';
+      timestamp: number;
+      content: string;
+      id: string;
+    }
   | {
-    type: 'tool';
-    timestamp: number;
-    content: ToolCall;
-    id: string;
-  }
+      type: 'tool';
+      timestamp: number;
+      content: ToolCall;
+      id: string;
+    }
   | {
-    type: 'content';
-    timestamp: number;
-    content: string;
-    id: string;
-  };
+      type: 'content';
+      timestamp: number;
+      content: string;
+      id: string;
+    };
 
 export interface UIMessage {
   id?: string;

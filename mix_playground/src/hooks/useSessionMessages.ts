@@ -11,7 +11,6 @@ async function loadSessionMessages(
   try {
     const response = await mix.messages.getSession({ id: sessionId });
     return response;
-
   } catch (error: any) {
     console.error('Failed to load messages:', error);
     console.error('Error details:', {
@@ -21,15 +20,13 @@ async function loadSessionMessages(
     });
     throw error;
   }
-};
+}
 
-async function loadAndConvertMessages(
-  sessionId: string
-): Promise<UIMessage[]> {
+async function loadAndConvertMessages(sessionId: string): Promise<UIMessage[]> {
   const backendMessages = await loadSessionMessages(sessionId);
   const uiMessages = await convertBackendMessagesToUI(backendMessages);
   return uiMessages;
-};
+}
 
 export function useSessionMessages(sessionId: string | null) {
   const query = useQuery({
@@ -43,4 +40,4 @@ export function useSessionMessages(sessionId: string | null) {
   });
 
   return query;
-};
+}

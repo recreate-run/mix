@@ -94,7 +94,7 @@ const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
       if (Array.isArray(todos) && todos.length > 0) {
         return todos;
       }
-    } catch { }
+    } catch {}
   }
 
   // Fallback: if no calls have parameters yet, return empty array
@@ -132,9 +132,9 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 
   // Group consecutive thinking entries together for better UX
   const groupedEntries: Array<
-    | { type: 'thinking', entries: string[], timestamps: number[] }
-    | { type: 'tool', entry: TimelineEntry }
-    | { type: 'content', entry: TimelineEntry }
+    | { type: 'thinking'; entries: string[]; timestamps: number[] }
+    | { type: 'tool'; entry: TimelineEntry }
+    | { type: 'content'; entry: TimelineEntry }
   > = [];
 
   for (const entry of timeline) {
@@ -149,14 +149,14 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
         groupedEntries.push({
           type: 'thinking',
           entries: [entry.content],
-          timestamps: [entry.timestamp]
+          timestamps: [entry.timestamp],
         });
       }
     } else {
       // Tool or content entry - always separate
       groupedEntries.push({
         type: entry.type,
-        entry
+        entry,
       });
     }
   }
@@ -164,9 +164,14 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
   return groupedEntries.map((group, index) => {
     if (group.type === 'thinking') {
       const totalContent = group.entries.join('');
-      const duration = group.timestamps.length > 1
-        ? Math.round((group.timestamps[group.timestamps.length - 1] - group.timestamps[0]) / 1000)
-        : 0;
+      const duration =
+        group.timestamps.length > 1
+          ? Math.round(
+              (group.timestamps[group.timestamps.length - 1] -
+                group.timestamps[0]) /
+                1000
+            )
+          : 0;
 
       return (
         <AIReasoning
@@ -190,11 +195,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
       const toolCall = group.entry.content as ToolCall;
       return (
         <AIToolLadder key={`tool-${group.entry.id}`}>
-          <AIToolStep
-            isLast={true}
-            status={toolCall.status}
-            stepNumber={1}
-          >
+          <AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
             <AIToolHeader
               description={toolCall.description}
               name={toolCall.name}
@@ -232,14 +233,17 @@ export function ConversationDisplay({
   setUserMessageRef,
   sessionId,
 }: ConversationDisplayProps) {
-
   const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
   const [localMessages, setLocalMessages] = useState<UIMessage[]>(messages);
 
   // Debug: Track streaming UI render state
   useEffect(() => {
-    const shouldRenderStreaming = (sseStream.processing && !sseStream.completed) ||
-      (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length));
+    const shouldRenderStreaming =
+      (sseStream.processing && !sseStream.completed) ||
+      (sseStream.cancelled &&
+        (sseStream.finalContent ||
+          sseStream.timeline?.length ||
+          sseStream.toolCalls?.length));
 
     console.log('[CONVERSATION-DISPLAY] Streaming UI render check', {
       timestamp: new Date().toISOString(),
@@ -255,10 +259,23 @@ export function ConversationDisplay({
       },
       conditionBreakdown: {
         processingAndNotCompleted: sseStream.processing && !sseStream.completed,
-        cancelledWithContent: sseStream.cancelled && !!(sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length),
-      }
+        cancelledWithContent:
+          sseStream.cancelled &&
+          !!(
+            sseStream.finalContent ||
+            sseStream.timeline?.length ||
+            sseStream.toolCalls?.length
+          ),
+      },
     });
-  }, [sseStream.processing, sseStream.completed, sseStream.cancelled, sseStream.finalContent, sseStream.timeline?.length, sseStream.toolCalls?.length]);
+  }, [
+    sseStream.processing,
+    sseStream.completed,
+    sseStream.cancelled,
+    sseStream.finalContent,
+    sseStream.timeline?.length,
+    sseStream.toolCalls?.length,
+  ]);
 
   // Detect when a new message with exit_plan_mode is added and show plan options
   // Update localMessages when messages prop changes
@@ -302,7 +319,7 @@ export function ConversationDisplay({
     setLocalMessages((prev) => [
       ...prev.slice(0, index),
       updatedMessage,
-      ...prev.slice(index + 1)
+      ...prev.slice(index + 1),
     ]);
 
     // Pass update to parent component
@@ -330,37 +347,48 @@ export function ConversationDisplay({
                     {/* Render media outputs as primary content */}
                     {message.mediaOutputs && sessionId ? (
                       <>
-                        <MediaShowcase mediaOutputs={message.mediaOutputs} sessionId={sessionId} getMediaSrc={getMediaSrc} />
+                        <MediaShowcase
+                          mediaOutputs={message.mediaOutputs}
+                          sessionId={sessionId}
+                          getMediaSrc={getMediaSrc}
+                        />
                         <AIMessageContent.Content>
                           {/* Render timeline-based interleaved thinking and tools */}
-                          {message.timeline && renderTimelineEntries(message.timeline)}
+                          {message.timeline &&
+                            renderTimelineEntries(message.timeline)}
                         </AIMessageContent.Content>
                       </>
                     ) : message.mediaOutputs ? (
                       <>
-                        <div className="text-sm text-muted-foreground">Media content requires session ID</div>
+                        <div className="text-sm text-muted-foreground">
+                          Media content requires session ID
+                        </div>
                         <AIMessageContent.Content>
                           {/* Render timeline-based interleaved thinking and tools */}
-                          {message.timeline && renderTimelineEntries(message.timeline)}
+                          {message.timeline &&
+                            renderTimelineEntries(message.timeline)}
                         </AIMessageContent.Content>
                       </>
                     ) : (
                       <AIMessageContent.Content>
                         {/* Render timeline-based interleaved thinking and tools */}
-                        {message.timeline && renderTimelineEntries(message.timeline)}
+                        {message.timeline &&
+                          renderTimelineEntries(message.timeline)}
                         {message.status ? (
-                          <StatusUI
-                            statusState={message.status}
-                          />
+                          <StatusUI statusState={message.status} />
                         ) : message.provider ? (
                           <ProviderDisplay
                             data={message.provider}
-                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                            onUpdate={(updatedMessage: any) =>
+                              handleMessageUpdate(index, updatedMessage)
+                            }
                           />
                         ) : message.model ? (
                           <ModelDisplay
                             data={message.model}
-                            onUpdate={(updatedMessage: any) => handleMessageUpdate(index, updatedMessage)}
+                            onUpdate={(updatedMessage: any) =>
+                              handleMessageUpdate(index, updatedMessage)
+                            }
                           />
                         ) : (
                           <ResponseRenderer content={message.content} />
@@ -408,12 +436,15 @@ export function ConversationDisplay({
                       <PlanDisplay
                         onKeepPlanning={() => handlePlanKeepPlanning(index)}
                         onProceed={() => handlePlanProceed(index)}
-                        planContent={extractPlanFromToolCalls(message.toolCalls)}
+                        planContent={extractPlanFromToolCalls(
+                          message.toolCalls
+                        )}
                         showOptions={showPlanOptions === index}
                       />
                     )}
                     {/* Render todos inline without tool wrapper */}
-                    {extractTodosFromToolCalls(message.toolCalls).length > 0 && (
+                    {extractTodosFromToolCalls(message.toolCalls).length >
+                      0 && (
                       <div className="mt-4">
                         <TodoList
                           todos={extractTodosFromToolCalls(message.toolCalls)}
@@ -421,30 +452,39 @@ export function ConversationDisplay({
                       </div>
                     )}
                     {/* Render regular tool calls directly ONLY when timeline is not available or empty */}
-                    {(!message.timeline || message.timeline.length === 0) && filterNonSpecialTools(message.toolCalls).map((toolCall, index) => (
-                      <AIToolLadder key={`direct-tool-${toolCall.id}-${index}`}>
-                        <AIToolStep
-                          isLast={true}
-                          status={toolCall.status}
-                          stepNumber={1}
-                        >
-                          <AIToolHeader
-                            description={toolCall.description}
-                            name={toolCall.name}
-                            status={toolCall.status}
-                            toolCall={toolCall}
-                          />
-                          <AIToolContent toolCall={toolCall} />
-                        </AIToolStep>
-                      </AIToolLadder>
-                    ))}
+                    {(!message.timeline || message.timeline.length === 0) &&
+                      filterNonSpecialTools(message.toolCalls).map(
+                        (toolCall, index) => (
+                          <AIToolLadder
+                            key={`direct-tool-${toolCall.id}-${index}`}
+                          >
+                            <AIToolStep
+                              isLast={true}
+                              status={toolCall.status}
+                              stepNumber={1}
+                            >
+                              <AIToolHeader
+                                description={toolCall.description}
+                                name={toolCall.name}
+                                status={toolCall.status}
+                                toolCall={toolCall}
+                              />
+                              <AIToolContent toolCall={toolCall} />
+                            </AIToolStep>
+                          </AIToolLadder>
+                        )
+                      )}
                   </>
                 )}
               </AIMessageContent>
             </AIMessage>
           );
         })}
-        {(sseStream.processing && !sseStream.completed) || (sseStream.cancelled && (sseStream.finalContent || sseStream.timeline?.length || sseStream.toolCalls?.length)) ? (
+        {(sseStream.processing && !sseStream.completed) ||
+        (sseStream.cancelled &&
+          (sseStream.finalContent ||
+            sseStream.timeline?.length ||
+            sseStream.toolCalls?.length)) ? (
           <AIMessage from="assistant">
             <AIMessageContent>
               {/* Show timeline-based interleaved thinking and tools during streaming */}
@@ -464,12 +504,12 @@ export function ConversationDisplay({
                   {/* Render streaming todos inline without tool wrapper */}
                   {extractTodosFromToolCalls(sseStream.toolCalls).length >
                     0 && (
-                      <div className="mt-4">
-                        <TodoList
-                          todos={extractTodosFromToolCalls(sseStream.toolCalls)}
-                        />
-                      </div>
-                    )}
+                    <div className="mt-4">
+                      <TodoList
+                        todos={extractTodosFromToolCalls(sseStream.toolCalls)}
+                      />
+                    </div>
+                  )}
                   {/* Render streaming plan content */}
                   {extractPlanFromToolCalls(sseStream.toolCalls) && (
                     <PlanDisplay
@@ -480,23 +520,28 @@ export function ConversationDisplay({
                     />
                   )}
                   {/* Render streaming regular tool calls directly ONLY when timeline is not available or empty */}
-                  {(!sseStream.timeline || sseStream.timeline.length === 0) && filterNonSpecialTools(sseStream.toolCalls).map((toolCall, index) => (
-                    <AIToolLadder key={`streaming-direct-tool-${toolCall.id}-${index}`}>
-                      <AIToolStep
-                        isLast={true}
-                        status={toolCall.status}
-                        stepNumber={1}
-                      >
-                        <AIToolHeader
-                          description={toolCall.description}
-                          name={toolCall.name}
-                          status={toolCall.status}
-                          toolCall={toolCall}
-                        />
-                        <AIToolContent toolCall={toolCall} />
-                      </AIToolStep>
-                    </AIToolLadder>
-                  ))}
+                  {(!sseStream.timeline || sseStream.timeline.length === 0) &&
+                    filterNonSpecialTools(sseStream.toolCalls).map(
+                      (toolCall, index) => (
+                        <AIToolLadder
+                          key={`streaming-direct-tool-${toolCall.id}-${index}`}
+                        >
+                          <AIToolStep
+                            isLast={true}
+                            status={toolCall.status}
+                            stepNumber={1}
+                          >
+                            <AIToolHeader
+                              description={toolCall.description}
+                              name={toolCall.name}
+                              status={toolCall.status}
+                              toolCall={toolCall}
+                            />
+                            <AIToolContent toolCall={toolCall} />
+                          </AIToolStep>
+                        </AIToolLadder>
+                      )
+                    )}
                   {sseStream.cancelled ? (
                     <div className="mt-4 text-muted-foreground">
                       Execution paused
@@ -506,9 +551,7 @@ export function ConversationDisplay({
                   ) : null}
                 </>
               ) : sseStream.cancelled ? (
-                <div className="text-muted-foreground">
-                  Execution paused
-                </div>
+                <div className="text-muted-foreground">Execution paused</div>
               ) : (
                 <ConversationLoader />
               )}

@@ -36,14 +36,13 @@ export function SessionsDisplay({ data }: SessionsDisplayProps) {
   sortedSessions.forEach((session) => {
     const currentIndicator = session.isCurrent ? ' **(current)**' : '';
     const totalTokens = session.promptTokens + session.completionTokens;
-    const tokensDisplay =
-      totalTokens > 0 ? formatTokens(totalTokens) : '0';
+    const tokensDisplay = totalTokens > 0 ? formatTokens(totalTokens) : '0';
 
     markdown += `## ${session.title}${currentIndicator}\n`;
     markdown += `- **ID:** ${session.id}\n`;
     const totalMessages = getTotalMessages(session);
     const exchanges = getExchangeCount(session);
-    
+
     if (session.toolCallCount === 0) {
       markdown += `- **Messages:** ${totalMessages}\n`;
     } else {
@@ -51,7 +50,7 @@ export function SessionsDisplay({ data }: SessionsDisplayProps) {
     }
     markdown += `- **Tokens:** ${tokensDisplay}\n`;
     markdown += `- **Cost:** $${session.cost.toFixed(4)}\n`;
-    
+
     if (session.createdAt) {
       markdown += `- **Created:** ${formatTimestamp(session.createdAt)}\n`;
     }

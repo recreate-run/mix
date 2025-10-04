@@ -27,7 +27,7 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
 
   const handleApiKeyChange = (provider: string, value: string) => {
-    setApiKeys(prev => ({ ...prev, [provider]: value }));
+    setApiKeys((prev) => ({ ...prev, [provider]: value }));
   };
 
   const handleStoreApiKey = async (provider: string) => {
@@ -40,7 +40,7 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
     });
 
     // Clear the input after successful storage
-    setApiKeys(prev => ({ ...prev, [provider]: '' }));
+    setApiKeys((prev) => ({ ...prev, [provider]: '' }));
   };
 
   const handleDeleteCredentials = async (provider: string) => {
@@ -66,11 +66,17 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
                   <p className="font-medium">{tool.displayName}</p>
                   <div className="flex items-center gap-2 mt-2">
                     {tool.authenticated ? (
-                      <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-green-600 border-green-600"
+                      >
                         ✓ Configured
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-muted-foreground"
+                      >
                         Requires setup
                       </Badge>
                     )}
@@ -98,7 +104,10 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
               {!tool.authenticated && tool.apiKeyRequired && (
                 <div className="mt-4 space-y-3">
                   <div className="space-y-2">
-                    <Label htmlFor={`${tool.provider}-api-key`} className="text-sm font-medium">
+                    <Label
+                      htmlFor={`${tool.provider}-api-key`}
+                      className="text-sm font-medium"
+                    >
                       API Key
                     </Label>
                     <div className="flex gap-2">
@@ -107,13 +116,18 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
                         type="password"
                         placeholder={`Enter your ${tool.displayName} API key...`}
                         value={apiKeys[tool.provider] || ''}
-                        onChange={(e) => handleApiKeyChange(tool.provider, e.target.value)}
+                        onChange={(e) =>
+                          handleApiKeyChange(tool.provider, e.target.value)
+                        }
                         disabled={storeCredentials.isPending}
                         className="flex-1"
                       />
                       <Button
                         onClick={() => handleStoreApiKey(tool.provider)}
-                        disabled={storeCredentials.isPending || !apiKeys[tool.provider]?.trim()}
+                        disabled={
+                          storeCredentials.isPending ||
+                          !apiKeys[tool.provider]?.trim()
+                        }
                         size="sm"
                         className="flex items-center gap-2"
                       >

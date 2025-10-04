@@ -14,12 +14,15 @@ interface FileUploadResult {
   isDir: boolean;
 }
 
-async function uploadFile({ sessionId, file }: UploadFileParams): Promise<FileUploadResult> {
+async function uploadFile({
+  sessionId,
+  file,
+}: UploadFileParams): Promise<FileUploadResult> {
   const response = await mix.files.upload({
     id: sessionId,
     requestBody: {
-      file
-    }
+      file,
+    },
   });
 
   return {
@@ -28,7 +31,7 @@ async function uploadFile({ sessionId, file }: UploadFileParams): Promise<FileUp
     modified: response.modified,
     isDir: response.isDir,
   };
-};
+}
 
 export function useFileUpload() {
   const queryClient = useQueryClient();
@@ -37,18 +40,17 @@ export function useFileUpload() {
     mutationFn: uploadFile,
     onSuccess: (_, variables) => {
       // Invalidate session files cache to refresh @ menu
-      queryClient.invalidateQueries({ 
-        queryKey: CACHE_KEYS.sessionFiles(variables.sessionId) 
+      queryClient.invalidateQueries({
+        queryKey: CACHE_KEYS.sessionFiles(variables.sessionId),
       });
-      
+
       // Optionally invalidate session messages to update attachment references
-      queryClient.invalidateQueries({ 
-        queryKey: CACHE_KEYS.sessionMessages(variables.sessionId) 
+      queryClient.invalidateQueries({
+        queryKey: CACHE_KEYS.sessionMessages(variables.sessionId),
       });
     },
     onError: (error) => {
       console.error('File upload failed:', error);
     },
   });
-};
-
+}

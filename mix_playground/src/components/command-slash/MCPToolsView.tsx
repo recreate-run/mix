@@ -1,5 +1,9 @@
 import { Settings } from 'lucide-react';
-import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import { useMCPList } from '@/hooks/useMCPList';
 import { BackButton } from './shared/BackButton';
 import { StatusBadge } from './shared/StatusBadge';
@@ -20,7 +24,6 @@ export function MCPToolsView({
   );
   const selectedServerTools = selectedServerData?.tools || [];
 
-
   if (!selectedServerTools.length) {
     return <CommandEmpty>No tools found</CommandEmpty>;
   }
@@ -35,7 +38,7 @@ export function MCPToolsView({
         value="back-to-mcp"
       />
 
-        {selectedServerTools.map((tool) => (
+      {selectedServerTools.map((tool) => (
         <CommandItem
           className="cursor-default"
           key={tool.name}
@@ -49,10 +52,12 @@ export function MCPToolsView({
             </div>
           </div>
           <StatusBadge
-            status={selectedServerData?.connected ? 'connected' : 'disconnected'}
+            status={
+              selectedServerData?.connected ? 'connected' : 'disconnected'
+            }
           />
         </CommandItem>
-        ))}
+      ))}
     </CommandGroup>
   );
 }

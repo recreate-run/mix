@@ -28,7 +28,11 @@ const MainMediaPlayer = ({
             </p>
           )}
         </div>
-        <MediaDownloadButton media={media} sessionId={sessionId} getMediaSrc={getMediaSrc} />
+        <MediaDownloadButton
+          media={media}
+          sessionId={sessionId}
+          getMediaSrc={getMediaSrc}
+        />
       </div>
 
       {media.type === 'image' && (
@@ -37,8 +41,7 @@ const MainMediaPlayer = ({
           className="aspect-auto max-h-120  object-contain"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
-            const fallback = e.currentTarget
-              .nextElementSibling as HTMLElement;
+            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
             if (fallback) fallback.style.display = 'block';
           }}
           src={getMediaSrc(media.path, sessionId)}
@@ -52,14 +55,26 @@ const MainMediaPlayer = ({
               <iframe
                 src={(() => {
                   const baseUrl = getMediaSrc(media.path, sessionId);
-                  if (media.startTime !== undefined || media.duration !== undefined) {
+                  if (
+                    media.startTime !== undefined ||
+                    media.duration !== undefined
+                  ) {
                     try {
                       const url = new URL(baseUrl);
                       if (media.startTime !== undefined) {
-                        url.searchParams.set('start', media.startTime.toString());
+                        url.searchParams.set(
+                          'start',
+                          media.startTime.toString()
+                        );
                       }
-                      if (media.duration !== undefined && media.startTime !== undefined) {
-                        url.searchParams.set('end', (media.startTime + media.duration).toString());
+                      if (
+                        media.duration !== undefined &&
+                        media.startTime !== undefined
+                      ) {
+                        url.searchParams.set(
+                          'end',
+                          (media.startTime + media.duration).toString()
+                        );
                       }
                       return url.toString();
                     } catch {
@@ -89,10 +104,7 @@ const MainMediaPlayer = ({
               </div>
             </div>
           ) : (
-            <LazyVideoPlayer
-              media={media}
-              sessionId={sessionId}
-            />
+            <LazyVideoPlayer media={media} sessionId={sessionId} />
           )}
         </>
       )}
@@ -175,13 +187,23 @@ export const MediaShowcase = ({
 
   // Single media file - show directly
   if (mediaOutputs.length === 1) {
-    return <MainMediaPlayer media={mediaOutputs[0]} sessionId={sessionId} getMediaSrc={getMediaSrc} />;
+    return (
+      <MainMediaPlayer
+        media={mediaOutputs[0]}
+        sessionId={sessionId}
+        getMediaSrc={getMediaSrc}
+      />
+    );
   }
 
   // Multiple media files - show player + playlist
   return (
     <div className="space-y-4">
-      <MainMediaPlayer media={mediaOutputs[selectedIndex]} sessionId={sessionId} getMediaSrc={getMediaSrc} />
+      <MainMediaPlayer
+        media={mediaOutputs[selectedIndex]}
+        sessionId={sessionId}
+        getMediaSrc={getMediaSrc}
+      />
       <PlaylistSidebar
         mediaOutputs={mediaOutputs}
         onSelect={setSelectedIndex}

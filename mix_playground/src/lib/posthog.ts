@@ -60,5 +60,3 @@ function generateClientId() {
   localStorage.setItem('client_id', newId);
   return newId;
 }
-
-

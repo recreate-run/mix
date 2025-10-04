@@ -27,8 +27,10 @@ interface UseMessageHistoryReturn {
   hasMoreHistory: boolean;
 }
 
-
-async function fetchMessages(params: { limit: number; offset: number }): Promise<MessageHistoryItem[]> {
+async function fetchMessages(params: {
+  limit: number;
+  offset: number;
+}): Promise<MessageHistoryItem[]> {
   // Let SDK validation errors propagate - don't mask them with fallbacks
   const response = await mix.messages.getHistory(params);
 

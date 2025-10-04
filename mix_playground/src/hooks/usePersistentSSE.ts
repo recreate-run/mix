@@ -6,7 +6,7 @@ import type { ToolCall } from '@/types/common';
 import type { Attachment } from '@/stores/attachmentSlice';
 import { expandFileReferences } from '@/utils/attachmentUtils';
 import { CACHE_KEYS } from '@/lib/cache-keys';
-import type { SendMessageRequestBody } from "mix-typescript-sdk/models/operations/sendmessage";
+import type { SendMessageRequestBody } from 'mix-typescript-sdk/models/operations/sendmessage';
 import type {
   SSEEventStream,
   SSEToolEvent,
@@ -17,9 +17,8 @@ import type {
   SSECompleteEvent,
   SSEErrorEvent,
   SSEPermissionEvent,
-  SSESessionCreatedEvent
+  SSESessionCreatedEvent,
 } from 'mix-typescript-sdk/models/sseeventstream';
-
 
 export type SSEPermissionRequest = {
   id: string;
@@ -109,330 +108,366 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   }, [state.connected]);
 
   // Stream processing function
-  const processEventStream = useCallback(async (sessionId: string, abortController: AbortController) => {
-    try {
-      setState(prev => ({ ...prev, connecting: true, error: null }));
+  const processEventStream = useCallback(
+    async (sessionId: string, abortController: AbortController) => {
+      try {
+        setState((prev) => ({ ...prev, connecting: true, error: null }));
 
-      const result = await mix.streaming.streamEvents({
-        sessionId,
-        lastEventID: lastEventIdRef.current,
-      });
+        const result = await mix.streaming.streamEvents({
+          sessionId,
+          lastEventID: lastEventIdRef.current,
+        });
 
-      setState(prev => ({ ...prev, connected: true, connecting: false }));
+        setState((prev) => ({ ...prev, connected: true, connecting: false }));
 
-      for await (const event of result.result) {
-        if (abortController.signal.aborted) {
-          break;
-        }
-
-        // Store event ID for reconnection
-        if (event.id) {
-          lastEventIdRef.current = event.id;
-        }
-
-        // Handle different event types using SDK's discriminated union
-        switch (event.event) {
-          case 'connected': {
-            // const connectedEvent = event as SSEConnectedEvent;
-            setState(prev => ({ ...prev, connected: true, connecting: false }));
+        for await (const event of result.result) {
+          if (abortController.signal.aborted) {
             break;
           }
 
-          case 'heartbeat': {
-            // const heartbeatEvent = event as SSEHeartbeatEvent;
-            // Heartbeat events keep connection alive - no UI state changes needed
-            break;
+          // Store event ID for reconnection
+          if (event.id) {
+            lastEventIdRef.current = event.id;
           }
 
-          case 'thinking': {
-            const thinkingEvent = event as SSEThinkingEvent;
-            const thinkingContent = thinkingEvent.data.content || '';
-
-            // Add to timeline
-            const thinkingEntry: TimelineEntry = {
-              type: 'thinking',
-              timestamp: Date.now(),
-              content: thinkingContent,
-              id: `thinking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            };
-
-            timelineRef.current = [...timelineRef.current, thinkingEntry];
-
-            setState(prev => ({
-              ...prev,
-              reasoning: (prev.reasoning || '') + thinkingContent,
-              timeline: [...timelineRef.current],
-              processing: true,
-            }));
-            break;
-          }
-
-          case 'content': {
-            const contentEvent = event as SSEContentEvent;
-            const contentDelta = contentEvent.data.content || '';
-
-            // Find the last entry in timeline
-            const lastEntry = timelineRef.current[timelineRef.current.length - 1];
-
-            // If the last entry is a content entry, append to it
-            if (lastEntry && lastEntry.type === 'content') {
-              const existingContent = lastEntry.content;
-              timelineRef.current[timelineRef.current.length - 1] = {
-                ...lastEntry,
-                content: existingContent + contentDelta,
-                timestamp: Date.now()
-              };
-            } else {
-              // Create new content entry
-              const contentEntry: TimelineEntry = {
-                type: 'content',
-                timestamp: Date.now(),
-                content: contentDelta,
-                id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-              };
-              timelineRef.current = [...timelineRef.current, contentEntry];
-            }
-
-            setState(prev => ({
-              ...prev,
-              finalContent: (prev.finalContent || '') + contentDelta,
-              timeline: [...timelineRef.current],
-              processing: true,
-            }));
-            break;
-          }
-
-          case 'tool': {
-            const toolEvent = event as SSEToolEvent;
-            const toolCall: ToolCall = {
-              id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
-              name: toolEvent.data.name || 'unknown',
-              description: toolEvent.data.name || 'Tool execution',
-              status: (toolEvent.data.status as 'pending' | 'running' | 'completed' | 'error') || 'pending',
-              parameters: toolEvent.data.input
-                ? typeof toolEvent.data.input === 'string'
-                  ? (() => {
-                    try {
-                      return JSON.parse(toolEvent.data.input);
-                    } catch {
-                      return { input: toolEvent.data.input };
-                    }
-                  })()
-                  : toolEvent.data.input
-                : {},
-              result: undefined,
-              error: undefined,
-            };
-
-            if (toolEvent.data.status === 'running' && !toolStartTimes.current.has(toolCall.id)) {
-              toolStartTimes.current.set(toolCall.id, Date.now());
-            }
-
-            if ((toolEvent.data.status === 'completed' || toolEvent.data.status === 'error') &&
-              toolStartTimes.current.has(toolCall.id)) {
-              toolStartTimes.current.delete(toolCall.id);
-            }
-
-            toolCallsMap.current.set(toolCall.id, toolCall);
-
-            // Add to timeline when tool is first seen
-            if (!timelineRef.current.some(entry => entry.type === 'tool' && entry.content.id === toolCall.id)) {
-              const toolEntry: TimelineEntry = {
-                type: 'tool',
-                timestamp: Date.now(),
-                content: toolCall,
-                id: toolCall.id
-              };
-              timelineRef.current = [...timelineRef.current, toolEntry];
-            } else {
-              // Update existing tool entry
-              timelineRef.current = timelineRef.current.map(entry =>
-                entry.type === 'tool' && entry.content.id === toolCall.id
-                  ? { ...entry, content: toolCall }
-                  : entry
-              );
-            }
-
-            setState(prev => ({
-              ...prev,
-              toolCalls: Array.from(toolCallsMap.current.values()),
-              timeline: [...timelineRef.current],
-              processing: true,
-            }));
-            break;
-          }
-
-          case 'tool_execution_start': {
-            const toolStartEvent = event as SSEToolExecutionStartEvent;
-            const toolCallId = toolStartEvent.data.toolCallId;
-            const progress = toolStartEvent.data.progress;
-
-            const existingToolCall = toolCallsMap.current.get(toolCallId);
-            if (existingToolCall) {
-              const updatedToolCall = {
-                ...existingToolCall,
-                status: 'running' as const,
-                description: progress
-              };
-
-              toolCallsMap.current.set(toolCallId, updatedToolCall);
-              toolStartTimes.current.set(toolCallId, Date.now());
-
-              // Update timeline entry
-              timelineRef.current = timelineRef.current.map(entry =>
-                entry.type === 'tool' && entry.content.id === toolCallId
-                  ? { ...entry, content: updatedToolCall }
-                  : entry
-              );
-
-              setState(prev => ({
+          // Handle different event types using SDK's discriminated union
+          switch (event.event) {
+            case 'connected': {
+              // const connectedEvent = event as SSEConnectedEvent;
+              setState((prev) => ({
                 ...prev,
-                toolCalls: Array.from(toolCallsMap.current.values()),
+                connected: true,
+                connecting: false,
+              }));
+              break;
+            }
+
+            case 'heartbeat': {
+              // const heartbeatEvent = event as SSEHeartbeatEvent;
+              // Heartbeat events keep connection alive - no UI state changes needed
+              break;
+            }
+
+            case 'thinking': {
+              const thinkingEvent = event as SSEThinkingEvent;
+              const thinkingContent = thinkingEvent.data.content || '';
+
+              // Add to timeline
+              const thinkingEntry: TimelineEntry = {
+                type: 'thinking',
+                timestamp: Date.now(),
+                content: thinkingContent,
+                id: `thinking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              };
+
+              timelineRef.current = [...timelineRef.current, thinkingEntry];
+
+              setState((prev) => ({
+                ...prev,
+                reasoning: (prev.reasoning || '') + thinkingContent,
                 timeline: [...timelineRef.current],
                 processing: true,
               }));
+              break;
             }
-            break;
-          }
 
-          case 'tool_execution_complete': {
-            const toolCompleteEvent = event as SSEToolExecutionCompleteEvent;
-            const toolCallId = toolCompleteEvent.data.toolCallId;
-            const progress = toolCompleteEvent.data.progress;
-            const success = toolCompleteEvent.data.success;
+            case 'content': {
+              const contentEvent = event as SSEContentEvent;
+              const contentDelta = contentEvent.data.content || '';
 
-            const existingToolCall = toolCallsMap.current.get(toolCallId);
-            if (existingToolCall) {
-              const updatedToolCall = {
-                ...existingToolCall,
-                status: success ? 'completed' as const : 'error' as const,
-                description: progress,
-                result: success ? progress : undefined,
-                error: success ? undefined : progress
-              };
+              // Find the last entry in timeline
+              const lastEntry =
+                timelineRef.current[timelineRef.current.length - 1];
 
-              toolCallsMap.current.set(toolCallId, updatedToolCall);
-
-              if (toolStartTimes.current.has(toolCallId)) {
-                toolStartTimes.current.delete(toolCallId);
+              // If the last entry is a content entry, append to it
+              if (lastEntry && lastEntry.type === 'content') {
+                const existingContent = lastEntry.content;
+                timelineRef.current[timelineRef.current.length - 1] = {
+                  ...lastEntry,
+                  content: existingContent + contentDelta,
+                  timestamp: Date.now(),
+                };
+              } else {
+                // Create new content entry
+                const contentEntry: TimelineEntry = {
+                  type: 'content',
+                  timestamp: Date.now(),
+                  content: contentDelta,
+                  id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                };
+                timelineRef.current = [...timelineRef.current, contentEntry];
               }
 
-              timelineRef.current = timelineRef.current.map(entry =>
-                entry.type === 'tool' && entry.content.id === toolCallId
-                  ? { ...entry, content: updatedToolCall }
-                  : entry
-              );
+              setState((prev) => ({
+                ...prev,
+                finalContent: (prev.finalContent || '') + contentDelta,
+                timeline: [...timelineRef.current],
+                processing: true,
+              }));
+              break;
+            }
 
-              setState(prev => ({
+            case 'tool': {
+              const toolEvent = event as SSEToolEvent;
+              const toolCall: ToolCall = {
+                id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
+                name: toolEvent.data.name || 'unknown',
+                description: toolEvent.data.name || 'Tool execution',
+                status:
+                  (toolEvent.data.status as
+                    | 'pending'
+                    | 'running'
+                    | 'completed'
+                    | 'error') || 'pending',
+                parameters: toolEvent.data.input
+                  ? typeof toolEvent.data.input === 'string'
+                    ? (() => {
+                        try {
+                          return JSON.parse(toolEvent.data.input);
+                        } catch {
+                          return { input: toolEvent.data.input };
+                        }
+                      })()
+                    : toolEvent.data.input
+                  : {},
+                result: undefined,
+                error: undefined,
+              };
+
+              if (
+                toolEvent.data.status === 'running' &&
+                !toolStartTimes.current.has(toolCall.id)
+              ) {
+                toolStartTimes.current.set(toolCall.id, Date.now());
+              }
+
+              if (
+                (toolEvent.data.status === 'completed' ||
+                  toolEvent.data.status === 'error') &&
+                toolStartTimes.current.has(toolCall.id)
+              ) {
+                toolStartTimes.current.delete(toolCall.id);
+              }
+
+              toolCallsMap.current.set(toolCall.id, toolCall);
+
+              // Add to timeline when tool is first seen
+              if (
+                !timelineRef.current.some(
+                  (entry) =>
+                    entry.type === 'tool' && entry.content.id === toolCall.id
+                )
+              ) {
+                const toolEntry: TimelineEntry = {
+                  type: 'tool',
+                  timestamp: Date.now(),
+                  content: toolCall,
+                  id: toolCall.id,
+                };
+                timelineRef.current = [...timelineRef.current, toolEntry];
+              } else {
+                // Update existing tool entry
+                timelineRef.current = timelineRef.current.map((entry) =>
+                  entry.type === 'tool' && entry.content.id === toolCall.id
+                    ? { ...entry, content: toolCall }
+                    : entry
+                );
+              }
+
+              setState((prev) => ({
                 ...prev,
                 toolCalls: Array.from(toolCallsMap.current.values()),
                 timeline: [...timelineRef.current],
                 processing: true,
               }));
+              break;
             }
-            break;
-          }
 
-          case 'complete': {
-            const completeEvent = event as SSECompleteEvent;
-            setState(prev => {
-              console.log('[SSE-COMPLETE] Message streaming completed', {
-                timestamp: new Date().toISOString(),
-                sessionId,
-                finalContent: prev.finalContent?.substring(0, 100) + '...',
-                finalContentLength: prev.finalContent?.length || 0,
-                timelineLength: prev.timeline.length,
-                toolCallsCount: prev.toolCalls.length,
-                aboutToSet: {
+            case 'tool_execution_start': {
+              const toolStartEvent = event as SSEToolExecutionStartEvent;
+              const toolCallId = toolStartEvent.data.toolCallId;
+              const progress = toolStartEvent.data.progress;
+
+              const existingToolCall = toolCallsMap.current.get(toolCallId);
+              if (existingToolCall) {
+                const updatedToolCall = {
+                  ...existingToolCall,
+                  status: 'running' as const,
+                  description: progress,
+                };
+
+                toolCallsMap.current.set(toolCallId, updatedToolCall);
+                toolStartTimes.current.set(toolCallId, Date.now());
+
+                // Update timeline entry
+                timelineRef.current = timelineRef.current.map((entry) =>
+                  entry.type === 'tool' && entry.content.id === toolCallId
+                    ? { ...entry, content: updatedToolCall }
+                    : entry
+                );
+
+                setState((prev) => ({
+                  ...prev,
+                  toolCalls: Array.from(toolCallsMap.current.values()),
+                  timeline: [...timelineRef.current],
+                  processing: true,
+                }));
+              }
+              break;
+            }
+
+            case 'tool_execution_complete': {
+              const toolCompleteEvent = event as SSEToolExecutionCompleteEvent;
+              const toolCallId = toolCompleteEvent.data.toolCallId;
+              const progress = toolCompleteEvent.data.progress;
+              const success = toolCompleteEvent.data.success;
+
+              const existingToolCall = toolCallsMap.current.get(toolCallId);
+              if (existingToolCall) {
+                const updatedToolCall = {
+                  ...existingToolCall,
+                  status: success ? ('completed' as const) : ('error' as const),
+                  description: progress,
+                  result: success ? progress : undefined,
+                  error: success ? undefined : progress,
+                };
+
+                toolCallsMap.current.set(toolCallId, updatedToolCall);
+
+                if (toolStartTimes.current.has(toolCallId)) {
+                  toolStartTimes.current.delete(toolCallId);
+                }
+
+                timelineRef.current = timelineRef.current.map((entry) =>
+                  entry.type === 'tool' && entry.content.id === toolCallId
+                    ? { ...entry, content: updatedToolCall }
+                    : entry
+                );
+
+                setState((prev) => ({
+                  ...prev,
+                  toolCalls: Array.from(toolCallsMap.current.values()),
+                  timeline: [...timelineRef.current],
+                  processing: true,
+                }));
+              }
+              break;
+            }
+
+            case 'complete': {
+              const completeEvent = event as SSECompleteEvent;
+              setState((prev) => {
+                console.log('[SSE-COMPLETE] Message streaming completed', {
+                  timestamp: new Date().toISOString(),
+                  sessionId,
+                  finalContent: prev.finalContent?.substring(0, 100) + '...',
+                  finalContentLength: prev.finalContent?.length || 0,
+                  timelineLength: prev.timeline.length,
+                  toolCallsCount: prev.toolCalls.length,
+                  aboutToSet: {
+                    completed: true,
+                    processing: false,
+                  },
+                });
+                return {
+                  ...prev,
+                  reasoning: completeEvent.data.reasoning || null,
+                  reasoningDuration:
+                    completeEvent.data.reasoningDuration || null,
                   completed: true,
                   processing: false,
-                }
+                };
               });
-              return {
+              break;
+            }
+
+            case 'error': {
+              const errorEvent = event as SSEErrorEvent;
+              setState((prev) => ({
                 ...prev,
-                reasoning: completeEvent.data.reasoning || null,
-                reasoningDuration: completeEvent.data.reasoningDuration || null,
-                completed: true,
+                error: errorEvent.data.error || 'Stream error',
+                connecting: false,
                 processing: false,
+                rateLimit: errorEvent.data.retryAfter
+                  ? {
+                      retryAfter: errorEvent.data.retryAfter,
+                      attempt: errorEvent.data.attempt || 1,
+                      maxAttempts: errorEvent.data.maxAttempts || 8,
+                    }
+                  : undefined,
+              }));
+              break;
+            }
+
+            case 'permission': {
+              const permissionEvent = event as SSEPermissionEvent;
+              const permissionRequest: SSEPermissionRequest = {
+                id: permissionEvent.data.id,
+                sessionId: permissionEvent.data.sessionId,
+                toolName: permissionEvent.data.toolName,
+                description: permissionEvent.data.description,
+                action: permissionEvent.data.action,
+                path: permissionEvent.data.path || '',
+                params: permissionEvent.data.params || {},
               };
-            });
-            break;
-          }
 
-          case 'error': {
-            const errorEvent = event as SSEErrorEvent;
-            setState(prev => ({
-              ...prev,
-              error: errorEvent.data.error || 'Stream error',
-              connecting: false,
-              processing: false,
-              rateLimit: errorEvent.data.retryAfter ? {
-                retryAfter: errorEvent.data.retryAfter,
-                attempt: errorEvent.data.attempt || 1,
-                maxAttempts: errorEvent.data.maxAttempts || 8,
-              } : undefined,
-            }));
-            break;
-          }
+              setState((prev) => ({
+                ...prev,
+                permissionRequests: [
+                  ...prev.permissionRequests,
+                  permissionRequest,
+                ],
+              }));
+              break;
+            }
 
-          case 'permission': {
-            const permissionEvent = event as SSEPermissionEvent;
-            const permissionRequest: SSEPermissionRequest = {
-              id: permissionEvent.data.id,
-              sessionId: permissionEvent.data.sessionId,
-              toolName: permissionEvent.data.toolName,
-              description: permissionEvent.data.description,
-              action: permissionEvent.data.action,
-              path: permissionEvent.data.path || '',
-              params: permissionEvent.data.params || {},
-            };
+            case 'session_created': {
+              const sessionCreatedEvent = event as SSESessionCreatedEvent;
 
-            setState(prev => ({
-              ...prev,
-              permissionRequests: [...prev.permissionRequests, permissionRequest],
-            }));
-            break;
-          }
+              // Store the newly created session ID for navigation
+              setState((prev) => ({
+                ...prev,
+                newlyCreatedSessionId: sessionCreatedEvent.data.sessionId,
+              }));
 
-          case 'session_created': {
-            const sessionCreatedEvent = event as SSESessionCreatedEvent;
+              // Global session events - invalidate sessions list cache for real-time updates
+              queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
+              break;
+            }
 
-            // Store the newly created session ID for navigation
-            setState(prev => ({
-              ...prev,
-              newlyCreatedSessionId: sessionCreatedEvent.data.sessionId,
-            }));
+            case 'session_deleted': {
+              // Global session events - invalidate sessions list cache for real-time updates
+              queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
+              break;
+            }
 
-            // Global session events - invalidate sessions list cache for real-time updates
-            queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
-            break;
-          }
-
-          case 'session_deleted': {
-            // Global session events - invalidate sessions list cache for real-time updates
-            queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessions });
-            break;
-          }
-
-          default: {
-            // Handle any other event types that might be added in the future
-            console.warn('Unknown event type:', (event as SSEEventStream).event);
-            break;
+            default: {
+              // Handle any other event types that might be added in the future
+              console.warn(
+                'Unknown event type:',
+                (event as SSEEventStream).event
+              );
+              break;
+            }
           }
         }
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.error('Stream processing error:', error);
+          setState((prev) => ({
+            ...prev,
+            connected: false,
+            connecting: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Stream connection failed',
+          }));
+        }
       }
-    } catch (error) {
-      if (!abortController.signal.aborted) {
-        console.error('Stream processing error:', error);
-        setState(prev => ({
-          ...prev,
-          connected: false,
-          connecting: false,
-          error: error instanceof Error ? error.message : 'Stream connection failed',
-        }));
-      }
-    }
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!sessionId || sessionId === currentSessionRef.current) {
@@ -473,15 +508,18 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
     // Start streaming with SDK
 
-    processEventStream(sessionId, streamAbortController.current).catch((error) => {
-      console.error('Stream processing failed:', error);
-      setState(prev => ({
-        ...prev,
-        connected: false,
-        connecting: false,
-        error: error instanceof Error ? error.message : 'Stream connection failed',
-      }));
-    });
+    processEventStream(sessionId, streamAbortController.current).catch(
+      (error) => {
+        console.error('Stream processing failed:', error);
+        setState((prev) => ({
+          ...prev,
+          connected: false,
+          connecting: false,
+          error:
+            error instanceof Error ? error.message : 'Stream connection failed',
+        }));
+      }
+    );
 
     return () => {
       if (streamAbortController.current) {
@@ -526,7 +564,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           finalContentLength: state.finalContent?.length || 0,
           timelineLength: state.timeline?.length || 0,
           toolCallsCount: state.toolCalls?.length || 0,
-        }
+        },
       });
 
       setState((prev) => ({
@@ -567,33 +605,36 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     [sessionId]
   );
 
-  const cancelMessage = useCallback(async function () {
-    if (!sessionId) {
-      throw new Error('No session ID available');
-    }
+  const cancelMessage = useCallback(
+    async function () {
+      if (!sessionId) {
+        throw new Error('No session ID available');
+      }
 
-    setState((prev) => ({ ...prev, cancelling: true, error: null }));
+      setState((prev) => ({ ...prev, cancelling: true, error: null }));
 
-    try {
-      await mix.messages.cancelProcessing({ id: sessionId });
+      try {
+        await mix.messages.cancelProcessing({ id: sessionId });
 
-      setState((prev) => ({
-        ...prev,
-        processing: false,
-        cancelling: false,
-        cancelled: true,
-        error: null,
-      }));
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        cancelling: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to cancel message',
-      }));
-      throw error;
-    }
-  }, [sessionId]);
+        setState((prev) => ({
+          ...prev,
+          processing: false,
+          cancelling: false,
+          cancelled: true,
+          error: null,
+        }));
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          cancelling: false,
+          error:
+            error instanceof Error ? error.message : 'Failed to cancel message',
+        }));
+        throw error;
+      }
+    },
+    [sessionId]
+  );
 
   const resetCancelledState = useCallback(function () {
     setState((prev) => ({ ...prev, cancelled: false }));
@@ -647,21 +688,36 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
       onUserMessage?: (message: UIMessage) => void;
       onCancelledContentPersist?: (message: UIMessage) => void;
     }) => {
-      const { text, attachments = [], referenceMap = new Map(), planMode = false, onUserMessage, onCancelledContentPersist } = params;
+      const {
+        text,
+        attachments = [],
+        referenceMap = new Map(),
+        planMode = false,
+        onUserMessage,
+        onCancelledContentPersist,
+      } = params;
 
       if (!(text && sessionId && state.connected)) {
         return;
       }
 
       // Persist cancelled streaming content before it gets cleared
-      if (state.cancelled && (state.finalContent || state.timeline?.length || state.toolCalls?.length)) {
-        console.log('[SSE-SUBMIT] Persisting cancelled content before new message', {
-          timestamp: new Date().toISOString(),
-          sessionId,
-          cancelledContentLength: state.finalContent?.length || 0,
-          timelineLength: state.timeline?.length || 0,
-          toolCallsCount: state.toolCalls?.length || 0,
-        });
+      if (
+        state.cancelled &&
+        (state.finalContent ||
+          state.timeline?.length ||
+          state.toolCalls?.length)
+      ) {
+        console.log(
+          '[SSE-SUBMIT] Persisting cancelled content before new message',
+          {
+            timestamp: new Date().toISOString(),
+            sessionId,
+            cancelledContentLength: state.finalContent?.length || 0,
+            timelineLength: state.timeline?.length || 0,
+            toolCallsCount: state.toolCalls?.length || 0,
+          }
+        );
         const cancelledMessage: UIMessage = {
           content: state.finalContent || '',
           from: 'assistant',
@@ -698,7 +754,16 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
         throw error; // Re-throw so parent can handle
       }
     },
-    [sessionId, state.cancelled, state.finalContent, state.timeline, state.toolCalls, state.connected, resetCancelledState, sendMessage]
+    [
+      sessionId,
+      state.cancelled,
+      state.finalContent,
+      state.timeline,
+      state.toolCalls,
+      state.connected,
+      resetCancelledState,
+      sendMessage,
+    ]
   );
 
   // Simple button status computation
@@ -717,7 +782,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
   // Stream completion handling - invalidate cache when streaming completes
   useEffect(() => {
-    if (state.completed && (state.finalContent || state.toolCalls.length > 0) && !state.processing) {
+    if (
+      state.completed &&
+      (state.finalContent || state.toolCalls.length > 0) &&
+      !state.processing
+    ) {
       console.log('[SSE-INVALIDATE] Invalidating session messages query', {
         timestamp: new Date().toISOString(),
         sessionId,
@@ -727,11 +796,20 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
           processing: state.processing,
           finalContentLength: state.finalContent?.length || 0,
           toolCallsCount: state.toolCalls.length,
-        }
+        },
       });
-      queryClient.invalidateQueries({ queryKey: CACHE_KEYS.sessionMessages(sessionId) });
+      queryClient.invalidateQueries({
+        queryKey: CACHE_KEYS.sessionMessages(sessionId),
+      });
     }
-  }, [state.completed, state.finalContent, state.processing, state.toolCalls.length, sessionId, queryClient]);
+  }, [
+    state.completed,
+    state.finalContent,
+    state.processing,
+    state.toolCalls.length,
+    sessionId,
+    queryClient,
+  ]);
 
   return {
     ...state,

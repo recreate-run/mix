@@ -17,8 +17,6 @@ import { ModelSelectionView } from './command-slash/ModelSelectionView';
 import { HelpMenuView } from './command-slash/HelpMenuView';
 import { CommandsListView } from './command-slash/CommandsListView';
 
-
-
 export function CommandSlash({
   onClose,
   sessionId,
@@ -91,7 +89,6 @@ export function CommandSlash({
     }
   };
 
-
   // Handle view transitions based on data changes
   useEffect(() => {
     if (state.hierarchicalModelData) {
@@ -106,9 +103,6 @@ export function CommandSlash({
       state.setSelectedProvider(null);
     }
   }, [state.hierarchicalModelData, state]);
-
-
-
 
   useEffect(() => {
     if (state.statusData) {
@@ -132,7 +126,6 @@ export function CommandSlash({
       state.goToView('hierarchical-models');
     }
   };
-
 
   // Generic selection handler
   const handleSelect = (value: string) => {
@@ -170,7 +163,11 @@ export function CommandSlash({
       e.preventDefault();
 
       // Use the state management hook's navigation helper
-      if (state.selectedAuthMethod || state.selectedProvider || state.selectedMCPServer) {
+      if (
+        state.selectedAuthMethod ||
+        state.selectedProvider ||
+        state.selectedMCPServer
+      ) {
         state.goBack();
       } else if (state.currentView !== 'commands') {
         state.resetToCommands();
@@ -273,9 +270,10 @@ export function CommandSlash({
               );
             }
 
-
-
-            if (state.isShowingHierarchicalModel && state.hierarchicalModelData) {
+            if (
+              state.isShowingHierarchicalModel &&
+              state.hierarchicalModelData
+            ) {
               return (
                 <ModelSelectionView
                   hierarchicalModelData={state.hierarchicalModelData}
@@ -290,9 +288,7 @@ export function CommandSlash({
 
             // Default: Commands view
             return (
-              <CommandsListView
-                onCommandExecute={handleCommandExecution}
-              />
+              <CommandsListView onCommandExecute={handleCommandExecution} />
             );
           })()}
         </CommandList>

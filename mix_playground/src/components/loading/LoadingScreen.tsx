@@ -4,7 +4,7 @@ import { DotFlow } from './DotFlowCSS';
 // Commands for the opening screen animation - Mix-specific workflow examples
 const commands = [
   {
-    title: "Create a marketing video from these screenshots",
+    title: 'Create a marketing video from these screenshots',
     frames: [
       [21, 22, 23, 24, 25, 26, 27], // Top row formation
       [14, 15, 16, 28, 29, 30, 34, 35], // Expanding down
@@ -18,7 +18,7 @@ const commands = [
     repeatCount: 1,
   },
   {
-    title: "Analyze this user session recording",
+    title: 'Analyze this user session recording',
     frames: [
       [0, 7, 14, 21, 28, 35, 42], // Scanning vertically
       [1, 8, 15, 22, 29, 36, 43],
@@ -33,7 +33,7 @@ const commands = [
     repeatCount: 1,
   },
   {
-    title: "Edit this video: trim and add title overlay",
+    title: 'Edit this video: trim and add title overlay',
     frames: [
       [0, 1, 2, 3, 4, 5, 6], // Timeline frames
       [7, 8, 9, 10, 11, 12, 13],
@@ -47,7 +47,7 @@ const commands = [
     repeatCount: 1,
   },
   {
-    title: "Generate storyboard frames for concept",
+    title: 'Generate storyboard frames for concept',
     frames: [
       [10, 17, 24, 31], // Four corner frames
       [9, 10, 11, 16, 17, 18, 23, 24, 25, 30, 31, 32], // Expanding frames
@@ -60,7 +60,7 @@ const commands = [
     repeatCount: 1,
   },
   {
-    title: "Process batch images: resize and watermark",
+    title: 'Process batch images: resize and watermark',
     frames: [
       [0, 2, 4, 6], // Scattered images
       [7, 9, 11, 13],
@@ -81,7 +81,10 @@ interface LoadingScreenProps {
   onComplete?: () => void;
 }
 
-export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps) {
+export function LoadingScreen({
+  duration = 10,
+  onComplete,
+}: LoadingScreenProps) {
   const [logoVisible, setLogoVisible] = useState(false);
   const [animationStarted, setAnimationStarted] = useState(false);
 
@@ -93,7 +96,6 @@ export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps)
     const logoTimer = setTimeout(() => {
       setLogoVisible(true);
     }, 100);
-
 
     // Complete after duration
     const completeTimer = setTimeout(() => {
@@ -108,15 +110,18 @@ export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps)
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-background/90">
-      <div className={`text-center p-8 rounded-lg bg-background/50 backdrop-blur-sm transition-transform duration-3000 ease-in-out ${animationStarted ? 'animate-float' : ''}`}>
+      <div
+        className={`text-center p-8 rounded-lg bg-background/50 backdrop-blur-sm transition-transform duration-3000 ease-in-out ${animationStarted ? 'animate-float' : ''}`}
+      >
         <div className="mb-4 relative">
           <img
             src="/mix_logo_transparent.png"
             alt="Mix Logo"
-            className={`size-48 object-contain mx-auto transition-all duration-2000 ease-out ${logoVisible
-              ? 'opacity-100 scale-100 animate-pulse-subtle'
-              : 'opacity-0 scale-75'
-              }`}
+            className={`size-48 object-contain mx-auto transition-all duration-2000 ease-out ${
+              logoVisible
+                ? 'opacity-100 scale-100 animate-pulse-subtle'
+                : 'opacity-0 scale-75'
+            }`}
           />
           <div className="text-sm text-muted-foreground flex justify-center items-center">
             <span>The multimodal agents SDK</span>
@@ -126,15 +131,15 @@ export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps)
 
         {/* Animated Commands with enhanced styling */}
         <div className="relative animate-in slide-in-from-bottom duration-1000 delay-500">
-
           <div className="relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-2xl [&_.dot-flow-container]:text-foreground [&_.dot-loader_.h-1\\.5]:bg-muted/30 [&_.dot-loader_.active]:bg-primary">
             <DotFlow items={commands} isPlaying={true} />
           </div>
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(8px); }
@@ -162,8 +167,9 @@ export function LoadingScreen({ duration = 10, onComplete }: LoadingScreenProps)
           .animate-blink {
             animation: blink 0.7s ease-in-out infinite;
           }
-        `
-      }} />
+        `,
+        }}
+      />
     </div>
   );
 }

@@ -20,7 +20,7 @@ export function SessionDisplay({ data }: SessionDisplayProps) {
   markdown += `- **Title:** ${data.title}\n`;
   const totalMessages = getTotalMessages(data);
   const exchanges = getExchangeCount(data);
-  
+
   if (data.toolCallCount === 0) {
     markdown += `- **Messages:** ${totalMessages}\n`;
   } else {

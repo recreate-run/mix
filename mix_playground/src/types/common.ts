@@ -33,7 +33,11 @@ export interface SessionData {
 
 // Utility functions for message counts
 export const getTotalMessages = (session: SessionData): number => {
-  return session.userMessageCount + session.assistantMessageCount + session.toolCallCount;
+  return (
+    session.userMessageCount +
+    session.assistantMessageCount +
+    session.toolCallCount
+  );
 };
 
 export const getExchangeCount = (session: SessionData): number => {
@@ -43,13 +47,13 @@ export const getExchangeCount = (session: SessionData): number => {
 // Smart message count formatting - centralized logic for consistent display
 export const formatMessageCounts = (session: SessionData): string => {
   const { toolCallCount } = session;
-  
+
   if (toolCallCount === 0) {
     // No tools used - show simple message count
     const total = getExchangeCount(session);
     return `${total} messages`;
   }
-  
+
   // Tools were used - show exchanges and tools separately
   const exchanges = getExchangeCount(session);
   return `${exchanges} exchanges, ${toolCallCount} tools`;

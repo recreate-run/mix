@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useBoundStore } from '@/stores';
 import { cn } from '@/lib/utils';
-import { getFileTypeFromExtension, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, AUDIO_EXTENSIONS } from '@/utils/fileTypes';
+import {
+  getFileTypeFromExtension,
+  IMAGE_EXTENSIONS,
+  VIDEO_EXTENSIONS,
+  AUDIO_EXTENSIONS,
+} from '@/utils/fileTypes';
 
 interface FileUploadButtonProps {
   sessionId: string;
@@ -14,11 +19,11 @@ interface FileUploadButtonProps {
   onUploadError?: (error: string) => void;
 }
 
-export function FileUploadButton({ 
-  sessionId, 
+export function FileUploadButton({
+  sessionId,
   className,
   onUploadSuccess,
-  onUploadError 
+  onUploadError,
 }: FileUploadButtonProps) {
   const fileUpload = useFileUpload();
   const addAttachment = useBoundStore((state) => state.addAttachment);
@@ -31,25 +36,35 @@ export function FileUploadButton({
         filters: [
           {
             name: 'All Files',
-            extensions: ['*']
+            extensions: ['*'],
           },
           {
             name: 'Images',
-            extensions: [...IMAGE_EXTENSIONS]
+            extensions: [...IMAGE_EXTENSIONS],
           },
           {
             name: 'Videos',
-            extensions: [...VIDEO_EXTENSIONS]
+            extensions: [...VIDEO_EXTENSIONS],
           },
           {
             name: 'Audio',
-            extensions: [...AUDIO_EXTENSIONS]
+            extensions: [...AUDIO_EXTENSIONS],
           },
           {
             name: 'Documents',
-            extensions: ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'csv', 'xls', 'xlsx']
-          }
-        ]
+            extensions: [
+              'pdf',
+              'doc',
+              'docx',
+              'txt',
+              'md',
+              'rtf',
+              'csv',
+              'xls',
+              'xlsx',
+            ],
+          },
+        ],
       });
 
       if (!selected) {
@@ -63,19 +78,19 @@ export function FileUploadButton({
         try {
           // Read file data using Tauri FS plugin
           const fileData = await readFile(filePath);
-          
+
           // Extract filename from path
           const fileName = filePath.split(/[/\\]/).pop() || 'unnamed-file';
-          
+
           // Create File object for upload
           const file = new File([fileData], fileName, {
-            type: getMimeType(fileName)
+            type: getMimeType(fileName),
           });
 
           // Upload file using our hook
           const result = await fileUpload.mutateAsync({
             sessionId,
-            file
+            file,
           });
 
           // Add to attachment store for UI preview
@@ -90,17 +105,19 @@ export function FileUploadButton({
 
           // Call success callback
           onUploadSuccess?.(result.name);
-
         } catch (error) {
           console.error(`Failed to upload file ${filePath}:`, error);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          onUploadError?.(`Failed to upload ${filePath.split(/[/\\]/).pop()}: ${errorMessage}`);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          onUploadError?.(
+            `Failed to upload ${filePath.split(/[/\\]/).pop()}: ${errorMessage}`
+          );
         }
       }
-
     } catch (error) {
       console.error('Failed to open file picker:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       onUploadError?.(`Failed to open file picker: ${errorMessage}`);
     }
   };
@@ -131,7 +148,7 @@ export function FileUploadButton({
 // Helper function to determine MIME type from file extension
 function getMimeType(fileName: string): string {
   const extension = fileName.split('.').pop()?.toLowerCase();
-  
+
   const mimeTypes: Record<string, string> = {
     // Images
     png: 'image/png',
@@ -141,7 +158,7 @@ function getMimeType(fileName: string): string {
     webp: 'image/webp',
     bmp: 'image/bmp',
     tiff: 'image/tiff',
-    
+
     // Videos
     mp4: 'video/mp4',
     webm: 'video/webm',
@@ -151,7 +168,7 @@ function getMimeType(fileName: string): string {
     wmv: 'video/x-ms-wmv',
     flv: 'video/x-flv',
     m4v: 'video/x-m4v',
-    
+
     // Audio
     mp3: 'audio/mpeg',
     wav: 'audio/wav',
@@ -159,7 +176,7 @@ function getMimeType(fileName: string): string {
     aac: 'audio/aac',
     m4a: 'audio/mp4',
     ogg: 'audio/ogg',
-    
+
     // Documents
     pdf: 'application/pdf',
     doc: 'application/msword',
@@ -170,7 +187,7 @@ function getMimeType(fileName: string): string {
     csv: 'text/csv',
     xls: 'application/vnd.ms-excel',
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    
+
     // Code
     js: 'text/javascript',
     ts: 'text/typescript',

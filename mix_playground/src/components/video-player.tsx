@@ -10,7 +10,10 @@ import { useThrottledCallback } from '@tanstack/react-pacer';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { VideoPlayerProps } from '@/types/media';
-import { IconPlayerPauseFilled, IconPlayerPlayFilled } from '@tabler/icons-react';
+import {
+  IconPlayerPauseFilled,
+  IconPlayerPlayFilled,
+} from '@tabler/icons-react';
 
 export const VideoPlayer = ({
   path,
@@ -39,7 +42,6 @@ export const VideoPlayer = ({
   const progressFillRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
 
-
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
@@ -59,7 +61,12 @@ export const VideoPlayer = ({
   // If path changes to a different video, the existing useEffect with [path] dependency handles that
   useEffect(() => {
     const video = videoRef.current;
-    if (video && video.readyState >= 1 && isSegment && startTime !== undefined) {
+    if (
+      video &&
+      video.readyState >= 1 &&
+      isSegment &&
+      startTime !== undefined
+    ) {
       // Update current time when segment parameters change
       video.currentTime = startTime;
       hasInitialized.current = true; // Mark as initialized to prevent duplicate seeks
@@ -76,7 +83,6 @@ export const VideoPlayer = ({
       }
     };
   }, []);
-
 
   // Simple URL without media fragments (more reliable)
   const getVideoSrc = () => {
@@ -103,7 +109,6 @@ export const VideoPlayer = ({
     }
     return duration || 0;
   };
-
 
   // Unified function to sync timeline position from video element
   const syncTimelinePosition = () => {
@@ -241,26 +246,29 @@ export const VideoPlayer = ({
   };
 
   // Stable timeline drag handler that uses throttled seek
-  const handleTimelineDrag = useCallback((e: MouseEvent) => {
-    if (!isDraggingRef.current) return;
+  const handleTimelineDrag = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
 
-    const rect = progressBarRef.current?.getBoundingClientRect();
-    if (!rect) return;
+      const rect = progressBarRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-    const clickX = e.clientX - rect.left;
-    const progress = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+      const clickX = e.clientX - rect.left;
+      const progress = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
 
-    // Update visual position immediately (not throttled)
-    if (progressFillRef.current) {
-      progressFillRef.current.style.width = `${progress}%`;
-    }
-    if (progressDotRef.current) {
-      progressDotRef.current.style.left = `${progress}%`;
-    }
+      // Update visual position immediately (not throttled)
+      if (progressFillRef.current) {
+        progressFillRef.current.style.width = `${progress}%`;
+      }
+      if (progressDotRef.current) {
+        progressDotRef.current.style.left = `${progress}%`;
+      }
 
-    // Throttled video seek
-    throttledSeek(progress);
-  }, [throttledSeek]);
+      // Throttled video seek
+      throttledSeek(progress);
+    },
+    [throttledSeek]
+  );
 
   const handleProgressMouseUp = (e: MouseEvent) => {
     if (!isDraggingRef.current) return;
@@ -287,7 +295,6 @@ export const VideoPlayer = ({
       };
     }
   }, [isDragging, handleTimelineDrag]);
-
 
   const handlePictureInPicture = async () => {
     if (!videoRef.current) return;
@@ -345,7 +352,11 @@ export const VideoPlayer = ({
             }
 
             // Set initial position for segments (one-time setup)
-            if (isSegment && startTime !== undefined && !hasInitialized.current) {
+            if (
+              isSegment &&
+              startTime !== undefined &&
+              !hasInitialized.current
+            ) {
               if (video) {
                 video.currentTime = startTime;
                 hasInitialized.current = true;
@@ -359,7 +370,11 @@ export const VideoPlayer = ({
           onPlay={() => handlePlayStateChange(true)}
           onSeeked={() => {
             // Gentle boundary correction after seeking (no loops)
-            if (isSegment && startTime !== undefined && duration !== undefined) {
+            if (
+              isSegment &&
+              startTime !== undefined &&
+              duration !== undefined
+            ) {
               const video = videoRef.current;
               if (video) {
                 const endTime = startTime + duration;
@@ -383,7 +398,11 @@ export const VideoPlayer = ({
             }
 
             // Only pause at segment end, don't modify time during update
-            if (isSegment && startTime !== undefined && duration !== undefined) {
+            if (
+              isSegment &&
+              startTime !== undefined &&
+              duration !== undefined
+            ) {
               const endTime = startTime + duration;
               if (video.currentTime >= endTime && !video.paused) {
                 video.pause();
@@ -422,7 +441,8 @@ export const VideoPlayer = ({
                   {/* Time Display */}
                   <div className="flex-1 text-center">
                     <span className="text-white text-sm font-medium">
-                      {formatTime(getDisplayTime(currentTime))} / {formatTime(getDisplayDuration())}
+                      {formatTime(getDisplayTime(currentTime))} /{' '}
+                      {formatTime(getDisplayDuration())}
                     </span>
                   </div>
 
@@ -430,7 +450,7 @@ export const VideoPlayer = ({
                   <Button
                     onClick={handlePictureInPicture}
                     size="icon"
-                    variant={"ghost"}
+                    variant={'ghost'}
                     title="Picture-in-Picture"
                     className=" border-0 rounded-full"
                   >
@@ -441,8 +461,9 @@ export const VideoPlayer = ({
                 {/* Progress Bar */}
                 <div
                   ref={progressBarRef}
-                  className={`relative h-[5px] w-full rounded-full bg-white  ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
-                    }`}
+                  className={`relative h-[5px] w-full rounded-full bg-white  ${
+                    isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
                   onClick={handleProgressClick}
                   onMouseDown={handleProgressMouseDown}
                 >
@@ -453,8 +474,9 @@ export const VideoPlayer = ({
                   />
                   <div
                     ref={progressDotRef}
-                    className={`absolute top-1/2 left-0 w-3 h-3 bg-white rounded-full shadow-lg ${isDragging ? 'scale-125' : ''
-                      } transition-transform`}
+                    className={`absolute top-1/2 left-0 w-3 h-3 bg-white rounded-full shadow-lg ${
+                      isDragging ? 'scale-125' : ''
+                    } transition-transform`}
                     style={{
                       transform: `translateY(-50%) ${isDragging ? 'scale(1.25)' : ''}`,
                       left: '0%',
@@ -484,8 +506,9 @@ export const VideoPlayer = ({
                   {/* Progress Bar */}
                   <div
                     ref={progressBarRef}
-                    className={`flex-1 relative h-1 rounded-full bg-neutral-600/40 backdrop-blur-sm rounded-lg py-[5px] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
-                      }`}
+                    className={`flex-1 relative h-1 rounded-full bg-neutral-600/40 backdrop-blur-sm rounded-lg py-[5px] ${
+                      isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                    }`}
                     onClick={handleProgressClick}
                     onMouseDown={handleProgressMouseDown}
                   >
@@ -496,8 +519,9 @@ export const VideoPlayer = ({
                     />
                     <div
                       ref={progressDotRef}
-                      className={`absolute top-1/2 left-0 size-3 bg-white rounded-full shadow-lg ${isDragging ? 'scale-125' : ''
-                        } transition-transform`}
+                      className={`absolute top-1/2 left-0 size-3 bg-white rounded-full shadow-lg ${
+                        isDragging ? 'scale-125' : ''
+                      } transition-transform`}
                       style={{
                         transform: `translateY(-50%) ${isDragging ? 'scale(1.25)' : ''}`,
                         left: '0%',
@@ -508,14 +532,16 @@ export const VideoPlayer = ({
 
                   {/* Time Display */}
                   <div className="bg-black/40 p-1 rounded-md text-white text-xs font-medium shrink-0">
-                    {formatTime(getDisplayTime(currentTime))} / {formatTime(getDisplayDuration())}
+                    {formatTime(getDisplayTime(currentTime))} /{' '}
+                    {formatTime(getDisplayDuration())}
                   </div>
 
                   {/* Picture-in-Picture Button */}
                   <Button
                     onClick={handlePictureInPicture}
                     size="icon"
-                    variant={"ghost"} title="Picture-in-Picture"
+                    variant={'ghost'}
+                    title="Picture-in-Picture"
                     className="hover:bg-white/20 text-white border-0 h-8 w-8 rounded-full shrink-0"
                   >
                     <PictureInPicture className="size-4" />
@@ -548,6 +574,6 @@ export const VideoPlayer = ({
           </div>
         )}
       </div>
-    </div >
+    </div>
   );
 };

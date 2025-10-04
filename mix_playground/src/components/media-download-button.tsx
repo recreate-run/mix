@@ -13,7 +13,11 @@ export const MediaDownloadButton = ({
   sessionId: string;
   getMediaSrc: (path: string, sessionId: string) => string;
 }) => {
-  const { isDownloading, downloadMedia } = useMediaDownload(media, sessionId, getMediaSrc);
+  const { isDownloading, downloadMedia } = useMediaDownload(
+    media,
+    sessionId,
+    getMediaSrc
+  );
 
   return (
     <Button
@@ -21,7 +25,11 @@ export const MediaDownloadButton = ({
       onClick={downloadMedia}
       size="sm"
       variant="ghost"
-      title={media.type === 'video' && isYouTubeUrl(media.path) ? 'Open in YouTube' : 'Download media'}
+      title={
+        media.type === 'video' && isYouTubeUrl(media.path)
+          ? 'Open in YouTube'
+          : 'Download media'
+      }
       disabled={isDownloading}
     >
       <Download className="size-4" />

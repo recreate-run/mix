@@ -40,7 +40,6 @@ export class TextParser {
       });
     });
 
-
     this.availableCommands.forEach((command) => {
       const pattern = `/${command}`;
       const regex = new RegExp(this.escapeRegex(pattern), 'g');
@@ -136,9 +135,7 @@ export class TextParser {
   }
 
   private isSpecialToken(type: TokenType): boolean {
-    return (
-      type === 'file-ref' || type === 'slash-command'
-    );
+    return type === 'file-ref' || type === 'slash-command';
   }
 
   private escapeRegex(string: string): string {
@@ -147,5 +144,3 @@ export class TextParser {
 }
 
 // Legacy exports for backward compatibility during transition
-
-

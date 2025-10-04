@@ -1,33 +1,32 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  IconServer,
-  IconLogout,
-  IconLogin,
-} from '@tabler/icons-react';
-import { Loader2, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from 'react';
+import { IconServer, IconLogout, IconLogin } from '@tabler/icons-react';
+import { Loader2, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { logoutProvider } from "@/handlers/logout-command-handler";
-import { authenticateWithApiKey, startOAuthFlow } from "@/handlers/login-command-handler";
-import { useProviders } from "@/hooks/useProviders";
-import { useToolsStatus } from "@/hooks/useTools";
-import { ProvidersLoadingSkeleton } from "@/components/provider-skeleton";
-import { OAuthCodeDialog } from "@/components/oauth-code-dialog";
-import { ToolCard } from "@/components/tool-card";
-import { Search, Eye } from "lucide-react";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+} from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { logoutProvider } from '@/handlers/logout-command-handler';
+import {
+  authenticateWithApiKey,
+  startOAuthFlow,
+} from '@/handlers/login-command-handler';
+import { useProviders } from '@/hooks/useProviders';
+import { useToolsStatus } from '@/hooks/useTools';
+import { ProvidersLoadingSkeleton } from '@/components/provider-skeleton';
+import { OAuthCodeDialog } from '@/components/oauth-code-dialog';
+import { ToolCard } from '@/components/tool-card';
+import { Search, Eye } from 'lucide-react';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -38,16 +37,26 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const queryClient = useQueryClient();
 
   // Fetch providers with TanStack Query
-  const { data: allProviders = [], isLoading: loadingProviders, refetch } = useProviders();
+  const {
+    data: allProviders = [],
+    isLoading: loadingProviders,
+    refetch,
+  } = useProviders();
 
   // Fetch tools status
   const { data: toolsStatus, isLoading: loadingTools } = useToolsStatus();
 
   // Login/logout state
-  const [loggingOutProvider, setLoggingOutProvider] = useState<string | null>(null);
-  const [loginInProgress, setLoginInProgress] = useState<Record<string, boolean>>({});
+  const [loggingOutProvider, setLoggingOutProvider] = useState<string | null>(
+    null
+  );
+  const [loginInProgress, setLoginInProgress] = useState<
+    Record<string, boolean>
+  >({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  const [selectedAuthMethod, setSelectedAuthMethod] = useState<Record<string, 'api_key' | 'oauth'>>({});
+  const [selectedAuthMethod, setSelectedAuthMethod] = useState<
+    Record<string, 'api_key' | 'oauth'>
+  >({});
 
   // OAuth code dialog state
   const [oauthCodeDialog, setOauthCodeDialog] = useState<{
@@ -63,12 +72,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Initialize auth method selection for unauthenticated providers
   const initializeAuthMethods = useCallback(() => {
     const newSelectedMethods: Record<string, 'api_key' | 'oauth'> = {};
-    allProviders.forEach(provider => {
+    allProviders.forEach((provider) => {
       if (!provider.authenticated && provider.authMethods.length > 0) {
         newSelectedMethods[provider.id] = provider.authMethods[0];
       }
     });
-    setSelectedAuthMethod(prev => ({ ...prev, ...newSelectedMethods }));
+    setSelectedAuthMethod((prev) => ({ ...prev, ...newSelectedMethods }));
   }, [allProviders]);
 
   // Initialize auth methods when providers change
@@ -87,9 +96,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       const result = await logoutProvider(providerId);
 
       if (result.suppressChatMessage) {
-        toast.success(`Successfully logged out from ${allProviders.find(p => p.id === providerId)?.displayName || providerId}`);
+        toast.success(
+          `Successfully logged out from ${allProviders.find((p) => p.id === providerId)?.displayName || providerId}`
+        );
         // Invalidate and refetch provider data
-        queryClient.invalidateQueries({ queryKey: ['preferences', 'providers'] });
+        queryClient.invalidateQueries({
+          queryKey: ['preferences', 'providers'],
+        });
         await refetch();
       } else {
         toast.error(result.content || 'Logout failed');
@@ -103,11 +116,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   };
 
   const handleLogin = async (providerId: string) => {
-    const provider = allProviders.find(p => p.id === providerId);
-    const authMethod = selectedAuthMethod[providerId] || provider?.authMethods[0];
+    const provider = allProviders.find((p) => p.id === providerId);
+    const authMethod =
+      selectedAuthMethod[providerId] || provider?.authMethods[0];
     if (!authMethod) return;
 
-    setLoginInProgress(prev => ({ ...prev, [providerId]: true }));
+    setLoginInProgress((prev) => ({ ...prev, [providerId]: true }));
 
     try {
       if (authMethod === 'api_key') {
@@ -120,9 +134,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         const result = await authenticateWithApiKey(providerId, apiKey.trim());
         if (result.suppressChatMessage) {
           // Clear the API key after successful authentication
-          setApiKeys(prev => ({ ...prev, [providerId]: '' }));
+          setApiKeys((prev) => ({ ...prev, [providerId]: '' }));
           // Invalidate and refetch provider data
-          queryClient.invalidateQueries({ queryKey: ['preferences', 'providers'] });
+          queryClient.invalidateQueries({
+            queryKey: ['preferences', 'providers'],
+          });
           await refetch();
         } else {
           toast.error(result.content || 'Authentication failed');
@@ -134,9 +150,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           const authUrl = result.content.match(/https?:\/\/[^\s]+/)?.[0];
           if (authUrl) {
             try {
-              const { open: shellOpen } = await import('@tauri-apps/plugin-shell');
+              const { open: shellOpen } = await import(
+                '@tauri-apps/plugin-shell'
+              );
               await shellOpen(authUrl);
-              toast.info('OAuth browser opened. Please complete authentication in the browser.');
+              toast.info(
+                'OAuth browser opened. Please complete authentication in the browser.'
+              );
 
               // Show OAuth code dialog after opening browser
               setOauthCodeDialog({
@@ -145,10 +165,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 oauthState: result.loginData.oauthState,
               });
             } catch (shellError) {
-              console.warn('Tauri shell failed, falling back to window.open:', shellError);
+              console.warn(
+                'Tauri shell failed, falling back to window.open:',
+                shellError
+              );
               try {
                 window.open(authUrl, '_blank', 'width=600,height=800');
-                toast.info('OAuth window opened. Please complete authentication in the new window.');
+                toast.info(
+                  'OAuth window opened. Please complete authentication in the new window.'
+                );
 
                 // Show OAuth code dialog after opening browser
                 setOauthCodeDialog({
@@ -157,8 +182,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   oauthState: result.loginData.oauthState,
                 });
               } catch (windowError) {
-                console.error('Both browser opening methods failed:', windowError);
-                toast.error('Failed to open OAuth browser. Please copy this URL manually: ' + authUrl);
+                console.error(
+                  'Both browser opening methods failed:',
+                  windowError
+                );
+                toast.error(
+                  'Failed to open OAuth browser. Please copy this URL manually: ' +
+                    authUrl
+                );
               }
             }
           }
@@ -170,20 +201,23 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       console.error('Login failed:', error);
       toast.error('Login failed. Please try again.');
     } finally {
-      setLoginInProgress(prev => ({ ...prev, [providerId]: false }));
+      setLoginInProgress((prev) => ({ ...prev, [providerId]: false }));
     }
   };
 
-  const handleAuthMethodChange = (providerId: string, method: 'api_key' | 'oauth') => {
-    setSelectedAuthMethod(prev => ({ ...prev, [providerId]: method }));
+  const handleAuthMethodChange = (
+    providerId: string,
+    method: 'api_key' | 'oauth'
+  ) => {
+    setSelectedAuthMethod((prev) => ({ ...prev, [providerId]: method }));
     // Clear API key when switching away from API key method
     if (method !== 'api_key') {
-      setApiKeys(prev => ({ ...prev, [providerId]: '' }));
+      setApiKeys((prev) => ({ ...prev, [providerId]: '' }));
     }
   };
 
   const handleApiKeyChange = (providerId: string, value: string) => {
-    setApiKeys(prev => ({ ...prev, [providerId]: value }));
+    setApiKeys((prev) => ({ ...prev, [providerId]: value }));
   };
 
   return (
@@ -221,27 +255,35 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 ) : (
                   <div className="space-y-3">
                     {allProviders.map((provider) => (
-                      <div
-                        key={provider.id}
-                        className="p-4 border rounded-lg"
-                      >
+                      <div key={provider.id} className="p-4 border rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium">{provider.displayName}</p>
+                            <p className="font-medium">
+                              {provider.displayName}
+                            </p>
                             <div className="flex items-center gap-2 mt-1">
                               {provider.authenticated ? (
                                 <>
-                                  <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs text-green-600 border-green-600"
+                                  >
                                     ✓ Authenticated
                                   </Badge>
                                   {provider.isPreferred && (
-                                    <Badge variant="default" className="text-xs">
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs"
+                                    >
                                       Preferred
                                     </Badge>
                                   )}
                                 </>
                               ) : (
-                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-muted-foreground"
+                                >
                                   Not authenticated
                                 </Badge>
                               )}
@@ -271,22 +313,48 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                             {/* Authentication method selection */}
                             {provider.authMethods.length > 1 && (
                               <div>
-                                <Label className="text-sm font-medium">Authentication Method</Label>
+                                <Label className="text-sm font-medium">
+                                  Authentication Method
+                                </Label>
                                 <RadioGroup
-                                  value={selectedAuthMethod[provider.id] || provider.authMethods[0]}
-                                  onValueChange={(value: string) => handleAuthMethodChange(provider.id, value as 'api_key' | 'oauth')}
+                                  value={
+                                    selectedAuthMethod[provider.id] ||
+                                    provider.authMethods[0]
+                                  }
+                                  onValueChange={(value: string) =>
+                                    handleAuthMethodChange(
+                                      provider.id,
+                                      value as 'api_key' | 'oauth'
+                                    )
+                                  }
                                   className="flex gap-6 mt-2"
                                 >
                                   {provider.authMethods.includes('api_key') && (
                                     <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="api_key" id={`${provider.id}-api-key`} />
-                                      <Label htmlFor={`${provider.id}-api-key`} className="text-sm">API Key</Label>
+                                      <RadioGroupItem
+                                        value="api_key"
+                                        id={`${provider.id}-api-key`}
+                                      />
+                                      <Label
+                                        htmlFor={`${provider.id}-api-key`}
+                                        className="text-sm"
+                                      >
+                                        API Key
+                                      </Label>
                                     </div>
                                   )}
                                   {provider.authMethods.includes('oauth') && (
                                     <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="oauth" id={`${provider.id}-oauth`} />
-                                      <Label htmlFor={`${provider.id}-oauth`} className="text-sm">OAuth</Label>
+                                      <RadioGroupItem
+                                        value="oauth"
+                                        id={`${provider.id}-oauth`}
+                                      />
+                                      <Label
+                                        htmlFor={`${provider.id}-oauth`}
+                                        className="text-sm"
+                                      >
+                                        OAuth
+                                      </Label>
                                     </div>
                                   )}
                                 </RadioGroup>
@@ -295,26 +363,44 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
                             {/* API Key input or OAuth button */}
                             <div>
-                              {(selectedAuthMethod[provider.id] || provider.authMethods[0]) === 'api_key' ? (
+                              {(selectedAuthMethod[provider.id] ||
+                                provider.authMethods[0]) === 'api_key' ? (
                                 <div className="space-y-2">
-                                  <Label htmlFor={`${provider.id}-key`} className="text-sm font-medium">
-                                    API Key {provider.apiKeyFormat && (
-                                      <span className="text-xs text-muted-foreground">({provider.apiKeyFormat})</span>
+                                  <Label
+                                    htmlFor={`${provider.id}-key`}
+                                    className="text-sm font-medium"
+                                  >
+                                    API Key{' '}
+                                    {provider.apiKeyFormat && (
+                                      <span className="text-xs text-muted-foreground">
+                                        ({provider.apiKeyFormat})
+                                      </span>
                                     )}
                                   </Label>
                                   <div className="flex gap-2">
                                     <Input
                                       id={`${provider.id}-key`}
                                       type="password"
-                                      placeholder={provider.apiKeyFormat || "Enter API key..."}
+                                      placeholder={
+                                        provider.apiKeyFormat ||
+                                        'Enter API key...'
+                                      }
                                       value={apiKeys[provider.id] || ''}
-                                      onChange={(e) => handleApiKeyChange(provider.id, e.target.value)}
+                                      onChange={(e) =>
+                                        handleApiKeyChange(
+                                          provider.id,
+                                          e.target.value
+                                        )
+                                      }
                                       disabled={loginInProgress[provider.id]}
                                       className="flex-1"
                                     />
                                     <Button
                                       onClick={() => handleLogin(provider.id)}
-                                      disabled={loginInProgress[provider.id] || !apiKeys[provider.id]?.trim()}
+                                      disabled={
+                                        loginInProgress[provider.id] ||
+                                        !apiKeys[provider.id]?.trim()
+                                      }
                                       size="sm"
                                       className="flex items-center gap-2"
                                     >
@@ -360,22 +446,30 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <h3 className="text-lg font-semibold">Tools & Subagents</h3>
               </div>
 
-              {!loadingTools && toolsStatus?.categories && Object.entries(toolsStatus.categories).map(([categoryId, category]) => {
-                // Map category IDs to icons
-                const categoryIcons: Record<string, React.ReactNode> = {
-                  web_search: <Search className="h-5 w-5" />,
-                  multimodal_analyzer: <Eye className="h-5 w-5" />,
-                };
+              {!loadingTools &&
+                toolsStatus?.categories &&
+                Object.entries(toolsStatus.categories).map(
+                  ([categoryId, category]) => {
+                    // Map category IDs to icons
+                    const categoryIcons: Record<string, React.ReactNode> = {
+                      web_search: <Search className="h-5 w-5" />,
+                      multimodal_analyzer: <Eye className="h-5 w-5" />,
+                    };
 
-                return (
-                  <ToolCard
-                    key={categoryId}
-                    categoryDisplayName={category.displayName}
-                    icon={categoryIcons[categoryId] || <Settings className="h-5 w-5" />}
-                    tools={category.tools}
-                  />
-                );
-              })}
+                    return (
+                      <ToolCard
+                        key={categoryId}
+                        categoryDisplayName={category.displayName}
+                        icon={
+                          categoryIcons[categoryId] || (
+                            <Settings className="h-5 w-5" />
+                          )
+                        }
+                        tools={category.tools}
+                      />
+                    );
+                  }
+                )}
             </div>
           </div>
         </DialogContent>
@@ -384,14 +478,19 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       {/* OAuth Code Dialog */}
       <OAuthCodeDialog
         open={oauthCodeDialog.open}
-        onOpenChange={(open) => setOauthCodeDialog(prev => ({ ...prev, open }))}
+        onOpenChange={(open) =>
+          setOauthCodeDialog((prev) => ({ ...prev, open }))
+        }
         provider={oauthCodeDialog.provider}
         oauthState={oauthCodeDialog.oauthState}
         onSuccess={() => {
           // Refresh providers data after successful authentication
           refetch();
           // Clear login in progress state
-          setLoginInProgress(prev => ({ ...prev, [oauthCodeDialog.provider]: false }));
+          setLoginInProgress((prev) => ({
+            ...prev,
+            [oauthCodeDialog.provider]: false,
+          }));
         }}
       />
     </>

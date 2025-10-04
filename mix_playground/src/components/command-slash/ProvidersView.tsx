@@ -1,5 +1,9 @@
 import { CheckCircle, Settings } from 'lucide-react';
-import { CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import type { Provider, LoginProvider } from '@/types/command-slash';
 import { BackButton } from './shared/BackButton';
 import { StatusBadge } from './shared/StatusBadge';
@@ -58,19 +62,21 @@ export function ProvidersView({
 
   if (!providers.length) {
     const emptyMessage =
-      type === 'logout' ? 'No authenticated providers found' : 'No providers found';
+      type === 'logout'
+        ? 'No authenticated providers found'
+        : 'No providers found';
     return <CommandEmpty>{emptyMessage}</CommandEmpty>;
   }
 
   return (
     <CommandGroup heading={getTitle()}>
-        <BackButton
-          label="Back to Commands"
-          onSelect={onBackToCommands}
-          value="back-to-commands"
-        />
+      <BackButton
+        label="Back to Commands"
+        onSelect={onBackToCommands}
+        value="back-to-commands"
+      />
 
-        {providers.map((provider) => {
+      {providers.map((provider) => {
         const isDisabled = type === 'status' && !provider.authenticated;
 
         return (
@@ -88,9 +94,7 @@ export function ProvidersView({
                   {provider.authenticated && type !== 'logout' && (
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   )}
-                  {provider.isPreferred && (
-                    <StatusBadge status="preferred" />
-                  )}
+                  {provider.isPreferred && <StatusBadge status="preferred" />}
                 </div>
               </div>
               {getDescription(provider) && (
@@ -101,7 +105,7 @@ export function ProvidersView({
             </div>
           </CommandItem>
         );
-        })}
+      })}
     </CommandGroup>
   );
 }

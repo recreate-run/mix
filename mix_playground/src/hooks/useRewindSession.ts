@@ -9,19 +9,24 @@ interface RewindSessionParams {
   cleanupMedia?: boolean;
 }
 
-async function rewindSession(params: RewindSessionParams): Promise<SessionData> {
+async function rewindSession(
+  params: RewindSessionParams
+): Promise<SessionData> {
   const response = await mix.sessions.rewindSession({
     id: params.sessionId,
     requestBody: {
       messageId: params.messageId,
-      cleanupMedia: params.cleanupMedia ?? true
-    }
+      cleanupMedia: params.cleanupMedia ?? true,
+    },
   });
 
   // Transform SDK SessionData to match local interface (Date -> string)
   return {
     ...response,
-    createdAt: response.createdAt instanceof Date ? response.createdAt.toISOString() : response.createdAt
+    createdAt:
+      response.createdAt instanceof Date
+        ? response.createdAt.toISOString()
+        : response.createdAt,
   };
 }
 

@@ -13,15 +13,15 @@ const VIDEO_URL_PATTERNS = {
   youtube: [
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
     /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/,
-    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/,
   ],
   vimeo: [
     /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/,
-    /(?:https?:\/\/)?player\.vimeo\.com\/video\/(\d+)/
+    /(?:https?:\/\/)?player\.vimeo\.com\/video\/(\d+)/,
   ],
   direct: [
-    /https?:\/\/[^\s]+\.(?:mp4|webm|ogg|mov|avi|wmv|flv|m4v)(?:\?[^\s]*)?/i
-  ]
+    /https?:\/\/[^\s]+\.(?:mp4|webm|ogg|mov|avi|wmv|flv|m4v)(?:\?[^\s]*)?/i,
+  ],
 };
 
 /**
@@ -29,7 +29,7 @@ const VIDEO_URL_PATTERNS = {
  */
 export function detectVideoUrls(text: string): VideoUrlInfo[] {
   const videoUrls: VideoUrlInfo[] = [];
-  
+
   // YouTube detection
   for (const pattern of VIDEO_URL_PATTERNS.youtube) {
     const matches = text.matchAll(new RegExp(pattern, 'g'));
@@ -41,12 +41,12 @@ export function detectVideoUrls(text: string): VideoUrlInfo[] {
           platform: 'youtube',
           videoId,
           thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-          title: `YouTube Video: ${videoId}`
+          title: `YouTube Video: ${videoId}`,
         });
       }
     }
   }
-  
+
   // Vimeo detection
   for (const pattern of VIDEO_URL_PATTERNS.vimeo) {
     const matches = text.matchAll(new RegExp(pattern, 'g'));
@@ -57,13 +57,13 @@ export function detectVideoUrls(text: string): VideoUrlInfo[] {
           url: match[0],
           platform: 'vimeo',
           videoId,
-          title: `Vimeo Video: ${videoId}`
+          title: `Vimeo Video: ${videoId}`,
           // Note: Vimeo thumbnails require API call, we'll handle this later
         });
       }
     }
   }
-  
+
   // Direct video file detection
   for (const pattern of VIDEO_URL_PATTERNS.direct) {
     const matches = text.matchAll(new RegExp(pattern, 'g'));
@@ -73,14 +73,14 @@ export function detectVideoUrls(text: string): VideoUrlInfo[] {
       videoUrls.push({
         url,
         platform: 'direct',
-        title: filename
+        title: filename,
       });
     }
   }
-  
+
   // Remove duplicates
-  return videoUrls.filter((video, index, self) => 
-    index === self.findIndex(v => v.url === video.url)
+  return videoUrls.filter(
+    (video, index, self) => index === self.findIndex((v) => v.url === video.url)
   );
 }
 
@@ -94,10 +94,9 @@ export function createVideoUrlAttachment(videoInfo: VideoUrlInfo) {
     type: 'video' as const,
     url: videoInfo.url,
     thumbnailUrl: videoInfo.thumbnailUrl,
-    platform: videoInfo.platform
+    platform: videoInfo.platform,
   };
 }
-
 
 /**
  * Converts a YouTube URL to its embed format
@@ -117,5 +116,5 @@ export function getYouTubeEmbedUrl(url: string): string | null {
  * Checks if a URL is a YouTube URL
  */
 export function isYouTubeUrl(url: string): boolean {
-  return VIDEO_URL_PATTERNS.youtube.some(pattern => pattern.test(url));
+  return VIDEO_URL_PATTERNS.youtube.some((pattern) => pattern.test(url));
 }

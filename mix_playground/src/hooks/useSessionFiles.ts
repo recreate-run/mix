@@ -16,7 +16,9 @@ const transformFileInfoToAttachment = (fileInfo: FileInfo): Attachment => {
   const extension = fileInfo.name.split('.').pop()?.toLowerCase();
 
   // Determine attachment type - handle folders first, then use centralized detection
-  const type: Attachment['type'] = fileInfo.isDir ? 'folder' : getFileTypeFromExtension(fileInfo.name);
+  const type: Attachment['type'] = fileInfo.isDir
+    ? 'folder'
+    : getFileTypeFromExtension(fileInfo.name);
 
   return {
     id: `session-file:${fileInfo.name}`,
@@ -40,4 +42,3 @@ export const useSessionFiles = (sessionId?: string) => {
     enabled: !!sessionId,
   });
 };
-

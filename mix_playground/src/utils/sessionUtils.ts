@@ -9,7 +9,8 @@ import { TITLE_TRUNCATE_LENGTH } from '@/hooks/useSessionsList';
  * @returns A truncated display title string
  */
 export const getDisplayTitle = (session: SessionData | Session): string => {
-  const firstUserMessage = 'firstUserMessage' in session ? session.firstUserMessage : undefined;
+  const firstUserMessage =
+    'firstUserMessage' in session ? session.firstUserMessage : undefined;
 
   if (!firstUserMessage || firstUserMessage.trim() === '') {
     // New sessions won't have a first user message yet - use session title as fallback

@@ -10,18 +10,21 @@ interface ForkSessionParams {
 }
 
 async function forkSession(params: ForkSessionParams): Promise<SessionData> {
-  const response = await mix.sessions.fork({ 
+  const response = await mix.sessions.fork({
     id: params.sourceSessionId,
     requestBody: {
       messageIndex: params.messageIndex,
-      title: params.title
-    }
+      title: params.title,
+    },
   });
 
   // Transform SDK SessionData to match local interface (Date -> string)
   return {
     ...response,
-    createdAt: response.createdAt instanceof Date ? response.createdAt.toISOString() : response.createdAt
+    createdAt:
+      response.createdAt instanceof Date
+        ? response.createdAt.toISOString()
+        : response.createdAt,
   };
 }
 
