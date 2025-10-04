@@ -91,13 +91,13 @@ export function SessionItem({
     <SidebarMenuItem
       className={`group/session-item overflow-hidden ${
         session.isDeleting
-          ? 'opacity-50 cursor-not-allowed pointer-events-none'
+          ? 'pointer-events-none cursor-not-allowed opacity-50'
           : ''
       }`}
     >
-      <div className="flex transition-transform duration-200 ease-out translate-x-0 will-change-transform group-hover/session-item:translate-x-[-80px]">
+      <div className="flex translate-x-0 transition-transform duration-200 ease-out will-change-transform group-hover/session-item:translate-x-[-80px]">
         <SidebarMenuButton
-          className="flex h-auto hover:bg-transparent flex-col items-start gap-1 py-2 pr-2 min-h-[60px] w-full flex-shrink-0"
+          className="flex h-auto min-h-[60px] w-full flex-shrink-0 flex-col items-start gap-1 py-2 pr-2 hover:bg-transparent"
           isActive={isActive}
           onClick={() => !session.isDeleting && onClick(session.id)}
         >
@@ -111,7 +111,7 @@ export function SessionItem({
           </div>
         </SidebarMenuButton>
         <Button
-          className="bg-blue-500 hover:bg-blue-600 flex-shrink-0 min-h-[60px] flex items-center justify-center cursor-pointer"
+          className="flex min-h-[60px] flex-shrink-0 cursor-pointer items-center justify-center bg-blue-500 hover:bg-blue-600"
           onClick={handleOpenFolder}
           size="icon"
           title="Open storage folder"
@@ -119,7 +119,7 @@ export function SessionItem({
           <IconFolder />
         </Button>
         <Button
-          className="bg-red-500 hover:bg-red-500 flex-shrink-0 min-h-[60px] flex items-center justify-center cursor-pointer"
+          className="flex min-h-[60px] flex-shrink-0 cursor-pointer items-center justify-center bg-red-500 hover:bg-red-500"
           disabled={deleteSessionMutation.isPending || session.isDeleting}
           onClick={handleDelete}
           size="icon"

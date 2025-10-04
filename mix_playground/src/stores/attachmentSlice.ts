@@ -152,7 +152,7 @@ export const createAttachmentSlice = (
     const state = get();
 
     let newAttachments = [...state.attachments];
-    let newReferenceMap = new Map(state.referenceMap);
+    const newReferenceMap = new Map(state.referenceMap);
     let hasChanges = false;
 
     for (const videoInfo of videoUrls) {

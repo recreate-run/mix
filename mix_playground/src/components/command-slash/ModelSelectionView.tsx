@@ -110,7 +110,7 @@ export function ModelSelectionView({
               }
             }}
             value={provider.displayName}
-            className={isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+            className={isDisabled ? 'cursor-not-allowed opacity-50' : ''}
           >
             <Settings className="size-4 text-muted-foreground" />
             <div className="flex-1">

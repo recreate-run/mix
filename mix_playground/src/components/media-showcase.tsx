@@ -38,7 +38,7 @@ const MainMediaPlayer = ({
       {media.type === 'image' && (
         <img
           alt={media.title}
-          className="aspect-auto max-h-120  object-contain"
+          className="aspect-auto max-h-120 object-contain"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
             const fallback = e.currentTarget.nextElementSibling as HTMLElement;

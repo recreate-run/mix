@@ -1,5 +1,5 @@
 import { mix } from '@/lib/mix-sdk';
-import { UIMessage, ProviderWithModels } from '@/types';
+import type { UIMessage, ProviderWithModels } from '@/types';
 import { toast } from 'sonner';
 
 /**
@@ -16,7 +16,7 @@ function formatProvidersWithModels(
 } {
   const providers: ProviderWithModels[] = [];
   let hasAuthenticatedProvider = false;
-  let preferredProvider: string | undefined = undefined;
+  let preferredProvider: string | undefined ;
 
   Object.entries(authProviders).forEach(([id, authProvider]) => {
     // Extract the base name without the star symbol
@@ -143,7 +143,7 @@ export async function handleModelSelectionInHierarchy(
   modelId: string
 ): Promise<UIMessage> {
   try {
-    if (!modelId || !providerId) {
+    if (!(modelId && providerId)) {
       throw new Error('No model or provider selected');
     }
 

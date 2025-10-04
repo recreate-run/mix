@@ -1,5 +1,5 @@
 import { stat } from '@tauri-apps/plugin-fs';
-import { type Attachment } from '@/stores/attachmentSlice';
+import type { Attachment } from '@/stores/attachmentSlice';
 import {
   createFileAttachment,
   createFolderAttachment,
@@ -28,7 +28,7 @@ const extractContentData = (content: string): ParsedContent => {
     const mediaUrls = content.match(mediaUrlRegex) || [];
 
     // Remove media URLs from text to get clean text
-    let cleanText = content;
+    const cleanText = content;
     // mediaUrls.forEach(url => {
     //   cleanText = cleanText.replace(url, '').trim();
     // });

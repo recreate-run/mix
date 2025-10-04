@@ -223,7 +223,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+        <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
@@ -234,7 +234,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="overflow-y-auto max-h-[60vh] min-h-[500px] space-y-6">
+          <div className="max-h-[60vh] min-h-[500px] space-y-6 overflow-y-auto">
             {/* Providers Section */}
             <Card>
               <CardHeader>
@@ -247,26 +247,26 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 {loadingProviders ? (
                   <ProvidersLoadingSkeleton />
                 ) : allProviders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="py-8 text-center">
+                    <p className="text-muted-foreground text-sm">
                       No providers available.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {allProviders.map((provider) => (
-                      <div key={provider.id} className="p-4 border rounded-lg">
+                      <div key={provider.id} className="rounded-lg border p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium">
                               {provider.displayName}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="mt-1 flex items-center gap-2">
                               {provider.authenticated ? (
                                 <>
                                   <Badge
                                     variant="outline"
-                                    className="text-xs text-green-600 border-green-600"
+                                    className="border-green-600 text-green-600 text-xs"
                                   >
                                     ✓ Authenticated
                                   </Badge>
@@ -282,7 +282,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                               ) : (
                                 <Badge
                                   variant="outline"
-                                  className="text-xs text-muted-foreground"
+                                  className="text-muted-foreground text-xs"
                                 >
                                   Not authenticated
                                 </Badge>
@@ -313,7 +313,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                             {/* Authentication method selection */}
                             {provider.authMethods.length > 1 && (
                               <div>
-                                <Label className="text-sm font-medium">
+                                <Label className="font-medium text-sm">
                                   Authentication Method
                                 </Label>
                                 <RadioGroup
@@ -327,7 +327,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                       value as 'api_key' | 'oauth'
                                     )
                                   }
-                                  className="flex gap-6 mt-2"
+                                  className="mt-2 flex gap-6"
                                 >
                                   {provider.authMethods.includes('api_key') && (
                                     <div className="flex items-center space-x-2">
@@ -368,11 +368,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                                 <div className="space-y-2">
                                   <Label
                                     htmlFor={`${provider.id}-key`}
-                                    className="text-sm font-medium"
+                                    className="font-medium text-sm"
                                   >
                                     API Key{' '}
                                     {provider.apiKeyFormat && (
-                                      <span className="text-xs text-muted-foreground">
+                                      <span className="text-muted-foreground text-xs">
                                         ({provider.apiKeyFormat})
                                       </span>
                                     )}
@@ -443,7 +443,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             {/* Tools & Agents Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">Tools & Subagents</h3>
+                <h3 className="font-semibold text-lg">Tools & Subagents</h3>
               </div>
 
               {!loadingTools &&

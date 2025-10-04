@@ -50,7 +50,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
           );
           return null;
         } catch (error) {
-          console.error(`[GsapAnimationPreview] Error parsing URL:`, error);
+          console.error('[GsapAnimationPreview] Error parsing URL:', error);
           return null;
         }
       })()
@@ -68,7 +68,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 
   // Log schema errors for debugging
   if (schemaError) {
-    console.error(`[GsapAnimationPreview] Schema fetch error:`, schemaError);
+    console.error('[GsapAnimationPreview] Schema fetch error:', schemaError);
   }
 
   // Intersection Observer to track iframe visibility
@@ -172,7 +172,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
               </SelectContent>
             </Select>
           );
-        } else {
+        }
           // Text input
           return (
             <Input
@@ -181,7 +181,6 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
               placeholder={param.description}
             />
           );
-        }
 
       case 'number':
         return (
@@ -261,7 +260,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
           <iframe
             ref={iframeRef}
             src={effectiveIframeUrl}
-            className="w-full h-full bg-transparent rounded-lg border"
+            className="h-full w-full rounded-lg border bg-transparent"
             style={{ transform: 'scale(1)', transformOrigin: 'top left' }}
             title="GSAP Animation Preview"
             sandbox="allow-scripts allow-same-origin"
@@ -270,8 +269,8 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
       </div>
 
       {/* Controls Panel */}
-      <div className="bg-card w-80 p-4 rounded-xl">
-        <div className="flex items-center justify-between mb-4">
+      <div className="w-80 rounded-xl bg-card p-4">
+        <div className="mb-4 flex items-center justify-between">
           <h4 className="font-medium text-md">Animation Controls</h4>
         </div>
 
@@ -312,10 +311,10 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
               {schema?.parameters?.length
                 ? schema.parameters.map((param) => (
                     <div key={param.name} className="space-y-2">
-                      <Label className="text-sm font-medium">
+                      <Label className="font-medium text-sm">
                         {param.name}
                         {param.description && (
-                          <span className="text-xs text-muted-foreground ml-2">
+                          <span className="ml-2 text-muted-foreground text-xs">
                             {param.description}
                           </span>
                         )}
@@ -331,9 +330,9 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
                     config.style?.color ||
                     config.duration !== undefined
                   ) && (
-                    <div className="text-center py-8 text-muted-foreground">
+                    <div className="py-8 text-center text-muted-foreground">
                       <p>No parameters available</p>
-                      <p className="text-xs mt-2">
+                      <p className="mt-2 text-xs">
                         Animation will use default settings
                       </p>
                     </div>
@@ -344,7 +343,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
                 <>
                   <Separator className="my-4" />
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Current URL</Label>
+                    <Label className="font-medium text-sm">Current URL</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         value={iframeUrl}
@@ -359,9 +358,9 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
                         className="shrink-0"
                       >
                         {isCopied ? (
-                          <Check className="w-3 h-3" />
+                          <Check className="h-3 w-3" />
                         ) : (
-                          <Copy className="w-3 h-3" />
+                          <Copy className="h-3 w-3" />
                         )}
                       </Button>
                     </div>

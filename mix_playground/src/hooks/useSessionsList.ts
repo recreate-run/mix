@@ -66,7 +66,7 @@ function findNextSession(
   // Try next session, then previous
   if (currentIndex < sessions.length - 1) {
     return sessions[currentIndex + 1].id;
-  } else if (currentIndex > 0) {
+  }if (currentIndex > 0) {
     return sessions[currentIndex - 1].id;
   }
 

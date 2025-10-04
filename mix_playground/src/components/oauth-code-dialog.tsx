@@ -42,7 +42,7 @@ export function OAuthCodeDialog({
     setIsSubmitting(true);
     try {
       await mix.authentication.handleOAuthCallback({
-        provider: provider,
+        provider,
         code: code.trim(),
         state: oauthState,
       });

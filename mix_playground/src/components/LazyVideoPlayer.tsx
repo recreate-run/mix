@@ -43,10 +43,10 @@ export const LazyVideoPlayer = ({ media, sessionId }: LazyVideoPlayerProps) => {
           sessionId={sessionId}
         />
       ) : (
-        <div className="flex items-center justify-center h-48 bg-stone-700/30 rounded-md">
+        <div className="flex h-48 items-center justify-center rounded-md bg-stone-700/30">
           <div className="animate-pulse">
-            <div className="h-6 w-32 bg-stone-600 rounded mb-2"></div>
-            <div className="h-4 w-48 bg-stone-600 rounded"></div>
+            <div className="mb-2 h-6 w-32 rounded bg-stone-600" />
+            <div className="h-4 w-48 rounded bg-stone-600" />
           </div>
         </div>
       )}

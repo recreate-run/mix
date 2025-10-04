@@ -1,6 +1,6 @@
 import { mix } from '@/lib/mix-sdk';
-import { UIMessage } from '@/types/message';
-import { ProviderInfo } from '@/types/provider';
+import type { UIMessage } from '@/types/message';
+import type { ProviderInfo } from '@/types/provider';
 import { handleLoginCommand } from './login-command-handler';
 
 /**
@@ -103,7 +103,7 @@ export async function handleStatusCommand(): Promise<UIMessage> {
           providers: formattedProviders,
         },
       };
-    } else {
+    }
       // No authenticated providers
       return {
         content:
@@ -118,7 +118,6 @@ export async function handleStatusCommand(): Promise<UIMessage> {
           providers: formattedProviders,
         },
       };
-    }
   } catch (error) {
     return {
       content: `Failed to check authentication status: ${error instanceof Error ? error.message : 'Unknown error'}`,

@@ -36,7 +36,7 @@ export function useSessionExport() {
 
       // Show native save dialog with pre-filled path
       const filePath = await save({
-        defaultPath: defaultPath,
+        defaultPath,
       });
 
       if (!filePath) {

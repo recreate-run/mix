@@ -94,8 +94,8 @@ export const PlaylistSidebar = ({
             onError={(e) => {
               console.error('Image thumbnail failed to load:', {
                 src: e.currentTarget.src,
-                media: media,
-                sessionId: sessionId,
+                media,
+                sessionId,
                 error: e,
               });
             }}
@@ -117,7 +117,7 @@ export const PlaylistSidebar = ({
               onError={(e) => {
                 console.error('YouTube thumbnail failed to load:', {
                   src: e.currentTarget.src,
-                  media: media,
+                  media,
                   thumbnailUrl: youtubeThumbnail,
                   error: e,
                 });
@@ -160,11 +160,11 @@ export const PlaylistSidebar = ({
                 JSON.stringify(
                   {
                     src: e.currentTarget.src,
-                    media: media,
-                    sessionId: sessionId,
+                    media,
+                    sessionId,
                     videoPath: media.sourceVideo || media.path,
                     startTime: media.startTime,
-                    thumbnailUrl: thumbnailUrl,
+                    thumbnailUrl,
                     errorType: e.type,
                     errorTarget: e.target,
                   },

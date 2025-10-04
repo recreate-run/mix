@@ -1,5 +1,5 @@
 import { mix } from '@/lib/mix-sdk';
-import { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/message';
 import { toast } from 'sonner';
 
 /**
@@ -13,7 +13,7 @@ export async function logoutProvider(provider: string): Promise<UIMessage> {
     // Get updated auth status to confirm logout
     const authStatus = await mix.authentication.getAuthStatus();
     const isStillAuthenticated =
-      authStatus.providers?.[provider]?.authenticated || false;
+      authStatus.providers?.[provider]?.authenticated;
 
     if (isStillAuthenticated) {
       return {

@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 function ProviderSkeleton() {
   return (
-    <div className="p-4 border rounded-lg">
+    <div className="rounded-lg border p-4">
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <Skeleton className="h-5 w-24" />

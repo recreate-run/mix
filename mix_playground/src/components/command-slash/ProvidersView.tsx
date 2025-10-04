@@ -38,13 +38,14 @@ export function ProvidersView({
 
   const getDescription = (provider: Provider | LoginProvider) => {
     switch (type) {
-      case 'login':
+      case 'login': {
         const loginProvider = provider as LoginProvider;
         return provider.authenticated
           ? 'Authenticated'
           : `Supports: ${loginProvider.authMethods
               .map((m) => (m === 'api_key' ? 'API Key' : 'OAuth'))
               .join(', ')}`;
+      }
       case 'logout':
         return provider.authenticated ? 'Authenticated' : '';
       case 'status':
@@ -84,7 +85,7 @@ export function ProvidersView({
             key={provider.id}
             onSelect={() => handleProviderSelect(provider.id)}
             value={provider.displayName}
-            className={isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+            className={isDisabled ? 'cursor-not-allowed opacity-50' : ''}
           >
             <Settings className="size-4 text-muted-foreground" />
             <div className="flex-1">

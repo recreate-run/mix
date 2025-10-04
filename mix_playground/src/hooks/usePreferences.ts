@@ -26,7 +26,7 @@ export function formatCurrentModel(
 
   const { preferredProvider, mainAgentModel } = preferences.preferences;
 
-  if (!preferredProvider || !mainAgentModel) {
+  if (!(preferredProvider && mainAgentModel)) {
     return 'No model selected';
   }
 

@@ -2,7 +2,7 @@ import { CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { handleModelSelection } from '@/handlers/model-command-handler';
-import { ModelDisplayProps } from '@/types/provider';
+import type { ModelDisplayProps } from '@/types/provider';
 
 export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
   const handleSelect = async (modelId: string) => {
@@ -17,7 +17,7 @@ export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-lg">Select Model</h3>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-muted-foreground text-sm">
               Provider: <strong>{data.provider.displayName}</strong>
             </span>
           </div>
@@ -37,13 +37,13 @@ export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
               ))}
             </div>
           ) : (
-            <div className="p-4 text-center bg-muted rounded-md">
+            <div className="rounded-md bg-muted p-4 text-center">
               <p>No models available for this provider.</p>
             </div>
           )}
 
           {/* Help text */}
-          <p className="text-sm text-muted-foreground mt-4">
+          <p className="mt-4 text-muted-foreground text-sm">
             Select a model to use with {data.provider.displayName}.
             {data.currentModel ? ` Current model: ${data.currentModel}` : ''}
           </p>

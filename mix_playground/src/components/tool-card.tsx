@@ -60,22 +60,22 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
       <CardContent className="space-y-4">
         {tools.length > 0 ? (
           tools.map((tool) => (
-            <div key={tool.provider} className="p-4 border rounded-lg">
+            <div key={tool.provider} className="rounded-lg border p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-medium">{tool.displayName}</p>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="mt-2 flex items-center gap-2">
                     {tool.authenticated ? (
                       <Badge
                         variant="outline"
-                        className="text-xs text-green-600 border-green-600"
+                        className="border-green-600 text-green-600 text-xs"
                       >
                         ✓ Configured
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
-                        className="text-xs text-muted-foreground"
+                        className="text-muted-foreground text-xs"
                       >
                         Requires setup
                       </Badge>
@@ -106,7 +106,7 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
                   <div className="space-y-2">
                     <Label
                       htmlFor={`${tool.provider}-api-key`}
-                      className="text-sm font-medium"
+                      className="font-medium text-sm"
                     >
                       API Key
                     </Label>
@@ -144,8 +144,8 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
             </div>
           ))
         ) : (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">
+          <div className="py-8 text-center">
+            <p className="text-muted-foreground text-sm">
               No tools available in this category.
             </p>
           </div>

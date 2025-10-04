@@ -51,7 +51,9 @@ help:
 	@echo "  test-installation - Test if all dependencies are installed"
 	@echo "  test-all    - Run all validation tests"
 	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
-	@echo "  frontend-lint - Run linter on frontend code"
+	@echo "  frontend-format - Run knip linter on frontend code"
+	@echo "  frontend-lint - Run knip linter on frontend code"
+	@echo "  frontend-knip - Run biome linter on frontend code"
 	@echo "  go_lint     - Run golangci-lint on Go backend code"
 	@echo "  go-test     - Run Go tests with coverage"
 	@echo "  generate-openapi - Generate JSON OpenAPI spec"
@@ -202,8 +204,16 @@ frontend-typecheck:
 	@echo "Running frontend TypeScript typecheck..."
 	cd mix_playground && bun run typecheck
 
+frontend-format:
+	@echo "Running biome formatter on frontend..."
+	cd mix_playground && bunx biome format --write
+
 frontend-lint:
-	@echo "Running frontend lint..."
+	@echo "Running biome linter on frontend..."
+	cd mix_playground && bunx biome lint --write
+
+frontend-knip:
+	@echo "Running knip linter on frontend..."
 	cd mix_playground && bun knip
 
 # Run golangci-lint on Go backend code

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { mix } from '@/lib/mix-sdk';
 import { CACHE_KEYS } from '@/lib/cache-keys';
-import { LoginProviderInfo } from '@/types/message';
+import type { LoginProviderInfo } from '@/types/message';
 
 // Authentication method constants
 const AUTH_METHODS: Record<string, ('api_key' | 'oauth')[]> = {
@@ -36,7 +36,7 @@ async function fetchProviders(): Promise<LoginProviderInfo[]> {
   Object.entries(preferencesResponse.availableProviders).forEach(
     ([providerId, data]: [string, any]) => {
       const authProvider = authStatus.providers?.[providerId];
-      const isAuthenticated = authProvider?.authenticated || false;
+      const isAuthenticated = authProvider?.authenticated;
 
       // Extract clean display name
       const name = data.displayName || authProvider?.displayName || providerId;

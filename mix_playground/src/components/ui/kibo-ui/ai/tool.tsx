@@ -231,10 +231,10 @@ export const AIToolHeader = ({
       <div className="flex items-center gap-2">
         <span className="font-medium text-xs">{name}</span>
         {toolContent && (
-          <span className="text-xs text-muted-foreground">{toolContent}</span>
+          <span className="text-muted-foreground text-xs">{toolContent}</span>
         )}
         {status === 'running' && description && (
-          <span className="text-xs text-muted-foreground animate-pulse">
+          <span className="animate-pulse text-muted-foreground text-xs">
             {description}
           </span>
         )}
@@ -260,7 +260,7 @@ export const AIToolContent = ({
   ...props
 }: AIToolContentProps) => (
   <CollapsibleContent
-    className={cn('grid gap-4 overflow-x-auto  p-4 text-sm', className)}
+    className={cn('grid gap-4 overflow-x-auto p-4 text-sm', className)}
     {...props}
   >
     {toolCall && (
@@ -365,7 +365,7 @@ export const AIToolResult = ({
           variant="ghost"
           size="icon"
           onClick={handleCopy}
-          className="absolute left-1 top-1 z-10 size-6"
+          className="absolute top-1 left-1 z-10 size-6"
           title={isCopied ? 'Copied!' : 'Copy result'}
         >
           {isCopied ? (

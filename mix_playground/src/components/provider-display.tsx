@@ -2,7 +2,7 @@ import { CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { handleProviderSelection } from '@/handlers/provider-command-handler';
-import { ProviderDisplayProps } from '@/types/provider';
+import type { ProviderDisplayProps } from '@/types/provider';
 
 export function ProviderDisplay({ data, onUpdate }: ProviderDisplayProps) {
   const handleSelect = async (providerId: string) => {
@@ -26,7 +26,7 @@ export function ProviderDisplay({ data, onUpdate }: ProviderDisplayProps) {
     <Card>
       <CardContent className="p-4">
         <div className="space-y-4">
-          <h3 className="font-medium text-lg mb-2">Select Provider</h3>
+          <h3 className="mb-2 font-medium text-lg">Select Provider</h3>
           <div className="grid grid-cols-1 gap-2">
             {data.providers.map((provider) => (
               <Button
@@ -39,7 +39,7 @@ export function ProviderDisplay({ data, onUpdate }: ProviderDisplayProps) {
                 <div className="flex items-center gap-2">
                   <span>{provider.displayName}</span>
                   {provider.authenticated && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400">
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-800 text-xs dark:bg-green-800/20 dark:text-green-400">
                       {provider.authMethod === 'oauth' ? 'OAuth' : 'API Key'}
                     </span>
                   )}
@@ -50,7 +50,7 @@ export function ProviderDisplay({ data, onUpdate }: ProviderDisplayProps) {
           </div>
 
           {/* Help text */}
-          <p className="text-sm text-muted-foreground mt-4">
+          <p className="mt-4 text-muted-foreground text-sm">
             {data.providers.some((p) => !p.authenticated)
               ? 'Some providers are not authenticated. Use the `/login` command to authenticate with them.'
               : 'All available providers are authenticated.'}

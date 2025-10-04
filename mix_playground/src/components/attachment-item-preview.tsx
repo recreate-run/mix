@@ -54,7 +54,7 @@ export const VideoPreview = ({
 
   if (!thumbnailSrc) {
     return (
-      <div className="flex size-14 items-center justify-center rounded-lg border-2 border-dashed border-gray-300">
+      <div className="flex size-14 items-center justify-center rounded-lg border-2 border-gray-300 border-dashed">
         <VideoIcon className="h-6 w-6 text-muted-foreground" />
       </div>
     );
@@ -75,7 +75,7 @@ export const VideoPreview = ({
       <Play className="absolute bottom-1 left-1 h-3 w-3 rounded-full bg-black/50 p-0.5 text-white" />
       {/* Platform indicator for URL videos */}
       {attachment.platform && (
-        <div className="absolute top-1 left-1 rounded bg-black/60 px-1 py-0.5 text-white text-xs font-medium">
+        <div className="absolute top-1 left-1 rounded bg-black/60 px-1 py-0.5 font-medium text-white text-xs">
           {attachment.platform === 'youtube'
             ? 'YT'
             : attachment.platform === 'vimeo'

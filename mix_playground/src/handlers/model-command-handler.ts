@@ -1,5 +1,5 @@
 import { mix } from '@/lib/mix-sdk';
-import { UIMessage } from '@/types/message';
+import type { UIMessage } from '@/types/message';
 
 /**
  * Handles the selection of a model to set for the current provider

@@ -53,7 +53,7 @@ function defaultErrorComponent({ error, info, reset }: ErrorComponentProps) {
         Something went wrong!
       </h2>
 
-      <div className="flex gap-4 mb-4">
+      <div className="mb-4 flex gap-4">
         <Button onClick={() => setShowError(!showError)}>
           {showError ? 'Hide Error' : 'Show Error'}
         </Button>

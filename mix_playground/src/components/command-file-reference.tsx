@@ -28,7 +28,7 @@ const MediaThumbnail = ({
   sessionId: string;
 }) => {
   // Safety checks
-  if (!file || !file.name || !sessionId) {
+  if (!((file && file.name ) && sessionId)) {
     console.error('MediaThumbnail: Missing required props', {
       file,
       sessionId,
@@ -87,7 +87,7 @@ const MediaThumbnail = ({
       <div className="relative flex-shrink-0">
         <img
           alt={`${file.name} thumbnail`}
-          className="size-10 aspect-auto rounded-xs object-cover"
+          className="aspect-auto size-10 rounded-xs object-cover"
           onError={(e) => {
             console.error('Failed to load video thumbnail:', previewUrl);
             e.currentTarget.style.display = 'none';

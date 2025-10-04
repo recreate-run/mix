@@ -34,7 +34,7 @@ export const generatePreviewUrl = (
   sessionId: string,
   thumbnailSize = 200
 ): string | undefined => {
-  if (!attachment.path || !sessionId) return undefined;
+  if (!(attachment.path && sessionId)) return ;
 
   try {
     const baseUrl = convertToAssetServerUrl(attachment.path, sessionId);
@@ -45,6 +45,6 @@ export const generatePreviewUrl = (
     return baseUrl;
   } catch (error) {
     console.error('Failed to generate preview URL:', error);
-    return undefined;
+    return ;
   }
 };

@@ -113,7 +113,7 @@ export const VideoPlayer = ({
   // Unified function to sync timeline position from video element
   const syncTimelinePosition = () => {
     const video = videoRef.current;
-    if (!video || !isFinite(video.duration)) return;
+    if (!(video && isFinite(video.duration))) return;
 
     const displayDuration = getDisplayDuration();
     if (displayDuration === 0) return;
@@ -175,7 +175,7 @@ export const VideoPlayer = ({
   const throttledSeek = useThrottledCallback(
     (progress: number) => {
       const video = videoRef.current;
-      if (!video?.duration || !isFinite(video.duration)) return;
+      if (!(video?.duration && isFinite(video.duration))) return;
 
       let newTime: number;
       if (isSegment && startTime !== undefined && duration !== undefined) {
@@ -195,7 +195,7 @@ export const VideoPlayer = ({
     if (isDraggingRef.current) return;
 
     const video = videoRef.current;
-    if (!video?.duration || !isFinite(video.duration)) return;
+    if (!(video?.duration && isFinite(video.duration))) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -218,7 +218,7 @@ export const VideoPlayer = ({
 
   const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const video = videoRef.current;
-    if (!video?.duration || !isFinite(video.duration)) return;
+    if (!(video?.duration && isFinite(video.duration))) return;
 
     setIsDragging(true);
     isDraggingRef.current = true;
@@ -330,13 +330,13 @@ export const VideoPlayer = ({
       )}
 
       <div
-        className={`relative rounded-md ${isVertical ? 'max-w-[360px]' : 'max-w-4xl'}  focus:outline-none`}
+        className={`relative rounded-md ${isVertical ? 'max-w-[360px]' : 'max-w-4xl'} focus:outline-none`}
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
         {isLoading && <Skeleton className="aspect-auto" />}
         <video
-          className="aspect-auto rounded-md bg-black w-full"
+          className="aspect-auto w-full rounded-md bg-black"
           onError={() => {
             setHasError(true);
             setIsLoading(false);
@@ -355,13 +355,11 @@ export const VideoPlayer = ({
             if (
               isSegment &&
               startTime !== undefined &&
-              !hasInitialized.current
+              !hasInitialized.current && video
             ) {
-              if (video) {
                 video.currentTime = startTime;
                 hasInitialized.current = true;
               }
-            }
 
             // Sync timeline position after metadata loads
             syncTimelinePosition();
@@ -421,15 +419,15 @@ export const VideoPlayer = ({
           <>
             {isVertical ? (
               /* Vertical Layout: Single Row Controls Above Timeline */
-              <div className="absolute bottom-0 left-0 right-0 p-3 ">
+              <div className="absolute right-0 bottom-0 left-0 p-3 ">
                 {/* Control Row */}
-                <div className="flex items-center justify-between gap-2 mb-1 hover:bg-black/30 transition-opacity rounded-2xl">
+                <div className="mb-1 flex items-center justify-between gap-2 rounded-2xl transition-opacity hover:bg-black/30">
                   {/* Play/Pause Button */}
                   <Button
                     onClick={handlePlayPause}
                     size="icon"
                     variant="ghost"
-                    className="hover:bg-white/20 text-white border-0 rounded-full"
+                    className="rounded-full border-0 text-white hover:bg-white/20"
                   >
                     {isPlaying ? (
                       <IconPlayerPauseFilled className="size-6" />
@@ -440,7 +438,7 @@ export const VideoPlayer = ({
 
                   {/* Time Display */}
                   <div className="flex-1 text-center">
-                    <span className="text-white text-sm font-medium">
+                    <span className="font-medium text-sm text-white">
                       {formatTime(getDisplayTime(currentTime))} /{' '}
                       {formatTime(getDisplayDuration())}
                     </span>
@@ -452,7 +450,7 @@ export const VideoPlayer = ({
                     size="icon"
                     variant={'ghost'}
                     title="Picture-in-Picture"
-                    className=" border-0 rounded-full"
+                    className=" rounded-full border-0"
                   >
                     <PictureInPicture className="size-4" />
                   </Button>
@@ -461,7 +459,7 @@ export const VideoPlayer = ({
                 {/* Progress Bar */}
                 <div
                   ref={progressBarRef}
-                  className={`relative h-[5px] w-full rounded-full bg-white  ${
+                  className={`relative h-[5px] w-full rounded-full bg-white ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                   }`}
                   onClick={handleProgressClick}
@@ -474,7 +472,7 @@ export const VideoPlayer = ({
                   />
                   <div
                     ref={progressDotRef}
-                    className={`absolute top-1/2 left-0 w-3 h-3 bg-white rounded-full shadow-lg ${
+                    className={`absolute top-1/2 left-0 h-3 w-3 rounded-full bg-white shadow-lg ${
                       isDragging ? 'scale-125' : ''
                     } transition-transform`}
                     style={{
@@ -487,14 +485,14 @@ export const VideoPlayer = ({
               </div>
             ) : (
               /* Horizontal Layout: Single Bottom Row */
-              <div className="absolute bottom-0 left-0 right-0 p-2">
+              <div className="absolute right-0 bottom-0 left-0 p-2">
                 <div className="flex items-center gap-2">
                   {/* Play/Pause Button */}
                   <Button
                     onClick={handlePlayPause}
                     size="icon"
                     variant="ghost"
-                    className="hover:bg-white/20 text-white border-0  rounded-full shrink-0"
+                    className="shrink-0 rounded-full border-0 text-white hover:bg-white/20"
                   >
                     {isPlaying ? (
                       <IconPlayerPauseFilled className="size-6" />
@@ -506,7 +504,7 @@ export const VideoPlayer = ({
                   {/* Progress Bar */}
                   <div
                     ref={progressBarRef}
-                    className={`flex-1 relative h-1 rounded-full bg-neutral-600/40 backdrop-blur-sm rounded-lg py-[5px] ${
+                    className={`relative h-1 flex-1 rounded-full rounded-lg bg-neutral-600/40 py-[5px] backdrop-blur-sm ${
                       isDragging ? 'cursor-grabbing' : 'cursor-grab'
                     }`}
                     onClick={handleProgressClick}
@@ -519,7 +517,7 @@ export const VideoPlayer = ({
                     />
                     <div
                       ref={progressDotRef}
-                      className={`absolute top-1/2 left-0 size-3 bg-white rounded-full shadow-lg ${
+                      className={`absolute top-1/2 left-0 size-3 rounded-full bg-white shadow-lg ${
                         isDragging ? 'scale-125' : ''
                       } transition-transform`}
                       style={{
@@ -531,7 +529,7 @@ export const VideoPlayer = ({
                   </div>
 
                   {/* Time Display */}
-                  <div className="bg-black/40 p-1 rounded-md text-white text-xs font-medium shrink-0">
+                  <div className="shrink-0 rounded-md bg-black/40 p-1 font-medium text-white text-xs">
                     {formatTime(getDisplayTime(currentTime))} /{' '}
                     {formatTime(getDisplayDuration())}
                   </div>
@@ -542,7 +540,7 @@ export const VideoPlayer = ({
                     size="icon"
                     variant={'ghost'}
                     title="Picture-in-Picture"
-                    className="hover:bg-white/20 text-white border-0 h-8 w-8 rounded-full shrink-0"
+                    className="h-8 w-8 shrink-0 rounded-full border-0 text-white hover:bg-white/20"
                   >
                     <PictureInPicture className="size-4" />
                   </Button>
@@ -554,7 +552,7 @@ export const VideoPlayer = ({
 
         {/* Error overlay - only show if video failed and not loading */}
         {hasError && !isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-stone-800/80 backdrop-blur-sm text-stone-300 text-sm rounded-md">
+          <div className="absolute inset-0 flex items-center justify-center rounded-md bg-stone-800/80 text-sm text-stone-300 backdrop-blur-sm">
             <div className="text-center">
               <p>Video temporarily unavailable</p>
               <Button
@@ -566,7 +564,7 @@ export const VideoPlayer = ({
                   }
                 }}
                 variant="ghost"
-                className="mt-3 text-white underline hover:no-underline hover:bg-transparent"
+                className="mt-3 text-white underline hover:bg-transparent hover:no-underline"
               >
                 Retry
               </Button>

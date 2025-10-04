@@ -111,27 +111,27 @@ export function LoadingScreen({
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-background/90">
       <div
-        className={`text-center p-8 rounded-lg bg-background/50 backdrop-blur-sm transition-transform duration-3000 ease-in-out ${animationStarted ? 'animate-float' : ''}`}
+        className={`rounded-lg bg-background/50 p-8 text-center backdrop-blur-sm transition-transform duration-3000 ease-in-out ${animationStarted ? 'animate-float' : ''}`}
       >
-        <div className="mb-4 relative">
+        <div className="relative mb-4">
           <img
             src="/mix_logo_transparent.png"
             alt="Mix Logo"
-            className={`size-48 object-contain mx-auto transition-all duration-2000 ease-out ${
+            className={`mx-auto size-48 object-contain transition-all duration-2000 ease-out ${
               logoVisible
-                ? 'opacity-100 scale-100 animate-pulse-subtle'
-                : 'opacity-0 scale-75'
+                ? 'scale-100 animate-pulse-subtle opacity-100'
+                : 'scale-75 opacity-0'
             }`}
           />
-          <div className="text-sm text-muted-foreground flex justify-center items-center">
+          <div className="flex items-center justify-center text-muted-foreground text-sm">
             <span>The multimodal agents SDK</span>
-            <span className="ml-1 h-4 w-0.5 bg-primary inline-block animate-blink"></span>
+            <span className="ml-1 inline-block h-4 w-0.5 animate-blink bg-primary" />
           </div>
         </div>
 
         {/* Animated Commands with enhanced styling */}
-        <div className="relative animate-in slide-in-from-bottom duration-1000 delay-500">
-          <div className="relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-2xl [&_.dot-flow-container]:text-foreground [&_.dot-loader_.h-1\\.5]:bg-muted/30 [&_.dot-loader_.active]:bg-primary">
+        <div className="slide-in-from-bottom relative animate-in delay-500 duration-1000">
+          <div className="relative rounded-xl border border-border/50 bg-card/50 p-6 shadow-2xl backdrop-blur-sm [&_.dot-flow-container]:text-foreground [&_.dot-loader_.active]:bg-primary [&_.dot-loader_.h-1\\.5]:bg-muted/30">
             <DotFlow items={commands} isPlaying={true} />
           </div>
         </div>

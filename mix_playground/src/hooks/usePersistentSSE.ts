@@ -252,12 +252,18 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
               toolCallsMap.current.set(toolCall.id, toolCall);
 
               // Add to timeline when tool is first seen
-              if (
-                !timelineRef.current.some(
+              if (timelineRef.current.some(
                   (entry) =>
                     entry.type === 'tool' && entry.content.id === toolCall.id
                 )
               ) {
+                // Update existing tool entry
+                timelineRef.current = timelineRef.current.map((entry) =>
+                  entry.type === 'tool' && entry.content.id === toolCall.id
+                    ? { ...entry, content: toolCall }
+                    : entry
+                );
+              } else {
                 const toolEntry: TimelineEntry = {
                   type: 'tool',
                   timestamp: Date.now(),
@@ -265,13 +271,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
                   id: toolCall.id,
                 };
                 timelineRef.current = [...timelineRef.current, toolEntry];
-              } else {
-                // Update existing tool entry
-                timelineRef.current = timelineRef.current.map((entry) =>
-                  entry.type === 'tool' && entry.content.id === toolCall.id
-                    ? { ...entry, content: toolCall }
-                    : entry
-                );
               }
 
               setState((prev) => ({
@@ -550,7 +549,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   }, []);
 
   const sendMessage = useCallback(
-    async function (content: string) {
+    async (content: string) => {
       if (!sessionId) {
         throw new Error('No session ID available');
       }
@@ -606,7 +605,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
   );
 
   const cancelMessage = useCallback(
-    async function () {
+    async () => {
       if (!sessionId) {
         throw new Error('No session ID available');
       }
@@ -636,15 +635,15 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     [sessionId]
   );
 
-  const resetCancelledState = useCallback(function () {
+  const resetCancelledState = useCallback(() => {
     setState((prev) => ({ ...prev, cancelled: false }));
   }, []);
 
-  const clearNewlyCreatedSession = useCallback(function () {
+  const clearNewlyCreatedSession = useCallback(() => {
     setState((prev) => ({ ...prev, newlyCreatedSessionId: null }));
   }, []);
 
-  const grantPermission = useCallback(async function (id: string) {
+  const grantPermission = useCallback(async (id: string) => {
     try {
       await mix.permissions.grant({ id });
 
@@ -661,7 +660,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
     }
   }, []);
 
-  const denyPermission = useCallback(async function (id: string) {
+  const denyPermission = useCallback(async (id: string) => {
     try {
       await mix.permissions.deny({ id });
 
@@ -736,7 +735,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
         const messageData: SendMessageRequestBody = {
           text: expandedText,
-          planMode: planMode,
+          planMode,
         };
 
         // Send to backend first

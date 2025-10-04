@@ -555,7 +555,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
       }, 2000);
     } catch (error) {
       console.error('Failed to rewind conversation:', error);
-      setFeedbackMessage(`Error: Failed to rewind conversation`);
+      setFeedbackMessage('Error: Failed to rewind conversation');
       setTimeout(() => {
         setFeedbackMessage(null);
       }, 3000);
@@ -593,7 +593,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         {/* Feedback message notification */}
         {feedbackMessage && (
           <div
-            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-5 duration-300 ${
+            className={`-translate-x-1/2 fade-in slide-in-from-top-5 fixed top-4 left-1/2 z-50 transform animate-in rounded-md px-4 py-2 shadow-md duration-300 ${
               feedbackMessage.startsWith('Error:')
                 ? 'bg-destructive text-destructive-foreground'
                 : 'bg-primary text-primary-foreground'
@@ -606,7 +606,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
         <div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
           {/* Session header with export button */}
           {session && (
-            <div className="flex items-center justify-end mb-4">
+            <div className="mb-4 flex items-center justify-end">
               <Button
                 variant="ghost"
                 size="sm"
@@ -624,7 +624,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
           {sessionMessages.isLoading && (
             <div className="flex items-center justify-center p-4 text-muted-foreground">
               <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-foreground"></div>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-foreground" />
                 Loading messages...
               </div>
             </div>
@@ -712,7 +712,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
                 </div>
 
                 {/* Current Model Display */}
-                <div className="absolute bottom-1 right-14 text-xs text-muted-foreground">
+                <div className="absolute right-14 bottom-1 text-muted-foreground text-xs">
                   {formatCurrentModel(preferences)}
                 </div>
               </AIInputTools>

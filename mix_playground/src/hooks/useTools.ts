@@ -47,8 +47,8 @@ async function fetchToolsStatus(): Promise<ToolsStatus> {
               provider: tool.provider || '',
               displayName: tool.displayName || tool.provider || '',
               description: tool.description || '',
-              authenticated: tool.authenticated || false,
-              apiKeyRequired: tool.apiKeyRequired || false,
+              authenticated: tool.authenticated,
+              apiKeyRequired: tool.apiKeyRequired,
             })),
           };
         });

@@ -45,10 +45,7 @@ export function useCommandHandlers({
           providers: statusResult.statusData.providers,
         });
         goToView('status');
-      } else {
-        if (!statusResult.suppressChatMessage) {
-          onAddMessage?.(statusResult);
-        } else {
+      } else if (statusResult.suppressChatMessage) {
           if (
             statusResult.content.includes('Failed') ||
             statusResult.content.includes('❌')
@@ -59,11 +56,12 @@ export function useCommandHandlers({
           } else if (statusResult.content.includes('✅')) {
             onFeedbackMessage?.(statusResult.content.replace('✅', '').trim());
           }
+        } else {
+          onAddMessage?.(statusResult);
         }
-      }
     } catch (error) {
       console.error('Status command failed:', error);
-      onFeedbackMessage?.(`Error: Failed to check authentication status`);
+      onFeedbackMessage?.('Error: Failed to check authentication status');
     }
   }, [onAddMessage, onFeedbackMessage, setStatusData, goToView]);
 
@@ -75,14 +73,12 @@ export function useCommandHandlers({
       if (modelResult.hierarchicalModel) {
         setHierarchicalModelData(modelResult.hierarchicalModel);
         goToView('hierarchical-model');
-      } else {
-        if (!modelResult.suppressChatMessage) {
+      } else if (!modelResult.suppressChatMessage) {
           onAddMessage?.(modelResult);
         }
-      }
     } catch (error) {
       console.error('Model command failed:', error);
-      onFeedbackMessage?.(`Error: Failed to load model selection`);
+      onFeedbackMessage?.('Error: Failed to load model selection');
     }
   }, [onAddMessage, onFeedbackMessage, setHierarchicalModelData, goToView]);
 
@@ -118,7 +114,7 @@ export function useCommandHandlers({
       goToView('help');
     } catch (error) {
       console.error('Help command failed:', error);
-      onFeedbackMessage?.(`Error: Failed to load help menu`);
+      onFeedbackMessage?.('Error: Failed to load help menu');
     }
   }, [setHelpData, goToView, onFeedbackMessage]);
 
@@ -131,7 +127,7 @@ export function useCommandHandlers({
         onClose();
       } catch (error) {
         console.error('Provider selection failed:', error);
-        onFeedbackMessage?.(`Error: Failed to select provider`);
+        onFeedbackMessage?.('Error: Failed to select provider');
       }
     },
     [onAddMessage, onClose, onFeedbackMessage]
@@ -155,7 +151,7 @@ export function useCommandHandlers({
         onClose();
       } catch (error) {
         console.error('Model selection failed:', error);
-        onFeedbackMessage?.(`Error: Failed to select model`);
+        onFeedbackMessage?.('Error: Failed to select model');
       }
     },
     [onAddMessage, onClose, onFeedbackMessage, onQueryClientInvalidate]
@@ -175,7 +171,7 @@ export function useCommandHandlers({
         // For API key method, the component will handle showing the input form
       } catch (error) {
         console.error('Login provider selection failed:', error);
-        onFeedbackMessage?.(`Error: Failed to start authentication`);
+        onFeedbackMessage?.('Error: Failed to start authentication');
       }
     },
     [onAddMessage, onFeedbackMessage]
@@ -191,7 +187,7 @@ export function useCommandHandlers({
         onClose();
       } catch (error) {
         console.error('API key submission failed:', error);
-        onFeedbackMessage?.(`Error: Failed to authenticate with API key`);
+        onFeedbackMessage?.('Error: Failed to authenticate with API key');
       }
     },
     [onQueryClientInvalidate, onAddMessage, onClose, onFeedbackMessage]
@@ -207,7 +203,7 @@ export function useCommandHandlers({
         onClose();
       } catch (error) {
         console.error('OAuth code submission failed:', error);
-        onFeedbackMessage?.(`Error: Failed to complete OAuth authentication`);
+        onFeedbackMessage?.('Error: Failed to complete OAuth authentication');
       }
     },
     [onQueryClientInvalidate, onAddMessage, onClose, onFeedbackMessage]

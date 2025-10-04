@@ -184,14 +184,14 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
           <AIReasoningContent>{totalContent}</AIReasoningContent>
         </AIReasoning>
       );
-    } else if (group.type === 'content') {
+    }if (group.type === 'content') {
       const contentText = group.entry.content as string;
       return (
         <div key={`content-${group.entry.id}`} className="mb-4">
           <ResponseRenderer content={contentText} />
         </div>
       );
-    } else {
+    }
       const toolCall = group.entry.content as ToolCall;
       return (
         <AIToolLadder key={`tool-${group.entry.id}`}>
@@ -206,7 +206,6 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
           </AIToolStep>
         </AIToolLadder>
       );
-    }
   });
 };
 
@@ -360,7 +359,7 @@ export function ConversationDisplay({
                       </>
                     ) : message.mediaOutputs ? (
                       <>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-muted-foreground text-sm">
                           Media content requires session ID
                         </div>
                         <AIMessageContent.Content>
@@ -546,9 +545,9 @@ export function ConversationDisplay({
                     <div className="mt-4 text-muted-foreground">
                       Execution paused
                     </div>
-                  ) : !sseStream.completed ? (
+                  ) : sseStream.completed ? null : (
                     <ConversationLoader />
-                  ) : null}
+                  )}
                 </>
               ) : sseStream.cancelled ? (
                 <div className="text-muted-foreground">Execution paused</div>

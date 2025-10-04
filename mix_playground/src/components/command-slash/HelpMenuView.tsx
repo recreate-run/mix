@@ -68,7 +68,7 @@ export function HelpMenuView({
             </div>
           </div>
           {item.action === 'link' && (
-            <div className="text-xs text-muted-foreground">external</div>
+            <div className="text-muted-foreground text-xs">external</div>
           )}
         </CommandItem>
       ))}
