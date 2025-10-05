@@ -516,6 +516,27 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/system/info": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getSystemInfo",
+					"summary":     "Get system information",
+					"description": "Retrieve system information including storage configuration",
+					"tags":        []string{"System"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"storageBasePath": map[string]interface{}{
+									"type":        "string",
+									"description": "Absolute path to the storage base directory",
+								},
+							},
+							"required": []string{"storageBasePath"},
+						}, "System information"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/api/permissions/{id}/grant": map[string]interface{}{
 				"post": map[string]interface{}{
 					"operationId":  "grantPermission",
