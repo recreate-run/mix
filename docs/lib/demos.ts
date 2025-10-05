@@ -86,7 +86,7 @@ with Mix(server_url="http://localhost:8088") as mix:
     title: "TikTok Video Creation",
     description: "Generate viral-style videos with AI",
     fileName: "tiktok_video.py",
-    videoSrc: "/videos/launch_devtools.mp4", // Replace with actual video when available
+    videoSrc: "/videos/tik_tok_video.mp4", // Replace with actual video when available
     videoCaption: "AI finds trending content, creates short videos with animations",
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/tiktok_video.py",
     code: `from mix_python_sdk import Mix
