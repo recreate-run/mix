@@ -1,21 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-
-type SystemInfo = {
-	storageBasePath: string;
-};
+import { mix } from "@/lib/mix-sdk";
 
 export function useSystemInfo() {
-	return useQuery<SystemInfo>({
+	return useQuery({
 		queryKey: ["system", "info"],
 		queryFn: async () => {
-			// Temporary workaround: Call endpoint directly until SDK is regenerated with getSystemInfo
-			const response = await fetch("http://localhost:8080/api/system/info");
-			if (!response.ok) {
-				throw new Error(`Failed to fetch system info: ${response.statusText}`);
-			}
-			return response.json();
+			const response = await mix.system.getSystemInfo();
+			return response;
 		},
 		staleTime: Number.POSITIVE_INFINITY, // System info never changes during app lifetime
-		gcTime: Number.POSITIVE_INFINITY,
 	});
 }
