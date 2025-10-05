@@ -2149,6 +2149,58 @@ paths:
             }
 
             run();
+  "/api/system/info":
+    get:
+      description: "Retrieve system information including storage configuration"
+      operationId: "getSystemInfo"
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema:
+                properties:
+                  "storageBasePath":
+                    description: "Absolute path to the storage base directory"
+                    type: "string"
+                required:
+                  - "storageBasePath"
+                type: "object"
+          description: "System information"
+        "500":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Internal server error"
+      summary: "Get system information"
+      tags:
+        - "System"
+      x-codeSamples:
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.get_system_info()
+
+                # Handle response
+                print(res)
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.system.getSystemInfo();
+
+              console.log(result);
+            }
+
+            run();
   "/api/tools/status":
     get:
       description: "Get status and authentication information for all available tools and categories"
