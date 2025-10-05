@@ -434,10 +434,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 					overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
 			});
 
-			// Invalidate cache to refetch messages immediately
-			queryClient.invalidateQueries({
-				queryKey: CACHE_KEYS.sessionMessages(session.id),
-			});
+			// Don't invalidate cache immediately - optimistic UI will show the message
+			// Cache will be invalidated when streaming completes (see useEffect above)
 		} catch (error) {
 			// Restore input on error
 			setText(messageText);

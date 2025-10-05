@@ -17,6 +17,7 @@ import {
 	AIToolStep,
 } from "@/components/ui/kibo-ui/ai/tool";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "@/types/common";
 import type { TimelineEntry, UIMessage } from "@/types/message";
 import { convertToAssetServerUrl } from "@/utils/assetServer";
@@ -48,6 +49,10 @@ type StreamingState = {
 		attempt: number;
 		maxAttempts: number;
 	};
+	pendingUserMessage?: {
+		text: string;
+		attachments?: Attachment[];
+	} | null;
 };
 
 // Helper function to detect URLs
@@ -399,6 +404,23 @@ export function ConversationDisplay({
 						</AIMessage>
 					);
 				})}
+				{/* Show optimistic user message during streaming */}
+				{sseStream.pendingUserMessage && (
+					<AIMessage from="user">
+						<AIMessageContent>
+							<AIMessageContent.Content>
+								{sseStream.pendingUserMessage.attachments &&
+									sseStream.pendingUserMessage.attachments.length > 0 && (
+										<MessageAttachmentDisplay
+											attachments={sseStream.pendingUserMessage.attachments}
+											sessionId={sessionId}
+										/>
+									)}
+								{sseStream.pendingUserMessage.text}
+							</AIMessageContent.Content>
+						</AIMessageContent>
+					</AIMessage>
+				)}
 				{(sseStream.processing && !sseStream.completed) ||
 				(sseStream.cancelled &&
 					(sseStream.finalContent ||

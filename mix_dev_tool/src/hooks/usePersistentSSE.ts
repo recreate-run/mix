@@ -52,6 +52,10 @@ type PersistentSSEState = {
 	};
 	permissionRequests: SSEPermissionRequest[];
 	newlyCreatedSessionId: string | null;
+	pendingUserMessage: {
+		text: string;
+		attachments?: Attachment[];
+	} | null;
 };
 
 type PersistentSSEHook = PersistentSSEState & {
@@ -92,6 +96,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		rateLimit: undefined,
 		permissionRequests: [],
 		newlyCreatedSessionId: null,
+		pendingUserMessage: null,
 	});
 
 	const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
@@ -488,6 +493,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			timeline: [],
 			permissionRequests: [],
 			newlyCreatedSessionId: null,
+			pendingUserMessage: null,
 		});
 
 		// Create new abort controller for this session
@@ -537,7 +543,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 	}, []);
 
 	const sendMessage = useCallback(
-		async (content: string) => {
+		async (content: string, userText: string, attachments?: Attachment[]) => {
 			if (!sessionId) {
 				throw new Error("No session ID available");
 			}
@@ -556,6 +562,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				reasoningDuration: null,
 				timeline: [],
 				rateLimit: undefined,
+				pendingUserMessage: {
+					text: userText,
+					attachments,
+				},
 			}));
 
 			toolCallsMap.current.clear();
@@ -579,6 +589,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						error instanceof Error ? error.message : "Failed to send message",
 					processing: false,
 					cancelling: false,
+					pendingUserMessage: null, // Clear on error
 				}));
 				throw error;
 			}
@@ -632,6 +643,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			reasoningDuration: null,
 			cancelled: false,
 			completed: false,
+			pendingUserMessage: null,
 		}));
 		toolCallsMap.current.clear();
 		timelineRef.current = [];
@@ -681,7 +693,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		}) => {
 			const {
 				text,
-				attachments: _attachments = [],
+				attachments = [],
 				referenceMap = new Map(),
 				planMode = false,
 			} = params;
@@ -699,11 +711,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 					planMode,
 				};
 
-				// Send to backend - message will be persisted in DB
-				await sendMessage(JSON.stringify(messageData));
+				// Send to backend with optimistic UI - pass original text and attachments
+				await sendMessage(JSON.stringify(messageData), text, attachments);
 
-				// No need to add optimistic UI - message is already in DB
-				// Parent component will invalidate cache to refetch
+				// Optimistic UI is now handled in state
+				// Cache will be invalidated when streaming completes
 			} catch (error) {
 				console.error("Failed to send message:", error);
 				throw error; // Re-throw so parent can handle
