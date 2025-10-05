@@ -11,11 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { DemoCards } from "@/components/demo-cards";
 import { homepageDemos } from "@/lib/demos";
-import { config } from "@/lib/config";
 
-const title = "Multimodal Agent SDK";
-const description =
-	"SDK-first agent platform that analyzes videos, reads images, searches the web, and orchestrates complex workflows.";
+const title = "The Multimodal Agents SDK";
+const description = "Multimodal and Supbase friendly";
 
 export const metadata: Metadata = {
 	title,
@@ -43,31 +41,33 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
 	return (
-		<>
-			<div className="flex flex-col">
-				<div className="flex items-center justify-center flex-none -mt-10">
-					<div className="container px-4">
-						<PageHeader>
-							<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl font-[family-name:var(--font-space-mono)]">{title}</PageHeaderHeading>
-							<PageHeaderDescription className=" text-sm">{description}</PageHeaderDescription>
-							<PageActions>
-								<Link href="/docs/mix/quickstart">
-									<Button size="sm">Get Started</Button>
-								</Link>
-								<Link href="/docs/mix">
-									<Button variant="outline" size="sm">View Docs</Button>
-								</Link>
-							</PageActions>
-						</PageHeader>
-					</div>
+		<div className="flex flex-col">
+			<div className="flex items-center justify-center flex-none -mt-10">
+				<div className="container px-4">
+					<PageHeader>
+						<PageHeaderHeading className="max-w-4xl text-3xl md:text-4xl font-[family-name:var(--font-space-mono)]">
+							{title}
+						</PageHeaderHeading>
+						<PageHeaderDescription className=" text-sm">
+							{description}
+						</PageHeaderDescription>
+						<PageActions>
+							<Link href="/docs/mix/quickstart">
+								<Button size="sm">Get Started</Button>
+							</Link>
+							<Link href="/docs/mix">
+								<Button variant="outline" size="sm">
+									View Docs
+								</Button>
+							</Link>
+						</PageActions>
+					</PageHeader>
 				</div>
-
-				{homepageDemos.length > 0 && (
-					<DemoCards demos={homepageDemos} />
-				)}
-
-				<Footer />
 			</div>
-		</>
+
+			<DemoCards demos={homepageDemos} />
+
+			<Footer />
+		</div>
 	);
 }
