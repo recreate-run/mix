@@ -23,7 +23,6 @@ import { CACHE_KEYS } from "@/lib/cache-keys";
 import { useBoundStore } from "@/stores";
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
-import type { UIMessage } from "@/types/message";
 import { buildSessionFileUrl } from "@/utils/attachmentUtils";
 import { getDisplayTitle } from "@/utils/sessionUtils";
 import {
@@ -45,7 +44,6 @@ interface ChatAppProps {
 export function ChatApp({ sessionId }: ChatAppProps) {
 	// Core conversation state
 	const [text, setText] = useState<string>("");
-	const [messages, setMessages] = useState<UIMessage[]>([]);
 
 	// Feedback notification state
 	const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -130,32 +128,46 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 		sseStream.clearNewlyCreatedSession,
 	]);
 
-	// Load messages when session messages data changes
+	// Handle streaming completion: invalidate cache, then clear streaming UI
 	useEffect(() => {
-		if (sessionMessages.data && sessionId) {
-			console.log("[StreamingDebug] Loading persisted messages from backend:", {
-				count: sessionMessages.data.length,
-				sessionId,
-				lastMessage: sessionMessages.data[
-					sessionMessages.data.length - 1
-				]?.content?.substring(0, 50),
+		if (
+			sseStream.completed &&
+			!sseStream.processing &&
+			(sseStream.finalContent || sseStream.toolCalls.length > 0) &&
+			session?.id
+		) {
+			// First, invalidate cache to fetch fresh messages from backend
+			queryClient.invalidateQueries({
+				queryKey: CACHE_KEYS.sessionMessages(session.id),
 			});
-			setMessages(sessionMessages.data);
-		} else if (sessionMessages.error) {
-			console.error("[StreamingDebug] Failed to load messages:", {
-				error: sessionMessages.error.message,
-				sessionId,
-			});
-			// Show error message in chat
-			setMessages([
-				{
-					content: `Failed to load messages: ${sessionMessages.error.message}`,
-					from: "assistant",
-					frontend_only: true,
-				},
-			]);
 		}
-	}, [sessionMessages.data, sessionMessages.error, sessionId]);
+	}, [
+		sseStream.completed,
+		sseStream.processing,
+		sseStream.finalContent,
+		sseStream.toolCalls.length,
+		session?.id,
+		queryClient,
+	]);
+
+	// Clear streaming UI after cache refetch completes (runs after above effect)
+	useEffect(() => {
+		if (
+			sseStream.completed &&
+			!sseStream.processing &&
+			!sessionMessages.isLoading &&
+			sessionMessages.data
+		) {
+			// Cache now has fresh data - safe to clear streaming UI
+			sseStream.clearStreamingContent();
+		}
+	}, [
+		sseStream.completed,
+		sseStream.processing,
+		sessionMessages.isLoading,
+		sessionMessages.data,
+		sseStream.clearStreamingContent,
+	]);
 
 	// Apps functionality removed - UI attachment system is separate from API fields
 
@@ -174,14 +186,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 		const fullUrl = buildSessionFileUrl(session!.id, fileName);
 		useBoundStore.getState().addReference(displayReference, fullUrl);
 
-		setMessages((prev) => [
-			...prev,
-			{
-				content: `File uploaded successfully: ${fileName}`,
-				from: "assistant",
-				frontend_only: true,
-			},
-		]);
+		// Show success notification
+		setFeedbackMessage(`File uploaded successfully: ${fileName}`);
+		setTimeout(() => setFeedbackMessage(null), 3000);
 	};
 
 	// Handle file upload error
@@ -207,6 +214,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
 	// Simple auto-scroll to last user message
 	const userMessageRefs = useRef<(HTMLDivElement | null)[]>([]);
+	const messages = sessionMessages.data || [];
 
 	useEffect(() => {
 		const lastUserMessageIndex = messages.findLastIndex(
@@ -383,14 +391,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 			!sseStream.error.includes("cancelled") &&
 			!sseStream.cancelled
 		) {
-			setMessages((prev) => [
-				...prev,
-				{
-					content: `Failed to send prompt: ${sseStream.error}`,
-					from: "assistant",
-					frontend_only: true,
-				},
-			]);
+			setFeedbackMessage(`Error: Failed to send prompt - ${sseStream.error}`);
+			setTimeout(() => setFeedbackMessage(null), 5000);
 		}
 	}, [sseStream.error, sseStream.cancelled]);
 
@@ -430,31 +432,17 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 				referenceMap,
 				planMode:
 					overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
-				onUserMessage: (userMessage) => {
-					console.log("[StreamingDebug] User message added optimistically:", {
-						content: userMessage.content.substring(0, 50),
-						attachmentCount: userMessage.attachments?.length || 0,
-						currentMessageCount: messages.length,
-					});
-					setMessages((prev) => [...prev, userMessage]);
-				},
-				onCancelledContentPersist: (cancelledMessage) => {
-					console.log(
-						"[StreamingDebug] Persisting cancelled streaming content:",
-						{
-							hasContent: !!cancelledMessage.content,
-							hasTimeline: !!cancelledMessage.timeline?.length,
-							hasToolCalls: !!cancelledMessage.toolCalls?.length,
-						},
-					);
-					setMessages((prev) => [...prev, cancelledMessage]);
-				},
+			});
+
+			// Invalidate cache to refetch messages immediately
+			queryClient.invalidateQueries({
+				queryKey: CACHE_KEYS.sessionMessages(session.id),
 			});
 		} catch (error) {
 			// Restore input on error
 			setText(messageText);
 			// Note: attachments are already cleared, would need more complex state management to restore them
-			console.error("[StreamingDebug] Failed to submit message:", error);
+			console.error("Failed to submit message:", error);
 		}
 	};
 
@@ -632,22 +620,26 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 						</div>
 					)}
 
+					{/* Error display for messages */}
+					{sessionMessages.error && (
+						<div className="flex items-center justify-center p-4 text-destructive">
+							<div className="rounded-md bg-destructive/10 p-4">
+								Failed to load messages: {sessionMessages.error.message}
+							</div>
+						</div>
+					)}
+
 					{/* Conversation Display */}
-					<ConversationDisplay
-						messages={messages}
-						onEditMessage={handleEditMessage}
-						onPlanAction={handlePlanAction}
-						onUpdateMessage={(index, updatedMessage) => {
-							setMessages((prev) => [
-								...prev.slice(0, index),
-								updatedMessage,
-								...prev.slice(index + 1),
-							]);
-						}}
-						sessionId={session?.id}
-						setUserMessageRef={setUserMessageRef}
-						sseStream={sseStream}
-					/>
+					{!sessionMessages.error && (
+						<ConversationDisplay
+							messages={messages}
+							onEditMessage={handleEditMessage}
+							onPlanAction={handlePlanAction}
+							sessionId={session?.id}
+							setUserMessageRef={setUserMessageRef}
+							sseStream={sseStream}
+						/>
+					)}
 				</div>
 			</div>
 
@@ -729,9 +721,6 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 					{/* Unified Command System */}
 					{showCommands && (
 						<CommandSlash
-							onAddMessage={(message) =>
-								setMessages((prev) => [...prev, message])
-							}
 							onClose={() => {
 								// Close the command palette UI
 								setShowCommands(false);

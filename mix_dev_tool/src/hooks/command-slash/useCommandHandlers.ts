@@ -16,7 +16,6 @@ import type { CommandSlashProps, ViewState } from "@/types/command-slash";
 
 interface UseCommandHandlersProps {
 	onFeedbackMessage?: CommandSlashProps["onFeedbackMessage"];
-	onAddMessage?: CommandSlashProps["onAddMessage"];
 	onQueryClientInvalidate?: CommandSlashProps["onQueryClientInvalidate"];
 	onClose: CommandSlashProps["onClose"];
 	setStatusData: (data: any) => void;
@@ -27,7 +26,6 @@ interface UseCommandHandlersProps {
 
 export function useCommandHandlers({
 	onFeedbackMessage,
-	onAddMessage,
 	onQueryClientInvalidate,
 	onClose,
 	setStatusData,
@@ -56,14 +54,12 @@ export function useCommandHandlers({
 				} else if (statusResult.content.includes("✅")) {
 					onFeedbackMessage?.(statusResult.content.replace("✅", "").trim());
 				}
-			} else {
-				onAddMessage?.(statusResult);
 			}
 		} catch (error) {
 			console.error("Status command failed:", error);
 			onFeedbackMessage?.("Error: Failed to check authentication status");
 		}
-	}, [onAddMessage, onFeedbackMessage, setStatusData, goToView]);
+	}, [onFeedbackMessage, setStatusData, goToView]);
 
 	// Handle the unified model command
 	const handleUnifiedModelCommandSpecial = useCallback(async () => {
@@ -73,14 +69,12 @@ export function useCommandHandlers({
 			if (modelResult.hierarchicalModel) {
 				setHierarchicalModelData(modelResult.hierarchicalModel);
 				goToView("hierarchical-model");
-			} else if (!modelResult.suppressChatMessage) {
-				onAddMessage?.(modelResult);
 			}
 		} catch (error) {
 			console.error("Model command failed:", error);
 			onFeedbackMessage?.("Error: Failed to load model selection");
 		}
-	}, [onAddMessage, onFeedbackMessage, setHierarchicalModelData, goToView]);
+	}, [onFeedbackMessage, setHierarchicalModelData, goToView]);
 
 	// Handle the help command
 	const handleHelpCommandSpecial = useCallback(async () => {
@@ -122,15 +116,14 @@ export function useCommandHandlers({
 	const handleProviderSelectionSpecial = useCallback(
 		async (providerId: string) => {
 			try {
-				const result = await handleProviderSelection(providerId);
-				onAddMessage?.(result);
+				await handleProviderSelection(providerId);
 				onClose();
 			} catch (error) {
 				console.error("Provider selection failed:", error);
 				onFeedbackMessage?.("Error: Failed to select provider");
 			}
 		},
-		[onAddMessage, onClose, onFeedbackMessage],
+		[onClose, onFeedbackMessage],
 	);
 
 	// Handle model selection from unified model view
@@ -147,14 +140,13 @@ export function useCommandHandlers({
 					onQueryClientInvalidate?.(["preferences"]);
 				}
 
-				onAddMessage?.(result);
 				onClose();
 			} catch (error) {
 				console.error("Model selection failed:", error);
 				onFeedbackMessage?.("Error: Failed to select model");
 			}
 		},
-		[onAddMessage, onClose, onFeedbackMessage, onQueryClientInvalidate],
+		[onClose, onFeedbackMessage, onQueryClientInvalidate],
 	);
 
 	// Handle login provider selection
@@ -162,11 +154,8 @@ export function useCommandHandlers({
 		async (providerId: string, authMethod: "api_key" | "oauth") => {
 			try {
 				if (authMethod === "oauth") {
-					const result = await startOAuthFlow(providerId);
-
+					await startOAuthFlow(providerId);
 					// OAuth state is handled by the individual auth functions
-
-					onAddMessage?.(result);
 				}
 				// For API key method, the component will handle showing the input form
 			} catch (error) {
@@ -174,39 +163,37 @@ export function useCommandHandlers({
 				onFeedbackMessage?.("Error: Failed to start authentication");
 			}
 		},
-		[onAddMessage, onFeedbackMessage],
+		[onFeedbackMessage],
 	);
 
 	// Handle API key submission
 	const handleApiKeySubmitSpecial = useCallback(
 		async (providerId: string, apiKey: string) => {
 			try {
-				const result = await authenticateWithApiKey(providerId, apiKey);
+				await authenticateWithApiKey(providerId, apiKey);
 				onQueryClientInvalidate?.(["providers"]);
-				onAddMessage?.(result);
 				onClose();
 			} catch (error) {
 				console.error("API key submission failed:", error);
 				onFeedbackMessage?.("Error: Failed to authenticate with API key");
 			}
 		},
-		[onQueryClientInvalidate, onAddMessage, onClose, onFeedbackMessage],
+		[onQueryClientInvalidate, onClose, onFeedbackMessage],
 	);
 
 	// Handle OAuth code submission
 	const handleOAuthCodeSubmitSpecial = useCallback(
 		async (providerId: string, code: string, state?: string) => {
 			try {
-				const result = await handleOAuthCallback(providerId, code, state || "");
+				await handleOAuthCallback(providerId, code, state || "");
 				onQueryClientInvalidate?.(["providers"]);
-				onAddMessage?.(result);
 				onClose();
 			} catch (error) {
 				console.error("OAuth code submission failed:", error);
 				onFeedbackMessage?.("Error: Failed to complete OAuth authentication");
 			}
 		},
-		[onQueryClientInvalidate, onAddMessage, onClose, onFeedbackMessage],
+		[onQueryClientInvalidate, onClose, onFeedbackMessage],
 	);
 
 	return {

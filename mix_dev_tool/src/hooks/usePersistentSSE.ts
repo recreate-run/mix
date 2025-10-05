@@ -17,7 +17,7 @@ import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "@/types/common";
-import type { TimelineEntry, UIMessage } from "@/types/message";
+import type { TimelineEntry } from "@/types/message";
 import { expandFileReferences } from "@/utils/attachmentUtils";
 
 export type SSEPermissionRequest = {
@@ -60,8 +60,6 @@ type PersistentSSEHook = PersistentSSEState & {
 		attachments?: Attachment[];
 		referenceMap?: Map<string, string>;
 		planMode?: boolean;
-		onUserMessage?: (message: UIMessage) => void;
-		onCancelledContentPersist?: (message: UIMessage) => void;
 	}) => Promise<void>;
 
 	buttonStatus: "ready" | "streaming" | "paused" | "error";
@@ -70,6 +68,7 @@ type PersistentSSEHook = PersistentSSEState & {
 	cancelMessage: () => Promise<void>;
 	resetCancelledState: () => void;
 	clearNewlyCreatedSession: () => void;
+	clearStreamingContent: () => void;
 	grantPermission: (id: string) => Promise<void>;
 	denyPermission: (id: string) => Promise<void>;
 };
@@ -356,11 +355,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "complete": {
 							const completeEvent = event as SSECompleteEvent;
-							console.log("[StreamingDebug] Stream completed:", {
-								sessionId,
-								hadReasoning: !!completeEvent.data.reasoning,
-								reasoningDuration: completeEvent.data.reasoningDuration,
-							});
 							setState((prev) => {
 								return {
 									...prev,
@@ -369,15 +363,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 										completeEvent.data.reasoningDuration || null,
 									completed: true,
 									processing: false,
-									// Clear streaming state to prevent replay confusion after reload
-									finalContent: null,
-									timeline: [],
-									toolCalls: [],
 								};
 							});
-							// Clear refs as well
-							toolCallsMap.current.clear();
-							timelineRef.current = [];
 							break;
 						}
 
@@ -466,7 +453,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				}
 			}
 		},
-		[],
+		[queryClient],
 	);
 
 	useEffect(() => {
@@ -555,11 +542,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				throw new Error("No session ID available");
 			}
 
-			console.log("[StreamingDebug] Starting new streaming message:", {
-				sessionId,
-				contentLength: content.length,
-			});
-
 			setState((prev) => ({
 				...prev,
 				error: null,
@@ -586,11 +568,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 					id: sessionId,
 					requestBody: JSON.parse(content), // content is already JSON stringified
 				});
-				console.log(
-					"[StreamingDebug] Message sent to backend successfully, streaming started",
-				);
 			} catch (error) {
-				console.error("[StreamingDebug] Failed to send message to backend:", {
+				console.error("Failed to send message to backend:", {
 					error: error instanceof Error ? error.message : String(error),
 					sessionId,
 				});
@@ -643,6 +622,21 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		setState((prev) => ({ ...prev, newlyCreatedSessionId: null }));
 	}, []);
 
+	const clearStreamingContent = useCallback(() => {
+		setState((prev) => ({
+			...prev,
+			finalContent: null,
+			timeline: [],
+			toolCalls: [],
+			reasoning: null,
+			reasoningDuration: null,
+			cancelled: false,
+			completed: false,
+		}));
+		toolCallsMap.current.clear();
+		timelineRef.current = [];
+	}, []);
+
 	const grantPermission = useCallback(async (id: string) => {
 		try {
 			await mix.permissions.grant({ id });
@@ -684,39 +678,16 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			attachments?: Attachment[];
 			referenceMap?: Map<string, string>;
 			planMode?: boolean;
-			onUserMessage?: (message: UIMessage) => void;
-			onCancelledContentPersist?: (message: UIMessage) => void;
 		}) => {
 			const {
 				text,
-				attachments = [],
+				attachments: _attachments = [],
 				referenceMap = new Map(),
 				planMode = false,
-				onUserMessage,
-				onCancelledContentPersist,
 			} = params;
 
 			if (!(text && sessionId && state.connected)) {
 				return;
-			}
-
-			// Persist cancelled streaming content before it gets cleared
-			if (
-				state.cancelled &&
-				(state.finalContent ||
-					state.timeline?.length ||
-					state.toolCalls?.length)
-			) {
-				const cancelledMessage: UIMessage = {
-					content: state.finalContent || "",
-					from: "assistant",
-					timeline: state.timeline?.length ? state.timeline : undefined,
-					toolCalls: state.toolCalls?.length ? state.toolCalls : undefined,
-					frontend_only: true,
-				};
-
-				onCancelledContentPersist?.(cancelledMessage);
-				resetCancelledState();
 			}
 
 			try {
@@ -728,31 +699,17 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 					planMode,
 				};
 
-				// Send to backend first
+				// Send to backend - message will be persisted in DB
 				await sendMessage(JSON.stringify(messageData));
 
-				// Only add to UI after successful backend request
-				const userMessage: UIMessage = {
-					content: text,
-					from: "user",
-					attachments: attachments.length > 0 ? attachments : undefined,
-				};
-				onUserMessage?.(userMessage);
+				// No need to add optimistic UI - message is already in DB
+				// Parent component will invalidate cache to refetch
 			} catch (error) {
 				console.error("Failed to send message:", error);
 				throw error; // Re-throw so parent can handle
 			}
 		},
-		[
-			sessionId,
-			state.cancelled,
-			state.finalContent,
-			state.timeline,
-			state.toolCalls,
-			state.connected,
-			resetCancelledState,
-			sendMessage,
-		],
+		[sessionId, state.connected, sendMessage],
 	);
 
 	// Simple button status computation
@@ -769,34 +726,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 	// Simple submit button disabled state
 	const isSubmitDisabled = buttonStatus === "paused" || !state.connected;
 
-	// Stream completion handling - invalidate cache when streaming completes
-	useEffect(() => {
-		if (
-			state.completed &&
-			(state.finalContent || state.toolCalls.length > 0) &&
-			!state.processing
-		) {
-			console.log(
-				"[StreamingDebug] Stream completed, invalidating cache to fetch persisted messages:",
-				{
-					sessionId,
-					hadContent: !!state.finalContent,
-					toolCallsCount: state.toolCalls.length,
-				},
-			);
-			queryClient.invalidateQueries({
-				queryKey: CACHE_KEYS.sessionMessages(sessionId),
-			});
-		}
-	}, [
-		state.completed,
-		state.finalContent,
-		state.processing,
-		state.toolCalls.length,
-		sessionId,
-		queryClient,
-	]);
-
 	return {
 		...state,
 		submitMessage,
@@ -805,6 +734,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		cancelMessage,
 		resetCancelledState,
 		clearNewlyCreatedSession,
+		clearStreamingContent,
 		grantPermission,
 		denyPermission,
 	};
