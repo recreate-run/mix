@@ -6,7 +6,7 @@ export function useSystemInfo() {
 		queryKey: ["system", "info"],
 		queryFn: async () => {
 			const response = await mix.system.getSystemInfo();
-			return response.result;
+			return response;
 		},
 		staleTime: Number.POSITIVE_INFINITY, // System info never changes during app lifetime
 		gcTime: Number.POSITIVE_INFINITY,
