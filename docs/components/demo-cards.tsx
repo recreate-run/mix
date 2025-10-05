@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Demo } from "@/lib/demos";
-import { ExternalLink, BookOpen } from "lucide-react";
 import { CodeBlock } from "@/components/code-block";
 
 interface DemoCardsProps {
@@ -38,6 +36,7 @@ export function DemoCards({ demos }: DemoCardsProps) {
 							fileName={demos[selectedDemo].fileName}
 							copied={copied}
 							onCopy={copyToClipboard}
+							githubUrl={demos[selectedDemo].githubUrl}
 						/>
 					</div>
 
@@ -72,32 +71,6 @@ export function DemoCards({ demos }: DemoCardsProps) {
 							</p>
 						)}
 					</div>
-				</div>
-			</div>
-
-			{/* Demo-specific link or general CTA */}
-			<div className="max-w-7xl mx-auto mt-12">
-				<div className="flex items-center justify-center gap-4 flex-wrap">
-					{demos[selectedDemo].githubUrl && (
-						<Link
-							href={demos[selectedDemo].githubUrl!}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-2 border-fd-primary/30 rounded-xl hover:bg-fd-primary/10 hover:border-fd-primary transition-all hover:shadow-lg hover:shadow-fd-primary/20 hover:scale-105"
-						>
-							<ExternalLink className="h-4 w-4 group-hover:rotate-12 transition-transform" />
-							Try on GitHub
-						</Link>
-					)}
-					<Link
-						href="https://github.com/recreate-run/mix-cookbooks"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="group inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-2 border-fd-border/50 rounded-xl hover:bg-fd-muted hover:border-fd-border transition-all hover:shadow-lg hover:scale-105"
-					>
-						<BookOpen className="h-4 w-4 group-hover:scale-110 transition-transform" />
-						Browse All Examples
-					</Link>
 				</div>
 			</div>
 

@@ -62,25 +62,31 @@ with Mix(server_url="http://localhost:8088") as mix:
     youtubeId: "N--FfjtUjwY",
     videoCaption: "AI searches for videos, finds key moments, and downloads highlights",
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/web_search_multimodal.py",
-    code: `from mix_python_sdk import Mix
+    code: `async def main():
+    load_dotenv()
 
-with Mix(server_url="http://localhost:8088") as mix:
-    # Configure AI provider
-    mix.preferences.update_preferences(
-        preferred_provider="anthropic",
-        main_agent_model="claude-sonnet-4-5"
-    )
+    user_msg = "First, find the top 3 karpathy LLM videos , and then find the most important 10 second section from each video. after that, download the sections and show it."
 
-    # Create search session
-    session = mix.sessions.create(
-        title="Web Search Multimodal"
-    )
+    async with Mix(server_url=os.getenv("MIX_SERVER_URL")) as mix:
+        mix.system.get_health()
+        # mix.authentication.store_api_key(api_key=api_key, provider="anthropic")
+        mix.preferences.update_preferences(
+            preferred_provider="anthropic",
+            main_agent_model="claude-sonnet-4-5",
+        )
 
-    # AI searches, analyzes, and extracts video highlights
-    mix.streaming.send_streaming_message(
-        id=session.id,
-        content="Find top 3 Karpathy LLM videos, find the most important 10 second section from each, then download and show them."
-    )`
+        # session creation
+        session = mix.sessions.create(title="Web search multimodal demo")
+
+        await stream_and_send(
+            mix,
+            session_id=session.id,
+            message=user_msg,
+            on_thinking=lambda text: print(text, end="", flush=True),
+            on_content=lambda text: print(text, end="", flush=True),
+            on_tool=lambda tool: print(f"\n🔧 {tool.name}: {tool.status}"),
+            on_error=lambda error: print(f"\n❌ {error}"),
+        )`
   },
 
   {

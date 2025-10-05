@@ -265,7 +265,6 @@ export function ConversationDisplay({
 	return (
 		<div className="relative h-full flex-1 py-16">
 			<div className="">
-				{messages.length === 0 && <EmptyStateDisplay />}
 				{messages.map((message, index) => {
 					return (
 						<AIMessage
