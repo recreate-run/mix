@@ -9,7 +9,8 @@ export interface Demo {
   description: string;
   fileName: string;
   code: string;
-  videoSrc: string;
+  videoSrc?: string;
+  youtubeId?: string;
   videoCaption?: string;
   githubUrl?: string;
 }
@@ -19,7 +20,7 @@ export const homepageDemos: Demo[] = [
     title: "Portfolio Analysis",
     description: "Upload CSV, get AI-powered insights",
     fileName: "portfolio_analysis.py",
-    videoSrc: "/videos/financial_portfolio_demo.mp4",
+    youtubeId: "hLkipswyJJ4",
     videoCaption: "Watch Mix upload data, analyze trends, and generate interactive charts",
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/portfolio_analysis.py",
     code: `from mix_python_sdk import Mix
@@ -58,7 +59,7 @@ with Mix(server_url="http://localhost:8088") as mix:
     title: "Multimodal Web Search",
     description: "Search, analyze, and extract video highlights",
     fileName: "web_search_multimodal.py",
-    videoSrc: "/videos/multimodal_web_search.mp4", // Replace with actual video when available
+    youtubeId: "N--FfjtUjwY",
     videoCaption: "AI searches for videos, finds key moments, and downloads highlights",
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/web_search_multimodal.py",
     code: `from mix_python_sdk import Mix
@@ -86,7 +87,7 @@ with Mix(server_url="http://localhost:8088") as mix:
     title: "TikTok Video Creation",
     description: "Generate viral-style videos with AI",
     fileName: "tiktok_video.py",
-    videoSrc: "/videos/tik_tok_video.mp4", // Replace with actual video when available
+    youtubeId: "RP3eNYRhfyM",
     videoCaption: "AI finds trending content, creates short videos with animations",
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/tiktok_video.py",
     code: `from mix_python_sdk import Mix
