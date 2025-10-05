@@ -564,7 +564,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			try {
 				// Use REST API to send message - this triggers agent processing once on server
 				// and broadcasts events to all SSE connections
-				await mix.sessions.sendMessage({
+				await mix.messages.send({
 					id: sessionId,
 					requestBody: JSON.parse(content), // content is already JSON stringified
 				});
