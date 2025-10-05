@@ -4,11 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { handleModelSelection } from "@/handlers/model-command-handler";
 import type { ModelDisplayProps } from "@/types/provider";
 
-export function ModelDisplay({ data, onUpdate }: ModelDisplayProps) {
+export function ModelDisplay({ data }: ModelDisplayProps) {
 	const handleSelect = async (modelId: string) => {
 		// Call the model selection handler
-		const result = await handleModelSelection(modelId);
-		onUpdate(result);
+		await handleModelSelection(modelId);
 	};
 
 	return (

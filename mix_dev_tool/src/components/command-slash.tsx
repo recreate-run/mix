@@ -7,8 +7,8 @@ import {
 } from "@/components/ui/command";
 import { useCommandHandlers } from "@/hooks/command-slash/useCommandHandlers";
 import { useCommandPaletteState } from "@/hooks/command-slash/useCommandPaletteState";
-import type { CommandSlashProps } from "@/types/command-slash";
 import { trackSlashCommand } from "@/lib/posthog";
+import type { CommandSlashProps } from "@/types/command-slash";
 import { CommandsListView } from "./command-slash/CommandsListView";
 import { HelpMenuView } from "./command-slash/HelpMenuView";
 import { MCPServersView } from "./command-slash/MCPServersView";
@@ -25,7 +25,6 @@ export function CommandSlash({
 	onNewSession,
 	onQueryClientInvalidate,
 	onSubmitMessage,
-	onAddMessage,
 }: CommandSlashProps) {
 	const navigate = useNavigate();
 
@@ -34,7 +33,6 @@ export function CommandSlash({
 
 	const handlers = useCommandHandlers({
 		onFeedbackMessage,
-		onAddMessage,
 		onQueryClientInvalidate,
 		onClose,
 		setStatusData: state.setStatusData,

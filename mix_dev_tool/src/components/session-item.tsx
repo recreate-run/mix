@@ -4,7 +4,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { open } from "@tauri-apps/plugin-shell";
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { useDeleteSession } from "@/hooks/useSessionsList";
+import { useDeleteSession } from "@/hooks/useSession";
 import { useSystemInfo } from "@/hooks/useSystemInfo";
 import type { SessionData } from "@/types/common";
 import { getDisplayTitle } from "@/utils/sessionUtils";
@@ -54,8 +54,6 @@ export function SessionItem({
 			)
 		) {
 			try {
-				// The enhanced hook handles all navigation logic automatically
-				// No need for manual RPC calls or navigation logic
 				await deleteSessionMutation.mutateAsync(session.id);
 			} catch (error) {
 				console.error("Failed to delete session:", error);
