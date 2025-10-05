@@ -2,27 +2,20 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
 	"mix/internal/app"
-	"mix/internal/commands"
 	"mix/internal/llm/agent"
-	"mix/internal/llm/provider"
-	"mix/internal/llm/tools"
 	"mix/internal/pubsub"
 )
 
 // Connection represents a single SSE connection
 type Connection struct {
 	SessionID       string
-	Messages        chan string
 	BroadcastEvents chan BroadcastEvent
 	Done            chan struct{}
 	closeOnce       sync.Once
@@ -69,22 +62,6 @@ func (r *ConnectionRegistry) Unregister(sessionID string, conn *Connection) {
 		// Clean up empty session entries
 		if len(connections) == 0 {
 			delete(r.connections, sessionID)
-		}
-	}
-}
-
-// Broadcast sends a message to all connections for a sessionID
-func (r *ConnectionRegistry) Broadcast(sessionID, message string) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	connections := r.connections[sessionID]
-
-	for conn := range connections {
-		select {
-		case conn.Messages <- message:
-		case <-conn.Done:
-		default:
 		}
 	}
 }
@@ -194,7 +171,6 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	// Create connection
 	conn := &Connection{
 		SessionID:       sessionID,
-		Messages:        make(chan string, 100),
 		BroadcastEvents: make(chan BroadcastEvent, 50),
 		Done:            make(chan struct{}),
 	}
@@ -205,7 +181,6 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 		registry.Unregister(sessionID, conn)
 		conn.closeOnce.Do(func() {
 			close(conn.Done)
-			close(conn.Messages)
 			close(conn.BroadcastEvents)
 		})
 	}()
@@ -306,15 +281,6 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 				return
 			}
 
-		case message, ok := <-conn.Messages:
-			if !ok {
-				return
-			}
-
-			if err := processMessage(ctx, app, sseWriter, sessionID, message); err != nil {
-				return
-			}
-
 		case event, ok := <-conn.BroadcastEvents:
 			if !ok {
 				return
@@ -326,231 +292,6 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 			}
 		}
 	}
-}
-
-// MessageContent represents the JSON structure sent from frontend
-type MessageContent struct {
-	Text     string `json:"text"`
-	PlanMode bool   `json:"plan_mode,omitempty"`
-}
-
-
-// parseMessageContent parses the complete JSON message structure
-func parseMessageContent(content string) (MessageContent, error) {
-	var msgContent MessageContent
-	if err := json.Unmarshal([]byte(content), &msgContent); err != nil {
-		return msgContent, fmt.Errorf("failed to parse message content as JSON: %w", err)
-	}
-	return msgContent, nil
-}
-
-
-// handleShellCommand executes shell commands for ! prefixed messages
-func handleShellCommand(ctx context.Context, sseWriter *SSEWriter, text string) error {
-	command := strings.TrimSpace(strings.TrimPrefix(text, "!"))
-	if command == "" {
-		command = "echo 'No command specified'"
-	}
-
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
-	output, err := cmd.CombinedOutput()
-
-	result := string(output)
-	if err != nil {
-		result = fmt.Sprintf("Error: %v\n%s", err, result)
-	}
-
-	if err := sseWriter.WriteEvent("complete", CompleteEvent{Type: "complete", Content: result, Done: true}); err != nil {
-		return fmt.Errorf("failed to write complete event: %w", err)
-	}
-	return nil
-}
-
-// handleRegularMessage processes regular messages through the agent
-func handleRegularMessage(ctx context.Context, app *app.App, sseWriter *SSEWriter, sessionID, text string, planMode bool) error {
-	
-	// Check authentication status before processing the message using the centralized function
-	authenticated, _, authErr := provider.IsAuthenticated(ctx, "")
-	if authErr != nil {
-		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Error checking authentication: %s", authErr.Error())}); err != nil {
-			// Auth error handled by SSEWriter
-		}
-		return nil
-	}
-	
-	
-	// If not authenticated, show a provider-specific error message
-	if !authenticated {
-		helpfulMsg := getAuthenticationErrorMessage(ctx)
-		
-		if err := sseWriter.WriteEvent("error", ErrorEvent{
-			Error: helpfulMsg,
-			Type: "authentication_error",
-		}); err != nil {
-			// Auth error handled by SSEWriter
-		}
-		return nil
-	}
-	
-	// If authenticated, proceed with normal message processing
-	events, err := app.CoderAgent.RunWithPlanMode(ctx, sessionID, text, planMode)
-	if err != nil {
-		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Failed to start agent: %s", err.Error())}); err != nil {
-			// Agent error handled by SSEWriter
-		}
-		return nil
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			app.CoderAgent.Cancel(sessionID)
-			return ctx.Err()
-
-		case event, ok := <-events:
-			if !ok {
-				var content, messageID, reasoning string
-				var reasoningDuration int64
-				if messages, err := app.Messages.List(context.Background(), sessionID); err == nil && len(messages) > 0 {
-					lastMessage := messages[len(messages)-1]
-					if lastMessage.Role == "assistant" {
-						content = lastMessage.Content().String()
-						messageID = lastMessage.ID
-						reasoningContent := lastMessage.ReasoningContent()
-						reasoning = reasoningContent.String()
-						reasoningDuration = reasoningContent.Duration
-					}
-				}
-				if err := sseWriter.WriteEvent("complete", CompleteEvent{Type: "complete", Content: content, MessageID: messageID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration}); err != nil {
-					// Complete event error handled by SSEWriter
-				}
-				return nil
-			}
-
-			// Write to the current SSE connection
-			if err := WriteAgentEventAsSSE(sseWriter, event); err != nil {
-				return err
-			}
-
-			// ALSO broadcast to all other SSE connections for this session
-			BroadcastAgentEventToSSE(sessionID, event)
-
-			if event.Error != nil || event.Done {
-				return nil
-			}
-		}
-	}
-}
-
-// processMessage processes a single message and streams the response
-func processMessage(ctx context.Context, app *app.App, sseWriter *SSEWriter, sessionID, content string) error {
-	
-	msgContent, err := parseMessageContent(content)
-	if err != nil {
-		return err
-	}
-
-	text := msgContent.Text
-
-	switch {
-	case strings.HasPrefix(text, "/"):
-		return handleSlashCommandStreaming(ctx, app, sseWriter, sessionID, text)
-	case strings.HasPrefix(text, "!"):
-		return handleShellCommand(ctx, sseWriter, text)
-	default:
-		return handleRegularMessage(ctx, app, sseWriter, sessionID, text, msgContent.PlanMode)
-	}
-}
-
-// handleSlashCommandStreaming processes slash commands for persistent connections
-func handleSlashCommandStreaming(ctx context.Context, app *app.App, sseWriter *SSEWriter, sessionID, content string) error {
-
-	parsedCmd, err := commands.ParseCommand(content)
-	if err != nil {
-		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Invalid slash command: %s", err.Error())}); err != nil {
-			// Command error handled by SSEWriter
-		}
-		return nil
-	}
-
-
-	reg := commands.NewRegistry()
-	if err := reg.LoadCommands(app); err != nil {
-		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Failed to load commands: %s", err.Error())}); err != nil {
-			// Load commands error handled by SSEWriter
-		}
-		return nil
-	}
-
-	// Add session context for commands that need session information
-	cmdCtx := context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
-	
-	result, err := reg.ExecuteCommand(cmdCtx, parsedCmd.Name, parsedCmd.Arguments)
-	if err != nil {
-		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Command execution failed: %s", err.Error())}); err != nil {
-			// Command execution error handled by SSEWriter
-		}
-		return nil
-	}
-
-	if err := sseWriter.WriteEvent("complete", CompleteEvent{Type: "complete", Content: result, Done: true}); err != nil {
-		// Command complete error handled by SSEWriter
-	}
-	return nil
-}
-
-// HandleMessageQueue handles POST requests to add messages to session queues
-func HandleMessageQueue(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	if r.Method != "POST" {
-		http.Error(w, "Only POST method allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(pathParts) < 2 || pathParts[0] != "stream" {
-		http.Error(w, "Invalid URL path", http.StatusBadRequest)
-		return
-	}
-	sessionID := pathParts[1]
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
-		return
-	}
-
-	var reqData struct {
-		Content string `json:"content"`
-	}
-	if err := json.Unmarshal(body, &reqData); err != nil {
-		http.Error(w, "Invalid JSON in request body", http.StatusBadRequest)
-		return
-	}
-
-	if reqData.Content == "" {
-		http.Error(w, "Missing content parameter", http.StatusBadRequest)
-		return
-	}
-
-	// Broadcast message to all active connections for this session
-	registry.Broadcast(sessionID, reqData.Content)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{
-		"status":    "broadcasted",
-		"sessionId": sessionID,
-	}
-	json.NewEncoder(w).Encode(response)
 }
 
 // WriteAgentEventAsSSE converts an AgentEvent to SSE format using unified event types

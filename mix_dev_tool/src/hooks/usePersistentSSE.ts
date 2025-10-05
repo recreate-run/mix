@@ -580,9 +580,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			timelineRef.current = [];
 
 			try {
-				await mix.streaming.sendStreamingMessage({
+				// Use REST API to send message - this triggers agent processing once on server
+				// and broadcasts events to all SSE connections
+				await mix.sessions.sendMessage({
 					id: sessionId,
-					requestBody: { content },
+					requestBody: JSON.parse(content), // content is already JSON stringified
 				});
 				console.log(
 					"[StreamingDebug] Message sent to backend successfully, streaming started",
