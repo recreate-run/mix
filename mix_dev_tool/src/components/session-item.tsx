@@ -4,7 +4,8 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { open } from "@tauri-apps/plugin-shell";
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { useDeleteSession } from "@/hooks/useSessionsList";
+import { useDeleteSession } from "@/hooks/useSession";
+import { useSystemInfo } from "@/hooks/useSystemInfo";
 import type { SessionData } from "@/types/common";
 import { getDisplayTitle } from "@/utils/sessionUtils";
 
@@ -24,6 +25,7 @@ export function SessionItem({
 	allSessions,
 }: SessionItemProps) {
 	const navigate = useNavigate();
+	const { data: systemInfo } = useSystemInfo();
 
 	// Simple delete hook with navigation callback - no circular dependencies
 	const deleteSessionMutation = useDeleteSession({
@@ -52,8 +54,6 @@ export function SessionItem({
 			)
 		) {
 			try {
-				// The enhanced hook handles all navigation logic automatically
-				// No need for manual RPC calls or navigation logic
 				await deleteSessionMutation.mutateAsync(session.id);
 			} catch (error) {
 				console.error("Failed to delete session:", error);
@@ -63,9 +63,13 @@ export function SessionItem({
 
 	const handleOpenFolder = async (e: React.MouseEvent) => {
 		e.stopPropagation();
+		if (!systemInfo?.storageBasePath) {
+			console.error("Storage base path not available");
+			return;
+		}
 		try {
 			// Open the session's storage directory in system file manager
-			const storagePath = `/Users/vaibhavagarwal/Documents/recreate/mix/storage/${session.id}`;
+			const storagePath = `${systemInfo.storageBasePath}/${session.id}`;
 			console.log("Opening storage path:", storagePath);
 			await open(storagePath);
 		} catch (error) {

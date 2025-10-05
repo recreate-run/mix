@@ -4,22 +4,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { handleProviderSelection } from "@/handlers/provider-command-handler";
 import type { ProviderDisplayProps } from "@/types/provider";
 
-export function ProviderDisplay({ data, onUpdate }: ProviderDisplayProps) {
+export function ProviderDisplay({ data }: ProviderDisplayProps) {
 	const handleSelect = async (providerId: string) => {
 		// Only allow selecting authenticated providers
 		const provider = data.providers.find((p) => p.id === providerId);
 		if (!provider?.authenticated) {
-			onUpdate({
-				content: `❌ Cannot select provider ${provider?.displayName || providerId} because it is not authenticated. Please use the \`/login\` command first.`,
-				from: "assistant",
-				frontend_only: true,
-			});
 			return;
 		}
 
 		// Call the provider selection handler
-		const result = await handleProviderSelection(providerId);
-		onUpdate(result);
+		await handleProviderSelection(providerId);
 	};
 
 	return (

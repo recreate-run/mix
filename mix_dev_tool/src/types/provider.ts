@@ -43,7 +43,6 @@ export interface ProviderDisplayProps {
 		providers: ProviderInfo[];
 		currentProvider?: string;
 	};
-	onUpdate: (message: any) => void;
 }
 
 /**
@@ -58,5 +57,4 @@ export interface ModelDisplayProps {
 			displayName: string;
 		};
 	};
-	onUpdate: (message: any) => void;
 }
