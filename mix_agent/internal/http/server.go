@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"mix/internal/app"
@@ -76,16 +75,6 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	// Add SSE streaming endpoint
 	mux.HandleFunc("/stream", func(w http.ResponseWriter, r *http.Request) {
 		HandleSSEStream(ctx, app, w, r)
-	})
-
-	// Add message queue endpoint for persistent SSE
-	mux.HandleFunc("/stream/", func(w http.ResponseWriter, r *http.Request) {
-		// Handle stream endpoints
-		if strings.HasSuffix(r.URL.Path, "/message") {
-			HandleMessageQueue(w, r)
-		} else {
-			http.NotFound(w, r)
-		}
 	})
 
 	// Add URL video export endpoint (new Playwright-based export)

@@ -562,9 +562,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			timelineRef.current = [];
 
 			try {
-				await mix.streaming.sendStreamingMessage({
+				// Use REST API to send message - this triggers agent processing once on server
+				// and broadcasts events to all SSE connections
+				await mix.messages.send({
 					id: sessionId,
-					requestBody: { content },
+					requestBody: JSON.parse(content), // content is already JSON stringified
 				});
 			} catch (error) {
 				console.error("Failed to send message to backend:", {
