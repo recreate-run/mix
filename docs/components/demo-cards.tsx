@@ -67,15 +67,25 @@ export function DemoCards({ demos }: DemoCardsProps) {
           <div className="flex flex-col justify-center">
             <div className="rounded-2xl overflow-hidden border-2 border-fd-primary/20 shadow-2xl bg-gradient-to-br from-fd-card to-fd-muted/30 p-1">
               <div className="rounded-xl overflow-hidden bg-black aspect-video">
-                <video
-                  key={selectedDemo} // Force re-render when demo changes
-                  src={demos[selectedDemo].videoSrc}
-                  controls
-                  className="w-full h-full object-contain"
-                  poster={demos[selectedDemo].videoSrc}
-                >
-                  Your browser does not support the video tag.
-                </video>
+                {demos[selectedDemo].youtubeId ? (
+                  <iframe
+                    key={selectedDemo}
+                    src={`https://www.youtube.com/embed/${demos[selectedDemo].youtubeId}`}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    key={selectedDemo} // Force re-render when demo changes
+                    src={demos[selectedDemo].videoSrc}
+                    controls
+                    className="w-full h-full object-contain"
+                    poster={demos[selectedDemo].videoSrc}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                )}
               </div>
             </div>
             {demos[selectedDemo].videoCaption && (
