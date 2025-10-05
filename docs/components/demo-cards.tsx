@@ -29,9 +29,9 @@ export function DemoCards({ demos }: DemoCardsProps) {
     <div className="container px-4 pb-8">
       {/* Selected demo showcase */}
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
           {/* Code section */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:col-span-2">
             <div className="rounded-2xl border-2 border-fd-border/50 bg-gradient-to-br from-fd-card to-fd-muted/20 overflow-hidden shadow-xl">
               <div className="bg-gradient-to-r from-fd-muted/80 to-fd-muted/60 backdrop-blur-sm px-5 py-3 border-b border-fd-border/50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -64,13 +64,13 @@ export function DemoCards({ demos }: DemoCardsProps) {
           </div>
 
           {/* Video section */}
-          <div className="flex flex-col justify-center">
+          <div className="flex flex-col justify-center lg:col-span-3">
             <div className="rounded-2xl overflow-hidden border-2 border-fd-primary/20 shadow-2xl bg-gradient-to-br from-fd-card to-fd-muted/30 p-1">
               <div className="rounded-xl overflow-hidden bg-black aspect-video">
                 {demos[selectedDemo].youtubeId ? (
                   <iframe
                     key={selectedDemo}
-                    src={`https://www.youtube.com/embed/${demos[selectedDemo].youtubeId}`}
+                    src={`https://www.youtube.com/embed/${demos[selectedDemo].youtubeId}?vq=hd1080&hd=1&rel=0&modestbranding=1`}
                     className="w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
