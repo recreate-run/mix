@@ -75,7 +75,6 @@ interface ConversationDisplayProps {
 		messageIndex: number,
 	) => void;
 	onEditMessage?: (index: number) => void;
-	onUpdateMessage?: (index: number, updatedMessage: UIMessage) => void;
 	setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
 	sessionId?: string;
 }
@@ -229,80 +228,12 @@ export function ConversationDisplay({
 	sseStream,
 	onPlanAction,
 	onEditMessage,
-	onUpdateMessage,
 	setUserMessageRef,
 	sessionId,
 }: ConversationDisplayProps) {
 	const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
-	const [localMessages, setLocalMessages] = useState<UIMessage[]>(messages);
-
-	// Deduplication: Check if streaming content already exists in persisted messages
-	const shouldRenderStreamingUI = (() => {
-		const baseCondition =
-			(sseStream.processing && !sseStream.completed) ||
-			(sseStream.cancelled &&
-				(sseStream.finalContent ||
-					sseStream.timeline?.length ||
-					sseStream.toolCalls?.length));
-
-		if (!baseCondition) {
-			return false;
-		}
-
-		// If we're actively processing, always show
-		if (sseStream.processing && !sseStream.completed) {
-			return true;
-		}
-
-		// If cancelled, check if content already exists in persisted messages
-		if (sseStream.cancelled && messages.length > 0) {
-			const lastMessage = messages[messages.length - 1];
-			// Check if last message is assistant and has similar timeline content
-			if (
-				lastMessage.from === "assistant" &&
-				lastMessage.timeline?.length &&
-				sseStream.timeline?.length
-			) {
-				// Content already persisted, don't show streaming UI
-				console.log(
-					"[StreamingDebug] Skipping streaming UI - content already in persisted messages",
-				);
-				return false;
-			}
-		}
-
-		return true;
-	})();
-
-	// Debug: Track streaming UI render state
-	useEffect(() => {
-		console.log("[StreamingDebug] Streaming UI render decision:", {
-			shouldRender: shouldRenderStreamingUI,
-			processing: sseStream.processing,
-			completed: sseStream.completed,
-			cancelled: sseStream.cancelled,
-			hasContent: !!sseStream.finalContent,
-			timelineLength: sseStream.timeline?.length || 0,
-			toolCallsLength: sseStream.toolCalls?.length || 0,
-			persistedMessagesCount: messages.length,
-		});
-	}, [
-		shouldRenderStreamingUI,
-		sseStream.processing,
-		sseStream.completed,
-		sseStream.cancelled,
-		sseStream.finalContent,
-		sseStream.timeline?.length,
-		sseStream.toolCalls?.length,
-		messages.length,
-	]);
 
 	// Detect when a new message with exit_plan_mode is added and show plan options
-	// Update localMessages when messages prop changes
-	useEffect(() => {
-		setLocalMessages(messages);
-	}, [messages]);
-
 	useEffect(() => {
 		if (messages.length > 0) {
 			const lastMessage = messages[messages.length - 1];
@@ -326,30 +257,15 @@ export function ConversationDisplay({
 		onPlanAction?.("keep-planning", messageIndex);
 	};
 
-	// Handle UI message updates from component responses
-	const handleMessageUpdate = (index: number, updatedMessage: UIMessage) => {
-		// Update local message state
-		setLocalMessages((prev) => [
-			...prev.slice(0, index),
-			updatedMessage,
-			...prev.slice(index + 1),
-		]);
-
-		// Pass update to parent component
-		if (onUpdateMessage) {
-			onUpdateMessage(index, updatedMessage);
-		}
-	};
-
 	return (
 		<div className="relative h-full flex-1 py-16">
 			<div className="">
 				{messages.length === 0 && <EmptyStateDisplay />}
-				{localMessages.map((message, index) => {
+				{messages.map((message, index) => {
 					return (
 						<AIMessage
 							from={message.from}
-							key={message.id || `frontend-${index}`}
+							key={message.id}
 							ref={
 								message.from === "user" ? setUserMessageRef?.(index) : undefined
 							}
@@ -390,19 +306,9 @@ export function ConversationDisplay({
 												{message.status ? (
 													<StatusUI statusState={message.status} />
 												) : message.provider ? (
-													<ProviderDisplay
-														data={message.provider}
-														onUpdate={(updatedMessage: any) =>
-															handleMessageUpdate(index, updatedMessage)
-														}
-													/>
+													<ProviderDisplay data={message.provider} />
 												) : message.model ? (
-													<ModelDisplay
-														data={message.model}
-														onUpdate={(updatedMessage: any) =>
-															handleMessageUpdate(index, updatedMessage)
-														}
-													/>
+													<ModelDisplay data={message.model} />
 												) : (
 													<ResponseRenderer content={message.content} />
 												)}
@@ -493,7 +399,11 @@ export function ConversationDisplay({
 						</AIMessage>
 					);
 				})}
-				{shouldRenderStreamingUI ? (
+				{(sseStream.processing && !sseStream.completed) ||
+				(sseStream.cancelled &&
+					(sseStream.finalContent ||
+						sseStream.timeline?.length ||
+						sseStream.toolCalls?.length)) ? (
 					<AIMessage from="assistant">
 						<AIMessageContent>
 							{/* Show timeline-based interleaved thinking and tools during streaming */}

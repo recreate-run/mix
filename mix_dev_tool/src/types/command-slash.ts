@@ -9,7 +9,6 @@ export interface CommandSlashProps {
 	onNewSession?: () => void;
 	onQueryClientInvalidate?: (keys: any) => void;
 	onSubmitMessage?: (message: string) => void;
-	onAddMessage?: (message: any) => void;
 }
 
 export interface Provider {

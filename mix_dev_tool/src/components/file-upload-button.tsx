@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { Loader2, Paperclip } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { cn } from "@/lib/utils";
@@ -11,7 +12,6 @@ import {
 	IMAGE_EXTENSIONS,
 	VIDEO_EXTENSIONS,
 } from "@/utils/fileTypes";
-import { useState } from "react";
 
 interface FileUploadButtonProps {
 	sessionId: string;
