@@ -16,12 +16,14 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 Start Mix Playground desktop application.
 
-<iframe
-  src="https://www.youtube.com/embed/VPZ45Kt_Z1U"
-  className="w-full aspect-video rounded-lg"
-  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-  allowFullScreen
-/>
+Clone the Mix repository and start the development server:
+
+```bash
+git clone https://github.com/recreate-run/mix.git
+cd mix
+make dev
+```
+
 
 </Step>
 <Step>
@@ -32,7 +34,8 @@ Start Mix Playground desktop application.
 2. Choose provider (Anthropic, OpenAI, etc.)
 3. Select **OAuth** or **API Key** authentication
 4. Complete authentication flow
-5. Select a model from available options
+5. Add Brave Search Api Key for web search tool
+6. Add Gemini Api Key for read media tool
 
 <iframe
   src="https://www.youtube.com/embed/cP98OSyFnYI"
