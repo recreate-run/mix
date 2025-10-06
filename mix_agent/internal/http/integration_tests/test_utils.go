@@ -156,16 +156,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 		httphandlers.HandleSSEStream(ctx, testApp, w, r)
 	})
 
-	// Stream sub-path endpoint for SSE with paths
-	mux.HandleFunc("/stream/", func(w http.ResponseWriter, r *http.Request) {
-		t.Logf("Stream sub-path request received: %s %s", r.Method, r.URL.String())
-		if strings.HasSuffix(r.URL.Path, "/message") {
-			httphandlers.HandleMessageQueue(w, r)
-		} else {
-			// Handle other stream sub-paths by streaming events
-			httphandlers.HandleSSEStream(ctx, testApp, w, r)
-		}
-	})
 
 	// Health check endpoint (always enabled)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

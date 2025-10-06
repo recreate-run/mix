@@ -9,6 +9,5 @@ export function useSystemInfo() {
 			return response;
 		},
 		staleTime: Number.POSITIVE_INFINITY, // System info never changes during app lifetime
-		gcTime: Number.POSITIVE_INFINITY,
 	});
 }
