@@ -16,8 +16,6 @@ make frontend-typecheck     # Always use this for frontend typechecking
 - Run `make` from the project's top-level directory. If it fails, you probably weren't there.
 - You MUST check the tail-log after finishing each task
 - ALWAYS update mix_agent/internal/http/rest_docs.go when modifying any backend API endpoints, request/response schemas, or validation rules
-- If you encounter any issues, run `make test-all` to validate the environment and check for common problems
-- For detailed troubleshooting steps, refer to the TROUBLESHOOTING.md file
 
 ## Architecture
 
