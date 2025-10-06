@@ -40,6 +40,6 @@ export function useSessionsList() {
 	return useQuery({
 		queryKey: CACHE_KEYS.sessions,
 		queryFn: loadSessionsList,
-		refetchOnWindowFocus: false,
+		// refetchOnWindowFocus: false,
 	});
 }
