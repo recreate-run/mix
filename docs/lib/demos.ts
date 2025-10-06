@@ -25,17 +25,13 @@ export const homepageDemos: Demo[] = [
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/portfolio_analysis.py",
     code: `from mix_python_sdk import Mix
 
-with Mix(server_url="http://localhost:8088") as mix:
-    # Configure AI provider
+async with Mix(server_url="http://localhost:8088") as mix:
     mix.preferences.update_preferences(
         preferred_provider="anthropic",
         main_agent_model="claude-sonnet-4-5"
     )
 
-    # Create analysis session
-    session = mix.sessions.create(
-        title="Portfolio Analysis Q4 2024"
-    )
+    session = mix.sessions.create(title="Portfolio Analysis Q4 2024")
 
     # Upload portfolio CSV
     with open("portfolio.csv", "rb") as f:
@@ -49,9 +45,9 @@ with Mix(server_url="http://localhost:8088") as mix:
         )
 
     # AI analyzes and creates visualizations
-    mix.streaming.send_streaming_message(
-        id=session.id,
-        content=f"Analyze @{file_info.url} and find top winners/losers in Q4. Show 3 plots."
+    await stream_message(
+        mix, session.id,
+        f"Analyze @{file_info.url} and find top winners/losers. Show 3 plots."
     )`
   },
 
@@ -62,31 +58,21 @@ with Mix(server_url="http://localhost:8088") as mix:
     youtubeId: "N--FfjtUjwY",
     videoCaption: "AI searches for videos, finds key moments, and downloads highlights",
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/web_search_multimodal.py",
-    code: `async def main():
-    load_dotenv()
+    code: `from mix_python_sdk import Mix
 
-    user_msg = "First, find the top 3 karpathy LLM videos , and then find the most important 10 second section from each video. after that, download the sections and show it."
+async with Mix(server_url="http://localhost:8088") as mix:
+    mix.preferences.update_preferences(
+        preferred_provider="anthropic",
+        main_agent_model="claude-sonnet-4-5"
+    )
 
-    async with Mix(server_url=os.getenv("MIX_SERVER_URL")) as mix:
-        mix.system.get_health()
-        # mix.authentication.store_api_key(api_key=api_key, provider="anthropic")
-        mix.preferences.update_preferences(
-            preferred_provider="anthropic",
-            main_agent_model="claude-sonnet-4-5",
-        )
+    session = mix.sessions.create(title="Web Search Demo")
 
-        # session creation
-        session = mix.sessions.create(title="Web search multimodal demo")
-
-        await stream_and_send(
-            mix,
-            session_id=session.id,
-            message=user_msg,
-            on_thinking=lambda text: print(text, end="", flush=True),
-            on_content=lambda text: print(text, end="", flush=True),
-            on_tool=lambda tool: print(f"\n🔧 {tool.name}: {tool.status}"),
-            on_error=lambda error: print(f"\n❌ {error}"),
-        )`
+    # AI searches, analyzes videos, downloads highlights
+    await stream_message(
+        mix, session.id,
+        "Find top 3 karpathy LLM videos, extract key 10-sec clips, download and show them."
+    )`
   },
 
   {
@@ -98,22 +84,18 @@ with Mix(server_url="http://localhost:8088") as mix:
     githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/python_examples/demos/tiktok_video.py",
     code: `from mix_python_sdk import Mix
 
-with Mix(server_url="http://localhost:8088") as mix:
-    # Configure AI provider
+async with Mix(server_url="http://localhost:8088") as mix:
     mix.preferences.update_preferences(
         preferred_provider="anthropic",
         main_agent_model="claude-sonnet-4-5"
     )
 
-    # Create video generation session
-    session = mix.sessions.create(
-        title="TikTok Video Creation"
-    )
+    session = mix.sessions.create(title="TikTok Video Demo")
 
     # AI finds content, creates video, adds animations
-    mix.streaming.send_streaming_message(
-        id=session.id,
-        content="Find the top cat video and create a 5 sec tiktok video from it. Add a title animation. Export it and show."
+    await stream_message(
+        mix, session.id,
+        "Find top cat video and create 5-sec TikTok clip with title animation. Export and show."
     )`
   },
 
