@@ -46,8 +46,7 @@ export function useActiveSession(sessionId: string) {
 				title: response.title,
 			};
 		},
-		refetchOnWindowFocus: false,
-		refetchOnMount: false, // Don't refetch if we have cached data
+		// refetchOnWindowFocus: false,
 		enabled: !!sessionId, // Only run when sessionId exists
 	});
 }

@@ -36,7 +36,6 @@ export function useSessionMessages(sessionId: string | null) {
 			return result;
 		},
 		enabled: !!sessionId,
-		refetchOnWindowFocus: false,
 	});
 
 	return query;

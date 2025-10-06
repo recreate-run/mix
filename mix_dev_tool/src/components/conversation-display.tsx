@@ -23,7 +23,6 @@ import type { TimelineEntry, UIMessage } from "@/types/message";
 import { convertToAssetServerUrl } from "@/utils/assetServer";
 import { getYouTubeEmbedUrl, isYouTubeUrl } from "@/utils/videoUrlDetection";
 import { ConversationLoader } from "./conversation-loader";
-import { EmptyStateDisplay } from "./empty-state-display";
 import { MediaShowcase } from "./media-showcase";
 import { MessageAttachmentDisplay } from "./message-attachment-display";
 import { ModelDisplay } from "./model-display";
