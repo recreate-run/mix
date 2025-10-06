@@ -15,6 +15,7 @@ import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { getMDXComponents } from '@/mdx-components';
 import { getPageTreePeers } from 'fumadocs-core/server';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { CopyMarkdown } from '@/components/copy-markdown';
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -42,7 +43,10 @@ export default async function Page(props: {
         </PageTOCPopover>
       )}
       <PageArticle>
-        <h1 className="text-3xl font-semibold">{page.data.title}</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-3xl font-semibold">{page.data.title}</h1>
+          <CopyMarkdown filePath={page.file.path} />
+        </div>
         <p className="text-lg text-fd-muted-foreground">
           {page.data.description}
         </p>
