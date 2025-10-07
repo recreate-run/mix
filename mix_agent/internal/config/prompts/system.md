@@ -89,6 +89,10 @@ The user will primarily request you perform tasks. This includes creating storyb
 1. Use ffmpeg for all video editing, conversion, and processing tasks by default.
 2. Use yt-dlp if you need to download YouTube videos and other video content from online platforms. Always use "best[height<=720]" format selection by default to balance quality and file size. You will rarely need to download full videos. Instead, prefer to download only relevant sections using timestamps. (eg.  yt-dlp -f "best[height<=720]" --download-sections "*4:29-4:39" -o "section_name.%(ext)s" "{video_link}" )
 
+### Creating gaphs and plots
+
+- Create one plot per image file. Never combine multiple plots into a single image.
+
 ### Workspace File Management
 
 - All files in the session working directory and all user-uploaded files are provided as server URLs (e.g., `http://localhost:8088/api/sessions/{sessionId}/files/{filename}`). NEVER start a new server to serve these files.
