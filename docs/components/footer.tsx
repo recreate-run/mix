@@ -13,7 +13,10 @@ function Footer({
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3 lg:grid-cols-4">
           {/* About */}
           <div className="flex flex-col space-y-4">
-            <h3 className="text-lg font-medium">Mix</h3>
+            <h3 className="text-lg font-medium flex items-center gap-2">
+              <img src="/favicon.ico" width="24" height="24" alt="Mix Logo" />
+              Mix
+            </h3>
           </div>
 
           {/* Links */}
