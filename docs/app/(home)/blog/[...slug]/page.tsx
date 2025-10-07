@@ -57,7 +57,7 @@ export default async function BlogPostPage(props: Props) {
 					Back to Blog
 				</Link>
 
-				<article>
+				<article className="mb-16">
 					<header className="mb-8 pb-8 border-b border-fd-border">
 						<h1 className="text-3xl font-semibold">{page.data.title}</h1>
 						<p className="text-lg text-fd-muted-foreground">

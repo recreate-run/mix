@@ -1,59 +1,128 @@
 ---
-title: Introducing Mix - Your AI Development Companion
-description: Discover Mix, a powerful AI agent platform that helps developers build better software faster with intelligent assistants.
+title: Introducing Mix - 
+description: The multimodal agents SDK.
 author: Mix Team
 date: 2025-10-01
-tags: [announcement, features, ai]
+tags: [announcement, agents SDK]
 ---
 
-We're excited to introduce **Mix**, a revolutionary AI agent platform designed to supercharge your development workflow. Mix brings intelligent assistance directly to your development environment, helping you write better code, understand complex systems, and ship faster.
+# Building Multimodal Agents with Mix
 
-## What is Mix?
+Agent SDKs are stuck in a text-only world. They can read code, write files, and run bash commands—but they can't analyze videos, interpret charts in PDFs, or present media natively. This limitation becomes a fundamental bottleneck, as agents move beyond coding into domains like content creation, finance, and customer support.
 
-Mix is an AI-powered development platform that combines:
+So we built Mix: a multimodal agents SDK with native multimedia tools and intelligent model orchestration. In this post, we'll walk through what makes Mix different, show you what you can build with it, and share how to get started.
 
-- **Mix Agent**: A powerful backend service that orchestrates AI interactions
-- **Mix Playground**: An intuitive UI for interacting with AI assistants
-- **SDKs**: TypeScript and Python SDKs for seamless integration
+## Giving agents multimedia capabilities
 
-## Key Features
+The key design principle behind Mix is that agents need the same multimedia capabilities humans use. They need to analyze videos frame-by-frame, extract insights from complex PDFs with charts and tables, process audio, and display rich media outputs—not just manipulate text files.
 
-### 🚀 Intelligent Code Assistance
+We found that by giving agents access to proper multimodal tools and routing tasks to the best-suited models (Gemini for vision, Claude for reasoning), they can handle workflows that were previously impossible.
 
-Mix understands your codebase and provides context-aware suggestions, refactoring help, and code explanations.
+But we also kept what works: agents still have full access to the terminal, file system, and all the text-based tools that make coding agents effective. Mix extends the agent paradigm to multimedia, rather than replacing it.
 
-### 🔧 Multiple AI Providers
+## What you can build
 
-Switch seamlessly between different AI providers (OpenAI, Anthropic, etc.) based on your needs and preferences.
+We believe native multimodal capabilities unlock entirely new categories of agents. Here are examples we've built:
 
-### 📁 File Management
+**Portfolio analyzers:** Build agents that can read financial PDFs with embedded charts, extract performance data, and generate custom plots to visualize winners and losers.
 
-Upload and manage files within your sessions, allowing the AI to reference and work with your project files.
+[PLACEHOLDER: Portfolio analysis demo screenshot/video - portfolio_analysis_v2.mp4]
 
-### 🔄 Session Management
+**Video intelligence agents:** Build agents that can search YouTube for specific content, analyze videos to find the most important segments, clip those sections, and deliver edited compilations.
 
-Create, fork, and manage multiple conversation sessions to organize different tasks and contexts.
+[PLACEHOLDER: Video search demo screenshot/video - web_search_multimodal_v2.mp4]
 
-## Getting Started
+**Multimodal research agents:** Build agents that search across documents, images, and videos using natural language queries like "Find all quarterly reports mentioning 'supply chain' with charts showing decline."
 
-Getting started with Mix is easy:
+**Content creation workflows:** Build agents that can generate GSAP animations, edit videos with ffmpeg, and display finished deliverables directly in the conversation interface.
+
+At its core, Mix gives you the primitives to build agents for multimedia workflows that were previously impractical.
+
+## The multimodal agent loop
+
+In Mix, agents operate in an extended feedback loop: gather context → take action → verify work → repeat. But unlike text-only SDKs, each stage can now work with multimedia.
+
+
+*The multimodal agent loop extends traditional agentic workflows to handle images, video, audio, and complex PDFs.*
+
+### Gathering multimodal context
+
+**ReadMedia for analysis:** Agents use the ReadMedia tool powered by Gemini 2.5 Pro when they encounter videos, audio files, or complex PDFs. This tool can analyze up to 10 minutes of video, extract insights from audio, and intelligently parse PDFs—including selective page extraction (e.g., "analyze pages 1-3, 7, and 10-12").
+
+Unlike native PDF readers that only extract text, ReadMedia understands charts, graphs, and visual elements in documents. For a portfolio analysis task, the agent can identify performance charts within the PDF and interpret them accurately.
+
+**Multi-model orchestration:** Mix automatically routes tasks to the best-suited model based on benchmarked performance. Vision tasks go to Gemini, complex reasoning goes to Claude, and search tasks go to OpenAI. You don't configure providers—the SDK handles model selection intelligently.
+
+**Agentic search across media:** Mix includes WebSearch with support for web, image, and video results via Brave Search API. Agents can search YouTube, analyze the results, and process the actual video content—all within the same workflow.
+
+### Taking multimedia actions
+
+**ShowMedia for deliverables:** Agents use ShowMedia to display outputs prominently in the conversation interface when they complete multimedia work. This tool supports images, videos, audio, GSAP animations, YouTube embeds, PDFs, and CSVs—including timestamp-based video segments.
+
+This is critical for workflows where the deliverable is a visual output. Instead of just writing a file path, agents can showcase the finished work directly.
+
+**Video editing tools:** Mix includes tools for editing videos with ffmpeg and creating animations with GSAP. Agents can clip video segments, merge footage, add effects, and generate animated visualizations—all programmatically.
+
+**Standard agent capabilities:** Mix retains all the tools that make coding agents effective: Bash for terminal access, Glob and Grep for file search, Edit and Write for file manipulation. These work seamlessly alongside multimedia tools.
+
+### Verifying multimedia work
+
+Agents can verify their multimedia outputs by:
+
+- Reading back generated media with ReadMedia to confirm accuracy
+- Displaying results with ShowMedia for visual feedback loops
+- Running validation scripts to check file formats, durations, and quality metrics
+
+## Production-ready from day one
+
+Mix is designed for building production web applications, not just local prototyping.
+
+**One-command Supabase setup:** Mix includes an automated setup script that handles project selection, authentication configuration, storage buckets, and environment setup. Your agent backend is production-ready in minutes.
 
 ```bash
-# Install Mix Agent
-npm install -g mix-agent
-
-# Start the server
-mix-agent start
+# Run the Supabase setup script
+mix supabase-setup
 ```
 
-Visit our [quickstart guide](/docs/mix/quickstart) to learn more.
+[PLACEHOLDER: Terminal screenshot showing Supabase setup]
 
-## What's Next?
+**Local and cloud storage:** Use local SQLite for rapid testing and development. Switch to Supabase with a single configuration change when you're ready to deploy. No code refactoring required.
 
-We're continuously improving Mix with new features and capabilities. Stay tuned for updates on:
+**HTTP REST API:** Mix is built as a backend-first HTTP API with client/server architecture, making it trivial to integrate with web frontends, mobile apps, or other services.
 
-- Enhanced tool integrations
-- Collaborative features
-- Advanced automation workflows
+**DevTools integration:** The HTTP architecture enables visual debugging tools to run alongside your agent workflows—inspect reasoning, monitor context usage, and debug failures in real-time. Unlike terminal-only SDKs locked to single-process architectures, Mix's client/server design lets you connect DevTools, web clients, and CLIs simultaneously. The Go backend provides 50-80% lower memory footprint than Node.js alternatives, efficiently handling multiple concurrent agent sessions with DevTools attached.
 
-Join us on this exciting journey to transform how developers work with AI!
+## Getting started
+
+Mix is open source (MIT license) and available today.
+
+[PLACEHOLDER: Installation/setup code snippet]
+
+```bash
+# Installation
+npm install @mix-sdk/core
+
+# Basic usage
+import { MixAgent } from '@mix-sdk/core'
+
+const agent = new MixAgent({
+  systemPrompt: 'You are a video analysis expert',
+  storage: 'local' // or 'supabase'
+})
+
+await agent.run('Analyze @video.mp4 and show me the highlights')
+```
+
+Documentation and examples: [PLACEHOLDER: docs link]
+
+## What's next
+
+We're focused on making Mix the best way to build multimodal agents. Planned enhancements include session-local prompt optimization, enhanced context management assistants, and expanded DevTools capabilities for deeper agent introspection.
+
+We'd love to hear from you if you're building multimodal AI agents. Share what you build and let us know how we can improve Mix.
+
+---
+
+## Acknowledgements
+
+Written by [PLACEHOLDER: Author name] with contributions from the Mix team.
