@@ -36,10 +36,12 @@ Find the top cat video and create a 5 sec tiktok video from it. Add a title anim
 <https://github.com/user-attachments/assets/13d45f7b-88d0-46dc-8407-bc9226dec9e9>
 
 ```
-Find the best videos about kerala puttu and show.
+First, find the top 3 karpathy LLM videos, then find the most important 10 second section from each video. After that, download the sections and show it.
 ```
 
-<https://github.com/user-attachments/assets/303bc48d-848b-47a7-a6a1-c4b0673334a2>
+
+https://github.com/user-attachments/assets/72c0b131-75b3-44d2-a6d3-0c388bdc6119
+
 
 ```
 Show 3 most interesting 5 second highlights from this video
