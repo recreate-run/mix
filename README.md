@@ -43,7 +43,10 @@ First, find the top 3 karpathy LLM videos, then find the most important 10 secon
 ```
 
 
-https://github.com/user-attachments/assets/72c0b131-75b3-44d2-a6d3-0c388bdc6119
+
+https://github.com/user-attachments/assets/87ad85d1-4805-47fb-9a0b-490ae0f529f3
+
+
 
 
 ```
