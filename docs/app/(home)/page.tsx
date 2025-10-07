@@ -13,7 +13,7 @@ import { DemoCards } from "@/components/demo-cards";
 import { homepageDemos } from "@/lib/demos";
 
 const title = "The Multimodal Agents SDK";
-const description = "Multimodal and Supbase friendly";
+const description = "Built-in multimodal tools. One-command Supabase setup.";
 
 export const metadata: Metadata = {
 	title,

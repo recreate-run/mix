@@ -14,9 +14,7 @@ function Footer({
           {/* About */}
           <div className="flex flex-col space-y-4">
             <h3 className="text-lg font-medium">Mix</h3>
-            <p className="text-sm text-muted-foreground">
-              Open-source, local agent for multimodal tasks. Claude code users will feel at home.
-            </p>
+            
             <div className="flex space-x-4">
               <Link href={config.links.github} className="text-muted-foreground hover:text-primary">
                 <span className="sr-only">GitHub</span>
@@ -32,7 +30,7 @@ function Footer({
               </Link>
             </div>
           </div>
-          
+
           {/* Links */}
           <div className="flex flex-col space-y-4">
             <h3 className="text-lg font-medium">Resources</h3>
@@ -51,13 +49,12 @@ function Footer({
               </li>
             </ul>
           </div>
-          
+
           {/* About Us */}
           <div className="flex flex-col space-y-4">
             <h3 className="text-lg font-medium">About Us</h3>
             <p className="text-sm text-muted-foreground">
-              Mix is developed by Sarath Menon and Vaibhav Agarwal, 
-              AI enthusiasts focused on multimodal, open-source tools.
+              Mix is developed by Sarath Menon and Vaibhav Agarwal
             </p>
             <div className="flex space-x-4 text-sm">
               <Link href="https://x.com/intent/user?screen_name=sarath_suresh_m" className="text-muted-foreground hover:text-primary flex items-center space-x-2">
@@ -74,7 +71,7 @@ function Footer({
               </Link>
             </div>
           </div>
-          
+
           {/* Contact */}
           <div className="flex flex-col space-y-4">
             <h3 className="text-lg font-medium">Contact</h3>
@@ -93,7 +90,7 @@ function Footer({
             </p>
           </div>
         </div>
-        
+
         {/* Copyright */}
         <div className="mt-12 border-t pt-8">
           <p className="text-center text-xs text-muted-foreground">
