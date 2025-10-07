@@ -41,7 +41,7 @@ export function CodeBlock({
 						<select
 							value={selectedLanguage}
 							onChange={(e) => onLanguageChange(e.target.value)}
-							className="appearance-none pl-3 pr-8 py-1.5 text-xs font-medium rounded-lg bg-fd-muted/50 text-fd-foreground border border-fd-border/50 hover:border-fd-primary/30 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-fd-primary/20 focus:border-fd-primary/50"
+							className="appearance-none pl-3 pr-8 py-1.5 text-xs font-medium rounded-lg bg-fd-muted/50 text-fd-foreground border-0 hover:bg-fd-muted/70 transition-all cursor-pointer focus:outline-none focus:ring-0"
 						>
 							{codeSnippets.map((snippet) => (
 								<option key={snippet.language} value={snippet.language}>
