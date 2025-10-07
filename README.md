@@ -81,9 +81,6 @@ uv run examples/web_search_multimodal.py
 uv run examples/system_prompt_change.py
 ```
 
-**Multimodal search demo:**
-
-<https://github.com/user-attachments/assets/d73791e4-5377-4522-b76c-0df9f1bdd81f>
 
 ## Roadmap
 
