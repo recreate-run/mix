@@ -47,11 +47,10 @@ https://github.com/user-attachments/assets/72c0b131-75b3-44d2-a6d3-0c388bdc6119
 
 
 ```
-
-
-
 Look at my portfolio in the data in @{file_info.url} and find the top winners and losers in Q4. Show the three most relevant plots.
-            ```
+
+```
+
 https://github.com/user-attachments/assets/fcc37dc1-1c89-4b3c-97b9-abdf64be4c24
 
 
