@@ -33,19 +33,29 @@ make dev
 Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
 
-<https://github.com/user-attachments/assets/13d45f7b-88d0-46dc-8407-bc9226dec9e9>
+
+https://github.com/user-attachments/assets/967a5bde-c90c-4d47-b5f6-0b11c75a1c35
+
+
 
 ```
-Find the best videos about kerala puttu and show.
+First, find the top 3 karpathy LLM videos, then find the most important 10 second section from each video. After that, download the sections and show it.
 ```
 
-<https://github.com/user-attachments/assets/303bc48d-848b-47a7-a6a1-c4b0673334a2>
+
+
+https://github.com/user-attachments/assets/87ad85d1-4805-47fb-9a0b-490ae0f529f3
+
+
+
 
 ```
-Show 3 most interesting 5 second highlights from this video
+Look at my portfolio in the data in @{file_info.url} and find the top winners and losers in Q4. Show the three most relevant plots.
+
 ```
 
-<https://github.com/user-attachments/assets/d9417ed7-0c1c-403c-bbe9-b63746547ab8>
+https://github.com/user-attachments/assets/fcc37dc1-1c89-4b3c-97b9-abdf64be4c24
+
 
 ## Quickstart with SDK
 
@@ -71,9 +81,6 @@ uv run examples/web_search_multimodal.py
 uv run examples/system_prompt_change.py
 ```
 
-**Multimodal search demo:**
-
-<https://github.com/user-attachments/assets/d73791e4-5377-4522-b76c-0df9f1bdd81f>
 
 ## Roadmap
 

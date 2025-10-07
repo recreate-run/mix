@@ -10,11 +10,15 @@ interface DemoCardsProps {
 
 export function DemoCards({ demos }: DemoCardsProps) {
 	const [selectedDemo, setSelectedDemo] = useState(0);
+	const [selectedLanguage, setSelectedLanguage] = useState<string>("python");
 	const [copied, setCopied] = useState(false);
 
 	const copyToClipboard = async () => {
 		try {
-			await navigator.clipboard.writeText(demos[selectedDemo].code);
+			const currentSnippet = demos[selectedDemo].codeSnippets.find(
+				(s) => s.language === selectedLanguage
+			) || demos[selectedDemo].codeSnippets[0];
+			await navigator.clipboard.writeText(currentSnippet.code);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		} catch (err) {
@@ -25,18 +29,18 @@ export function DemoCards({ demos }: DemoCardsProps) {
 	if (demos.length === 0) return null;
 
 	return (
-		<div className="container px-4 pb-8">
+		<div className="container px-4 pb-8 -mt-6 md:-mt-10 lg:-mt-16">
 			{/* Selected demo showcase */}
 			<div className="max-w-7xl mx-auto">
 				<div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
 					{/* Code section */}
 					<div className="space-y-4 lg:col-span-2">
 						<CodeBlock
-							code={demos[selectedDemo].code}
-							fileName={demos[selectedDemo].fileName}
+							codeSnippets={demos[selectedDemo].codeSnippets}
+							selectedLanguage={selectedLanguage}
+							onLanguageChange={setSelectedLanguage}
 							copied={copied}
 							onCopy={copyToClipboard}
-							githubUrl={demos[selectedDemo].githubUrl}
 						/>
 					</div>
 
