@@ -62,8 +62,9 @@ async with Mix(server_url="http://localhost:8088") as mix:
                 githubUrl: "https://github.com/recreate-run/mix-cookbooks/blob/main/typescript_examples/demos/portfolio_analysis.ts",
                 code: `import { Mix } from "mix-typescript-sdk";
 import { sendWithCallbacks } from "./helpers";
+import { readFileSync } from "fs";
 
-const mix = new Mix({ serverURL: "http://localhost:8088" });
+const mix = new Mix({ serverURL: process.env.MIX_SERVER_URL });
 
 // Configure preferences
 await mix.preferences.update({
@@ -71,21 +72,26 @@ await mix.preferences.update({
   main_agent_model: "claude-sonnet-4-5",
 });
 
-// Create session and upload CSV
+// Create session
 const session = await mix.sessions.create({
   title: "Portfolio Analysis Q4 2024",
 });
 
-const csvFile = new File([csvContent], "portfolio.csv");
+// Upload CSV file
+const csvContent = readFileSync("portfolio.csv");
+const csvFile = new File([csvContent], "portfolio.csv", {
+  type: "text/csv",
+});
+
 const fileInfo = await mix.files.upload({
   id: session.id,
   requestBody: { file: csvFile },
 });
 
 // AI analyzes and creates visualizations
-await sendWithCallbacks(
-  mix, session.id,
-  \`Analyze @\${fileInfo.url} and find top winners/losers.\`
+await sendWithCallbacks(mix, session.id,
+  \`Look at @\${fileInfo.url} and find top winners/losers. ` +
+  `Show three most relevant plots.\`
 );`
             }
         ]
@@ -128,7 +134,7 @@ async with Mix(server_url="http://localhost:8088") as mix:
                 code: `import { Mix } from "mix-typescript-sdk";
 import { sendWithCallbacks } from "./helpers";
 
-const mix = new Mix({ serverURL: "http://localhost:8088" });
+const mix = new Mix({ serverURL: process.env.MIX_SERVER_URL });
 
 // Configure preferences
 await mix.preferences.update({
@@ -136,13 +142,13 @@ await mix.preferences.update({
   main_agent_model: "claude-sonnet-4-5",
 });
 
+// Create session
 const session = await mix.sessions.create({
   title: "Web Search Demo",
 });
 
-// AI searches, analyzes, downloads highlights
-await sendWithCallbacks(
-  mix, session.id,
+// AI searches, analyzes videos, downloads highlights
+await sendWithCallbacks(mix, session.id,
   "Find top 3 karpathy LLM videos, extract key " +
   "10-sec clips, download and show them."
 );`
@@ -187,7 +193,7 @@ async with Mix(server_url="http://localhost:8088") as mix:
                 code: `import { Mix } from "mix-typescript-sdk";
 import { sendWithCallbacks } from "./helpers";
 
-const mix = new Mix({ serverURL: "http://localhost:8088" });
+const mix = new Mix({ serverURL: process.env.MIX_SERVER_URL });
 
 // Configure preferences
 await mix.preferences.update({
@@ -195,13 +201,13 @@ await mix.preferences.update({
   main_agent_model: "claude-sonnet-4-5",
 });
 
+// Create session
 const session = await mix.sessions.create({
   title: "TikTok Video Demo",
 });
 
 // AI finds content, creates video, adds animations
-await sendWithCallbacks(
-  mix, session.id,
+await sendWithCallbacks(mix, session.id,
   "Find top cat video and create 5-sec TikTok clip " +
   "with title animation. Export and show."
 );`
