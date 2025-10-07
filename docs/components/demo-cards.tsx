@@ -29,7 +29,7 @@ export function DemoCards({ demos }: DemoCardsProps) {
 	if (demos.length === 0) return null;
 
 	return (
-		<div className="container px-4 pb-8">
+		<div className="container px-4 pb-8 -mt-8 md:-mt-12 lg:-mt-16">
 			{/* Selected demo showcase */}
 			<div className="max-w-7xl mx-auto">
 				<div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
