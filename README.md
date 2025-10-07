@@ -4,12 +4,13 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaibhav?style=social)](https://x.com/intent/user?screen_name=Vaibhav30665241)
 [![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://recreate.run/docs/mix)
 
-Mix is the best agentic backbone for your multimodal app. It comes with a GUI playground for testing and debugging SDK workflows.
+Mix is a multimodal agents SDK. It comes with a GUI playground for visualization and debugging .
 
-- SDK is a first class citizen unlike CLI tools that also offer an SDK
-- Built for multimodal workflows instead of coding workflows (Unlike Claude Code/Opencode SDK's)
-- All project data is stored plain text and native media files - absolutely no lock-in.
-- The backend is an HTTP server, meaning that the frontend is just one of possible clients. Check out our python and typescript SDK's  
+- Native video/audio/PDF analysis tools (via Gemini for vision, Claude for reasoning)
+- Multi-model routing instead of single-provider lock-in
+- One-command Supabase setup for cloud deployment (vs localhost-only)
+- HTTP architecture that enables visual DevTools alongside agent workflows
+- Go backend: 50-80% lower memory footprint than Node.js—efficient for concurrent agent sessions.  Python and typescript clients are available
 
 ## Quickstart with DevTools
 
@@ -33,29 +34,20 @@ make dev
 Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video
 ```
 
-
-https://github.com/user-attachments/assets/967a5bde-c90c-4d47-b5f6-0b11c75a1c35
-
-
+<https://github.com/user-attachments/assets/967a5bde-c90c-4d47-b5f6-0b11c75a1c35>
 
 ```
 First, find the top 3 karpathy LLM videos, then find the most important 10 second section from each video. After that, download the sections and show it.
 ```
 
-
-
-https://github.com/user-attachments/assets/87ad85d1-4805-47fb-9a0b-490ae0f529f3
-
-
-
+<https://github.com/user-attachments/assets/87ad85d1-4805-47fb-9a0b-490ae0f529f3>
 
 ```
 Look at my portfolio in the data in @{file_info.url} and find the top winners and losers in Q4. Show the three most relevant plots.
 
 ```
 
-https://github.com/user-attachments/assets/fcc37dc1-1c89-4b3c-97b9-abdf64be4c24
-
+<https://github.com/user-attachments/assets/fcc37dc1-1c89-4b3c-97b9-abdf64be4c24>
 
 ## Quickstart with SDK
 
@@ -80,7 +72,6 @@ uv run examples/web_search_multimodal.py
 # Customize system prompts
 uv run examples/system_prompt_change.py
 ```
-
 
 ## Roadmap
 
