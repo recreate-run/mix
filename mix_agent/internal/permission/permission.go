@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -115,7 +116,7 @@ func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath 
 	}
 
 	// If relative path starts with "..", then absRequestedPath is outside absSessionDir
-	if filepath.IsAbs(relPath) || relPath == ".." || filepath.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+	if filepath.IsAbs(relPath) || relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
 		logging.Debug("Path is outside session storage directory", "relPath", relPath)
 		return false
 	}

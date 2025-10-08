@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,12 +37,6 @@ func setupTempConfig(t *testing.T) (string, func()) {
 	}
 
 	return tempDir, cleanup
-}
-
-func createMockDB(t *testing.T) *sql.DB {
-	// Return nil for unit tests to avoid actual database operations
-	// The initialization functions check for nil and handle appropriately
-	return nil
 }
 
 // Test Load function

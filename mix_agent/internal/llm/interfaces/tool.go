@@ -10,12 +10,14 @@ type (
 	sessionIDContextKey       string
 	messageIDContextKey       string
 	sessionStorageContextKey  string
+	planModeContextKey        string
 )
 
 const (
 	SessionIDContextKey       sessionIDContextKey       = "session_id"
 	MessageIDContextKey       messageIDContextKey       = "message_id"
 	SessionStorageContextKey  sessionStorageContextKey  = "session_storage"
+	PlanModeContextKey        planModeContextKey        = "plan_mode"
 )
 
 type ToolInfo struct {

@@ -122,11 +122,8 @@ func TestTodoWriteTool_Run_Success(t *testing.T) {
 
 	// Mock config to use temp directory
 	originalCfg := config.Get()
-	defer func() {
-		if originalCfg != nil {
-			// Can't easily restore global config, but test isolation should handle this
-		}
-	}()
+	// Can't easily restore global config, but test isolation should handle this
+	_ = originalCfg
 
 	// Load a test config
 	testConfig, err := config.Load(tempDir, false, false)

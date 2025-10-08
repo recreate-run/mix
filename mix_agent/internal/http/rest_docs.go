@@ -2249,18 +2249,6 @@ func getSessionDataSchema() map[string]interface{} {
 	}
 }
 
-func getMessageDataSchema() map[string]interface{} {
-	return map[string]interface{}{
-		"$ref": "#/components/schemas/MessageData",
-	}
-}
-
-func getToolCallDataSchema() map[string]interface{} {
-	return map[string]interface{}{
-		"$ref": "#/components/schemas/ToolCallData",
-	}
-}
-
 func getFileInfoSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"$ref": "#/components/schemas/FileInfo",

@@ -465,16 +465,6 @@ type ProviderStatus struct {
 	DisplayName   string `json:"display_name"`
 }
 
-// DEPRECATED: checkOAuthCredentials is replaced by functionality in AuthHandler
-// This method is kept for reference and will be removed in a future update.
-func (h *PreferencesHandler) checkOAuthCredentials(provider string) bool {
-	// Create a temporary AuthHandler to use its OAuth checking function
-	authHandler := NewAuthHandler(h.app)
-
-	// Return the result from the proper implementation
-	return authHandler.checkOAuthCredentials(provider)
-}
-
 // DEPRECATED: getAuthMethod is replaced by functionality in AuthHandler
 // This method is kept for reference and will be removed in a future update.
 func getAuthMethod(hasAPIKey, hasOAuth bool) string {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime"
 	"runtime/debug"
 	"time"
 )
@@ -25,16 +24,6 @@ func init() {
 	slog.SetDefault(slog.New(handler))
 }
 
-func getCaller() string {
-	var caller string
-	if _, file, line, ok := runtime.Caller(2); ok {
-		// caller = fmt.Sprintf("%s:%d", filepath.Base(file), line)
-		caller = fmt.Sprintf("%s:%d", file, line)
-	} else {
-		caller = "unknown"
-	}
-	return caller
-}
 func Info(msg string, args ...any) {
 	slog.Info(msg, args...)
 }

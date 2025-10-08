@@ -477,28 +477,6 @@ func parseOpenAIJWTClaims(token string) (map[string]interface{}, error) {
 	return claims, nil
 }
 
-// parseOpenAIIDTokenInfo extracts ID token information
-func parseOpenAIIDTokenInfo(idToken string) (*OpenAIIDTokenInfo, error) {
-	claims, err := parseOpenAIJWTClaims(idToken)
-	if err != nil {
-		return nil, err
-	}
-
-	info := &OpenAIIDTokenInfo{}
-
-	if email, ok := claims["email"].(string); ok {
-		info.Email = email
-	}
-
-	if authClaims, ok := claims["https://api.openai.com/auth"].(map[string]interface{}); ok {
-		if planType, ok := authClaims["chatgpt_plan_type"].(string); ok {
-			info.ChatGPTPlanType = planType
-		}
-	}
-
-	return info, nil
-}
-
 // openBrowser opens a URL in the default browser
 func openBrowser(url string) error {
 	var err error

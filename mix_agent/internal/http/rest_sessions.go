@@ -389,7 +389,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 
 	// Find the message with the given ID and get its timestamp
 	var rewindTimestamp int64
-	var messageIndex int = -1
+	var messageIndex = -1
 	for i, msg := range allMessages {
 		if msg.ID == req.MessageID {
 			rewindTimestamp = msg.CreatedAt

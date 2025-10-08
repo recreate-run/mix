@@ -402,7 +402,7 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 				// Check if using placeholder auth (indicating no real auth provided)
 				if !a.options.useOAuth && a.providerOptions.apiKey == "" {
 					// Return a proper authentication error that will be handled by the error path
-					return nil, errors.New("authentication_error: Authentication required. Please use /login command to authenticate.")
+					return nil, errors.New("authentication_error: Authentication required. Please use /login command to authenticate")
 				}
 
 				// Try OAuth token refresh if available
@@ -507,7 +507,7 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 		// Send authentication error event instead of content
 		go func() {
 			// Create the authentication error message
-			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate."
+			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate"
 
 			// Send error event that will be properly handled by error handlers
 			eventChan <- interfaces.ProviderEvent{
@@ -549,9 +549,10 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 
 				switch event := event.AsAny().(type) {
 				case anthropic.ContentBlockStartEvent:
-					if event.ContentBlock.Type == "text" {
+					switch event.ContentBlock.Type {
+					case "text":
 						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStart}
-					} else if event.ContentBlock.Type == "tool_use" {
+					case "tool_use":
 						toolCall := &message.ToolCall{
 							ID:       event.ContentBlock.ID,
 							Name:     event.ContentBlock.Name,

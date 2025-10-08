@@ -318,13 +318,6 @@ func generateCodeChallenge(verifier string) string {
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
 }
 
-// generateState creates a random state parameter (matches Python secrets.token_urlsafe(32))
-func generateState() string {
-	bytes := make([]byte, 24) // 24 bytes * 4/3 ≈ 32 characters when base64 encoded
-	rand.Read(bytes)
-	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes)
-}
-
 // GetAuthorizationURL generates the OAuth authorization URL
 func (flow *OAuthFlow) GetAuthorizationURL() string {
 	params := url.Values{

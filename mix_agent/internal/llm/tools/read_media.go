@@ -193,7 +193,7 @@ func (r *readMediaTool) validateGeminiAPIKey(ctx context.Context) error {
 	}
 
 	if apiKey == "" {
-		return fmt.Errorf("Gemini API key not configured")
+		return fmt.Errorf("gemini API key not configured")
 	}
 
 	return nil
