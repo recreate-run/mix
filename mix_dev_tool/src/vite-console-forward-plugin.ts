@@ -1,4 +1,4 @@
-import type { IncomingMessage } from "http";
+import type { IncomingMessage } from "node:http";
 import type { Plugin } from "vite";
 import { createLogger } from "vite";
 
@@ -44,7 +44,7 @@ export function consoleForwardPlugin(
 	} = options;
 
 	const virtualModuleId = "virtual:console-forward";
-	const resolvedVirtualModuleId = "\0" + virtualModuleId;
+	const resolvedVirtualModuleId = `\0${virtualModuleId}`;
 
 	return {
 		name: "console-forward",
@@ -203,7 +203,7 @@ export default { flushLogs };
 				}
 
 				let body = "";
-				request.setEncoding!("utf8");
+				request.setEncoding?.("utf8");
 
 				request.on("data", (chunk: string) => {
 					body += chunk;

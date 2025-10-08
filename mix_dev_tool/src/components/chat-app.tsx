@@ -102,8 +102,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 			// Invalidate preferences to fetch fresh data for the new session
 			queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [session?.id]);
+	}, [session?.id, clearAttachments, queryClient]);
 
 	// Handle navigation to newly created sessions
 	useEffect(() => {
@@ -175,6 +174,8 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 
 	// Handle file upload success
 	const handleFileUploadSuccess = (fileName: string) => {
+		if (!session?.id) return;
+
 		// Add file reference to text input (same behavior as "@" menu)
 		const displayReference = `@${fileName}`;
 		const newText = text
@@ -183,7 +184,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 		setText(newText);
 
 		// Add reference mapping with full URL to ensure consistency with media array
-		const fullUrl = buildSessionFileUrl(session!.id, fileName);
+		const fullUrl = buildSessionFileUrl(session.id, fileName);
 		useBoundStore.getState().addReference(displayReference, fullUrl);
 
 		// Show success notification
@@ -231,7 +232,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 				});
 			}, 100);
 		}
-	}, [messages, sseStream.processing]);
+	}, [messages]);
 
 	const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
 		userMessageRefs.current[index] = el;
@@ -382,7 +383,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 			// Reset interrupted message guard when processing completes
 			interruptedMessageAddedRef.current = false;
 		}
-	}, [sseStream.completed, sseStream.finalContent, sseStream.processing]);
+	}, [
+		sseStream.completed,
+		sseStream.finalContent,
+		sseStream.processing,
+		sseStream.toolCalls.length,
+	]);
 
 	// Handle streaming errors - simple and clean
 	useEffect(() => {

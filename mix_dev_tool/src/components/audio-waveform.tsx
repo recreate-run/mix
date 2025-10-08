@@ -17,7 +17,7 @@ export const AudioWaveform = ({
 			{Array.from({ length: bars }).map((_, i) => (
 				<div
 					className="rounded-full bg-stone-300"
-					key={i}
+					key={`bar-${i}`}
 					style={{
 						width: small ? "2px" : "3px",
 						height: `${heights[i] * 100}%`,

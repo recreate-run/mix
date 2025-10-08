@@ -24,12 +24,12 @@ export const DotFlow = ({ items, isPlaying = true }: DotFlowProps) => {
 
 		const newWidth = textRef.current.offsetWidth + 1;
 		containerRef.current.style.width = `${newWidth}px`;
-	}, [textIndex, items]);
+	});
 
 	useEffect(() => {
 		setIndex(0);
 		setTextIndex(0);
-	}, [items]);
+	}, []);
 
 	const next = () => {
 		if (!containerRef.current) return;

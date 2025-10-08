@@ -95,7 +95,7 @@ export function ResponseRenderer({ content }: ResponseRendererProps) {
 		// If we reach here, it's an unknown JSON structure - log and render as text
 		console.warn("Unknown JSON response structure:", parsedData);
 		return <AIResponse>{content}</AIResponse>;
-	} catch (error) {
+	} catch (_error) {
 		// If JSON parsing fails, it's likely regular chat content
 		return <AIResponse>{content}</AIResponse>;
 	}

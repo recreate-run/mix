@@ -12,15 +12,21 @@ import {
 	handleModelSelectionInHierarchy,
 	handleUnifiedModelCommand,
 } from "@/handlers/unified-model-command-handler";
-import type { CommandSlashProps, ViewState } from "@/types/command-slash";
+import type {
+	CommandSlashProps,
+	HelpData,
+	StatusData,
+	ViewState,
+} from "@/types/command-slash";
+import type { HierarchicalModelData } from "@/types/provider";
 
 interface UseCommandHandlersProps {
 	onFeedbackMessage?: CommandSlashProps["onFeedbackMessage"];
 	onQueryClientInvalidate?: CommandSlashProps["onQueryClientInvalidate"];
 	onClose: CommandSlashProps["onClose"];
-	setStatusData: (data: any) => void;
-	setHierarchicalModelData: (data: any) => void;
-	setHelpData: (data: any) => void;
+	setStatusData: (data: StatusData) => void;
+	setHierarchicalModelData: (data: HierarchicalModelData) => void;
+	setHelpData: (data: HelpData) => void;
 	goToView: (view: ViewState) => void;
 }
 

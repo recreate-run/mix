@@ -105,7 +105,7 @@ export function createVideoUrlAttachment(videoInfo: VideoUrlInfo) {
 export function getYouTubeEmbedUrl(url: string): string | null {
 	for (const pattern of VIDEO_URL_PATTERNS.youtube) {
 		const match = url.match(pattern);
-		if (match && match[1]) {
+		if (match?.[1]) {
 			const videoId = match[1];
 			return `https://www.youtube.com/embed/${videoId}`;
 		}

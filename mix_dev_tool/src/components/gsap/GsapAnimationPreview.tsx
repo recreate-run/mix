@@ -16,9 +16,11 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useAnimationSchema } from "@/hooks/useAnimationSchema";
+import type { AnimationConfig } from "@/types/media";
+import type { ParameterSchema } from "@/utils/gsapApi";
 
 interface GsapAnimationPreviewProps {
-	config: any; // Accept any configuration format from the endpoint
+	config: AnimationConfig;
 }
 
 export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
@@ -138,27 +140,31 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 	const effectiveIframeUrl = isVisible ? iframeUrl : undefined;
 
 	// Update parameter value - support flexible config structure
-	const updateParameter = (key: string, value: any) => {
-		setConfig((prev: any) => ({
+	const updateParameter = (key: string, value: string | number | boolean) => {
+		setConfig((prev) => ({
 			...prev,
 			[key]: value,
 		}));
 	};
 
 	// Render parameter control based on schema
-	const renderParameterControl = (param: any, value: any) => {
+	const renderParameterControl = (
+		param: ParameterSchema,
+		value: string | number | boolean | undefined,
+	) => {
 		const paramKey = param.name;
 
 		switch (param.type) {
 			case "string":
 				if (param.options) {
 					// Dropdown for string options
+					const stringValue = typeof value === "string" ? value : param.default;
 					return (
 						<Select
 							onValueChange={(selectedValue) =>
 								updateParameter(paramKey, selectedValue)
 							}
-							value={value ?? param.default}
+							value={typeof stringValue === "string" ? stringValue : undefined}
 						>
 							<SelectTrigger className="w-full">
 								<SelectValue placeholder="Select option..." />
@@ -178,11 +184,17 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 					<Input
 						onChange={(e) => updateParameter(paramKey, e.target.value)}
 						placeholder={param.description}
-						value={value ?? param.default}
+						value={String(value ?? param.default ?? "")}
 					/>
 				);
 
-			case "number":
+			case "number": {
+				const numValue =
+					typeof value === "number"
+						? value
+						: typeof param.default === "number"
+							? param.default
+							: 0;
 				return (
 					<div className="space-y-2">
 						<Input
@@ -192,7 +204,7 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 								updateParameter(paramKey, Number(e.target.value))
 							}
 							type="number"
-							value={value ?? param.default}
+							value={numValue}
 						/>
 						{param.min !== undefined && param.max !== undefined && (
 							<Input
@@ -203,37 +215,47 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 									updateParameter(paramKey, Number(e.target.value))
 								}
 								type="range"
-								value={value ?? param.default}
+								value={numValue}
 							/>
 						)}
 					</div>
 				);
+			}
 
-			case "boolean":
+			case "boolean": {
+				const boolValue =
+					typeof value === "boolean"
+						? value
+						: typeof param.default === "boolean"
+							? param.default
+							: false;
 				return (
 					<Switch
-						checked={value ?? param.default}
+						checked={boolValue}
 						onCheckedChange={(checked) => updateParameter(paramKey, checked)}
 					/>
 				);
+			}
 
-			case "color":
+			case "color": {
+				const colorValue = String(value ?? param.default ?? "#000000");
 				return (
 					<div className="flex items-center gap-2">
 						<Input
 							className="w-16"
 							onChange={(e) => updateParameter(paramKey, e.target.value)}
 							type="color"
-							value={value ?? param.default}
+							value={colorValue}
 						/>
 						<Input
 							className="flex-1"
 							onChange={(e) => updateParameter(paramKey, e.target.value)}
 							type="text"
-							value={value ?? param.default}
+							value={colorValue}
 						/>
 					</div>
 				);
+			}
 
 			default:
 				return (
@@ -319,7 +341,14 @@ export const GsapAnimationPreview: React.FC<GsapAnimationPreviewProps> = ({
 													</span>
 												)}
 											</Label>
-											{renderParameterControl(param, config[param.name])}
+											{renderParameterControl(
+												param,
+												config[param.name] as
+													| string
+													| number
+													| boolean
+													| undefined,
+											)}
 										</div>
 									))
 								: !(

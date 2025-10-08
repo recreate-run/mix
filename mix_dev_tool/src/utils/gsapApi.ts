@@ -6,11 +6,11 @@ export interface AnimationSchema {
 	parameters: ParameterSchema[];
 }
 
-interface ParameterSchema {
+export interface ParameterSchema {
 	name: string;
 	type: "string" | "number" | "boolean" | "color";
 	description?: string;
-	default?: any;
+	default?: string | number | boolean;
 	min?: number;
 	max?: number;
 	options?: string[];

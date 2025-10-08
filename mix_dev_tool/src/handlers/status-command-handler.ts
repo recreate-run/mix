@@ -6,7 +6,16 @@ import { handleLoginCommand } from "./login-command-handler";
 /**
  * Format provider information for the status UI
  */
-function formatStatusProviders(providers: Record<string, any>): {
+function formatStatusProviders(
+	providers: Record<
+		string,
+		{
+			displayName?: string;
+			authenticated?: boolean;
+			authMethod?: string;
+		}
+	>,
+): {
 	formattedProviders: ProviderInfo[];
 	hasAuthenticatedProvider: boolean;
 } {
@@ -24,8 +33,11 @@ function formatStatusProviders(providers: Record<string, any>): {
 		formattedProviders.push({
 			id,
 			displayName: cleanName,
-			authenticated: provider.authenticated,
-			authMethod: provider.authMethod,
+			authenticated: provider.authenticated ?? false,
+			authMethod: (provider.authMethod === "api_key" ||
+			provider.authMethod === "oauth"
+				? provider.authMethod
+				: undefined) as "api_key" | "oauth" | undefined,
 			isPreferred,
 			authMethods: ["api_key", "oauth"], // Standard auth methods for all providers
 		});

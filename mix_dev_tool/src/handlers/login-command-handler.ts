@@ -44,10 +44,11 @@ export async function handleLoginCommand(): Promise<UIMessage> {
 		// Map available providers from API response for login
 		const providers: LoginProviderInfo[] = Object.entries(
 			response.availableProviders,
-		).map(([providerId, data]: [string, any]) => {
+		).map(([providerId, data]) => {
 			return {
 				id: providerId,
-				displayName: data.displayName || providerId,
+				displayName:
+					(data as { displayName?: string }).displayName || providerId,
 				authMethods: AUTH_METHODS[providerId] || ["api_key"], // Required for login
 				authenticated: status.providers?.[providerId]?.authenticated ?? false,
 				apiKeyFormat: API_KEY_FORMATS[providerId] || "API key",
@@ -170,10 +171,11 @@ export async function startOAuthFlow(provider: string): Promise<UIMessage> {
 
 		const providers: LoginProviderInfo[] = Object.entries(
 			preferencesResponse.availableProviders,
-		).map(([providerId, data]: [string, any]) => {
+		).map(([providerId, data]) => {
 			return {
 				id: providerId,
-				displayName: data.displayName || providerId,
+				displayName:
+					(data as { displayName?: string }).displayName || providerId,
 				authMethods: AUTH_METHODS[providerId] || ["api_key"], // Required for login
 				authenticated: false, // During OAuth flow, not yet authenticated
 				apiKeyFormat: API_KEY_FORMATS[providerId] || "API key",

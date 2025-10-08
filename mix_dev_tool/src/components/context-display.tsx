@@ -84,10 +84,10 @@ export function ContextDisplay({ data }: ContextDisplayProps) {
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{data.components.map((component, index) => (
+					{data.components.map((component) => (
 						<TableRow
 							className={component.isTotal ? "border-t-2 font-semibold" : ""}
-							key={index}
+							key={component.name}
 						>
 							<TableCell>{component.name}</TableCell>
 							<TableCell className="text-right">
