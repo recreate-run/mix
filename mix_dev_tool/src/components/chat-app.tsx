@@ -2,6 +2,7 @@ import { IconDownload } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEventHandler, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	AIInput,
@@ -447,6 +448,9 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 			setText(messageText);
 			// Note: attachments are already cleared, would need more complex state management to restore them
 			console.error("Failed to submit message:", error);
+			toast.error(
+				error instanceof Error ? error.message : "Failed to submit message",
+			);
 		}
 	};
 
