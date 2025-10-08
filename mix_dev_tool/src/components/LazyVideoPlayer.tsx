@@ -30,7 +30,7 @@ export const LazyVideoPlayer = ({ media, sessionId }: LazyVideoPlayerProps) => {
 		}
 
 		return () => observer.disconnect();
-	}, [media.path]); // Reset when media path changes
+	}, []);
 
 	return (
 		<div className="min-h-[200px]" ref={containerRef}>

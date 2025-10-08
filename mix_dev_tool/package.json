@@ -75,7 +75,7 @@
 		"zustand": "^5.0.8"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.1.2",
+		"@biomejs/biome": "2.2.5",
 		"@tanstack/router-plugin": "^1.131.50",
 		"@tauri-apps/cli": "^2.8.4",
 		"@types/color": "^4.2.0",

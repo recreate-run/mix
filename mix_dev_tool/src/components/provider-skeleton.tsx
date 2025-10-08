@@ -21,7 +21,7 @@ export function ProvidersLoadingSkeleton() {
 	return (
 		<div className="space-y-3">
 			{Array.from({ length: 4 }).map((_, i) => (
-				<ProviderSkeleton key={i} />
+				<ProviderSkeleton key={`skeleton-${i}`} />
 			))}
 		</div>
 	);

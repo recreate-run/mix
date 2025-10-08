@@ -164,7 +164,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 		}
 	}
 
-	return groupedEntries.map((group, index) => {
+	return groupedEntries.map((group, _index) => {
 		if (group.type === "thinking") {
 			const totalContent = group.entries.join("");
 			const duration =
@@ -181,7 +181,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 					className="mb-4 w-full"
 					duration={duration > 0 ? duration : undefined}
 					isStreaming={false}
-					key={`thinking-group-${index}`}
+					key={`thinking-${group.timestamps[0]}`}
 				>
 					<AIReasoningTrigger />
 					<AIReasoningContent>{totalContent}</AIReasoningContent>

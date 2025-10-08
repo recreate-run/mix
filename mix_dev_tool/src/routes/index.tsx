@@ -70,7 +70,15 @@ function AutoRedirectHome() {
 		};
 
 		handleRedirect();
-	}, [sessions, isLoading, error, isHandling, navigate, createSession]);
+	}, [
+		sessions,
+		isLoading,
+		error,
+		isHandling,
+		navigate,
+		createSession,
+		animationComplete,
+	]);
 
 	if (error) {
 		return (

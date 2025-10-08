@@ -525,7 +525,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			currentSessionRef.current = "";
 			lastEventIdRef.current = undefined;
 		};
-	}, [sessionId]);
+	}, [
+		sessionId, // Start streaming with SDK
+
+		processEventStream,
+	]);
 
 	// Cleanup on component unmount
 	useEffect(() => {

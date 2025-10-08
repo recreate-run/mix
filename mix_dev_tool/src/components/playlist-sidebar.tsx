@@ -30,7 +30,7 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 	for (const pattern of patterns) {
 		const match = url.match(pattern);
-		if (match && match[1]) {
+		if (match?.[1]) {
 			return match[1];
 		}
 	}
@@ -204,8 +204,9 @@ export const PlaylistSidebar = ({
 									? " border border-primary/30"
 									: "hover:bg-stone-700/30"
 							}`}
-							key={index}
+							key={media.path}
 							onClick={() => onSelect(index)}
+							type="button"
 						>
 							<div className="flex items-center gap-3">
 								{renderThumbnail(media)}

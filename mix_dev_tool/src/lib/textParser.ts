@@ -28,12 +28,11 @@ export class TextParser {
 			const patterns = [`@${filename}`, `@../${filename}`];
 			patterns.forEach((pattern) => {
 				const regex = new RegExp(this.escapeRegex(pattern), "g");
-				let match;
-				while ((match = regex.exec(text)) !== null) {
+				for (const match of text.matchAll(regex)) {
 					matches.push({
 						type: "file-ref",
-						start: match.index,
-						end: match.index + match[0].length,
+						start: match.index ?? 0,
+						end: (match.index ?? 0) + match[0].length,
 						content: match[0],
 					});
 				}
@@ -43,12 +42,11 @@ export class TextParser {
 		this.availableCommands.forEach((command) => {
 			const pattern = `/${command}`;
 			const regex = new RegExp(this.escapeRegex(pattern), "g");
-			let match;
-			while ((match = regex.exec(text)) !== null) {
+			for (const match of text.matchAll(regex)) {
 				matches.push({
 					type: "slash-command",
-					start: match.index,
-					end: match.index + match[0].length,
+					start: match.index ?? 0,
+					end: (match.index ?? 0) + match[0].length,
 					content: match[0],
 				});
 			}

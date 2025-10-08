@@ -28,7 +28,7 @@ const MediaThumbnail = ({
 	sessionId: string;
 }) => {
 	// Safety checks
-	if (!(file && file.name && sessionId)) {
+	if (!(file?.name && sessionId)) {
 		console.error("MediaThumbnail: Missing required props", {
 			file,
 			sessionId,

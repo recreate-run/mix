@@ -54,8 +54,8 @@ export const DotLoader = ({
 			interval.current = setInterval(() => {
 				applyFrameToDots(dots, currentIndex.current);
 				if (currentIndex.current + 1 >= frames.length) {
-					if (repeatCount != -1 && repeats.current + 1 >= repeatCount) {
-						clearInterval(interval.current!);
+					if (repeatCount !== -1 && repeats.current + 1 >= repeatCount) {
+						if (interval.current) clearInterval(interval.current);
 						onComplete?.();
 					}
 					repeats.current++;
@@ -76,7 +76,10 @@ export const DotLoader = ({
 			ref={gridRef}
 		>
 			{Array.from({ length: 49 }).map((_, i) => (
-				<div className={cn("h-1.5 w-1.5 rounded-sm", dotClassName)} key={i} />
+				<div
+					className={cn("h-1.5 w-1.5 rounded-sm", dotClassName)}
+					key={`dot-${i}`}
+				/>
 			))}
 		</div>
 	);

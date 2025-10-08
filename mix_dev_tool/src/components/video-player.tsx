@@ -43,6 +43,43 @@ export const VideoPlayer = ({
 	const progressFillRef = useRef<HTMLDivElement>(null);
 	const isDraggingRef = useRef(false);
 
+	// Get display time (segment-relative for segments)
+	const getDisplayTime = useCallback(
+		(videoTime: number) => {
+			if (!isSegment || startTime === undefined) return videoTime;
+			return Math.max(0, videoTime - startTime);
+		},
+		[isSegment, startTime],
+	);
+
+	// Get display duration (segment duration for segments)
+	const getDisplayDuration = useCallback(() => {
+		if (!isSegment) {
+			return videoRef.current?.duration || 0;
+		}
+		return duration || 0;
+	}, [isSegment, duration]);
+
+	// Unified function to sync timeline position from video element
+	const syncTimelinePosition = useCallback(() => {
+		const video = videoRef.current;
+		if (!(video && Number.isFinite(video.duration))) return;
+
+		const displayDuration = getDisplayDuration();
+		if (displayDuration === 0) return;
+
+		const displayTime = getDisplayTime(video.currentTime);
+		const progress = Math.min(100, (displayTime / displayDuration) * 100);
+
+		// Update DOM directly
+		if (progressFillRef.current) {
+			progressFillRef.current.style.width = `${progress}%`;
+		}
+		if (progressDotRef.current) {
+			progressDotRef.current.style.left = `${progress}%`;
+		}
+	}, [getDisplayTime, getDisplayDuration]);
+
 	useEffect(() => {
 		setIsLoading(true);
 		setHasError(false);
@@ -55,7 +92,7 @@ export const VideoPlayer = ({
 		if (progressDotRef.current) {
 			progressDotRef.current.style.left = "0%";
 		}
-	}, [path]);
+	}, []);
 
 	// Handle startTime/duration changes for segments
 	// Note: This assumes the same video file for all segments (path doesn't change)
@@ -74,7 +111,11 @@ export const VideoPlayer = ({
 			// Sync timeline after segment change
 			syncTimelinePosition();
 		}
-	}, [startTime, duration, isSegment]);
+	}, [
+		startTime,
+		isSegment, // Sync timeline after segment change
+		syncTimelinePosition,
+	]);
 
 	// Cleanup animation frame on unmount
 	useEffect(() => {
@@ -95,40 +136,6 @@ export const VideoPlayer = ({
 		const minutes = Math.floor(seconds / 60);
 		const remainingSeconds = Math.floor(seconds % 60);
 		return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-	};
-
-	// Get display time (segment-relative for segments)
-	const getDisplayTime = (videoTime: number) => {
-		if (!isSegment || startTime === undefined) return videoTime;
-		return Math.max(0, videoTime - startTime);
-	};
-
-	// Get display duration (segment duration for segments)
-	const getDisplayDuration = () => {
-		if (!isSegment) {
-			return videoRef.current?.duration || 0;
-		}
-		return duration || 0;
-	};
-
-	// Unified function to sync timeline position from video element
-	const syncTimelinePosition = () => {
-		const video = videoRef.current;
-		if (!(video && isFinite(video.duration))) return;
-
-		const displayDuration = getDisplayDuration();
-		if (displayDuration === 0) return;
-
-		const displayTime = getDisplayTime(video.currentTime);
-		const progress = Math.min(100, (displayTime / displayDuration) * 100);
-
-		// Update DOM directly
-		if (progressFillRef.current) {
-			progressFillRef.current.style.width = `${progress}%`;
-		}
-		if (progressDotRef.current) {
-			progressDotRef.current.style.left = `${progress}%`;
-		}
 	};
 
 	// Smooth animation loop for timeline
@@ -176,7 +183,7 @@ export const VideoPlayer = ({
 	const throttledSeek = useThrottledCallback(
 		(progress: number) => {
 			const video = videoRef.current;
-			if (!(video?.duration && isFinite(video.duration))) return;
+			if (!(video?.duration && Number.isFinite(video.duration))) return;
 
 			let newTime: number;
 			if (isSegment && startTime !== undefined && duration !== undefined) {
@@ -196,7 +203,7 @@ export const VideoPlayer = ({
 		if (isDraggingRef.current) return;
 
 		const video = videoRef.current;
-		if (!(video?.duration && isFinite(video.duration))) return;
+		if (!(video?.duration && Number.isFinite(video.duration))) return;
 
 		const rect = e.currentTarget.getBoundingClientRect();
 		const clickX = e.clientX - rect.left;
@@ -219,7 +226,7 @@ export const VideoPlayer = ({
 
 	const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
 		const video = videoRef.current;
-		if (!(video?.duration && isFinite(video.duration))) return;
+		if (!(video?.duration && Number.isFinite(video.duration))) return;
 
 		setIsDragging(true);
 		isDraggingRef.current = true;
@@ -295,7 +302,7 @@ export const VideoPlayer = ({
 				document.removeEventListener("mouseup", handleProgressMouseUp);
 			};
 		}
-	}, [isDragging, handleTimelineDrag]);
+	}, [isDragging, handleTimelineDrag, handleProgressMouseUp]);
 
 	const handlePictureInPicture = async () => {
 		if (!videoRef.current) return;
@@ -333,7 +340,6 @@ export const VideoPlayer = ({
 			<div
 				className={`relative rounded-md ${isVertical ? "max-w-[360px]" : "max-w-4xl"} focus:outline-none`}
 				onKeyDown={handleKeyDown}
-				tabIndex={0}
 			>
 				{isLoading && <Skeleton className="aspect-auto" />}
 				<video
@@ -417,50 +423,94 @@ export const VideoPlayer = ({
 				</video>
 
 				{/* Controls */}
-				{!isLoading && (
-					<>
-						{isVertical ? (
-							/* Vertical Layout: Single Row Controls Above Timeline */
-							<div className="absolute right-0 bottom-0 left-0 p-3 ">
-								{/* Control Row */}
-								<div className="mb-1 flex items-center justify-between gap-2 rounded-2xl transition-opacity hover:bg-black/30">
-									{/* Play/Pause Button */}
-									<Button
-										className="rounded-full border-0 text-white hover:bg-white/20"
-										onClick={handlePlayPause}
-										size="icon"
-										variant="ghost"
-									>
-										{isPlaying ? (
-											<IconPlayerPauseFilled className="size-6" />
-										) : (
-											<IconPlayerPlayFilled className="size-6" />
-										)}
-									</Button>
+				{!isLoading &&
+					(isVertical ? (
+						/* Vertical Layout: Single Row Controls Above Timeline */
+						<div className="absolute right-0 bottom-0 left-0 p-3 ">
+							{/* Control Row */}
+							<div className="mb-1 flex items-center justify-between gap-2 rounded-2xl transition-opacity hover:bg-black/30">
+								{/* Play/Pause Button */}
+								<Button
+									className="rounded-full border-0 text-white hover:bg-white/20"
+									onClick={handlePlayPause}
+									size="icon"
+									variant="ghost"
+								>
+									{isPlaying ? (
+										<IconPlayerPauseFilled className="size-6" />
+									) : (
+										<IconPlayerPlayFilled className="size-6" />
+									)}
+								</Button>
 
-									{/* Time Display */}
-									<div className="flex-1 text-center">
-										<span className="font-medium text-sm text-white">
-											{formatTime(getDisplayTime(currentTime))} /{" "}
-											{formatTime(getDisplayDuration())}
-										</span>
-									</div>
-
-									{/* Picture-in-Picture Button */}
-									<Button
-										className=" rounded-full border-0"
-										onClick={handlePictureInPicture}
-										size="icon"
-										title="Picture-in-Picture"
-										variant={"ghost"}
-									>
-										<PictureInPicture className="size-4" />
-									</Button>
+								{/* Time Display */}
+								<div className="flex-1 text-center">
+									<span className="font-medium text-sm text-white">
+										{formatTime(getDisplayTime(currentTime))} /{" "}
+										{formatTime(getDisplayDuration())}
+									</span>
 								</div>
+
+								{/* Picture-in-Picture Button */}
+								<Button
+									className=" rounded-full border-0"
+									onClick={handlePictureInPicture}
+									size="icon"
+									title="Picture-in-Picture"
+									variant={"ghost"}
+								>
+									<PictureInPicture className="size-4" />
+								</Button>
+							</div>
+
+							{/* Progress Bar */}
+							<div
+								className={`relative h-[5px] w-full rounded-full bg-white ${
+									isDragging ? "cursor-grabbing" : "cursor-grab"
+								}`}
+								onClick={handleProgressClick}
+								onMouseDown={handleProgressMouseDown}
+								ref={progressBarRef}
+							>
+								<div
+									className="h-full rounded-full bg-white"
+									ref={progressFillRef}
+									style={{ width: "0%" }}
+								/>
+								<div
+									className={`absolute top-1/2 left-0 h-3 w-3 rounded-full bg-white shadow-lg ${
+										isDragging ? "scale-125" : ""
+									} transition-transform`}
+									ref={progressDotRef}
+									style={{
+										transform: `translateY(-50%) ${isDragging ? "scale(1.25)" : ""}`,
+										left: "0%",
+										marginLeft: "-6px",
+									}}
+								/>
+							</div>
+						</div>
+					) : (
+						/* Horizontal Layout: Single Bottom Row */
+						<div className="absolute right-0 bottom-0 left-0 p-2">
+							<div className="flex items-center gap-2">
+								{/* Play/Pause Button */}
+								<Button
+									className="shrink-0 rounded-full border-0 text-white hover:bg-white/20"
+									onClick={handlePlayPause}
+									size="icon"
+									variant="ghost"
+								>
+									{isPlaying ? (
+										<IconPlayerPauseFilled className="size-6" />
+									) : (
+										<IconPlayerPlayFilled className="size-6" />
+									)}
+								</Button>
 
 								{/* Progress Bar */}
 								<div
-									className={`relative h-[5px] w-full rounded-full bg-white ${
+									className={`relative h-1 flex-1 rounded-full rounded-lg bg-neutral-600/40 py-[5px] backdrop-blur-sm ${
 										isDragging ? "cursor-grabbing" : "cursor-grab"
 									}`}
 									onClick={handleProgressClick}
@@ -473,7 +523,7 @@ export const VideoPlayer = ({
 										style={{ width: "0%" }}
 									/>
 									<div
-										className={`absolute top-1/2 left-0 h-3 w-3 rounded-full bg-white shadow-lg ${
+										className={`absolute top-1/2 left-0 size-3 rounded-full bg-white shadow-lg ${
 											isDragging ? "scale-125" : ""
 										} transition-transform`}
 										ref={progressDotRef}
@@ -484,73 +534,26 @@ export const VideoPlayer = ({
 										}}
 									/>
 								</div>
-							</div>
-						) : (
-							/* Horizontal Layout: Single Bottom Row */
-							<div className="absolute right-0 bottom-0 left-0 p-2">
-								<div className="flex items-center gap-2">
-									{/* Play/Pause Button */}
-									<Button
-										className="shrink-0 rounded-full border-0 text-white hover:bg-white/20"
-										onClick={handlePlayPause}
-										size="icon"
-										variant="ghost"
-									>
-										{isPlaying ? (
-											<IconPlayerPauseFilled className="size-6" />
-										) : (
-											<IconPlayerPlayFilled className="size-6" />
-										)}
-									</Button>
 
-									{/* Progress Bar */}
-									<div
-										className={`relative h-1 flex-1 rounded-full rounded-lg bg-neutral-600/40 py-[5px] backdrop-blur-sm ${
-											isDragging ? "cursor-grabbing" : "cursor-grab"
-										}`}
-										onClick={handleProgressClick}
-										onMouseDown={handleProgressMouseDown}
-										ref={progressBarRef}
-									>
-										<div
-											className="h-full rounded-full bg-white"
-											ref={progressFillRef}
-											style={{ width: "0%" }}
-										/>
-										<div
-											className={`absolute top-1/2 left-0 size-3 rounded-full bg-white shadow-lg ${
-												isDragging ? "scale-125" : ""
-											} transition-transform`}
-											ref={progressDotRef}
-											style={{
-												transform: `translateY(-50%) ${isDragging ? "scale(1.25)" : ""}`,
-												left: "0%",
-												marginLeft: "-6px",
-											}}
-										/>
-									</div>
-
-									{/* Time Display */}
-									<div className="shrink-0 rounded-md bg-black/40 p-1 font-medium text-white text-xs">
-										{formatTime(getDisplayTime(currentTime))} /{" "}
-										{formatTime(getDisplayDuration())}
-									</div>
-
-									{/* Picture-in-Picture Button */}
-									<Button
-										className="h-8 w-8 shrink-0 rounded-full border-0 text-white hover:bg-white/20"
-										onClick={handlePictureInPicture}
-										size="icon"
-										title="Picture-in-Picture"
-										variant={"ghost"}
-									>
-										<PictureInPicture className="size-4" />
-									</Button>
+								{/* Time Display */}
+								<div className="shrink-0 rounded-md bg-black/40 p-1 font-medium text-white text-xs">
+									{formatTime(getDisplayTime(currentTime))} /{" "}
+									{formatTime(getDisplayDuration())}
 								</div>
+
+								{/* Picture-in-Picture Button */}
+								<Button
+									className="h-8 w-8 shrink-0 rounded-full border-0 text-white hover:bg-white/20"
+									onClick={handlePictureInPicture}
+									size="icon"
+									title="Picture-in-Picture"
+									variant={"ghost"}
+								>
+									<PictureInPicture className="size-4" />
+								</Button>
 							</div>
-						)}
-					</>
-				)}
+						</div>
+					))}
 
 				{/* Error overlay - only show if video failed and not loading */}
 				{hasError && !isLoading && (

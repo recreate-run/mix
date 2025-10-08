@@ -54,9 +54,13 @@ export function OAuthCodeDialog({
 			setCode("");
 			onOpenChange(false);
 			onSuccess?.();
-		} catch (error: any) {
+		} catch (error) {
 			console.error("OAuth code submission failed:", error);
-			toast.error(error.message || "Failed to complete OAuth authentication");
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to complete OAuth authentication";
+			toast.error(message);
 		} finally {
 			setIsSubmitting(false);
 		}

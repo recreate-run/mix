@@ -52,7 +52,7 @@ export const AttachmentPreview = ({
 				);
 				onTextChange?.(updatedText);
 			} else {
-				identifier = attachmentToRemove.path!;
+				identifier = attachmentToRemove.path ?? "";
 			}
 
 			// For non-URL attachments, use the existing file reference removal logic
@@ -135,6 +135,7 @@ export const AttachmentPreview = ({
 							<button
 								className="absolute top-1 right-1 z-10 flex items-center justify-center rounded-full bg-red-500/80 p-[2px] transition-colors hover:bg-red-600"
 								onClick={() => handleRemoveItem(index)}
+								type="button"
 							>
 								<X className="size-3 text-white" />
 							</button>

@@ -183,3 +183,100 @@ def get_session_messages(session_id):
         print(f"Failed to get messages for session {session_id}: {e}")
         raise
 ```
+
+## Tool Models
+
+### show_media Tool
+
+```python
+from mix_python_sdk.tool_models import MediaShowcaseParams, MediaOutput, MediaType
+
+# MediaType enum
+class MediaType(str, Enum):
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    GSAP_ANIMATION = "gsap_animation"
+    PDF = "pdf"
+    CSV = "csv"
+
+# MediaOutput class
+class MediaOutput(BaseModel):
+    path: Optional[str]              # Path or URL to media file
+    type: MediaType                   # Type of media
+    title: str                        # Title for the output
+    description: Optional[str]        # Optional description
+    config: Optional[Dict[str, Any]]  # Config for gsap_animation
+    start_time: Optional[int]         # Start time (seconds) for video/audio
+    duration: Optional[int]           # Duration (seconds) for video/audio
+
+# MediaShowcaseParams class
+class MediaShowcaseParams(BaseModel):
+    outputs: List[MediaOutput]        # Array of media outputs
+```
+
+### ReadMedia Tool
+
+```python
+from mix_python_sdk.tool_models import (
+    ReadMediaParams, ReadMediaResult, ReadMediaResponse, MediaAnalysisType
+)
+
+# MediaAnalysisType enum
+class MediaAnalysisType(str, Enum):
+    IMAGE = "image"
+    AUDIO = "audio"
+    VIDEO = "video"
+    PDF = "pdf"
+
+# ReadMediaParams class
+class ReadMediaParams(BaseModel):
+    file_path: str                    # Path or URL to file
+    media_type: MediaAnalysisType     # Type of media
+    prompt: str                       # Analysis prompt
+    pdf_pages: Optional[str]          # Page selection (PDF only)
+    video_interval: Optional[str]     # Time interval (video only)
+
+# ReadMediaResult class
+class ReadMediaResult(BaseModel):
+    file_path: str                    # Path to analyzed file
+    media_type: str                   # Type of media analyzed
+    analysis: str                     # Analysis results
+    error: Optional[str]              # Error message if failed
+
+# ReadMediaResponse class
+class ReadMediaResponse(BaseModel):
+    results: List[ReadMediaResult]    # List of analysis results
+    summary: str                      # Overall summary
+```
+
+### TodoWrite Tool
+
+```python
+from mix_python_sdk.tool_models import (
+    TodoWriteParams, Todo, TodoStatus, TodoPriority
+)
+
+# TodoStatus enum
+class TodoStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+# TodoPriority enum
+class TodoPriority(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+# Todo class
+class Todo(BaseModel):
+    id: str                           # Unique identifier
+    content: str                      # Task description
+    status: TodoStatus                # Current status
+    priority: TodoPriority            # Priority level
+
+# TodoWriteParams class
+class TodoWriteParams(BaseModel):
+    todos: List[Todo]                 # Array of todo items
+```

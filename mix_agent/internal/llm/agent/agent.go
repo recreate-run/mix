@@ -408,6 +408,15 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 
+	// Check authentication before processing
+	authenticated, _, authErr := provider.IsAuthenticated(ctx, "")
+	if authErr != nil {
+		return message.Message{}, nil, fmt.Errorf("failed to check authentication: %w", authErr)
+	}
+	if !authenticated {
+		return message.Message{}, nil, fmt.Errorf("authentication required: please configure your LLM provider credentials using /login or environment variables")
+	}
+
 	// Get session and add working directory to context
 	session, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {

@@ -30,7 +30,7 @@ export function useFileReference(
 	// Reset selection when files change
 	useEffect(() => {
 		setSelected(0);
-	}, [files.length]);
+	}, []);
 
 	// Handle file selection
 	const handleSelection = (selectedFile?: Attachment) => {

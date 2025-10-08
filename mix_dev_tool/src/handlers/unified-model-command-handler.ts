@@ -6,8 +6,11 @@ import type { ProviderWithModels, UIMessage } from "@/types";
  * Format providers with their models for the hierarchical UI
  */
 function formatProvidersWithModels(
-	authProviders: Record<string, any>,
-	availableProviders: Record<string, any>,
+	authProviders: Record<
+		string,
+		{ displayName?: string; authenticated?: boolean; authMethod?: string }
+	>,
+	availableProviders: Record<string, { models?: string[] }>,
 	currentModel?: string,
 ): {
 	providers: ProviderWithModels[];
@@ -40,7 +43,7 @@ function formatProvidersWithModels(
 		}));
 
 		// Sort models - selected first, then alphabetically
-		formattedModels.sort((a: any, b: any) => {
+		formattedModels.sort((a, b) => {
 			if (a.isSelected !== b.isSelected) {
 				return a.isSelected ? -1 : 1;
 			}
@@ -51,8 +54,11 @@ function formatProvidersWithModels(
 		providers.push({
 			id,
 			displayName: cleanName,
-			authenticated: authProvider.authenticated,
-			authMethod: authProvider.authMethod,
+			authenticated: authProvider.authenticated ?? false,
+			authMethod: (authProvider.authMethod === "api_key" ||
+			authProvider.authMethod === "oauth"
+				? authProvider.authMethod
+				: undefined) as "api_key" | "oauth" | undefined,
 			authMethods: ["api_key"], // Default auth methods, could be enhanced to read from config
 			isPreferred,
 			models: formattedModels,

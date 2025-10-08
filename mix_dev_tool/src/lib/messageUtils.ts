@@ -71,7 +71,7 @@ const convertMediaToAttachments = async (
 					} else {
 						attachment = createFileAttachment(mediaPath);
 					}
-				} catch (statError) {
+				} catch (_statError) {
 					// If stat fails, try to create as file based on file extension
 					attachment = createFileAttachment(mediaPath);
 				}
@@ -129,7 +129,7 @@ const convertBackendMessageToUI = async (
 
 	// Create timeline from stored reasoning if available
 	let timeline: TimelineEntry[] | undefined;
-	if (backendMessage.reasoning && backendMessage.reasoning.trim()) {
+	if (backendMessage.reasoning?.trim()) {
 		timeline = [
 			{
 				type: "thinking",

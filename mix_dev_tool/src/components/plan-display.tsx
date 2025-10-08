@@ -17,6 +17,7 @@ function PlanOption({ text, onClick, focused, number }: PlanOptionProps) {
 					: "hover:bg-gray-100 dark:hover:bg-gray-700"
 			}`}
 			onClick={onClick}
+			type="button"
 		>
 			<span className="ml-1">
 				{number}. {text}
