@@ -34,7 +34,7 @@ export async function handleProviderSelection(
 		const preferences = await mix.preferences.get();
 		const providerData = preferences.availableProviders?.[providerId];
 
-		if (providerData && providerData.models && providerData.models.length > 0) {
+		if (providerData?.models && providerData.models.length > 0) {
 			// Format models for UI
 			const currentModel = preferences.preferences?.mainAgentModel || "";
 			const formattedModels = providerData.models.map((modelId: string) => ({
@@ -44,7 +44,7 @@ export async function handleProviderSelection(
 			}));
 
 			// Sort models - selected first, then alphabetically
-			formattedModels.sort((a: any, b: any) => {
+			formattedModels.sort((a, b) => {
 				// Selected model first
 				if (a.isSelected !== b.isSelected) {
 					return a.isSelected ? -1 : 1;

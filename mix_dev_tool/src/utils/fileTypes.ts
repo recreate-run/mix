@@ -63,7 +63,7 @@ export function getFileType(
 	fileName: string,
 	supportedTypes?: SupportedFileTypes,
 ): FileType | null {
-	const extension = "." + fileName.split(".").pop()?.toLowerCase();
+	const extension = `.${fileName.split(".").pop()?.toLowerCase()}`;
 	if (!extension || extension === ".") return null;
 
 	// Handle text files (frontend-only logic)

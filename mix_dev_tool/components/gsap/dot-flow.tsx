@@ -32,12 +32,12 @@ export const DotFlow = ({ items, isPlaying = true }: DotFlowProps) => {
 			duration: 0.5,
 			ease: "power2.out",
 		});
-	}, [textIndex, items]);
+	});
 
 	useEffect(() => {
 		setIndex(0);
 		setTextIndex(0);
-	}, [items]);
+	}, []);
 
 	const next = contextSafe(() => {
 		const el = containerRef.current;

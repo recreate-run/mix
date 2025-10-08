@@ -71,7 +71,7 @@ const formatToolContent = (
 	if (isTaskTool) {
 		// Handle Task tool - extract only the "prompt" parameter
 		if (typeof content === "object" && content !== null) {
-			const promptValue = content["prompt"];
+			const promptValue = content.prompt;
 			processedContent = promptValue ? safeStringify(promptValue) : "";
 		} else {
 			// Try to parse as JSON if it's a string
@@ -80,7 +80,7 @@ const formatToolContent = (
 			if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
 				try {
 					const parsed = JSON.parse(trimmed);
-					const promptValue = parsed["prompt"];
+					const promptValue = parsed.prompt;
 					processedContent = promptValue
 						? safeStringify(promptValue)
 						: stringContent;
@@ -328,6 +328,8 @@ export const AIToolResult = ({
 	toolName,
 	...props
 }: AIToolResultProps & { toolName?: string }) => {
+	const { isCopied, copyToClipboard } = useCopyToClipboard();
+
 	if (!(result || error)) {
 		return null;
 	}
@@ -337,8 +339,6 @@ export const AIToolResult = ({
 		typeof displayContent === "string"
 			? formatToolContent(displayContent, toolName)
 			: displayContent;
-
-	const { isCopied, copyToClipboard } = useCopyToClipboard();
 
 	const handleCopy = () => {
 		const contentToCopy =

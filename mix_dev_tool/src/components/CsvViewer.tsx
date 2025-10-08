@@ -64,7 +64,10 @@ export const CsvViewer = ({ url }: CsvViewerProps) => {
 					<TableHeader>
 						<TableRow>
 							{csvData.headers.map((header, index) => (
-								<TableHead className="bg-muted/50 font-medium" key={index}>
+								<TableHead
+									className="bg-muted/50 font-medium"
+									key={header || `col-${index}`}
+								>
 									{header || `Column ${index + 1}`}
 								</TableHead>
 							))}
@@ -72,9 +75,12 @@ export const CsvViewer = ({ url }: CsvViewerProps) => {
 					</TableHeader>
 					<TableBody>
 						{displayRows.map((row, rowIndex) => (
-							<TableRow key={rowIndex}>
-								{csvData.headers.map((_, colIndex) => (
-									<TableCell className="max-w-xs truncate" key={colIndex}>
+							<TableRow key={`row-${rowIndex}-${row[0] || ""}`}>
+								{csvData.headers.map((header, colIndex) => (
+									<TableCell
+										className="max-w-xs truncate"
+										key={header || `col-${colIndex}`}
+									>
 										{row[colIndex] || ""}
 									</TableCell>
 								))}

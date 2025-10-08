@@ -110,9 +110,14 @@ export const expandFileReferences = (
 	// Check for any remaining unresolved references and throw exception
 	const unresolvedMatches = expandedText.match(/@[^\s]+/g);
 	if (unresolvedMatches) {
-		throw new Error(
-			`Unresolved file references: ${unresolvedMatches.join(", ")}`,
+		const hasHttpReference = unresolvedMatches.some((ref) =>
+			ref.startsWith("@http"),
 		);
+		const errorMessage = hasHttpReference
+			? "Cannot use @http:// URLs directly. Use @ to autocomplete session files (e.g., @filename.csv)"
+			: `Unresolved file references: ${unresolvedMatches.join(", ")}. Use @ to autocomplete session files.`;
+
+		throw new Error(errorMessage);
 	}
 
 	return expandedText;

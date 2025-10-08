@@ -33,14 +33,20 @@ const Tooltip: React.FC<TooltipProps> = ({ children }) => {
 			{React.Children.map(children, (child) => {
 				if (React.isValidElement(child)) {
 					if (child.type === TooltipTrigger) {
-						return React.cloneElement(child as React.ReactElement<any>, {
-							isVisible,
-						});
+						return React.cloneElement(
+							child as React.ReactElement<{ isVisible?: boolean }>,
+							{
+								isVisible,
+							},
+						);
 					}
 					if (child.type === TooltipContent) {
-						return React.cloneElement(child as React.ReactElement<any>, {
-							isVisible,
-						});
+						return React.cloneElement(
+							child as React.ReactElement<{ isVisible?: boolean }>,
+							{
+								isVisible,
+							},
+						);
 					}
 				}
 				return child;

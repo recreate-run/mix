@@ -48,66 +48,60 @@ const MainMediaPlayer = ({
 				/>
 			)}
 
-			{media.type === "video" && (
-				<>
-					{isYouTubeUrl(media.path) ? (
-						<div className="overflow-hidden rounded-md">
-							<iframe
-								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-								allowFullScreen
-								className="aspect-video w-full bg-black"
-								frameBorder="0"
-								onError={(e) => {
-									e.currentTarget.style.display = "none";
-									const fallback = e.currentTarget
-										.nextElementSibling as HTMLElement;
-									if (fallback) fallback.style.display = "block";
-								}}
-								referrerPolicy="strict-origin-when-cross-origin"
-								src={(() => {
-									const baseUrl = getMediaSrc(media.path, sessionId);
-									if (
-										media.startTime !== undefined ||
-										media.duration !== undefined
-									) {
-										try {
-											const url = new URL(baseUrl);
-											if (media.startTime !== undefined) {
-												url.searchParams.set(
-													"start",
-													media.startTime.toString(),
-												);
-											}
-											if (
-												media.duration !== undefined &&
-												media.startTime !== undefined
-											) {
-												url.searchParams.set(
-													"end",
-													(media.startTime + media.duration).toString(),
-												);
-											}
-											return url.toString();
-										} catch {
-											return baseUrl;
+			{media.type === "video" &&
+				(isYouTubeUrl(media.path) ? (
+					<div className="overflow-hidden rounded-md">
+						<iframe
+							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+							allowFullScreen
+							className="aspect-video w-full bg-black"
+							frameBorder="0"
+							onError={(e) => {
+								e.currentTarget.style.display = "none";
+								const fallback = e.currentTarget
+									.nextElementSibling as HTMLElement;
+								if (fallback) fallback.style.display = "block";
+							}}
+							referrerPolicy="strict-origin-when-cross-origin"
+							src={(() => {
+								const baseUrl = getMediaSrc(media.path, sessionId);
+								if (
+									media.startTime !== undefined ||
+									media.duration !== undefined
+								) {
+									try {
+										const url = new URL(baseUrl);
+										if (media.startTime !== undefined) {
+											url.searchParams.set("start", media.startTime.toString());
 										}
+										if (
+											media.duration !== undefined &&
+											media.startTime !== undefined
+										) {
+											url.searchParams.set(
+												"end",
+												(media.startTime + media.duration).toString(),
+											);
+										}
+										return url.toString();
+									} catch {
+										return baseUrl;
 									}
-									return baseUrl;
-								})()}
-								title={media.title}
-							/>
-							<div
-								className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
-								style={{ display: "none" }}
-							>
-								Failed to load YouTube video: {media.path}
-							</div>
+								}
+								return baseUrl;
+							})()}
+							title={media.title}
+						/>
+						<div
+							className="flex h-48 items-center justify-center bg-stone-700 text-stone-400"
+							style={{ display: "none" }}
+						>
+							Failed to load YouTube video: {media.path}
 						</div>
-					) : (
-						<LazyVideoPlayer media={media} sessionId={sessionId} />
-					)}
-				</>
-			)}
+					</div>
+				) : (
+					<LazyVideoPlayer media={media} sessionId={sessionId} />
+				))}
 
 			{media.type === "audio" && (
 				<div className="rounded-md bg-stone-700/30 p-4">
@@ -135,7 +129,7 @@ const MainMediaPlayer = ({
 			)}
 
 			{media.type === "gsap_animation" && media.config && (
-				<GsapAnimationPreview config={media.config as any} />
+				<GsapAnimationPreview config={media.config} />
 			)}
 
 			{media.type === "pdf" && (

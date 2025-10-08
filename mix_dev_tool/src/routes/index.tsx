@@ -70,8 +70,15 @@ function AutoRedirectHome() {
 		};
 
 		handleRedirect();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [sessions, isLoading, error, animationComplete]);
+	}, [
+		sessions,
+		isLoading,
+		error,
+		isHandling,
+		navigate,
+		createSession,
+		animationComplete,
+	]);
 
 	if (error) {
 		return (
