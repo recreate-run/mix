@@ -1,8 +1,7 @@
 ---
-title: "Typescript SDK"
-description: "TypeScript client library for building AI agents with Mix. Type-safe SDK with full IntelliSense support."
+title: "TypeScript SDK"
+description: "Type-safe TypeScript client for building AI agents with Mix. Full IntelliSense support and streaming capabilities."
 ---
-
 
 ## Installation
 
@@ -10,164 +9,832 @@ description: "TypeScript client library for building AI agents with Mix. Type-sa
 npm add mix-typescript-sdk
 ```
 
+For more examples, see the [Mix TypeScript cookbook](https://github.com/recreate-run/mix-cookbooks)
+
 ## Quickstart
 
 ```typescript
 import { Mix } from 'mix-typescript-sdk';
 
-const client = new Mix({
-  serverURL: 'http://localhost:8088',
-});
+const mix = new Mix();
 
-// Create a session
-const session = await client.sessions.create({
-  title: "My First Session"
-});
+async function main() {
+  // Create a session
+  const session = await mix.sessions.create({
+    title: "My First Session"
+  });
 
-// Send a message
-const message = await client.messages.send({
-  sessionId: session.id,
-  content: "Hello from TypeScript SDK"
-});
+  // Start streaming for real-time updates
+  const stream = await mix.streaming.streamEvents({
+    sessionId: session.id
+  });
 
-console.log("Session created:", session.id);
+  // Send a message
+  await mix.messages.send({
+    id: session.id,
+    requestBody: { text: "Hello from TypeScript SDK" }
+  });
+
+  // Process streaming events
+  for await (const event of stream.result) {
+    if (event.data?.type === "content") {
+      process.stdout.write(event.data.content);
+    }
+  }
+}
+
+main();
 ```
 
-For more examples, see the [Mix TypeScript cookbook](https://github.com/recreate-run/mix-cookbooks)
+## API Selection Guide
 
+| API Type | Use Case | Bundle Size | Error Handling | Best For |
+|----------|----------|-------------|----------------|----------|
+| **SDK Class** | Full-featured applications | Larger | Throws errors | Node.js, traditional apps |
+| **Standalone Functions** | Optimized bundles | Smaller (tree-shakeable) | Returns `Result<T, E>` | Browser, serverless |
 
-## Setting Up the Client
+**SDK Class:**
+```typescript
+import { Mix } from 'mix-typescript-sdk';
+const mix = new Mix();
+const session = await mix.sessions.create({ title: "Chat" });
+```
+
+**Standalone Functions:**
+```typescript
+import { MixCore } from 'mix-typescript-sdk/core.js';
+import { sessionsCreate } from 'mix-typescript-sdk/funcs/sessionsCreate.js';
+
+const mix = new MixCore();
+const result = await sessionsCreate(mix, { title: "Chat" });
+if (result.ok) console.log(result.value);
+```
+
+## Functions
+
+### Standalone Functions
+
+All SDK operations are available as standalone functions for tree-shaking optimization. Each function follows the pattern:
+
+```typescript
+import { MixCore } from 'mix-typescript-sdk/core.js';
+import { functionName } from 'mix-typescript-sdk/funcs/functionName.js';
+
+const mix = new MixCore();
+const result = await functionName(mix, params);
+```
+
+**Return Type:** `Result<Value, Error>` - Use `.ok` to check success
+
+**Key Functions:**
+
+| Function | Import Path | Description |
+|----------|-------------|-------------|
+| `sessionsCreate` | `funcs/sessionsCreate.js` | Create new session |
+| `sessionsList` | `funcs/sessionsList.js` | List all sessions |
+| `messagesGetSession` | `funcs/messagesGetSession.js` | Get session messages |
+| `messagesSend` | `funcs/messagesSend.js` | Send message to session |
+| `streamingStreamEvents` | `funcs/streamingStreamEvents.js` | Establish SSE stream |
+| `filesUpload` | `funcs/filesUpload.js` | Upload file to session |
+| `authenticationStoreApiKey` | `funcs/authenticationStoreApiKey.js` | Store provider API key |
+
+### Streaming with Callbacks
+
+**Pattern for callback-based streaming:**
+
+```typescript
+interface StreamCallbacks {
+  onThinking?: (text: string) => void;
+  onContent?: (text: string) => void;
+  onTool?: (tool: any) => void;
+  onToolExecutionStart?: (data: any) => void;
+  onToolExecutionComplete?: (data: any) => void;
+  onError?: (error: string) => void;
+  onPermission?: (data: any) => void;
+  onComplete?: () => void;
+}
+
+async function sendWithCallbacks(
+  mix: Mix,
+  sessionId: string,
+  message: string,
+  callbacks: StreamCallbacks
+): Promise<void> {
+  // Establish stream
+  const stream = await mix.streaming.streamEvents({ sessionId });
+
+  // Allow connection to establish
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Send message in parallel
+  const sendPromise = mix.messages.send({
+    id: sessionId,
+    requestBody: { text: message }
+  });
+
+  // Process events
+  for await (const event of stream.result) {
+    switch (event.event) {
+      case "content":
+        callbacks.onContent?.(event.data.content);
+        break;
+      case "thinking":
+        callbacks.onThinking?.(event.data.content);
+        break;
+      case "complete":
+        callbacks.onComplete?.();
+        await sendPromise;
+        return;
+    }
+  }
+}
+```
+
+## Classes
+
+### Mix
+
+Main SDK class with the following namespaces:
+
+| Namespace | Description | Key Methods |
+|-----------|-------------|-------------|
+| `authentication` | Manage provider credentials | `storeApiKey()`, `startOAuthFlow()`, `getAuthStatus()` |
+| `sessions` | Session management | `create()`, `list()`, `fork()`, `exportSession()` |
+| `messages` | Message operations | `send()`, `getSession()`, `cancelProcessing()` |
+| `streaming` | Real-time SSE events | `streamEvents()` |
+| `files` | File management | `upload()`, `list()`, `get()`, `delete()` |
+| `permissions` | Permission grants | `grant()`, `deny()` |
+| `preferences` | User preferences | `get()`, `update()`, `getProviders()` |
+| `tools` | Tool status | `getToolsStatus()` |
+| `system` | System operations | `healthCheck()`, `listMcpServers()`, `getSystemInfo()` |
+
+**Constructor:**
+
+```typescript
+const mix = new Mix({
+  serverURL?: string;           // Default: http://localhost:8088
+  retryConfig?: RetryConfig;    // SDK-wide retry configuration
+  httpClient?: HTTPClient;      // Custom HTTP client
+  debugLogger?: Logger;         // Debug logging
+});
+```
+
+## Types
+
+### Configuration Types
+
+```typescript
+type Provider = "anthropic" | "openai" | "openrouter" | "google";
+
+type UpdatePreferencesRequest = {
+  preferred_provider?: Provider;
+  main_agent_model?: string;
+  sub_agent_model?: string;
+}
+```
+
+### Session Types
+
+```typescript
+type CreateSessionRequest = {
+  title: string;
+  systemPrompt?: string;  // Custom system prompt
+}
+
+type Session = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### Message Types
+
+```typescript
+type SendMessageRequest = {
+  text: string;
+}
+
+type Message = {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
+```
+
+### Message and Content Types
+
+```typescript
+type FileInfo = {
+  url: string;
+  filename: string;
+  size: number;
+  mimeType: string;
+  createdAt: string;
+}
+
+type SessionExportResponse = {
+  session: Session;
+  messages: Message[];
+  files: FileInfo[];
+}
+
+type ForkSessionRequest = {
+  messageIndex: number;  // Fork at this message index
+}
+
+type RewindSessionRequest = {
+  messageIndex: number;  // Rewind to this message index
+  cleanMedia?: boolean;  // Delete orphaned media files
+}
+```
+
+### Server-Sent Events (SSE) Types
+
+**SSEEventStream Structure:**
+
+```typescript
+type SSEEventStream = AsyncIterable<ServerSentEvent>;
+
+type ServerSentEvent = {
+  event: string;       // Event type
+  data: EventData;     // Event-specific data
+  id?: string;         // Event ID for reconnection
+}
+```
+
+**Event Types:**
+
+| Event Type | Description | Key Fields |
+|------------|-------------|------------|
+| `SSEConnectedEvent` | Connection established | `type: "connected"` |
+| `SSEContentEvent` | AI response chunks | `type: "content"`, `content: string` |
+| `SSEThinkingEvent` | AI reasoning | `type: "thinking"`, `content: string` |
+| `SSEToolEvent` | Tool usage | `type: "tool"`, `name: string`, `input: any` |
+| `SSEToolExecutionStartEvent` | Tool started | `type: "tool_execution_start"`, `toolName: string` |
+| `SSEToolExecutionCompleteEvent` | Tool completed | `type: "tool_execution_complete"`, `toolName: string`, `result: any` |
+| `SSEPermissionEvent` | Permission request | `type: "permission"`, `id: string`, `action: string` |
+| `SSECompleteEvent` | Processing done | `type: "complete"` |
+| `SSEHeartbeatEvent` | Keep-alive heartbeat | `type: "heartbeat"` |
+| `SSEErrorEvent` | Error occurred | `type: "error"`, `error: string` |
+
+### Error Types
+
+```typescript
+class MixError extends Error {
+  statusCode: number;
+  body: string;
+}
+
+class ErrorResponse extends Error {
+  error: string;
+}
+
+// Network errors
+class ConnectionError extends Error {}
+class RequestTimeoutError extends Error {}
+
+// Validation errors
+class ResponseValidationError extends Error {}
+```
+
+### Retry Configuration
+
+```typescript
+type RetryConfig = {
+  strategy: "backoff" | "none";
+  backoff?: {
+    initialInterval: number;    // ms
+    maxInterval: number;        // ms
+    exponent: number;           // multiplier
+    maxElapsedTime: number;     // ms
+  };
+  retryConnectionErrors: boolean;
+}
+```
+
+## Tool Input/Output Types
+
+### Media Tools
+
+**MediaType:** `Image`, `Video`, `Audio`, `GsapAnimation`, `Pdf`, `Csv`
+
+```typescript
+type MediaOutput = {
+  path?: string;              // File path or URL
+  type: MediaType;
+  title: string;
+  description?: string;
+  config?: Record<string, any>;  // For gsap_animation
+  startTime?: number;         // Seconds (video/audio)
+  duration?: number;          // Seconds (video/audio)
+}
+
+type MediaShowcaseParams = {
+  outputs: MediaOutput[];
+}
+```
+
+### Read Media Tool
+
+**MediaAnalysisType:** `Image`, `Audio`, `Video`, `Pdf`
+
+```typescript
+type ReadMediaParams = {
+  filePath: string;
+  mediaType: MediaAnalysisType;
+  prompt: string;
+  pdfPages?: string;          // e.g., "1-5,10"
+  videoInterval?: string;     // e.g., "00:02:30-00:05:00"
+}
+
+type ReadMediaResult = {
+  filePath: string;
+  mediaType: string;
+  analysis: string;
+  error?: string;
+}
+```
+
+### Todo Tool
+
+**TodoStatus:** `Pending`, `InProgress`, `Completed`
+**TodoPriority:** `Low`, `Medium`, `High`
+
+```typescript
+type Todo = {
+  id: string;
+  content: string;
+  status: TodoStatus;
+  priority: TodoPriority;
+}
+
+type TodoWriteParams = {
+  todos: Todo[];
+}
+```
+
+### File Operation Tools
+
+**Bash Tool:**
+```typescript
+type BashParams = {
+  command: string;
+  timeout?: number;  // Max 600000ms (10 min)
+}
+
+type BashResponseMetadata = {
+  start_time: number;  // Unix timestamp (ms)
+  end_time: number;    // Unix timestamp (ms)
+}
+```
+
+**Edit Tool:**
+```typescript
+type EditParams = {
+  file_path: string;
+  old_string: string;
+  new_string: string;
+}
+
+type EditResponseMetadata = {
+  diff: string;        // Unified diff
+  additions: number;   // Lines added
+  removals: number;    // Lines removed
+}
+```
+
+**Read Tool:**
+```typescript
+type ReadTextParams = {
+  file_path: string;
+  offset?: number;   // Line number (0-based)
+  limit?: number;    // Lines to read (default: 2000)
+}
+
+type ReadTextResponseMetadata = {
+  file_path: string;   // Path that was read
+  content: string;     // Raw content without line numbers
+}
+```
+
+**Write Tool:**
+```typescript
+type WriteParams = {
+  file_path: string;
+  content: string;
+}
+
+type WriteResponseMetadata = {
+  diff: string;        // Unified diff
+  additions: number;   // Lines added
+  removals: number;    // Lines removed
+}
+```
+
+**Glob Tool:**
+```typescript
+type GlobParams = {
+  pattern: string;   // e.g., "**/*.ts"
+  path?: string;     // Search directory
+}
+
+type GlobResponseMetadata = {
+  number_of_files: number;  // Files found
+  truncated: boolean;       // Results truncated?
+}
+```
+
+**Grep Tool:**
+```typescript
+type GrepParams = {
+  pattern: string;      // Regex pattern
+  path?: string;
+  include?: string;     // File pattern
+  literal_text?: boolean;
+}
+
+type GrepResponseMetadata = {
+  number_of_matches: number;  // Total matches
+  truncated: boolean;         // Results truncated?
+}
+```
+
+**Python Execution Tool:**
+```typescript
+type PythonExecutionParams = {
+  code: string;  // Python code to execute
+}
+
+type PythonExecutionResult = {
+  type: "code_execution_result";
+  stdout: string;
+  stderr: string;
+  return_code: number;
+}
+```
+
+### Web Tools
+
+**WebFetch:**
+```typescript
+type WebFetchParams = {
+  url: string;
+  prompt: string;
+}
+
+type WebFetchResponseMetadata = {
+  url: string;              // Original URL
+  fetched_url?: string;     // Final URL after redirects
+  content_type?: string;    // Content-Type header
+  start_time: number;       // Unix timestamp (ms)
+  end_time: number;         // Unix timestamp (ms)
+}
+```
+
+**WebSearch:**
+```typescript
+type SearchParams = {
+  query: string;              // Min 2 chars
+  search_type?: "Web" | "Images" | "Videos";
+  allowed_domains?: string[];
+  blocked_domains?: string[];
+  safesearch?: "Strict" | "Moderate" | "Off";
+  spellcheck?: boolean;
+}
+```
+
+### Other Tools
+
+**ExitPlanMode Tool:**
+```typescript
+type ExitPlanModeParams = {
+  plan: string;  // The plan for user approval
+}
+```
+
+**Task Tool (Sub-Agent Delegation):**
+```typescript
+type TaskParams = {
+  prompt: string;           // Task description for sub-agent
+  subagent_type: string;    // Agent type to use
+  description: string;      // Short task description
+}
+```
+
+## Advanced Features
+
+### Continuous Conversations
+
+Multi-turn conversations maintain context within a session:
+
+```typescript
+const session = await mix.sessions.create({
+  title: "Multi-turn Chat"
+});
+
+// Turn 1
+await mix.messages.send({
+  id: session.id,
+  requestBody: { text: "What is TypeScript?" }
+});
+
+// Turn 2 - maintains context from Turn 1
+await mix.messages.send({
+  id: session.id,
+  requestBody: { text: "Show me an example" }
+});
+```
+
+### Session Forking
+
+Create a new session branching from an existing conversation at any message:
+
+```typescript
+// Fork at message index 5
+const forkedSession = await mix.sessions.fork({
+  id: sessionId,
+  requestBody: { messageIndex: 5 }
+});
+
+// Forked session contains messages 0-5 from original
+// Can now explore alternative conversation paths
+```
+
+### Session Rewinding
+
+Delete messages after a specific point in the conversation:
+
+```typescript
+await mix.sessions.rewindSession({
+  id: sessionId,
+  requestBody: {
+    messageIndex: 3,    // Delete messages after index 3
+    cleanMedia: true    // Delete orphaned media files
+  }
+});
+```
+
+### File Management with Thumbnails
+
+Upload files and generate thumbnails for images/videos:
+
+```typescript
+// Upload file
+const file = await mix.files.upload({
+  id: sessionId,
+  requestBody: { file: fileBlob }
+});
+
+// Get thumbnail (images/videos only)
+const thumbnail = await mix.files.get({
+  id: sessionId,
+  filename: file.filename,
+  thumb: true  // Generates thumbnail on-the-fly
+});
+```
+
+### Dual-Agent Configuration
+
+Configure separate models for main agent and sub-agents:
+
+```typescript
+await mix.preferences.update({
+  preferred_provider: "anthropic",
+  main_agent_model: "claude-sonnet-4-5",
+  sub_agent_model: "claude-3-5-haiku-20241022"  // Faster for subtasks
+});
+```
+
+### Debug Logging
+
+Enable debug logging for SDK operations:
+
+```typescript
+const mix = new Mix({
+  debugLogger: console  // Logs all HTTP requests/responses
+});
+
+// Or via environment variable
+// MIX_DEBUG=true
+```
+
+### Low-Level SSE Streaming (CQRS Pattern)
+
+Separate command (send) and query (stream) for advanced control:
+
+```typescript
+// Establish stream first
+const stream = await mix.streaming.streamEvents({
+  sessionId: session.id
+});
+
+// Allow connection to establish
+await new Promise(resolve => setTimeout(resolve, 500));
+
+// Send command in parallel with query
+const sendPromise = mix.messages.send({
+  id: session.id,
+  requestBody: { text: "Your message" }
+});
+
+// Process query stream
+for await (const event of stream.result) {
+  if (event.event === "complete") {
+    await sendPromise;  // Wait for command to complete
+    break;
+  }
+}
+```
+
+### Streaming Events
+
+```typescript
+const stream = await mix.streaming.streamEvents({
+  sessionId: session.id
+});
+
+for await (const event of stream.result) {
+  switch (event.event) {
+    case "content":
+      process.stdout.write(event.data.content);
+      break;
+    case "tool_execution_start":
+      console.log(`🔧 ${event.data.toolName}`);
+      break;
+    case "complete":
+      console.log("\n✓ Done");
+      break;
+  }
+}
+```
+
+### Error Handling
+
+```typescript
+import * as errors from "mix-typescript-sdk/models/errors";
+
+try {
+  await mix.sessions.create({ title: "Test" });
+} catch (error) {
+  if (error instanceof errors.MixError) {
+    console.log(`HTTP ${error.statusCode}: ${error.message}`);
+  } else if (error instanceof errors.ConnectionError) {
+    console.log("Network error");
+  }
+}
+```
+
+### Retry Configuration
+
+**Per-Operation:**
+```typescript
+await mix.sessions.list({}, {
+  retries: {
+    strategy: "backoff",
+    backoff: {
+      initialInterval: 1000,
+      maxInterval: 50000,
+      exponent: 1.5,
+      maxElapsedTime: 100000
+    }
+  }
+});
+```
+
+**SDK-Wide:**
+```typescript
+const mix = new Mix({
+  retryConfig: {
+    strategy: "backoff",
+    backoff: { /* config */ }
+  }
+});
+```
+
+### Custom HTTP Client
+
+```typescript
+import { HTTPClient } from "mix-typescript-sdk/lib/http";
+
+const httpClient = new HTTPClient();
+
+httpClient.addHook("beforeRequest", (request) => {
+  const nextRequest = new Request(request);
+  nextRequest.headers.set("Authorization", `Bearer ${token}`);
+  return nextRequest;
+});
+
+const mix = new Mix({ httpClient });
+```
+
+## Example Usage
+
+### Complete Session Flow
 
 ```typescript
 import { Mix } from 'mix-typescript-sdk';
 
-const client = new Mix({
-  serverURL: 'http://localhost:8088',
+const mix = new Mix({ serverURL: 'http://localhost:8088' });
+
+// Create session
+const session = await mix.sessions.create({
+  title: "Data Analysis"
+});
+
+// Stream events
+const stream = await mix.streaming.streamEvents({
+  sessionId: session.id
+});
+
+// Send message
+await mix.messages.send({
+  id: session.id,
+  requestBody: { text: "Analyze this dataset" }
+});
+
+// Process events
+for await (const event of stream) {
+  if (event.data.type === "content") {
+    console.log(event.data.content);
+  }
+}
+```
+
+### File Upload & Analysis
+
+```typescript
+import { openAsBlob } from "node:fs";
+
+// Upload file
+const file = await mix.files.upload({
+  id: sessionId,
+  requestBody: {
+    file: await openAsBlob("data.csv")
+  }
+});
+
+// Analyze with message
+await mix.messages.send({
+  id: sessionId,
+  requestBody: {
+    text: "Analyze the uploaded CSV file"
+  }
 });
 ```
 
-## Working with Sessions
-
-### Creating a New Session
+### Authentication Flow
 
 ```typescript
-async function createNewSession() {
-  try {
-    const session = await client.sessions.create({
-      title: "My New Session"
-    });
-    console.log("Created session:", session.id);
-    return session;
-  } catch (error) {
-    console.error("Failed to create session:", error);
-    throw error;
-  }
-}
+// API Key
+await mix.authentication.storeApiKey({
+  apiKey: process.env.OPENAI_API_KEY,
+  provider: "openai"
+});
+
+// OAuth
+const url = await mix.authentication.startOAuthFlow({
+  provider: "anthropic"
+});
+console.log("Visit:", url);
+
+// After callback
+await mix.authentication.handleOAuthCallback({
+  code: callbackCode,
+  state: callbackState,
+  provider: "anthropic"
+});
+
+// Check status
+const status = await mix.authentication.getAuthStatus();
 ```
 
-### Listing All Sessions
+### Session Management
 
 ```typescript
-async function listAllSessions() {
-  try {
-    const sessions = await client.sessions.list();
-    console.log(`Found ${sessions.length} sessions`);
-    return sessions;
-  } catch (error) {
-    console.error("Failed to list sessions:", error);
-    throw error;
+// List sessions
+const sessions = await mix.sessions.list();
+
+// Fork at message index
+const forked = await mix.sessions.fork({
+  id: sessionId,
+  requestBody: { messageIndex: 5 }
+});
+
+// Rewind session
+await mix.sessions.rewindSession({
+  id: sessionId,
+  requestBody: {
+    messageIndex: 3,
+    cleanMedia: true
   }
-}
+});
+
+// Export session
+const transcript = await mix.sessions.exportSession({
+  id: sessionId
+});
 ```
-
-### Getting a Specific Session
-
-```typescript
-async function getSessionById(sessionId: string) {
-  try {
-    const session = await client.sessions.get({
-      id: sessionId
-    });
-    console.log("Retrieved session:", session.title);
-    return session;
-  } catch (error) {
-    console.error(`Failed to get session ${sessionId}:`, error);
-    throw error;
-  }
-}
-```
-
-### Deleting a Session
-
-```typescript
-async function deleteSession(sessionId: string) {
-  try {
-    await client.sessions.delete({
-      id: sessionId
-    });
-    console.log(`Session ${sessionId} deleted successfully`);
-  } catch (error) {
-    console.error(`Failed to delete session ${sessionId}:`, error);
-    throw error;
-  }
-}
-```
-
-## Selecting Provider and Model
-
-```typescript
-async function selectProviderAndModel() {
-  try {
-    // Get available providers and models
-    const providers = await client.preferences.getAvailableProviders();
-    console.log('Available providers:', Object.keys(providers));
-    
-    // Set preferred provider and model
-    await client.preferences.updatePreferences({
-      preferred_provider: 'anthropic',
-      main_agent_model: 'claude-4-sonnet'
-    });
-    
-    console.log('Provider and model selected successfully');
-  } catch (error) {
-    console.error('Failed to select provider and model:', error);
-    throw error;
-  }
-}
-```
-
-## Working with Messages
-
-### Sending a Message
-
-```typescript
-async function sendMessage(sessionId: string, content: string) {
-  try {
-    const message = await client.messages.send({
-      sessionId,
-      content
-    });
-    console.log("Message sent with ID:", message.id);
-    return message;
-  } catch (error) {
-    console.error("Failed to send message:", error);
-    throw error;
-  }
-}
-```
-
-### Getting Session Messages
-
-```typescript
-async function getSessionMessages(sessionId: string) {
-  try {
-    const messages = await client.messages.getSession({
-      sessionId
-    });
-    console.log(`Retrieved ${messages.length} messages for session ${sessionId}`);
-    return messages;
-  } catch (error) {
-    console.error(`Failed to get messages for session ${sessionId}:`, error);
-    throw error;
-  }
-}

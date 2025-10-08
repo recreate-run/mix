@@ -53,8 +53,20 @@ Follow `meta.json` section structure: Getting Started → SDKs → Usage → Dev
 SDK pages:
 
 - Single .mdx file per language (NOT a folder)
-- Structure: Installation → Quickstart → Code snippets for various tasks
-- NO "Examples" section - link to [mix-cookbooks](https://github.com/recreate-run/mix-cookbooks/tree/main/) under Quickstart instead
+- Structure (comprehensive reference format):
+  1. Installation - Package installation instructions
+  2. API Selection Guide - Comparison table helping users choose between different APIs (e.g., `query()` vs `ClaudeSDKClient`)
+  3. Functions - Top-level functions with parameters, return types, examples
+  4. Classes - Main classes with methods, lifecycle, context manager support
+  5. Types - All configuration types, message types, content blocks, errors, hooks with complete property tables
+  6. Tool Input/Output Types - Complete schemas for all built-in tools (document structure, not exportable types)
+  7. Advanced Features - Real examples: continuous conversations, hooks, progress monitoring, custom tools
+  8. Example Usage - Common patterns with complete working code
+- Use progressive disclosure: simple APIs → configuration → advanced patterns
+- Include comparison tables for API/method selection decisions
+- Document ALL parameters with tables (parameter, type, default, description)
+- Provide working examples at each complexity level
+- Link to [mix-cookbooks](https://github.com/recreate-run/mix-cookbooks/tree/main/) for additional recipes under installation/quickstart
 
 Architecture pages:
 
