@@ -164,6 +164,9 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	if !authenticated {
 		helpfulMsg := getAuthenticationErrorMessage(ctx)
 
+		// Broadcast error event to SSE so frontend stops processing
+		registry.BroadcastEvent(sessionID, "error", ErrorEvent{Error: helpfulMsg})
+
 		result := MessageData{
 			ID:                "system-auth-prompt",
 			Role:              "assistant",
