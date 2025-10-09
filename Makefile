@@ -75,7 +75,11 @@ frontend-only: install-deps
 browser: install-deps
 	@echo "Starting browser-only development server (no Tauri)..."
 	@echo "Frontend will be available at http://localhost:1420"
-	@cd mix_dev_tool && bun run dev
+	@if [ -f .env ]; then \
+		export $$(grep -v '^#' .env | grep '^VITE_' | xargs) && cd mix_dev_tool && bun run dev; \
+	else \
+		echo "Warning: .env file not found, using defaults" && cd mix_dev_tool && bun run dev; \
+	fi
 
 # Run documentation development server
 docs:
