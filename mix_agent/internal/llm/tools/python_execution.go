@@ -104,14 +104,18 @@ func (p *pythonExecutionTool) executePythonCode(ctx context.Context, code string
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
 
 	// Create temporary Python file
 	tempFile, err := os.CreateTemp(tempDir, "script_*.py")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp script file: %w", err)
 	}
-	defer tempFile.Close()
+	defer func() {
+		_ = tempFile.Close()
+	}()
 
 	// Write the code to the temporary file
 	if _, err := tempFile.WriteString(code); err != nil {

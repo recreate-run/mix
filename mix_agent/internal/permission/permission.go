@@ -127,7 +127,9 @@ func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath 
 		logging.Error("Failed to create root filesystem for session storage directory", "sessionStorageDir", sessionStorageDir, "error", err)
 		return false
 	}
-	defer rootFS.Close()
+	defer func() {
+		_ = rootFS.Close()
+	}()
 
 	// Try to access the requested path through the root using relative path
 	// This will fail if the path involves path traversal or doesn't exist

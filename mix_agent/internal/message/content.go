@@ -325,10 +325,8 @@ func (m *Message) RateLimitInfo() *RateLimitInfo {
 	// Try to extract retry attempt information from the message
 	if strings.Contains(errMsg, "Retrying due to rate limit") {
 		// Try to parse attempt numbers like "attempt 1 of 8"
-		_, err := fmt.Sscanf(errMsg, "Retrying due to rate limit... attempt %d of %d", &retryInfo.Attempt, &retryInfo.MaxAttempts)
-		if err != nil {
-			// If we couldn't parse the format, just use defaults
-		}
+		// If parsing fails, we just use the default values
+		_, _ = fmt.Sscanf(errMsg, "Retrying due to rate limit... attempt %d of %d", &retryInfo.Attempt, &retryInfo.MaxAttempts)
 	}
 	
 	return retryInfo

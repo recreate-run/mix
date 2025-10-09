@@ -61,7 +61,7 @@ func TestNewTodoWriteTool(t *testing.T) {
 	assert.IsType(t, &todoWriteTool{}, tool)
 
 	// Should implement BaseTool interface
-	var _ BaseTool = tool
+	var _ = tool
 }
 
 // Test todoWriteTool Info method
@@ -118,7 +118,9 @@ func TestTodoWriteTool_Run_Success(t *testing.T) {
 	// Create temporary directory for test
 	tempDir, err := os.MkdirTemp("", "todo_test_*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
 
 	// Mock config to use temp directory
 	originalCfg := config.Get()

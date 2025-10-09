@@ -41,8 +41,8 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	testConfigDir := "/tmp/test-mix-" + testName
 	testDataDir := "/tmp/test-mix-data-" + testName
 
-	os.Setenv("_CONFIG_DIR", testConfigDir)
-	os.Setenv("_DATA_DIR", testDataDir)
+	_ = os.Setenv("_CONFIG_DIR", testConfigDir)
+	_ = os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
 	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
@@ -147,7 +147,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Unhandled request received: %s %s", r.Method, r.URL.String())
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("400 Bad Request"))
+		_, _ = w.Write([]byte("400 Bad Request"))
 	})
 
 	// Create test server
@@ -164,7 +164,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 // validateObjectResponse validates success response as object (flattened)
 func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
@@ -180,7 +180,7 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 
 // validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
 func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) ErrorResponse {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)

@@ -54,7 +54,7 @@ func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, cont
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		cancel()
 		t.Fatalf("Expected status 200, got %d. Response: %s", resp.StatusCode, string(body))
 	}
@@ -74,7 +74,7 @@ func sendMessageToQueue(t *testing.T, serverURL, sessionID, content string) {
 	if err != nil {
 		t.Fatalf("Failed to send message to queue: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -169,7 +169,7 @@ func TestSSEConnection(t *testing.T) {
 	// Test persistent SSE connection (no content parameter)
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check content type
 	contentType := resp.Header.Get("Content-Type")
@@ -206,7 +206,7 @@ func TestSSEContentStreaming(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send message through queue
 	sendMessageToQueue(t, result.Server.URL, result.SessionID, createJSONMessage("Hello"))
@@ -258,7 +258,7 @@ func TestSSEToolExecution(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send message that should trigger tools
 	content := "Show me the current working directory"
@@ -358,7 +358,7 @@ func TestSSEErrorHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to SSE stream: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Should receive an error event quickly
 	events := waitForEvents(t, resp, 1, 5*time.Second)
@@ -396,7 +396,7 @@ func TestSSESlashCommandHelp(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send slash command through queue
 	sendMessageToQueue(t, result.Server.URL, result.SessionID, createJSONMessage("/help"))
@@ -491,7 +491,7 @@ func TestPersistentConnection(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Wait for initial connected event
 	events := waitForEvents(t, resp, 1, 5*time.Second)
@@ -523,7 +523,7 @@ func TestMultipleMessages(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send first message
 	sendMessageToQueue(t, result.Server.URL, result.SessionID, createJSONMessage("First message"))

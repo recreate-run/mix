@@ -66,7 +66,7 @@ func TestConcurrentFileOperationsAcrossSessions(t *testing.T) {
 			success := uploadResp != nil && uploadResp.StatusCode == http.StatusCreated
 
 			if uploadResp != nil {
-				uploadResp.Body.Close()
+				_ = uploadResp.Body.Close()
 			}
 
 			fileResults <- TestResult{
@@ -142,7 +142,7 @@ func TestConcurrentToolExecutionAcrossSessions(t *testing.T) {
 			success := msgResp != nil && msgResp.StatusCode == http.StatusOK
 
 			if msgResp != nil {
-				msgResp.Body.Close()
+				_ = msgResp.Body.Close()
 			}
 
 			results <- TestResult{
@@ -266,9 +266,10 @@ func TestConcurrentMessageProcessing(t *testing.T) {
 				"/api/sessions/"+sessionID+"/messages", messageRequest)
 			duration := time.Since(start)
 
-			success := msgResp.StatusCode == http.StatusOK
+			success := false
 			if msgResp != nil {
-				msgResp.Body.Close()
+				success = msgResp.StatusCode == http.StatusOK
+				_ = msgResp.Body.Close()
 			}
 
 			messageResponses <- TestResult{
@@ -338,9 +339,10 @@ func TestSessionIsolationUnderLoad(t *testing.T) {
 				"/api/sessions/"+sid+"/messages", messageRequest)
 			duration := time.Since(start)
 
-			success := msgResp.StatusCode == http.StatusOK
+			success := false
 			if msgResp != nil {
-				msgResp.Body.Close()
+				success = msgResp.StatusCode == http.StatusOK
+				_ = msgResp.Body.Close()
 			}
 
 			isolationResults <- TestResult{
@@ -436,7 +438,7 @@ func BenchmarkConcurrentToolExecution(b *testing.B) {
 			"/api/sessions/"+sessionID+"/messages", messageRequest)
 
 		if msgResp != nil {
-			msgResp.Body.Close()
+			_ = msgResp.Body.Close()
 		}
 	}
 }
@@ -516,10 +518,10 @@ func TestErrorHandlingUnderConcurrency(t *testing.T) {
 
 			// For error handling test, we expect the system to handle errors gracefully
 			// The response should still be valid (200 OK) but may contain error information
-			success := msgResp.StatusCode == http.StatusOK
-
+			success := false
 			if msgResp != nil {
-				msgResp.Body.Close()
+				success = msgResp.StatusCode == http.StatusOK
+				_ = msgResp.Body.Close()
 			}
 
 			errorResults <- TestResult{

@@ -191,7 +191,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	if h.app.Analytics != nil {
 		hasCustomPrompt := req.CustomSystemPrompt != ""
 		customPromptLength := len(req.CustomSystemPrompt)
-		h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
+		_ = h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
 	}
 
 	result := SessionData{
@@ -329,7 +329,7 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 
 	// Track session deletion
 	if h.app.Analytics != nil {
-		h.app.Analytics.TrackSessionDeleted(ctx, sessionID, sessionAgeSeconds, messageCount, session.Cost)
+		_ = h.app.Analytics.TrackSessionDeleted(ctx, sessionID, sessionAgeSeconds, messageCount, session.Cost)
 	}
 
 	// Return 204 No Content for successful deletion
@@ -425,7 +425,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 
 	// Track session rewind
 	if h.app.Analytics != nil {
-		h.app.Analytics.TrackSessionRewound(ctx, sessionID, req.MessageID, messagesDeleted, req.CleanupMedia)
+		_ = h.app.Analytics.TrackSessionRewound(ctx, sessionID, req.MessageID, messagesDeleted, req.CleanupMedia)
 	}
 
 	// Get updated session data

@@ -81,7 +81,9 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 						ClientID:     refreshedCreds.ClientID,
 						Provider:     "anthropic",
 					}
-					credentialsService.StoreOAuthCredentials(ctx, "anthropic", newCreds)
+					if err := credentialsService.StoreOAuthCredentials(ctx, "anthropic", newCreds); err != nil {
+					logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
+				}
 					oauthCreds = refreshedCreds
 				} else {
 					logging.Warn("Failed to refresh OAuth token: %v", err)
@@ -366,13 +368,15 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 			if refreshedCreds, err := RefreshAccessToken(a.options.oauthCreds); err == nil {
 				// Update stored credentials
 				if a.credentialStorage != nil {
-					a.credentialStorage.StoreOAuthCredentials(
+					if err := a.credentialStorage.StoreOAuthCredentials(
 						"anthropic",
 						refreshedCreds.AccessToken,
 						refreshedCreds.RefreshToken,
 						refreshedCreds.ExpiresAt,
 						refreshedCreds.ClientID,
-					)
+					); err != nil {
+						logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
+					}
 				}
 				a.options.oauthCreds = refreshedCreds
 
@@ -410,13 +414,15 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 					if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
 						// Update stored credentials
 						if a.credentialStorage != nil {
-							a.credentialStorage.StoreOAuthCredentials(
+							if err := a.credentialStorage.StoreOAuthCredentials(
 								"anthropic",
 								refreshedCreds.AccessToken,
 								refreshedCreds.RefreshToken,
 								refreshedCreds.ExpiresAt,
 								refreshedCreds.ClientID,
-							)
+							); err != nil {
+								logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
+							}
 						}
 						a.options.oauthCreds = refreshedCreds
 
@@ -481,13 +487,15 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 			if refreshedCreds, err := RefreshAccessToken(a.options.oauthCreds); err == nil {
 				// Update stored credentials
 				if a.credentialStorage != nil {
-					a.credentialStorage.StoreOAuthCredentials(
+					if err := a.credentialStorage.StoreOAuthCredentials(
 						"anthropic",
 						refreshedCreds.AccessToken,
 						refreshedCreds.RefreshToken,
 						refreshedCreds.ExpiresAt,
 						refreshedCreds.ClientID,
-					)
+					); err != nil {
+						logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
+					}
 				}
 				a.options.oauthCreds = refreshedCreds
 
@@ -643,13 +651,15 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 				if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
 					// Update stored credentials
 					if a.credentialStorage != nil {
-						a.credentialStorage.StoreOAuthCredentials(
+						if err := a.credentialStorage.StoreOAuthCredentials(
 							"anthropic",
 							refreshedCreds.AccessToken,
 							refreshedCreds.RefreshToken,
 							refreshedCreds.ExpiresAt,
 							refreshedCreds.ClientID,
-						)
+						); err != nil {
+							logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
+						}
 					}
 					a.options.oauthCreds = refreshedCreds
 

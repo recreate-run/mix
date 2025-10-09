@@ -320,7 +320,7 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 		}
 
 		if len(fieldsChanged) > 0 {
-			h.app.Analytics.TrackPreferencesUpdated(ctx, fieldsChanged, updates)
+			_ = h.app.Analytics.TrackPreferencesUpdated(ctx, fieldsChanged, updates)
 		}
 	}
 
@@ -420,7 +420,7 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 
 	// Track preferences reset
 	if h.app.Analytics != nil {
-		h.app.Analytics.TrackPreferencesReset(ctx, previousProvider, previousModel)
+		_ = h.app.Analytics.TrackPreferencesReset(ctx, previousProvider, previousModel)
 	}
 
 	response := UserPreferencesResponse{

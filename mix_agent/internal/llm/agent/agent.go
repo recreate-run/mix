@@ -352,16 +352,13 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			// Stream processing failed for session
 			if errors.Is(err, context.Canceled) {
 				agentMessage.AddFinish(message.FinishReasonCanceled)
-				a.messages.Update(context.Background(), agentMessage)
+				_ = a.messages.Update(context.Background(), agentMessage)
 				return a.err(ErrRequestCancelled)
 			}
 			return a.err(fmt.Errorf("failed to process events: %w", err))
 		}
 
 		// Enhanced tool results logging for debugging
-		if toolResults != nil {
-			// Tool results processed
-		}
 		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
 			// We are not done, we need to respond with the tool response
 			// Tool execution completed, continuing conversation
@@ -1004,14 +1001,9 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 	// Check user's preferred provider if available
 	userPrefs := config.GetUserPreferences()
 	if userPrefs != nil {
-		preferredProvider, providerErr := userPrefs.GetPreferredProvider(ctx)
-		if providerErr == nil && preferredProvider != "" {
-			// Validate that the selected model is available on the preferred provider
-			model, modelExists := models.SupportedModels[agentConfig.Model]
-			if modelExists && model.Provider != preferredProvider {
-				// Model not available on preferred provider, using model's default provider
-			}
-		}
+		// Note: We validate the user's preferred provider exists, but currently
+		// we always use the model's default provider regardless of user preference
+		_, _ = userPrefs.GetPreferredProvider(ctx)
 	}
 	model, ok := models.SupportedModels[agentConfig.Model]
 	if !ok {

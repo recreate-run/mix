@@ -89,7 +89,7 @@ func TestRESTAPIKeyStorage(t *testing.T) {
 			if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 				t.Fatalf("Failed to decode response: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			// Debugging output
 			t.Logf("Response data: %+v", respData)
@@ -135,7 +135,9 @@ func TestRESTCredentialDeletion(t *testing.T) {
 	}
 
 	storeResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", reqBody)
-	defer storeResp.Body.Close()
+	defer func() {
+		_ = storeResp.Body.Close()
+	}()
 
 	if storeResp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to store API key: status %d", storeResp.StatusCode)
@@ -190,7 +192,7 @@ func TestRESTCredentialDeletion(t *testing.T) {
 			if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 				t.Fatalf("Failed to decode response: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			// Debugging output
 			t.Logf("Response data: %+v", respData)
@@ -266,7 +268,9 @@ func TestRESTAuthStatus(t *testing.T) {
 		"api_key":  "sk-ant-test123456789012345678901234567890123456",
 	}
 	storeResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", reqBody)
-	defer storeResp.Body.Close()
+	defer func() {
+		_ = storeResp.Body.Close()
+	}()
 
 	if storeResp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to store API key: status %d", storeResp.StatusCode)
@@ -339,7 +343,9 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 		"preferred_provider": "anthropic",
 	}
 	prefsResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", prefsBody)
-	defer prefsResp.Body.Close()
+	defer func() {
+		_ = prefsResp.Body.Close()
+	}()
 	if prefsResp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to set preferences: status %d", prefsResp.StatusCode)
 	}
@@ -379,7 +385,9 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 		"api_key":  "sk-ant-test123456789012345678901234567890123456",
 	}
 	authResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", authBody)
-	defer authResp.Body.Close()
+	defer func() {
+		_ = authResp.Body.Close()
+	}()
 	if authResp.StatusCode != http.StatusOK {
 		t.Fatalf("Failed to set API key: status %d", authResp.StatusCode)
 	}
@@ -471,7 +479,7 @@ func TestRESTOAuthFlow(t *testing.T) {
 			if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 				t.Fatalf("Failed to decode response: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			// Debugging output
 			t.Logf("Response data: %+v", respData)
@@ -601,7 +609,7 @@ func TestRESTOAuthCallback(t *testing.T) {
 			if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 				t.Fatalf("Failed to decode response: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			// Debugging output
 			t.Logf("Response data: %+v", respData)
