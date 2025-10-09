@@ -35,7 +35,7 @@ export function useFileReference(
 	// Handle file selection
 	const handleSelection = (selectedFile?: Attachment) => {
 		const file = selectedFile || files[selected];
-		if (!file) return;
+		if (!file || !sessionId) return;
 
 		const words = text.split(" ");
 		const displayReference = `@${file.name}`;
@@ -44,7 +44,7 @@ export function useFileReference(
 
 		// Build full URL using centralized utility
 		const sessionFilePath = `/api/sessions/${sessionId}/files/${file.name}`;
-		const fullUrl = buildSessionFileUrl(sessionId!, file.name);
+		const fullUrl = buildSessionFileUrl(sessionId, file.name);
 
 		// Add to attachment store
 		addAttachment({

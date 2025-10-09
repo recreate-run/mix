@@ -42,7 +42,7 @@ func Connect(ctx context.Context, dataDir string) (*sql.DB, error) {
 	pingCtx, cancel := context.WithTimeout(ctx, DBPingTimeout)
 	defer cancel()
 	if err = db.PingContext(pingCtx); err != nil {
-		db.Close()
+		_ = db.Close() // Ignore close error in cleanup path
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 

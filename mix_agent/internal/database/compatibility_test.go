@@ -22,14 +22,18 @@ func TestAbstractionVsOriginalCompatibility(t *testing.T) {
 	originalDir := filepath.Join(os.TempDir(), "mix_original_test")
 	abstractionDir := filepath.Join(os.TempDir(), "mix_abstraction_test")
 	defer func() {
-		os.RemoveAll(originalDir)
-		os.RemoveAll(abstractionDir)
+		_ = os.RemoveAll(originalDir)
+		_ = os.RemoveAll(abstractionDir)
 	}()
 
 	// Test 1: Original system
 	originalConn, err := db.Connect(ctx, originalDir)
 	require.NoError(t, err, "Original db.Connect should work")
-	defer originalConn.Close()
+	defer func() {
+		if err := originalConn.Close(); err != nil {
+			t.Logf("failed to close original connection: %v", err)
+		}
+	}()
 
 	// Test 2: Abstraction layer
 	config := Config{
@@ -45,7 +49,11 @@ func TestAbstractionVsOriginalCompatibility(t *testing.T) {
 
 	err = manager.Connect(ctx)
 	require.NoError(t, err, "Abstraction Connect should work")
-	defer manager.Close()
+	defer func() {
+		if err := manager.Close(); err != nil {
+			t.Logf("failed to close manager: %v", err)
+		}
+	}()
 
 	abstractionConn := manager.GetDB()
 
@@ -72,11 +80,15 @@ func TestAbstractionVsOriginalCompatibility(t *testing.T) {
 	// Compare: Both should support transactions
 	originalTx, err := originalConn.BeginTx(ctx, nil)
 	require.NoError(t, err)
-	originalTx.Rollback()
+	if err := originalTx.Rollback(); err != nil {
+		t.Fatalf("failed to rollback original transaction: %v", err)
+	}
 
 	abstractionTx, err := abstractionConn.BeginTx(ctx, nil)
 	require.NoError(t, err)
-	abstractionTx.Rollback()
+	if err := abstractionTx.Rollback(); err != nil {
+		t.Fatalf("failed to rollback abstraction transaction: %v", err)
+	}
 
 	// Test SQLC compatibility: Both should work with db.New()
 	originalQuerier := db.New(originalConn)
@@ -107,7 +119,9 @@ func getCurrentMigrationVersion(t *testing.T, conn *sql.DB) string {
 // TestSQLCIntegration ensures our abstraction works with existing SQLC queries
 func TestSQLCIntegration(t *testing.T) {
 	testDir := filepath.Join(os.TempDir(), "mix_sqlc_test")
-	defer os.RemoveAll(testDir)
+	defer func() {
+		_ = os.RemoveAll(testDir)
+	}()
 
 	config := Config{
 		Type: ProviderSQLite,
@@ -123,7 +137,11 @@ func TestSQLCIntegration(t *testing.T) {
 	ctx := context.Background()
 	err = manager.Connect(ctx)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() {
+		if err := manager.Close(); err != nil {
+			t.Logf("failed to close manager: %v", err)
+		}
+	}()
 
 	// Test that SQLC queries work with our abstraction
 	querier := db.New(manager.GetDB())
@@ -138,7 +156,9 @@ func TestSQLCIntegration(t *testing.T) {
 // TestDefaultBehaviorConsistency ensures defaults match the original system
 func TestDefaultBehaviorConsistency(t *testing.T) {
 	testDir := filepath.Join(os.TempDir(), "mix_defaults_test")
-	defer os.RemoveAll(testDir)
+	defer func() {
+		_ = os.RemoveAll(testDir)
+	}()
 
 	// Test that our default filename matches the original
 	config := Config{
@@ -155,7 +175,11 @@ func TestDefaultBehaviorConsistency(t *testing.T) {
 	ctx := context.Background()
 	err = manager.Connect(ctx)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() {
+		if err := manager.Close(); err != nil {
+			t.Logf("failed to close manager: %v", err)
+		}
+	}()
 
 	// Verify the default filename was used (same as original system)
 	expectedPath := filepath.Join(testDir, "mix.db")

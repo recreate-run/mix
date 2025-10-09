@@ -233,7 +233,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 
 	// Add plan mode to context
 	if planMode {
-		genCtx = context.WithValue(genCtx, "plan_mode", true)
+		genCtx = context.WithValue(genCtx, interfaces.PlanModeContextKey, true)
 	}
 
 	// Subscribe to agent events for real-time streaming
@@ -352,16 +352,13 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			// Stream processing failed for session
 			if errors.Is(err, context.Canceled) {
 				agentMessage.AddFinish(message.FinishReasonCanceled)
-				a.messages.Update(context.Background(), agentMessage)
+				_ = a.messages.Update(context.Background(), agentMessage)
 				return a.err(ErrRequestCancelled)
 			}
 			return a.err(fmt.Errorf("failed to process events: %w", err))
 		}
 
 		// Enhanced tool results logging for debugging
-		if toolResults != nil {
-			// Tool results processed
-		}
 		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
 			// We are not done, we need to respond with the tool response
 			// Tool execution completed, continuing conversation
@@ -388,7 +385,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 func (a *agent) createUserMessage(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) (message.Message, error) {
 	// Check if plan mode is active and append system-reminder
 	messageContent := content
-	if ctx.Value("plan_mode") != nil {
+	if ctx.Value(interfaces.PlanModeContextKey) != nil {
 		planModeContent, err := prompt.LoadPrompt(ctx, "plan_mode", nil)
 		if err != nil {
 			return message.Message{}, fmt.Errorf("failed to load plan mode prompt: %w", err)
@@ -433,7 +430,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 	// Filter tools based on plan mode
 	availableTools := a.tools
-	if ctx.Value("plan_mode") != nil {
+	if ctx.Value(interfaces.PlanModeContextKey) != nil {
 		availableTools = filterToolsForPlanMode(a.tools)
 	}
 
@@ -987,13 +984,6 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 	return allowedTools[toolName]
 }
 
-// This function has been deprecated - we're now using database only for credentials
-// Keeping the function signature to avoid breaking code elsewhere
-func getProviderAPIKeyFromEnv(modelProvider models.ModelProvider) string {
-	// Return empty string to force database-only credential lookup
-	return ""
-}
-
 func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error) {
 	// Try to get agent config from database first
 	ctx := context.Background()
@@ -1011,14 +1001,9 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 	// Check user's preferred provider if available
 	userPrefs := config.GetUserPreferences()
 	if userPrefs != nil {
-		preferredProvider, providerErr := userPrefs.GetPreferredProvider(ctx)
-		if providerErr == nil && preferredProvider != "" {
-			// Validate that the selected model is available on the preferred provider
-			model, modelExists := models.SupportedModels[agentConfig.Model]
-			if modelExists && model.Provider != preferredProvider {
-				// Model not available on preferred provider, using model's default provider
-			}
-		}
+		// Note: We validate the user's preferred provider exists, but currently
+		// we always use the model's default provider regardless of user preference
+		_, _ = userPrefs.GetPreferredProvider(ctx)
 	}
 	model, ok := models.SupportedModels[agentConfig.Model]
 	if !ok {
@@ -1258,9 +1243,7 @@ func (a *agent) handleSessionEvents() {
 		if event.Type == pubsub.DeletedEvent {
 			sessionID := event.Payload.ID
 			// Remove cached provider for deleted session
-			if _, existed := a.sessionProviders.LoadAndDelete(sessionID); existed {
-				// Cleaned up session provider cache
-			}
+			a.sessionProviders.LoadAndDelete(sessionID)
 
 			// Also flush any pending messages for this session
 			// Note: This is a best-effort cleanup since we don't track messages by session

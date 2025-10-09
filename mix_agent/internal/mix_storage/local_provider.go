@@ -52,7 +52,9 @@ func (p *LocalProvider) Upload(ctx context.Context, key string, data io.Reader, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	// Copy data and calculate hash
 	hash := md5.New()

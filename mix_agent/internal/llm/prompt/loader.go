@@ -95,11 +95,9 @@ func resolveMarkdownTemplates(content string, vars map[string]string) (string, e
 		fileResult := string(fileContent)
 
 		// Apply variable substitution to included markdown file
-		if vars != nil {
-			for key, value := range vars {
-				placeholder := "$<" + key + ">"
-				fileResult = strings.ReplaceAll(fileResult, placeholder, value)
-			}
+		for key, value := range vars {
+			placeholder := "$<" + key + ">"
+			fileResult = strings.ReplaceAll(fileResult, placeholder, value)
 		}
 
 		// Check for unmatched template variables

@@ -75,7 +75,9 @@ func (p *SupabaseProvider) Upload(ctx context.Context, key string, data io.Reade
 	if err != nil {
 		return nil, fmt.Errorf("upload request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -108,13 +110,13 @@ func (p *SupabaseProvider) Download(ctx context.Context, key string) (io.ReadClo
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("file not found: %s", key)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("download failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -137,7 +139,9 @@ func (p *SupabaseProvider) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("delete request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotFound {
 		body, _ := io.ReadAll(resp.Body)
@@ -174,7 +178,9 @@ func (p *SupabaseProvider) List(ctx context.Context, prefix string) ([]*FileInfo
 	if err != nil {
 		return nil, fmt.Errorf("list request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -229,7 +235,9 @@ func (p *SupabaseProvider) Exists(ctx context.Context, key string) (bool, error)
 	if err != nil {
 		return false, fmt.Errorf("exists check failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Supabase returns 404 or 400 for non-existent files
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusBadRequest {
@@ -273,7 +281,9 @@ func (p *SupabaseProvider) GetPresignedURL(ctx context.Context, key string, expi
 	if err != nil {
 		return "", fmt.Errorf("sign request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

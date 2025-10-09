@@ -84,7 +84,11 @@ func listLocalModels(modelsEndpoint string) []localModel {
 		)
 		return []localModel{}
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			logging.Debug("Failed to close response body", "error", err)
+		}
+	}()
 
 	if res.StatusCode != http.StatusOK {
 		logging.Debug("Failed to list local models",

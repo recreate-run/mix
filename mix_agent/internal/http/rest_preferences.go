@@ -320,7 +320,7 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 		}
 
 		if len(fieldsChanged) > 0 {
-			h.app.Analytics.TrackPreferencesUpdated(ctx, fieldsChanged, updates)
+			_ = h.app.Analytics.TrackPreferencesUpdated(ctx, fieldsChanged, updates)
 		}
 	}
 
@@ -420,7 +420,7 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 
 	// Track preferences reset
 	if h.app.Analytics != nil {
-		h.app.Analytics.TrackPreferencesReset(ctx, previousProvider, previousModel)
+		_ = h.app.Analytics.TrackPreferencesReset(ctx, previousProvider, previousModel)
 	}
 
 	response := UserPreferencesResponse{
@@ -463,16 +463,6 @@ type ProviderStatus struct {
 	Authenticated bool   `json:"authenticated"`
 	AuthMethod    string `json:"auth_method"` // "oauth", "api_key", "none"
 	DisplayName   string `json:"display_name"`
-}
-
-// DEPRECATED: checkOAuthCredentials is replaced by functionality in AuthHandler
-// This method is kept for reference and will be removed in a future update.
-func (h *PreferencesHandler) checkOAuthCredentials(provider string) bool {
-	// Create a temporary AuthHandler to use its OAuth checking function
-	authHandler := NewAuthHandler(h.app)
-
-	// Return the result from the proper implementation
-	return authHandler.checkOAuthCredentials(provider)
 }
 
 // DEPRECATED: getAuthMethod is replaced by functionality in AuthHandler

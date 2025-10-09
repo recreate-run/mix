@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime"
 	"runtime/debug"
 	"time"
 )
@@ -25,16 +24,6 @@ func init() {
 	slog.SetDefault(slog.New(handler))
 }
 
-func getCaller() string {
-	var caller string
-	if _, file, line, ok := runtime.Caller(2); ok {
-		// caller = fmt.Sprintf("%s:%d", filepath.Base(file), line)
-		caller = fmt.Sprintf("%s:%d", file, line)
-	} else {
-		caller = "unknown"
-	}
-	return caller
-}
 func Info(msg string, args ...any) {
 	slog.Info(msg, args...)
 }
@@ -67,12 +56,20 @@ func RecoverPanic(name string, cleanup func()) {
 		if err != nil {
 			Error(fmt.Sprintf("Failed to create panic log: %v", err))
 		} else {
-			defer file.Close()
+			defer func() {
+				_ = file.Close()
+			}()
 
 			// Write panic information and stack trace
-			fmt.Fprintf(file, "Panic in %s: %v\n\n", name, r)
-			fmt.Fprintf(file, "Time: %s\n\n", time.Now().Format(time.RFC3339))
-			fmt.Fprintf(file, "Stack Trace:\n%s\n", debug.Stack())
+			if _, err := fmt.Fprintf(file, "Panic in %s: %v\n\n", name, r); err != nil {
+				Error(fmt.Sprintf("Failed to write panic info: %v", err))
+			}
+			if _, err := fmt.Fprintf(file, "Time: %s\n\n", time.Now().Format(time.RFC3339)); err != nil {
+				Error(fmt.Sprintf("Failed to write timestamp: %v", err))
+			}
+			if _, err := fmt.Fprintf(file, "Stack Trace:\n%s\n", debug.Stack()); err != nil {
+				Error(fmt.Sprintf("Failed to write stack trace: %v", err))
+			}
 
 			Info(fmt.Sprintf("Panic details written to %s", filename))
 		}
