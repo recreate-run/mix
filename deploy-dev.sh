@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script to deploy to Railway dev environment from local
-# This builds from source instead of using release binaries
+# Script to deploy to Railway dev environment
+# Builds binary locally and deploys (fast, no source code upload)
 
 set -e
 
@@ -33,29 +33,81 @@ railway environment dev || {
     exit 1
 }
 
-# Temporarily hide Dockerfile and railway.json so Railway builds from source
-echo "🔧 Temporarily hiding Dockerfile and railway.json..."
-if [ -f "Dockerfile" ]; then
-    mv Dockerfile Dockerfile.prod
-fi
+# Build Linux binary locally
+echo "🔨 Building Linux binary from source..."
+cd mix_agent
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o ../mix-linux ./main.go
+cd ..
+
+echo "✅ Binary built: mix-linux"
+
+# Create temporary deployment Dockerfile
+echo "📝 Creating temporary Dockerfile..."
+cat > Dockerfile.deploy <<'EOF'
+FROM alpine:latest
+
+# Install dependencies
+RUN apk --no-cache add ca-certificates bash ffmpeg
+
+WORKDIR /app
+
+# Copy the pre-built binary
+COPY mix-linux ./mix
+
+EXPOSE 8080
+
+# Create startup script
+RUN printf '#!/bin/bash\nset -e\nPORT=${PORT:-8080}\necho "Starting Mix Agent (DEV) on port $PORT..."\nexec ./mix --http-port "$PORT" --http-host 0.0.0.0\n' > /app/start.sh && \
+    chmod +x /app/start.sh && \
+    chmod +x /app/mix
+
+ENTRYPOINT ["/bin/bash", "/app/start.sh"]
+EOF
+
+# Create temporary railway.json pointing to our Dockerfile
+echo "⚙️  Creating temporary railway config..."
+cat > railway.deploy.json <<'EOF'
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile.deploy"
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+EOF
+
+# Temporarily rename original files
 if [ -f "railway.json" ]; then
-    mv railway.json railway.json.prod
+    mv railway.json railway.json.backup
 fi
+
+# Use our deployment config
+mv railway.deploy.json railway.json
 
 # Deploy to Railway
 echo "📦 Deploying to Railway dev..."
 railway up --detach
 
-# Restore files
-echo "✅ Restoring Dockerfile and railway.json..."
-if [ -f "Dockerfile.prod" ]; then
-    mv Dockerfile.prod Dockerfile
-fi
-if [ -f "railway.json.prod" ]; then
-    mv railway.json.prod railway.json
+# Cleanup
+echo "🧹 Cleaning up..."
+rm -f mix-linux
+rm -f Dockerfile.deploy
+
+# Restore original railway.json
+if [ -f "railway.json.backup" ]; then
+    mv railway.json.backup railway.json
+else
+    rm -f railway.json
 fi
 
 echo ""
 echo "🎉 Deployment started!"
 echo "Check status: railway logs"
 echo "Check service: https://mix-agent-dev.up.railway.app/health"
+echo ""
