@@ -45,24 +45,24 @@ Skip using this tool when:
 ## Examples of When to Use Media Showcase
 
 <example>
-User: Show me http://localhost:8088/api/sessions/550e8400-e29b-41d4-a716-446655440000/files/logo.png
+User: Show me $<server_url>/api/sessions/550e8400-e29b-41d4-a716-446655440000/files/logo.png
 Assistant: Let me display that image for you.
 
 *Uses show_media tool with:*
 
-- Path: <http://localhost:8088/api/sessions/550e8400-e29b-41d4-a716-446655440000/files/logo.png>
+- Path: <$<server_url>/api/sessions/550e8400-e29b-41d4-a716-446655440000/files/logo.png>
 - Type: image
 - Title: Project Logo
 - Description: Logo image from session storage
 </example>
 
 <example>
-User: Show me this image: http://localhost:8088/api/sessions/6ba7b810-9dad-11d1-80b4-00c04fd430c8/files/banner.jpg
+User: Show me this image: $<server_url>/api/sessions/6ba7b810-9dad-11d1-80b4-00c04fd430c8/files/banner.jpg
 Assistant: I'll display that image from the URL for you.
 
 *Uses show_media tool with:*
 
-- Path: <http://localhost:8088/api/sessions/6ba7b810-9dad-11d1-80b4-00c04fd430c8/files/banner.jpg>
+- Path: <$<server_url>/api/sessions/6ba7b810-9dad-11d1-80b4-00c04fd430c8/files/banner.jpg>
 - Type: image
 - Title: Banner Image
 - Description: Banner image from session storage
@@ -210,8 +210,8 @@ outputs (required): Array of media outputs to showcase
 
 ## Usage Notes
 
-- Always use HTTP/HTTPS URLs - Local of absolute file paths are not supported. Use `http://` (not https) for localhost URLs to avoid SSL certificate issues
-- Use session asset server format: `http://localhost:8088/api/sessions/{session-id}/files/{filename}` to show local files in session storage
+- Always use HTTP/HTTPS URLs - Local or absolute file paths are not supported
+- Use session asset server format: `$<server_url>/api/sessions/{session-id}/files/{filename}` to show local files in session storage
 - URLs supported - HTTP/HTTPS URLs work for image, video, and audio types
 - Include meaningful titles - Help users understand what they're viewing  
 - Add descriptions for context - Especially useful for complex or reference materials

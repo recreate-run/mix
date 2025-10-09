@@ -49,6 +49,9 @@ railway variables set STORAGE_PUBLIC_URL_BASE="YOUR_SUPABASE_PUBLIC_URL"
 # Environment
 railway variables set ENV=production
 
+# Public URL (IMPORTANT: Set this to your Railway app URL for file access)
+railway variables set PUBLIC_URL="https://your-app.railway.app"
+
 # Analytics (Optional)
 railway variables set MIX_ANALYTICS_ENABLED=true
 
