@@ -36,14 +36,16 @@ make frontend-typecheck     # Always use this for frontend typechecking
 
 ## Go Error Handling
 
-**Fail fast for business logic. Ignore non-critical operations.**
+Fail fast for business logic. Ignore non-critical operations.
 
 Return errors immediately:
+
 - API calls, database operations, file I/O
 - User-facing operations
 - Business logic failures
 
 Use `_` to explicitly ignore:
+
 - `defer file.Close()` - cleanup
 - `os.Setenv/Unsetenv` - env operations
 - `resp.Body.Close()` - HTTP cleanup
