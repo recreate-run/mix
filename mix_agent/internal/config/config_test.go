@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,16 +33,10 @@ func setupTempConfig(t *testing.T) (string, func()) {
 		userPreferencesService = nil
 		apiCredentialsService = nil
 		cfgMutex.Unlock()
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 	}
 
 	return tempDir, cleanup
-}
-
-func createMockDB(t *testing.T) *sql.DB {
-	// Return nil for unit tests to avoid actual database operations
-	// The initialization functions check for nil and handle appropriately
-	return nil
 }
 
 // Test Load function
@@ -240,14 +233,22 @@ func TestPromptsDirectory(t *testing.T) {
 func TestGetShellPath(t *testing.T) {
 	// Test with SHELL environment variable set
 	originalShell := os.Getenv("SHELL")
-	defer os.Setenv("SHELL", originalShell)
+	defer func() {
+		if err := os.Setenv("SHELL", originalShell); err != nil {
+			t.Fatalf("failed to restore SHELL env var: %v", err)
+		}
+	}()
 
-	os.Setenv("SHELL", "/bin/zsh")
+	if err := os.Setenv("SHELL", "/bin/zsh"); err != nil {
+		t.Fatalf("failed to set SHELL env var: %v", err)
+	}
 	shellPath := getShellPath()
 	assert.Equal(t, "/bin/zsh", shellPath)
 
 	// Test with no SHELL environment variable
-	os.Unsetenv("SHELL")
+	if err := os.Unsetenv("SHELL"); err != nil {
+		t.Fatalf("failed to unset SHELL env var: %v", err)
+	}
 	shellPath = getShellPath()
 	assert.Equal(t, "/bin/bash", shellPath)
 }
@@ -255,25 +256,37 @@ func TestGetShellPath(t *testing.T) {
 // Test getAnalyticsEnabled function
 func TestGetAnalyticsEnabled(t *testing.T) {
 	originalAnalytics := os.Getenv("MIX_ANALYTICS_ENABLED")
-	defer os.Setenv("MIX_ANALYTICS_ENABLED", originalAnalytics)
+	defer func() {
+		if err := os.Setenv("MIX_ANALYTICS_ENABLED", originalAnalytics); err != nil {
+			t.Fatalf("failed to restore MIX_ANALYTICS_ENABLED env var: %v", err)
+		}
+	}()
 
 	// Test with analytics enabled
-	os.Setenv("MIX_ANALYTICS_ENABLED", "true")
+	if err := os.Setenv("MIX_ANALYTICS_ENABLED", "true"); err != nil {
+		t.Fatalf("failed to set MIX_ANALYTICS_ENABLED env var: %v", err)
+	}
 	enabled := getAnalyticsEnabled()
 	assert.True(t, enabled)
 
 	// Test with analytics disabled
-	os.Setenv("MIX_ANALYTICS_ENABLED", "false")
+	if err := os.Setenv("MIX_ANALYTICS_ENABLED", "false"); err != nil {
+		t.Fatalf("failed to set MIX_ANALYTICS_ENABLED env var: %v", err)
+	}
 	enabled = getAnalyticsEnabled()
 	assert.False(t, enabled)
 
 	// Test with analytics set to "1"
-	os.Setenv("MIX_ANALYTICS_ENABLED", "1")
+	if err := os.Setenv("MIX_ANALYTICS_ENABLED", "1"); err != nil {
+		t.Fatalf("failed to set MIX_ANALYTICS_ENABLED env var: %v", err)
+	}
 	enabled = getAnalyticsEnabled()
 	assert.True(t, enabled)
 
 	// Test with no environment variable (should default to true)
-	os.Unsetenv("MIX_ANALYTICS_ENABLED")
+	if err := os.Unsetenv("MIX_ANALYTICS_ENABLED"); err != nil {
+		t.Fatalf("failed to unset MIX_ANALYTICS_ENABLED env var: %v", err)
+	}
 	enabled = getAnalyticsEnabled()
 	assert.True(t, enabled)
 }

@@ -206,7 +206,9 @@ func readTextFile(filePath string, offset, limit int) (string, int, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	lineCount := 0
 
@@ -311,7 +313,9 @@ func isBinaryContent(filePath string) bool {
 	if err != nil {
 		return false // If we can't open it, let the main function handle the error
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	// Read first 512 bytes to check for binary content
 	buffer := make([]byte, 512)
@@ -332,7 +336,7 @@ func isBinaryContent(filePath string) bool {
 	for i := 0; i < n; i++ {
 		b := buffer[i]
 		// Consider printable: ASCII 32-126, tab (9), newline (10), carriage return (13)
-		if !(b >= 32 && b <= 126) && b != 9 && b != 10 && b != 13 {
+		if (b < 32 || b > 126) && b != 9 && b != 10 && b != 13 {
 			nonPrintable++
 		}
 	}
@@ -352,7 +356,7 @@ func readTextFromURL(url string, offset, limit int) (string, int, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to download from URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check for HTTP errors
 	if resp.StatusCode != http.StatusOK {

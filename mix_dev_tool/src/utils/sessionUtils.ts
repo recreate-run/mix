@@ -1,6 +1,13 @@
 import { TITLE_TRUNCATE_LENGTH } from "@/hooks/useSessionsList";
 import type { Session, SessionData } from "@/types/common";
 
+interface MessagePart {
+	type: string;
+	data?: {
+		text?: string;
+	};
+}
+
 /**
  * Helper function to get display title for a session.
  * Extracts text from the first user message or falls back to session title.
@@ -20,11 +27,19 @@ export const getDisplayTitle = (session: SessionData | Session): string => {
 	// Try to parse JSON and extract text from the parts structure
 	let displayText = firstUserMessage;
 	try {
-		const parsed = JSON.parse(firstUserMessage);
-		// Find the first text part in the parts array
-		const textPart = parsed.find((part: any) => part.type === "text");
-		if (textPart?.data?.text) {
-			displayText = textPart.data.text;
+		const parsed: unknown = JSON.parse(firstUserMessage);
+		// Validate that parsed is an array of message parts
+		if (Array.isArray(parsed)) {
+			const textPart = parsed.find(
+				(part): part is MessagePart =>
+					typeof part === "object" &&
+					part !== null &&
+					"type" in part &&
+					part.type === "text",
+			);
+			if (textPart?.data?.text) {
+				displayText = textPart.data.text;
+			}
 		}
 	} catch {
 		// If parsing fails, use the raw message as fallback (likely plain text message)

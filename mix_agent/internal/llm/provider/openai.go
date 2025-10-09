@@ -63,7 +63,9 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 				logging.Info("OpenAI OAuth token expired, attempting refresh...")
 				if refreshedCreds, err := RefreshOpenAIAccessToken(creds); err == nil {
 					// Store refreshed credentials
-					credStorage.StoreOpenAICredentials("openai", refreshedCreds)
+					if err := credStorage.StoreOpenAICredentials("openai", refreshedCreds); err != nil {
+						logging.Warn("Failed to store refreshed OpenAI OAuth credentials", "error", err)
+					}
 					oauthCreds = refreshedCreds
 					logging.Info("OpenAI OAuth token refreshed successfully")
 				} else {
@@ -235,7 +237,7 @@ func (o *openaiClient) preparedParams(messages []openai.ChatCompletionMessagePar
 		Tools:    tools,
 	}
 
-	if o.providerOptions.model.CanReason == true {
+	if o.providerOptions.model.CanReason {
 		params.MaxCompletionTokens = openai.Int(o.providerOptions.maxTokens)
 		switch o.options.reasoningEffort {
 		case "low":
@@ -261,7 +263,9 @@ func (o *openaiClient) Send(ctx context.Context, messages []message.Message, too
 			if refreshedCreds, err := RefreshOpenAIAccessToken(o.options.oauthCreds); err == nil {
 				// Update stored credentials
 				if o.credentialStorage != nil {
-					o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+					if err := o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds); err != nil {
+						logging.Warn("Failed to store refreshed OpenAI OAuth credentials", "error", err)
+					}
 				}
 				o.options.oauthCreds = refreshedCreds
 
@@ -298,7 +302,9 @@ func (o *openaiClient) Send(ctx context.Context, messages []message.Message, too
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
 					// Update stored credentials
 					if o.credentialStorage != nil {
-						o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+						if err := o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds); err != nil {
+							logging.Warn("Failed to store refreshed OpenAI OAuth credentials", "error", err)
+						}
 					}
 					o.options.oauthCreds = refreshedCreds
 
@@ -355,7 +361,9 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 			if refreshedCreds, err := RefreshOpenAIAccessToken(o.options.oauthCreds); err == nil {
 				// Update stored credentials
 				if o.credentialStorage != nil {
-					o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+					if err := o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds); err != nil {
+						logging.Warn("Failed to store refreshed OpenAI OAuth credentials", "error", err)
+					}
 				}
 				o.options.oauthCreds = refreshedCreds
 
@@ -409,8 +417,8 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 			err := openaiStream.Err()
 			if err == nil || errors.Is(err, io.EOF) {
 				// Stream completed successfully
-				finishReason := o.finishReason(string(acc.ChatCompletion.Choices[0].FinishReason))
-				if len(acc.ChatCompletion.Choices[0].Message.ToolCalls) > 0 {
+				finishReason := o.finishReason(string(acc.Choices[0].FinishReason))
+				if len(acc.Choices[0].Message.ToolCalls) > 0 {
 					toolCalls = append(toolCalls, o.toolCalls(acc.ChatCompletion)...)
 				}
 				if len(toolCalls) > 0 {
@@ -443,7 +451,9 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
 					// Update stored credentials
 					if o.credentialStorage != nil {
-						o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds)
+						if err := o.credentialStorage.StoreOpenAICredentials("openai", refreshedCreds); err != nil {
+							logging.Warn("Failed to store refreshed OpenAI OAuth credentials", "error", err)
+						}
 					}
 					o.options.oauthCreds = refreshedCreds
 

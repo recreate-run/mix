@@ -59,7 +59,7 @@ func TestNewManagerTurso(t *testing.T) {
 func TestSQLiteManagerLifecycle(t *testing.T) {
 	// Create a temporary directory for testing
 	testDir := filepath.Join(os.TempDir(), "mix_db_test")
-	defer os.RemoveAll(testDir)
+	defer func() { _ = os.RemoveAll(testDir) }()
 
 	config := Config{
 		Type: ProviderSQLite,
@@ -109,7 +109,7 @@ func TestSQLiteManagerLifecycle(t *testing.T) {
 
 func TestSQLiteProviderDefaults(t *testing.T) {
 	testDir := filepath.Join(os.TempDir(), "mix_db_test_defaults")
-	defer os.RemoveAll(testDir)
+	defer func() { _ = os.RemoveAll(testDir) }()
 
 	config := Config{
 		Type: ProviderSQLite,
@@ -125,7 +125,7 @@ func TestSQLiteProviderDefaults(t *testing.T) {
 	ctx := context.Background()
 	err = manager.Connect(ctx)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() { _ = manager.Close() }()
 
 	// Test that default filename was used
 	dbPath := filepath.Join(testDir, "mix.db")
@@ -135,7 +135,7 @@ func TestSQLiteProviderDefaults(t *testing.T) {
 
 func TestSQLiteProviderMigrations(t *testing.T) {
 	testDir := filepath.Join(os.TempDir(), "mix_db_test_migrations")
-	defer os.RemoveAll(testDir)
+	defer func() { _ = os.RemoveAll(testDir) }()
 
 	config := Config{
 		Type: ProviderSQLite,
@@ -151,7 +151,7 @@ func TestSQLiteProviderMigrations(t *testing.T) {
 	ctx := context.Background()
 	err = manager.Connect(ctx)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() { _ = manager.Close() }()
 
 	// Test that migrations created expected tables
 	db := manager.GetDB()
@@ -189,7 +189,7 @@ func TestSQLiteProviderConnectErrors(t *testing.T) {
 
 func TestManagerMethods(t *testing.T) {
 	testDir := filepath.Join(os.TempDir(), "mix_db_test_methods")
-	defer os.RemoveAll(testDir)
+	defer func() { _ = os.RemoveAll(testDir) }()
 
 	config := Config{
 		Type: ProviderSQLite,
@@ -205,7 +205,7 @@ func TestManagerMethods(t *testing.T) {
 	ctx := context.Background()
 	err = manager.Connect(ctx)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() { _ = manager.Close() }()
 
 	// Test all manager methods work
 	assert.Equal(t, ProviderSQLite, manager.Type())

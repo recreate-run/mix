@@ -125,7 +125,7 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 	if err := credentialsService.StoreAPIKey(r.Context(), models.ModelProvider(string(provider)), request.APIKey); err != nil {
 		// Track failed authentication attempt
 		if h.app.Analytics != nil {
-			h.app.Analytics.TrackProviderAuth(r.Context(), fmt.Sprintf("%s_%s", toolType, provider), false, "api_key")
+			_ = h.app.Analytics.TrackProviderAuth(r.Context(), fmt.Sprintf("%s_%s", toolType, provider), false, "api_key")
 		}
 		WriteErrorResponse(w, http.StatusBadRequest, err.Error(), "TOOL_API_KEY_STORAGE_FAILED")
 		return
@@ -133,7 +133,7 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 
 	// Track successful authentication
 	if h.app.Analytics != nil {
-		h.app.Analytics.TrackProviderAuth(r.Context(), fmt.Sprintf("%s_%s", toolType, provider), true, "api_key")
+		_ = h.app.Analytics.TrackProviderAuth(r.Context(), fmt.Sprintf("%s_%s", toolType, provider), true, "api_key")
 	}
 
 	// Return success response
@@ -200,7 +200,7 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 	// Return success response
 	response := map[string]interface{}{
 		"status":   "success",
-		"message":  fmt.Sprintf("Tool credential deleted successfully"),
+		"message":  "Tool credential deleted successfully",
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)

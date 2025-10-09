@@ -249,12 +249,16 @@ func setupLogging(debug bool) {
 		// Create directories and files if they don't exist
 		if _, err := os.Stat(loggingFile); os.IsNotExist(err) {
 			if err := os.MkdirAll(cfg.Data.Directory, 0o755); err == nil {
-				os.Create(loggingFile)
+				if _, err := os.Create(loggingFile); err != nil {
+					panic(fmt.Sprintf("failed to create logging file: %v", err))
+				}
 			}
 		}
 
 		if _, err := os.Stat(messagesPath); os.IsNotExist(err) {
-			os.MkdirAll(messagesPath, 0o756)
+			if err := os.MkdirAll(messagesPath, 0o756); err != nil {
+				panic(fmt.Sprintf("failed to create messages directory: %v", err))
+			}
 		}
 
 		if sloggingFileWriter, err := os.OpenFile(loggingFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666); err == nil {

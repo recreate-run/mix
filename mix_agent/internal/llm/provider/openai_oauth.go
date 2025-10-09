@@ -178,7 +178,7 @@ func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 			// Shutdown immediately on error
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			flow.server.Shutdown(ctx)
+			_ = flow.server.Shutdown(ctx)
 			return nil, authResult.Error
 		}
 		// Success case - don't shutdown yet, wait for success page to be served
@@ -186,7 +186,7 @@ func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 	case <-time.After(10 * time.Minute): // 10 minute timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		flow.server.Shutdown(ctx)
+		_ = flow.server.Shutdown(ctx)
 		return nil, fmt.Errorf("authentication timeout after 10 minutes")
 	}
 
@@ -196,14 +196,14 @@ func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 		// Success page served, now safe to shutdown
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		flow.server.Shutdown(ctx)
+		_ = flow.server.Shutdown(ctx)
 		return authResult.Credentials, nil
 
 	case <-time.After(30 * time.Second): // Additional timeout for success page
 		// Force shutdown if success page takes too long
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		flow.server.Shutdown(ctx)
+		_ = flow.server.Shutdown(ctx)
 		return authResult.Credentials, nil
 	}
 }
@@ -244,7 +244,9 @@ func (flow *OpenAIOAuthFlow) handleCallback(w http.ResponseWriter, r *http.Reque
 func (flow *OpenAIOAuthFlow) handleSuccess(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(openaiLoginSuccessHTML))
+	if _, err := w.Write([]byte(openaiLoginSuccessHTML)); err != nil {
+		logging.Error("Failed to write success page", "error", err)
+	}
 
 	// Ensure response is fully sent before signaling shutdown
 	if flusher, ok := w.(http.Flusher); ok {
@@ -320,7 +322,9 @@ func (flow *OpenAIOAuthFlow) exchangeAuthCode(code string) (*OpenAICredentials, 
 	if err != nil {
 		return nil, fmt.Errorf("token exchange request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -428,7 +432,9 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 	if err != nil {
 		return "", "", fmt.Errorf("API key exchange request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 
@@ -477,28 +483,6 @@ func parseOpenAIJWTClaims(token string) (map[string]interface{}, error) {
 	return claims, nil
 }
 
-// parseOpenAIIDTokenInfo extracts ID token information
-func parseOpenAIIDTokenInfo(idToken string) (*OpenAIIDTokenInfo, error) {
-	claims, err := parseOpenAIJWTClaims(idToken)
-	if err != nil {
-		return nil, err
-	}
-
-	info := &OpenAIIDTokenInfo{}
-
-	if email, ok := claims["email"].(string); ok {
-		info.Email = email
-	}
-
-	if authClaims, ok := claims["https://api.openai.com/auth"].(map[string]interface{}); ok {
-		if planType, ok := authClaims["chatgpt_plan_type"].(string); ok {
-			info.ChatGPTPlanType = planType
-		}
-	}
-
-	return info, nil
-}
-
 // openBrowser opens a URL in the default browser
 func openBrowser(url string) error {
 	var err error
@@ -538,7 +522,9 @@ func RefreshOpenAIAccessToken(credentials *OpenAICredentials) (*OpenAICredential
 	if err != nil {
 		return nil, fmt.Errorf("token refresh failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

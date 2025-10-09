@@ -21,9 +21,7 @@ func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	
-	if err := json.NewEncoder(w).Encode(spec); err != nil {
-		sendInternalError(w, "generating OpenAPI spec", err)
-	}
+	_ = json.NewEncoder(w).Encode(spec)
 }
 
 // OpenAPI 3.1 specification structures with proper field ordering
@@ -2246,18 +2244,6 @@ func createErrorResponse(description string) map[string]interface{} {
 func getSessionDataSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"$ref": "#/components/schemas/SessionData",
-	}
-}
-
-func getMessageDataSchema() map[string]interface{} {
-	return map[string]interface{}{
-		"$ref": "#/components/schemas/MessageData",
-	}
-}
-
-func getToolCallDataSchema() map[string]interface{} {
-	return map[string]interface{}{
-		"$ref": "#/components/schemas/ToolCallData",
 	}
 }
 

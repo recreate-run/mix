@@ -61,7 +61,7 @@ func (p *SQLiteProvider) Connect(ctx context.Context) error {
 	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err = p.db.PingContext(pingCtx); err != nil {
-		p.db.Close()
+		_ = p.db.Close() // Ignore close error in cleanup path
 		p.db = nil
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
