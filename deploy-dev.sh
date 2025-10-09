@@ -41,9 +41,15 @@ cd ..
 
 echo "✅ Binary built: mix-linux"
 
-# Create temporary deployment Dockerfile
-echo "📝 Creating temporary Dockerfile..."
-cat > Dockerfile.deploy <<'EOF'
+# Backup original Dockerfile
+echo "📝 Backing up original Dockerfile..."
+if [ -f "Dockerfile" ]; then
+    mv Dockerfile Dockerfile.backup
+fi
+
+# Create deployment Dockerfile (temporarily named as Dockerfile)
+echo "📝 Creating deployment Dockerfile..."
+cat > Dockerfile <<'EOF'
 FROM alpine:latest
 
 # Install dependencies
@@ -64,32 +70,6 @@ RUN printf '#!/bin/bash\nset -e\nPORT=${PORT:-8080}\necho "Starting Mix Agent (D
 ENTRYPOINT ["/bin/bash", "/app/start.sh"]
 EOF
 
-# Create temporary railway.json pointing to our Dockerfile
-echo "⚙️  Creating temporary railway config..."
-cat > railway.deploy.json <<'EOF'
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile.deploy"
-  },
-  "deploy": {
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-EOF
-
-# Temporarily rename original files
-if [ -f "railway.json" ]; then
-    mv railway.json railway.json.backup
-fi
-
-# Use our deployment config
-mv railway.deploy.json railway.json
-
 # Deploy to Railway
 echo "📦 Deploying to Railway dev..."
 railway up --detach
@@ -97,13 +77,10 @@ railway up --detach
 # Cleanup
 echo "🧹 Cleaning up..."
 rm -f mix-linux
-rm -f Dockerfile.deploy
 
-# Restore original railway.json
-if [ -f "railway.json.backup" ]; then
-    mv railway.json.backup railway.json
-else
-    rm -f railway.json
+# Restore original Dockerfile
+if [ -f "Dockerfile.backup" ]; then
+    mv Dockerfile.backup Dockerfile
 fi
 
 echo ""
