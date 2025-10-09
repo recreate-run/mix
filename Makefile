@@ -23,7 +23,8 @@ OPENAPI_ENDPOINT=http://localhost:8088/doc
 help:
 	@echo "Available targets:"
 	@echo "  dev         - Install dependencies and run all development servers (backend, frontend, GSAP)"
-	@echo "  frontend-only - Run only the frontend development server"
+	@echo "  frontend-only - Run only the frontend development server (Tauri desktop app)"
+	@echo "  browser     - Run browser-only development server (no Tauri, pure web)"
 	@echo "  docs        - Run documentation development server"
 	@echo "  install     - Install system dependencies (one-time setup)"
 	@echo "  install-deps - Install project dependencies"
@@ -66,9 +67,15 @@ help:
 dev: install-deps
 	@ENV=development ./scripts/shoreman.sh
 
-# Run only frontend development server
+# Run only frontend development server (Tauri desktop app)
 frontend-only: install-deps
 	@ENV=development ./scripts/shoreman.sh Procfile.frontend
+
+# Run browser-only development server (no Tauri, pure web)
+browser: install-deps
+	@echo "Starting browser-only development server (no Tauri)..."
+	@echo "Frontend will be available at http://localhost:1420"
+	@cd mix_dev_tool && bun run dev
 
 # Run documentation development server
 docs:
