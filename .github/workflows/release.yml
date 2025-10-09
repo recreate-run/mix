@@ -127,21 +127,6 @@ jobs:
           retention-days: 30
 
 
-  # Deploy to Railway Dev Environment (on push to dev branch)
-  deploy-dev:
-    needs: release
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
-    container: ghcr.io/railwayapp/cli:latest
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to Railway Dev
-        run: railway up --service=${{ secrets.RAILWAY_DEV_SERVICE_ID }} --detach
-
   # Deploy to Railway Production Environment (only for tagged releases)
   deploy-production:
     needs: release
