@@ -34,7 +34,7 @@ func TestFinalOptimizationResults(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		delta := fmt.Sprintf("Thinking part %d. ", i)
 		assistant.AppendReasoningContent(delta)
-		_ = accumulator.UpdateThinking(assistant.ID, delta)
+		accumulator.UpdateThinking(assistant.ID, delta)
 		time.Sleep(50 * time.Millisecond)
 	}
 	
@@ -46,9 +46,7 @@ func TestFinalOptimizationResults(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		delta := fmt.Sprintf("Content chunk %d. ", i)
 		assistant.AppendContent(delta)
-		if err := accumulator.UpdateContent(assistant.ID, delta); err != nil {
-			t.Logf("UpdateContent failed: %v", err)
-		}
+		accumulator.UpdateContent(assistant.ID, delta)
 		time.Sleep(30 * time.Millisecond)
 	}
 	
@@ -58,9 +56,7 @@ func TestFinalOptimizationResults(t *testing.T) {
 	// Phase 3: Completion
 	t.Log("\nPhase 3: Message completion...")
 	assistant.AddFinish(message.FinishReasonEndTurn)
-	if err := accumulator.FinalizeMessage(assistant.ID, message.FinishReasonEndTurn); err != nil {
-		t.Logf("FinalizeMessage failed: %v", err)
-	}
+	accumulator.FinalizeMessage(assistant.ID, message.FinishReasonEndTurn)
 	
 	finalWrites := mockService.GetTotalUpdateCount()
 	t.Logf("  → After finalization: %d DB writes", finalWrites)
@@ -119,35 +115,27 @@ func TestScenarioComparison(t *testing.T) {
 		// Add thinking
 		for i := 0; i < s.thinkingDeltas; i++ {
 			msg.AppendReasoningContent(".")
-			_ = accumulator.UpdateThinking(msg.ID, ".")
+			accumulator.UpdateThinking(msg.ID, ".")
 		}
-
+		
 		// Add content
 		for i := 0; i < s.contentDeltas; i++ {
 			msg.AppendContent(".")
-			if err := accumulator.UpdateContent(msg.ID, "."); err != nil {
-				t.Logf("UpdateContent failed: %v", err)
-			}
+			accumulator.UpdateContent(msg.ID, ".")
 		}
-
+		
 		// Tool use if applicable
 		if s.hasTools {
-			if err := accumulator.FlushMessage(msg.ID); err != nil {
-				t.Logf("FlushMessage failed: %v", err)
-			}
+			accumulator.FlushMessage(msg.ID) // Tool events flush immediately
 		}
-
+		
 		// Finish
 		if s.isCancelled {
 			msg.AddFinish(message.FinishReasonCanceled)
-			if err := accumulator.FinalizeMessage(msg.ID, message.FinishReasonCanceled); err != nil {
-				t.Logf("FinalizeMessage failed: %v", err)
-			}
+			accumulator.FinalizeMessage(msg.ID, message.FinishReasonCanceled)
 		} else {
 			msg.AddFinish(message.FinishReasonEndTurn)
-			if err := accumulator.FinalizeMessage(msg.ID, message.FinishReasonEndTurn); err != nil {
-				t.Logf("FinalizeMessage failed: %v", err)
-			}
+			accumulator.FinalizeMessage(msg.ID, message.FinishReasonEndTurn)
 		}
 		
 		totalDeltas := s.thinkingDeltas + s.contentDeltas

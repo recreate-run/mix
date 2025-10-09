@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // LoadConfigFromEnv loads storage configuration from environment variables
@@ -55,6 +56,17 @@ func (c *Config) Validate() error {
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+// getEnvBool gets a boolean environment variable or returns a default value
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		b, err := strconv.ParseBool(value)
+		if err == nil {
+			return b
+		}
 	}
 	return defaultValue
 }

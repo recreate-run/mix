@@ -169,7 +169,10 @@ func newPersistentShell(cwd string) *PersistentShell {
 	}()
 
 	go func() {
-		_ = cmd.Wait() // Ignore error on shell cleanup
+		err := cmd.Wait()
+		if err != nil {
+			// Log the error if needed
+		}
 		shell.isAlive = false
 		close(shell.commandQueue)
 	}()
@@ -203,10 +206,10 @@ func (s *PersistentShell) execCommand(command string, timeout time.Duration, ctx
 	cwdFile := filepath.Join(tempDir, fmt.Sprintf("mix-cwd-%d", time.Now().UnixNano()))
 
 	defer func() {
-		_ = os.Remove(stdoutFile)
-		_ = os.Remove(stderrFile)
-		_ = os.Remove(statusFile)
-		_ = os.Remove(cwdFile)
+		os.Remove(stdoutFile)
+		os.Remove(stderrFile)
+		os.Remove(statusFile)
+		os.Remove(cwdFile)
 	}()
 
 	fullCommand := fmt.Sprintf(`
@@ -276,7 +279,7 @@ echo $EXEC_EXIT_CODE > %s
 
 	exitCode := 0
 	if exitCodeStr != "" {
-		_, _ = fmt.Sscanf(exitCodeStr, "%d", &exitCode)
+		fmt.Sscanf(exitCodeStr, "%d", &exitCode)
 	} else if interrupted {
 		exitCode = 143
 		stderr += "\nCommand execution timed out or was interrupted"
@@ -308,11 +311,11 @@ func (s *PersistentShell) killChildren() {
 	for pidStr := range strings.SplitSeq(string(output), "\n") {
 		if pidStr = strings.TrimSpace(pidStr); pidStr != "" {
 			var pid int
-			_, _ = fmt.Sscanf(pidStr, "%d", &pid)
+			fmt.Sscanf(pidStr, "%d", &pid)
 			if pid > 0 {
 				proc, err := os.FindProcess(pid)
 				if err == nil {
-					_ = proc.Signal(syscall.SIGTERM)
+					proc.Signal(syscall.SIGTERM)
 				}
 			}
 		}
@@ -346,9 +349,9 @@ func (s *PersistentShell) Close() {
 		return
 	}
 
-	_, _ = s.stdin.Write([]byte("exit\n"))
+	s.stdin.Write([]byte("exit\n"))
 
-	_ = s.cmd.Process.Kill()
+	s.cmd.Process.Kill()
 	s.isAlive = false
 }
 

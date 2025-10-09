@@ -422,7 +422,7 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 	// Track session export
 	if h.app.Analytics != nil {
 		totalTokens := session.PromptTokens + session.CompletionTokens
-		_ = h.app.Analytics.TrackSessionExported(ctx, sessionID, len(messages), session.Cost, totalTokens)
+		h.app.Analytics.TrackSessionExported(ctx, sessionID, len(messages), session.Cost, totalTokens)
 	}
 
 	// Set content disposition header for file download

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -47,8 +48,8 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	testConfigDir := "/tmp/test-mix-" + testName
 	testDataDir := "/tmp/test-mix-data-" + testName
 
-	_ = os.Setenv("_CONFIG_DIR", testConfigDir)
-	_ = os.Setenv("_DATA_DIR", testDataDir)
+	os.Setenv("_CONFIG_DIR", testConfigDir)
+	os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
 	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
@@ -155,6 +156,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 		httphandlers.HandleSSEStream(ctx, testApp, w, r)
 	})
 
+
 	// Health check endpoint (always enabled)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		healthData := map[string]interface{}{
@@ -167,9 +169,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Unhandled request received: %s %s", r.Method, r.URL.String())
 		w.WriteHeader(http.StatusBadRequest)
-		if _, err := w.Write([]byte("400 Bad Request")); err != nil {
-			t.Logf("Failed to write error response: %v", err)
-		}
+		w.Write([]byte("400 Bad Request"))
 	})
 
 	// Create test server
@@ -226,7 +226,7 @@ func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 
 // validateObjectResponse validates success response as object (flattened)
 func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
@@ -242,7 +242,7 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 
 // validateArrayResponse validates success response as array (flattened)
 func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int) []interface{} {
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
@@ -256,9 +256,19 @@ func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int
 	return responseData
 }
 
+// mockOAuthFlow creates a mock OAuth flow for testing purposes
+func mockOAuthFlow(t *testing.T, server *httptest.Server, provider string) (string, string) {
+	// Generate a state token and auth URL
+	stateToken := "mock-oauth-state-" + provider
+	authURL := "https://example.com/oauth/authorize?client_id=mock&state=" + stateToken
+
+	// Return the mock state token and auth URL
+	return stateToken, authURL
+}
+
 // validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
 func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) httphandlers.ErrorResponse {
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
@@ -274,6 +284,15 @@ func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int
 	}
 
 	return errorResponse
+}
+
+// createJSONMessage creates a proper JSON message structure for testing
+func createJSONMessage(text string) string {
+	msgContent := map[string]interface{}{
+		"text": text,
+	}
+	jsonData, _ := json.Marshal(msgContent)
+	return string(jsonData)
 }
 
 // makeMultipartFileRequest creates and sends a multipart file upload request
@@ -358,4 +377,31 @@ func makeMultipartFileRequestFromBytes(t *testing.T, server *httptest.Server, pa
 	}
 
 	return resp
+}
+
+// setupTestAPICredentials configures test API credentials for integration testing
+func setupTestAPICredentials(t *testing.T, app *app.App) {
+	ctx := context.Background()
+	
+	// Get credentials service from config (should be initialized by app.New)
+	credService := config.GetAPICredentials()
+	if credService == nil {
+		t.Fatal("Credentials service not available in test environment")
+	}
+	
+	// Add test API key for Anthropic (most commonly used in tests)
+	testAPIKey := "sk-ant-test-key-for-integration-testing-only-12345678901234567890"
+	err := credService.StoreAPIKey(ctx, "anthropic", testAPIKey)
+	if err != nil {
+		t.Fatalf("Failed to setup test Anthropic API credentials: %v", err)  
+	}
+	
+	// Also add OpenAI credentials for comprehensive testing
+	openaiTestKey := "sk-test-openai-key-for-integration-testing-only-12345678901234567890"
+	err = credService.StoreAPIKey(ctx, "openai", openaiTestKey)
+	if err != nil {
+		t.Fatalf("Failed to setup test OpenAI API credentials: %v", err)  
+	}
+	
+	t.Log("✅ Test API credentials configured (anthropic, openai)")
 }

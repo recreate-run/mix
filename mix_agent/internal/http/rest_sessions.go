@@ -191,7 +191,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	if h.app.Analytics != nil {
 		hasCustomPrompt := req.CustomSystemPrompt != ""
 		customPromptLength := len(req.CustomSystemPrompt)
-		_ = h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
+		h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
 	}
 
 	result := SessionData{
@@ -329,7 +329,7 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 
 	// Track session deletion
 	if h.app.Analytics != nil {
-		_ = h.app.Analytics.TrackSessionDeleted(ctx, sessionID, sessionAgeSeconds, messageCount, session.Cost)
+		h.app.Analytics.TrackSessionDeleted(ctx, sessionID, sessionAgeSeconds, messageCount, session.Cost)
 	}
 
 	// Return 204 No Content for successful deletion
@@ -389,7 +389,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 
 	// Find the message with the given ID and get its timestamp
 	var rewindTimestamp int64
-	var messageIndex = -1
+	var messageIndex int = -1
 	for i, msg := range allMessages {
 		if msg.ID == req.MessageID {
 			rewindTimestamp = msg.CreatedAt
@@ -425,7 +425,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 
 	// Track session rewind
 	if h.app.Analytics != nil {
-		_ = h.app.Analytics.TrackSessionRewound(ctx, sessionID, req.MessageID, messagesDeleted, req.CleanupMedia)
+		h.app.Analytics.TrackSessionRewound(ctx, sessionID, req.MessageID, messagesDeleted, req.CleanupMedia)
 	}
 
 	// Get updated session data

@@ -37,7 +37,7 @@ func createTestService(t *testing.T) (*service, *db.MockQuerier) {
 
 	// Clean up temp directory after test
 	t.Cleanup(func() {
-		_ = os.RemoveAll(tempDir)
+		os.RemoveAll(tempDir)
 	})
 
 	return svc, mockQuerier
@@ -361,5 +361,5 @@ func TestNewService(t *testing.T) {
 	assert.NotNil(t, service)
 
 	// Test that it implements the Service interface
-	var _ = service
+	var _ Service = service
 }

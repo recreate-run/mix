@@ -308,9 +308,7 @@ func NewOAuthFlow(clientID string) (*OAuthFlow, error) {
 // generateCodeVerifier creates a cryptographically random code verifier
 func generateCodeVerifier() string {
 	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		panic(fmt.Sprintf("failed to generate cryptographically random code verifier: %v", err))
-	}
+	rand.Read(bytes)
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes)
 }
 
@@ -318,6 +316,13 @@ func generateCodeVerifier() string {
 func generateCodeChallenge(verifier string) string {
 	hash := sha256.Sum256([]byte(verifier))
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
+}
+
+// generateState creates a random state parameter (matches Python secrets.token_urlsafe(32))
+func generateState() string {
+	bytes := make([]byte, 24) // 24 bytes * 4/3 ≈ 32 characters when base64 encoded
+	rand.Read(bytes)
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes)
 }
 
 // GetAuthorizationURL generates the OAuth authorization URL
@@ -445,9 +450,7 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 	if err != nil {
 		return nil, fmt.Errorf("token exchange failed: %w", err)
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -766,9 +769,7 @@ func RefreshAccessToken(credentials *OAuthCredentials) (*OAuthCredentials, error
 	if err != nil {
 		return nil, fmt.Errorf("token refresh failed: %w", err)
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Provider } from "mix-typescript-sdk/models/operations";
 import { toast } from "sonner";
 import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
@@ -88,7 +87,7 @@ export function useStoreCredentials() {
 			try {
 				// Use the SDK authentication API for storing credentials
 				await mix.authentication.storeApiKey({
-					provider: request.provider as Provider,
+					provider: request.provider as any,
 					apiKey: request.api_key,
 				});
 				return { status: "success", provider: request.provider };
@@ -103,9 +102,8 @@ export function useStoreCredentials() {
 
 			toast.success(`${variables.provider} API key stored successfully`);
 		},
-		onError: (error: unknown) => {
-			const message =
-				error instanceof Error ? error.message : "Failed to store API key";
+		onError: (error: any) => {
+			const message = error?.message || "Failed to store API key";
 			toast.error(message);
 		},
 	});
@@ -131,9 +129,8 @@ export function useDeleteCredentials() {
 
 			toast.success(`${variables.provider} API key removed successfully`);
 		},
-		onError: (error: unknown) => {
-			const message =
-				error instanceof Error ? error.message : "Failed to remove API key";
+		onError: (error: any) => {
+			const message = error?.message || "Failed to remove API key";
 			toast.error(message);
 		},
 	});

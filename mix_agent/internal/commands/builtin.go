@@ -632,7 +632,7 @@ func createLogoutHandler() func(ctx context.Context, args string) (string, error
 
 		// Clear API key from environment if present
 		if hasAPIKey {
-			_ = os.Unsetenv("ANTHROPIC_API_KEY")
+			os.Unsetenv("ANTHROPIC_API_KEY")
 		}
 
 		response := AuthStatusResponse{

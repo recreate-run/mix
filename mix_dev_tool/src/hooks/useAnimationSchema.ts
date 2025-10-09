@@ -30,12 +30,7 @@ export function useAnimationSchema({
 }: UseAnimationSchemaOptions = {}) {
 	return useQuery({
 		queryKey: animationName ? CACHE_KEYS.animationSchema(animationName) : [],
-		queryFn: () => {
-			if (!animationName) {
-				throw new Error("Animation name is required");
-			}
-			return loadAnimationSchema(animationName);
-		},
+		queryFn: () => loadAnimationSchema(animationName!),
 		enabled: enabled && !!animationName,
 		refetchOnWindowFocus: false,
 	});

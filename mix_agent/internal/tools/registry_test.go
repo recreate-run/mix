@@ -219,7 +219,7 @@ func TestValidateAPIKey(t *testing.T) {
 			provider:    WebSearchBrave,
 			apiKey:      "INVALID123",
 			expectError: true,
-			errorMsg:    "brave API key must start with 'BSA'",
+			errorMsg:    "Brave API key must start with 'BSA'",
 		},
 		{
 			name:        "empty API key for required tool",

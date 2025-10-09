@@ -1,4 +1,3 @@
-import type { Provider } from "mix-typescript-sdk/models/operations";
 import { toast } from "sonner"; // Import directly from package
 import { mix } from "@/lib/mix-sdk";
 import type { LoginProviderInfo, UIMessage } from "@/types/message";
@@ -88,7 +87,7 @@ export async function authenticateWithApiKey(
 	try {
 		// Store API key using the SDK
 		await mix.authentication.storeApiKey({
-			provider: provider as Provider,
+			provider: provider as any,
 			apiKey,
 		});
 

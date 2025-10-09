@@ -25,16 +25,12 @@ func setupTestServerForRewind(t *testing.T) (*app.App, string) {
 	testConfigDir := "/tmp/test-mix-rewind-" + t.Name()
 	testDataDir := "/tmp/test-mix-data-rewind-" + t.Name()
 
-	_ = os.Setenv("_CONFIG_DIR", testConfigDir)
-	_ = os.Setenv("_DATA_DIR", testDataDir)
+	os.Setenv("_CONFIG_DIR", testConfigDir)
+	os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
-	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
-		t.Fatalf("Failed to create test config dir: %v", err)
-	}
-	if err := os.MkdirAll(testDataDir, 0755); err != nil {
-		t.Fatalf("Failed to create test data dir: %v", err)
-	}
+	os.MkdirAll(testConfigDir, 0755)
+	os.MkdirAll(testDataDir, 0755)
 
 	// Initialize config for testing (database-only, no config file needed)
 	if _, err := config.Load(testConfigDir, false, false); err != nil {
@@ -133,7 +129,7 @@ func TestSessionRewindBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make rewind request: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	// Validate response
 	sessionDataMap := validateObjectResponse(t, resp, http.StatusOK)
@@ -199,9 +195,7 @@ func TestSessionRewindWithMediaCleanup(t *testing.T) {
 
 	// Create the test image file in session storage
 	sessionStorageDir := filepath.Join(os.Getenv("_DATA_DIR"), "storage", sessionID)
-	if err := os.MkdirAll(sessionStorageDir, 0755); err != nil {
-		t.Fatalf("Failed to create session storage directory: %v", err)
-	}
+	os.MkdirAll(sessionStorageDir, 0755)
 	testImageFullPath := filepath.Join(sessionStorageDir, testImagePath)
 	err = os.WriteFile(testImageFullPath, []byte("test image data"), 0644)
 	if err != nil {
@@ -243,7 +237,7 @@ func TestSessionRewindWithMediaCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make rewind request: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	validateObjectResponse(t, resp, http.StatusOK)
 
@@ -301,7 +295,7 @@ func TestSessionRewindToEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make rewind request: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	validateObjectResponse(t, resp, http.StatusOK)
 
@@ -383,7 +377,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make rewind request: %v", err)
 			}
-			defer func() { _ = resp.Body.Close() }()
+			defer resp.Body.Close()
 
 			if resp.StatusCode != tc.statusCode {
 				t.Errorf("Expected status code %d, got %d", tc.statusCode, resp.StatusCode)
@@ -438,7 +432,7 @@ func TestSessionRewindBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make rewind request: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	validateObjectResponse(t, resp, http.StatusOK)
 

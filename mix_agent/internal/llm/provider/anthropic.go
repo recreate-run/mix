@@ -81,9 +81,7 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 						ClientID:     refreshedCreds.ClientID,
 						Provider:     "anthropic",
 					}
-					if err := credentialsService.StoreOAuthCredentials(ctx, "anthropic", newCreds); err != nil {
-					logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-				}
+					credentialsService.StoreOAuthCredentials(ctx, "anthropic", newCreds)
 					oauthCreds = refreshedCreds
 				} else {
 					logging.Warn("Failed to refresh OAuth token: %v", err)
@@ -368,15 +366,13 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 			if refreshedCreds, err := RefreshAccessToken(a.options.oauthCreds); err == nil {
 				// Update stored credentials
 				if a.credentialStorage != nil {
-					if err := a.credentialStorage.StoreOAuthCredentials(
+					a.credentialStorage.StoreOAuthCredentials(
 						"anthropic",
 						refreshedCreds.AccessToken,
 						refreshedCreds.RefreshToken,
 						refreshedCreds.ExpiresAt,
 						refreshedCreds.ClientID,
-					); err != nil {
-						logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-					}
+					)
 				}
 				a.options.oauthCreds = refreshedCreds
 
@@ -406,7 +402,7 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 				// Check if using placeholder auth (indicating no real auth provided)
 				if !a.options.useOAuth && a.providerOptions.apiKey == "" {
 					// Return a proper authentication error that will be handled by the error path
-					return nil, errors.New("authentication_error: Authentication required. Please use /login command to authenticate")
+					return nil, errors.New("authentication_error: Authentication required. Please use /login command to authenticate.")
 				}
 
 				// Try OAuth token refresh if available
@@ -414,15 +410,13 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 					if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
 						// Update stored credentials
 						if a.credentialStorage != nil {
-							if err := a.credentialStorage.StoreOAuthCredentials(
+							a.credentialStorage.StoreOAuthCredentials(
 								"anthropic",
 								refreshedCreds.AccessToken,
 								refreshedCreds.RefreshToken,
 								refreshedCreds.ExpiresAt,
 								refreshedCreds.ClientID,
-							); err != nil {
-								logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-							}
+							)
 						}
 						a.options.oauthCreds = refreshedCreds
 
@@ -487,15 +481,13 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 			if refreshedCreds, err := RefreshAccessToken(a.options.oauthCreds); err == nil {
 				// Update stored credentials
 				if a.credentialStorage != nil {
-					if err := a.credentialStorage.StoreOAuthCredentials(
+					a.credentialStorage.StoreOAuthCredentials(
 						"anthropic",
 						refreshedCreds.AccessToken,
 						refreshedCreds.RefreshToken,
 						refreshedCreds.ExpiresAt,
 						refreshedCreds.ClientID,
-					); err != nil {
-						logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-					}
+					)
 				}
 				a.options.oauthCreds = refreshedCreds
 
@@ -515,7 +507,7 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 		// Send authentication error event instead of content
 		go func() {
 			// Create the authentication error message
-			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate"
+			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate."
 
 			// Send error event that will be properly handled by error handlers
 			eventChan <- interfaces.ProviderEvent{
@@ -557,10 +549,9 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 
 				switch event := event.AsAny().(type) {
 				case anthropic.ContentBlockStartEvent:
-					switch event.ContentBlock.Type {
-					case "text":
+					if event.ContentBlock.Type == "text" {
 						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStart}
-					case "tool_use":
+					} else if event.ContentBlock.Type == "tool_use" {
 						toolCall := &message.ToolCall{
 							ID:       event.ContentBlock.ID,
 							Name:     event.ContentBlock.Name,
@@ -651,15 +642,13 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 				if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
 					// Update stored credentials
 					if a.credentialStorage != nil {
-						if err := a.credentialStorage.StoreOAuthCredentials(
+						a.credentialStorage.StoreOAuthCredentials(
 							"anthropic",
 							refreshedCreds.AccessToken,
 							refreshedCreds.RefreshToken,
 							refreshedCreds.ExpiresAt,
 							refreshedCreds.ClientID,
-						); err != nil {
-							logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-						}
+						)
 					}
 					a.options.oauthCreds = refreshedCreds
 

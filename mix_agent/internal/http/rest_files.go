@@ -108,9 +108,7 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		sendValidationError(w, "file", "file upload required")
 		return
 	}
-	defer func() {
-		_ = file.Close()
-	}()
+	defer file.Close()
 
 	// Get filename from upload and sanitize it
 	originalFilename := header.Filename
@@ -163,7 +161,7 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fileNameSanitized := originalFilename != filename
-		_ = h.app.Analytics.TrackFileUploaded(ctx, sessionID, uploadedFileInfo.Size, fileType, fileNameSanitized, isMedia)
+		h.app.Analytics.TrackFileUploaded(ctx, sessionID, uploadedFileInfo.Size, fileType, fileNameSanitized, isMedia)
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)
@@ -286,7 +284,7 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 
 	// Track file deletion
 	if h.app.Analytics != nil {
-		_ = h.app.Analytics.TrackFileDeleted(ctx, sessionID, filename, fileExisted)
+		h.app.Analytics.TrackFileDeleted(ctx, sessionID, filename, fileExisted)
 	}
 
 	// Return 204 No Content for successful deletion

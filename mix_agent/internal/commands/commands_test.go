@@ -16,7 +16,7 @@ func setupTempDir(t *testing.T) (string, func()) {
 	require.NoError(t, err)
 
 	cleanup := func() {
-		_ = os.RemoveAll(tempDir)
+		os.RemoveAll(tempDir)
 	}
 
 	return tempDir, cleanup

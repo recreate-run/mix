@@ -45,7 +45,7 @@ and content creation workflows.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If the help flag is set, show the help message
 		if cmd.Flag("help").Changed {
-			_ = cmd.Help()
+			cmd.Help()
 			return nil
 		}
 		if cmd.Flag("version").Changed {
@@ -108,7 +108,7 @@ and content creation workflows.`,
 		if err != nil {
 			return fmt.Errorf("failed to connect to database: %w", err)
 		}
-		defer func() { _ = dbManager.Close() }()
+		defer dbManager.Close()
 
 		app, err := app.New(ctx, dbManager.GetDB())
 		if err != nil {
@@ -136,7 +136,7 @@ and content creation workflows.`,
 		}
 
 		// Default: Show help when no mode is specified
-		_ = cmd.Help()
+		cmd.Help()
 		return fmt.Errorf("no mode specified - use --prompt for CLI mode or --http-port for server mode")
 	},
 }
@@ -220,7 +220,7 @@ func init() {
 	rootCmd.Flags().Bool("dangerously-skip-permissions", false, "Skip all permission prompts (DANGEROUS - use only in trusted environments)")
 
 	// Register custom validation for the format flag
-	_ = rootCmd.RegisterFlagCompletionFunc("output-format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	rootCmd.RegisterFlagCompletionFunc("output-format", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return format.SupportedFormats, cobra.ShellCompDirectiveNoFileComp
 	})
 

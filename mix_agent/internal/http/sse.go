@@ -161,8 +161,9 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	// Validate session exists
 	_, err := app.Sessions.Get(ctx, sessionID)
 	if err != nil {
-		// Error already handled by SSEWriter
-		_ = sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Invalid session ID: %s", sessionID)})
+		if err := sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Invalid session ID: %s", sessionID)}); err != nil {
+			// Error already handled by SSEWriter
+		}
 		return
 	}
 
@@ -238,8 +239,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 			// Use background context - this subscription outlives individual connections
 			sessionEvents := app.Sessions.Subscribe(context.Background())
 			for sessionEvent := range sessionEvents {
-				switch sessionEvent.Type {
-				case pubsub.CreatedEvent:
+				if sessionEvent.Type == pubsub.CreatedEvent {
 					evt := SessionCreatedEvent{
 						Type:      "session_created",
 						SessionID: sessionEvent.Payload.ID,
@@ -247,7 +247,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 						CreatedAt: sessionEvent.Payload.CreatedAt,
 					}
 					registry.BroadcastToAll("session_created", evt)
-				case pubsub.DeletedEvent:
+				} else if sessionEvent.Type == pubsub.DeletedEvent {
 					evt := SessionDeletedEvent{
 						Type:      "session_deleted",
 						SessionID: sessionEvent.Payload.ID,

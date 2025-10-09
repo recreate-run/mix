@@ -66,9 +66,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 				"database": "connected",
 			},
 		}
-		if err := json.NewEncoder(w).Encode(health); err != nil {
-			logging.Error("Failed to encode health response", "error", err)
-		}
+		json.NewEncoder(w).Encode(health)
 	})
 
 	// Add documentation endpoint
@@ -148,7 +146,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	go func() {
 		<-ctx.Done()
 		logging.Info("Shutting down HTTP server")
-		_ = server.Shutdown(context.Background())
+		server.Shutdown(context.Background())
 	}()
 
 	// Start server and block (this will block until server shuts down)

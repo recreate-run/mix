@@ -209,12 +209,8 @@ func TestRegistryLoadCommandsIntegration(t *testing.T) {
 
 	// Set temporary home directory for this test
 	originalHome := os.Getenv("HOME")
-	if err := os.Setenv("HOME", tempHomeDir); err != nil {
-		t.Fatalf("Failed to set HOME: %v", err)
-	}
-	defer func() {
-		_ = os.Setenv("HOME", originalHome)
-	}()
+	os.Setenv("HOME", tempHomeDir)
+	defer os.Setenv("HOME", originalHome)
 
 	// Create user commands directory
 	userCommandsDir := filepath.Join(tempHomeDir, ".mix", "commands")
@@ -226,9 +222,7 @@ func TestRegistryLoadCommandsIntegration(t *testing.T) {
 	projectCommandsDir := ".mix/commands"
 	err = os.MkdirAll(projectCommandsDir, 0755)
 	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(".mix")
-	}()
+	defer os.RemoveAll(".mix")
 	createTestCommandFile(t, projectCommandsDir, "project-cmd.md", "Project command")
 
 	// Mock app

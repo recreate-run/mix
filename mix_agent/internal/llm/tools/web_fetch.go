@@ -168,7 +168,7 @@ func (w *webFetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 	if err != nil {
 		return NewTextErrorResponse("Failed to fetch URL: " + err.Error()), nil
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return NewTextErrorResponse(fmt.Sprintf("HTTP error: %d %s", resp.StatusCode, resp.Status)), nil
