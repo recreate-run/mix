@@ -1,10 +1,9 @@
-import { open } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
 import { Loader2, Paperclip } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { cn } from "@/lib/utils";
+import { PlatformFeatures } from "@/utils/platform";
 import { useBoundStore } from "@/stores";
 import {
 	AUDIO_EXTENSIONS,
@@ -64,80 +63,128 @@ export function FileUploadButton({
 	};
 
 	const handleFileSelect = async () => {
-		try {
-			// Open native file picker dialog
-			const selected = await open({
-				multiple: true,
-				filters: [
-					{
-						name: "All Files",
-						extensions: ["*"],
-					},
-					{
-						name: "Images",
-						extensions: [...IMAGE_EXTENSIONS],
-					},
-					{
-						name: "Videos",
-						extensions: [...VIDEO_EXTENSIONS],
-					},
-					{
-						name: "Audio",
-						extensions: [...AUDIO_EXTENSIONS],
-					},
-					{
-						name: "Documents",
-						extensions: [
-							"pdf",
-							"doc",
-							"docx",
-							"txt",
-							"md",
-							"rtf",
-							"csv",
-							"xls",
-							"xlsx",
-						],
-					},
-				],
-			});
+		if (PlatformFeatures.hasNativeFilePicker()) {
+			// Desktop: Use Tauri native file picker
+			try {
+				// Dynamically import Tauri modules only when in Tauri environment
+				const { open } = await import("@tauri-apps/plugin-dialog");
+				const { readFile } = await import("@tauri-apps/plugin-fs");
 
-			if (!selected) {
-				return; // User cancelled
-			}
+				const selected = await open({
+					multiple: true,
+					filters: [
+						{
+							name: "All Files",
+							extensions: ["*"],
+						},
+						{
+							name: "Images",
+							extensions: [...IMAGE_EXTENSIONS],
+						},
+						{
+							name: "Videos",
+							extensions: [...VIDEO_EXTENSIONS],
+						},
+						{
+							name: "Audio",
+							extensions: [...AUDIO_EXTENSIONS],
+						},
+						{
+							name: "Documents",
+							extensions: [
+								"pdf",
+								"doc",
+								"docx",
+								"txt",
+								"md",
+								"rtf",
+								"csv",
+								"xls",
+								"xlsx",
+							],
+						},
+					],
+				});
 
-			const filePaths = Array.isArray(selected) ? selected : [selected];
-
-			// Process each selected file
-			for (const filePath of filePaths) {
-				try {
-					// Read file data using Tauri FS plugin
-					const fileData = await readFile(filePath);
-
-					// Extract filename from path
-					const fileName = filePath.split(/[/\\]/).pop() || "unnamed-file";
-
-					// Create File object for upload
-					const file = new File([fileData], fileName, {
-						type: getMimeType(fileName),
-					});
-
-					// Process file
-					await processFile(file);
-				} catch (error) {
-					console.error(`Failed to upload file ${filePath}:`, error);
-					const errorMessage =
-						error instanceof Error ? error.message : "Unknown error";
-					onUploadError?.(
-						`Failed to upload ${filePath.split(/[/\\]/).pop()}: ${errorMessage}`,
-					);
+				if (!selected) {
+					return; // User cancelled
 				}
+
+				const filePaths = Array.isArray(selected) ? selected : [selected];
+
+				// Process each selected file
+				for (const filePath of filePaths) {
+					try {
+						// Read file data using Tauri FS plugin
+						const fileData = await readFile(filePath);
+
+						// Extract filename from path
+						const fileName = filePath.split(/[/\\]/).pop() || "unnamed-file";
+
+						// Create File object for upload
+						const file = new File([fileData], fileName, {
+							type: getMimeType(fileName),
+						});
+
+						// Process file
+						await processFile(file);
+					} catch (error) {
+						console.error(`Failed to upload file ${filePath}:`, error);
+						const errorMessage =
+							error instanceof Error ? error.message : "Unknown error";
+						onUploadError?.(
+							`Failed to upload ${filePath.split(/[/\\]/).pop()}: ${errorMessage}`,
+						);
+					}
+				}
+			} catch (error) {
+				console.error("Failed to open file picker:", error);
+				const errorMessage =
+					error instanceof Error ? error.message : "Unknown error";
+				onUploadError?.(`Failed to open file picker: ${errorMessage}`);
 			}
-		} catch (error) {
-			console.error("Failed to open file picker:", error);
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
-			onUploadError?.(`Failed to open file picker: ${errorMessage}`);
+		} else {
+			// Browser: Use HTML file input
+			const input = document.createElement("input");
+			input.type = "file";
+			input.multiple = true;
+			// Set accept attribute with common file types
+			input.accept = [
+				// Images
+				"image/*",
+				// Videos
+				"video/*",
+				// Audio
+				"audio/*",
+				// Documents
+				".pdf",
+				".doc",
+				".docx",
+				".txt",
+				".md",
+				".rtf",
+				".csv",
+				".xls",
+				".xlsx",
+				// Code files
+				".js",
+				".ts",
+				".jsx",
+				".tsx",
+				".json",
+				".xml",
+				".html",
+				".css",
+			].join(",");
+
+			input.onchange = async () => {
+				const files = Array.from(input.files || []);
+				for (const file of files) {
+					await processFile(file);
+				}
+			};
+
+			input.click();
 		}
 	};
 
