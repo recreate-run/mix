@@ -1,5 +1,7 @@
 # Railway Deployment Guide
 
+> **Note**: The Docker deployment automatically uses `--dangerously-skip-permissions` to bypass permission prompts in server environments where no interactive UI is available.
+
 ## Quick Deploy Steps
 
 ### 1. Install Railway CLI (if not already installed)

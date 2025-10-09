@@ -30,7 +30,7 @@ RUN curl -L https://github.com/recreate-run/mix/releases/latest/download/mix-lin
 EXPOSE 8080
 
 # Create startup script that properly handles PORT environment variable
-RUN printf '#!/bin/bash\nset -e\nPORT=${PORT:-8080}\necho "Starting Mix Agent on port $PORT..."\nexec ./mix --http-port "$PORT" --http-host 0.0.0.0\n' > /app/start.sh && \
+RUN printf '#!/bin/bash\nset -e\nPORT=${PORT:-8080}\necho "Starting Mix Agent on port $PORT..."\nexec ./mix --http-port "$PORT" --http-host 0.0.0.0 --dangerously-skip-permissions\n' > /app/start.sh && \
     chmod +x /app/start.sh
 
 # Run the startup script
