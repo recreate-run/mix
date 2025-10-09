@@ -126,6 +126,15 @@ jobs:
             dist/mix_windows_*/*
           retention-days: 30
 
+      - name: Deploy to Railway
+        if: steps.check_tag.outputs.is_tag == 'true'
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: mix-agent
+        env:
+          RAILWAY_SERVICE: mix-agent
+
   # Test cross-platform builds (for PRs and non-tag pushes)
   test-build:
     needs: validate
