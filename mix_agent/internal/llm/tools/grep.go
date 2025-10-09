@@ -327,7 +327,9 @@ func fileContainsPattern(filePath string, pattern *regexp.Regexp) (bool, int, st
 	if err != nil {
 		return false, 0, "", err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	scanner := bufio.NewScanner(file)
 	lineNum := 0

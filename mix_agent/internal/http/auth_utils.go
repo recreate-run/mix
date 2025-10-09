@@ -52,6 +52,10 @@ func getProviderDisplayName(provider string) string {
 	case "xai":
 		return "xAI (Grok)"
 	default:
-		return strings.Title(provider)
+		// Capitalize first letter of provider name
+		if len(provider) == 0 {
+			return provider
+		}
+		return strings.ToUpper(provider[:1]) + provider[1:]
 	}
 }

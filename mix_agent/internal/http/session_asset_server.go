@@ -165,7 +165,9 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 			sendInternalError(w, "downloading original file", err)
 			return
 		}
-		defer reader.Close()
+		defer func() {
+			_ = reader.Close()
+		}()
 
 		// Create temp file with proper extension for ffmpeg
 		ext := filepath.Ext(filename)
@@ -176,16 +178,18 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 			return
 		}
 		tempPath := tempFile.Name()
-		defer os.Remove(tempPath) // Clean up temp file
+		defer func() {
+			_ = os.Remove(tempPath)
+		}()
 
 		// Write downloaded content to temp file
 		if _, err := io.Copy(tempFile, reader); err != nil {
-			tempFile.Close()
+			_ = tempFile.Close()
 			logging.Error("Failed to write temp file", "error", err)
 			sendInternalError(w, "writing temp file", err)
 			return
 		}
-		tempFile.Close()
+		_ = tempFile.Close()
 
 		// Parse optional time parameter for video segments
 		timeParam := r.URL.Query().Get("time")
@@ -210,14 +214,13 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 		sendInternalError(w, "downloading file", err)
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	// Serve content with proper headers
 	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", filename))
-	if _, err := io.Copy(w, reader); err != nil {
-		logging.Error("Failed to serve file", "uploadKey", uploadKey, "error", err)
-		return
-	}
+	_, _ = io.Copy(w, reader)
 }
 
 // parseThumbnailSpec parses and validates thumbnail specification
@@ -326,13 +329,12 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 			logging.Error("Failed to download existing thumbnail", "key", thumbnailKey, "error", err)
 			// Continue to regenerate
 		} else {
-			defer reader.Close()
+			defer func() {
+				_ = reader.Close()
+			}()
 			w.Header().Set("Content-Type", "image/jpeg")
 			w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
-			_, err = io.Copy(w, reader)
-			if err != nil {
-				logging.Error("Failed to serve thumbnail", "key", thumbnailKey, "error", err)
-			}
+			_, _ = io.Copy(w, reader)
 			return nil
 		}
 	}
@@ -344,8 +346,10 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 		return fmt.Errorf("failed to create temp file: %v", err)
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath) // Clean up temp file after upload
+	_ = tmpFile.Close()
+	defer func() {
+		_ = os.Remove(tmpPath)
+	}() // Clean up temp file after upload
 
 	// Generate thumbnail using FFmpeg based on file type
 	if isVideoFile(mediaPath) {
@@ -369,7 +373,9 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 		logging.Error("Failed to open generated thumbnail", "tmpPath", tmpPath, "error", err)
 		return fmt.Errorf("failed to open generated thumbnail: %v", err)
 	}
-	defer thumbnailFile.Close()
+	defer func() {
+		_ = thumbnailFile.Close()
+	}()
 
 	_, err = h.app.StorageProvider.Upload(ctx, thumbnailKey, thumbnailFile, "image/jpeg")
 	if err != nil {
@@ -378,10 +384,13 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Serve the thumbnail directly (works for both local and remote storage)
-	thumbnailFile.Seek(0, 0) // Reset file pointer to beginning
+	if _, err := thumbnailFile.Seek(0, 0); err != nil {
+		logging.Error("Failed to seek thumbnail file", "error", err)
+		return fmt.Errorf("failed to seek thumbnail file: %v", err)
+	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
-	io.Copy(w, thumbnailFile)
+	_, _ = io.Copy(w, thumbnailFile)
 	return nil
 }
 
@@ -450,7 +459,9 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	if err != nil {
 		return fmt.Errorf("failed to open source image: %v", err)
 	}
-	defer sourceFile.Close()
+	defer func() {
+		_ = sourceFile.Close()
+	}()
 
 	// Decode image (supports JPEG, PNG, GIF automatically via imported decoders)
 	sourceImage, _, err := image.Decode(sourceFile)
@@ -496,7 +507,9 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	if err != nil {
 		return fmt.Errorf("failed to create thumbnail file: %v", err)
 	}
-	defer outputFile.Close()
+	defer func() {
+		_ = outputFile.Close()
+	}()
 
 	// Encode as JPEG with high quality (quality 90 out of 100)
 	jpegOptions := &jpeg.Options{Quality: 90}
@@ -515,7 +528,7 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 	if err != nil {
 		return false, fmt.Errorf("getting session root: %v", err)
 	}
-	defer sessionRoot.Close()
+	defer func() { _ = sessionRoot.Close() }()
 
 	// Check if file exists in session storage
 	fileInfo, err := sessionRoot.Stat(filename)
@@ -566,7 +579,9 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 	if err != nil {
 		return false, fmt.Errorf("opening session file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	// Serve content with proper headers
 	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)

@@ -188,7 +188,7 @@ func TestRESTStreamEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make stream request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Validate SSE response headers
 	if resp.StatusCode != http.StatusOK {
@@ -256,7 +256,7 @@ func TestRESTStreamSubPathEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make stream sub-path request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Validate SSE response
 	if resp.StatusCode != http.StatusOK {

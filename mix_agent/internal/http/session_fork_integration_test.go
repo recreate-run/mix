@@ -24,12 +24,16 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 	testConfigDir := "/tmp/test-mix-fork-" + t.Name()
 	testDataDir := "/tmp/test-mix-data-fork-" + t.Name()
 
-	os.Setenv("_CONFIG_DIR", testConfigDir)
-	os.Setenv("_DATA_DIR", testDataDir)
+	_ = os.Setenv("_CONFIG_DIR", testConfigDir)
+	_ = os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
-	os.MkdirAll(testConfigDir, 0755)
-	os.MkdirAll(testDataDir, 0755)
+	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
+		t.Fatalf("Failed to create test config dir: %v", err)
+	}
+	if err := os.MkdirAll(testDataDir, 0755); err != nil {
+		t.Fatalf("Failed to create test data dir: %v", err)
+	}
 
 	// Initialize config for testing (database-only, no config file needed)
 	if _, err := config.Load(testConfigDir, false, false); err != nil {
@@ -193,7 +197,7 @@ func TestSessionFork(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Validate response and extract session data (flattened response)
 	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)
@@ -251,7 +255,7 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Validate response and extract session data (flattened response)
 	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)
@@ -334,7 +338,7 @@ func TestSessionForkErrorHandling(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make fork request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			// Validate response status code
 			if resp.StatusCode != tc.statusCode {
@@ -400,7 +404,7 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Validate response and extract session data (flattened response)
 	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)
@@ -444,7 +448,7 @@ func TestSessionForkWithZeroMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Validate response and extract session data (flattened response)
 	sessionDataMap := validateObjectResponse(t, resp, http.StatusCreated)

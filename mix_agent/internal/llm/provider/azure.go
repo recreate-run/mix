@@ -24,10 +24,10 @@ func newAzureClient(opts providerClientOptions) (AzureClient, error) {
 	apiVersion := os.Getenv("AZURE_OPENAI_API_VERSION") // ex: 2025-04-01-preview
 
 	if endpoint == "" {
-		return nil, fmt.Errorf("Azure provider requires AZURE_OPENAI_ENDPOINT environment variable to be set")
+		return nil, fmt.Errorf("azure provider requires AZURE_OPENAI_ENDPOINT environment variable to be set")
 	}
 	if apiVersion == "" {
-		return nil, fmt.Errorf("Azure provider requires AZURE_OPENAI_API_VERSION environment variable to be set")
+		return nil, fmt.Errorf("azure provider requires AZURE_OPENAI_API_VERSION environment variable to be set")
 	}
 
 	reqOpts := []option.RequestOption{

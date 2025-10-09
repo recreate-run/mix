@@ -63,10 +63,10 @@ func TestConcurrentFileOperationsAcrossSessions(t *testing.T) {
 				fileName, fileContent)
 
 			duration := time.Since(start)
-			success := uploadResp.StatusCode == http.StatusCreated
+			success := uploadResp != nil && uploadResp.StatusCode == http.StatusCreated
 
 			if uploadResp != nil {
-				uploadResp.Body.Close()
+				_ = uploadResp.Body.Close()
 			}
 
 			fileResults <- TestResult{
@@ -139,10 +139,10 @@ func TestConcurrentToolExecutionAcrossSessions(t *testing.T) {
 				"/api/sessions/"+sessionID+"/messages", messageRequest)
 
 			duration := time.Since(start)
-			success := msgResp.StatusCode == http.StatusOK
+			success := msgResp != nil && msgResp.StatusCode == http.StatusOK
 
 			if msgResp != nil {
-				msgResp.Body.Close()
+				_ = msgResp.Body.Close()
 			}
 
 			results <- TestResult{
@@ -266,9 +266,10 @@ func TestConcurrentMessageProcessing(t *testing.T) {
 				"/api/sessions/"+sessionID+"/messages", messageRequest)
 			duration := time.Since(start)
 
-			success := msgResp.StatusCode == http.StatusOK
+			success := false
 			if msgResp != nil {
-				msgResp.Body.Close()
+				success = msgResp.StatusCode == http.StatusOK
+				_ = msgResp.Body.Close()
 			}
 
 			messageResponses <- TestResult{
@@ -338,9 +339,10 @@ func TestSessionIsolationUnderLoad(t *testing.T) {
 				"/api/sessions/"+sid+"/messages", messageRequest)
 			duration := time.Since(start)
 
-			success := msgResp.StatusCode == http.StatusOK
+			success := false
 			if msgResp != nil {
-				msgResp.Body.Close()
+				success = msgResp.StatusCode == http.StatusOK
+				_ = msgResp.Body.Close()
 			}
 
 			isolationResults <- TestResult{
@@ -417,144 +419,6 @@ func createMultipleTestSessions(t *testing.T, result *TestServerResult, count in
 	return sessions
 }
 
-// executeParallelRequests executes multiple requests in parallel
-func executeParallelRequests(t *testing.T, server *TestServerResult, requests []TestRequest) []TestResponse {
-	var wg sync.WaitGroup
-	results := make([]TestResponse, len(requests))
-
-	for i, req := range requests {
-		wg.Add(1)
-		go func(index int, request TestRequest) {
-			defer wg.Done()
-
-			start := time.Now()
-			resp := makeJSONRequest(t, server.Server, request.Method, request.Path, request.Payload)
-			duration := time.Since(start)
-
-			results[index] = TestResponse{
-				Response: resp,
-				Duration: duration,
-			}
-		}(i, req)
-	}
-
-	wg.Wait()
-	return results
-}
-
-// validateNoCrossSessionBlocking ensures that cross-session operations don't block each other
-func validateNoCrossSessionBlocking(t *testing.T, results []TestResult) {
-	for _, result := range results {
-		if !result.Success {
-			t.Errorf("Cross-session operation failed for session %s", result.SessionID)
-		}
-
-		// Validate reasonable response times (not blocked)
-		if result.Duration > 30*time.Second {
-			t.Errorf("Session %s took too long (%v), suggesting blocking occurred",
-				result.SessionID, result.Duration)
-		}
-	}
-}
-
-// validateConcurrencyMetrics checks for evidence of concurrent execution
-func validateConcurrencyMetrics(t *testing.T, responses []TestResponse) {
-	successCount := 0
-	totalDuration := time.Duration(0)
-
-	for _, response := range responses {
-		if response.Error == nil && response.Response.StatusCode == http.StatusOK {
-			successCount++
-		}
-		totalDuration += response.Duration
-
-		if response.Response != nil {
-			response.Response.Body.Close()
-		}
-	}
-
-	if successCount != len(responses) {
-		t.Errorf("Expected all %d requests to succeed, got %d successes",
-			len(responses), successCount)
-	}
-
-	t.Logf("Concurrency metrics - Total operations: %d, Successes: %d, Average duration: %v",
-		len(responses), successCount, totalDuration/time.Duration(len(responses)))
-}
-
-// assertParallelExecution validates that operations executed in parallel
-func assertParallelExecution(t *testing.T, toolTimes []time.Duration, totalTime time.Duration) {
-	sumOfTools := time.Duration(0)
-	for _, duration := range toolTimes {
-		sumOfTools += duration
-	}
-
-	// Allow for some overhead, but should be significantly faster than sequential
-	maxAllowedTime := time.Duration(float64(sumOfTools) * 0.7) // 30% faster than sequential
-
-	if totalTime > maxAllowedTime {
-		t.Logf("Note: Total time %v is not significantly less than sequential time %v. "+
-			"This may indicate limited concurrency benefits in the test environment.",
-			totalTime, sumOfTools)
-	} else {
-		t.Logf("✅ Parallel execution detected: total %v is significantly less than sequential %v",
-			totalTime, sumOfTools)
-	}
-}
-
-// validateSessionIsolation ensures each session maintains isolated state
-func validateSessionIsolation(t *testing.T, sessions []string) {
-	// This is a placeholder for more sophisticated validation
-	// In a real implementation, this would verify that session-specific
-	// files, processes, and state don't interfere with each other
-	t.Logf("Session isolation validation completed for %d sessions", len(sessions))
-}
-
-// createFileInSession simulates creating a file in a session's storage
-func createFileInSession(t *testing.T, result *TestServerResult, sessionID, fileName, content string) {
-	messageRequest := map[string]interface{}{
-		"text": fmt.Sprintf("Create file '%s' with content '%s'", fileName, content),
-	}
-
-	msgResp := makeJSONRequest(t, result.Server, "POST",
-		"/api/sessions/"+sessionID+"/messages", messageRequest)
-
-	if msgResp.StatusCode != http.StatusOK {
-		t.Errorf("Failed to create file in session %s: status %d", sessionID, msgResp.StatusCode)
-	}
-
-	if msgResp != nil {
-		msgResp.Body.Close()
-	}
-}
-
-// readFileFromSession simulates reading a file from a session's storage
-func readFileFromSession(t *testing.T, result *TestServerResult, sessionID, fileName string) string {
-	messageRequest := map[string]interface{}{
-		"text": fmt.Sprintf("Read the content of file '%s'", fileName),
-	}
-
-	msgResp := makeJSONRequest(t, result.Server, "POST",
-		"/api/sessions/"+sessionID+"/messages", messageRequest)
-
-	if msgResp.StatusCode != http.StatusOK {
-		t.Errorf("Failed to read file from session %s: status %d", sessionID, msgResp.StatusCode)
-		if msgResp != nil {
-			msgResp.Body.Close()
-		}
-		return ""
-	}
-
-	messageData := validateObjectResponse(t, msgResp, http.StatusOK)
-
-	// Extract content from assistant response (simplified)
-	if assistantResponse, ok := messageData["assistantResponse"].(string); ok {
-		return assistantResponse
-	}
-
-	return ""
-}
-
 // BenchmarkConcurrentToolExecution provides performance benchmarking for concurrent operations
 func BenchmarkConcurrentToolExecution(b *testing.B) {
 	// Convert *testing.B to *testing.T for helper functions
@@ -574,7 +438,7 @@ func BenchmarkConcurrentToolExecution(b *testing.B) {
 			"/api/sessions/"+sessionID+"/messages", messageRequest)
 
 		if msgResp != nil {
-			msgResp.Body.Close()
+			_ = msgResp.Body.Close()
 		}
 	}
 }
@@ -654,10 +518,10 @@ func TestErrorHandlingUnderConcurrency(t *testing.T) {
 
 			// For error handling test, we expect the system to handle errors gracefully
 			// The response should still be valid (200 OK) but may contain error information
-			success := msgResp.StatusCode == http.StatusOK
-
+			success := false
 			if msgResp != nil {
-				msgResp.Body.Close()
+				success = msgResp.StatusCode == http.StatusOK
+				_ = msgResp.Body.Close()
 			}
 
 			errorResults <- TestResult{
