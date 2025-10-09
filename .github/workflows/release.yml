@@ -131,8 +131,8 @@ jobs:
         uses: docker://ghcr.io/railwayapp/cli:latest
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
         with:
+          entrypoint: railway
           args: up --service=${{ secrets.RAILWAY_SERVICE_ID }} --detach
 
   # Test cross-platform builds (for PRs and non-tag pushes)
