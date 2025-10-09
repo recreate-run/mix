@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS user_preferences (
     id TEXT PRIMARY KEY DEFAULT 'default_user',  -- Single user system
     preferred_provider TEXT,                     -- anthropic, openai, gemini, etc.
-    main_agent_model TEXT,                      -- claude-4-sonnet, gpt-4, etc.
+    main_agent_model TEXT,                      -- claude-sonnet-4-5, gpt-4, etc.
     main_agent_max_tokens INTEGER,
     main_agent_reasoning_effort TEXT,           -- low, medium, high
     sub_agent_model TEXT,
@@ -30,10 +30,10 @@ INSERT OR IGNORE INTO user_preferences (
 ) VALUES (
     'default_user',
     'anthropic',
-    'claude-4-sonnet',
+    'claude-sonnet-4-5',
     4096,
     '',
-    'claude-4-sonnet', 
+    'claude-sonnet-4-5', 
     2048,
     '',
     strftime('%s', 'now') * 1000,

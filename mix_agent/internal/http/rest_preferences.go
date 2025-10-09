@@ -387,7 +387,7 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 
 	// Reset preferences to defaults via user preferences service
 	// Reset main agent to defaults
-	err = userPrefs.UpdateMainAgentPreferences(ctx, "claude-4-sonnet", 4096, "")
+	err = userPrefs.UpdateMainAgentPreferences(ctx, "claude-sonnet-4-5", 4096, "")
 	if err != nil {
 		logging.Error("Failed to reset main agent preferences", "error", err)
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to reset main agent", "DATABASE_ERROR")
@@ -395,7 +395,7 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 	}
 
 	// Reset sub agent to defaults
-	err = userPrefs.UpdateSubAgentPreferences(ctx, "claude-4-sonnet", 2048, "")
+	err = userPrefs.UpdateSubAgentPreferences(ctx, "claude-sonnet-4-5", 2048, "")
 	if err != nil {
 		logging.Error("Failed to reset sub agent preferences", "error", err)
 		WriteErrorResponse(w, http.StatusInternalServerError, "failed to reset sub agent", "DATABASE_ERROR")
