@@ -1,0 +1,35 @@
+# Dev Dockerfile - builds from source
+FROM golang:1.24-alpine AS builder
+
+# Install build dependencies
+RUN apk --no-cache add git bash ca-certificates
+
+WORKDIR /build
+
+# Copy go mod files first (for better caching)
+COPY mix_agent/go.mod mix_agent/go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY mix_agent/ ./
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o mix ./main.go
+
+# Final stage - minimal runtime image
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates bash ffmpeg
+
+WORKDIR /app
+
+# Copy binary from builder stage
+COPY --from=builder /build/mix .
+
+EXPOSE 8080
+
+# Create startup script that handles PORT environment variable
+RUN printf '#!/bin/bash\nset -e\nPORT=${PORT:-8080}\necho "Starting Mix Agent (DEV) on port $PORT..."\nexec ./mix --http-port "$PORT" --http-host 0.0.0.0\n' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+ENTRYPOINT ["/bin/bash", "/app/start.sh"]
