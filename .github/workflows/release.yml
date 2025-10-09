@@ -15,7 +15,7 @@ on:
     tags:
       - 'v*'
   release:
-    types: [published, created]
+    types: [published]
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
