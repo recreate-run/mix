@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/message"
@@ -31,7 +32,7 @@ func (a *agent) executeToolsWithDependencies(ctx context.Context, sessionID stri
 
 	// Filter tools based on plan mode
 	availableTools := a.tools
-	if ctx.Value("plan_mode") != nil {
+	if ctx.Value(interfaces.PlanModeContextKey) != nil {
 		availableTools = filterToolsForPlanMode(a.tools)
 	}
 

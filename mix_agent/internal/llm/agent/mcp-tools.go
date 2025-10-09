@@ -64,7 +64,7 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 			}
 		}
 		// Client is unhealthy, close it
-		c.Close()
+		_ = c.Close()
 		delete(m.clients, serverName)
 	}
 	m.mu.RUnlock()
@@ -82,7 +82,7 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 				return c, nil
 			}
 		}
-		c.Close()
+		_ = c.Close()
 		delete(m.clients, serverName)
 	}
 
@@ -122,7 +122,7 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 	defer cancel()
 	_, err = newClient.Initialize(initCtx, initRequest)
 	if err != nil {
-		newClient.Close()
+		_ = newClient.Close()
 		return nil, fmt.Errorf("failed to initialize mcp client: %w", err)
 	}
 

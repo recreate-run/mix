@@ -145,7 +145,9 @@ func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.WriteHeader(status)
 
 	// Send data directly (no envelope)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		logging.Error("Failed to encode JSON response", "error", err)
+	}
 }
 
 // WriteErrorResponse writes a standardized error response
@@ -161,5 +163,7 @@ func WriteErrorResponse(w http.ResponseWriter, status int, message string, error
 		},
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logging.Error("Failed to encode error response", "error", err)
+	}
 }

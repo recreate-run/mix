@@ -111,7 +111,7 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 	// Read the downloaded content
 	downloadedContent := make([]byte, len(testContent)+100) // Extra buffer to detect size issues
 	n, err := downloadResp.Body.Read(downloadedContent)
-	downloadResp.Body.Close()
+	_ = downloadResp.Body.Close()
 
 	if err != nil && err.Error() != "EOF" {
 		t.Fatalf("Failed to read downloaded file content: %v", err)
@@ -176,7 +176,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 		t.Fatalf("Expected status code %d after multipart sanitization, got %d",
 			http.StatusCreated, uploadResp.StatusCode)
 	}
-	uploadResp.Body.Close()
+	_ = uploadResp.Body.Close()
 
 	// Verify the file was created with sanitized name "passwd"
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
@@ -214,7 +214,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 			t.Fatalf("Expected status code %d or %d for dangerous path '%s', got %d",
 				http.StatusBadRequest, http.StatusNotFound, dangerousPath, accessResp.StatusCode)
 		}
-		accessResp.Body.Close()
+		_ = accessResp.Body.Close()
 	}
 
 	// Test that normal filenames still work (positive test)
@@ -230,7 +230,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 		t.Fatalf("Expected status code %d for normal filename, got %d",
 			http.StatusCreated, normalUploadResp.StatusCode)
 	}
-	normalUploadResp.Body.Close()
+	_ = normalUploadResp.Body.Close()
 
 	// Verify normal file can be accessed
 	normalAccessResp := makeJSONRequest(t, result.Server, "GET",
@@ -240,7 +240,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 		t.Fatalf("Expected status code %d for normal file access, got %d",
 			http.StatusOK, normalAccessResp.StatusCode)
 	}
-	normalAccessResp.Body.Close()
+	_ = normalAccessResp.Body.Close()
 
 	t.Logf("✅ File path security test passed - All dangerous paths properly rejected")
 }
@@ -292,7 +292,7 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	// Read content to verify it's correct
 	content1 := make([]byte, len(sharedContent)+10)
 	n1, _ := access1Resp.Body.Read(content1)
-	access1Resp.Body.Close()
+	_ = access1Resp.Body.Close()
 	actualContent1 := string(content1[:n1])
 
 	if actualContent1 != sharedContent {
@@ -310,7 +310,7 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	// Read content to verify it's the same file
 	content2 := make([]byte, len(sharedContent)+10)
 	n2, _ := access2Resp.Body.Read(content2)
-	access2Resp.Body.Close()
+	_ = access2Resp.Body.Close()
 	actualContent2 := string(content2[:n2])
 
 	if actualContent2 != sharedContent {
@@ -359,7 +359,7 @@ func TestRESTFileSharedStorage(t *testing.T) {
 		t.Fatalf("Expected status code %d for invalid session ID format, got %d",
 			http.StatusBadRequest, wrongSessionResp.StatusCode)
 	}
-	wrongSessionResp.Body.Close()
+	_ = wrongSessionResp.Body.Close()
 
 	t.Logf("✅ File shared storage test passed - Files properly shared via uploads directory")
 }
@@ -487,7 +487,7 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	if textThumbResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for thumbnail on non-image, got %d", http.StatusBadRequest, textThumbResp.StatusCode)
 	}
-	textThumbResp.Body.Close()
+	_ = textThumbResp.Body.Close()
 
 	// Test invalid thumbnail parameter on text file (should return 400)
 	invalidThumbResp := makeJSONRequest(t, result.Server, "GET",
@@ -496,7 +496,7 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	if invalidThumbResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for invalid thumbnail param, got %d", http.StatusBadRequest, invalidThumbResp.StatusCode)
 	}
-	invalidThumbResp.Body.Close()
+	_ = invalidThumbResp.Body.Close()
 
 	// Test accessing file without thumbnail params (should work normally)
 	normalResp := makeJSONRequest(t, result.Server, "GET",
@@ -505,7 +505,7 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	if normalResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d for normal file access, got %d", http.StatusOK, normalResp.StatusCode)
 	}
-	normalResp.Body.Close()
+	_ = normalResp.Body.Close()
 
 	t.Logf("✅ Thumbnail generation test passed - Thumbnail parameter validation working")
 }
@@ -581,7 +581,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	if accessResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d when accessing large file, got %d", http.StatusOK, accessResp.StatusCode)
 	}
-	accessResp.Body.Close()
+	_ = accessResp.Body.Close()
 
 	// Verify we can delete the large file
 	deleteResp := makeJSONRequest(t, result.Server, "DELETE",
@@ -639,7 +639,11 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get session A storage root: %v", err)
 	}
-	defer sessionARoot.Close()
+	defer func() {
+		if err := sessionARoot.Close(); err != nil {
+			t.Logf("Failed to close session root: %v", err)
+		}
+	}()
 
 	// Create the file in session A's directory
 	file, err := sessionARoot.Create(testFilename)
@@ -647,7 +651,7 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 		t.Fatalf("Failed to create file in session A storage: %v", err)
 	}
 	_, err = file.WriteString(testContent)
-	file.Close()
+	_ = file.Close()
 	if err != nil {
 		t.Fatalf("Failed to write content to session A file: %v", err)
 	}
@@ -663,7 +667,7 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	// Verify content integrity
 	content := make([]byte, len(testContent)+10)
 	n, err := accessAResp.Body.Read(content)
-	accessAResp.Body.Close()
+	_ = accessAResp.Body.Close()
 	if err != nil && err.Error() != "EOF" {
 		t.Fatalf("Failed to read session A file content: %v", err)
 	}
@@ -680,7 +684,7 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	if accessBResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Session B should not be able to access session A's file, got status %d", accessBResp.StatusCode)
 	}
-	accessBResp.Body.Close()
+	_ = accessBResp.Body.Close()
 
 	// Test 3: Verify shared uploads still work for both sessions
 	// Upload a file to shared storage via session A
@@ -700,14 +704,14 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	if sharedAccessAResp.StatusCode != http.StatusOK {
 		t.Fatalf("Session A should access shared file, got status %d", sharedAccessAResp.StatusCode)
 	}
-	sharedAccessAResp.Body.Close()
+	_ = sharedAccessAResp.Body.Close()
 
 	sharedAccessBResp := makeJSONRequest(t, result.Server, "GET",
 		"/api/sessions/"+sessionBID+"/files/"+sharedFilename, nil)
 	if sharedAccessBResp.StatusCode != http.StatusOK {
 		t.Fatalf("Session B should access shared file, got status %d", sharedAccessBResp.StatusCode)
 	}
-	sharedAccessBResp.Body.Close()
+	_ = sharedAccessBResp.Body.Close()
 
 	t.Logf("✅ Session isolated file serving test passed - Session isolation working correctly")
 }

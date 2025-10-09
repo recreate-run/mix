@@ -32,61 +32,6 @@ type SSEEvent struct {
 	Data map[string]interface{} `json:"data"`
 }
 
-// Test utilities
-
-func parseIntegrationSSEStream(t *testing.T, response *http.Response) []SSEEvent {
-	var events []SSEEvent
-	scanner := bufio.NewScanner(response.Body)
-
-	var currentEvent SSEEvent
-	var rawLines []string
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		rawLines = append(rawLines, line)
-
-		if line == "" {
-			// Empty line indicates end of event
-			if currentEvent.Type != "" {
-				events = append(events, currentEvent)
-				currentEvent = SSEEvent{}
-			}
-			continue
-		}
-
-		if strings.HasPrefix(line, "event: ") {
-			currentEvent.Type = strings.TrimPrefix(line, "event: ")
-		} else if strings.HasPrefix(line, "data: ") {
-			dataStr := strings.TrimPrefix(line, "data: ")
-			var data map[string]interface{}
-			if err := json.Unmarshal([]byte(dataStr), &data); err != nil {
-				t.Logf("Failed to parse event data: %v, data: %s", err, dataStr)
-				continue
-			}
-			currentEvent.Data = data
-		}
-	}
-
-	// Debug: log raw lines if no events were parsed
-	if len(events) == 0 {
-		t.Logf("Raw lines received (%d lines):", len(rawLines))
-		for i, line := range rawLines {
-			t.Logf("Line %d: %q", i, line)
-		}
-	}
-
-	// Handle last event if stream ended without empty line
-	if currentEvent.Type != "" {
-		events = append(events, currentEvent)
-	}
-
-	if err := scanner.Err(); err != nil {
-		t.Errorf("Error reading SSE stream: %v", err)
-	}
-
-	return events
-}
-
 // Helper function to connect to persistent SSE stream
 func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, context.CancelFunc) {
 	url := fmt.Sprintf("%s/stream?sessionId=%s", serverURL, sessionID)
@@ -109,7 +54,7 @@ func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, cont
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		cancel()
 		t.Fatalf("Expected status 200, got %d. Response: %s", resp.StatusCode, string(body))
 	}
@@ -129,7 +74,7 @@ func sendMessageToQueue(t *testing.T, serverURL, sessionID, content string) {
 	if err != nil {
 		t.Fatalf("Failed to send message to queue: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -224,7 +169,7 @@ func TestSSEConnection(t *testing.T) {
 	// Test persistent SSE connection (no content parameter)
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check content type
 	contentType := resp.Header.Get("Content-Type")
@@ -261,7 +206,7 @@ func TestSSEContentStreaming(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send message through queue
 	sendMessageToQueue(t, result.Server.URL, result.SessionID, createJSONMessage("Hello"))
@@ -313,7 +258,7 @@ func TestSSEToolExecution(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send message that should trigger tools
 	content := "Show me the current working directory"
@@ -413,7 +358,7 @@ func TestSSEErrorHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to SSE stream: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Should receive an error event quickly
 	events := waitForEvents(t, resp, 1, 5*time.Second)
@@ -451,7 +396,7 @@ func TestSSESlashCommandHelp(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send slash command through queue
 	sendMessageToQueue(t, result.Server.URL, result.SessionID, createJSONMessage("/help"))
@@ -546,7 +491,7 @@ func TestPersistentConnection(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Wait for initial connected event
 	events := waitForEvents(t, resp, 1, 5*time.Second)
@@ -578,7 +523,7 @@ func TestMultipleMessages(t *testing.T) {
 	// Establish persistent connection
 	resp, cancel := connectSSE(t, result.Server.URL, result.SessionID)
 	defer cancel()
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Send first message
 	sendMessageToQueue(t, result.Server.URL, result.SessionID, createJSONMessage("First message"))
@@ -602,9 +547,10 @@ func TestMultipleMessages(t *testing.T) {
 	var completeCount int
 	var connectedCount int
 	for _, event := range allEvents {
-		if event.Type == "complete" {
+		switch event.Type {
+		case "complete":
 			completeCount++
-		} else if event.Type == "connected" {
+		case "connected":
 			connectedCount++
 		}
 	}

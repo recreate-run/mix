@@ -1,10 +1,8 @@
 package http
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -43,8 +41,8 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	testConfigDir := "/tmp/test-mix-" + testName
 	testDataDir := "/tmp/test-mix-data-" + testName
 
-	os.Setenv("_CONFIG_DIR", testConfigDir)
-	os.Setenv("_DATA_DIR", testDataDir)
+	_ = os.Setenv("_CONFIG_DIR", testConfigDir)
+	_ = os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
 	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
@@ -149,7 +147,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Unhandled request received: %s %s", r.Method, r.URL.String())
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("400 Bad Request"))
+		_, _ = w.Write([]byte("400 Bad Request"))
 	})
 
 	// Create test server
@@ -164,39 +162,9 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	}
 }
 
-// makeJSONRequest makes an HTTP request with JSON payload and returns the response
-func makeJSONRequest(t *testing.T, server *httptest.Server, method, path string, payload interface{}) *http.Response {
-	var body *bytes.Buffer
-	if payload != nil {
-		jsonData, err := json.Marshal(payload)
-		if err != nil {
-			t.Fatalf("Failed to marshal JSON payload: %v", err)
-		}
-		body = bytes.NewBuffer(jsonData)
-	} else {
-		body = bytes.NewBuffer(nil)
-	}
-
-	req, err := http.NewRequest(method, server.URL+path, body)
-	if err != nil {
-		t.Fatalf("Failed to create HTTP request: %v", err)
-	}
-
-	if payload != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to make HTTP request to %s %s: %v", method, path, err)
-	}
-
-	return resp
-}
-
 // validateObjectResponse validates success response as object (flattened)
 func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
@@ -210,25 +178,9 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 	return responseData
 }
 
-// validateArrayResponse validates success response as array (flattened)
-func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int) []interface{} {
-	defer resp.Body.Close()
-
-	if resp.StatusCode != expectedStatus {
-		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
-	}
-
-	var responseData []interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
-		t.Fatalf("Failed to decode array response: %v", err)
-	}
-
-	return responseData
-}
-
 // validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
 func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) ErrorResponse {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {
 		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
@@ -253,46 +205,4 @@ func createJSONMessage(text string) string {
 	}
 	jsonData, _ := json.Marshal(msgContent)
 	return string(jsonData)
-}
-
-// makeMultipartFileRequest creates and sends a multipart file upload request
-func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filename, content string) *http.Response {
-	// Create multipart form
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-
-	// Create file part
-	part, err := writer.CreateFormFile("file", filename)
-	if err != nil {
-		t.Fatalf("Failed to create form file: %v", err)
-	}
-
-	// Write file content
-	_, err = part.Write([]byte(content))
-	if err != nil {
-		t.Fatalf("Failed to write file content: %v", err)
-	}
-
-	// Close writer to finalize multipart form
-	err = writer.Close()
-	if err != nil {
-		t.Fatalf("Failed to close multipart writer: %v", err)
-	}
-
-	// Create request
-	req, err := http.NewRequest("POST", server.URL+path, &body)
-	if err != nil {
-		t.Fatalf("Failed to create multipart request: %v", err)
-	}
-
-	// Set proper content type for multipart
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	// Send request
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to send multipart request: %v", err)
-	}
-
-	return resp
 }

@@ -37,8 +37,13 @@ const fetchSessionFiles = async (sessionId: string): Promise<Attachment[]> => {
 
 export const useSessionFiles = (sessionId?: string) => {
 	return useQuery({
-		queryKey: CACHE_KEYS.sessionFiles(sessionId!),
-		queryFn: () => fetchSessionFiles(sessionId!),
+		queryKey: sessionId ? CACHE_KEYS.sessionFiles(sessionId) : ["sessionFiles"],
+		queryFn: () => {
+			if (!sessionId) {
+				throw new Error("Session ID is required");
+			}
+			return fetchSessionFiles(sessionId);
+		},
 		enabled: !!sessionId,
 	});
 };

@@ -93,7 +93,7 @@ func (h *SystemHandler) HandleSetAPIKey(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Set environment variable
-	os.Setenv("ANTHROPIC_API_KEY", req.APIKey)
+	_ = os.Setenv("ANTHROPIC_API_KEY", req.APIKey)
 
 	result := map[string]interface{}{
 		"status":  "success",
