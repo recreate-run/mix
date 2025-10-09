@@ -39,7 +39,14 @@ cd mix_agent
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o ../mix-linux ./main.go
 cd ..
 
-echo "✅ Binary built: mix-linux"
+# Verify binary was created
+if [ ! -f "mix-linux" ]; then
+    echo "❌ Failed to build binary"
+    exit 1
+fi
+
+echo "✅ Binary built: mix-linux ($(du -h mix-linux | cut -f1))"
+ls -lh mix-linux
 
 # Backup original Dockerfile
 echo "📝 Backing up original Dockerfile..."
@@ -70,6 +77,26 @@ RUN printf '#!/bin/bash\nset -e\nPORT=${PORT:-8080}\necho "Starting Mix Agent (D
 ENTRYPOINT ["/bin/bash", "/app/start.sh"]
 EOF
 
+# Verify everything is ready before deploying
+echo "🔍 Verifying deployment files..."
+if [ ! -f "mix-linux" ]; then
+    echo "❌ Binary not found before deployment!"
+    exit 1
+fi
+if [ ! -f "Dockerfile" ]; then
+    echo "❌ Dockerfile not found!"
+    exit 1
+fi
+
+echo "Files ready:"
+ls -lh mix-linux Dockerfile
+
+# Temporarily remove .dockerignore (so mix-linux is included)
+echo "🔧 Temporarily removing .dockerignore..."
+if [ -f ".dockerignore" ]; then
+    mv .dockerignore .dockerignore.backup
+fi
+
 # Deploy to Railway
 echo "📦 Deploying to Railway dev..."
 railway up --detach
@@ -81,6 +108,11 @@ rm -f mix-linux
 # Restore original Dockerfile
 if [ -f "Dockerfile.backup" ]; then
     mv Dockerfile.backup Dockerfile
+fi
+
+# Restore .dockerignore
+if [ -f ".dockerignore.backup" ]; then
+    mv .dockerignore.backup .dockerignore
 fi
 
 echo ""
