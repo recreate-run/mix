@@ -128,12 +128,12 @@ jobs:
 
       - name: Deploy to Railway
         if: steps.check_tag.outputs.is_tag == 'true'
-        uses: bervProject/railway-deploy@main
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: mix-agent
+        uses: docker://ghcr.io/railwayapp/cli:latest
         env:
-          RAILWAY_SERVICE: mix-agent
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+        with:
+          args: up --service=${{ secrets.RAILWAY_SERVICE_ID }} --detach
 
   # Test cross-platform builds (for PRs and non-tag pushes)
   test-build:
