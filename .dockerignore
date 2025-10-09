@@ -1,0 +1,59 @@
+# Git
+.git
+.github
+.gitignore
+
+# Node.js
+node_modules
+package-lock.json
+bun.lock
+
+# Build artifacts
+build
+dist
+*.log
+dev.log
+
+# IDE
+.DS_Store
+.idea
+.vscode
+
+# Go
+vendor
+
+# Environment
+.env
+.env.*
+
+# Storage (runtime data)
+storage/*
+!storage/.gitkeep
+
+# Frontend/Tauri app
+mix_dev_tool
+
+# Packages
+packages
+
+# Scripts
+scripts
+
+# Documentation
+docs
+reference
+examples
+
+# Markdown (except README)
+*.md
+!README.md
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Mix specific
+.mix
+mix_agent/build
+mix_agent/.mix
