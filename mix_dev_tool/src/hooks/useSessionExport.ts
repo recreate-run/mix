@@ -1,9 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
-import { downloadDir } from "@tauri-apps/api/path";
-import { save } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { toast } from "sonner";
 import { mix } from "@/lib/mix-sdk";
+import { PlatformFeatures } from "@/utils/platform";
 
 interface ExportSessionOptions {
 	sessionId: string;
@@ -28,28 +26,49 @@ export function useSessionExport() {
 				.slice(0, -5); // Format: YYYY-MM-DDTHH-MM-SS
 			const filename = `${sessionId}_${timestamp}.json`;
 
-			// Get Downloads directory path and ensure proper path separator
-			const downloadsPath = await downloadDir();
-			const defaultPath = downloadsPath.endsWith("/")
-				? `${downloadsPath}${filename}`
-				: `${downloadsPath}/${filename}`;
+			if (PlatformFeatures.hasNativeDialogs()) {
+				// Desktop: Use Tauri native save dialog
+				const { downloadDir } = await import("@tauri-apps/api/path");
+				const { save } = await import("@tauri-apps/plugin-dialog");
+				const { writeTextFile } = await import("@tauri-apps/plugin-fs");
 
-			// Show native save dialog with pre-filled path
-			const filePath = await save({
-				defaultPath,
-			});
+				// Get Downloads directory path and ensure proper path separator
+				const downloadsPath = await downloadDir();
+				const defaultPath = downloadsPath.endsWith("/")
+					? `${downloadsPath}${filename}`
+					: `${downloadsPath}/${filename}`;
 
-			if (!filePath) {
-				throw new Error("Save cancelled");
+				// Show native save dialog with pre-filled path
+				const filePath = await save({
+					defaultPath,
+				});
+
+				if (!filePath) {
+					throw new Error("Save cancelled");
+				}
+
+				// Write the file using Tauri's file system API
+				await writeTextFile(filePath, JSON.stringify(data, null, 2));
+
+				return { filePath, data };
+			} else {
+				// Browser: Download as blob
+				const jsonStr = JSON.stringify(data, null, 2);
+				const blob = new Blob([jsonStr], { type: "application/json" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+
+				return { filePath: filename, data };
 			}
-
-			// Write the file using Tauri's file system API
-			await writeTextFile(filePath, JSON.stringify(data, null, 2));
-
-			return { filePath, data };
 		},
 		onSuccess: () => {
-			toast.success("Session exported to Downloads folder");
+			toast.success("Session exported successfully");
 		},
 		onError: (error) => {
 			toast.error("Export failed", {
