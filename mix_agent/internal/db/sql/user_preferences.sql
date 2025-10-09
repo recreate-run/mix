@@ -68,10 +68,10 @@ RETURNING *;
 UPDATE user_preferences 
 SET 
     preferred_provider = 'anthropic',
-    main_agent_model = 'claude-4-sonnet',
+    main_agent_model = 'claude-sonnet-4-5',
     main_agent_max_tokens = 4096,
     main_agent_reasoning_effort = '',
-    sub_agent_model = 'claude-4-sonnet',
+    sub_agent_model = 'claude-sonnet-4-5',
     sub_agent_max_tokens = 2048,
     sub_agent_reasoning_effort = ''
 WHERE id = 'default_user'

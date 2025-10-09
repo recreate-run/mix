@@ -1,7 +1,22 @@
 FROM alpine:latest
 
 # Install required dependencies
-RUN apk --no-cache add ca-certificates curl tar bash ffmpeg
+RUN apk --no-cache add \
+    ca-certificates \
+    curl \
+    tar \
+    bash \
+    ffmpeg \
+    ripgrep
+
+# Install uv (Python package manager)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install yt-dlp
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    -o /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp
 
 WORKDIR /app
 
