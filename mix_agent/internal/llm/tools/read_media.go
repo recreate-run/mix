@@ -193,7 +193,7 @@ func (r *readMediaTool) validateGeminiAPIKey(ctx context.Context) error {
 	}
 
 	if apiKey == "" {
-		return fmt.Errorf("gemini API key not configured")
+		return fmt.Errorf("Gemini API key not configured")
 	}
 
 	return nil
@@ -392,9 +392,7 @@ func (r *readMediaTool) readFileContent(filePath string) ([]byte, string, error)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to open file: %w", err)
 	}
-	defer func() {
-		_ = file.Close()
-	}()
+	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
@@ -413,7 +411,7 @@ func (r *readMediaTool) downloadURLToMemory(url string) ([]byte, string, error) 
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to download from URL: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	// Check for HTTP errors
 	if resp.StatusCode != http.StatusOK {
@@ -449,7 +447,7 @@ func (r *readMediaTool) createGeminiProvider() (interfaces.Provider, error) {
 	}
 
 	if apiKey == "" {
-		return nil, fmt.Errorf("gemini API key not configured")
+		return nil, fmt.Errorf("Gemini API key not configured")
 	}
 
 	// Create Gemini provider

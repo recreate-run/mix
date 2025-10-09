@@ -11,12 +11,12 @@ async function loadSessionMessages(
 	try {
 		const response = await mix.messages.getSession({ id: sessionId });
 		return response;
-	} catch (error: unknown) {
+	} catch (error: any) {
 		console.error("Failed to load messages:", error);
 		console.error("Error details:", {
-			name: error instanceof Error ? error.name : undefined,
-			message: error instanceof Error ? error.message : String(error),
-			stack: error instanceof Error ? error.stack : undefined,
+			name: error?.name,
+			message: error?.message,
+			stack: error?.stack,
 		});
 		throw error;
 	}

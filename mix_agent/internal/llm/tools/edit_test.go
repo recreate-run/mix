@@ -123,12 +123,12 @@ func createTempFile(t *testing.T, content string) string {
 		require.NoError(t, err)
 	}
 
-	_ = tempFile.Close()
+	tempFile.Close()
 	return tempFile.Name()
 }
 
 func cleanupTempFile(filePath string) {
-	_ = os.Remove(filePath)
+	os.Remove(filePath)
 }
 
 // Test struct creation and validation

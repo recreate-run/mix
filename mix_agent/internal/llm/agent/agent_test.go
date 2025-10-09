@@ -312,7 +312,7 @@ func TestCreateUserMessagePlanMode(t *testing.T) {
 	attachmentParts := []message.ContentPart{}
 
 	// Create context with plan mode
-	ctx := context.WithValue(context.Background(), interfaces.PlanModeContextKey, true)
+	ctx := context.WithValue(context.Background(), "plan_mode", true)
 
 	testMessage := CreateTestMessage()
 	mockMessages.On("Create", mock.Anything, sessionID, mock.AnythingOfType("message.CreateMessageParams")).

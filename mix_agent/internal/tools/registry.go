@@ -210,11 +210,11 @@ func (tr *ToolRegistry) ValidateAPIKey(toolType ToolType, provider ToolProvider,
 	switch provider {
 	case WebSearchBrave:
 		if !strings.HasPrefix(apiKey, "BSA") {
-			return fmt.Errorf("brave API key must start with 'BSA'")
+			return fmt.Errorf("Brave API key must start with 'BSA'")
 		}
 	case MultimodalGemini:
 		if !strings.HasPrefix(apiKey, "AI") {
-			return fmt.Errorf("gemini API key must start with 'AI'")
+			return fmt.Errorf("Gemini API key must start with 'AI'")
 		}
 	default:
 		// Generic validation

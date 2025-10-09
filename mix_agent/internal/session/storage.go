@@ -137,9 +137,7 @@ func GetSessionFilePath(sessionID, filename string, config Config) (string, erro
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		_ = root.Close()
-	}()
+	defer root.Close()
 
 	// Test that we can stat the file path - this validates it's within root
 	_, err = root.Stat(filename)

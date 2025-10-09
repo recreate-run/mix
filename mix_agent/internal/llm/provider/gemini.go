@@ -209,10 +209,10 @@ func (g *geminiClient) convertTools(tools []interfaces.BaseTool) []*genai.Tool {
 }
 
 func (g *geminiClient) finishReason(reason genai.FinishReason) message.FinishReason {
-	switch reason {
-	case genai.FinishReasonStop:
+	switch {
+	case reason == genai.FinishReasonStop:
 		return message.FinishReasonEndTurn
-	case genai.FinishReasonMaxTokens:
+	case reason == genai.FinishReasonMaxTokens:
 		return message.FinishReasonMaxTokens
 	default:
 		return message.FinishReasonUnknown
@@ -486,9 +486,12 @@ func (g *geminiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 	}
 
 	errMsg := err.Error()
+	isRateLimit := false
 
 	// Check for common rate limit error messages
-	isRateLimit := contains(errMsg, "rate limit", "quota exceeded", "too many requests")
+	if contains(errMsg, "rate limit", "quota exceeded", "too many requests") {
+		isRateLimit = true
+	}
 
 	if !isRateLimit {
 		return false, 0, err
@@ -500,6 +503,27 @@ func (g *geminiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 	retryMs := backoffMs + jitterMs
 
 	return true, int64(retryMs), nil
+}
+
+func (g *geminiClient) toolCalls(resp *genai.GenerateContentResponse) []message.ToolCall {
+	var toolCalls []message.ToolCall
+
+	if len(resp.Candidates) > 0 && resp.Candidates[0].Content != nil {
+		for _, part := range resp.Candidates[0].Content.Parts {
+			if part.FunctionCall != nil {
+				id := "call_" + uuid.New().String()
+				args, _ := json.Marshal(part.FunctionCall.Args)
+				toolCalls = append(toolCalls, message.ToolCall{
+					ID:    id,
+					Name:  part.FunctionCall.Name,
+					Input: string(args),
+					Type:  "function",
+				})
+			}
+		}
+	}
+
+	return toolCalls
 }
 
 func (g *geminiClient) usage(resp *genai.GenerateContentResponse) interfaces.TokenUsage {
@@ -617,10 +641,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 
 	// Create log directory if it doesn't exist
 	logDir := "debug_logs"
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		logging.Warn("Failed to create debug log directory", "error", err)
-		return
-	}
+	os.MkdirAll(logDir, 0755)
 
 	// Log request details
 	requestFile := filepath.Join(logDir, fmt.Sprintf("gemini-empty-response-%s-%s-request.txt", sessionID, timestamp))
@@ -640,9 +661,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 	}
 
 	requestJSON, _ := json.MarshalIndent(requestData, "", "  ")
-	if err := os.WriteFile(requestFile, requestJSON, 0644); err != nil {
-		logging.Warn("Failed to write debug request file", "error", err)
-	}
+	os.WriteFile(requestFile, requestJSON, 0644)
 
 	// Log response details
 	responseFile := filepath.Join(logDir, fmt.Sprintf("gemini-empty-response-%s-%s-response.txt", sessionID, timestamp))
@@ -665,9 +684,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 	}
 
 	responseJSON, _ := json.MarshalIndent(responseData, "", "  ")
-	if err := os.WriteFile(responseFile, responseJSON, 0644); err != nil {
-		logging.Warn("Failed to write debug response file", "error", err)
-	}
+	os.WriteFile(responseFile, responseJSON, 0644)
 
 	logging.Info("Empty response debug files created", "requestFile", requestFile, "responseFile", responseFile)
 }

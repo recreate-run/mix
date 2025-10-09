@@ -80,7 +80,7 @@ function generateClientId() {
  */
 export function trackSlashCommand(
 	commandName: string,
-	properties?: Record<string, string | number | boolean | null>,
+	properties?: Record<string, any>,
 ) {
 	try {
 		posthog.capture("slash_command_used", {
@@ -98,7 +98,7 @@ export function trackSlashCommand(
  */
 export function trackUIEvent(
 	eventName: string,
-	properties?: Record<string, string | number | boolean | null>,
+	properties?: Record<string, any>,
 ) {
 	try {
 		posthog.capture(eventName, {

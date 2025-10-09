@@ -226,7 +226,7 @@ func createTempDir(t *testing.T) string {
 	dir, err := os.MkdirTemp("", "bash_test_*")
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_ = os.RemoveAll(dir)
+		os.RemoveAll(dir)
 	})
 	return dir
 }
@@ -586,7 +586,7 @@ func TestBashToolInterfaceCompliance(t *testing.T) {
 	tool := NewBashTool(mockPermissionService)
 
 	// Verify that bashTool implements BaseTool interface
-	var _ = tool
+	var _ interfaces.BaseTool = tool
 
 	// Verify that all required methods are available
 	info := tool.Info()
@@ -803,7 +803,7 @@ func BenchmarkJSONSerialization(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = json.Marshal(params)
+		json.Marshal(params)
 	}
 }
 

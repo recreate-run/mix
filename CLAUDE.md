@@ -29,24 +29,7 @@ make frontend-typecheck     # Always use this for frontend typechecking
 
 ## Code style
 
-1. As this is an early-stage startup, YOU MUST prioritize simple, readable code with minimal abstraction—avoid premature optimization. Strive for elegant, minimal solutions that reduce complexity.Focus on clear implementation that's easy to understand and iterate on as the product evolves.
+1. As this is an early-stage startup, YOU MUST prioritize simple, readable code with minimal abstraction—avoid premature optimization. Strive for elegant, minimal solutions that reduce complexity.Focus on clear implementation that’s easy to understand and iterate on as the product evolves.
 2. NEVER mock LLM API calls
 3. DO NOT preserve backward compatibility unless the user specifically requests it
 4. Do not handle errors (eg. API failures) gracefully, raise exceptions immediately.
-
-## Go Error Handling
-
-**Fail fast for business logic. Ignore non-critical operations.**
-
-Return errors immediately:
-- API calls, database operations, file I/O
-- User-facing operations
-- Business logic failures
-
-Use `_` to explicitly ignore:
-- `defer file.Close()` - cleanup
-- `os.Setenv/Unsetenv` - env operations
-- `resp.Body.Close()` - HTTP cleanup
-- `server.Shutdown()` - graceful shutdown
-- `json.Encode()` after headers sent
-- Analytics/telemetry tracking

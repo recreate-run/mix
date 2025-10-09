@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -116,7 +115,7 @@ func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath 
 	}
 
 	// If relative path starts with "..", then absRequestedPath is outside absSessionDir
-	if filepath.IsAbs(relPath) || relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+	if filepath.IsAbs(relPath) || relPath == ".." || filepath.HasPrefix(relPath, ".."+string(filepath.Separator)) {
 		logging.Debug("Path is outside session storage directory", "relPath", relPath)
 		return false
 	}
@@ -127,9 +126,7 @@ func (s *permissionService) isPathWithinSessionStorage(sessionID, requestedPath 
 		logging.Error("Failed to create root filesystem for session storage directory", "sessionStorageDir", sessionStorageDir, "error", err)
 		return false
 	}
-	defer func() {
-		_ = rootFS.Close()
-	}()
+	defer rootFS.Close()
 
 	// Try to access the requested path through the root using relative path
 	// This will fail if the path involves path traversal or doesn't exist

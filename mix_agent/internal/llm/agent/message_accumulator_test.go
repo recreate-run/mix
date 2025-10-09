@@ -80,9 +80,7 @@ func TestNoPeriodicFlush(t *testing.T) {
 	// Add multiple deltas over time
 	for i := 0; i < 10; i++ {
 		msg.AppendContent("delta ")
-		if err := accumulator.UpdateContent(msg.ID, "delta "); err != nil {
-			t.Logf("UpdateContent failed: %v", err)
-		}
+		accumulator.UpdateContent(msg.ID, "delta ")
 		time.Sleep(100 * time.Millisecond)
 	}
 
@@ -96,9 +94,7 @@ func TestNoPeriodicFlush(t *testing.T) {
 
 	// Now finalize the message
 	msg.AddFinish(message.FinishReasonEndTurn)
-	if err := accumulator.FinalizeMessage(msg.ID, message.FinishReasonEndTurn); err != nil {
-		t.Logf("FinalizeMessage failed: %v", err)
-	}
+	accumulator.FinalizeMessage(msg.ID, message.FinishReasonEndTurn)
 
 	// Should have exactly 1 DB write (on finalization)
 	if count := mockService.GetUpdateCount(msg.ID); count != 1 {
@@ -127,15 +123,13 @@ func TestFlushOnlyOnSpecificEvents(t *testing.T) {
 	// Simulate rapid streaming
 	for i := 0; i < 50; i++ {
 		msg1.AppendContent("x")
-		if err := accumulator.UpdateContent(msg1.ID, "x"); err != nil {
-			t.Logf("UpdateContent failed: %v", err)
-		}
+		accumulator.UpdateContent(msg1.ID, "x")
 	}
-
+	
 	time.Sleep(200 * time.Millisecond)
 	streamingWrites := mockService.GetTotalUpdateCount()
 	t.Logf("After streaming 50 deltas: %d DB writes (expected 0)", streamingWrites)
-
+	
 	if streamingWrites != 0 {
 		t.Errorf("Expected 0 DB writes during streaming, got %d", streamingWrites)
 	}
@@ -143,18 +137,16 @@ func TestFlushOnlyOnSpecificEvents(t *testing.T) {
 	// Test 2: Tool event (immediate flush)
 	msg2 := &message.Message{
 		ID:        "msg-tool",
-		SessionID: "test-session",
+		SessionID: "test-session", 
 		Role:      message.Assistant,
 		Parts:     []message.ContentPart{
 			message.TextContent{Text: "Before tool"},
 		},
 	}
 	accumulator.Store(msg2)
-
+	
 	// Simulate tool use - triggers immediate flush
-	if err := accumulator.FlushMessage(msg2.ID); err != nil {
-		t.Logf("FlushMessage failed: %v", err)
-	}
+	accumulator.FlushMessage(msg2.ID)
 	
 	toolWrites := mockService.GetTotalUpdateCount() - streamingWrites
 	t.Logf("After tool event: %d new DB writes (expected 1)", toolWrites)
@@ -172,15 +164,11 @@ func TestFlushOnlyOnSpecificEvents(t *testing.T) {
 	}
 	accumulator.Store(msg3)
 	msg3.AppendContent("Final message")
-	if err := accumulator.UpdateContent(msg3.ID, "Final message"); err != nil {
-		t.Logf("UpdateContent failed: %v", err)
-	}
-
+	accumulator.UpdateContent(msg3.ID, "Final message")
+	
 	// Finalize
 	msg3.AddFinish(message.FinishReasonEndTurn)
-	if err := accumulator.FinalizeMessage(msg3.ID, message.FinishReasonEndTurn); err != nil {
-		t.Logf("FinalizeMessage failed: %v", err)
-	}
+	accumulator.FinalizeMessage(msg3.ID, message.FinishReasonEndTurn)
 	
 	finalWrites := mockService.GetTotalUpdateCount() - streamingWrites - toolWrites
 	t.Logf("After finalization: %d new DB writes (expected 1)", finalWrites)
@@ -221,9 +209,7 @@ func TestLongStreamingWithoutFlush(t *testing.T) {
 	t.Log("Starting 3-second streaming simulation...")
 	for time.Since(start) < 3*time.Second {
 		msg.AppendContent(".")
-		if err := accumulator.UpdateContent(msg.ID, "."); err != nil {
-			t.Logf("UpdateContent failed: %v", err)
-		}
+		accumulator.UpdateContent(msg.ID, ".")
 		deltaCount++
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -238,9 +224,7 @@ func TestLongStreamingWithoutFlush(t *testing.T) {
 	
 	// Finalize - this is when the DB write happens
 	msg.AddFinish(message.FinishReasonEndTurn)
-	if err := accumulator.FinalizeMessage(msg.ID, message.FinishReasonEndTurn); err != nil {
-		t.Logf("FinalizeMessage failed: %v", err)
-	}
+	accumulator.FinalizeMessage(msg.ID, message.FinishReasonEndTurn)
 	
 	// Should have exactly 1 DB write
 	finalWrites := mockService.GetTotalUpdateCount()
@@ -270,20 +254,14 @@ func TestCancellationScenario(t *testing.T) {
 	
 	// Simulate partial generation
 	msg.AppendReasoningContent("I'm thinking about this problem...")
-	if err := accumulator.UpdateThinking(msg.ID, "I'm thinking about this problem..."); err != nil {
-		t.Logf("UpdateThinking failed: %v", err)
-	}
-
+	accumulator.UpdateThinking(msg.ID, "I'm thinking about this problem...")
+	
 	msg.AppendContent("Here's my partial respo-")
-	if err := accumulator.UpdateContent(msg.ID, "Here's my partial respo-"); err != nil {
-		t.Logf("UpdateContent failed: %v", err)
-	}
-
+	accumulator.UpdateContent(msg.ID, "Here's my partial respo-")
+	
 	// User cancels
 	msg.AddFinish(message.FinishReasonCanceled)
-	if err := accumulator.FinalizeMessage(msg.ID, message.FinishReasonCanceled); err != nil {
-		t.Logf("FinalizeMessage failed: %v", err)
-	}
+	accumulator.FinalizeMessage(msg.ID, message.FinishReasonCanceled)
 	
 	// Should save the partial content
 	if count := mockService.GetUpdateCount(msg.ID); count != 1 {

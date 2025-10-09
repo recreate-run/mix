@@ -451,5 +451,5 @@ func TestNewService(t *testing.T) {
 	assert.NotNil(t, service)
 
 	// Test that it implements the Service interface
-	var _ = service
+	var _ Service = service
 }

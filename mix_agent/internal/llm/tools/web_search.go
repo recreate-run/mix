@@ -343,7 +343,7 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to execute web search: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return NewTextErrorResponse(fmt.Sprintf("Brave Search API returned status code: %d", resp.StatusCode)), nil
@@ -356,9 +356,7 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 		if err != nil {
 			return NewTextErrorResponse("Failed to decompress search results: " + err.Error()), nil
 		}
-		defer func() {
-			_ = reader.Close()
-		}()
+		defer reader.Close()
 	} else {
 		reader = resp.Body
 	}

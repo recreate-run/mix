@@ -3,10 +3,6 @@ import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
 import type { LoginProviderInfo } from "@/types/message";
 
-interface ProviderData {
-	displayName?: string;
-}
-
 // Authentication method constants
 const AUTH_METHODS: Record<string, ("api_key" | "oauth")[]> = {
 	anthropic: ["api_key", "oauth"],
@@ -38,14 +34,12 @@ async function fetchProviders(): Promise<LoginProviderInfo[]> {
 
 	// Process all available providers
 	Object.entries(preferencesResponse.availableProviders).forEach(
-		([providerId, data]: [string, unknown]) => {
+		([providerId, data]: [string, any]) => {
 			const authProvider = authStatus.providers?.[providerId];
 			const isAuthenticated = authProvider?.authenticated;
 
 			// Extract clean display name
-			const providerData = data as ProviderData;
-			const name =
-				providerData.displayName || authProvider?.displayName || providerId;
+			const name = data.displayName || authProvider?.displayName || providerId;
 			const cleanName = name.replace(" ⭐", "");
 			const isPreferred =
 				name.includes("⭐") || providerId === preferredProvider;

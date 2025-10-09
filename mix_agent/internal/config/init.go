@@ -54,11 +54,7 @@ func MarkProjectInitialized() error {
 	if err != nil {
 		return fmt.Errorf("failed to create init flag file: %w", err)
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			panic(fmt.Sprintf("failed to close init flag file: %v", err))
-		}
-	}()
+	defer file.Close()
 
 	return nil
 }

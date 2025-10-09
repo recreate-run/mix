@@ -19,7 +19,7 @@ export const convertToAssetServerUrl = (
 
 	// Extract filename from path if full path is provided
 	const cleanFilename = filename.includes("/")
-		? filename.split("/").pop() || filename
+		? filename.split("/").pop()!
 		: filename;
 
 	return `${getBackendUrl()}/api/sessions/${sessionId}/files/${encodeURIComponent(cleanFilename)}`;
