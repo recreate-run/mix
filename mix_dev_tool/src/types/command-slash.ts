@@ -1,3 +1,4 @@
+import type { QueryKey } from "@tanstack/react-query";
 import type { HierarchicalModelData } from "@/types";
 
 export type { HierarchicalModelData };
@@ -7,7 +8,7 @@ export interface CommandSlashProps {
 	sessionId: string;
 	onFeedbackMessage?: (message: string) => void;
 	onNewSession?: () => void;
-	onQueryClientInvalidate?: (keys: any) => void;
+	onQueryClientInvalidate?: (keys: QueryKey) => void;
 	onSubmitMessage?: (message: string) => void;
 }
 
