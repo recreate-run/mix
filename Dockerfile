@@ -1,7 +1,7 @@
 FROM alpine:latest
 
 # Install required dependencies
-RUN apk --no-cache add ca-certificates curl tar bash
+RUN apk --no-cache add ca-certificates curl tar bash ffmpeg
 
 WORKDIR /app
 

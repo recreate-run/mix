@@ -1,4 +1,4 @@
-.PHONY: build dev docs clean install install-air install-deps help update-blender-init release-macos go-lint go-test generate-mix_sdk gsap-server
+.PHONY: build dev frontend-only docs clean install install-air install-deps help update-blender-init release-macos go-lint go-test generate-mix_sdk gsap-server
 
 # Variables
 BINARY_NAME=mix
@@ -23,6 +23,7 @@ OPENAPI_ENDPOINT=http://localhost:8088/doc
 help:
 	@echo "Available targets:"
 	@echo "  dev         - Install dependencies and run all development servers (backend, frontend, GSAP)"
+	@echo "  frontend-only - Run only the frontend development server"
 	@echo "  docs        - Run documentation development server"
 	@echo "  install     - Install system dependencies (one-time setup)"
 	@echo "  install-deps - Install project dependencies"
@@ -64,6 +65,10 @@ help:
 # This starts backend, frontend, and GSAP server together
 dev: install-deps
 	@ENV=development ./scripts/shoreman.sh
+
+# Run only frontend development server
+frontend-only: install-deps
+	@ENV=development ./scripts/shoreman.sh Procfile.frontend
 
 # Run documentation development server
 docs:
