@@ -1,4 +1,3 @@
-import { stat } from "@tauri-apps/plugin-fs";
 import type { BackendMessage } from "mix-typescript-sdk/models";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall, ToolCallData } from "@/types/common";
@@ -8,6 +7,7 @@ import {
 	createFileAttachment,
 	createFolderAttachment,
 } from "@/utils/attachmentUtils";
+import { PlatformFeatures } from "@/utils/platform";
 
 interface ParsedContent {
 	text: string;
@@ -64,15 +64,22 @@ const convertMediaToAttachments = async (
 				attachment = createFileAttachment(filename);
 			} else {
 				// Handle local file paths (during upload)
-				try {
-					const fileStat = await stat(mediaPath);
-					if (fileStat.isDirectory) {
-						attachment = await createFolderAttachment(mediaPath);
-					} else {
+				if (PlatformFeatures.hasFileSystemAccess()) {
+					// Desktop: Check if directory using stat
+					try {
+						const { stat } = await import("@tauri-apps/plugin-fs");
+						const fileStat = await stat(mediaPath);
+						if (fileStat.isDirectory) {
+							attachment = await createFolderAttachment(mediaPath);
+						} else {
+							attachment = createFileAttachment(mediaPath);
+						}
+					} catch (_statError) {
+						// If stat fails, try to create as file based on file extension
 						attachment = createFileAttachment(mediaPath);
 					}
-				} catch (_statError) {
-					// If stat fails, try to create as file based on file extension
+				} else {
+					// Browser: Treat as file (folders not supported)
 					attachment = createFileAttachment(mediaPath);
 				}
 			}

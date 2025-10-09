@@ -1,4 +1,3 @@
-import { readDir } from "@tauri-apps/plugin-fs";
 import type { Attachment } from "@/stores/attachmentSlice";
 import {
 	getAudioExtensions,
@@ -7,13 +6,25 @@ import {
 	getVideoExtensions,
 	type SupportedFileTypes,
 } from "@/utils/fileTypes";
+import { PlatformFeatures } from "@/utils/platform";
 
 // Helper function for folder attachment creation
 const countMediaFilesInFolder = async (
 	folderPath: string,
 	supportedTypes?: SupportedFileTypes,
 ): Promise<{ images: number; videos: number; audios: number }> => {
+	// Browser: File system access not available
+	if (!PlatformFeatures.hasFileSystemAccess()) {
+		console.warn(
+			"Folder operations are only available in desktop app:",
+			folderPath,
+		);
+		return { images: 0, videos: 0, audios: 0 };
+	}
+
 	try {
+		// Desktop: Use Tauri file system access
+		const { readDir } = await import("@tauri-apps/plugin-fs");
 		const entries = await readDir(folderPath);
 		let images = 0,
 			videos = 0,
