@@ -33,20 +33,26 @@ railway environment dev || {
     exit 1
 }
 
-# Temporarily hide Dockerfile so Railway builds from source
-echo "🔧 Temporarily hiding Dockerfile..."
+# Temporarily hide Dockerfile and railway.json so Railway builds from source
+echo "🔧 Temporarily hiding Dockerfile and railway.json..."
 if [ -f "Dockerfile" ]; then
     mv Dockerfile Dockerfile.prod
+fi
+if [ -f "railway.json" ]; then
+    mv railway.json railway.json.prod
 fi
 
 # Deploy to Railway
 echo "📦 Deploying to Railway dev..."
 railway up --detach
 
-# Restore Dockerfile
-echo "✅ Restoring Dockerfile..."
+# Restore files
+echo "✅ Restoring Dockerfile and railway.json..."
 if [ -f "Dockerfile.prod" ]; then
     mv Dockerfile.prod Dockerfile
+fi
+if [ -f "railway.json.prod" ]; then
+    mv railway.json.prod railway.json
 fi
 
 echo ""

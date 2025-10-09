@@ -104,3 +104,4 @@ set-railway-vars.sh
 
 # Temporary deployment files
 Dockerfile.prod
+railway.json.prod
