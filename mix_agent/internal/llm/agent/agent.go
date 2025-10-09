@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-	"sync"
-	"time"
-
 	"mix/internal/config"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
@@ -19,6 +15,10 @@ import (
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
+	"os"
+	"strings"
+	"sync"
+	"time"
 )
 
 // Common errors
@@ -1116,6 +1116,13 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		sessionVars["session_id"] = sess.ID
 		sessionVars["workdir"] = session.GetSessionStoragePath(sess.ID, storageConfig)
 	}
+
+	// Add server URL for file access - uses PUBLIC_URL env var or defaults to localhost
+	serverURL := os.Getenv("PUBLIC_URL")
+	if serverURL == "" {
+		serverURL = "http://localhost:8088"
+	}
+	sessionVars["server_url"] = serverURL
 
 	// Get system prompt with session variables and custom prompt support
 	customPrompt := ""

@@ -1,5 +1,7 @@
 # Railway Deployment Guide
 
+> **Note**: The Docker deployment automatically uses `--dangerously-skip-permissions` to bypass permission prompts in server environments where no interactive UI is available.
+
 ## Quick Deploy Steps
 
 ### 1. Install Railway CLI (if not already installed)
@@ -46,6 +48,9 @@ railway variables set STORAGE_PUBLIC_URL_BASE="YOUR_SUPABASE_PUBLIC_URL"
 
 # Environment
 railway variables set ENV=production
+
+# Public URL (IMPORTANT: Set this to your Railway app URL for file access)
+railway variables set PUBLIC_URL="https://your-app.railway.app"
 
 # Analytics (Optional)
 railway variables set MIX_ANALYTICS_ENABLED=true
