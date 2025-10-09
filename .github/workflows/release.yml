@@ -126,17 +126,21 @@ jobs:
             dist/mix_windows_*/*
           retention-days: 30
 
+
+  # Deploy to Railway (only for tagged releases)
+  deploy:
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    container: ghcr.io/railwayapp/cli:latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Deploy to Railway
-        if: steps.check_tag.outputs.is_tag == 'true'
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          docker run --rm \
-            -e RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} \
-            -v ${{ github.workspace }}:/app \
-            -w /app \
-            ghcr.io/railwayapp/cli:latest \
-            up --service=${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        run: railway up --service=${{ secrets.RAILWAY_SERVICE_ID }} --detach
 
   # Test cross-platform builds (for PRs and non-tag pushes)
   test-build:
