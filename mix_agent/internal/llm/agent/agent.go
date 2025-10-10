@@ -283,7 +283,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 		defer logging.RecoverPanic("agent.Run-subscription", nil)
 		for {
 			select {
-			case <-ctx.Done():
+			case <-genCtx.Done():
 				return
 			case event, ok := <-subscription:
 				if !ok {
@@ -293,7 +293,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 				if (event.Payload.SessionID == sessionID || event.Payload.Message.SessionID == sessionID) && !event.Payload.Done {
 					select {
 					case events <- event.Payload:
-					case <-ctx.Done():
+					case <-genCtx.Done():
 						return
 					}
 				}
