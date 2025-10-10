@@ -1,5 +1,5 @@
-import { IconDownload } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { FileDown } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEventHandler, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -613,7 +613,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 								title="Export session transcript"
 								variant="ghost"
 							>
-								<IconDownload className="h-4 w-4" />
+								<FileDown className="h-4 w-4" />
 							</Button>
 						</div>
 					)}

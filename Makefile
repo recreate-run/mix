@@ -23,6 +23,7 @@ OPENAPI_ENDPOINT=http://localhost:8088/doc
 help:
 	@echo "Available targets:"
 	@echo "  dev         - Install dependencies and run all development servers (backend, frontend, GSAP)"
+	@echo "  dev-kill    - Stop all development servers started by 'make dev'"
 	@echo "  frontend-only - Run only the frontend development server (Tauri desktop app)"
 	@echo "  browser     - Run browser-only development server (no Tauri, pure web)"
 	@echo "  docs        - Run documentation development server"
@@ -66,6 +67,26 @@ help:
 # This starts backend, frontend, and GSAP server together
 dev: install-deps
 	@ENV=development ./scripts/shoreman.sh
+
+# Stop all development servers
+dev-kill:
+	@echo "Stopping all development servers..."
+	@if [ -f .shoreman.pid ]; then \
+		pid=$$(cat .shoreman.pid); \
+		if kill -0 $$pid 2>/dev/null; then \
+			echo "Sending SIGTERM to shoreman (PID $$pid)..."; \
+			kill $$pid && echo "✅ Development servers stopped"; \
+		else \
+			echo "PID file exists but process not running, cleaning up..."; \
+			rm -f .shoreman.pid; \
+		fi \
+	else \
+		echo "No PID file found. Attempting to kill processes manually..."; \
+		pkill -f "air" || true; \
+		pkill -f "bun run tauri dev" || true; \
+		pkill -f "mix --http-port" || true; \
+		echo "✅ Killed stray processes (if any)"; \
+	fi
 
 # Run only frontend development server (Tauri desktop app)
 frontend-only: install-deps
