@@ -20,6 +20,14 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 			registry.BroadcastEvent(sessionID, "content", ContentEvent{Type: "content", Content: event.Content})
 		}
 
+	case agent.AgentEventTypeToolParameterDelta:
+		// Stream tool parameter deltas for real-time parameter visibility
+		registry.BroadcastEvent(sessionID, "tool_parameter_delta", ToolParameterDeltaEvent{
+			Type:       "tool_parameter_delta",
+			ToolCallID: event.ToolCallID,
+			Input:      event.Content, // Delta is stored in Content field
+		})
+
 	case agent.AgentEventTypeResponse:
 		// Stream tool calls - detect new tool calls by checking completion status
 		toolCalls := event.Message.ToolCalls()

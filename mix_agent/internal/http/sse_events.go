@@ -43,6 +43,12 @@ type ToolEvent struct {
 	Status string `json:"status"`
 }
 
+type ToolParameterDeltaEvent struct {
+	Type       string `json:"type"`
+	ToolCallID string `json:"toolCallId"`
+	Input      string `json:"input"` // Partial JSON parameter delta
+}
+
 type SummarizeEvent struct {
 	Type     string `json:"type"`
 	Progress string `json:"progress"`

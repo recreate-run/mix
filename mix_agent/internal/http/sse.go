@@ -186,26 +186,9 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	}
 
 	// Register connection and ensure cleanup
-	connectionStartTime := time.Now()
 	registry.Register(sessionID, conn)
 
-	// Log connection establishment
-	logging.Info("SSE connection established",
-		"sessionID", sessionID,
-		"remoteAddr", r.RemoteAddr,
-		"connectionCount", registry.CountForSession(sessionID),
-		"timestamp", connectionStartTime.Format(time.RFC3339Nano))
-
 	defer func() {
-		// Log connection closure
-		duration := time.Since(connectionStartTime)
-		logging.Info("SSE connection closing",
-			"sessionID", sessionID,
-			"remoteAddr", r.RemoteAddr,
-			"duration", duration.String(),
-			"remainingConnections", registry.CountForSession(sessionID)-1,
-			"timestamp", time.Now().Format(time.RFC3339Nano))
-
 		registry.Unregister(sessionID, conn)
 		conn.closeOnce.Do(func() {
 			close(conn.Done)
@@ -304,11 +287,6 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 
 		case <-ctx.Done():
 			// Handler context cancelled (server shutdown, timeout, etc.)
-			logging.Info("SSE handler context cancelled",
-				"sessionID", sessionID,
-				"remoteAddr", r.RemoteAddr,
-				"contextError", ctx.Err(),
-				"timestamp", time.Now().Format(time.RFC3339Nano))
 			app.CoderAgent.CancelWithReason(sessionID, "server_shutdown")
 			return
 
@@ -346,6 +324,16 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 			if err := sseWriter.WriteEvent("content", ContentEvent{Type: "content", Content: event.Content}); err != nil {
 				return err
 			}
+		}
+
+	case agent.AgentEventTypeToolParameterDelta:
+		// Stream tool parameter deltas for real-time parameter visibility
+		if err := sseWriter.WriteEvent("tool_parameter_delta", ToolParameterDeltaEvent{
+			Type:       "tool_parameter_delta",
+			ToolCallID: event.ToolCallID,
+			Input:      event.Content, // Delta is stored in Content field
+		}); err != nil {
+			return err
 		}
 
 	case agent.AgentEventTypeResponse:
