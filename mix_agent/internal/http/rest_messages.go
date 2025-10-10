@@ -274,59 +274,59 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Forward all events to active SSE connections while processing
-	var lastEvent agent.AgentEvent
-	for event := range events {
-		// Broadcast event to all SSE connections for this session
-		BroadcastAgentEventToSSE(sessionID, event)
+	// Return 202 Accepted immediately - agent runs asynchronously
+	// All results stream via SSE connections
+	sendJSONResponse(w, http.StatusAccepted, map[string]string{
+		"status":    "processing",
+		"sessionId": sessionID,
+	})
 
-		// Store last event for REST response
-		lastEvent = event
-	}
-
-	// Log agent processing completion
-	logging.Info("Agent processing completed - events consumed",
-		"sessionID", sessionID,
-		"requestID", requestID,
-		"hasError", lastEvent.Error != nil,
-		"timestamp", time.Now().Format(time.RFC3339Nano))
-
-	// Check for processing errors
-	if lastEvent.Error != nil {
-		// Convert error to user-friendly message
-		errorMessage := lastEvent.Error.Error()
-
-		// Special handling for auth errors
-		if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
-			authResult := MessageData{
-				ID:                "system-auth-prompt",
-				Role:              "assistant",
-				UserInput:         req.Text,
-				AssistantResponse: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+	// Process events in background goroutine
+	// This allows the HTTP connection to close immediately while agent continues processing
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Error("Panic in background event processing",
+					"sessionID", sessionID,
+					"requestID", requestID,
+					"panic", r)
 			}
+		}()
 
-			sendJSONResponse(w, http.StatusOK, authResult)
-			return
+		// Forward all events to active SSE connections while processing
+		var lastEvent agent.AgentEvent
+		for event := range events {
+			// Broadcast event to all SSE connections for this session
+			BroadcastAgentEventToSSE(sessionID, event)
+
+			// Store last event for logging
+			lastEvent = event
 		}
 
-		sendInternalError(w, "agent processing", lastEvent.Error)
-		return
-	}
+		// Log agent processing completion
+		logging.Info("Agent processing completed - events consumed",
+			"sessionID", sessionID,
+			"requestID", requestID,
+			"hasError", lastEvent.Error != nil,
+			"timestamp", time.Now().Format(time.RFC3339Nano))
 
-	// Extract text content from the response message
-	response := ""
-	if lastEvent.Message.Content().String() != "" {
-		response = lastEvent.Message.Content().String()
-	}
+		// Check for processing errors and broadcast to SSE if needed
+		if lastEvent.Error != nil {
+			errorMessage := lastEvent.Error.Error()
 
-	messageData := MessageData{
-		ID:                lastEvent.Message.ID,
-		Role:              "user",
-		UserInput:         req.Text,
-		AssistantResponse: response,
-	}
-
-	sendJSONResponse(w, http.StatusOK, messageData)
+			// Special handling for auth errors - broadcast to SSE
+			if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
+				registry.BroadcastEvent(sessionID, "error", ErrorEvent{
+					Error: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+				})
+			} else {
+				// Broadcast general errors to SSE
+				registry.BroadcastEvent(sessionID, "error", ErrorEvent{
+					Error: errorMessage,
+				})
+			}
+		}
+	}()
 }
 
 // HandleListSessionMessages handles GET /api/sessions/{id}/messages
