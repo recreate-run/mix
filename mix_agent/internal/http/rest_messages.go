@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -122,8 +124,31 @@ func getCommandNames(commands map[string]commands.Command) []string {
 	return names
 }
 
+// generateRequestID generates a unique request ID for correlation tracking
+func generateRequestID() string {
+	bytes := make([]byte, 8)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp if random generation fails
+		return fmt.Sprintf("req-%d", time.Now().UnixNano())
+	}
+	return "req-" + hex.EncodeToString(bytes)
+}
+
 // HandleSendMessage handles POST /api/sessions/{id}/messages
 func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Request) {
+	// Generate unique request ID for correlation
+	requestID := generateRequestID()
+	requestStartTime := time.Now()
+
+	// Defer logging for handler exit
+	defer func() {
+		duration := time.Since(requestStartTime)
+		logging.Debug("HTTP handler exiting",
+			"requestID", requestID,
+			"duration", duration.String(),
+			"timestamp", time.Now().Format(time.RFC3339Nano))
+	}()
+
 	setCORSHeaders(w)
 	if handleCORSPreflight(w, r) {
 		return
@@ -150,6 +175,14 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		sendValidationError(w, "content", "message content is required")
 		return
 	}
+
+	// Log HTTP request start
+	logging.Info("HTTP POST /api/sessions/{id}/messages started",
+		"sessionID", sessionID,
+		"requestID", requestID,
+		"remoteAddr", r.RemoteAddr,
+		"planMode", req.PlanMode,
+		"timestamp", requestStartTime.Format(time.RFC3339Nano))
 
 	ctx := r.Context()
 
@@ -223,12 +256,20 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 
 	// Send message to agent
 	// Use context.Background() instead of r.Context() to prevent HTTP request timeouts/cancellations
-	// from killing long-running agent tasks. The agent can still be cancelled via the SSE disconnect
-	// or the explicit cancel endpoint.
+	// from killing long-running agent tasks. The agent can only be cancelled via the explicit cancel endpoint.
 	agentCtx := context.Background()
+
+	logging.Info("Agent processing starting",
+		"sessionID", sessionID,
+		"requestID", requestID,
+		"timestamp", time.Now().Format(time.RFC3339Nano))
 
 	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode)
 	if err != nil {
+		logging.Error("Failed to start agent processing",
+			"sessionID", sessionID,
+			"requestID", requestID,
+			"error", err)
 		sendInternalError(w, "sending message to agent", err)
 		return
 	}
@@ -242,6 +283,13 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		// Store last event for REST response
 		lastEvent = event
 	}
+
+	// Log agent processing completion
+	logging.Info("Agent processing completed - events consumed",
+		"sessionID", sessionID,
+		"requestID", requestID,
+		"hasError", lastEvent.Error != nil,
+		"timestamp", time.Now().Format(time.RFC3339Nano))
 
 	// Check for processing errors
 	if lastEvent.Error != nil {

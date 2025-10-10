@@ -462,7 +462,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 	);
 
 	useEffect(() => {
-		if (!sessionId || sessionId === currentSessionRef.current) {
+		if (!sessionId) {
+			return;
+		}
+
+		// Prevent duplicate connections for same session
+		if (sessionId === currentSessionRef.current) {
 			return;
 		}
 
@@ -500,7 +505,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		streamAbortController.current = new AbortController();
 
 		// Start streaming with SDK
-
 		processEventStream(sessionId, streamAbortController.current).catch(
 			(error) => {
 				console.error("Stream processing failed:", error);
@@ -525,11 +529,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			currentSessionRef.current = "";
 			lastEventIdRef.current = undefined;
 		};
-	}, [
-		sessionId, // Start streaming with SDK
-
-		processEventStream,
-	]);
+	}, [sessionId, processEventStream]);
 
 	// Cleanup on component unmount
 	useEffect(() => {

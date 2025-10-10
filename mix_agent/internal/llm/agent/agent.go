@@ -32,6 +32,16 @@ var (
 	ErrRequestCancelledDisconnect = errors.New("request cancelled: client disconnected")
 )
 
+// SessionState represents the current state of an agent session
+type SessionState string
+
+const (
+	SessionStateCreated    SessionState = "created"
+	SessionStateProcessing SessionState = "processing"
+	SessionStateCompleted  SessionState = "completed"
+	SessionStateCancelled  SessionState = "cancelled"
+)
+
 type AgentEventType string
 
 const (
@@ -92,6 +102,7 @@ type agent struct {
 
 	sessionProviders sync.Map // Maps session ID to interfaces.Provider
 	activeContexts   sync.Map // Maps session ID to context.CancelFunc for cancellation
+	sessionStates    sync.Map // Maps session ID to SessionState for debugging
 
 	accumulator *MessageAccumulator // In-memory message accumulator
 
@@ -163,23 +174,58 @@ func (a *agent) Cancel(sessionID string) {
 }
 
 func (a *agent) CancelWithReason(sessionID string, reason string) {
-	logging.Info("Cancelling agent session", "sessionID", sessionID, "reason", reason)
-
 	// Cancel regular requests
-	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID); exists {
-		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			// Request cancellation initiated
-			cancel()
-		}
+	cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID)
+	if !exists {
+		// Nothing to cancel - agent not running or already completed
+		return
+	}
+
+	if cancel, ok := cancelFunc.(context.CancelFunc); ok {
+		cancel()
+		a.setSessionState(sessionID, SessionStateCancelled)
+		logging.Info("Agent session cancelled",
+			"sessionID", sessionID,
+			"reason", reason)
 	}
 
 	// Also check for summarize requests
 	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID + "-summarize"); exists {
 		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			// Summarize cancellation initiated
 			cancel()
 		}
 	}
+}
+
+// setSessionState sets the state of a session and logs the transition
+func (a *agent) setSessionState(sessionID string, state SessionState) {
+	oldState, _ := a.sessionStates.Load(sessionID)
+	a.sessionStates.Store(sessionID, state)
+	logging.Debug("Session state transition",
+		"sessionID", sessionID,
+		"oldState", oldState,
+		"newState", state,
+		"timestamp", time.Now().Format(time.RFC3339Nano))
+}
+
+// getSessionState retrieves the current state of a session
+func (a *agent) getSessionState(sessionID string) (SessionState, bool) {
+	if state, exists := a.sessionStates.Load(sessionID); exists {
+		if s, ok := state.(SessionState); ok {
+			return s, true
+		}
+	}
+	return "", false
+}
+
+// countActiveSessions returns the number of sessions currently being processed
+func (a *agent) countActiveSessions() int {
+	count := 0
+	a.activeContexts.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 func (a *agent) generateTitle(ctx context.Context, sessionID string, content string) error {
@@ -244,6 +290,12 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 	// Store cancel function for potential cancellation
 	a.activeContexts.Store(sessionID, cancel)
 
+	// Set session state to processing
+	a.setSessionState(sessionID, SessionStateProcessing)
+	logging.Debug("Stored cancel function for session",
+		"sessionID", sessionID,
+		"activeSessionsCount", a.countActiveSessions())
+
 	// Add plan mode to context
 	if planMode {
 		genCtx = context.WithValue(genCtx, interfaces.PlanModeContextKey, true)
@@ -254,7 +306,17 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 
 	go func() {
 		defer func() {
-			logging.Debug("Request completed", "sessionID", sessionID)
+			// Check if session was cancelled or completed normally
+			state, _ := a.getSessionState(sessionID)
+			if state != SessionStateCancelled {
+				a.setSessionState(sessionID, SessionStateCompleted)
+			}
+
+			logging.Debug("Removing cancel function for session",
+				"sessionID", sessionID,
+				"finalState", state,
+				"activeSessionsCount", a.countActiveSessions()-1)
+
 			a.activeContexts.Delete(sessionID)
 			cancel()
 			close(events)
