@@ -22,10 +22,9 @@ OPENAPI_ENDPOINT=http://localhost:8088/doc
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  dev         - Install dependencies and run all development servers (backend, frontend, GSAP)"
+	@echo "  dev         - Install dependencies and run all development servers (backend, web frontend, GSAP)"
 	@echo "  dev-kill    - Stop all development servers started by 'make dev'"
-	@echo "  frontend-only - Run only the frontend development server (Tauri desktop app)"
-	@echo "  browser     - Run browser-only development server (no Tauri, pure web)"
+	@echo "  frontend-only - Run only the web frontend development server (no backend)"
 	@echo "  docs        - Run documentation development server"
 	@echo "  install     - Install system dependencies (one-time setup)"
 	@echo "  install-deps - Install project dependencies"
@@ -64,7 +63,7 @@ help:
 
 
 # Run development server with hot reloading (installs deps first)
-# This starts backend, frontend, and GSAP server together
+# This starts backend (Go), web frontend (browser), and GSAP server together
 dev: install-deps
 	@ENV=development ./scripts/shoreman.sh
 
@@ -88,13 +87,9 @@ dev-kill:
 		echo "✅ Killed stray processes (if any)"; \
 	fi
 
-# Run only frontend development server (Tauri desktop app)
+# Run only frontend development server (no backend)
 frontend-only: install-deps
-	@ENV=development ./scripts/shoreman.sh Procfile.frontend
-
-# Run browser-only development server (no Tauri, pure web)
-browser: install-deps
-	@echo "Starting browser-only development server (no Tauri)..."
+	@echo "Starting frontend-only development server..."
 	@echo "Frontend will be available at http://localhost:1420"
 	@if [ -f .env ]; then \
 		export $$(grep -v '^#' .env | grep '^VITE_' | xargs) && cd mix_dev_tool && bun run dev; \

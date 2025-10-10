@@ -308,8 +308,8 @@ func getOpenAPISpec() OpenAPISpec {
 			"/api/sessions/{id}/messages": map[string]interface{}{
 				"post": map[string]interface{}{
 					"operationId":  "sendMessage",
-					"summary":     "Send a message to session",
-					"description": "Send a user message to a specific session for AI processing",
+					"summary":     "Send a message to session (async)",
+					"description": "Send a user message to a specific session for AI processing. Returns immediately with 202 Accepted. All results stream via Server-Sent Events (SSE) connection.",
 					"tags":        []string{"Messages"},
 					"parameters": []map[string]interface{}{
 						createPathParameter("id", "Session ID"),
@@ -330,7 +330,28 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					}),
 					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", getBackendMessageSchema(), "Message sent and processed"),
+						"202": map[string]interface{}{
+							"description": "Message accepted for processing. Agent runs asynchronously and streams results via SSE.",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"status": map[string]interface{}{
+												"type":        "string",
+												"description": "Processing status",
+												"example":     "processing",
+											},
+											"sessionId": map[string]interface{}{
+												"type":        "string",
+												"description": "Session ID for the processing task",
+											},
+										},
+										"required": []string{"status", "sessionId"},
+									},
+								},
+							},
+						},
 						"400": createErrorResponse("Invalid message data"),
 						"404": createErrorResponse("Session not found"),
 					},

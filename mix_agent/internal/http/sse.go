@@ -10,6 +10,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/llm/agent"
+	"mix/internal/logging"
 	"mix/internal/pubsub"
 )
 
@@ -64,6 +65,16 @@ func (r *ConnectionRegistry) Unregister(sessionID string, conn *Connection) {
 			delete(r.connections, sessionID)
 		}
 	}
+}
+
+// CountForSession returns the number of active connections for a specific session
+func (r *ConnectionRegistry) CountForSession(sessionID string) int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if connections, exists := r.connections[sessionID]; exists {
+		return len(connections)
+	}
+	return 0
 }
 
 // BroadcastToAll sends an SSE event to all active connections regardless of session
@@ -175,8 +186,26 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	}
 
 	// Register connection and ensure cleanup
+	connectionStartTime := time.Now()
 	registry.Register(sessionID, conn)
+
+	// Log connection establishment
+	logging.Info("SSE connection established",
+		"sessionID", sessionID,
+		"remoteAddr", r.RemoteAddr,
+		"connectionCount", registry.CountForSession(sessionID),
+		"timestamp", connectionStartTime.Format(time.RFC3339Nano))
+
 	defer func() {
+		// Log connection closure
+		duration := time.Since(connectionStartTime)
+		logging.Info("SSE connection closing",
+			"sessionID", sessionID,
+			"remoteAddr", r.RemoteAddr,
+			"duration", duration.String(),
+			"remainingConnections", registry.CountForSession(sessionID)-1,
+			"timestamp", time.Now().Format(time.RFC3339Nano))
+
 		registry.Unregister(sessionID, conn)
 		conn.closeOnce.Do(func() {
 			close(conn.Done)
@@ -266,13 +295,21 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	for {
 		select {
 		case <-r.Context().Done():
-			// Client disconnected
-			app.CoderAgent.Cancel(sessionID)
+			// Client disconnected - SSE is just an event stream view, disconnecting doesn't stop agent processing
+			logging.Debug("SSE client disconnected",
+				"sessionID", sessionID,
+				"remoteAddr", r.RemoteAddr,
+				"activeConnections", registry.CountForSession(sessionID))
 			return
 
 		case <-ctx.Done():
 			// Handler context cancelled (server shutdown, timeout, etc.)
-			app.CoderAgent.Cancel(sessionID)
+			logging.Info("SSE handler context cancelled",
+				"sessionID", sessionID,
+				"remoteAddr", r.RemoteAddr,
+				"contextError", ctx.Err(),
+				"timestamp", time.Now().Format(time.RFC3339Nano))
+			app.CoderAgent.CancelWithReason(sessionID, "server_shutdown")
 			return
 
 		case <-heartbeat.C:

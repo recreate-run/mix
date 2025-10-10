@@ -42,11 +42,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 
 	// Initialize storage provider
 	storageProviderConfig := storage.LoadConfigFromEnv()
-	logging.Info("Loaded storage config from environment",
-		"type", storageProviderConfig.Type,
-		"endpoint", storageProviderConfig.Endpoint,
-		"bucket", storageProviderConfig.Bucket,
-		"has_access_key", storageProviderConfig.AccessKey != "")
 
 	storageProvider, err := storage.NewProvider(storageProviderConfig)
 	if err != nil {
@@ -61,10 +56,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 			return nil, fmt.Errorf("failed to initialize local storage provider: %w", err)
 		}
 	}
-	logging.Info("Storage provider initialized successfully",
-		"type", storageProviderConfig.Type,
-		"endpoint", storageProviderConfig.Endpoint,
-		"bucket", storageProviderConfig.Bucket)
 
 	// Create session service with storage configuration
 	sessions := session.NewService(q, storageConfig)
@@ -189,7 +180,6 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 
 	return nil
 }
-
 
 // Shutdown performs a clean shutdown of the application
 func (app *App) Shutdown() {

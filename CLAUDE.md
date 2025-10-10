@@ -3,7 +3,7 @@
 ## Development Commands
 
 <bash_commands>
-make dev          # start both frontend and backend (autoreloads and auto compiles)
+make dev          # start backend + web frontend (browser) + GSAP (autoreloads and auto compiles)
 make tail-log     # Reads the current log file (last 100 lines of code)
 make clean
 make help
@@ -20,7 +20,7 @@ make frontend-typecheck     # Always use this for frontend typechecking
 ## Architecture
 
 1. Backend - Golang
-2. Frontend - Tauri 2.0 app with react
+2. Frontend - React web app (browser-based, no Tauri)
 
 ## Tech Stack
 

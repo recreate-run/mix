@@ -166,7 +166,19 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 			}
 		}
 
-		logging.Error("[Agent] Tool execution failed", "toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "error", toolErr)
+		// Enhanced error logging with context information
+		logFields := []any{"toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "error", toolErr}
+
+		// Check if error is due to context timeout or cancellation
+		if errors.Is(toolErr, context.DeadlineExceeded) {
+			logFields = append(logFields, "cause", "timeout_exceeded")
+			logging.Error("[Agent] Tool execution failed: timeout exceeded", logFields...)
+		} else if errors.Is(toolErr, context.Canceled) {
+			logFields = append(logFields, "cause", "context_cancelled")
+			logging.Error("[Agent] Tool execution failed: context cancelled", logFields...)
+		} else {
+			logging.Error("[Agent] Tool execution failed", logFields...)
+		}
 	}
 
 	// Create tool result
