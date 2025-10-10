@@ -23,7 +23,13 @@ import (
 
 // Common errors
 var (
+	// Deprecated: Use specific error types below
 	ErrRequestCancelled = errors.New("request cancelled by user")
+
+	// Specific cancellation reasons for better diagnostics
+	ErrRequestCancelledByUser    = errors.New("request cancelled by user")
+	ErrRequestCancelledTimeout   = errors.New("request cancelled: timeout exceeded")
+	ErrRequestCancelledDisconnect = errors.New("request cancelled: client disconnected")
 )
 
 type AgentEventType string
@@ -64,6 +70,7 @@ type Service interface {
 	Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	Cancel(sessionID string)
+	CancelWithReason(sessionID string, reason string)
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
 	Summarize(ctx context.Context, sessionID string) error
 	ClearAllSessionProviders()
@@ -152,6 +159,12 @@ func (a *agent) Model() models.Model {
 }
 
 func (a *agent) Cancel(sessionID string) {
+	a.CancelWithReason(sessionID, "unknown")
+}
+
+func (a *agent) CancelWithReason(sessionID string, reason string) {
+	logging.Info("Cancelling agent session", "sessionID", sessionID, "reason", reason)
+
 	// Cancel regular requests
 	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID); exists {
 		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
@@ -350,7 +363,14 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
 			// Stream processing failed for session
+			if errors.Is(err, context.DeadlineExceeded) {
+				logging.Error("Agent timeout exceeded", "sessionID", sessionID, "conversationTurn", conversationTurn)
+				agentMessage.AddFinish(message.FinishReasonCanceled)
+				_ = a.messages.Update(context.Background(), agentMessage)
+				return a.err(ErrRequestCancelledTimeout)
+			}
 			if errors.Is(err, context.Canceled) {
+				logging.Info("Agent context cancelled", "sessionID", sessionID, "conversationTurn", conversationTurn)
 				agentMessage.AddFinish(message.FinishReasonCanceled)
 				_ = a.messages.Update(context.Background(), agentMessage)
 				return a.err(ErrRequestCancelled)

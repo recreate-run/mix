@@ -222,7 +222,12 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Send message to agent
-	events, err := h.app.CoderAgent.RunWithPlanMode(ctx, sessionID, req.Text, req.PlanMode)
+	// Use context.Background() instead of r.Context() to prevent HTTP request timeouts/cancellations
+	// from killing long-running agent tasks. The agent can still be cancelled via the SSE disconnect
+	// or the explicit cancel endpoint.
+	agentCtx := context.Background()
+
+	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode)
 	if err != nil {
 		sendInternalError(w, "sending message to agent", err)
 		return
@@ -371,7 +376,8 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Cancel the agent processing for this session
-	h.app.CoderAgent.Cancel(sessionID)
+	logging.Info("User cancelled session via REST API", "sessionID", sessionID)
+	h.app.CoderAgent.CancelWithReason(sessionID, "user_api_cancellation")
 
 	result := map[string]string{
 		"status":    "cancelled",

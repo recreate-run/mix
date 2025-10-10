@@ -267,12 +267,12 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 		select {
 		case <-r.Context().Done():
 			// Client disconnected
-			app.CoderAgent.Cancel(sessionID)
+			app.CoderAgent.CancelWithReason(sessionID, "client_disconnected")
 			return
 
 		case <-ctx.Done():
 			// Handler context cancelled (server shutdown, timeout, etc.)
-			app.CoderAgent.Cancel(sessionID)
+			app.CoderAgent.CancelWithReason(sessionID, "server_shutdown")
 			return
 
 		case <-heartbeat.C:
