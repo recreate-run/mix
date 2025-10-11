@@ -116,6 +116,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 			mcpManager,
 		),
 		storageConfig,
+		app.Permissions, // Pass permissions for callback executor
 	)
 	if err != nil {
 		logging.Error("Failed to create coder agent", err)

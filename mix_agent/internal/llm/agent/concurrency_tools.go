@@ -140,6 +140,48 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 	})
 	toolDuration := time.Since(toolStartTime)
 
+	// Execute post-tool callbacks if tool implements CallbackTool interface
+	if a.callbackExecutor != nil && toolErr == nil && !toolResult.IsError {
+		if callbackTool, ok := tool.(interfaces.CallbackTool); ok {
+			callbacks := callbackTool.GetCallbacks()
+			if len(callbacks) > 0 {
+				// Get session storage directory for callback context
+				sessionStorageDir, _ := tools.GetSessionStorageDirectory(ctx)
+				messageID, _ := ctx.Value(tools.MessageIDContextKey).(string)
+
+				callbackCtx := interfaces.CallbackContext{
+					SessionID:         sessionID,
+					MessageID:         messageID,
+					ToolCall:          interfaces.ToolCall{ID: toolCall.ID, Name: toolCall.Name, Input: toolCall.Input},
+					ToolResult:        toolResult,
+					SessionStorageDir: sessionStorageDir,
+				}
+
+				for i, callbackConfig := range callbacks {
+					if callbackConfig.NonBlocking {
+						// Execute async without waiting
+						go func(cfg interfaces.CallbackConfig, cbCtx interfaces.CallbackContext, idx int) {
+							result, err := a.callbackExecutor.Execute(context.Background(), cfg, cbCtx)
+							if err != nil {
+								logging.Error("Callback execution failed", "tool", toolCall.Name, "error", err)
+							} else if !result.Success {
+								logging.Warn("Callback completed with errors", "tool", toolCall.Name, "error", result.Error)
+							}
+						}(callbackConfig, callbackCtx, i)
+					} else {
+						// Execute synchronously
+						callbackResult, err := a.callbackExecutor.Execute(ctx, callbackConfig, callbackCtx)
+						if err != nil {
+							logging.Error("Callback execution failed", "tool", toolCall.Name, "error", err)
+						} else if !callbackResult.Success {
+							logging.Warn("Callback completed with errors", "tool", toolCall.Name, "error", callbackResult.Error)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Publish tool execution completion event
 	completionProgress := fmt.Sprintf("Completed %s tool in %v", toolCall.Name, toolDuration)
 	if toolErr != nil {

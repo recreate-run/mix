@@ -92,7 +92,7 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 
 	agentTools := b.getToolsForSubagentType(params.SubagentType)
-	agent, err := NewAgent("sub", b.sessions, b.messages, agentTools, session.DefaultConfig())
+	agent, err := NewAgent("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), b.permissions)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mix/internal/config"
+	"mix/internal/llm/callbacks"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
 	"mix/internal/llm/prompt"
@@ -12,6 +13,7 @@ import (
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/message"
+	"mix/internal/permission"
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
@@ -107,6 +109,8 @@ type agent struct {
 
 	accumulator *MessageAccumulator // In-memory message accumulator
 
+	callbackExecutor interfaces.CallbackExecutor // Executes post-tool callbacks
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -117,6 +121,7 @@ func NewAgent(
 	messages message.Service,
 	agentTools []tools.BaseTool,
 	storageConfig session.Config,
+	permissions ...permission.Service, // Optional for backward compatibility
 ) (Service, error) {
 	agentProvider, err := createAgentProvider(agentName)
 	if err != nil {
@@ -143,6 +148,12 @@ func NewAgent(
 	// Create message accumulator (no periodic flushing)
 	accumulator := NewMessageAccumulator(messages)
 
+	// Create callback executor if permissions service is provided
+	var callbackExecutor interfaces.CallbackExecutor
+	if len(permissions) > 0 && permissions[0] != nil {
+		callbackExecutor = callbacks.NewExecutor(sessions, permissions[0])
+	}
+
 	agent := &agent{
 		Broker:            pubsub.NewBroker[AgentEvent](),
 		agentName:         agentName,
@@ -156,6 +167,7 @@ func NewAgent(
 		sessionProviders:  sync.Map{},
 		activeContexts:    sync.Map{},
 		accumulator:       accumulator,
+		callbackExecutor:  callbackExecutor,
 		ctx:               ctx,
 		cancel:            cancel,
 	}
