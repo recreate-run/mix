@@ -17,6 +17,7 @@ INSERT INTO sessions (
     title,
     custom_system_prompt,
     prompt_mode,
+    callbacks,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -24,6 +25,7 @@ INSERT INTO sessions (
     updated_at,
     created_at
 ) VALUES (
+    ?,
     ?,
     ?,
     ?,
@@ -41,6 +43,7 @@ INSERT INTO sessions (
     title,
     custom_system_prompt,
     prompt_mode,
+    callbacks,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -55,6 +58,7 @@ type CreateSessionParams struct {
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	Callbacks          sql.NullString `json:"callbacks"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -66,6 +70,7 @@ type CreateSessionRow struct {
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	Callbacks          sql.NullString `json:"callbacks"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -81,6 +86,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 		arg.Title,
 		arg.CustomSystemPrompt,
 		arg.PromptMode,
+		arg.Callbacks,
 		arg.PromptTokens,
 		arg.CompletionTokens,
 		arg.Cost,
@@ -92,6 +98,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
+		&i.Callbacks,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
@@ -119,6 +126,7 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.callbacks,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -145,6 +153,7 @@ type GetSessionByIDRow struct {
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
+	Callbacks             sql.NullString `json:"callbacks"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -165,6 +174,7 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
+		&i.Callbacks,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
@@ -185,6 +195,7 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.callbacks,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -211,6 +222,7 @@ type ListSessionsMetadataRow struct {
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
+	Callbacks             sql.NullString `json:"callbacks"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -237,6 +249,7 @@ func (q *Queries) ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetad
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
+			&i.Callbacks,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
@@ -267,6 +280,7 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.callbacks,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -302,6 +316,7 @@ type ListSessionsWithContentRow struct {
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
+	Callbacks             sql.NullString `json:"callbacks"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -329,6 +344,7 @@ func (q *Queries) ListSessionsWithContent(ctx context.Context) ([]ListSessionsWi
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
+			&i.Callbacks,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
@@ -359,6 +375,7 @@ SET
     title = ?,
     custom_system_prompt = ?,
     prompt_mode = ?,
+    callbacks = ?,
     prompt_tokens = ?,
     completion_tokens = ?,
     summary_message_id = ?,
@@ -371,6 +388,7 @@ RETURNING
     title,
     custom_system_prompt,
     prompt_mode,
+    callbacks,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -383,6 +401,7 @@ type UpdateSessionParams struct {
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	Callbacks          sql.NullString `json:"callbacks"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	SummaryMessageID   sql.NullString `json:"summary_message_id"`
@@ -396,6 +415,7 @@ type UpdateSessionRow struct {
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	Callbacks          sql.NullString `json:"callbacks"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -409,6 +429,7 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (U
 		arg.Title,
 		arg.CustomSystemPrompt,
 		arg.PromptMode,
+		arg.Callbacks,
 		arg.PromptTokens,
 		arg.CompletionTokens,
 		arg.SummaryMessageID,
@@ -422,6 +443,7 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (U
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
+		&i.Callbacks,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,

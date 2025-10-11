@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"mix/internal/db"
@@ -40,6 +41,7 @@ type Session struct {
 	SummaryMessageID      string
 	CustomSystemPrompt    string
 	PromptMode            string
+	Callbacks             string // JSON-encoded []interfaces.CallbackConfig
 	Cost                  float64
 	CreatedAt             int64
 	UpdatedAt             int64
@@ -204,6 +206,7 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 		Title:              session.Title,
 		CustomSystemPrompt: sql.NullString{String: session.CustomSystemPrompt, Valid: session.CustomSystemPrompt != ""},
 		PromptMode:         sql.NullString{String: session.PromptMode, Valid: session.PromptMode != ""},
+		Callbacks:          sql.NullString{String: session.Callbacks, Valid: session.Callbacks != ""},
 		PromptTokens:       session.PromptTokens,
 		CompletionTokens:   session.CompletionTokens,
 		SummaryMessageID: sql.NullString{
@@ -246,6 +249,7 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
+		Callbacks:             item.Callbacks.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -265,6 +269,7 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
+		Callbacks:             item.Callbacks.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -284,6 +289,7 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
+		Callbacks:             item.Callbacks.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -309,6 +315,7 @@ func (s *service) fromUpdateSessionRowWithCounts(ctx context.Context, item db.Up
 		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
+		Callbacks:             item.Callbacks.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -322,4 +329,30 @@ func NewService(q db.Querier, storageConfig Config) Service {
 		q:             q,
 		storageConfig: storageConfig,
 	}
+}
+
+// GetCallbacks returns the parsed callback configurations for this session
+func (s *Session) GetCallbacks() ([]interface{}, error) {
+	if s.Callbacks == "" {
+		return []interface{}{}, nil
+	}
+	var callbacks []interface{}
+	if err := json.Unmarshal([]byte(s.Callbacks), &callbacks); err != nil {
+		return nil, fmt.Errorf("failed to parse session callbacks: %w", err)
+	}
+	return callbacks, nil
+}
+
+// SetCallbacks sets the callback configurations for this session (JSON encoded)
+func (s *Session) SetCallbacks(callbacks []interface{}) error {
+	if len(callbacks) == 0 {
+		s.Callbacks = ""
+		return nil
+	}
+	data, err := json.Marshal(callbacks)
+	if err != nil {
+		return fmt.Errorf("failed to encode session callbacks: %w", err)
+	}
+	s.Callbacks = string(data)
+	return nil
 }
