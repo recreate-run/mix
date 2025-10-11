@@ -84,7 +84,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	analyticsEnabled := cfg.AnalyticsEnabled
 
 	if !analyticsEnabled {
-		logging.Info("PostHog analytics disabled: analyticsEnabled config set to false")
 		posthogAPIKey = "" // Empty API key disables analytics
 	}
 	analyticsService := analytics.NewAnalyticsService(posthogAPIKey)
@@ -130,8 +129,6 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 
 // RunNonInteractive handles the execution flow when a prompt is provided via CLI flag.
 func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat string, quiet bool) error {
-	logging.Info("Running in non-interactive mode")
-
 	// Processing message for non-interactive mode
 	if !quiet {
 		fmt.Println("Processing...")
@@ -152,7 +149,6 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}
-	logging.Info("Created session for non-interactive run", "session_id", sess.ID)
 
 	done, err := a.CoderAgent.Run(ctx, sess.ID, prompt)
 	if err != nil {
@@ -162,7 +158,6 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	result := <-done
 	if result.Error != nil {
 		if errors.Is(result.Error, context.Canceled) || errors.Is(result.Error, agent.ErrRequestCancelled) {
-			logging.Info("Agent processing cancelled", "session_id", sess.ID)
 			return nil
 		}
 		return fmt.Errorf("agent processing failed: %w", result.Error)
@@ -175,8 +170,6 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	}
 
 	fmt.Println(format.FormatOutput(content, outputFormat))
-
-	logging.Info("Non-interactive run completed", "session_id", sess.ID)
 
 	return nil
 }
@@ -200,6 +193,4 @@ func (app *App) Shutdown() {
 			logging.Error("Failed to close analytics service: %v", err)
 		}
 	}
-
-	logging.Info("Application shutdown completed")
 }

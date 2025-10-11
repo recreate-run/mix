@@ -50,6 +50,7 @@ const (
 	AgentEventTypeSummarize             AgentEventType = "summarize"
 	AgentEventTypeThinking              AgentEventType = "thinking"
 	AgentEventTypeContentDelta          AgentEventType = "content_delta"
+	AgentEventTypeToolParameterDelta    AgentEventType = "tool_parameter_delta"
 	AgentEventTypeToolExecutionStart    AgentEventType = "tool_execution_start"
 	AgentEventTypeToolExecutionComplete AgentEventType = "tool_execution_complete"
 )
@@ -184,9 +185,6 @@ func (a *agent) CancelWithReason(sessionID string, reason string) {
 	if cancel, ok := cancelFunc.(context.CancelFunc); ok {
 		cancel()
 		a.setSessionState(sessionID, SessionStateCancelled)
-		logging.Info("Agent session cancelled",
-			"sessionID", sessionID,
-			"reason", reason)
 	}
 
 	// Also check for summarize requests
@@ -432,7 +430,6 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 				return a.err(ErrRequestCancelledTimeout)
 			}
 			if errors.Is(err, context.Canceled) {
-				logging.Info("Agent context cancelled", "sessionID", sessionID, "conversationTurn", conversationTurn)
 				agentMessage.AddFinish(message.FinishReasonCanceled)
 				_ = a.messages.Update(context.Background(), agentMessage)
 				return a.err(ErrRequestCancelled)
@@ -561,8 +558,6 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	}
 
 	// Execute all tool calls with dependency awareness
-	logging.Debug("Processing tool calls", "count", len(toolCalls), "sessionID", sessionID)
-
 	toolResults, toolErr := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
 
 	// Always create tool result message, even if some tools failed
@@ -670,15 +665,25 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID: sessionID,
 		})
 		return err
-	// TODO: see how to handle this
-	// case interfaces.EventToolUseDelta:
-	// 	tm := time.Unix(assistantMsg.UpdatedAt, 0)
-	// 	assistantMsg.AppendToolCallInput(event.ToolCall.ID, event.ToolCall.Input)
-	// 	if time.Since(tm) > 1000*time.Millisecond {
-	// 		err := a.messages.Update(ctx, *assistantMsg)
-	// 		assistantMsg.UpdatedAt = time.Now().Unix()
-	// 		return err
-	// 	}
+	case interfaces.EventToolUseDelta:
+		// Append partial tool input to the message
+		if err := assistantMsg.AppendToolCallInput(event.ToolCall.ID, event.ToolCall.Input); err != nil {
+			return fmt.Errorf("failed to append tool call input for tool %s: %w", event.ToolCall.ID, err)
+		}
+
+		// Store in accumulator without immediate flush
+		// The accumulator will batch DB updates for performance
+		a.accumulator.Store(assistantMsg)
+
+		// Publish tool parameter delta event for real-time streaming
+		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
+			Type:       AgentEventTypeToolParameterDelta,
+			Message:    *assistantMsg,
+			SessionID:  sessionID,
+			ToolCallID: event.ToolCall.ID,
+			Content:    event.ToolCall.Input, // Send the delta JSON
+		})
+		return err
 	case interfaces.EventToolUseStop:
 		assistantMsg.FinishToolCall(event.ToolCall.ID)
 
@@ -809,7 +814,6 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 				logging.Warn("Failed to update title provider", "error", err)
 			} else {
 				a.titleProvider = titleProvider
-				logging.Info("Updated title provider to use new model", "model", modelID)
 			}
 		}
 
@@ -820,7 +824,6 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 				logging.Warn("Failed to update summary provider", "error", err)
 			} else {
 				a.summarizeProvider = summarizeProvider
-				logging.Info("Updated summary provider to use new model", "model", modelID)
 			}
 		}
 	}

@@ -1735,7 +1735,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"event": map[string]interface{}{
 							"type":        "string",
 							"description": "Event type identifier",
-							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "session_created", "session_deleted"},
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "session_created", "session_deleted"},
 						},
 						"retry": map[string]interface{}{
 							"type":        "integer",
@@ -1758,6 +1758,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"thinking":               "#/components/schemas/SSEThinkingEvent",
 							"content":                "#/components/schemas/SSEContentEvent",
 							"tool":                   "#/components/schemas/SSEToolEvent",
+							"tool_parameter_delta":   "#/components/schemas/SSEToolParameterDeltaEvent",
 							"tool_execution_start":   "#/components/schemas/SSEToolExecutionStartEvent",
 							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
 							"permission":             "#/components/schemas/SSEPermissionEvent",
@@ -1774,6 +1775,7 @@ func getOpenAPISpec() OpenAPISpec {
 						{"$ref": "#/components/schemas/SSEThinkingEvent"},
 						{"$ref": "#/components/schemas/SSEContentEvent"},
 						{"$ref": "#/components/schemas/SSEToolEvent"},
+						{"$ref": "#/components/schemas/SSEToolParameterDeltaEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionStartEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
 						{"$ref": "#/components/schemas/SSEPermissionEvent"},
@@ -1984,6 +1986,35 @@ func getOpenAPISpec() OpenAPISpec {
 										},
 									},
 									"required": []string{"type", "name", "input", "id", "status"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEToolParameterDeltaEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool parameter delta event type",
+										},
+										"toolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool call identifier for correlation",
+										},
+										"input": map[string]interface{}{
+											"type":        "string",
+											"description": "Partial JSON parameter delta - may not be parseable until complete",
+										},
+									},
+									"required": []string{"type", "toolCallId", "input"},
 								},
 							},
 							"required": []string{"data"},

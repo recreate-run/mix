@@ -176,14 +176,6 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Log HTTP request start
-	logging.Info("HTTP POST /api/sessions/{id}/messages started",
-		"sessionID", sessionID,
-		"requestID", requestID,
-		"remoteAddr", r.RemoteAddr,
-		"planMode", req.PlanMode,
-		"timestamp", requestStartTime.Format(time.RFC3339Nano))
-
 	ctx := r.Context()
 
 	// Check authentication status before processing the message
@@ -259,11 +251,6 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	// from killing long-running agent tasks. The agent can only be cancelled via the explicit cancel endpoint.
 	agentCtx := context.Background()
 
-	logging.Info("Agent processing starting",
-		"sessionID", sessionID,
-		"requestID", requestID,
-		"timestamp", time.Now().Format(time.RFC3339Nano))
-
 	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode)
 	if err != nil {
 		logging.Error("Failed to start agent processing",
@@ -302,13 +289,6 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			// Store last event for logging
 			lastEvent = event
 		}
-
-		// Log agent processing completion
-		logging.Info("Agent processing completed - events consumed",
-			"sessionID", sessionID,
-			"requestID", requestID,
-			"hasError", lastEvent.Error != nil,
-			"timestamp", time.Now().Format(time.RFC3339Nano))
 
 		// Check for processing errors and broadcast to SSE if needed
 		if lastEvent.Error != nil {
@@ -424,7 +404,6 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Cancel the agent processing for this session
-	logging.Info("User cancelled session via REST API", "sessionID", sessionID)
 	h.app.CoderAgent.CancelWithReason(sessionID, "user_api_cancellation")
 
 	result := map[string]string{

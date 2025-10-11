@@ -391,7 +391,7 @@ func (m *Message) FinishToolCall(toolCallID string) {
 	}
 }
 
-func (m *Message) AppendToolCallInput(toolCallID string, inputDelta string) {
+func (m *Message) AppendToolCallInput(toolCallID string, inputDelta string) error {
 	for i, part := range m.Parts {
 		if c, ok := part.(ToolCall); ok {
 			if c.ID == toolCallID {
@@ -402,10 +402,11 @@ func (m *Message) AppendToolCallInput(toolCallID string, inputDelta string) {
 					Type:     c.Type,
 					Finished: c.Finished,
 				}
-				return
+				return nil
 			}
 		}
 	}
+	return fmt.Errorf("tool call with ID %s not found in message", toolCallID)
 }
 
 func (m *Message) AddToolCall(tc ToolCall) {
