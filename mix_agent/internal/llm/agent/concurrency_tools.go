@@ -140,42 +140,54 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 	})
 	toolDuration := time.Since(toolStartTime)
 
-	// Execute post-tool callbacks if tool implements CallbackTool interface
+	// Execute post-tool callbacks (both server-side and session-level)
 	if a.callbackExecutor != nil && toolErr == nil && !toolResult.IsError {
+		// 1. Get server-side callbacks (from tool implementation)
+		var serverCallbacks []interfaces.CallbackConfig
 		if callbackTool, ok := tool.(interfaces.CallbackTool); ok {
-			callbacks := callbackTool.GetCallbacks()
-			if len(callbacks) > 0 {
-				// Get session storage directory for callback context
-				sessionStorageDir, _ := tools.GetSessionStorageDirectory(ctx)
-				messageID, _ := ctx.Value(tools.MessageIDContextKey).(string)
+			serverCallbacks = callbackTool.GetCallbacks()
+		}
 
-				callbackCtx := interfaces.CallbackContext{
-					SessionID:         sessionID,
-					MessageID:         messageID,
-					ToolCall:          interfaces.ToolCall{ID: toolCall.ID, Name: toolCall.Name, Input: toolCall.Input},
-					ToolResult:        toolResult,
-					SessionStorageDir: sessionStorageDir,
-				}
+		// 2. Get session-level callbacks (from client configuration)
+		sessionCallbacks, err := a.getSessionCallbacks(ctx, sessionID, toolCall.Name)
+		if err != nil {
+			logging.Warn("Failed to load session callbacks", "error", err, "sessionID", sessionID, "tool", toolCall.Name)
+		}
 
-				for i, callbackConfig := range callbacks {
-					if callbackConfig.NonBlocking {
-						// Execute async without waiting
-						go func(cfg interfaces.CallbackConfig, cbCtx interfaces.CallbackContext, idx int) {
-							result, err := a.callbackExecutor.Execute(context.Background(), cfg, cbCtx)
-							if err != nil {
-								logging.Error("Callback execution failed", "tool", toolCall.Name, "error", err)
-							} else if !result.Success {
-								logging.Warn("Callback completed with errors", "tool", toolCall.Name, "error", result.Error)
-							}
-						}(callbackConfig, callbackCtx, i)
-					} else {
-						// Execute synchronously
-						callbackResult, err := a.callbackExecutor.Execute(ctx, callbackConfig, callbackCtx)
+		// 3. Merge callbacks (server + session)
+		allCallbacks := mergeCallbacks(serverCallbacks, sessionCallbacks)
+
+		if len(allCallbacks) > 0 {
+			// Get session storage directory for callback context
+			sessionStorageDir, _ := tools.GetSessionStorageDirectory(ctx)
+			messageID, _ := ctx.Value(tools.MessageIDContextKey).(string)
+
+			callbackCtx := interfaces.CallbackContext{
+				SessionID:         sessionID,
+				MessageID:         messageID,
+				ToolCall:          interfaces.ToolCall{ID: toolCall.ID, Name: toolCall.Name, Input: toolCall.Input},
+				ToolResult:        toolResult,
+				SessionStorageDir: sessionStorageDir,
+			}
+
+			for i, callbackConfig := range allCallbacks {
+				if callbackConfig.NonBlocking {
+					// Execute async without waiting
+					go func(cfg interfaces.CallbackConfig, cbCtx interfaces.CallbackContext, idx int) {
+						result, err := a.callbackExecutor.Execute(context.Background(), cfg, cbCtx)
 						if err != nil {
 							logging.Error("Callback execution failed", "tool", toolCall.Name, "error", err)
-						} else if !callbackResult.Success {
-							logging.Warn("Callback completed with errors", "tool", toolCall.Name, "error", callbackResult.Error)
+						} else if !result.Success {
+							logging.Warn("Callback completed with errors", "tool", toolCall.Name, "error", result.Error)
 						}
+					}(callbackConfig, callbackCtx, i)
+				} else {
+					// Execute synchronously
+					callbackResult, err := a.callbackExecutor.Execute(ctx, callbackConfig, callbackCtx)
+					if err != nil {
+						logging.Error("Callback execution failed", "tool", toolCall.Name, "error", err)
+					} else if !callbackResult.Success {
+						logging.Warn("Callback completed with errors", "tool", toolCall.Name, "error", callbackResult.Error)
 					}
 				}
 			}
@@ -231,5 +243,77 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 		IsError:    toolResult.IsError,
 	}
 
+	return result
+}
+
+// getSessionCallbacks loads and filters callbacks from session configuration
+func (a *agent) getSessionCallbacks(ctx context.Context, sessionID string, toolName string) ([]interfaces.CallbackConfig, error) {
+	session, err := a.sessions.Get(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
+
+	allCallbacks, err := session.GetCallbacks()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse session callbacks: %w", err)
+	}
+
+	if len(allCallbacks) == 0 {
+		return []interfaces.CallbackConfig{}, nil
+	}
+
+	// Parse and filter callbacks for this tool
+	var filtered []interfaces.CallbackConfig
+	for _, cb := range allCallbacks {
+		// Type assert to map first (since GetCallbacks returns []interface{})
+		cbMap, ok := cb.(map[string]interface{})
+		if !ok {
+			logging.Warn("Invalid callback format in session, skipping", "sessionID", sessionID)
+			continue
+		}
+
+		// Convert map to CallbackConfig struct
+		var config interfaces.CallbackConfig
+
+		// Manual mapping to avoid json marshal/unmarshal overhead
+		if toolNameVal, ok := cbMap["tool_name"].(string); ok {
+			config.ToolName = toolNameVal
+		}
+		if typeVal, ok := cbMap["type"].(string); ok {
+			config.Type = interfaces.CallbackType(typeVal)
+		}
+		if bashCmd, ok := cbMap["bash_command"].(string); ok {
+			config.BashCommand = bashCmd
+		}
+		if timeout, ok := cbMap["bash_timeout"].(float64); ok {
+			config.BashTimeout = int(timeout)
+		}
+		if prompt, ok := cbMap["sub_agent_prompt"].(string); ok {
+			config.SubAgentPrompt = prompt
+		}
+		if agentType, ok := cbMap["sub_agent_type"].(string); ok {
+			config.SubAgentType = agentType
+		}
+		if includeHistory, ok := cbMap["include_full_history"].(bool); ok {
+			config.IncludeFullHistory = includeHistory
+		}
+		if nonBlocking, ok := cbMap["non_blocking"].(bool); ok {
+			config.NonBlocking = nonBlocking
+		}
+
+		// Filter by tool name (exact match or wildcard)
+		if config.ToolName == toolName || config.ToolName == "*" {
+			filtered = append(filtered, config)
+		}
+	}
+
+	return filtered, nil
+}
+
+// mergeCallbacks combines server-side and session-level callbacks
+func mergeCallbacks(server, session []interfaces.CallbackConfig) []interfaces.CallbackConfig {
+	result := make([]interfaces.CallbackConfig, 0, len(server)+len(session))
+	result = append(result, server...)   // Server callbacks first
+	result = append(result, session...)  // Session callbacks extend/override
 	return result
 }

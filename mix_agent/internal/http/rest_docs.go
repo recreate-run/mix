@@ -96,7 +96,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"post": map[string]interface{}{
 					"operationId":  "createSession",
 					"summary":     "Create a new session",
-					"description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.",
+					"description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution.",
 					"tags":        []string{"Sessions"},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
@@ -118,6 +118,42 @@ func getOpenAPISpec() OpenAPISpec {
 								"default":     "default",
 								"description": "Custom prompt handling mode:\n- 'default': Use base system prompt only (customSystemPrompt ignored)\n- 'append': Append customSystemPrompt to base system prompt (50KB limit)\n- 'replace': Replace base system prompt with customSystemPrompt (100KB limit)",
 								"example":     "append",
+							},
+							"callbacks": map[string]interface{}{
+								"type":        "array",
+								"description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+								"items": map[string]interface{}{
+									"type": "object",
+									"required": []string{"toolName", "type"},
+									"properties": map[string]interface{}{
+										"toolName": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+											"example":     "show_media",
+										},
+										"type": map[string]interface{}{
+											"type":        "string",
+											"enum":        []string{"bash_script", "sub_agent"},
+											"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents (not yet implemented)",
+										},
+										"bashCommand": map[string]interface{}{
+											"type":        "string",
+											"description": "Bash command to execute (for bash_script type). Has access to environment variables.",
+											"example":     "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
+										},
+										"bashTimeout": map[string]interface{}{
+											"type":        "integer",
+											"description": "Timeout in milliseconds for bash execution (default: 120000)",
+											"default":     120000,
+											"maximum":     120000,
+										},
+										"nonBlocking": map[string]interface{}{
+											"type":        "boolean",
+											"description": "Run callback asynchronously without waiting for completion",
+											"default":     true,
+										},
+									},
+								},
 							},
 						},
 					}),
@@ -1447,6 +1483,36 @@ func getOpenAPISpec() OpenAPISpec {
 						"firstUserMessage": map[string]interface{}{
 							"type":        "string",
 							"description": "First user message (optional)",
+						},
+						"callbacks": map[string]interface{}{
+							"type":        "array",
+							"description": "Session-level callback configurations (optional)",
+							"items": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"toolName": map[string]interface{}{
+										"type":        "string",
+										"description": "Tool to attach callback to",
+									},
+									"type": map[string]interface{}{
+										"type":        "string",
+										"enum":        []string{"bash_script", "sub_agent"},
+										"description": "Callback type",
+									},
+									"bashCommand": map[string]interface{}{
+										"type":        "string",
+										"description": "Bash command to execute (for bash_script type)",
+									},
+									"bashTimeout": map[string]interface{}{
+										"type":        "integer",
+										"description": "Timeout in milliseconds for bash execution",
+									},
+									"nonBlocking": map[string]interface{}{
+										"type":        "boolean",
+										"description": "Run callback asynchronously",
+									},
+								},
+							},
 						},
 					},
 					"required": []string{"id", "title", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},

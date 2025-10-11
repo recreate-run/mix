@@ -18,16 +18,17 @@ const (
 
 // SessionData represents session information for REST API
 type SessionData struct {
-	ID                    string    `json:"id"`
-	Title                 string    `json:"title"`
-	UserMessageCount      int64     `json:"userMessageCount"`
-	AssistantMessageCount int64     `json:"assistantMessageCount"`
-	ToolCallCount         int64     `json:"toolCallCount"`
-	PromptTokens          int64     `json:"promptTokens"`
-	CompletionTokens      int64     `json:"completionTokens"`
-	Cost                  float64   `json:"cost"`
-	CreatedAt             time.Time `json:"createdAt"`
-	FirstUserMessage      string    `json:"firstUserMessage,omitempty"`
+	ID                    string        `json:"id"`
+	Title                 string        `json:"title"`
+	UserMessageCount      int64         `json:"userMessageCount"`
+	AssistantMessageCount int64         `json:"assistantMessageCount"`
+	ToolCallCount         int64         `json:"toolCallCount"`
+	PromptTokens          int64         `json:"promptTokens"`
+	CompletionTokens      int64         `json:"completionTokens"`
+	Cost                  float64       `json:"cost"`
+	CreatedAt             time.Time     `json:"createdAt"`
+	FirstUserMessage      string        `json:"firstUserMessage,omitempty"`
+	Callbacks             []interface{} `json:"callbacks,omitempty"` // Session-level callbacks
 }
 
 // SessionHandler handles REST endpoints for session operations
@@ -104,6 +105,9 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Get callbacks if present
+	callbacks, _ := session.GetCallbacks()
+
 	result := SessionData{
 		ID:                    session.ID,
 		Title:                 session.Title,
@@ -114,6 +118,7 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 		CompletionTokens:      session.CompletionTokens,
 		Cost:                  session.Cost,
 		CreatedAt:             time.Unix(session.CreatedAt, 0),
+		Callbacks:             callbacks,
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
@@ -121,9 +126,10 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 // CreateSessionRequest represents the request body for creating a session
 type CreateSessionRequest struct {
-	Title              string `json:"title"`
-	CustomSystemPrompt string `json:"customSystemPrompt,omitempty"`
-	PromptMode         string `json:"promptMode,omitempty"`
+	Title              string        `json:"title"`
+	CustomSystemPrompt string        `json:"customSystemPrompt,omitempty"`
+	PromptMode         string        `json:"promptMode,omitempty"`
+	Callbacks          []interface{} `json:"callbacks,omitempty"` // Session-level callbacks
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -187,12 +193,30 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Set callbacks if provided
+	if len(req.Callbacks) > 0 {
+		if err := session.SetCallbacks(req.Callbacks); err != nil {
+			sendValidationError(w, "callbacks", fmt.Sprintf("invalid callback configuration: %v", err))
+			return
+		}
+
+		// Save session with callbacks
+		session, err = h.app.Sessions.Save(ctx, session)
+		if err != nil {
+			sendInternalError(w, "saving session callbacks", err)
+			return
+		}
+	}
+
 	// Track session creation
 	if h.app.Analytics != nil {
 		hasCustomPrompt := req.CustomSystemPrompt != ""
 		customPromptLength := len(req.CustomSystemPrompt)
 		_ = h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
 	}
+
+	// Get callbacks for response
+	callbacks, _ := session.GetCallbacks()
 
 	result := SessionData{
 		ID:                    session.ID,
@@ -204,6 +228,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		CompletionTokens:      session.CompletionTokens,
 		Cost:                  session.Cost,
 		CreatedAt:             time.Unix(session.CreatedAt, 0),
+		Callbacks:             callbacks,
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)
