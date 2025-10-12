@@ -11,6 +11,7 @@ import type {
 	SSEToolEvent,
 	SSEToolExecutionCompleteEvent,
 	SSEToolExecutionStartEvent,
+	SSEToolParameterDeltaEvent,
 } from "mix-typescript-sdk/models/sseeventstream";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CACHE_KEYS } from "@/lib/cache-keys";
@@ -214,9 +215,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool_parameter_delta": {
 							// Handle real-time tool parameter streaming
-							const deltaEvent = event as any; // Will be properly typed when SDK regenerates
-							const toolCallId = deltaEvent.data?.toolCallId;
-							const inputDelta = deltaEvent.data?.input;
+							const deltaEvent = event as SSEToolParameterDeltaEvent;
+							const toolCallId = deltaEvent.data.toolCallId;
+							const inputDelta = deltaEvent.data.input;
 
 							// Validate required fields
 							if (!toolCallId || typeof toolCallId !== "string") {
