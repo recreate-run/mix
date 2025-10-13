@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import "@/styles/App.css";
 import { useEffect, useState } from "react";
 import { ChatApp } from "@/components/chat-app";
+import { PlaygroundUI } from "@/components/playground-ui";
+import { usePersistentSSE } from "@/hooks/usePersistentSSE";
 import { useCreateSession } from "@/hooks/useSession";
+import { useSessionMessages } from "@/hooks/useSessionMessages";
 
 export const Route = createFileRoute("/playground")({
 	component: PlaygroundApp,
@@ -14,6 +17,11 @@ function PlaygroundApp() {
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [isReady, setIsReady] = useState(false);
 	const createSession = useCreateSession();
+	const sessionMessages = useSessionMessages(sessionId || "");
+	const sseStream = usePersistentSSE(sessionId || "");
+
+	const messages = sessionMessages.data || [];
+	const hasMessages = messages.length > 0 || sseStream.processing;
 
 	useEffect(() => {
 		const initSession = async () => {
@@ -48,6 +56,17 @@ function PlaygroundApp() {
 		initSession();
 	}, [createSession]);
 
+	const handleSubmit = (text: string) => {
+		if (sessionId && sseStream.connected) {
+			sseStream.submitMessage({
+				text,
+				attachments: [],
+				referenceMap: new Map(),
+				planMode: false,
+			});
+		}
+	};
+
 	if (!isReady || !sessionId) {
 		return (
 			<div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
@@ -61,7 +80,11 @@ function PlaygroundApp() {
 
 	return (
 		<div className="flex h-screen w-full flex-col bg-background text-foreground">
-			<ChatApp sessionId={sessionId} />
+			{!hasMessages ? (
+				<PlaygroundUI sessionId={sessionId} onSubmit={handleSubmit} />
+			) : (
+				<ChatApp sessionId={sessionId} />
+			)}
 		</div>
 	);
 }
