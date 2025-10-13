@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import "@/styles/App.css";
 import { useEffect, useState } from "react";
 import { ChatApp } from "@/components/chat-app";
-import { DemoBanner } from "@/components/demo-banner";
 import { useCreateSession } from "@/hooks/useSession";
 
 export const Route = createFileRoute("/demo")({
@@ -62,10 +61,7 @@ function DemoApp() {
 
 	return (
 		<div className="flex h-screen w-full flex-col bg-background text-foreground">
-			<DemoBanner />
-			<div className="relative flex min-h-0 flex-1">
-				<ChatApp sessionId={sessionId} />
-			</div>
+			<ChatApp sessionId={sessionId} />
 		</div>
 	);
 }
