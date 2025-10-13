@@ -4,21 +4,21 @@ import { useEffect, useState } from "react";
 import { ChatApp } from "@/components/chat-app";
 import { useCreateSession } from "@/hooks/useSession";
 
-export const Route = createFileRoute("/demo")({
-	component: DemoApp,
+export const Route = createFileRoute("/playground")({
+	component: PlaygroundApp,
 });
 
-const DEMO_SESSION_KEY = "mix-demo-session-id";
+const PLAYGROUND_SESSION_KEY = "mix-playground-session-id";
 
-function DemoApp() {
+function PlaygroundApp() {
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [isReady, setIsReady] = useState(false);
 	const createSession = useCreateSession();
 
 	useEffect(() => {
 		const initSession = async () => {
-			// Try to use existing demo session
-			const existingSessionId = localStorage.getItem(DEMO_SESSION_KEY);
+			// Try to use existing playground session
+			const existingSessionId = localStorage.getItem(PLAYGROUND_SESSION_KEY);
 			if (existingSessionId) {
 				// Validate session exists - if not, create new one
 				try {
@@ -27,21 +27,21 @@ function DemoApp() {
 					setIsReady(true);
 					return;
 				} catch (_error) {
-					console.log("Demo session not found, creating new one");
-					localStorage.removeItem(DEMO_SESSION_KEY);
+					console.log("Playground session not found, creating new one");
+					localStorage.removeItem(PLAYGROUND_SESSION_KEY);
 				}
 			}
 
-			// Create new demo session
+			// Create new playground session
 			try {
 				const newSession = await createSession.mutateAsync({
-					title: `Demo Session - ${new Date().toLocaleDateString()}`,
+					title: `Playground Session - ${new Date().toLocaleDateString()}`,
 				});
 				setSessionId(newSession.id);
-				localStorage.setItem(DEMO_SESSION_KEY, newSession.id);
+				localStorage.setItem(PLAYGROUND_SESSION_KEY, newSession.id);
 				setIsReady(true);
 			} catch (error) {
-				console.error("Failed to create demo session:", error);
+				console.error("Failed to create playground session:", error);
 			}
 		};
 
@@ -53,7 +53,7 @@ function DemoApp() {
 			<div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
 				<div className="text-center">
 					<div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-					<p className="text-muted-foreground">Loading demo...</p>
+					<p className="text-muted-foreground">Loading playground...</p>
 				</div>
 			</div>
 		);
