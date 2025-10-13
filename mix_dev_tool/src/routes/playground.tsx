@@ -6,6 +6,7 @@ import { PlaygroundUI } from "@/components/playground-ui";
 import { usePersistentSSE } from "@/hooks/usePersistentSSE";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
+import { useBoundStore } from "@/stores";
 
 export const Route = createFileRoute("/playground")({
 	component: PlaygroundApp,
@@ -20,8 +21,15 @@ function PlaygroundApp() {
 	const sessionMessages = useSessionMessages(sessionId || "");
 	const sseStream = usePersistentSSE(sessionId || "");
 
+	// Get attachments from store
+	const attachments = useBoundStore((state) => state.attachments);
+	const referenceMap = useBoundStore((state) => state.referenceMap);
+
 	const messages = sessionMessages.data || [];
-	const hasMessages = messages.length > 0 || sseStream.processing;
+	const hasMessages =
+		messages.length > 0 ||
+		sseStream.processing ||
+		sseStream.pendingUserMessage !== null;
 
 	useEffect(() => {
 		const initSession = async () => {
@@ -60,8 +68,8 @@ function PlaygroundApp() {
 		if (sessionId && sseStream.connected) {
 			sseStream.submitMessage({
 				text,
-				attachments: [],
-				referenceMap: new Map(),
+				attachments,
+				referenceMap,
 				planMode: false,
 			});
 		}
