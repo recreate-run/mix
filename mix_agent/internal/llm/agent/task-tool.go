@@ -92,7 +92,7 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 
 	agentTools := b.getToolsForSubagentType(params.SubagentType)
-	agent, err := NewAgent("sub", b.sessions, b.messages, agentTools, session.DefaultConfig())
+	agent, err := NewAgent("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), b.permissions)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}
@@ -104,6 +104,13 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}
+
+	// Clean up the temporary sub-agent session even if errors occur
+	defer func() {
+		if err := b.sessions.Delete(suppressCtx, session.ID); err != nil {
+			fmt.Printf("[TASK TOOL] Warning: failed to delete sub-agent session %s: %v\n", session.ID, err)
+		}
+	}()
 
 	done, err := agent.Run(ctx, session.ID, params.Prompt)
 	if err != nil {
@@ -166,11 +173,7 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 		return tools.ToolResponse{}, fmt.Errorf("error saving parent session: %s", err)
 	}
 
-	// Clean up the temporary sub-agent session (use suppress context to avoid SSE broadcast)
-	if err := b.sessions.Delete(suppressCtx, session.ID); err != nil {
-		fmt.Printf("[TASK TOOL] Warning: failed to delete sub-agent session %s: %v\n", session.ID, err)
-	}
-
+	// Session cleanup handled by defer at function start
 	return tools.NewTextResponse(content), nil
 }
 

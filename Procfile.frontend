@@ -1,1 +1,0 @@
-frontend: cd mix_dev_tool && bun run tauri dev

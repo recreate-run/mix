@@ -308,8 +308,8 @@ func getOpenAPISpec() OpenAPISpec {
 			"/api/sessions/{id}/messages": map[string]interface{}{
 				"post": map[string]interface{}{
 					"operationId":  "sendMessage",
-					"summary":     "Send a message to session",
-					"description": "Send a user message to a specific session for AI processing",
+					"summary":     "Send a message to session (async)",
+					"description": "Send a user message to a specific session for AI processing. Returns immediately with 202 Accepted. All results stream via Server-Sent Events (SSE) connection.",
 					"tags":        []string{"Messages"},
 					"parameters": []map[string]interface{}{
 						createPathParameter("id", "Session ID"),
@@ -330,7 +330,28 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					}),
 					"responses": map[string]interface{}{
-						"200": createSuccessResponse("object", getBackendMessageSchema(), "Message sent and processed"),
+						"202": map[string]interface{}{
+							"description": "Message accepted for processing. Agent runs asynchronously and streams results via SSE.",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"status": map[string]interface{}{
+												"type":        "string",
+												"description": "Processing status",
+												"example":     "processing",
+											},
+											"sessionId": map[string]interface{}{
+												"type":        "string",
+												"description": "Session ID for the processing task",
+											},
+										},
+										"required": []string{"status", "sessionId"},
+									},
+								},
+							},
+						},
 						"400": createErrorResponse("Invalid message data"),
 						"404": createErrorResponse("Session not found"),
 					},
@@ -1714,7 +1735,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"event": map[string]interface{}{
 							"type":        "string",
 							"description": "Event type identifier",
-							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "session_created", "session_deleted"},
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "session_created", "session_deleted"},
 						},
 						"retry": map[string]interface{}{
 							"type":        "integer",
@@ -1737,6 +1758,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"thinking":               "#/components/schemas/SSEThinkingEvent",
 							"content":                "#/components/schemas/SSEContentEvent",
 							"tool":                   "#/components/schemas/SSEToolEvent",
+							"tool_parameter_delta":   "#/components/schemas/SSEToolParameterDeltaEvent",
 							"tool_execution_start":   "#/components/schemas/SSEToolExecutionStartEvent",
 							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
 							"permission":             "#/components/schemas/SSEPermissionEvent",
@@ -1753,6 +1775,7 @@ func getOpenAPISpec() OpenAPISpec {
 						{"$ref": "#/components/schemas/SSEThinkingEvent"},
 						{"$ref": "#/components/schemas/SSEContentEvent"},
 						{"$ref": "#/components/schemas/SSEToolEvent"},
+						{"$ref": "#/components/schemas/SSEToolParameterDeltaEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionStartEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
 						{"$ref": "#/components/schemas/SSEPermissionEvent"},
@@ -1963,6 +1986,35 @@ func getOpenAPISpec() OpenAPISpec {
 										},
 									},
 									"required": []string{"type", "name", "input", "id", "status"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEToolParameterDeltaEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool parameter delta event type",
+										},
+										"toolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool call identifier for correlation",
+										},
+										"input": map[string]interface{}{
+											"type":        "string",
+											"description": "Partial JSON parameter delta - may not be parseable until complete",
+										},
+									},
+									"required": []string{"type", "toolCallId", "input"},
 								},
 							},
 							"required": []string{"data"},

@@ -16,7 +16,7 @@ graph LR
 "
 />
 
-**Key Insight**: Events flow through distinct transformation layers, with tool execution happening AFTER provider streaming completes.
+**Key Insight**: Events flow through distinct transformation layers. Tool parameters stream in real-time during provider streaming, but tool execution happens AFTER streaming completes.
 
 
 ## Event Flow Layers
@@ -26,9 +26,10 @@ graph LR
 
 Raw streaming events from LLM providers (Anthropic, OpenAI):
 - `EventThinkingDelta` - Claude's reasoning chunks
-- `EventContentDelta` - Response text chunks  
+- `EventContentDelta` - Response text chunks
 - `EventToolUseStart` - Tool invocation begins
-- `EventToolUseStop` - Tool execution completes
+- `EventToolUseDelta` - Tool parameter streaming (partial JSON chunks)
+- `EventToolUseStop` - Tool parameters complete
 - `EventComplete` - Final response ready
 - `EventError` - Provider-level errors
 
@@ -38,7 +39,8 @@ Raw streaming events from LLM providers (Anthropic, OpenAI):
 Provider events enhanced with session context and streaming state:
 - `AgentEventTypeThinking` - Reasoning with session ID
 - `AgentEventTypeResponse` - Tool/content updates
-- `AgentEventTypeError` - Application errors  
+- `AgentEventTypeToolParameterDelta` - Real-time tool parameter streaming
+- `AgentEventTypeError` - Application errors
 - `AgentEventTypeSummarize` - Session summarization
 - `AgentEventTypeToolExecutionStart` - Backend tool execution begins
 - `AgentEventTypeToolExecutionComplete` - Backend tool execution finished
@@ -55,7 +57,8 @@ Provider events enhanced with session context and streaming state:
 
 User-facing events delivered to web/desktop clients:
 - `thinking` - AI reasoning in real-time
-- `tool` - Tool declaration and final results  
+- `tool` - Tool declaration and final results
+- `tool_parameter_delta` - Streaming tool parameters as they arrive
 - `tool_execution_start` - Backend tool execution begins
 - `tool_execution_complete` - Backend tool execution finished
 - `complete` - Final response ready
@@ -95,38 +98,47 @@ sequenceDiagram
     participant Tool
     participant PubSub
     participant Client
-    
-    Note over Provider,Agent: Provider streams complete response first
+
+    Note over Provider,Agent: Provider streams tool declaration and parameters
     Provider->>Agent: EventToolUseStart
     Agent->>PubSub: AgentEventTypeResponse (tool declared)
     PubSub->>Client: SSE: tool (declared)
-    
-    Provider->>Agent: EventToolUseStop  
+
+    loop Parameter Streaming
+        Provider->>Agent: EventToolUseDelta (partial JSON)
+        Agent->>PubSub: AgentEventTypeToolParameterDelta
+        PubSub->>Client: SSE: tool_parameter_delta
+        Note over Client: Accumulates JSON, displays when parseable
+    end
+
+    Provider->>Agent: EventToolUseStop (parameters complete)
     Provider->>Agent: EventComplete
-    
+
     Note over Agent,Tool: Agent processes completed stream, then executes tools
     Agent->>Agent: Check for tool calls
-    
+
     Agent->>PubSub: AgentEventTypeToolExecutionStart
     PubSub->>Client: SSE: tool_execution_start
-    
+
     Agent->>Tool: Execute Tool (with session context)
     Tool->>Tool: Run with permissions & working directory
     Tool->>Agent: ToolResult
-    
+
     Agent->>PubSub: AgentEventTypeToolExecutionComplete
     PubSub->>Client: SSE: tool_execution_complete
-    
+
     Agent->>PubSub: AgentEventTypeResponse (final results)
     PubSub->>Client: SSE: tool (results)
-    
+
     Note over Agent: Tool results feed into next conversation turn
 "
 />
 
-**When**: File operations, bash commands, API calls  
-**Purpose**: Real-time tool execution feedback with start/completion events  
-**Key Point**: Tools execute AFTER provider completes streaming, with dedicated execution events
+**When**: File operations, bash commands, API calls
+**Purpose**: Real-time parameter visibility and tool execution feedback
+**Key Point**: Tool parameters stream DURING provider phase (before execution), tools execute AFTER stream completes
+
+**Frontend Strategy**: The client accumulates partial JSON strings from `tool_parameter_delta` events and attempts to parse after each delta. Parameters display only when JSON becomes valid and parseable, preventing broken or incomplete data from rendering.
 
 ### 3. Permission System Integration
 

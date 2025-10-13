@@ -11,6 +11,7 @@ import type {
 	SSEToolEvent,
 	SSEToolExecutionCompleteEvent,
 	SSEToolExecutionStartEvent,
+	SSEToolParameterDeltaEvent,
 } from "mix-typescript-sdk/models/sseeventstream";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CACHE_KEYS } from "@/lib/cache-keys";
@@ -101,6 +102,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 	const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
 	const toolStartTimes = useRef<Map<string, number>>(new Map());
+	const toolParameterDeltas = useRef<Map<string, string>>(new Map()); // Accumulate partial JSON by tool ID
 	const timelineRef = useRef<TimelineEntry[]>([]);
 	const connectedRef = useRef<boolean>(false);
 	const currentSessionRef = useRef<string>("");
@@ -208,6 +210,91 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								timeline: [...timelineRef.current],
 								processing: true,
 							}));
+							break;
+						}
+
+						case "tool_parameter_delta": {
+							// Handle real-time tool parameter streaming
+							const deltaEvent = event as SSEToolParameterDeltaEvent;
+							const toolCallId = deltaEvent.data.toolCallId;
+							const inputDelta = deltaEvent.data.input;
+
+							// Validate required fields
+							if (!toolCallId || typeof toolCallId !== "string") {
+								console.error(
+									"tool_parameter_delta: missing or invalid toolCallId",
+									deltaEvent,
+								);
+								break;
+							}
+							if (inputDelta === undefined || inputDelta === null) {
+								console.error(
+									"tool_parameter_delta: missing input delta for tool",
+									toolCallId,
+								);
+								break;
+							}
+
+							// Check if tool exists - fail loudly if it doesn't
+							const existingToolCall = toolCallsMap.current.get(toolCallId);
+							if (!existingToolCall) {
+								console.error(
+									`tool_parameter_delta: received delta for non-existent tool ${toolCallId}`,
+								);
+								break;
+							}
+
+							// Don't accumulate deltas for completed tools
+							if (
+								existingToolCall.status === "completed" ||
+								existingToolCall.status === "error"
+							) {
+								console.warn(
+									`tool_parameter_delta: ignoring delta for already ${existingToolCall.status} tool ${toolCallId}`,
+								);
+								break;
+							}
+
+							// Accumulate the delta
+							const accumulated =
+								(toolParameterDeltas.current.get(toolCallId) || "") +
+								inputDelta;
+							toolParameterDeltas.current.set(toolCallId, accumulated);
+
+							// Try to parse the accumulated JSON
+							let parsedParams: Record<string, unknown> | null = null;
+							try {
+								parsedParams = JSON.parse(accumulated);
+							} catch {
+								// JSON not yet complete/parseable - skip update
+								break;
+							}
+
+							// JSON is parseable! Update the tool call
+							if (parsedParams) {
+								const updatedToolCall = {
+									...existingToolCall,
+									parameters: parsedParams,
+								};
+
+								toolCallsMap.current.set(toolCallId, updatedToolCall);
+
+								// Update timeline entry
+								timelineRef.current = timelineRef.current.map((entry) =>
+									entry.type === "tool" && entry.content.id === toolCallId
+										? { ...entry, content: updatedToolCall }
+										: entry,
+								);
+
+								setState((prev) => ({
+									...prev,
+									toolCalls: Array.from(toolCallsMap.current.values()),
+									timeline: [...timelineRef.current],
+								}));
+
+								// Clear accumulated deltas after successful parse to prevent stale accumulation
+								toolParameterDeltas.current.delete(toolCallId);
+							}
 							break;
 						}
 
@@ -462,7 +549,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 	);
 
 	useEffect(() => {
-		if (!sessionId || sessionId === currentSessionRef.current) {
+		if (!sessionId) {
+			return;
+		}
+
+		// Prevent duplicate connections for same session
+		if (sessionId === currentSessionRef.current) {
 			return;
 		}
 
@@ -473,6 +565,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 		toolCallsMap.current.clear();
 		toolStartTimes.current.clear();
+		toolParameterDeltas.current.clear();
 		timelineRef.current = [];
 		lastEventIdRef.current = undefined;
 		currentSessionRef.current = sessionId;
@@ -500,7 +593,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		streamAbortController.current = new AbortController();
 
 		// Start streaming with SDK
-
 		processEventStream(sessionId, streamAbortController.current).catch(
 			(error) => {
 				console.error("Stream processing failed:", error);
@@ -521,15 +613,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			}
 			toolCallsMap.current.clear();
 			toolStartTimes.current.clear();
+			toolParameterDeltas.current.clear();
 			timelineRef.current = [];
 			currentSessionRef.current = "";
 			lastEventIdRef.current = undefined;
 		};
-	}, [
-		sessionId, // Start streaming with SDK
-
-		processEventStream,
-	]);
+	}, [sessionId, processEventStream]);
 
 	// Cleanup on component unmount
 	useEffect(() => {
@@ -540,6 +629,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			}
 			toolCallsMap.current.clear();
 			toolStartTimes.current.clear();
+			toolParameterDeltas.current.clear();
 			timelineRef.current = [];
 			currentSessionRef.current = "";
 			lastEventIdRef.current = undefined;
@@ -573,6 +663,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			}));
 
 			toolCallsMap.current.clear();
+			toolParameterDeltas.current.clear();
 			timelineRef.current = [];
 
 			try {
@@ -650,6 +741,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			pendingUserMessage: null,
 		}));
 		toolCallsMap.current.clear();
+		toolParameterDeltas.current.clear();
 		timelineRef.current = [];
 	}, []);
 

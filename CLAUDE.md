@@ -20,7 +20,7 @@ make frontend-typecheck     # Always use this for frontend typechecking
 ## Architecture
 
 1. Backend - Golang
-2. Frontend - Tauri 2.0 app with react
+2. Frontend - React app with tanstack router
 
 ## Tech Stack
 

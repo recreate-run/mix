@@ -124,20 +124,20 @@ func (ma *MessageAccumulator) UpdateContent(messageID string, delta string) erro
 	ma.mu.RLock()
 	accumulated, exists := ma.messages[messageID]
 	ma.mu.RUnlock()
-	
+
 	if !exists {
 		return nil // Message not in accumulator, skip
 	}
-	
+
 	accumulated.mu.Lock()
 	defer accumulated.mu.Unlock()
-	
+
 	// AppendContent already handles the delta appending
 	// We just need to mark as dirty
 	accumulated.LastUpdated = time.Now()
 	accumulated.IsDirty = true
-	
-	
+
+
 	return nil
 }
 

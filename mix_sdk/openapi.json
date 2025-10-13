@@ -1922,7 +1922,7 @@
         ]
       },
       "post": {
-        "description": "Send a user message to a specific session for AI processing",
+        "description": "Send a user message to a specific session for AI processing. Returns immediately with 202 Accepted. All results stream via Server-Sent Events (SSE) connection.",
         "operationId": "sendMessage",
         "parameters": [
           {
@@ -1960,15 +1960,30 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BackendMessage"
+                  "properties": {
+                    "sessionId": {
+                      "description": "Session ID for the processing task",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Processing status",
+                      "example": "processing",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "sessionId"
+                  ],
+                  "type": "object"
                 }
               }
             },
-            "description": "Message sent and processed"
+            "description": "Message accepted for processing. Agent runs asynchronously and streams results via SSE."
           },
           "400": {
             "content": {
@@ -1991,7 +2006,7 @@
             "description": "Session not found"
           }
         },
-        "summary": "Send a message to session",
+        "summary": "Send a message to session (async)",
         "tags": [
           "Messages"
         ]
@@ -2673,6 +2688,7 @@
               "thinking",
               "content",
               "tool",
+              "tool_parameter_delta",
               "tool_execution_start",
               "tool_execution_complete",
               "permission",
@@ -2865,7 +2881,8 @@
             "thinking": "#/components/schemas/SSEThinkingEvent",
             "tool": "#/components/schemas/SSEToolEvent",
             "tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
-            "tool_execution_start": "#/components/schemas/SSEToolExecutionStartEvent"
+            "tool_execution_start": "#/components/schemas/SSEToolExecutionStartEvent",
+            "tool_parameter_delta": "#/components/schemas/SSEToolParameterDeltaEvent"
           },
           "propertyName": "event"
         },
@@ -2890,6 +2907,9 @@
           },
           {
             "$ref": "#/components/schemas/SSEToolEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEToolParameterDeltaEvent"
           },
           {
             "$ref": "#/components/schemas/SSEToolExecutionStartEvent"
@@ -3271,6 +3291,43 @@
                   "toolName",
                   "progress",
                   "toolCallId"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEToolParameterDeltaEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "input": {
+                    "description": "Partial JSON parameter delta - may not be parseable until complete",
+                    "type": "string"
+                  },
+                  "toolCallId": {
+                    "description": "Tool call identifier for correlation",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Tool parameter delta event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "toolCallId",
+                  "input"
                 ],
                 "type": "object"
               }

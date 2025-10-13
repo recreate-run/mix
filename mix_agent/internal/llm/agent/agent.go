@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mix/internal/config"
+	"mix/internal/llm/callbacks"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
 	"mix/internal/llm/prompt"
@@ -12,6 +13,7 @@ import (
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/message"
+	"mix/internal/permission"
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
@@ -23,7 +25,23 @@ import (
 
 // Common errors
 var (
+	// Deprecated: Use specific error types below
 	ErrRequestCancelled = errors.New("request cancelled by user")
+
+	// Specific cancellation reasons for better diagnostics
+	ErrRequestCancelledByUser    = errors.New("request cancelled by user")
+	ErrRequestCancelledTimeout   = errors.New("request cancelled: timeout exceeded")
+	ErrRequestCancelledDisconnect = errors.New("request cancelled: client disconnected")
+)
+
+// SessionState represents the current state of an agent session
+type SessionState string
+
+const (
+	SessionStateCreated    SessionState = "created"
+	SessionStateProcessing SessionState = "processing"
+	SessionStateCompleted  SessionState = "completed"
+	SessionStateCancelled  SessionState = "cancelled"
 )
 
 type AgentEventType string
@@ -34,6 +52,7 @@ const (
 	AgentEventTypeSummarize             AgentEventType = "summarize"
 	AgentEventTypeThinking              AgentEventType = "thinking"
 	AgentEventTypeContentDelta          AgentEventType = "content_delta"
+	AgentEventTypeToolParameterDelta    AgentEventType = "tool_parameter_delta"
 	AgentEventTypeToolExecutionStart    AgentEventType = "tool_execution_start"
 	AgentEventTypeToolExecutionComplete AgentEventType = "tool_execution_complete"
 )
@@ -64,6 +83,7 @@ type Service interface {
 	Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	Cancel(sessionID string)
+	CancelWithReason(sessionID string, reason string)
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
 	Summarize(ctx context.Context, sessionID string) error
 	ClearAllSessionProviders()
@@ -85,8 +105,11 @@ type agent struct {
 
 	sessionProviders sync.Map // Maps session ID to interfaces.Provider
 	activeContexts   sync.Map // Maps session ID to context.CancelFunc for cancellation
+	sessionStates    sync.Map // Maps session ID to SessionState for debugging
 
 	accumulator *MessageAccumulator // In-memory message accumulator
+
+	callbackExecutor interfaces.CallbackExecutor // Executes post-tool callbacks
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -98,6 +121,7 @@ func NewAgent(
 	messages message.Service,
 	agentTools []tools.BaseTool,
 	storageConfig session.Config,
+	permissions ...permission.Service, // Optional for backward compatibility
 ) (Service, error) {
 	agentProvider, err := createAgentProvider(agentName)
 	if err != nil {
@@ -124,6 +148,12 @@ func NewAgent(
 	// Create message accumulator (no periodic flushing)
 	accumulator := NewMessageAccumulator(messages)
 
+	// Create callback executor if permissions service is provided
+	var callbackExecutor interfaces.CallbackExecutor
+	if len(permissions) > 0 && permissions[0] != nil {
+		callbackExecutor = callbacks.NewExecutor(sessions, permissions[0])
+	}
+
 	agent := &agent{
 		Broker:            pubsub.NewBroker[AgentEvent](),
 		agentName:         agentName,
@@ -137,6 +167,7 @@ func NewAgent(
 		sessionProviders:  sync.Map{},
 		activeContexts:    sync.Map{},
 		accumulator:       accumulator,
+		callbackExecutor:  callbackExecutor,
 		ctx:               ctx,
 		cancel:            cancel,
 	}
@@ -152,21 +183,59 @@ func (a *agent) Model() models.Model {
 }
 
 func (a *agent) Cancel(sessionID string) {
+	a.CancelWithReason(sessionID, "unknown")
+}
+
+func (a *agent) CancelWithReason(sessionID string, reason string) {
 	// Cancel regular requests
-	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID); exists {
-		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			// Request cancellation initiated
-			cancel()
-		}
+	cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID)
+	if !exists {
+		// Nothing to cancel - agent not running or already completed
+		return
+	}
+
+	if cancel, ok := cancelFunc.(context.CancelFunc); ok {
+		cancel()
+		a.setSessionState(sessionID, SessionStateCancelled)
 	}
 
 	// Also check for summarize requests
 	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID + "-summarize"); exists {
 		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			// Summarize cancellation initiated
 			cancel()
 		}
 	}
+}
+
+// setSessionState sets the state of a session and logs the transition
+func (a *agent) setSessionState(sessionID string, state SessionState) {
+	oldState, _ := a.sessionStates.Load(sessionID)
+	a.sessionStates.Store(sessionID, state)
+	logging.Debug("Session state transition",
+		"sessionID", sessionID,
+		"oldState", oldState,
+		"newState", state,
+		"timestamp", time.Now().Format(time.RFC3339Nano))
+}
+
+// getSessionState retrieves the current state of a session
+func (a *agent) getSessionState(sessionID string) (SessionState, bool) {
+	if state, exists := a.sessionStates.Load(sessionID); exists {
+		if s, ok := state.(SessionState); ok {
+			return s, true
+		}
+	}
+	return "", false
+}
+
+// countActiveSessions returns the number of sessions currently being processed
+func (a *agent) countActiveSessions() int {
+	count := 0
+	a.activeContexts.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 func (a *agent) generateTitle(ctx context.Context, sessionID string, content string) error {
@@ -231,6 +300,12 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 	// Store cancel function for potential cancellation
 	a.activeContexts.Store(sessionID, cancel)
 
+	// Set session state to processing
+	a.setSessionState(sessionID, SessionStateProcessing)
+	logging.Debug("Stored cancel function for session",
+		"sessionID", sessionID,
+		"activeSessionsCount", a.countActiveSessions())
+
 	// Add plan mode to context
 	if planMode {
 		genCtx = context.WithValue(genCtx, interfaces.PlanModeContextKey, true)
@@ -241,7 +316,17 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 
 	go func() {
 		defer func() {
-			logging.Debug("Request completed", "sessionID", sessionID)
+			// Check if session was cancelled or completed normally
+			state, _ := a.getSessionState(sessionID)
+			if state != SessionStateCancelled {
+				a.setSessionState(sessionID, SessionStateCompleted)
+			}
+
+			logging.Debug("Removing cancel function for session",
+				"sessionID", sessionID,
+				"finalState", state,
+				"activeSessionsCount", a.countActiveSessions()-1)
+
 			a.activeContexts.Delete(sessionID)
 			cancel()
 			close(events)
@@ -270,7 +355,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 		defer logging.RecoverPanic("agent.Run-subscription", nil)
 		for {
 			select {
-			case <-ctx.Done():
+			case <-genCtx.Done():
 				return
 			case event, ok := <-subscription:
 				if !ok {
@@ -280,7 +365,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 				if (event.Payload.SessionID == sessionID || event.Payload.Message.SessionID == sessionID) && !event.Payload.Done {
 					select {
 					case events <- event.Payload:
-					case <-ctx.Done():
+					case <-genCtx.Done():
 						return
 					}
 				}
@@ -350,6 +435,12 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
 			// Stream processing failed for session
+			if errors.Is(err, context.DeadlineExceeded) {
+				logging.Error("Agent timeout exceeded", "sessionID", sessionID, "conversationTurn", conversationTurn)
+				agentMessage.AddFinish(message.FinishReasonCanceled)
+				_ = a.messages.Update(context.Background(), agentMessage)
+				return a.err(ErrRequestCancelledTimeout)
+			}
 			if errors.Is(err, context.Canceled) {
 				agentMessage.AddFinish(message.FinishReasonCanceled)
 				_ = a.messages.Update(context.Background(), agentMessage)
@@ -479,8 +570,6 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	}
 
 	// Execute all tool calls with dependency awareness
-	logging.Debug("Processing tool calls", "count", len(toolCalls), "sessionID", sessionID)
-
 	toolResults, toolErr := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
 
 	// Always create tool result message, even if some tools failed
@@ -588,15 +677,25 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID: sessionID,
 		})
 		return err
-	// TODO: see how to handle this
-	// case interfaces.EventToolUseDelta:
-	// 	tm := time.Unix(assistantMsg.UpdatedAt, 0)
-	// 	assistantMsg.AppendToolCallInput(event.ToolCall.ID, event.ToolCall.Input)
-	// 	if time.Since(tm) > 1000*time.Millisecond {
-	// 		err := a.messages.Update(ctx, *assistantMsg)
-	// 		assistantMsg.UpdatedAt = time.Now().Unix()
-	// 		return err
-	// 	}
+	case interfaces.EventToolUseDelta:
+		// Append partial tool input to the message
+		if err := assistantMsg.AppendToolCallInput(event.ToolCall.ID, event.ToolCall.Input); err != nil {
+			return fmt.Errorf("failed to append tool call input for tool %s: %w", event.ToolCall.ID, err)
+		}
+
+		// Store in accumulator without immediate flush
+		// The accumulator will batch DB updates for performance
+		a.accumulator.Store(assistantMsg)
+
+		// Publish tool parameter delta event for real-time streaming
+		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
+			Type:       AgentEventTypeToolParameterDelta,
+			Message:    *assistantMsg,
+			SessionID:  sessionID,
+			ToolCallID: event.ToolCall.ID,
+			Content:    event.ToolCall.Input, // Send the delta JSON
+		})
+		return err
 	case interfaces.EventToolUseStop:
 		assistantMsg.FinishToolCall(event.ToolCall.ID)
 
@@ -727,7 +826,6 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 				logging.Warn("Failed to update title provider", "error", err)
 			} else {
 				a.titleProvider = titleProvider
-				logging.Info("Updated title provider to use new model", "model", modelID)
 			}
 		}
 
@@ -738,7 +836,6 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 				logging.Warn("Failed to update summary provider", "error", err)
 			} else {
 				a.summarizeProvider = summarizeProvider
-				logging.Info("Updated summary provider to use new model", "model", modelID)
 			}
 		}
 	}

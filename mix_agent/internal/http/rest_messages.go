@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -122,8 +124,31 @@ func getCommandNames(commands map[string]commands.Command) []string {
 	return names
 }
 
+// generateRequestID generates a unique request ID for correlation tracking
+func generateRequestID() string {
+	bytes := make([]byte, 8)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp if random generation fails
+		return fmt.Sprintf("req-%d", time.Now().UnixNano())
+	}
+	return "req-" + hex.EncodeToString(bytes)
+}
+
 // HandleSendMessage handles POST /api/sessions/{id}/messages
 func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Request) {
+	// Generate unique request ID for correlation
+	requestID := generateRequestID()
+	requestStartTime := time.Now()
+
+	// Defer logging for handler exit
+	defer func() {
+		duration := time.Since(requestStartTime)
+		logging.Debug("HTTP handler exiting",
+			"requestID", requestID,
+			"duration", duration.String(),
+			"timestamp", time.Now().Format(time.RFC3339Nano))
+	}()
+
 	setCORSHeaders(w)
 	if handleCORSPreflight(w, r) {
 		return
@@ -222,58 +247,66 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Send message to agent
-	events, err := h.app.CoderAgent.RunWithPlanMode(ctx, sessionID, req.Text, req.PlanMode)
+	// Use context.Background() instead of r.Context() to prevent HTTP request timeouts/cancellations
+	// from killing long-running agent tasks. The agent can only be cancelled via the explicit cancel endpoint.
+	agentCtx := context.Background()
+
+	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode)
 	if err != nil {
+		logging.Error("Failed to start agent processing",
+			"sessionID", sessionID,
+			"requestID", requestID,
+			"error", err)
 		sendInternalError(w, "sending message to agent", err)
 		return
 	}
 
-	// Forward all events to active SSE connections while processing
-	var lastEvent agent.AgentEvent
-	for event := range events {
-		// Broadcast event to all SSE connections for this session
-		BroadcastAgentEventToSSE(sessionID, event)
+	// Return 202 Accepted immediately - agent runs asynchronously
+	// All results stream via SSE connections
+	sendJSONResponse(w, http.StatusAccepted, map[string]string{
+		"status":    "processing",
+		"sessionId": sessionID,
+	})
 
-		// Store last event for REST response
-		lastEvent = event
-	}
-
-	// Check for processing errors
-	if lastEvent.Error != nil {
-		// Convert error to user-friendly message
-		errorMessage := lastEvent.Error.Error()
-
-		// Special handling for auth errors
-		if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
-			authResult := MessageData{
-				ID:                "system-auth-prompt",
-				Role:              "assistant",
-				UserInput:         req.Text,
-				AssistantResponse: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+	// Process events in background goroutine
+	// This allows the HTTP connection to close immediately while agent continues processing
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Error("Panic in background event processing",
+					"sessionID", sessionID,
+					"requestID", requestID,
+					"panic", r)
 			}
+		}()
 
-			sendJSONResponse(w, http.StatusOK, authResult)
-			return
+		// Forward all events to active SSE connections while processing
+		var lastEvent agent.AgentEvent
+		for event := range events {
+			// Broadcast event to all SSE connections for this session
+			BroadcastAgentEventToSSE(sessionID, event)
+
+			// Store last event for logging
+			lastEvent = event
 		}
 
-		sendInternalError(w, "agent processing", lastEvent.Error)
-		return
-	}
+		// Check for processing errors and broadcast to SSE if needed
+		if lastEvent.Error != nil {
+			errorMessage := lastEvent.Error.Error()
 
-	// Extract text content from the response message
-	response := ""
-	if lastEvent.Message.Content().String() != "" {
-		response = lastEvent.Message.Content().String()
-	}
-
-	messageData := MessageData{
-		ID:                lastEvent.Message.ID,
-		Role:              "user",
-		UserInput:         req.Text,
-		AssistantResponse: response,
-	}
-
-	sendJSONResponse(w, http.StatusOK, messageData)
+			// Special handling for auth errors - broadcast to SSE
+			if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
+				registry.BroadcastEvent(sessionID, "error", ErrorEvent{
+					Error: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+				})
+			} else {
+				// Broadcast general errors to SSE
+				registry.BroadcastEvent(sessionID, "error", ErrorEvent{
+					Error: errorMessage,
+				})
+			}
+		}
+	}()
 }
 
 // HandleListSessionMessages handles GET /api/sessions/{id}/messages
@@ -371,7 +404,7 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Cancel the agent processing for this session
-	h.app.CoderAgent.Cancel(sessionID)
+	h.app.CoderAgent.CancelWithReason(sessionID, "user_api_cancellation")
 
 	result := map[string]string{
 		"status":    "cancelled",

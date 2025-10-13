@@ -125,7 +125,8 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	}
 
 	// Add request timeout to prevent indefinite hangs
-	openaiClientOptions = append(openaiClientOptions, option.WithRequestTimeout(90*time.Second))
+	// Set to 15 minutes to allow long-running tool executions (e.g., Bash commands, MCP tools, sub-agents)
+	openaiClientOptions = append(openaiClientOptions, option.WithRequestTimeout(15*time.Minute))
 
 	client := openai.NewClient(openaiClientOptions...)
 	return &openaiClient{
@@ -609,7 +610,8 @@ func (o *openaiClient) recreateClient() {
 		}
 	}
 
-	clientOptions = append(clientOptions, option.WithRequestTimeout(90*time.Second))
+	// 15-minute timeout for long-running tool executions
+	clientOptions = append(clientOptions, option.WithRequestTimeout(15*time.Minute))
 	o.client = openai.NewClient(clientOptions...)
 }
 

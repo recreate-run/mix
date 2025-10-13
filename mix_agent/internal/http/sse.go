@@ -10,6 +10,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/llm/agent"
+	"mix/internal/logging"
 	"mix/internal/pubsub"
 )
 
@@ -64,6 +65,16 @@ func (r *ConnectionRegistry) Unregister(sessionID string, conn *Connection) {
 			delete(r.connections, sessionID)
 		}
 	}
+}
+
+// CountForSession returns the number of active connections for a specific session
+func (r *ConnectionRegistry) CountForSession(sessionID string) int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if connections, exists := r.connections[sessionID]; exists {
+		return len(connections)
+	}
+	return 0
 }
 
 // BroadcastToAll sends an SSE event to all active connections regardless of session
@@ -176,6 +187,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 
 	// Register connection and ensure cleanup
 	registry.Register(sessionID, conn)
+
 	defer func() {
 		registry.Unregister(sessionID, conn)
 		conn.closeOnce.Do(func() {
@@ -266,13 +278,16 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	for {
 		select {
 		case <-r.Context().Done():
-			// Client disconnected
-			app.CoderAgent.Cancel(sessionID)
+			// Client disconnected - SSE is just an event stream view, disconnecting doesn't stop agent processing
+			logging.Debug("SSE client disconnected",
+				"sessionID", sessionID,
+				"remoteAddr", r.RemoteAddr,
+				"activeConnections", registry.CountForSession(sessionID))
 			return
 
 		case <-ctx.Done():
 			// Handler context cancelled (server shutdown, timeout, etc.)
-			app.CoderAgent.Cancel(sessionID)
+			app.CoderAgent.CancelWithReason(sessionID, "server_shutdown")
 			return
 
 		case <-heartbeat.C:
@@ -309,6 +324,16 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 			if err := sseWriter.WriteEvent("content", ContentEvent{Type: "content", Content: event.Content}); err != nil {
 				return err
 			}
+		}
+
+	case agent.AgentEventTypeToolParameterDelta:
+		// Stream tool parameter deltas for real-time parameter visibility
+		if err := sseWriter.WriteEvent("tool_parameter_delta", ToolParameterDeltaEvent{
+			Type:       "tool_parameter_delta",
+			ToolCallID: event.ToolCallID,
+			Input:      event.Content, // Delta is stored in Content field
+		}); err != nil {
+			return err
 		}
 
 	case agent.AgentEventTypeResponse:
