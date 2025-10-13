@@ -1,0 +1,17 @@
+# Netlify configuration for Mix Web Demo
+[build]
+  # Build command - installs dependencies and builds the web demo
+  command = "bun install && bun run build:web"
+
+  # Directory to publish - output folder from build:web
+  publish = "dist-web"
+
+# SPA routing - redirect all routes to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Environment configuration
+[build.environment]
+  NODE_VERSION = "20"
