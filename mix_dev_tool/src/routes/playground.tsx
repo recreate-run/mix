@@ -6,6 +6,7 @@ import { PlaygroundUI } from "@/components/playground-ui";
 import { usePersistentSSE } from "@/hooks/usePersistentSSE";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
+import { useBoundStore } from "@/stores";
 
 export const Route = createFileRoute("/playground")({
 	component: PlaygroundApp,
@@ -20,10 +21,21 @@ function PlaygroundApp() {
 	const sessionMessages = useSessionMessages(sessionId || "");
 	const sseStream = usePersistentSSE(sessionId || "");
 
-	const messages = sessionMessages.data || [];
-	const hasMessages = messages.length > 0 || sseStream.processing;
+	// Get attachments from store
+	const attachments = useBoundStore((state) => state.attachments);
+	const referenceMap = useBoundStore((state) => state.referenceMap);
 
+	const messages = sessionMessages.data || [];
+	const hasMessages =
+		messages.length > 0 ||
+		sseStream.processing ||
+		sseStream.pendingUserMessage !== null;
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Run only once on mount to prevent multiple session creation
 	useEffect(() => {
+		// Prevent multiple session creations
+		if (sessionId || isReady) return;
+
 		const initSession = async () => {
 			// Try to use existing playground session
 			const existingSessionId = localStorage.getItem(PLAYGROUND_SESSION_KEY);
@@ -54,14 +66,14 @@ function PlaygroundApp() {
 		};
 
 		initSession();
-	}, [createSession]);
+	}, []); // Run only once on mount
 
 	const handleSubmit = (text: string) => {
 		if (sessionId && sseStream.connected) {
 			sseStream.submitMessage({
 				text,
-				attachments: [],
-				referenceMap: new Map(),
+				attachments,
+				referenceMap,
 				planMode: false,
 			});
 		}

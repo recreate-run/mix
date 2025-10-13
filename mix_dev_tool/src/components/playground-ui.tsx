@@ -59,6 +59,17 @@ export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
 		}
 	};
 
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		// Handle Enter for form submission (without shift for new line)
+		if (e.key === "Enter" && !e.shiftKey) {
+			e.preventDefault();
+			const form = e.currentTarget.form;
+			if (form) {
+				form.requestSubmit();
+			}
+		}
+	};
+
 	// Handle file upload success
 	const handleFileUploadSuccess = (fileName: string) => {
 		const displayReference = `@${fileName}`;
@@ -137,6 +148,7 @@ export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
 							<AIInputTextarea
 								autoFocus
 								onChange={(e) => handleTextChange(e.target.value)}
+								onKeyDown={handleKeyDown}
 								placeholder="What would you like to know?"
 								value={inputValue}
 							/>
