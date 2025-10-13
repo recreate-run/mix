@@ -5,8 +5,11 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"dev:web": "vite --port 3000",
 		"build": "tsc && vite build",
+		"build:web": "tsc && vite build --outDir dist-web",
 		"preview": "vite preview",
+		"preview:web": "vite preview --outDir dist-web --port 3000",
 		"typecheck": "tsc --noEmit",
 		"tauri": "tauri",
 		"knip": "knip",
