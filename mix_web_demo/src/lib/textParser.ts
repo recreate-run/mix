@@ -1,0 +1,144 @@
+type TokenType = "text" | "file-ref" | "slash-command";
+
+interface Token {
+	type: TokenType;
+	content: string;
+	start: number;
+	end: number;
+}
+
+export class TextParser {
+	constructor(
+		private availableFiles: string[],
+		private availableCommands: string[],
+	) {}
+
+	parse(text: string): Token[] {
+		if (!text) return [{ type: "text", content: "", start: 0, end: 0 }];
+
+		const matches: Array<{
+			type: TokenType;
+			start: number;
+			end: number;
+			content: string;
+		}> = [];
+
+		// Create regex patterns for efficient matching
+		this.availableFiles.forEach((filename) => {
+			const patterns = [`@${filename}`, `@../${filename}`];
+			patterns.forEach((pattern) => {
+				const regex = new RegExp(this.escapeRegex(pattern), "g");
+				for (const match of text.matchAll(regex)) {
+					matches.push({
+						type: "file-ref",
+						start: match.index ?? 0,
+						end: (match.index ?? 0) + match[0].length,
+						content: match[0],
+					});
+				}
+			});
+		});
+
+		this.availableCommands.forEach((command) => {
+			const pattern = `/${command}`;
+			const regex = new RegExp(this.escapeRegex(pattern), "g");
+			for (const match of text.matchAll(regex)) {
+				matches.push({
+					type: "slash-command",
+					start: match.index ?? 0,
+					end: (match.index ?? 0) + match[0].length,
+					content: match[0],
+				});
+			}
+		});
+
+		// Sort matches and build tokens
+		matches.sort((a, b) => a.start - b.start);
+
+		const tokens: Token[] = [];
+		let currentIndex = 0;
+
+		for (const match of matches) {
+			if (currentIndex < match.start) {
+				tokens.push({
+					type: "text",
+					content: text.slice(currentIndex, match.start),
+					start: currentIndex,
+					end: match.start,
+				});
+			}
+			tokens.push(match);
+			currentIndex = match.end;
+		}
+
+		if (currentIndex < text.length) {
+			tokens.push({
+				type: "text",
+				content: text.slice(currentIndex),
+				start: currentIndex,
+				end: text.length,
+			});
+		}
+
+		return tokens.length
+			? tokens
+			: [{ type: "text", content: text, start: 0, end: text.length }];
+	}
+
+	getTokenAt(position: number, tokens: Token[]): Token | null {
+		return (
+			tokens.find((token) => position >= token.start && position < token.end) ||
+			null
+		);
+	}
+
+	getTokenForManipulation(position: number, tokens: Token[]): Token | null {
+		return (
+			tokens.find(
+				(token) => position >= token.start && position <= token.end,
+			) || null
+		);
+	}
+
+	handleDeletion(
+		text: string,
+		cursorPos: number,
+	): { newText: string; newCursor: number } | null {
+		const tokens = this.parse(text);
+		const token = this.getTokenForManipulation(cursorPos, tokens);
+
+		if (token && this.isSpecialToken(token.type)) {
+			return {
+				newText: text.slice(0, token.start) + text.slice(token.end),
+				newCursor: token.start,
+			};
+		}
+		return null;
+	}
+
+	handleArrowKey(
+		key: "ArrowLeft" | "ArrowRight",
+		cursorPos: number,
+		tokens: Token[],
+	): number | null {
+		const token = this.getTokenForManipulation(cursorPos, tokens);
+		if (token && this.isSpecialToken(token.type)) {
+			if (key === "ArrowLeft") {
+				return token.start;
+			}
+			// ArrowRight: only jump to end if not already there
+			return cursorPos === token.end ? null : token.end;
+		}
+		return null;
+	}
+
+	private isSpecialToken(type: TokenType): boolean {
+		return type === "file-ref" || type === "slash-command";
+	}
+
+	private escapeRegex(string: string): string {
+		return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	}
+}
+
+// Legacy exports for backward compatibility during transition
