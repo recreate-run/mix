@@ -31,7 +31,11 @@ function PlaygroundApp() {
 		sseStream.processing ||
 		sseStream.pendingUserMessage !== null;
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Run only once on mount to prevent multiple session creation
 	useEffect(() => {
+		// Prevent multiple session creations
+		if (sessionId || isReady) return;
+
 		const initSession = async () => {
 			// Try to use existing playground session
 			const existingSessionId = localStorage.getItem(PLAYGROUND_SESSION_KEY);
@@ -62,7 +66,7 @@ function PlaygroundApp() {
 		};
 
 		initSession();
-	}, [createSession]);
+	}, []); // Run only once on mount
 
 	const handleSubmit = (text: string) => {
 		if (sessionId && sseStream.connected) {
