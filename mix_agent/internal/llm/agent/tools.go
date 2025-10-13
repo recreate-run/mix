@@ -1,9 +1,6 @@
 package agent
 
 import (
-	"context"
-	"time"
-
 	"mix/internal/history"
 	"mix/internal/llm/tools"
 	"mix/internal/message"
@@ -18,28 +15,25 @@ func CoderAgentTools(
 	history history.Service,
 	manager *MCPClientManager,
 ) []tools.BaseTool {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	otherTools := GetMcpTools(ctx, permissions, manager)
+	// Don't block on MCP tools during initialization - they will be loaded in the background
+	// and available when first needed (lazy loading happens in GetClient)
 	bashTool := tools.NewBashTool(permissions)
-	return append(
-		[]tools.BaseTool{
-			bashTool,
-			tools.NewEditTool(permissions, history),
-			tools.NewGlobTool(),
-			tools.NewGrepTool(permissions),
-			tools.NewReadTextTool(),
-			tools.NewWebFetchTool(permissions),
-			tools.NewWebSearchTool(permissions),
-			tools.NewWriteTool(permissions, history),
-			// tools.NewPythonExecutionTool(permissions),
-			tools.NewReadMediaTool(),
-			tools.NewTodoWriteTool(),
-			tools.NewExitPlanModeTool(),
-			tools.NewMediaShowcaseTool(),
-			NewTaskTool(sessions, messages, permissions),
-		}, otherTools...,
-	)
+	return []tools.BaseTool{
+		bashTool,
+		tools.NewEditTool(permissions, history),
+		tools.NewGlobTool(),
+		tools.NewGrepTool(permissions),
+		tools.NewReadTextTool(),
+		tools.NewWebFetchTool(permissions),
+		tools.NewWebSearchTool(permissions),
+		tools.NewWriteTool(permissions, history),
+		// tools.NewPythonExecutionTool(permissions),
+		tools.NewReadMediaTool(),
+		tools.NewTodoWriteTool(),
+		tools.NewExitPlanModeTool(),
+		tools.NewMediaShowcaseTool(),
+		NewTaskTool(sessions, messages, permissions),
+	}
 }
 
 func TaskAgentTools(
