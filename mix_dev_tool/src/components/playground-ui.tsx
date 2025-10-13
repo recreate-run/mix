@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
-import { toast } from "sonner";
 import {
 	AIInput,
 	AIInputSubmit,
