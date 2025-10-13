@@ -1,0 +1,96 @@
+---
+title: Session Management
+description: Session hierarchy and relationship patterns
+---
+
+Mix implements a hierarchical session architecture that supports three distinct session types: main sessions for user interactions, forked sessions for branching conversations, and subagent sessions for delegated tasks. Each session type maintains its own identity while preserving relationships through parent-child linkage.
+
+## Session Types
+
+The system distinguishes between three fundamental session categories, each serving a specific purpose in the conversation lifecycle.
+
+### Main Sessions
+
+Main sessions represent the primary interaction layer where users directly communicate with the AI agent. These sessions:
+- Store complete conversation history as message sequences
+- Track token usage and cost metrics across all operations
+- Maintain working directories for file-based operations
+- Serve as the root of session hierarchies
+
+### Forked Sessions
+
+Forked sessions enable branching from any point in a conversation history. The system creates a new independent session while preserving the link to the source through the parent session ID. Forked sessions:
+- Copy messages up to the specified fork point
+- Inherit the conversation context but diverge independently
+- Allow experimentation without affecting the original session
+- Maintain separate cost tracking and metrics
+
+### Subagent Sessions
+
+Subagent sessions represent delegated work performed by specialized agents. The main agent creates these sessions when invoking the task tool to offload complex operations. Subagent sessions:
+- Execute with restricted tool access based on subagent type
+- Accumulate costs that roll up to the parent session
+- Persist permanently for debugging and audit trails
+- Specify their specialization through the subagent type field
+
+## Session Relationships
+
+<Mermaid
+  chart="
+graph TB
+    Main[Main Session<br/>session_type: main<br/>parent_session_id: null]
+
+    Fork[Forked Session<br/>session_type: forked<br/>parent_session_id: main_id]
+
+    Sub1[Subagent Session<br/>session_type: subagent<br/>subagent_type: general-purpose<br/>parent_session_id: main_id]
+
+    Sub2[Subagent Session<br/>session_type: subagent<br/>subagent_type: research<br/>parent_session_id: main_id]
+
+    Main -->|fork at message N| Fork
+    Main -->|delegate task| Sub1
+    Main -->|delegate task| Sub2
+"
+/>
+
+The parent-child relationship creates a clear hierarchy where:
+- Main sessions have no parent (root of the tree)
+- Forked sessions point to their source session
+- Subagent sessions point to the session that spawned them
+- Multiple children can share the same parent session
+
+## Subagent Specialization
+
+Subagent types determine the available tool set and behavior constraints for delegated tasks. The system currently supports:
+
+**General-Purpose**: Full read/write toolset for complex multi-step operations including file manipulation, web search, and data analysis.
+
+**Future Specializations**: The architecture supports extending subagent types for domain-specific tasks such as code review, research, or testing workflows.
+
+The main agent's LLM selects the appropriate subagent type based on task requirements described in the tool definition. This delegation pattern keeps the main conversation focused while offloading intensive operations to specialized workers.
+
+## Cost Accumulation
+
+Session costs flow upward through the hierarchy. When a subagent completes its work, the system:
+- Calculates the total cost of the subagent session
+- Adds this cost to the parent session's total
+- Preserves detailed cost metrics at each level
+
+Forked sessions maintain independent cost tracking since they represent divergent conversation paths rather than delegated work.
+
+## Immutability Constraints
+
+Session type fields become immutable after creation to maintain hierarchy integrity:
+- **session_type**: Cannot change from main to subagent or vice versa
+- **subagent_type**: Cannot change specialization after creation
+- **parent_session_id**: Cannot reassign parent relationships
+
+The system enforces these constraints in the Save operation by preserving the existing values regardless of what the caller provides.
+
+## Event Visibility
+
+Subagent sessions no longer suppress events. All tool executions, content generation, and thinking blocks stream to the parent session's event channel, providing full transparency into delegated work. This design enables:
+- Real-time monitoring of subagent progress
+- Debugging complex multi-agent workflows
+- User visibility into all AI operations
+
+The unified event stream maintains session ID filtering so clients can distinguish between main agent and subagent activities.

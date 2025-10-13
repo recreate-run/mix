@@ -13,6 +13,7 @@ import (
 	"mix/internal/config"
 	"mix/internal/db"
 	"mix/internal/message"
+	"mix/internal/session"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -57,12 +58,12 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test Fork Session", "", "default")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Fork Session", "", "default", session.SessionTypeMain, "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
 
-	return testApp, session.ID
+	return testApp, testSession.ID
 }
 
 // createTestMessages creates sample messages for fork testing

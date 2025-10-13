@@ -16,6 +16,7 @@ import (
 	"mix/internal/config"
 	"mix/internal/db"
 	httphandlers "mix/internal/http"
+	"mix/internal/session"
 	_ "mix/internal/llm/models"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -87,7 +88,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	time.Sleep(100 * time.Millisecond)
 
 	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default", session.SessionTypeMain, "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
@@ -178,7 +179,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	return &TestServerResult{
 		Server:    server,
 		App:       testApp,
-		SessionID: session.ID,
+		SessionID: testSession.ID,
 		ConfigDir: testConfigDir,
 		DataDir:   testDataDir,
 	}

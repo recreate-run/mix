@@ -11,6 +11,7 @@ import (
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
+	session2 "mix/internal/session"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -77,7 +78,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default")
+	session, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default", session2.SessionTypeMain, "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}

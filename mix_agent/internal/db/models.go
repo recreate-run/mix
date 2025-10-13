@@ -66,6 +66,8 @@ type Session struct {
 	WorkingDirectory   sql.NullString `json:"working_directory"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	SessionType        string         `json:"session_type"`
+	SubagentType       sql.NullString `json:"subagent_type"`
 }
 
 type UserPreference struct {

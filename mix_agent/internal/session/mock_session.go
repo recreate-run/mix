@@ -14,8 +14,8 @@ type MockService struct {
 	mock.Mock
 }
 
-func (m *MockService) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string) (Session, error) {
-	args := m.Called(ctx, title, customSystemPrompt, promptMode)
+func (m *MockService) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string) (Session, error) {
+	args := m.Called(ctx, title, customSystemPrompt, promptMode, sessionType, subagentType, parentSessionID)
 	return args.Get(0).(Session), args.Error(1)
 }
 
@@ -46,6 +46,11 @@ func (m *MockService) Save(ctx context.Context, sess Session) (Session, error) {
 		result = args.Get(0).(Session)
 	}
 	return result, args.Error(1)
+}
+
+func (m *MockService) IncrementCost(ctx context.Context, sessionID string, costDelta float64) error {
+	args := m.Called(ctx, sessionID, costDelta)
+	return args.Error(0)
 }
 
 func (m *MockService) Delete(ctx context.Context, id string) error {

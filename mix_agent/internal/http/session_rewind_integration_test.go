@@ -14,6 +14,7 @@ import (
 	"mix/internal/config"
 	"mix/internal/db"
 	"mix/internal/message"
+	"mix/internal/session"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -58,12 +59,12 @@ func setupTestServerForRewind(t *testing.T) (*app.App, string) {
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default", session.SessionTypeMain, "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
 
-	return testApp, session.ID
+	return testApp, testSession.ID
 }
 
 // createTestMessagesForRewind creates sample messages for rewind testing

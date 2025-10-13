@@ -42,6 +42,7 @@ type Querier interface {
 	HasAPICredential(ctx context.Context, provider string) (int64, error)
 	// Check if user has OAuth credential for a provider
 	HasOAuthCredential(ctx context.Context, provider string) (int64, error)
+	IncrementSessionCost(ctx context.Context, arg IncrementSessionCostParams) error
 	// List all API credentials for the user
 	ListAPICredentials(ctx context.Context) ([]ApiCredential, error)
 	// Get OAuth credentials that are expired or will expire soon (5 minute buffer)

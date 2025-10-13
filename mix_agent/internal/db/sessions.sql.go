@@ -17,6 +17,8 @@ INSERT INTO sessions (
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -24,6 +26,8 @@ INSERT INTO sessions (
     updated_at,
     created_at
 ) VALUES (
+    ?,
+    ?,
     ?,
     ?,
     ?,
@@ -41,6 +45,8 @@ INSERT INTO sessions (
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -55,6 +61,8 @@ type CreateSessionParams struct {
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	SessionType        string         `json:"session_type"`
+	SubagentType       sql.NullString `json:"subagent_type"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -66,6 +74,8 @@ type CreateSessionRow struct {
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	SessionType        string         `json:"session_type"`
+	SubagentType       sql.NullString `json:"subagent_type"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -81,6 +91,8 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 		arg.Title,
 		arg.CustomSystemPrompt,
 		arg.PromptMode,
+		arg.SessionType,
+		arg.SubagentType,
 		arg.PromptTokens,
 		arg.CompletionTokens,
 		arg.Cost,
@@ -92,6 +104,8 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
+		&i.SessionType,
+		&i.SubagentType,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
@@ -119,6 +133,8 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -145,6 +161,8 @@ type GetSessionByIDRow struct {
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
+	SessionType           string         `json:"session_type"`
+	SubagentType          sql.NullString `json:"subagent_type"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -165,6 +183,8 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
+		&i.SessionType,
+		&i.SubagentType,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
@@ -178,6 +198,23 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 	return i, err
 }
 
+const incrementSessionCost = `-- name: IncrementSessionCost :exec
+UPDATE sessions
+SET cost = cost + ?,
+    updated_at = strftime('%s', 'now')
+WHERE id = ?
+`
+
+type IncrementSessionCostParams struct {
+	Cost float64 `json:"cost"`
+	ID   string  `json:"id"`
+}
+
+func (q *Queries) IncrementSessionCost(ctx context.Context, arg IncrementSessionCostParams) error {
+	_, err := q.exec(ctx, q.incrementSessionCostStmt, incrementSessionCost, arg.Cost, arg.ID)
+	return err
+}
+
 const listSessionsMetadata = `-- name: ListSessionsMetadata :many
 SELECT
     s.id,
@@ -185,6 +222,8 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -211,6 +250,8 @@ type ListSessionsMetadataRow struct {
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
+	SessionType           string         `json:"session_type"`
+	SubagentType          sql.NullString `json:"subagent_type"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -237,6 +278,8 @@ func (q *Queries) ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetad
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
+			&i.SessionType,
+			&i.SubagentType,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
@@ -267,6 +310,8 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -302,6 +347,8 @@ type ListSessionsWithContentRow struct {
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
+	SessionType           string         `json:"session_type"`
+	SubagentType          sql.NullString `json:"subagent_type"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -329,6 +376,8 @@ func (q *Queries) ListSessionsWithContent(ctx context.Context) ([]ListSessionsWi
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
+			&i.SessionType,
+			&i.SubagentType,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
@@ -371,6 +420,8 @@ RETURNING
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -396,6 +447,8 @@ type UpdateSessionRow struct {
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
+	SessionType        string         `json:"session_type"`
+	SubagentType       sql.NullString `json:"subagent_type"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -422,6 +475,8 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (U
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
+		&i.SessionType,
+		&i.SubagentType,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,

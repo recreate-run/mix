@@ -5,6 +5,8 @@ INSERT INTO sessions (
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -12,6 +14,8 @@ INSERT INTO sessions (
     updated_at,
     created_at
 ) VALUES (
+    ?,
+    ?,
     ?,
     ?,
     ?,
@@ -29,6 +33,8 @@ INSERT INTO sessions (
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -43,6 +49,8 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -69,6 +77,8 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -95,6 +105,8 @@ SELECT
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -141,6 +153,8 @@ RETURNING
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -148,6 +162,11 @@ RETURNING
     updated_at,
     summary_message_id;
 
+-- name: IncrementSessionCost :exec
+UPDATE sessions
+SET cost = cost + ?,
+    updated_at = strftime('%s', 'now')
+WHERE id = ?;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions

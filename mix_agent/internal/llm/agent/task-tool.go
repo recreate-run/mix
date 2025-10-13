@@ -35,13 +35,12 @@ func (b *taskTool) getToolsForSubagentType(subagentType string) []tools.BaseTool
 			tools.NewGlobTool(),
 			tools.NewGrepTool(b.permissions),
 			tools.NewReadTextTool(),
-			tools.NewEditTool(b.permissions, nil), // history not needed for sub-agents
+			tools.NewEditTool(b.permissions, nil),  // history not needed for sub-agents
 			tools.NewWriteTool(b.permissions, nil), // history not needed for sub-agents
 			tools.NewWebFetchTool(b.permissions),
 			tools.NewWebSearchTool(b.permissions),
 			tools.NewReadMediaTool(),
 			tools.NewTodoWriteTool(),
-			NewTaskTool(b.sessions, b.messages, b.permissions),
 		}
 	default:
 		// Default to limited read-only tools for safety
@@ -98,21 +97,12 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 	defer agent.Shutdown()
 
-	// Use suppress-publish context to prevent SSE broadcasting of internal sub-agent session
-	suppressCtx := session.WithSuppressPublish(ctx)
-	session, err := b.sessions.Create(suppressCtx, "New Agent Session", "", "default")
+	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}
 
-	// Clean up the temporary sub-agent session even if errors occur
-	defer func() {
-		if err := b.sessions.Delete(suppressCtx, session.ID); err != nil {
-			fmt.Printf("[TASK TOOL] Warning: failed to delete sub-agent session %s: %v\n", session.ID, err)
-		}
-	}()
-
-	done, err := agent.Run(ctx, session.ID, params.Prompt)
+	done, err := agent.Run(ctx, subSession.ID, params.Prompt)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error generating agent: %s", err)
 	}
@@ -157,23 +147,23 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 	fmt.Printf("[TASK TOOL] Sub-agent returned %d characters: %q\n", len(content), preview)
 
-	updatedSession, err := b.sessions.Get(ctx, session.ID)
+	updatedSubSession, err := b.sessions.Get(ctx, subSession.ID)
 	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error getting session: %s", err)
-	}
-	parentSession, err := b.sessions.Get(ctx, sessionID)
-	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error getting parent session: %s", err)
+		return tools.ToolResponse{}, fmt.Errorf("error getting subagent session: %s", err)
 	}
 
-	parentSession.Cost += updatedSession.Cost
-
-	_, err = b.sessions.Save(ctx, parentSession)
-	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error saving parent session: %s", err)
+	// Verify parent session exists before incrementing cost
+	// This prevents silent failures if parent was deleted during subagent execution
+	if _, err := b.sessions.Get(ctx, sessionID); err != nil {
+		return tools.ToolResponse{}, fmt.Errorf("parent session not found: %s", err)
 	}
 
-	// Session cleanup handled by defer at function start
+	// Atomically increment parent session cost to avoid race conditions
+	// when multiple subagents complete simultaneously
+	if err := b.sessions.IncrementCost(ctx, sessionID, updatedSubSession.Cost); err != nil {
+		return tools.ToolResponse{}, fmt.Errorf("error incrementing parent session cost: %s", err)
+	}
+
 	return tools.NewTextResponse(content), nil
 }
 

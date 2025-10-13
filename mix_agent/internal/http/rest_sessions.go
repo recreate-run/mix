@@ -19,7 +19,10 @@ const (
 // SessionData represents session information for REST API
 type SessionData struct {
 	ID                    string    `json:"id"`
+	ParentSessionID       string    `json:"parentSessionId,omitempty"`
 	Title                 string    `json:"title"`
+	SessionType           string    `json:"sessionType"`
+	SubagentType          string    `json:"subagentType,omitempty"`
 	UserMessageCount      int64     `json:"userMessageCount"`
 	AssistantMessageCount int64     `json:"assistantMessageCount"`
 	ToolCallCount         int64     `json:"toolCallCount"`
@@ -64,7 +67,10 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	for _, s := range sessions {
 		result = append(result, SessionData{
 			ID:                    s.ID,
+			ParentSessionID:       s.ParentSessionID.String,
 			Title:                 s.Title,
+			SessionType:           s.SessionType,                // String field from db.ListSessionsWithContentRow
+			SubagentType:          s.SubagentType.String,        // String field from db.ListSessionsWithContentRow
 			UserMessageCount:      s.UserMessageCount,
 			AssistantMessageCount: s.AssistantMessageCount,
 			ToolCallCount:         s.ToolCallCount,
@@ -106,7 +112,10 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 	result := SessionData{
 		ID:                    session.ID,
+		ParentSessionID:       session.ParentSessionID,
 		Title:                 session.Title,
+		SessionType:           session.SessionType.String(),   // Convert typed field to string
+		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      session.UserMessageCount,
 		AssistantMessageCount: session.AssistantMessageCount,
 		ToolCallCount:         session.ToolCallCount,
@@ -181,7 +190,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	ctx := r.Context()
-	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode)
+	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "")
 	if err != nil {
 		sendInternalError(w, "creating session", err)
 		return
@@ -196,7 +205,10 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 
 	result := SessionData{
 		ID:                    session.ID,
+		ParentSessionID:       session.ParentSessionID,
 		Title:                 session.Title,
+		SessionType:           session.SessionType.String(),   // Convert typed field to string
+		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      session.UserMessageCount,
 		AssistantMessageCount: session.AssistantMessageCount,
 		ToolCallCount:         session.ToolCallCount,
@@ -266,7 +278,10 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 
 	result := SessionData{
 		ID:                    newSession.ID,
+		ParentSessionID:       newSession.ParentSessionID,
 		Title:                 newSession.Title,
+		SessionType:           newSession.SessionType.String(),   // Convert typed field to string
+		SubagentType:          newSession.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      newSession.UserMessageCount,
 		AssistantMessageCount: newSession.AssistantMessageCount,
 		ToolCallCount:         newSession.ToolCallCount,
@@ -437,7 +452,10 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 
 	result := SessionData{
 		ID:                    updatedSession.ID,
+		ParentSessionID:       updatedSession.ParentSessionID,
 		Title:                 updatedSession.Title,
+		SessionType:           updatedSession.SessionType.String(),   // Convert typed field to string
+		SubagentType:          updatedSession.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      updatedSession.UserMessageCount,
 		AssistantMessageCount: updatedSession.AssistantMessageCount,
 		ToolCallCount:         updatedSession.ToolCallCount,
