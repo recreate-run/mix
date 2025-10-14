@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"mix/internal/app"
+	"mix/internal/auth"
 	"mix/internal/config"
 	"mix/internal/credentials"
 	"mix/internal/llm/models"
@@ -17,7 +18,8 @@ import (
 
 // AuthHandler handles REST endpoints for authentication management
 type AuthHandler struct {
-	app *app.App
+	app                 *app.App
+	tokenRefreshService *auth.TokenRefreshService
 }
 
 // NewAuthHandler creates a new auth handler
@@ -25,6 +27,11 @@ func NewAuthHandler(app *app.App) *AuthHandler {
 	return &AuthHandler{
 		app: app,
 	}
+}
+
+// SetTokenRefreshService sets the token refresh service (called after handler creation)
+func (h *AuthHandler) SetTokenRefreshService(service *auth.TokenRefreshService) {
+	h.tokenRefreshService = service
 }
 
 // StoreAPIKeyRequest represents the request body for storing an API key
@@ -560,4 +567,90 @@ func (h *AuthHandler) checkOAuthCredentials(provider string) bool {
 		return false
 	}
 	return creds != nil && !creds.IsTokenExpired()
+}
+
+// HandleRefreshTokens handles POST /internal/auth/refresh-tokens
+// Manually triggers OAuth token refresh for all expired tokens
+func (h *AuthHandler) HandleRefreshTokens(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "POST" {
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		return
+	}
+
+	if h.tokenRefreshService == nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Token refresh service not available", "SERVICE_UNAVAILABLE")
+		return
+	}
+
+	ctx := r.Context()
+
+	// Trigger manual refresh
+	h.tokenRefreshService.RefreshExpiredTokens(ctx)
+
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Token refresh triggered successfully",
+	}
+
+	WriteJSONResponse(w, http.StatusOK, response)
+}
+
+// HandleOAuthHealth handles GET /health/auth
+// Returns the health status of all OAuth credentials
+func (h *AuthHandler) HandleOAuthHealth(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "GET" {
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		return
+	}
+
+	if h.tokenRefreshService == nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Token refresh service not available", "SERVICE_UNAVAILABLE")
+		return
+	}
+
+	ctx := r.Context()
+	status, err := h.tokenRefreshService.GetStatus(ctx)
+	if err != nil {
+		logging.Error("Failed to get OAuth health status", "error", err)
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get OAuth health status", "HEALTH_CHECK_ERROR")
+		return
+	}
+
+	// Determine overall health
+	overallHealth := "healthy"
+	hasExpired := false
+	hasExpiredNoRefresh := false
+
+	for _, tokenStatus := range status {
+		switch tokenStatus.Status {
+		case "expired":
+			hasExpired = true
+		case "expired_no_refresh":
+			hasExpiredNoRefresh = true
+		}
+	}
+
+	if hasExpiredNoRefresh {
+		overallHealth = "unhealthy"
+	} else if hasExpired {
+		overallHealth = "degraded"
+	}
+
+	response := map[string]interface{}{
+		"status":    overallHealth,
+		"providers": status,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	WriteJSONResponse(w, http.StatusOK, response)
 }

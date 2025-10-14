@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@/styles/App.css";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ChatApp } from "@/components/chat-app";
 import { PlaygroundUI } from "@/components/playground-ui";
 import { usePersistentSSE } from "@/hooks/usePersistentSSE";
@@ -30,6 +31,17 @@ function PlaygroundApp() {
 		messages.length > 0 ||
 		sseStream.processing ||
 		sseStream.pendingUserMessage !== null;
+
+	// Show error toasts for streaming errors
+	useEffect(() => {
+		if (
+			sseStream.error &&
+			!sseStream.error.includes("cancelled") &&
+			!sseStream.cancelled
+		) {
+			toast.error(`Failed to send message: ${sseStream.error}`);
+		}
+	}, [sseStream.error, sseStream.cancelled]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Run only once on mount to prevent multiple session creation
 	useEffect(() => {

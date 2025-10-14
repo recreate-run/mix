@@ -39,12 +39,13 @@ type OAuthCredentials struct {
 	LastRefresh  string `json:"last_refresh,omitempty"`
 }
 
-// IsTokenExpired checks if the OAuth token is expired or will expire soon (5 minutes buffer)
+// IsTokenExpired checks if the OAuth token is expired or will expire soon (35 minutes buffer)
+// Buffer is set to 35 minutes to ensure tokens are refreshed before expiry when using 30-minute check interval
 func (cred *OAuthCredentials) IsTokenExpired() bool {
 	if cred.ExpiresAt == 0 {
 		return false // No expiry time set
 	}
-	return time.Now().Unix() >= (cred.ExpiresAt - 300) // 5 minute buffer
+	return time.Now().Unix() >= (cred.ExpiresAt - 2100) // 35 minute buffer (35 * 60 = 2100 seconds)
 }
 
 // NewAPICredentialsService creates a new API credentials service

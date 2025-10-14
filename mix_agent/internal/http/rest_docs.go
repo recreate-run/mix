@@ -836,6 +836,98 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/internal/auth/refresh-tokens": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "refreshOAuthTokens",
+					"summary":     "Manually refresh OAuth tokens",
+					"description": "Manually trigger OAuth token refresh for all expired tokens. Normally tokens are refreshed automatically by the background service every 30 minutes.",
+					"tags":        []string{"Authentication", "Internal"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status",
+									"example":     "success",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+									"example":     "Token refresh triggered successfully",
+								},
+							},
+						}, "Token refresh triggered"),
+						"500": createErrorResponse("Token refresh service not available or internal error"),
+					},
+				},
+			},
+			"/health/auth": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getOAuthHealth",
+					"summary":     "Get OAuth authentication health",
+					"description": "Get health status of all OAuth credentials including expiry information. Health statuses: 'healthy' (all tokens valid), 'degraded' (some tokens expired but refreshable), 'unhealthy' (tokens expired without refresh capability)",
+					"tags":        []string{"Health", "Authentication"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Overall health status",
+									"enum":        []string{"healthy", "degraded", "unhealthy"},
+									"example":     "healthy",
+								},
+								"providers": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"provider": map[string]interface{}{
+												"type":        "string",
+												"description": "Provider name",
+											},
+											"status": map[string]interface{}{
+												"type":        "string",
+												"description": "Token status",
+												"enum":        []string{"active", "expired", "expired_no_refresh", "error", "not_found"},
+											},
+											"expires_at": map[string]interface{}{
+												"type":        "string",
+												"format":      "date-time",
+												"description": "Token expiration time",
+											},
+											"expires_in": map[string]interface{}{
+												"type":        "string",
+												"description": "Human-readable time until expiration",
+												"example":     "2h30m15s",
+											},
+											"last_refresh": map[string]interface{}{
+												"type":        "string",
+												"format":      "date-time",
+												"description": "Last time token was refreshed",
+											},
+											"error": map[string]interface{}{
+												"type":        "string",
+												"description": "Error message if status is 'error'",
+											},
+										},
+										"required": []string{"provider", "status"},
+									},
+									"description": "Map of provider OAuth health status",
+								},
+								"timestamp": map[string]interface{}{
+									"type":        "string",
+									"format":      "date-time",
+									"description": "Health check timestamp",
+								},
+							},
+							"required": []string{"status", "providers", "timestamp"},
+						}, "OAuth health status"),
+						"500": createErrorResponse("Health check service not available or internal error"),
+					},
+				},
+			},
 			"/api/preferences": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "getPreferences",
