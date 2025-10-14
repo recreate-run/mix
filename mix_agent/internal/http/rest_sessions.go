@@ -133,6 +133,8 @@ type CreateSessionRequest struct {
 	Title              string `json:"title"`
 	CustomSystemPrompt string `json:"customSystemPrompt,omitempty"`
 	PromptMode         string `json:"promptMode,omitempty"`
+	SessionType        string `json:"sessionType,omitempty"`        // Only "main" or empty allowed
+	SubagentType       string `json:"subagentType,omitempty"`       // Must be empty for API-created sessions
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -187,6 +189,19 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 			}
 		// default mode ignores custom prompt, so no size check needed
 		}
+	}
+
+	// Validate session type - API can only create main sessions
+	// Subagent and forked sessions are created programmatically through dedicated flows
+	if req.SessionType != "" && req.SessionType != "main" {
+		sendValidationError(w, "sessionType", "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.")
+		return
+	}
+
+	// Subagent type must not be set for API-created sessions
+	if req.SubagentType != "" {
+		sendValidationError(w, "subagentType", "subagentType cannot be set for API-created sessions. Subagent sessions are created programmatically by the task delegation system.")
+		return
 	}
 
 	ctx := r.Context()

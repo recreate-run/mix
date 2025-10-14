@@ -64,7 +64,15 @@ Subagent types determine the available tool set and behavior constraints for del
 
 **General-Purpose**: Full read/write toolset for complex multi-step operations including file manipulation, web search, and data analysis.
 
-**Future Specializations**: The architecture supports extending subagent types for domain-specific tasks such as code review, research, or testing workflows.
+### Adding New Subagent Types
+
+New subagent types can be added without database migrations. Validation occurs at the application level in the session manager. To add a new type:
+
+1. Define the subagent type constant in `session/session.go`
+2. Update the `IsValidSubagentType()` validation function
+3. Define tool restrictions in the agent builder for the new type
+
+This design prioritizes flexibility over database-level constraints, allowing rapid iteration on subagent specializations.
 
 The main agent's LLM selects the appropriate subagent type based on task requirements described in the tool definition. This delegation pattern keeps the main conversation focused while offloading intensive operations to specialized workers.
 

@@ -49,6 +49,16 @@ func (s SubagentType) String() string {
 	return string(s)
 }
 
+// IsValidSubagentType checks if the given string is a valid SubagentType
+func IsValidSubagentType(s string) bool {
+	switch SubagentType(s) {
+	case SubagentTypeGeneralPurpose:
+		return true
+	default:
+		return false
+	}
+}
+
 // Context key for suppressing session event publishing (used for internal/sub-agent sessions)
 type contextKey string
 
@@ -107,6 +117,11 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 	// Default to 'main' session type if not specified
 	if sessionType == "" {
 		sessionType = SessionTypeMain
+	}
+
+	// Validate subagent type if specified
+	if subagentType != "" && !IsValidSubagentType(subagentType.String()) {
+		return Session{}, fmt.Errorf("invalid subagent type: %s", subagentType)
 	}
 
 	// Validate session hierarchy constraints BEFORE creating any resources
@@ -290,7 +305,9 @@ func (s *service) ListWithContent(ctx context.Context) ([]db.ListSessionsWithCon
 }
 
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {
-	// Note: SessionType, SubagentType, and ParentSessionID are immutable and excluded from UPDATE
+	// Immutability: SessionType, SubagentType, and ParentSessionID cannot be changed after creation.
+	// Enforced at application level - UpdateSession SQL query excludes these fields from SET clause.
+	// Direct database access could bypass this constraint.
 	_, err := s.q.UpdateSession(ctx, db.UpdateSessionParams{
 		ID:                 session.ID,
 		Title:              session.Title,

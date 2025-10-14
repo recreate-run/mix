@@ -119,6 +119,18 @@ func getOpenAPISpec() OpenAPISpec {
 								"description": "Custom prompt handling mode:\n- 'default': Use base system prompt only (customSystemPrompt ignored)\n- 'append': Append customSystemPrompt to base system prompt (50KB limit)\n- 'replace': Replace base system prompt with customSystemPrompt (100KB limit)",
 								"example":     "append",
 							},
+							"sessionType": map[string]interface{}{
+								"type":        "string",
+								"enum":        []string{"main"},
+								"default":     "main",
+								"description": "Session type. API can only create 'main' sessions. Forked sessions are created via /fork endpoint. Subagent sessions are created automatically by the task delegation system.",
+								"example":     "main",
+							},
+							"subagentType": map[string]interface{}{
+								"type":        "string",
+								"description": "Subagent type - must not be set for API-created sessions. This field is reserved for programmatic subagent creation.",
+								"example":     "",
+							},
 						},
 					}),
 					"responses": map[string]interface{}{
@@ -167,6 +179,26 @@ func getOpenAPISpec() OpenAPISpec {
 												"error": map[string]interface{}{
 													"code":    400,
 													"message": "Custom prompt size (75KB) exceeds append mode limit of 50KB",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"invalid_session_type": map[string]interface{}{
+											"summary": "Invalid session type",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"subagent_type_not_allowed": map[string]interface{}{
+											"summary": "Subagent type not allowed for API-created sessions",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "subagentType cannot be set for API-created sessions. Subagent sessions are created programmatically by the task delegation system.",
 													"type":    "validation_error",
 												},
 											},
@@ -1410,9 +1442,23 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "Unique session identifier",
 						},
+						"parentSessionId": map[string]interface{}{
+							"type":        "string",
+							"description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+						},
 						"title": map[string]interface{}{
 							"type":        "string",
 							"description": "Session title",
+						},
+						"sessionType": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"main", "forked", "subagent"},
+							"description": "Session type:\n- 'main': Root-level user interactions\n- 'forked': User-created conversation branches\n- 'subagent': Delegated task workers",
+						},
+						"subagentType": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"general-purpose"},
+							"description": "Subagent specialization type (only present for subagent sessions)",
 						},
 						"userMessageCount": map[string]interface{}{
 							"type":        "integer",
@@ -1437,7 +1483,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"cost": map[string]interface{}{
 							"type":        "number",
 							"format":      "double",
-							"description": "Total cost of session",
+							"description": "Total cost of session (for subagent sessions, costs are also accumulated in parent session)",
 						},
 						"createdAt": map[string]interface{}{
 							"type":        "string",
@@ -1449,7 +1495,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "First user message (optional)",
 						},
 					},
-					"required": []string{"id", "title", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
+					"required": []string{"id", "title", "sessionType", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
 				},
 				"MessageData": map[string]interface{}{
 					"type": "object",
