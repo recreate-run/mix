@@ -23,6 +23,26 @@ import (
 	"time"
 )
 
+type contextKey string
+
+const sessionRoutingKey contextKey = "session_routing"
+
+type sessionRouting struct {
+	RouteTo string // Where events should be sent
+	Origin  string // Where events originated from
+}
+
+func withSessionRouting(ctx context.Context, routeTo, origin string) context.Context {
+	return context.WithValue(ctx, sessionRoutingKey, sessionRouting{RouteTo: routeTo, Origin: origin})
+}
+
+func getSessionRouting(ctx context.Context) (routeTo, origin string) {
+	if r, ok := ctx.Value(sessionRoutingKey).(sessionRouting); ok {
+		return r.RouteTo, r.Origin
+	}
+	return "", ""
+}
+
 // Common errors
 var (
 	// Deprecated: Use specific error types below
@@ -62,10 +82,13 @@ type AgentEvent struct {
 	Message message.Message
 	Error   error
 
+	// Routing fields
+	SessionID string // What this event is about (provenance/origin)
+	RouteTo   string // Where to send this event (destination for SSE)
+
 	// When summarizing
-	SessionID string
-	Progress  string
-	Done      bool
+	Progress string
+	Done     bool
 
 	// When thinking
 	Thinking string
@@ -297,6 +320,21 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 	events := make(chan AgentEvent, 10) // Buffered channel for better streaming
 
 	genCtx, cancel := context.WithCancel(ctx)
+
+	// Set up routing context BEFORE storing cancel func
+	sess, err := a.sessions.Get(genCtx, sessionID)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	// Route subagent events to parent, otherwise to self
+	routeTo := sessionID
+	if sess.ParentSessionID != "" {
+		routeTo = sess.ParentSessionID
+	}
+	genCtx = withSessionRouting(genCtx, routeTo, sessionID)
+
 	// Store cancel function for potential cancellation
 	a.activeContexts.Store(sessionID, cancel)
 
@@ -362,7 +400,10 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 					return
 				}
 				// Only forward intermediate events for this specific session (not final completion events)
-				if (event.Payload.SessionID == sessionID || event.Payload.Message.SessionID == sessionID) && !event.Payload.Done {
+				// Forward events that originated from OR are routed to this session
+				if (event.Payload.SessionID == sessionID ||
+					event.Payload.RouteTo == sessionID ||
+					event.Payload.Message.SessionID == sessionID) && !event.Payload.Done {
 					select {
 					case events <- event.Payload:
 					case <-genCtx.Done():
@@ -841,6 +882,21 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 	}
 
 	return a.provider.Model(), nil
+}
+
+// Publish overrides the embedded Broker.Publish to auto-populate routing fields from context
+func (a *agent) Publish(ctx context.Context, t pubsub.EventType, event AgentEvent) error {
+	routeTo, origin := getSessionRouting(ctx)
+
+	// Auto-populate from context if not already set
+	if event.RouteTo == "" && routeTo != "" {
+		event.RouteTo = routeTo
+	}
+	if event.SessionID == "" && origin != "" {
+		event.SessionID = origin
+	}
+
+	return a.Broker.Publish(ctx, t, event)
 }
 
 func (a *agent) Summarize(ctx context.Context, sessionID string) error {

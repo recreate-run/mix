@@ -1,14 +1,17 @@
 package integration_tests
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -359,4 +362,118 @@ func makeMultipartFileRequestFromBytes(t *testing.T, server *httptest.Server, pa
 	}
 
 	return resp
+}
+
+// SSEEvent represents a parsed Server-Sent Event
+type SSEEvent struct {
+	Type string                 `json:"type"`
+	Data map[string]interface{} `json:"data"`
+}
+
+// connectSSE establishes a connection to the SSE stream for a given session
+func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, context.CancelFunc) {
+	url := fmt.Sprintf("%s/stream?sessionId=%s", serverURL, sessionID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		cancel()
+		t.Fatalf("Failed to create SSE request: %v", err)
+	}
+	req.Header.Set("Accept", "text/event-stream")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		cancel()
+		t.Fatalf("Failed to connect to SSE stream: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		cancel()
+		t.Fatalf("Expected status 200, got %d. Response: %s", resp.StatusCode, string(body))
+	}
+
+	return resp, cancel
+}
+
+// waitForEvents waits for and parses events from an SSE stream connection
+func waitForEvents(t *testing.T, resp *http.Response, expectedMinEvents int, timeout time.Duration) []SSEEvent {
+	var events []SSEEvent
+	eventChan := make(chan SSEEvent, 10)
+
+	// Start parsing events in background
+	go func() {
+		defer close(eventChan)
+		scanner := bufio.NewScanner(resp.Body)
+
+		var currentEvent SSEEvent
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+
+			if line == "" {
+				// Empty line indicates end of event
+				if currentEvent.Type != "" {
+					eventChan <- currentEvent
+					currentEvent = SSEEvent{}
+				}
+				continue
+			}
+
+			if strings.HasPrefix(line, "event: ") {
+				currentEvent.Type = strings.TrimPrefix(line, "event: ")
+			} else if strings.HasPrefix(line, "data: ") {
+				dataStr := strings.TrimPrefix(line, "data: ")
+				var data map[string]interface{}
+				if err := json.Unmarshal([]byte(dataStr), &data); err != nil {
+					t.Logf("Failed to parse event data: %v, data: %s", err, dataStr)
+					continue
+				}
+				currentEvent.Data = data
+			}
+		}
+
+		// Handle last event if stream ended without empty line
+		if currentEvent.Type != "" {
+			eventChan <- currentEvent
+		}
+	}()
+
+	// Collect events until we have enough or timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	for {
+		select {
+		case event, ok := <-eventChan:
+			if !ok {
+				// Channel closed
+				if len(events) >= expectedMinEvents {
+					return events
+				}
+				t.Fatalf("Event stream closed, got %d events, expected at least %d", len(events), expectedMinEvents)
+				return events
+			}
+			events = append(events, event)
+
+			// Return early if we have enough events
+			if len(events) >= expectedMinEvents {
+				return events
+			}
+
+		case <-ctx.Done():
+			t.Logf("Timeout reached, got %d events, expected at least %d", len(events), expectedMinEvents)
+			for i, event := range events {
+				t.Logf("Event %d: type=%s, data=%v", i, event.Type, event.Data)
+			}
+			if len(events) >= expectedMinEvents {
+				return events
+			}
+			t.Fatalf("Timeout waiting for %d events after %v", expectedMinEvents, timeout)
+			return events
+		}
+	}
 }

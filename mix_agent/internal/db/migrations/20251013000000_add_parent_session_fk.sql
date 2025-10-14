@@ -1,17 +1,10 @@
 -- +goose Up
--- +goose NO TRANSACTION
 -- Add foreign key constraint to parent_session_id for referential integrity
--- SQLite requires table recreation to add foreign keys to existing columns
--- NO TRANSACTION is required because PRAGMA foreign_keys only works outside transactions
+-- This migration drops and recreates the sessions table with the FK constraint
+-- WARNING: This deletes all existing session data
 
-PRAGMA foreign_keys = OFF;
+DROP TABLE IF EXISTS sessions;
 
-BEGIN;
-
--- Rename existing table
-ALTER TABLE sessions RENAME TO sessions_old;
-
--- Create new sessions table with foreign key constraint
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
     parent_session_id TEXT,
@@ -29,46 +22,9 @@ CREATE TABLE sessions (
     FOREIGN KEY (parent_session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 
--- Copy data from old table to new table
-INSERT INTO sessions (
-    id,
-    parent_session_id,
-    title,
-    prompt_tokens,
-    completion_tokens,
-    cost,
-    updated_at,
-    created_at,
-    summary_message_id,
-    custom_system_prompt,
-    prompt_mode,
-    session_type,
-    subagent_type
-)
-SELECT
-    id,
-    parent_session_id,
-    title,
-    prompt_tokens,
-    completion_tokens,
-    cost,
-    updated_at,
-    created_at,
-    summary_message_id,
-    custom_system_prompt,
-    prompt_mode,
-    session_type,
-    subagent_type
-FROM sessions_old;
-
--- Drop old table
-DROP TABLE sessions_old;
-
-COMMIT;
-
 -- +goose StatementBegin
--- Recreate update trigger (must be outside transaction, wrapped to prevent semicolon splitting)
-CREATE TRIGGER IF NOT EXISTS update_sessions_updated_at
+-- Recreate trigger for automatic updated_at management
+CREATE TRIGGER update_sessions_updated_at
 AFTER UPDATE ON sessions
 BEGIN
     UPDATE sessions SET updated_at = strftime('%s', 'now')
@@ -77,22 +33,14 @@ END;
 -- +goose StatementEnd
 
 -- Create index on parent_session_id for query performance
-CREATE INDEX IF NOT EXISTS idx_sessions_parent_id ON sessions(parent_session_id);
-
-PRAGMA foreign_keys = ON;
+CREATE INDEX idx_sessions_parent_id ON sessions(parent_session_id);
 
 -- +goose Down
--- +goose NO TRANSACTION
 -- Remove foreign key constraint by recreating table without it
+-- WARNING: This deletes all existing session data
 
-PRAGMA foreign_keys = OFF;
+DROP TABLE IF EXISTS sessions;
 
-BEGIN;
-
--- Rename existing table
-ALTER TABLE sessions RENAME TO sessions_old;
-
--- Create table without foreign key constraint (original structure)
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
     parent_session_id TEXT,
@@ -109,54 +57,12 @@ CREATE TABLE sessions (
     subagent_type TEXT
 );
 
--- Copy data back
-INSERT INTO sessions (
-    id,
-    parent_session_id,
-    title,
-    prompt_tokens,
-    completion_tokens,
-    cost,
-    updated_at,
-    created_at,
-    summary_message_id,
-    custom_system_prompt,
-    prompt_mode,
-    session_type,
-    subagent_type
-)
-SELECT
-    id,
-    parent_session_id,
-    title,
-    prompt_tokens,
-    completion_tokens,
-    cost,
-    updated_at,
-    created_at,
-    summary_message_id,
-    custom_system_prompt,
-    prompt_mode,
-    session_type,
-    subagent_type
-FROM sessions_old;
-
--- Drop old table
-DROP TABLE sessions_old;
-
-COMMIT;
-
 -- +goose StatementBegin
--- Recreate update trigger (must be outside transaction, wrapped to prevent semicolon splitting)
-CREATE TRIGGER IF NOT EXISTS update_sessions_updated_at
+-- Recreate trigger
+CREATE TRIGGER update_sessions_updated_at
 AFTER UPDATE ON sessions
 BEGIN
     UPDATE sessions SET updated_at = strftime('%s', 'now')
     WHERE id = new.id;
 END;
 -- +goose StatementEnd
-
--- Drop index on parent_session_id
-DROP INDEX IF EXISTS idx_sessions_parent_id;
-
-PRAGMA foreign_keys = ON;
