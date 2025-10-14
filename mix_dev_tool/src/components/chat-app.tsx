@@ -606,21 +606,21 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 				)}
 
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
-					{/* Session header with export and clear buttons */}
+					{/* Session header with clear (left) and export (right) buttons */}
 					{session && (
-						<div className="mb-4 flex items-center justify-end gap-2">
+						<div className="mb-4 flex items-center justify-between">
 							{/* Clear button - only show in playground mode */}
-							{isPlayground && onClear && (
+							{isPlayground && onClear ? (
 								<Button
 									onClick={onClear}
 									size="sm"
 									title="Clear playground and start fresh"
 									variant="ghost"
-									className="gap-2"
 								>
 									<RotateCcw className="h-4 w-4" />
-									Clear
 								</Button>
+							) : (
+								<div />
 							)}
 							<Button
 								disabled={exportSessionMutation.isPending}
