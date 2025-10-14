@@ -3,7 +3,7 @@ import "@/styles/App.css";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChatApp } from "@/components/chat-app";
-import { PlaygroundUI } from "@/components/playground-ui";
+import { PlaygroundWelcome } from "@/components/playground-welcome";
 import { usePersistentSSE } from "@/hooks/usePersistentSSE";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
@@ -105,7 +105,7 @@ function PlaygroundApp() {
 	return (
 		<div className="flex h-screen w-full flex-col bg-background text-foreground">
 			{!hasMessages ? (
-				<PlaygroundUI sessionId={sessionId} onSubmit={handleSubmit} />
+				<PlaygroundWelcome sessionId={sessionId} onSubmit={handleSubmit} />
 			) : (
 				<ChatApp sessionId={sessionId} />
 			)}
