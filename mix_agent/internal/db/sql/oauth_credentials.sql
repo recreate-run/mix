@@ -72,10 +72,12 @@ WHERE user_id = 'default_user' AND provider = ?
 AND access_token IS NOT NULL AND access_token != '';
 
 -- name: ListExpiredOAuthCredentials :many
--- Get OAuth credentials that are expired or will expire soon (5 minute buffer)
-SELECT user_id, provider, access_token, refresh_token, id_token, api_key, account_id, 
+-- Get OAuth credentials that are expired or will expire soon (35 minute buffer)
+-- The 35-minute buffer ensures tokens are refreshed before they hit the 5-minute "truly expired" threshold
+-- With 30-minute background checks + 5-minute safety margin = zero downtime
+SELECT user_id, provider, access_token, refresh_token, id_token, api_key, account_id,
        client_id, expires_at, last_refresh, created_at, updated_at
-FROM oauth_credentials 
+FROM oauth_credentials
 WHERE user_id = 'default_user'
-AND expires_at IS NOT NULL 
-AND expires_at <= (strftime('%s', 'now') + 300);
+AND expires_at IS NOT NULL
+AND expires_at <= (strftime('%s', 'now') + 2100);

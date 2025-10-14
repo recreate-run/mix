@@ -866,7 +866,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"get": map[string]interface{}{
 					"operationId":  "getOAuthHealth",
 					"summary":     "Get OAuth authentication health",
-					"description": "Get health status of all OAuth credentials including expiry information. Health statuses: 'healthy' (all tokens valid), 'degraded' (some tokens expired but refreshable), 'unhealthy' (tokens expired without refresh capability)",
+					"description": "Get health status of all OAuth credentials. Background service refreshes tokens 35 minutes before expiry. API calls mark tokens expired 5 minutes before expiry. Health statuses: 'healthy' (tokens valid, >5min remaining), 'degraded' (some tokens within 5min of expiry but refreshable), 'unhealthy' (tokens expired without refresh capability)",
 					"tags":        []string{"Health", "Authentication"},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("object", map[string]interface{}{

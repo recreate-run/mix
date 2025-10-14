@@ -54,11 +54,13 @@ func (s *TokenRefreshService) Stop() {
 	close(s.stopChan)
 }
 
-// RefreshExpiredTokens refreshes all expired OAuth tokens
+// RefreshExpiredTokens refreshes all OAuth tokens that are expiring soon
+// Uses a 35-minute buffer to ensure tokens are refreshed before they're considered expired by IsTokenExpired()
+// With 30-minute background checks + 5-minute safety margin = zero downtime
 func (s *TokenRefreshService) RefreshExpiredTokens(ctx context.Context) {
-	logging.Info("Checking for expired OAuth tokens")
+	logging.Info("Checking for OAuth tokens expiring soon")
 
-	// Get tokens expiring within 35 minutes (based on IsTokenExpired buffer)
+	// Get tokens expiring within 35 minutes (database query buffer matches IsTokenExpired buffer)
 	expiredCreds, err := s.credentialsService.GetExpiredOAuthCredentials(ctx)
 	if err != nil {
 		logging.Error("Failed to get expired credentials", "error", err)
@@ -66,11 +68,11 @@ func (s *TokenRefreshService) RefreshExpiredTokens(ctx context.Context) {
 	}
 
 	if len(expiredCreds) == 0 {
-		logging.Info("No expired tokens found")
+		logging.Info("No tokens expiring soon")
 		return
 	}
 
-	logging.Info("Found expired tokens to refresh", "count", len(expiredCreds))
+	logging.Info("Found tokens expiring soon, refreshing now", "count", len(expiredCreds))
 
 	for _, cred := range expiredCreds {
 		s.refreshSingleToken(ctx, cred)
