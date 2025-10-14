@@ -624,15 +624,18 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 							) : (
 								<div />
 							)}
-							<Button
-								disabled={exportSessionMutation.isPending}
-								onClick={handleExport}
-								size="sm"
-								title="Export session transcript"
-								variant="ghost"
-							>
-								<FileDown className="h-4 w-4" />
-							</Button>
+							{/* Export button - hide in playground mode */}
+							{!isPlayground && (
+								<Button
+									disabled={exportSessionMutation.isPending}
+									onClick={handleExport}
+									size="sm"
+									title="Export session transcript"
+									variant="ghost"
+								>
+									<FileDown className="h-4 w-4" />
+								</Button>
+							)}
 						</div>
 					)}
 
