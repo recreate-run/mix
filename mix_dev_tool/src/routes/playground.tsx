@@ -91,6 +91,34 @@ function PlaygroundApp() {
 		}
 	};
 
+	const handleClear = async () => {
+		try {
+			// Clear streaming state first if needed
+			if (sseStream.processing) {
+				await sseStream.cancelMessage();
+			}
+
+			// Create new session
+			const newSession = await createSession.mutateAsync({
+				title: `Playground Session - ${new Date().toLocaleDateString()}`,
+			});
+
+			// Update localStorage with new session ID
+			localStorage.setItem(PLAYGROUND_SESSION_KEY, newSession.id);
+
+			// Clear any SSE streaming state
+			sseStream.clearStreamingContent();
+
+			// Update state to new session (this will trigger re-render and reconnect SSE)
+			setSessionId(newSession.id);
+
+			toast.success("Playground cleared - starting fresh!");
+		} catch (error) {
+			console.error("Failed to clear playground:", error);
+			toast.error("Failed to clear playground");
+		}
+	};
+
 	if (!isReady || !sessionId) {
 		return (
 			<div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
@@ -105,9 +133,13 @@ function PlaygroundApp() {
 	return (
 		<div className="flex h-screen w-full flex-col bg-background text-foreground">
 			{!hasMessages ? (
-				<PlaygroundWelcome sessionId={sessionId} onSubmit={handleSubmit} />
+				<PlaygroundWelcome
+					sessionId={sessionId}
+					onSubmit={handleSubmit}
+					onClear={handleClear}
+				/>
 			) : (
-				<ChatApp sessionId={sessionId} />
+				<ChatApp sessionId={sessionId} onClear={handleClear} isPlayground />
 			)}
 		</div>
 	);

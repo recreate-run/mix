@@ -13,16 +13,20 @@ import { useBoundStore } from "@/stores";
 import { buildSessionFileUrl } from "@/utils/attachmentUtils";
 import { AttachmentPreview } from "./attachment-preview";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EXAMPLE_PROMPTS } from "@/lib/data";
+import { RotateCcw } from "lucide-react";
 
 interface PlaygroundWelcomeProps {
 	sessionId: string;
 	onSubmit: (text: string) => void;
+	onClear: () => void;
 }
 
 export function PlaygroundWelcome({
 	sessionId,
 	onSubmit,
+	onClear,
 }: PlaygroundWelcomeProps) {
 	const [inputValue, setInputValue] = useState("");
 	const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -95,6 +99,20 @@ export function PlaygroundWelcome({
 			<div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background text-foreground">
 				{/* Gradient Mesh Background */}
 				<div className="gradient-mesh-bg" />
+
+				{/* Clear button - Top right corner */}
+				<div className="absolute top-4 right-4 z-50">
+					<Button
+						onClick={onClear}
+						variant="ghost"
+						size="sm"
+						className="gap-2"
+						title="Clear playground and start fresh"
+					>
+						<RotateCcw className="h-4 w-4" />
+						Clear
+					</Button>
+				</div>
 
 				{/* Feedback message notification */}
 				{feedbackMessage && (
