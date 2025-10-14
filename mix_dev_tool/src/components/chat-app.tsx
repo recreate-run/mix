@@ -607,9 +607,9 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
 					{/* Session header with clear (left) and export (right) buttons */}
-					{session && (
+					{session && messages.length > 0 && (
 						<div className="mb-4 flex items-center justify-between">
-							{/* Clear button - only show in playground mode */}
+							{/* Clear button - only show in playground mode when there are messages */}
 							{isPlayground && onClear ? (
 								<Button
 									onClick={onClear}
