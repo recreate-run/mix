@@ -18,11 +18,13 @@ import { EXAMPLE_PROMPTS } from "@/lib/data";
 interface PlaygroundWelcomeProps {
 	sessionId: string;
 	onSubmit: (text: string) => void;
+	onClear: () => Promise<void>;
 }
 
 export function PlaygroundWelcome({
 	sessionId,
 	onSubmit,
+	onClear: _onClear,
 }: PlaygroundWelcomeProps) {
 	const [inputValue, setInputValue] = useState("");
 	const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
