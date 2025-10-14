@@ -14,13 +14,15 @@ Mix is a multimodal agents SDK. It comes with a GUI playground for visualization
 
 ## Quickstart with DevTools
 
-Mix comes with an interactive DevTools playground for testing and debugging workflows. Built with Tauri and the [Mix TypeScript SDK](https://github.com/recreate-run/mix-typescript-sdk).
+Mix comes with an interactive browser-based DevTools playground for testing and debugging workflows. Built with the [Mix TypeScript SDK](https://github.com/recreate-run/mix-typescript-sdk).
 
 ```bash
 git clone https://github.com/recreate-run/mix.git
 cd mix
 make dev
 ```
+
+This will start the Mix backend and open the DevTools interface in your browser.
 
 **Authentication:** Configure LLM providers using the settings dialog (⚙️ gear icon at bottom left)
 
@@ -82,7 +84,7 @@ uv run examples/system_prompt_change.py
 ## Tech Stack
 
 <p align="center">
-  <img alt="Tauri" src="https://img.shields.io/badge/-Tauri-24C8DB?style=flat-square&logo=tauri&logoColor=white" />
+  <img alt="React" src="https://img.shields.io/badge/-React-61DAFB?style=flat-square&logo=react&logoColor=black" />
   <img alt="TanStack Query" src="https://img.shields.io/badge/-TanStack%20Query-FF4154?style=flat-square&logo=react-query&logoColor=white" />
   <img alt="Radix UI" src="https://img.shields.io/badge/-Radix%20UI-161618?style=flat-square&logo=radix-ui&logoColor=white" />
   <img alt="Vite" src="https://img.shields.io/badge/-Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
