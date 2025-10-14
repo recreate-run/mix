@@ -1,0 +1,5 @@
+# Netlify redirects for Mix Playground Production
+# Redirect root to playground
+/   /playground   301
+
+# SPA fallback is handled in netlify.toml
