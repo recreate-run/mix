@@ -615,9 +615,11 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 									onClick={onClear}
 									size="sm"
 									title="Clear playground and start fresh"
-									variant="ghost"
+									variant="outline"
+									className="gap-2"
 								>
 									<RotateCcw className="h-4 w-4" />
+									Clear
 								</Button>
 							) : (
 								<div />
