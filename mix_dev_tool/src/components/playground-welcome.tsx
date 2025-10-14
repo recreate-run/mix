@@ -12,19 +12,18 @@ import { formatCurrentModel, usePreferences } from "@/hooks/usePreferences";
 import { useBoundStore } from "@/stores";
 import { buildSessionFileUrl } from "@/utils/attachmentUtils";
 import { AttachmentPreview } from "./attachment-preview";
+import { Badge } from "@/components/ui/badge";
+import { EXAMPLE_PROMPTS } from "@/lib/data";
 
-interface PlaygroundUIProps {
+interface PlaygroundWelcomeProps {
 	sessionId: string;
 	onSubmit: (text: string) => void;
 }
 
-const EXAMPLE_PROMPTS = [
-	"Find the top cat video and create a 5 sec tiktok video from it. Add a title animation and export to a video",
-	"First, find the top 3 karpathy LLM videos, then find the most important 10 second section from each video. After that, download the sections and show it.",
-	"Look at my portfolio in the data and find the top winners and losers in Q4. Show the three most relevant plots.",
-];
-
-export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
+export function PlaygroundWelcome({
+	sessionId,
+	onSubmit,
+}: PlaygroundWelcomeProps) {
 	const [inputValue, setInputValue] = useState("");
 	const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 	const sessionMessages = useSessionMessages(sessionId);
@@ -93,7 +92,10 @@ export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
 	// Show centered welcome UI only when no messages
 	if (!hasMessages) {
 		return (
-			<div className="flex h-screen w-full flex-col items-center justify-center bg-background text-foreground">
+			<div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background text-foreground">
+				{/* Gradient Mesh Background */}
+				<div className="gradient-mesh-bg" />
+
 				{/* Feedback message notification */}
 				{feedbackMessage && (
 					<div
@@ -107,27 +109,22 @@ export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
 					</div>
 				)}
 
-				<div className="w-full max-w-2xl space-y-8 px-4">
+				<div className="fade-in slide-in-from-bottom-4 relative z-10 w-full max-w-2xl animate-in space-y-12 px-4 duration-700">
 					{/* Logo/Title */}
 					<div className="text-center">
-						<h1 className="mb-2 font-bold text-4xl">Mix Playground</h1>
-						<p className="text-muted-foreground">
-							Claude Code for Multimodal Tasks
+						<h1 className="title-shadow mb-4 flex flex-col items-center justify-center gap-3 text-6xl leading-tight tracking-tight">
+							<div className="flex items-center gap-4">
+								<img
+									src="/256x256.png"
+									alt="Mix Logo"
+									className="size-16 drop-shadow-xl transition-transform duration-300 hover:rotate-6"
+								/>
+								<span className="gradient-text">Mix Playground</span>
+							</div>
+						</h1>
+						<p className="subtitle-text text-muted-foreground text-xl">
+							try the open-source agents SDK for web-apps
 						</p>
-					</div>
-
-					{/* Example Prompts */}
-					<div className="space-y-3">
-						{EXAMPLE_PROMPTS.map((prompt, index) => (
-							<button
-								key={index}
-								onClick={() => handleSuggestionClick(prompt)}
-								className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
-								type="button"
-							>
-								<p className="text-card-foreground">{prompt}</p>
-							</button>
-						))}
 					</div>
 
 					{/* Input Box with attachments */}
@@ -141,7 +138,7 @@ export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
 						/>
 
 						<AIInput
-							className="border bg-stone-200/60 backdrop-blur-xl dark:bg-stone-700/60"
+							className="input-glow-hover input-glow-focus border-2 bg-stone-200/80 shadow-lg backdrop-blur-xl transition-all duration-300 dark:bg-stone-700/80"
 							onSubmit={handleSubmit}
 						>
 							<AIInputTextarea
@@ -150,6 +147,7 @@ export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
 								onKeyDown={handleKeyDown}
 								placeholder="What would you like to know?"
 								value={inputValue}
+								className="text-base"
 							/>
 							<AIInputToolbar>
 								<AIInputTools>
@@ -171,6 +169,20 @@ export function PlaygroundUI({ sessionId, onSubmit }: PlaygroundUIProps) {
 								<AIInputSubmit disabled={!inputValue.trim()} status="ready" />
 							</AIInputToolbar>
 						</AIInput>
+					</div>
+
+					{/* Example Prompts */}
+					<div className="flex flex-wrap justify-center gap-3">
+						{EXAMPLE_PROMPTS.map((example, index) => (
+							<Badge
+								key={index}
+								variant="outline"
+								className="example-prompt-badge cursor-pointer px-4 py-2 font-medium text-sm"
+								onClick={() => handleSuggestionClick(example.prompt)}
+							>
+								{example.name}
+							</Badge>
+						))}
 					</div>
 				</div>
 			</div>
