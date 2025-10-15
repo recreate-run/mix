@@ -1250,13 +1250,55 @@
         ]
       },
       "post": {
-        "description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.",
+        "description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution.",
         "operationId": "createSession",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "properties": {
+                  "callbacks": {
+                    "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+                    "items": {
+                      "properties": {
+                        "bashCommand": {
+                          "description": "Bash command to execute (for bash_script type). Has access to environment variables.",
+                          "example": "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
+                          "type": "string"
+                        },
+                        "bashTimeout": {
+                          "default": 120000,
+                          "description": "Timeout in milliseconds for bash execution (default: 120000)",
+                          "maximum": 120000,
+                          "type": "integer"
+                        },
+                        "nonBlocking": {
+                          "default": true,
+                          "description": "Run callback asynchronously without waiting for completion",
+                          "type": "boolean"
+                        },
+                        "toolName": {
+                          "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+                          "example": "show_media",
+                          "type": "string"
+                        },
+                        "type": {
+                          "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents (not yet implemented)",
+                          "enum": [
+                            "bash_script",
+                            "sub_agent"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "toolName",
+                        "type"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
                   "customSystemPrompt": {
                     "description": "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax.",
                     "example": "You are a helpful assistant specialized in $<domain>. Always be concise and accurate.",
@@ -1464,6 +1506,132 @@
           }
         },
         "summary": "Get a specific session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/sessions/{id}/callbacks": {
+      "patch": {
+        "description": "Update the callback configurations for a session. Callbacks execute automatically after tool completion. Pass an empty array to clear all callbacks.",
+        "operationId": "updateSessionCallbacks",
+        "parameters": [
+          {
+            "description": "Session ID to update",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "callbacks": {
+                    "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+                    "items": {
+                      "properties": {
+                        "bashCommand": {
+                          "description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
+                          "example": "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
+                          "type": "string"
+                        },
+                        "bashTimeout": {
+                          "default": 120000,
+                          "description": "Timeout in milliseconds for bash execution (default: 120000)",
+                          "maximum": 120000,
+                          "type": "integer"
+                        },
+                        "includeFullHistory": {
+                          "default": false,
+                          "description": "Include full conversation history in sub-agent context (not yet implemented)",
+                          "type": "boolean"
+                        },
+                        "nonBlocking": {
+                          "default": false,
+                          "description": "Run callback asynchronously without waiting for completion",
+                          "type": "boolean"
+                        },
+                        "subAgentPrompt": {
+                          "description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
+                          "example": "Analyze the tool output and suggest improvements",
+                          "type": "string"
+                        },
+                        "subAgentType": {
+                          "default": "general-purpose",
+                          "description": "Type of sub-agent to spawn (default: 'general-purpose')",
+                          "example": "general-purpose",
+                          "type": "string"
+                        },
+                        "toolName": {
+                          "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+                          "example": "show_media",
+                          "type": "string"
+                        },
+                        "type": {
+                          "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
+                          "enum": [
+                            "bash_script",
+                            "sub_agent"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "toolName",
+                        "type"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "callbacks"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionData"
+                }
+              }
+            },
+            "description": "Session callbacks updated successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request - validation error in callbacks array"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          }
+        },
+        "summary": "Update session callbacks",
         "tags": [
           "Sessions"
         ]
@@ -3577,6 +3745,39 @@
           "assistantMessageCount": {
             "description": "Number of assistant messages in session",
             "type": "integer"
+          },
+          "callbacks": {
+            "description": "Session-level callback configurations (optional)",
+            "items": {
+              "properties": {
+                "bashCommand": {
+                  "description": "Bash command to execute (for bash_script type)",
+                  "type": "string"
+                },
+                "bashTimeout": {
+                  "description": "Timeout in milliseconds for bash execution",
+                  "type": "integer"
+                },
+                "nonBlocking": {
+                  "description": "Run callback asynchronously",
+                  "type": "boolean"
+                },
+                "toolName": {
+                  "description": "Tool to attach callback to",
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Callback type",
+                  "enum": [
+                    "bash_script",
+                    "sub_agent"
+                  ],
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
           },
           "completionTokens": {
             "description": "Total completion tokens used",

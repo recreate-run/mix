@@ -21,7 +21,6 @@ import { SessionsView } from "./command-slash/SessionsView";
 export function CommandSlash({
 	onClose,
 	sessionId,
-	onFeedbackMessage,
 	onNewSession,
 	onQueryClientInvalidate,
 	onSubmitMessage,
@@ -32,7 +31,6 @@ export function CommandSlash({
 	const state = useCommandPaletteState();
 
 	const handlers = useCommandHandlers({
-		onFeedbackMessage,
 		onQueryClientInvalidate,
 		onClose,
 		setStatusData: state.setStatusData,

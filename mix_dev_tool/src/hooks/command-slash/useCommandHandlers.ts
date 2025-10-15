@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { toast } from "sonner";
 import {
 	authenticateWithApiKey,
 	handleOAuthCallback,
@@ -21,7 +22,6 @@ import type {
 import type { HierarchicalModelData } from "@/types/provider";
 
 interface UseCommandHandlersProps {
-	onFeedbackMessage?: CommandSlashProps["onFeedbackMessage"];
 	onQueryClientInvalidate?: CommandSlashProps["onQueryClientInvalidate"];
 	onClose: CommandSlashProps["onClose"];
 	setStatusData: (data: StatusData) => void;
@@ -31,7 +31,6 @@ interface UseCommandHandlersProps {
 }
 
 export function useCommandHandlers({
-	onFeedbackMessage,
 	onQueryClientInvalidate,
 	onClose,
 	setStatusData,
@@ -54,18 +53,16 @@ export function useCommandHandlers({
 					statusResult.content.includes("Failed") ||
 					statusResult.content.includes("❌")
 				) {
-					onFeedbackMessage?.(
-						`Error: ${statusResult.content.replace("❌", "").trim()}`,
-					);
+					toast.error(statusResult.content.replace("❌", "").trim());
 				} else if (statusResult.content.includes("✅")) {
-					onFeedbackMessage?.(statusResult.content.replace("✅", "").trim());
+					toast.success(statusResult.content.replace("✅", "").trim());
 				}
 			}
 		} catch (error) {
 			console.error("Status command failed:", error);
-			onFeedbackMessage?.("Error: Failed to check authentication status");
+			toast.error("Failed to check authentication status");
 		}
-	}, [onFeedbackMessage, setStatusData, goToView]);
+	}, [setStatusData, goToView]);
 
 	// Handle the unified model command
 	const handleUnifiedModelCommandSpecial = useCallback(async () => {
@@ -78,9 +75,9 @@ export function useCommandHandlers({
 			}
 		} catch (error) {
 			console.error("Model command failed:", error);
-			onFeedbackMessage?.("Error: Failed to load model selection");
+			toast.error("Failed to load model selection");
 		}
-	}, [onFeedbackMessage, setHierarchicalModelData, goToView]);
+	}, [setHierarchicalModelData, goToView]);
 
 	// Handle the help command
 	const handleHelpCommandSpecial = useCallback(async () => {
@@ -114,9 +111,9 @@ export function useCommandHandlers({
 			goToView("help");
 		} catch (error) {
 			console.error("Help command failed:", error);
-			onFeedbackMessage?.("Error: Failed to load help menu");
+			toast.error("Failed to load help menu");
 		}
-	}, [setHelpData, goToView, onFeedbackMessage]);
+	}, [setHelpData, goToView]);
 
 	// Handle provider selection from status view
 	const handleProviderSelectionSpecial = useCallback(
@@ -126,10 +123,10 @@ export function useCommandHandlers({
 				onClose();
 			} catch (error) {
 				console.error("Provider selection failed:", error);
-				onFeedbackMessage?.("Error: Failed to select provider");
+				toast.error("Failed to select provider");
 			}
 		},
-		[onClose, onFeedbackMessage],
+		[onClose],
 	);
 
 	// Handle model selection from unified model view
@@ -149,10 +146,10 @@ export function useCommandHandlers({
 				onClose();
 			} catch (error) {
 				console.error("Model selection failed:", error);
-				onFeedbackMessage?.("Error: Failed to select model");
+				toast.error("Failed to select model");
 			}
 		},
-		[onClose, onFeedbackMessage, onQueryClientInvalidate],
+		[onClose, onQueryClientInvalidate],
 	);
 
 	// Handle login provider selection
@@ -166,10 +163,10 @@ export function useCommandHandlers({
 				// For API key method, the component will handle showing the input form
 			} catch (error) {
 				console.error("Login provider selection failed:", error);
-				onFeedbackMessage?.("Error: Failed to start authentication");
+				toast.error("Failed to start authentication");
 			}
 		},
-		[onFeedbackMessage],
+		[],
 	);
 
 	// Handle API key submission
@@ -181,10 +178,10 @@ export function useCommandHandlers({
 				onClose();
 			} catch (error) {
 				console.error("API key submission failed:", error);
-				onFeedbackMessage?.("Error: Failed to authenticate with API key");
+				toast.error("Failed to authenticate with API key");
 			}
 		},
-		[onQueryClientInvalidate, onClose, onFeedbackMessage],
+		[onQueryClientInvalidate, onClose],
 	);
 
 	// Handle OAuth code submission
@@ -196,10 +193,10 @@ export function useCommandHandlers({
 				onClose();
 			} catch (error) {
 				console.error("OAuth code submission failed:", error);
-				onFeedbackMessage?.("Error: Failed to complete OAuth authentication");
+				toast.error("Failed to complete OAuth authentication");
 			}
 		},
-		[onQueryClientInvalidate, onClose, onFeedbackMessage],
+		[onQueryClientInvalidate, onClose],
 	);
 
 	return {
