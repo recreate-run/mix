@@ -10,7 +10,7 @@
  * Detects if the app is running in a Tauri desktop environment
  * @returns true if running in Tauri, false if running in browser
  */
-export const isTauriEnvironment = (): boolean => {
+const isTauriEnvironment = (): boolean => {
 	if (typeof window === "undefined") {
 		return false;
 	}
@@ -48,11 +48,4 @@ export const PlatformFeatures = {
 	 * Check if local file write operations are available
 	 */
 	hasFileWrite: (): boolean => isTauriEnvironment(),
-};
-
-/**
- * Get a human-readable platform name
- */
-export const getPlatformName = (): "desktop" | "browser" => {
-	return isTauriEnvironment() ? "desktop" : "browser";
 };

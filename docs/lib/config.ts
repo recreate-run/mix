@@ -8,7 +8,7 @@ export const config = {
   },
   site: {
     name: "Mix",
-    description: "Claude Code for Multimodal tasks",
+    description: "The Multimodal agents SDK",
     url: process.env.NEXT_PUBLIC_SITE_URL,
   },
 } as const;

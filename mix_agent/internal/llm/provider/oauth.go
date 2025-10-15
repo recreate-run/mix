@@ -41,11 +41,13 @@ type OpenAICredentials struct {
 }
 
 // IsTokenExpired checks if the OpenAI OAuth token is expired or will expire soon (5 minutes buffer)
+// This is used for runtime checks during API calls - only marks tokens as expired when truly about to expire
+// The background refresh service uses a separate 35-minute buffer to refresh tokens well before this threshold
 func (cred *OpenAICredentials) IsTokenExpired() bool {
 	if cred.ExpiresAt == 0 {
 		return false // No expiry time set
 	}
-	return time.Now().Unix() >= (cred.ExpiresAt - 300) // 5 minute buffer
+	return time.Now().Unix() >= (cred.ExpiresAt - 300) // 5 minute buffer (5 * 60 = 300 seconds)
 }
 
 // OAuthCredentials holds OAuth token information
@@ -272,11 +274,13 @@ func (cs *CredentialStorage) ClearOAuthCredentials(provider string) error {
 }
 
 // IsTokenExpired checks if a token is expired or will expire soon (5 minutes buffer)
+// This is used for runtime checks during API calls - only marks tokens as expired when truly about to expire
+// The background refresh service uses a separate 35-minute buffer to refresh tokens well before this threshold
 func (cred *OAuthCredentials) IsTokenExpired() bool {
 	if cred.ExpiresAt == 0 {
 		return false // No expiry time set
 	}
-	return time.Now().Unix() >= (cred.ExpiresAt - 300) // 5 minute buffer
+	return time.Now().Unix() >= (cred.ExpiresAt - 300) // 5 minute buffer (5 * 60 = 300 seconds)
 }
 
 // NewOAuthFlow creates a new OAuth flow with PKCE

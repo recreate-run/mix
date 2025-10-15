@@ -146,7 +146,7 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat
 	}
 	title := titlePrefix + titleSuffix
 
-	sess, err := a.Sessions.Create(ctx, title, "", "default")
+	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "")
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}

@@ -14,10 +14,13 @@ const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
     callbacks,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -34,16 +37,22 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
+    ?,
+    ?,
+    ?,
     null,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
     callbacks,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -55,10 +64,13 @@ INSERT INTO sessions (
 type CreateSessionParams struct {
 	ID                 string         `json:"id"`
 	ParentSessionID    sql.NullString `json:"parent_session_id"`
+	ParentToolCallID   sql.NullString `json:"parent_tool_call_id"`
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
 	Callbacks          sql.NullString `json:"callbacks"`
+	SessionType        string         `json:"session_type"`
+	SubagentType       sql.NullString `json:"subagent_type"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -67,10 +79,13 @@ type CreateSessionParams struct {
 type CreateSessionRow struct {
 	ID                 string         `json:"id"`
 	ParentSessionID    sql.NullString `json:"parent_session_id"`
+	ParentToolCallID   sql.NullString `json:"parent_tool_call_id"`
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
 	Callbacks          sql.NullString `json:"callbacks"`
+	SessionType        string         `json:"session_type"`
+	SubagentType       sql.NullString `json:"subagent_type"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -83,10 +98,13 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 	row := q.queryRow(ctx, q.createSessionStmt, createSession,
 		arg.ID,
 		arg.ParentSessionID,
+		arg.ParentToolCallID,
 		arg.Title,
 		arg.CustomSystemPrompt,
 		arg.PromptMode,
 		arg.Callbacks,
+		arg.SessionType,
+		arg.SubagentType,
 		arg.PromptTokens,
 		arg.CompletionTokens,
 		arg.Cost,
@@ -95,10 +113,13 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
+		&i.ParentToolCallID,
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
 		&i.Callbacks,
+		&i.SessionType,
+		&i.SubagentType,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
@@ -123,10 +144,13 @@ const getSessionByID = `-- name: GetSessionByID :one
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
     s.callbacks,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -150,10 +174,13 @@ WHERE s.id = ? LIMIT 1
 type GetSessionByIDRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	ParentToolCallID      sql.NullString `json:"parent_tool_call_id"`
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
 	Callbacks             sql.NullString `json:"callbacks"`
+	SessionType           string         `json:"session_type"`
+	SubagentType          sql.NullString `json:"subagent_type"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -171,10 +198,13 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
+		&i.ParentToolCallID,
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
 		&i.Callbacks,
+		&i.SessionType,
+		&i.SubagentType,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,
@@ -188,14 +218,34 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 	return i, err
 }
 
+const incrementSessionCost = `-- name: IncrementSessionCost :exec
+UPDATE sessions
+SET cost = cost + ?,
+    updated_at = strftime('%s', 'now')
+WHERE id = ?
+`
+
+type IncrementSessionCostParams struct {
+	Cost float64 `json:"cost"`
+	ID   string  `json:"id"`
+}
+
+func (q *Queries) IncrementSessionCost(ctx context.Context, arg IncrementSessionCostParams) error {
+	_, err := q.exec(ctx, q.incrementSessionCostStmt, incrementSessionCost, arg.Cost, arg.ID)
+	return err
+}
+
 const listSessionsMetadata = `-- name: ListSessionsMetadata :many
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
     s.callbacks,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -219,10 +269,13 @@ ORDER BY s.created_at DESC
 type ListSessionsMetadataRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	ParentToolCallID      sql.NullString `json:"parent_tool_call_id"`
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
 	Callbacks             sql.NullString `json:"callbacks"`
+	SessionType           string         `json:"session_type"`
+	SubagentType          sql.NullString `json:"subagent_type"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -246,10 +299,13 @@ func (q *Queries) ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetad
 		if err := rows.Scan(
 			&i.ID,
 			&i.ParentSessionID,
+			&i.ParentToolCallID,
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
 			&i.Callbacks,
+			&i.SessionType,
+			&i.SubagentType,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
@@ -277,10 +333,13 @@ const listSessionsWithContent = `-- name: ListSessionsWithContent :many
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
     s.callbacks,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -313,10 +372,13 @@ ORDER BY s.created_at DESC
 type ListSessionsWithContentRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	ParentToolCallID      sql.NullString `json:"parent_tool_call_id"`
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
 	Callbacks             sql.NullString `json:"callbacks"`
+	SessionType           string         `json:"session_type"`
+	SubagentType          sql.NullString `json:"subagent_type"`
 	PromptTokens          int64          `json:"prompt_tokens"`
 	CompletionTokens      int64          `json:"completion_tokens"`
 	Cost                  float64        `json:"cost"`
@@ -341,10 +403,13 @@ func (q *Queries) ListSessionsWithContent(ctx context.Context) ([]ListSessionsWi
 		if err := rows.Scan(
 			&i.ID,
 			&i.ParentSessionID,
+			&i.ParentToolCallID,
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
 			&i.Callbacks,
+			&i.SessionType,
+			&i.SubagentType,
 			&i.PromptTokens,
 			&i.CompletionTokens,
 			&i.Cost,
@@ -385,10 +450,13 @@ WHERE id = ?
 RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
     callbacks,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -412,10 +480,13 @@ type UpdateSessionParams struct {
 type UpdateSessionRow struct {
 	ID                 string         `json:"id"`
 	ParentSessionID    sql.NullString `json:"parent_session_id"`
+	ParentToolCallID   sql.NullString `json:"parent_tool_call_id"`
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
 	Callbacks          sql.NullString `json:"callbacks"`
+	SessionType        string         `json:"session_type"`
+	SubagentType       sql.NullString `json:"subagent_type"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
 	Cost               float64        `json:"cost"`
@@ -440,10 +511,13 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (U
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
+		&i.ParentToolCallID,
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
 		&i.Callbacks,
+		&i.SessionType,
+		&i.SubagentType,
 		&i.PromptTokens,
 		&i.CompletionTokens,
 		&i.Cost,

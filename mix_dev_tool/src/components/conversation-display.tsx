@@ -130,37 +130,60 @@ const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 };
 
 // Helper function to render timeline entries chronologically
-const renderTimelineEntries = (timeline: TimelineEntry[]) => {
+const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 	if (!timeline || timeline.length === 0) return null;
 
-	// Group consecutive thinking entries together for better UX
+	let entriesToRender = timeline;
+	const nestedMap = new Map<string, TimelineEntry[]>();
+
+	// Only group by parentToolCallId at the top level
+	if (!isNested) {
+		const topLevelEntries: TimelineEntry[] = [];
+
+		for (const entry of timeline) {
+			if ((entry as any).parentToolCallId) {
+				// This is a subagent event - group under parent tool
+				const nested = nestedMap.get((entry as any).parentToolCallId) || [];
+				nested.push(entry);
+				nestedMap.set((entry as any).parentToolCallId, nested);
+			} else {
+				// Top-level entry
+				topLevelEntries.push(entry);
+			}
+		}
+
+		entriesToRender = topLevelEntries;
+	}
+
+	// Group consecutive thinking entries
 	const groupedEntries: Array<
 		| { type: "thinking"; entries: string[]; timestamps: number[] }
-		| { type: "tool"; entry: TimelineEntry }
+		| { type: "tool"; entry: TimelineEntry; nestedEntries?: TimelineEntry[] }
 		| { type: "content"; entry: TimelineEntry }
 	> = [];
 
-	for (const entry of timeline) {
+	for (const entry of entriesToRender) {
 		if (entry.type === "thinking") {
 			const lastGroup = groupedEntries[groupedEntries.length - 1];
 			if (lastGroup && lastGroup.type === "thinking") {
-				// Add to existing thinking group
 				lastGroup.entries.push(entry.content);
 				lastGroup.timestamps.push(entry.timestamp);
 			} else {
-				// Start new thinking group
 				groupedEntries.push({
 					type: "thinking",
 					entries: [entry.content],
 					timestamps: [entry.timestamp],
 				});
 			}
-		} else {
-			// Tool or content entry - always separate
+		} else if (entry.type === "tool") {
+			const nested = nestedMap.get(entry.content.id);
 			groupedEntries.push({
-				type: entry.type,
+				type: "tool",
 				entry,
+				nestedEntries: nested,
 			});
+		} else {
+			groupedEntries.push({ type: "content", entry });
 		}
 	}
 
@@ -189,14 +212,17 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 			);
 		}
 		if (group.type === "content") {
-			const contentText = group.entry.content as string;
 			return (
 				<div className="mb-4" key={`content-${group.entry.id}`}>
-					<ResponseRenderer content={contentText} />
+					<ResponseRenderer content={group.entry.content as string} />
 				</div>
 			);
 		}
+
+		// Tool with potential nested subagent events
 		const toolCall = group.entry.content as ToolCall;
+		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
+
 		return (
 			<AIToolLadder key={`tool-${group.entry.id}`}>
 				<AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
@@ -207,6 +233,13 @@ const renderTimelineEntries = (timeline: TimelineEntry[]) => {
 						toolCall={toolCall}
 					/>
 					<AIToolContent toolCall={toolCall} />
+
+					{/* Nested subagent events */}
+					{hasNestedEvents && group.nestedEntries && (
+						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
+							{renderTimelineEntries(group.nestedEntries, true)}
+						</div>
+					)}
 				</AIToolStep>
 			</AIToolLadder>
 		);

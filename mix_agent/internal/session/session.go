@@ -13,6 +13,53 @@ import (
 	"github.com/google/uuid"
 )
 
+// SessionType represents the type/category of a session
+type SessionType string
+
+const (
+	SessionTypeMain     SessionType = "main"     // Regular user session
+	SessionTypeSubagent SessionType = "subagent" // Task tool worker session
+	SessionTypeForked   SessionType = "forked"   // User-forked session
+)
+
+// String returns the string representation of SessionType
+func (s SessionType) String() string {
+	return string(s)
+}
+
+// IsValidSessionType checks if the given string is a valid SessionType
+func IsValidSessionType(s string) bool {
+	switch SessionType(s) {
+	case SessionTypeMain, SessionTypeSubagent, SessionTypeForked:
+		return true
+	default:
+		return false
+	}
+}
+
+// SubagentType represents the specialization of a subagent session
+type SubagentType string
+
+const (
+	SubagentTypeGeneralPurpose SubagentType = "general-purpose" // Full toolset subagent
+	// Future types can be added here: research, code-review, etc.
+)
+
+// String returns the string representation of SubagentType
+func (s SubagentType) String() string {
+	return string(s)
+}
+
+// IsValidSubagentType checks if the given string is a valid SubagentType
+func IsValidSubagentType(s string) bool {
+	switch SubagentType(s) {
+	case SubagentTypeGeneralPurpose:
+		return true
+	default:
+		return false
+	}
+}
+
 // Context key for suppressing session event publishing (used for internal/sub-agent sessions)
 type contextKey string
 
@@ -32,6 +79,7 @@ func shouldPublish(ctx context.Context) bool {
 type Session struct {
 	ID                    string
 	ParentSessionID       string
+	ParentToolCallID      string       // Which tool call spawned this subagent session (for UI nesting)
 	Title                 string
 	UserMessageCount      int64
 	AssistantMessageCount int64
@@ -41,7 +89,9 @@ type Session struct {
 	SummaryMessageID      string
 	CustomSystemPrompt    string
 	PromptMode            string
-	Callbacks             string // JSON-encoded []interfaces.CallbackConfig
+	Callbacks             string       // JSON-encoded []interfaces.CallbackConfig
+	SessionType           SessionType  // Type-safe session category
+	SubagentType          SubagentType // Type-safe subagent specialization
 	Cost                  float64
 	CreatedAt             int64
 	UpdatedAt             int64
@@ -50,12 +100,13 @@ type Session struct {
 // Simplified Service interface for embedded binary
 type Service interface {
 	pubsub.Suscriber[Session]
-	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string) (Session, error)
+	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error)
 	Fork(ctx context.Context, sourceSessionID string, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
 	ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error)
 	Save(ctx context.Context, session Session) (Session, error)
+	IncrementCost(ctx context.Context, sessionID string, costDelta float64) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -65,28 +116,77 @@ type service struct {
 	storageConfig Config
 }
 
-func (s *service) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string) (Session, error) {
+func (s *service) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error) {
+	// Default to 'main' session type if not specified
+	if sessionType == "" {
+		sessionType = SessionTypeMain
+	}
+
+	// Validate subagent type if specified
+	if subagentType != "" && !IsValidSubagentType(subagentType.String()) {
+		return Session{}, fmt.Errorf("invalid subagent type: %s", subagentType)
+	}
+
+	// Validate session hierarchy constraints BEFORE creating any resources
+	if parentSessionID != "" {
+		parentSession, err := s.Get(ctx, parentSessionID)
+		if err != nil {
+			return Session{}, fmt.Errorf("parent session not found: %w", err)
+		}
+
+		// Main sessions must be roots (no parent allowed)
+		if sessionType == SessionTypeMain {
+			return Session{}, fmt.Errorf("main sessions cannot have a parent session")
+		}
+
+		// Subagent sessions must have a main session as parent
+		if sessionType == SessionTypeSubagent {
+			if parentSession.SessionType != SessionTypeMain {
+				return Session{}, fmt.Errorf("subagent sessions can only be created from main sessions, got parent type: %s", parentSession.SessionType)
+			}
+		}
+
+		// Forked sessions should use Fork() method, not Create()
+		if sessionType == SessionTypeForked {
+			return Session{}, fmt.Errorf("forked sessions must be created using Fork() method, not Create()")
+		}
+	} else {
+		// Sessions without parent must be main sessions
+		if sessionType != SessionTypeMain {
+			return Session{}, fmt.Errorf("%s sessions must have a parent session", sessionType)
+		}
+	}
+
 	sessionID := uuid.New().String()
-	
+
 	// FAIL IMMEDIATELY if we cannot create storage directory
 	// This prevents database inconsistency where session exists but has no storage
 	if err := CreateSessionDirectory(sessionID, s.storageConfig); err != nil {
 		return Session{}, fmt.Errorf("CRITICAL: session storage directory creation failed, aborting session creation: %w", err)
 	}
 
+	// Convert typed values to strings for database layer
+	sessionTypeStr := sessionType.String()
+	subagentTypeStr := subagentType.String()
+
 	// Only create database entry AFTER storage directory is confirmed to exist
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:                 sessionID,
+		ParentSessionID:    sql.NullString{String: parentSessionID, Valid: parentSessionID != ""},
+		ParentToolCallID:   sql.NullString{String: parentToolCallID, Valid: parentToolCallID != ""},
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{String: customSystemPrompt, Valid: customSystemPrompt != ""},
 		PromptMode:         sql.NullString{String: promptMode, Valid: promptMode != ""},
+		Callbacks:          sql.NullString{Valid: false}, // Callbacks set separately via SetCallbacks()
+		SessionType:        sessionTypeStr,
+		SubagentType:       sql.NullString{String: subagentTypeStr, Valid: subagentTypeStr != ""},
 	})
 	if err != nil {
 		// If DB creation fails after directory creation, we have an orphaned directory
 		// This is better than the reverse (session in DB with no directory)
 		return Session{}, fmt.Errorf("session database creation failed after storage directory was created: %w", err)
 	}
-	
+
 	session, err := s.fromCreatedSessionRow(dbSession)
 	if err != nil {
 		return Session{}, fmt.Errorf("session data conversion failed: %w", err)
@@ -103,22 +203,33 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 
 func (s *service) Fork(ctx context.Context, sourceSessionID string, title string) (Session, error) {
 	// Verify source session exists
-	_, err := s.Get(ctx, sourceSessionID)
+	sourceSession, err := s.Get(ctx, sourceSessionID)
 	if err != nil {
 		return Session{}, err
 	}
 
+	// Validate fork hierarchy constraints - cannot fork from subagent sessions
+	if sourceSession.SessionType == SessionTypeSubagent {
+		return Session{}, fmt.Errorf("cannot fork from subagent sessions - subagents are delegated work contexts not meant for user interaction")
+	}
+
 	sessionID := uuid.New().String()
-	
+
 	// FAIL IMMEDIATELY if we cannot create storage directory for forked session
 	if err := CreateSessionDirectory(sessionID, s.storageConfig); err != nil {
 		return Session{}, fmt.Errorf("CRITICAL: forked session storage directory creation failed, aborting fork: %w", err)
 	}
 
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
-		ID:              sessionID,
-		ParentSessionID: sql.NullString{String: sourceSessionID, Valid: true},
-		Title:           title,
+		ID:                 sessionID,
+		ParentSessionID:    sql.NullString{String: sourceSessionID, Valid: true},
+		ParentToolCallID:   sql.NullString{Valid: false}, // Forked sessions don't have parent tool calls
+		Title:              title,
+		CustomSystemPrompt: sql.NullString{Valid: false}, // Forked sessions use default prompt
+		PromptMode:         sql.NullString{String: "default", Valid: true},
+		Callbacks:          sql.NullString{Valid: false}, // Forked sessions start without callbacks
+		SessionType:        SessionTypeForked.String(),   // Type-safe constant
+		SubagentType:       sql.NullString{Valid: false}, // Not a subagent
 	})
 	if err != nil {
 		return Session{}, err
@@ -201,7 +312,10 @@ func (s *service) ListWithContent(ctx context.Context) ([]db.ListSessionsWithCon
 }
 
 func (s *service) Save(ctx context.Context, session Session) (Session, error) {
-	dbSession, err := s.q.UpdateSession(ctx, db.UpdateSessionParams{
+	// Immutability: SessionType, SubagentType, and ParentSessionID cannot be changed after creation.
+	// Enforced at application level - UpdateSession SQL query excludes these fields from SET clause.
+	// Direct database access could bypass this constraint.
+	_, err := s.q.UpdateSession(ctx, db.UpdateSessionParams{
 		ID:                 session.ID,
 		Title:              session.Title,
 		CustomSystemPrompt: sql.NullString{String: session.CustomSystemPrompt, Valid: session.CustomSystemPrompt != ""},
@@ -218,17 +332,27 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	session, err = s.fromUpdateSessionRowWithCounts(ctx, dbSession)
+
+	// Get fresh session data (includes updated fields + message counts)
+	updatedSession, err := s.Get(ctx, session.ID)
 	if err != nil {
 		return Session{}, err
 	}
+
 	if shouldPublish(ctx) {
-		err = s.Publish(ctx, pubsub.UpdatedEvent, session)
+		err = s.Publish(ctx, pubsub.UpdatedEvent, updatedSession)
 		if err != nil {
 			return Session{}, err
 		}
 	}
-	return session, nil
+	return updatedSession, nil
+}
+
+func (s *service) IncrementCost(ctx context.Context, sessionID string, costDelta float64) error {
+	return s.q.IncrementSessionCost(ctx, db.IncrementSessionCostParams{
+		ID:   sessionID,
+		Cost: costDelta,
+	})
 }
 
 // Removed List method for embedded binary
@@ -240,6 +364,7 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
+		ParentToolCallID:      item.ParentToolCallID.String,
 		Title:                 item.Title,
 		UserMessageCount:      item.UserMessageCount,
 		AssistantMessageCount: item.AssistantMessageCount,
@@ -250,6 +375,8 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
 		Callbacks:             item.Callbacks.String,
+		SessionType:           SessionType(item.SessionType),          // Convert string to type
+		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -260,6 +387,7 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
+		ParentToolCallID:      item.ParentToolCallID.String,
 		Title:                 item.Title,
 		UserMessageCount:      item.UserMessageCount,
 		AssistantMessageCount: item.AssistantMessageCount,
@@ -270,6 +398,8 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
 		Callbacks:             item.Callbacks.String,
+		SessionType:           SessionType(item.SessionType),          // Convert string to type
+		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -280,6 +410,7 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
+		ParentToolCallID:      item.ParentToolCallID.String,
 		Title:                 item.Title,
 		UserMessageCount:      0, // New sessions always have 0 messages
 		AssistantMessageCount: 0, // New sessions always have 0 messages
@@ -290,32 +421,8 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
 		Callbacks:             item.Callbacks.String,
-		Cost:                  item.Cost,
-		CreatedAt:             item.CreatedAt,
-		UpdatedAt:             item.UpdatedAt,
-	}, nil
-}
-
-func (s *service) fromUpdateSessionRowWithCounts(ctx context.Context, item db.UpdateSessionRow) (Session, error) {
-	// Get accurate counts by querying the full session data
-	fullSession, err := s.q.GetSessionByID(ctx, item.ID)
-	if err != nil {
-		return Session{}, err
-	}
-
-	return Session{
-		ID:                    item.ID,
-		ParentSessionID:       item.ParentSessionID.String,
-		Title:                 item.Title,
-		UserMessageCount:      fullSession.UserMessageCount,      // Get real counts
-		AssistantMessageCount: fullSession.AssistantMessageCount, // Get real counts
-		ToolCallCount:         fullSession.ToolCallCount,         // Get real counts
-		PromptTokens:          item.PromptTokens,
-		CompletionTokens:      item.CompletionTokens,
-		SummaryMessageID:      item.SummaryMessageID.String,
-		CustomSystemPrompt:    item.CustomSystemPrompt.String,
-		PromptMode:            item.PromptMode.String,
-		Callbacks:             item.Callbacks.String,
+		SessionType:           SessionType(item.SessionType),          // Convert string to type
+		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,

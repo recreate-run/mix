@@ -17,25 +17,18 @@ export interface LoginProviderInfo {
 	isPreferred?: boolean;
 }
 
+/** Base timeline entry fields shared by all entry types */
+type BaseTimelineEntry = {
+	timestamp: number;
+	id: string;
+	/** Set when a block is from a subagent spawned by a task tool */
+	parentToolCallId?: string;
+};
+
 export type TimelineEntry =
-	| {
-			type: "thinking";
-			timestamp: number;
-			content: string;
-			id: string;
-	  }
-	| {
-			type: "tool";
-			timestamp: number;
-			content: ToolCall;
-			id: string;
-	  }
-	| {
-			type: "content";
-			timestamp: number;
-			content: string;
-			id: string;
-	  };
+	| (BaseTimelineEntry & { type: "thinking"; content: string })
+	| (BaseTimelineEntry & { type: "tool"; content: ToolCall })
+	| (BaseTimelineEntry & { type: "content"; content: string });
 
 export interface UIMessage {
 	id?: string;

@@ -11,11 +11,12 @@ import (
 // SSE Event Types - Keep structs for type safety but remove interface overhead
 
 type ErrorEvent struct {
-	Error       string `json:"error"`
-	Type        string `json:"type,omitempty"`
-	RetryAfter  int    `json:"retryAfter,omitempty"`
-	Attempt     int    `json:"attempt,omitempty"`
-	MaxAttempts int    `json:"maxAttempts,omitempty"`
+	Error            string `json:"error"`
+	Type             string `json:"type,omitempty"`
+	RetryAfter       int    `json:"retryAfter,omitempty"`
+	Attempt          int    `json:"attempt,omitempty"`
+	MaxAttempts      int    `json:"maxAttempts,omitempty"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type ConnectedEvent struct {
@@ -33,62 +34,71 @@ type CompleteEvent struct {
 	Done              bool   `json:"done"`
 	Reasoning         string `json:"reasoning,omitempty"`
 	ReasoningDuration int64  `json:"reasoningDuration,omitempty"`
+	ParentToolCallID  string `json:"parentToolCallId,omitempty"`
 }
 
 type ToolEvent struct {
-	Type   string `json:"type"`
-	Name   string `json:"name"`
-	Input  string `json:"input"`
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	Type             string `json:"type"`
+	Name             string `json:"name"`
+	Input            string `json:"input"`
+	ID               string `json:"id"`
+	Status           string `json:"status"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type ToolParameterDeltaEvent struct {
-	Type       string `json:"type"`
-	ToolCallID string `json:"toolCallId"`
-	Input      string `json:"input"` // Partial JSON parameter delta
+	Type             string `json:"type"`
+	ToolCallID       string `json:"toolCallId"`
+	Input            string `json:"input"` // Partial JSON parameter delta
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type SummarizeEvent struct {
-	Type     string `json:"type"`
-	Progress string `json:"progress"`
-	Done     bool   `json:"done"`
+	Type             string `json:"type"`
+	Progress         string `json:"progress"`
+	Done             bool   `json:"done"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type PermissionEvent struct {
-	Type        string      `json:"type"`
-	ID          string      `json:"id"`
-	SessionID   string      `json:"sessionId"`
-	ToolName    string      `json:"toolName"`
-	Description string      `json:"description"`
-	Action      string      `json:"action"`
-	Path        string      `json:"path"`
-	Params      interface{} `json:"params"`
+	Type             string      `json:"type"`
+	ID               string      `json:"id"`
+	SessionID        string      `json:"sessionId"`
+	ToolName         string      `json:"toolName"`
+	Description      string      `json:"description"`
+	Action           string      `json:"action"`
+	Path             string      `json:"path"`
+	Params           interface{} `json:"params"`
+	ParentToolCallID string      `json:"parentToolCallId,omitempty"`
 }
 
 type ThinkingEvent struct {
-	Type    string `json:"type"`
-	Content string `json:"content"`
+	Type             string `json:"type"`
+	Content          string `json:"content"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type ToolExecutionStartEvent struct {
-	Type       string `json:"type"`
-	ToolName   string `json:"toolName"`
-	Progress   string `json:"progress"`
-	ToolCallID string `json:"toolCallId"`
+	Type             string `json:"type"`
+	ToolName         string `json:"toolName"`
+	Progress         string `json:"progress"`
+	ToolCallID       string `json:"toolCallId"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type ToolExecutionCompleteEvent struct {
-	Type       string `json:"type"`
-	ToolName   string `json:"toolName"`
-	Progress   string `json:"progress"`
-	Success    bool   `json:"success"`
-	ToolCallID string `json:"toolCallId"`
+	Type             string `json:"type"`
+	ToolName         string `json:"toolName"`
+	Progress         string `json:"progress"`
+	Success          bool   `json:"success"`
+	ToolCallID       string `json:"toolCallId"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type ContentEvent struct {
-	Type    string `json:"type"`
-	Content string `json:"content"`
+	Type             string `json:"type"`
+	Content          string `json:"content"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 type SessionCreatedEvent struct {

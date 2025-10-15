@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { FileDown } from "lucide-react";
+import { FileDown, RotateCcw } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEventHandler, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -40,9 +40,11 @@ import { PermissionDialog } from "./permission-dialog";
 
 interface ChatAppProps {
 	sessionId: string;
+	onClear?: () => void;
+	isPlayground?: boolean;
 }
 
-export function ChatApp({ sessionId }: ChatAppProps) {
+export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppProps) {
 	// Core conversation state
 	const [text, setText] = useState<string>("");
 
@@ -105,11 +107,12 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 		}
 	}, [session?.id, clearAttachments, queryClient]);
 
-	// Handle navigation to newly created sessions
+	// Handle navigation to newly created sessions (skip in playground mode)
 	useEffect(() => {
 		if (
 			sseStream.newlyCreatedSessionId &&
-			sseStream.newlyCreatedSessionId !== sessionId
+			sseStream.newlyCreatedSessionId !== sessionId &&
+			!isPlayground
 		) {
 			// Navigate to the newly created session
 			navigate({
@@ -126,6 +129,7 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 		sessionId,
 		navigate,
 		sseStream.clearNewlyCreatedSession,
+		isPlayground,
 	]);
 
 	// Handle streaming completion: invalidate cache, then clear streaming UI
@@ -602,19 +606,36 @@ export function ChatApp({ sessionId }: ChatAppProps) {
 				)}
 
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
-					{/* Session header with export button */}
-					{session && (
-						<div className="mb-4 flex items-center justify-end">
-							<Button
-								className="ml-2"
-								disabled={exportSessionMutation.isPending}
-								onClick={handleExport}
-								size="sm"
-								title="Export session transcript"
-								variant="ghost"
-							>
-								<FileDown className="h-4 w-4" />
-							</Button>
+					{/* Session header with clear (left) and export (right) buttons */}
+					{session && messages.length > 0 && (
+						<div className="mb-4 flex items-center justify-between">
+							{/* Clear button - only show in playground mode when there are messages */}
+							{isPlayground && onClear ? (
+								<Button
+									onClick={onClear}
+									size="sm"
+									title="Clear playground and start fresh"
+									variant="secondary"
+									className="gap-2 shadow-sm"
+								>
+									<RotateCcw className="h-4 w-4" />
+									Clear
+								</Button>
+							) : (
+								<div />
+							)}
+							{/* Export button - hide in playground mode */}
+							{!isPlayground && (
+								<Button
+									disabled={exportSessionMutation.isPending}
+									onClick={handleExport}
+									size="sm"
+									title="Export session transcript"
+									variant="ghost"
+								>
+									<FileDown className="h-4 w-4" />
+								</Button>
+							)}
 						</div>
 					)}
 

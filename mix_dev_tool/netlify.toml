@@ -1,0 +1,23 @@
+# Netlify configuration for Mix Playground (Production)
+# This config ensures ONLY the /playground route is accessible in production
+# All dev tool routes (/, /$sessionId) are blocked
+
+[build]
+  # Build command - installs dependencies and builds the web demo
+  command = "bun install && bun run build:web"
+
+  # Directory to publish - output folder from build:web
+  publish = "dist-web"
+
+# Redirect rules - Order matters! First match wins.
+# Note: We use a separate _redirects file for more granular control
+
+# SPA routing - redirect all routes to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Environment configuration
+[build.environment]
+  NODE_VERSION = "20"

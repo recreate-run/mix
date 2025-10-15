@@ -87,6 +87,15 @@ func getOpenAPISpec() OpenAPISpec {
 					"summary":     "List all sessions",
 					"description": "Retrieve a list of all available sessions with their metadata",
 					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						{
+							"in":          "query",
+							"name":        "includeSubagents",
+							"schema":      map[string]interface{}{"type": "boolean", "default": false},
+							"required":    false,
+							"description": "Include subagent sessions in response (default: false, subagent sessions are hidden)",
+						},
+					},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("array", getSessionDataSchema(), "List of sessions"),
 						"401": createErrorResponse("Unauthorized - authentication required"),
@@ -118,6 +127,18 @@ func getOpenAPISpec() OpenAPISpec {
 								"default":     "default",
 								"description": "Custom prompt handling mode:\n- 'default': Use base system prompt only (customSystemPrompt ignored)\n- 'append': Append customSystemPrompt to base system prompt (50KB limit)\n- 'replace': Replace base system prompt with customSystemPrompt (100KB limit)",
 								"example":     "append",
+							},
+							"sessionType": map[string]interface{}{
+								"type":        "string",
+								"enum":        []string{"main"},
+								"default":     "main",
+								"description": "Session type. API can only create 'main' sessions. Forked sessions are created via /fork endpoint. Subagent sessions are created automatically by the task delegation system.",
+								"example":     "main",
+							},
+							"subagentType": map[string]interface{}{
+								"type":        "string",
+								"description": "Subagent type - must not be set for API-created sessions. This field is reserved for programmatic subagent creation.",
+								"example":     "",
 							},
 							"callbacks": map[string]interface{}{
 								"type":        "array",
@@ -203,6 +224,26 @@ func getOpenAPISpec() OpenAPISpec {
 												"error": map[string]interface{}{
 													"code":    400,
 													"message": "Custom prompt size (75KB) exceeds append mode limit of 50KB",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"invalid_session_type": map[string]interface{}{
+											"summary": "Invalid session type",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"subagent_type_not_allowed": map[string]interface{}{
+											"summary": "Subagent type not allowed for API-created sessions",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "subagentType cannot be set for API-created sessions. Subagent sessions are created programmatically by the task delegation system.",
 													"type":    "validation_error",
 												},
 											},
@@ -872,6 +913,98 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/internal/auth/refresh-tokens": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId":  "refreshOAuthTokens",
+					"summary":     "Manually refresh OAuth tokens",
+					"description": "Manually trigger OAuth token refresh for all expired tokens. Normally tokens are refreshed automatically by the background service every 30 minutes.",
+					"tags":        []string{"Authentication", "Internal"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Operation status",
+									"example":     "success",
+								},
+								"message": map[string]interface{}{
+									"type":        "string",
+									"description": "Status message",
+									"example":     "Token refresh triggered successfully",
+								},
+							},
+						}, "Token refresh triggered"),
+						"500": createErrorResponse("Token refresh service not available or internal error"),
+					},
+				},
+			},
+			"/health/auth": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getOAuthHealth",
+					"summary":     "Get OAuth authentication health",
+					"description": "Get health status of all OAuth credentials. Background service refreshes tokens 35 minutes before expiry. API calls mark tokens expired 5 minutes before expiry. Health statuses: 'healthy' (tokens valid, >5min remaining), 'degraded' (some tokens within 5min of expiry but refreshable), 'unhealthy' (tokens expired without refresh capability)",
+					"tags":        []string{"Health", "Authentication"},
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"status": map[string]interface{}{
+									"type":        "string",
+									"description": "Overall health status",
+									"enum":        []string{"healthy", "degraded", "unhealthy"},
+									"example":     "healthy",
+								},
+								"providers": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"provider": map[string]interface{}{
+												"type":        "string",
+												"description": "Provider name",
+											},
+											"status": map[string]interface{}{
+												"type":        "string",
+												"description": "Token status",
+												"enum":        []string{"active", "expired", "expired_no_refresh", "error", "not_found"},
+											},
+											"expires_at": map[string]interface{}{
+												"type":        "string",
+												"format":      "date-time",
+												"description": "Token expiration time",
+											},
+											"expires_in": map[string]interface{}{
+												"type":        "string",
+												"description": "Human-readable time until expiration",
+												"example":     "2h30m15s",
+											},
+											"last_refresh": map[string]interface{}{
+												"type":        "string",
+												"format":      "date-time",
+												"description": "Last time token was refreshed",
+											},
+											"error": map[string]interface{}{
+												"type":        "string",
+												"description": "Error message if status is 'error'",
+											},
+										},
+										"required": []string{"provider", "status"},
+									},
+									"description": "Map of provider OAuth health status",
+								},
+								"timestamp": map[string]interface{}{
+									"type":        "string",
+									"format":      "date-time",
+									"description": "Health check timestamp",
+								},
+							},
+							"required": []string{"status", "providers", "timestamp"},
+						}, "OAuth health status"),
+						"500": createErrorResponse("Health check service not available or internal error"),
+					},
+				},
+			},
 			"/api/preferences": map[string]interface{}{
 				"get": map[string]interface{}{
 					"operationId":  "getPreferences",
@@ -1446,9 +1579,27 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "Unique session identifier",
 						},
+						"parentSessionId": map[string]interface{}{
+							"type":        "string",
+							"description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+						},
+						"parentToolCallId": map[string]interface{}{
+							"type":        "string",
+							"description": "ID of the tool call that spawned this subagent session (null for non-subagent sessions)",
+						},
 						"title": map[string]interface{}{
 							"type":        "string",
 							"description": "Session title",
+						},
+						"sessionType": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"main", "forked", "subagent"},
+							"description": "Session type:\n- 'main': Root-level user interactions\n- 'forked': User-created conversation branches\n- 'subagent': Delegated task workers",
+						},
+						"subagentType": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"general-purpose"},
+							"description": "Subagent specialization type (only present for subagent sessions)",
 						},
 						"userMessageCount": map[string]interface{}{
 							"type":        "integer",
@@ -1473,7 +1624,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"cost": map[string]interface{}{
 							"type":        "number",
 							"format":      "double",
-							"description": "Total cost of session",
+							"description": "Total cost of session (for subagent sessions, costs are also accumulated in parent session)",
 						},
 						"createdAt": map[string]interface{}{
 							"type":        "string",
@@ -1515,7 +1666,7 @@ func getOpenAPISpec() OpenAPISpec {
 							},
 						},
 					},
-					"required": []string{"id", "title", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
+					"required": []string{"id", "title", "sessionType", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
 				},
 				"MessageData": map[string]interface{}{
 					"type": "object",
@@ -1922,6 +2073,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "integer",
 											"description": "Maximum number of retry attempts",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"error"},
 								},
@@ -1963,6 +2118,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "integer",
 											"description": "Duration of reasoning process in milliseconds",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "done"},
 								},
@@ -1988,6 +2147,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "Thinking or reasoning content",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "content"},
 								},
@@ -2012,6 +2175,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"content": map[string]interface{}{
 											"type":        "string",
 											"description": "Streaming content delta",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "content"},
@@ -2050,6 +2217,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "Tool execution status",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "name", "input", "id", "status"},
 								},
@@ -2078,6 +2249,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"input": map[string]interface{}{
 											"type":        "string",
 											"description": "Partial JSON parameter delta - may not be parseable until complete",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolCallId", "input"},
@@ -2111,6 +2286,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"toolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "Tool call identifier",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolName", "progress", "toolCallId"},
@@ -2148,6 +2327,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"toolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "Tool call identifier",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolName", "progress", "success", "toolCallId"},
@@ -2198,6 +2381,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "object",
 											"description": "Additional parameters for the permission request",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "id", "sessionId", "toolName", "description", "action"},
 								},
@@ -2226,6 +2413,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"done": map[string]interface{}{
 											"type":        "boolean",
 											"description": "Indicates if summarization is complete",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "progress", "done"},

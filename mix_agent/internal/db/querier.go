@@ -42,9 +42,12 @@ type Querier interface {
 	HasAPICredential(ctx context.Context, provider string) (int64, error)
 	// Check if user has OAuth credential for a provider
 	HasOAuthCredential(ctx context.Context, provider string) (int64, error)
+	IncrementSessionCost(ctx context.Context, arg IncrementSessionCostParams) error
 	// List all API credentials for the user
 	ListAPICredentials(ctx context.Context) ([]ApiCredential, error)
-	// Get OAuth credentials that are expired or will expire soon (5 minute buffer)
+	// Get OAuth credentials that are expired or will expire soon (35 minute buffer)
+	// The 35-minute buffer ensures tokens are refreshed before they hit the 5-minute "truly expired" threshold
+	// With 30-minute background checks + 5-minute safety margin = zero downtime
 	ListExpiredOAuthCredentials(ctx context.Context) ([]OauthCredential, error)
 	ListFilesByPath(ctx context.Context, path string) ([]File, error)
 	ListFilesBySession(ctx context.Context, sessionID string) ([]File, error)

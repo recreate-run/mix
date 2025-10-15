@@ -11,6 +11,7 @@ import type {
 	SSEToolEvent,
 	SSEToolExecutionCompleteEvent,
 	SSEToolExecutionStartEvent,
+	SSEToolParameterDeltaEvent,
 } from "mix-typescript-sdk/models/sseeventstream";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CACHE_KEYS } from "@/lib/cache-keys";
@@ -156,6 +157,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "thinking": {
 							const thinkingEvent = event as SSEThinkingEvent;
 							const thinkingContent = thinkingEvent.data.content || "";
+							const parentToolCallId = thinkingEvent.data.parentToolCallId;
 
 							// Add to timeline
 							const thinkingEntry: TimelineEntry = {
@@ -163,6 +165,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								timestamp: Date.now(),
 								content: thinkingContent,
 								id: `thinking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+								parentToolCallId,
 							};
 
 							timelineRef.current = [...timelineRef.current, thinkingEntry];
@@ -179,26 +182,33 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "content": {
 							const contentEvent = event as SSEContentEvent;
 							const contentDelta = contentEvent.data.content || "";
+							const parentToolCallId = contentEvent.data.parentToolCallId;
 
 							// Find the last entry in timeline
 							const lastEntry =
 								timelineRef.current[timelineRef.current.length - 1];
 
-							// If the last entry is a content entry, append to it
-							if (lastEntry && lastEntry.type === "content") {
+							// Only accumulate content if it's from the same parent (or both have no parent)
+							if (
+								lastEntry &&
+								lastEntry.type === "content" &&
+								lastEntry.parentToolCallId === parentToolCallId
+							) {
 								const existingContent = lastEntry.content;
 								timelineRef.current[timelineRef.current.length - 1] = {
 									...lastEntry,
 									content: existingContent + contentDelta,
 									timestamp: Date.now(),
+									parentToolCallId, // Preserve the parentToolCallId
 								};
 							} else {
-								// Create new content entry
+								// Create new content entry (different parent or first content)
 								const contentEntry: TimelineEntry = {
 									type: "content",
 									timestamp: Date.now(),
 									content: contentDelta,
 									id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+									parentToolCallId,
 								};
 								timelineRef.current = [...timelineRef.current, contentEntry];
 							}
@@ -214,9 +224,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool_parameter_delta": {
 							// Handle real-time tool parameter streaming
-							const deltaEvent = event as any; // Will be properly typed when SDK regenerates
-							const toolCallId = deltaEvent.data?.toolCallId;
-							const inputDelta = deltaEvent.data?.input;
+							const deltaEvent = event as SSEToolParameterDeltaEvent;
+							const toolCallId = deltaEvent.data.toolCallId;
+							const inputDelta = deltaEvent.data.input;
 
 							// Validate required fields
 							if (!toolCallId || typeof toolCallId !== "string") {
@@ -299,6 +309,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool": {
 							const toolEvent = event as SSEToolEvent;
+							const parentToolCallId = toolEvent.data.parentToolCallId;
+
 							const toolCall: ToolCall = {
 								id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
 								name: toolEvent.data.name || "unknown",
@@ -360,6 +372,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 									timestamp: Date.now(),
 									content: toolCall,
 									id: toolCall.id,
+									parentToolCallId,
 								};
 								timelineRef.current = [...timelineRef.current, toolEntry];
 							}

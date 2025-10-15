@@ -16,6 +16,7 @@ make frontend-typecheck     # Always use this for frontend typechecking
 - Run `make` from the project's top-level directory. If it fails, you probably weren't there.
 - You MUST check the tail-log after finishing each task
 - ALWAYS update mix_agent/internal/http/rest_docs.go when modifying any backend API endpoints, request/response schemas, or validation rules
+- Before writing database migrations, ALWAYS search for tool-specific patterns first (e.g., "goose sqlite foreign key") - don't write migrations based on general SQL knowledge alone
 
 ## Architecture
 
@@ -26,6 +27,7 @@ make frontend-typecheck     # Always use this for frontend typechecking
 
 - ALWAYS use TanStack Query for data fetching
 - ALWAYS use uv for Python package management and virtual environments
+- Database query generation: Uses sqlc v1.29.0 (pinned in go.mod). Run `make sqlc-generate` after modifying SQL queries in `mix_agent/internal/db/sql/`
 
 ## Code style
 

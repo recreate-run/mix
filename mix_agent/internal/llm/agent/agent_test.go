@@ -29,7 +29,7 @@ func CreateTestAgent(t *testing.T, mockSessions *session.MockService, mockMessag
 	accumulator := NewMessageAccumulator(mockMessages)
 
 	return &agent{
-		Broker:            pubsub.NewBroker[AgentEvent](),
+		broker:            pubsub.NewBroker[AgentEvent](),
 		agentName:         config.AgentMain,
 		provider:          mockProvider,
 		messages:          mockMessages,
