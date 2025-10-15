@@ -1,60 +1,12 @@
 import type { Attachment } from "@/stores/attachmentSlice";
-import {
-	getAudioExtensions,
-	getFileType,
-	getImageExtensions,
-	getVideoExtensions,
-	type SupportedFileTypes,
-} from "@/utils/fileTypes";
-import { PlatformFeatures } from "@/utils/platform";
+import { getFileType, type SupportedFileTypes } from "@/utils/fileTypes";
 
 // Helper function for folder attachment creation
 const countMediaFilesInFolder = async (
-	folderPath: string,
-	supportedTypes?: SupportedFileTypes,
+	_folderPath: string,
+	_supportedTypes?: SupportedFileTypes,
 ): Promise<{ images: number; videos: number; audios: number }> => {
-	// Browser: File system access not available
-	if (!PlatformFeatures.hasFileSystemAccess()) {
-		console.warn(
-			"Folder operations are only available in desktop app:",
-			folderPath,
-		);
-		return { images: 0, videos: 0, audios: 0 };
-	}
-
-	try {
-		// Desktop: Use Tauri file system access
-		const { readDir } = await import("@tauri-apps/plugin-fs");
-		const entries = await readDir(folderPath);
-		let images = 0,
-			videos = 0,
-			audios = 0;
-
-		// Return zeros if file types not loaded yet
-		if (!supportedTypes) {
-			return { images: 0, videos: 0, audios: 0 };
-		}
-
-		const imageExts = getImageExtensions(supportedTypes);
-		const videoExts = getVideoExtensions(supportedTypes);
-		const audioExts = getAudioExtensions(supportedTypes);
-
-		for (const entry of entries) {
-			if (entry.isFile) {
-				const extension = entry.name.split(".").pop()?.toLowerCase();
-				if (extension) {
-					if (imageExts.includes(extension)) images++;
-					else if (videoExts.includes(extension)) videos++;
-					else if (audioExts.includes(extension)) audios++;
-				}
-			}
-		}
-
-		return { images, videos, audios };
-	} catch (error) {
-		console.warn("Failed to count media files in folder:", folderPath, error);
-		return { images: 0, videos: 0, audios: 0 };
-	}
+	return { images: 0, videos: 0, audios: 0 };
 };
 
 // Attachment creation utilities

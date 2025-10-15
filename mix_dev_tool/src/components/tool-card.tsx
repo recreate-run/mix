@@ -1,10 +1,8 @@
 import { Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useDeleteCredentials, useStoreCredentials } from "@/hooks/useTools";
 
 interface ToolInfo {
@@ -51,50 +49,41 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
 
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="pb-3">
 				<div className="flex items-center gap-2">
 					{icon}
-					<CardTitle>{categoryDisplayName}</CardTitle>
+					<CardTitle className="text-base">{categoryDisplayName}</CardTitle>
 				</div>
 			</CardHeader>
-			<CardContent className="space-y-4">
+			<CardContent className="divide-y">
 				{tools.length > 0 ? (
 					tools.map((tool) => (
-						<div className="rounded-lg border p-4" key={tool.provider}>
+						<div className="py-3 first:pt-0" key={tool.provider}>
 							<div className="flex items-start justify-between">
 								<div>
-									<p className="font-medium">{tool.displayName}</p>
-									<div className="mt-2 flex items-center gap-2">
-										{tool.authenticated ? (
-											<Badge
-												className="border-green-600 text-green-600 text-xs"
-												variant="outline"
-											>
-												✓ Configured
-											</Badge>
-										) : (
-											<Badge
-												className="text-muted-foreground text-xs"
-												variant="outline"
-											>
-												Requires setup
-											</Badge>
+									<div className="flex items-center gap-2">
+										<p className="font-medium text-sm">{tool.displayName}</p>
+										{tool.authenticated && (
+											<span className="flex items-center gap-1 text-[11px] text-green-600">
+												<span className="h-1.5 w-1.5 rounded-full bg-green-600" />
+												Configured
+											</span>
 										)}
 									</div>
 								</div>
 
 								{tool.authenticated && (
 									<Button
-										className="flex items-center gap-2"
 										disabled={deleteCredentials.isPending}
 										onClick={() => handleDeleteCredentials(tool.provider)}
 										size="sm"
-										variant="outline"
+										variant="ghost"
+										className="text-muted-foreground hover:text-foreground"
 									>
 										{deleteCredentials.isPending ? (
-											<Loader2 className="h-4 w-4 animate-spin" />
+											<Loader2 className="h-4 w-4 animate-spin mr-1.5" />
 										) : (
-											<Trash2 className="h-4 w-4" />
+											<Trash2 className="h-4 w-4 mr-1.5" />
 										)}
 										Remove
 									</Button>
@@ -102,43 +91,32 @@ export function ToolCard({ categoryDisplayName, icon, tools }: ToolCardProps) {
 							</div>
 
 							{!tool.authenticated && tool.apiKeyRequired && (
-								<div className="mt-4 space-y-3">
-									<div className="space-y-2">
-										<Label
-											className="font-medium text-sm"
-											htmlFor={`${tool.provider}-api-key`}
-										>
-											API Key
-										</Label>
-										<div className="flex gap-2">
-											<Input
-												className="flex-1"
-												disabled={storeCredentials.isPending}
-												id={`${tool.provider}-api-key`}
-												onChange={(e) =>
-													handleApiKeyChange(tool.provider, e.target.value)
-												}
-												placeholder={`Enter your ${tool.displayName} API key...`}
-												type="password"
-												value={apiKeys[tool.provider] || ""}
-											/>
-											<Button
-												className="flex items-center gap-2"
-												disabled={
-													storeCredentials.isPending ||
-													!apiKeys[tool.provider]?.trim()
-												}
-												onClick={() => handleStoreApiKey(tool.provider)}
-												size="sm"
-											>
-												{storeCredentials.isPending ? (
-													<Loader2 className="h-4 w-4 animate-spin" />
-												) : (
-													"Configure"
-												)}
-											</Button>
-										</div>
-									</div>
+								<div className="mt-2.5 flex gap-2">
+									<Input
+										className="flex-1"
+										disabled={storeCredentials.isPending}
+										id={`${tool.provider}-api-key`}
+										onChange={(e) =>
+											handleApiKeyChange(tool.provider, e.target.value)
+										}
+										placeholder={`Enter your ${tool.displayName} API key...`}
+										type="password"
+										value={apiKeys[tool.provider] || ""}
+									/>
+									<Button
+										disabled={
+											storeCredentials.isPending ||
+											!apiKeys[tool.provider]?.trim()
+										}
+										onClick={() => handleStoreApiKey(tool.provider)}
+										size="sm"
+									>
+										{storeCredentials.isPending ? (
+											<Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+										) : (
+											"Configure"
+										)}
+									</Button>
 								</div>
 							)}
 						</div>
