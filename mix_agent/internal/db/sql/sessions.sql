@@ -2,9 +2,12 @@
 INSERT INTO sessions (
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -20,15 +23,21 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
+    ?,
+    ?,
+    ?,
     null,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -40,9 +49,12 @@ INSERT INTO sessions (
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -66,9 +78,12 @@ WHERE s.id = ? LIMIT 1;
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -92,9 +107,12 @@ ORDER BY s.created_at DESC;
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
+    s.session_type,
+    s.subagent_type,
     s.prompt_tokens,
     s.completion_tokens,
     s.cost,
@@ -138,9 +156,12 @@ WHERE id = ?
 RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
+    session_type,
+    subagent_type,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -148,6 +169,11 @@ RETURNING
     updated_at,
     summary_message_id;
 
+-- name: IncrementSessionCost :exec
+UPDATE sessions
+SET cost = cost + ?,
+    updated_at = strftime('%s', 'now')
+WHERE id = ?;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions

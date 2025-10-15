@@ -1197,6 +1197,18 @@
       "get": {
         "description": "Retrieve a list of all available sessions with their metadata",
         "operationId": "listSessions",
+        "parameters": [
+          {
+            "description": "Include subagent sessions in response (default: false, subagent sessions are hidden)",
+            "in": "query",
+            "name": "includeSubagents",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1262,6 +1274,20 @@
                     "example": "append",
                     "type": "string"
                   },
+                  "sessionType": {
+                    "default": "main",
+                    "description": "Session type. API can only create 'main' sessions. Forked sessions are created via /fork endpoint. Subagent sessions are created automatically by the task delegation system.",
+                    "enum": [
+                      "main"
+                    ],
+                    "example": "main",
+                    "type": "string"
+                  },
+                  "subagentType": {
+                    "description": "Subagent type - must not be set for API-created sessions. This field is reserved for programmatic subagent creation.",
+                    "example": "",
+                    "type": "string"
+                  },
                   "title": {
                     "description": "Title for the session",
                     "type": "string"
@@ -1301,6 +1327,16 @@
                       }
                     }
                   },
+                  "invalid_session_type": {
+                    "summary": "Invalid session type",
+                    "value": {
+                      "error": {
+                        "code": 400,
+                        "message": "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.",
+                        "type": "validation_error"
+                      }
+                    }
+                  },
                   "missing_title": {
                     "summary": "Missing required title",
                     "value": {
@@ -1327,6 +1363,16 @@
                       "error": {
                         "code": 400,
                         "message": "Custom prompt size (150KB) exceeds replace mode limit of 100KB",
+                        "type": "validation_error"
+                      }
+                    }
+                  },
+                  "subagent_type_not_allowed": {
+                    "summary": "Subagent type not allowed for API-created sessions",
+                    "value": {
+                      "error": {
+                        "code": 400,
+                        "message": "subagentType cannot be set for API-created sessions. Subagent sessions are created programmatically by the task delegation system.",
                         "type": "validation_error"
                       }
                     }
@@ -2254,7 +2300,7 @@
     },
     "/health/auth": {
       "get": {
-        "description": "Get health status of all OAuth credentials including expiry information. Health statuses: 'healthy' (all tokens valid), 'degraded' (some tokens expired but refreshable), 'unhealthy' (tokens expired without refresh capability)",
+        "description": "Get health status of all OAuth credentials. Background service refreshes tokens 35 minutes before expiry. API calls mark tokens expired 5 minutes before expiry. Health statuses: 'healthy' (tokens valid, >5min remaining), 'degraded' (some tokens within 5min of expiry but refreshable), 'unhealthy' (tokens expired without refresh capability)",
         "operationId": "getOAuthHealth",
         "responses": {
           "200": {
@@ -2883,6 +2929,10 @@
                     "description": "Completed message identifier",
                     "type": "string"
                   },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "reasoning": {
                     "description": "Optional reasoning content",
                     "type": "string"
@@ -2950,6 +3000,10 @@
                     "description": "Streaming content delta",
                     "type": "string"
                   },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "type": {
                     "description": "Content event type",
                     "type": "string"
@@ -2989,6 +3043,10 @@
                   "maxAttempts": {
                     "description": "Maximum number of retry attempts",
                     "type": "integer"
+                  },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
                   },
                   "retryAfter": {
                     "description": "Milliseconds to wait before retry",
@@ -3132,6 +3190,10 @@
                     "description": "Additional parameters for the permission request",
                     "type": "object"
                   },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "path": {
                     "description": "File path for permission request",
                     "type": "string"
@@ -3257,6 +3319,10 @@
                     "description": "Indicates if summarization is complete",
                     "type": "boolean"
                   },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "progress": {
                     "description": "Summarization progress description",
                     "type": "string"
@@ -3292,6 +3358,10 @@
                 "properties": {
                   "content": {
                     "description": "Thinking or reasoning content",
+                    "type": "string"
+                  },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
                     "type": "string"
                   },
                   "type": {
@@ -3334,6 +3404,10 @@
                     "$ref": "#/components/schemas/ToolName",
                     "description": "Tool name being executed"
                   },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "status": {
                     "description": "Tool execution status",
                     "type": "string"
@@ -3369,6 +3443,10 @@
             "properties": {
               "data": {
                 "properties": {
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "progress": {
                     "description": "Final execution progress description",
                     "type": "string"
@@ -3416,6 +3494,10 @@
             "properties": {
               "data": {
                 "properties": {
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "progress": {
                     "description": "Execution progress description",
                     "type": "string"
@@ -3462,6 +3544,10 @@
                     "description": "Partial JSON parameter delta - may not be parseable until complete",
                     "type": "string"
                   },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
                   "toolCallId": {
                     "description": "Tool call identifier for correlation",
                     "type": "string"
@@ -3497,7 +3583,7 @@
             "type": "integer"
           },
           "cost": {
-            "description": "Total cost of session",
+            "description": "Total cost of session (for subagent sessions, costs are also accumulated in parent session)",
             "format": "double",
             "type": "number"
           },
@@ -3514,9 +3600,33 @@
             "description": "Unique session identifier",
             "type": "string"
           },
+          "parentSessionId": {
+            "description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+            "type": "string"
+          },
+          "parentToolCallId": {
+            "description": "ID of the tool call that spawned this subagent session (null for non-subagent sessions)",
+            "type": "string"
+          },
           "promptTokens": {
             "description": "Total prompt tokens used",
             "type": "integer"
+          },
+          "sessionType": {
+            "description": "Session type:\n- 'main': Root-level user interactions\n- 'forked': User-created conversation branches\n- 'subagent': Delegated task workers",
+            "enum": [
+              "main",
+              "forked",
+              "subagent"
+            ],
+            "type": "string"
+          },
+          "subagentType": {
+            "description": "Subagent specialization type (only present for subagent sessions)",
+            "enum": [
+              "general-purpose"
+            ],
+            "type": "string"
           },
           "title": {
             "description": "Session title",
@@ -3534,6 +3644,7 @@
         "required": [
           "id",
           "title",
+          "sessionType",
           "userMessageCount",
           "assistantMessageCount",
           "toolCallCount",

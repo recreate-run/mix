@@ -92,20 +92,3 @@ export function trackSlashCommand(
 		console.error("Failed to track slash command:", error);
 	}
 }
-
-/**
- * Track general UI events (frontend-specific)
- */
-export function trackUIEvent(
-	eventName: string,
-	properties?: Record<string, string | number | boolean | null>,
-) {
-	try {
-		posthog.capture(eventName, {
-			timestamp: new Date().toISOString(),
-			...properties,
-		});
-	} catch (error) {
-		console.error("Failed to track UI event:", error);
-	}
-}

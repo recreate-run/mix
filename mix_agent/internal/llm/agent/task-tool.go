@@ -15,6 +15,7 @@ type taskTool struct {
 	sessions    session.Service
 	messages    message.Service
 	permissions permission.Service
+	agent       Service // Parent agent for re-publishing subagent events
 }
 
 const (
@@ -35,13 +36,12 @@ func (b *taskTool) getToolsForSubagentType(subagentType string) []tools.BaseTool
 			tools.NewGlobTool(),
 			tools.NewGrepTool(b.permissions),
 			tools.NewReadTextTool(),
-			tools.NewEditTool(b.permissions, nil), // history not needed for sub-agents
+			tools.NewEditTool(b.permissions, nil),  // history not needed for sub-agents
 			tools.NewWriteTool(b.permissions, nil), // history not needed for sub-agents
 			tools.NewWebFetchTool(b.permissions),
 			tools.NewWebSearchTool(b.permissions),
 			tools.NewReadMediaTool(),
 			tools.NewTodoWriteTool(),
-			NewTaskTool(b.sessions, b.messages, b.permissions),
 		}
 	default:
 		// Default to limited read-only tools for safety
@@ -92,27 +92,24 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 
 	agentTools := b.getToolsForSubagentType(params.SubagentType)
-	agent, err := NewAgent("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), b.permissions)
+	// Use parent agent's broker so subagent events are published to the same broker
+	parentBroker := b.agent.GetBroker()
+	agent, err := NewAgentWithBroker("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), parentBroker, b.permissions)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}
 	defer agent.Shutdown()
 
-	// Use suppress-publish context to prevent SSE broadcasting of internal sub-agent session
-	suppressCtx := session.WithSuppressPublish(ctx)
-	session, err := b.sessions.Create(suppressCtx, "New Agent Session", "", "default")
+	// Create subagent session with parent tool call ID for persistent UI nesting
+	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, call.ID)
 	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
+		return tools.ToolResponse{}, fmt.Errorf("error creating session for tool call %s: %w", call.ID, err)
 	}
 
-	// Clean up the temporary sub-agent session even if errors occur
-	defer func() {
-		if err := b.sessions.Delete(suppressCtx, session.ID); err != nil {
-			fmt.Printf("[TASK TOOL] Warning: failed to delete sub-agent session %s: %v\n", session.ID, err)
-		}
-	}()
+	// Wrap context with tool call ID for runtime event tracking
+	toolCtx := withToolContext(ctx, call.ID)
 
-	done, err := agent.Run(ctx, session.ID, params.Prompt)
+	done, err := agent.Run(toolCtx, subSession.ID, params.Prompt)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error generating agent: %s", err)
 	}
@@ -147,33 +144,23 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	content := response.Content().String()
 
 	// Log the final output returned by the sub-agent
-	previewLen := 100
-	if len(content) < previewLen {
-		previewLen = len(content)
-	}
-	preview := content
-	if len(content) > previewLen {
-		preview = content[:previewLen] + "..."
-	}
-	fmt.Printf("[TASK TOOL] Sub-agent returned %d characters: %q\n", len(content), preview)
-
-	updatedSession, err := b.sessions.Get(ctx, session.ID)
+	updatedSubSession, err := b.sessions.Get(ctx, subSession.ID)
 	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error getting session: %s", err)
-	}
-	parentSession, err := b.sessions.Get(ctx, sessionID)
-	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error getting parent session: %s", err)
+		return tools.ToolResponse{}, fmt.Errorf("error getting subagent session: %s", err)
 	}
 
-	parentSession.Cost += updatedSession.Cost
-
-	_, err = b.sessions.Save(ctx, parentSession)
-	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error saving parent session: %s", err)
+	// Verify parent session exists before incrementing cost
+	// This prevents silent failures if parent was deleted during subagent execution
+	if _, err := b.sessions.Get(ctx, sessionID); err != nil {
+		return tools.ToolResponse{}, fmt.Errorf("parent session %s not found during cost rollup: %w", sessionID, err)
 	}
 
-	// Session cleanup handled by defer at function start
+	// Atomically increment parent session cost to avoid race conditions
+	// when multiple subagents complete simultaneously
+	if err := b.sessions.IncrementCost(ctx, sessionID, updatedSubSession.Cost); err != nil {
+		return tools.ToolResponse{}, fmt.Errorf("failed to increment parent session %s cost: %w", sessionID, err)
+	}
+
 	return tools.NewTextResponse(content), nil
 }
 
@@ -187,4 +174,10 @@ func NewTaskTool(
 		messages:    Messages,
 		permissions: Permissions,
 	}
+}
+
+// SetAgent injects the parent agent reference after tool creation
+// This resolves the circular dependency where tools need the agent but agent needs tools
+func (b *taskTool) SetAgent(agent Service) {
+	b.agent = agent
 }

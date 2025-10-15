@@ -90,6 +90,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.hasOAuthCredentialStmt, err = db.PrepareContext(ctx, hasOAuthCredential); err != nil {
 		return nil, fmt.Errorf("error preparing query HasOAuthCredential: %w", err)
 	}
+	if q.incrementSessionCostStmt, err = db.PrepareContext(ctx, incrementSessionCost); err != nil {
+		return nil, fmt.Errorf("error preparing query IncrementSessionCost: %w", err)
+	}
 	if q.listAPICredentialsStmt, err = db.PrepareContext(ctx, listAPICredentials); err != nil {
 		return nil, fmt.Errorf("error preparing query ListAPICredentials: %w", err)
 	}
@@ -274,6 +277,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing hasOAuthCredentialStmt: %w", cerr)
 		}
 	}
+	if q.incrementSessionCostStmt != nil {
+		if cerr := q.incrementSessionCostStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing incrementSessionCostStmt: %w", cerr)
+		}
+	}
 	if q.listAPICredentialsStmt != nil {
 		if cerr := q.listAPICredentialsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listAPICredentialsStmt: %w", cerr)
@@ -450,6 +458,7 @@ type Queries struct {
 	getUserPreferencesStmt             *sql.Stmt
 	hasAPICredentialStmt               *sql.Stmt
 	hasOAuthCredentialStmt             *sql.Stmt
+	incrementSessionCostStmt           *sql.Stmt
 	listAPICredentialsStmt             *sql.Stmt
 	listExpiredOAuthCredentialsStmt    *sql.Stmt
 	listFilesByPathStmt                *sql.Stmt
@@ -501,6 +510,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getUserPreferencesStmt:             q.getUserPreferencesStmt,
 		hasAPICredentialStmt:               q.hasAPICredentialStmt,
 		hasOAuthCredentialStmt:             q.hasOAuthCredentialStmt,
+		incrementSessionCostStmt:           q.incrementSessionCostStmt,
 		listAPICredentialsStmt:             q.listAPICredentialsStmt,
 		listExpiredOAuthCredentialsStmt:    q.listExpiredOAuthCredentialsStmt,
 		listFilesByPathStmt:                q.listFilesByPathStmt,

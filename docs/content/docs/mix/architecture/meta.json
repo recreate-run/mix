@@ -1,0 +1,11 @@
+{
+	"title": "Architecture",
+	"pages": [
+		"architecture-overview",
+		"session-management",
+		"event-streaming",
+		"storage-architecture",
+		"concurrency-architecture",
+		"design-decisions"
+	]
+}
