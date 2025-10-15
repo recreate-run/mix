@@ -1,4 +1,4 @@
-import { IconLogin, IconLogout, IconServer } from "@tabler/icons-react";
+import { IconLogin, IconLogout } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Loader2, Search, Settings } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { OAuthCodeDialog } from "@/components/oauth-code-dialog";
 import { ProvidersLoadingSkeleton } from "@/components/provider-skeleton";
 import { ToolCard } from "@/components/tool-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -149,47 +148,26 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 					const authUrl = result.content.match(/https?:\/\/[^\s]+/)?.[0];
 					if (authUrl) {
 						try {
-							const { open: shellOpen } = await import(
-								"@tauri-apps/plugin-shell"
-							);
-							await shellOpen(authUrl);
+							window.open(authUrl, "_blank", "width=600,height=800");
 							toast.info(
-								"OAuth browser opened. Please complete authentication in the browser.",
+								"OAuth window opened. Please complete authentication.",
 							);
 
-							// Show OAuth code dialog after opening browser
+							// Show OAuth code dialog
 							setOauthCodeDialog({
 								open: true,
 								provider: providerId,
 								oauthState: result.loginData.oauthState,
 							});
-						} catch (shellError) {
-							console.warn(
-								"Tauri shell failed, falling back to window.open:",
-								shellError,
+						} catch (windowError) {
+							console.error(
+								"Failed to open OAuth browser:",
+								windowError,
 							);
-							try {
-								window.open(authUrl, "_blank", "width=600,height=800");
-								toast.info(
-									"OAuth window opened. Please complete authentication in the new window.",
-								);
-
-								// Show OAuth code dialog after opening browser
-								setOauthCodeDialog({
-									open: true,
-									provider: providerId,
-									oauthState: result.loginData.oauthState,
-								});
-							} catch (windowError) {
-								console.error(
-									"Both browser opening methods failed:",
-									windowError,
-								);
-								toast.error(
-									"Failed to open OAuth browser. Please copy this URL manually: " +
-										authUrl,
-								);
-							}
+							toast.error(
+								"Failed to open OAuth browser. Please copy this URL manually: " +
+									authUrl,
+							);
 						}
 					}
 				} else {
@@ -228,19 +206,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 							<Settings className="h-5 w-5" />
 							Settings
 						</DialogTitle>
-						<DialogDescription>
+						<DialogDescription className="text-xs">
 							Manage your providers, tools, and authentication settings.
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="max-h-[60vh] min-h-[500px] space-y-6 overflow-y-auto">
+					<div className="max-h-[60vh] min-h-[500px] space-y-5 overflow-y-auto">
 						{/* Providers Section */}
 						<Card>
-							<CardHeader>
-								<div className="flex items-center gap-2">
-									<IconServer className="h-5 w-5" />
-									<CardTitle>AI Providers</CardTitle>
-								</div>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-base">AI Providers</CardTitle>
 							</CardHeader>
 							<CardContent>
 								{loadingProviders ? (
@@ -252,55 +227,43 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 										</p>
 									</div>
 								) : (
-									<div className="space-y-3">
+									<div className="divide-y">
 										{allProviders.map((provider) => (
-											<div className="rounded-lg border p-4" key={provider.id}>
+											<div className="py-3 first:pt-0" key={provider.id}>
 												<div className="flex items-center justify-between">
 													<div>
-														<p className="font-medium">
-															{provider.displayName}
-														</p>
-														<div className="mt-1 flex items-center gap-2">
-															{provider.authenticated ? (
+														<div className="flex items-center gap-2">
+															<p className="font-medium text-sm">
+																{provider.displayName}
+															</p>
+															{provider.authenticated && (
 																<>
-																	<Badge
-																		className="border-green-600 text-green-600 text-xs"
-																		variant="outline"
-																	>
-																		✓ Authenticated
-																	</Badge>
+																	<span className="flex items-center gap-1 text-[11px] text-green-600">
+																		<span className="h-1.5 w-1.5 rounded-full bg-green-600" />
+																		Authenticated
+																	</span>
 																	{provider.isPreferred && (
-																		<Badge
-																			className="text-xs"
-																			variant="default"
-																		>
-																			Preferred
-																		</Badge>
+																		<span className="text-[11px] text-muted-foreground">
+																			· Preferred
+																		</span>
 																	)}
 																</>
-															) : (
-																<Badge
-																	className="text-muted-foreground text-xs"
-																	variant="outline"
-																>
-																	Not authenticated
-																</Badge>
 															)}
 														</div>
 													</div>
 
 													{provider.authenticated ? (
 														<Button
-															className="flex items-center gap-2"
 															disabled={!!loggingOutProvider}
 															onClick={() => handleProviderLogout(provider.id)}
 															size="sm"
-															variant="outline"
+															variant="ghost"
+															className="text-muted-foreground hover:text-foreground"
 														>
 															{loggingOutProvider === provider.id ? (
-																<Loader2 className="h-4 w-4 animate-spin" />
+																<Loader2 className="h-4 w-4 animate-spin mr-1.5" />
 															) : (
-																<IconLogout className="h-4 w-4" />
+																<IconLogout className="h-4 w-4 mr-1.5" />
 															)}
 															Logout
 														</Button>
@@ -308,126 +271,104 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 												</div>
 
 												{!provider.authenticated && (
-													<div className="mt-4 space-y-3">
+													<div className="mt-2.5 space-y-2.5">
 														{/* Authentication method selection */}
 														{provider.authMethods.length > 1 && (
-															<div>
-																<Label className="font-medium text-sm">
-																	Authentication Method
-																</Label>
-																<RadioGroup
-																	className="mt-2 flex gap-6"
-																	onValueChange={(value: string) =>
-																		handleAuthMethodChange(
-																			provider.id,
-																			value as "api_key" | "oauth",
-																		)
-																	}
-																	value={
-																		selectedAuthMethod[provider.id] ||
-																		provider.authMethods[0]
-																	}
-																>
-																	{provider.authMethods.includes("api_key") && (
-																		<div className="flex items-center space-x-2">
-																			<RadioGroupItem
-																				id={`${provider.id}-api-key`}
-																				value="api_key"
-																			/>
-																			<Label
-																				className="text-sm"
-																				htmlFor={`${provider.id}-api-key`}
-																			>
-																				API Key
-																			</Label>
-																		</div>
-																	)}
-																	{provider.authMethods.includes("oauth") && (
-																		<div className="flex items-center space-x-2">
-																			<RadioGroupItem
-																				id={`${provider.id}-oauth`}
-																				value="oauth"
-																			/>
-																			<Label
-																				className="text-sm"
-																				htmlFor={`${provider.id}-oauth`}
-																			>
-																				OAuth
-																			</Label>
-																		</div>
-																	)}
-																</RadioGroup>
-															</div>
+															<RadioGroup
+																className="flex gap-6"
+																onValueChange={(value: string) =>
+																	handleAuthMethodChange(
+																		provider.id,
+																		value as "api_key" | "oauth",
+																	)
+																}
+																value={
+																	selectedAuthMethod[provider.id] ||
+																	provider.authMethods[0]
+																}
+															>
+																{provider.authMethods.includes("api_key") && (
+																	<div className="flex items-center space-x-2">
+																		<RadioGroupItem
+																			id={`${provider.id}-api-key`}
+																			value="api_key"
+																		/>
+																		<Label
+																			className="text-sm"
+																			htmlFor={`${provider.id}-api-key`}
+																		>
+																			API Key
+																		</Label>
+																	</div>
+																)}
+																{provider.authMethods.includes("oauth") && (
+																	<div className="flex items-center space-x-2">
+																		<RadioGroupItem
+																			id={`${provider.id}-oauth`}
+																			value="oauth"
+																		/>
+																		<Label
+																			className="text-sm"
+																			htmlFor={`${provider.id}-oauth`}
+																		>
+																			OAuth
+																		</Label>
+																	</div>
+																)}
+															</RadioGroup>
 														)}
 
 														{/* API Key input or OAuth button */}
 														<div>
 															{(selectedAuthMethod[provider.id] ||
 																provider.authMethods[0]) === "api_key" ? (
-																<div className="space-y-2">
-																	<Label
-																		className="font-medium text-sm"
-																		htmlFor={`${provider.id}-key`}
-																	>
-																		API Key{" "}
-																		{provider.apiKeyFormat && (
-																			<span className="text-muted-foreground text-xs">
-																				({provider.apiKeyFormat})
-																			</span>
-																		)}
-																	</Label>
-																	<div className="flex gap-2">
-																		<Input
-																			className="flex-1"
-																			disabled={loginInProgress[provider.id]}
-																			id={`${provider.id}-key`}
-																			onChange={(e) =>
-																				handleApiKeyChange(
-																					provider.id,
-																					e.target.value,
-																				)
-																			}
-																			placeholder={
-																				provider.apiKeyFormat ||
-																				"Enter API key..."
-																			}
-																			type="password"
-																			value={apiKeys[provider.id] || ""}
-																		/>
-																		<Button
-																			className="flex items-center gap-2"
-																			disabled={
-																				loginInProgress[provider.id] ||
-																				!apiKeys[provider.id]?.trim()
-																			}
-																			onClick={() => handleLogin(provider.id)}
-																			size="sm"
-																		>
-																			{loginInProgress[provider.id] ? (
-																				<Loader2 className="h-4 w-4 animate-spin" />
-																			) : (
-																				<IconLogin className="h-4 w-4" />
-																			)}
-																			Login
-																		</Button>
-																	</div>
-																</div>
-															) : (
-																<div>
-																	<Button
-																		className="flex items-center gap-2"
+																<div className="flex gap-2">
+																	<Input
+																		className="flex-1"
 																		disabled={loginInProgress[provider.id]}
+																		id={`${provider.id}-key`}
+																		onChange={(e) =>
+																			handleApiKeyChange(
+																				provider.id,
+																				e.target.value,
+																			)
+																		}
+																		placeholder={
+																			provider.apiKeyFormat ||
+																			"Enter your API key..."
+																		}
+																		type="password"
+																		value={apiKeys[provider.id] || ""}
+																	/>
+																	<Button
+																		disabled={
+																			loginInProgress[provider.id] ||
+																			!apiKeys[provider.id]?.trim()
+																		}
 																		onClick={() => handleLogin(provider.id)}
 																		size="sm"
 																	>
 																		{loginInProgress[provider.id] ? (
-																			<Loader2 className="h-4 w-4 animate-spin" />
+																			<Loader2 className="h-4 w-4 animate-spin mr-1.5" />
 																		) : (
-																			<IconLogin className="h-4 w-4" />
+																			<IconLogin className="h-4 w-4 mr-1.5" />
 																		)}
-																		Connect with OAuth
+																		Login
 																	</Button>
 																</div>
+															) : (
+																<Button
+																	disabled={loginInProgress[provider.id]}
+																	onClick={() => handleLogin(provider.id)}
+																	size="sm"
+																>
+																	{loginInProgress[provider.id] ? (
+																		<Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+																	) : (
+																		<IconLogin className="h-4 w-4 mr-1.5" />
+																	)}
+																	Connect with OAuth
+																</Button>
 															)}
 														</div>
 													</div>
@@ -440,10 +381,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 						</Card>
 
 						{/* Tools & Agents Section */}
-						<div className="space-y-4">
-							<div className="flex items-center gap-2">
-								<h3 className="font-semibold text-lg">Tools & Subagents</h3>
-							</div>
+						<div className="space-y-3">
+							<h3 className="font-semibold text-base">Tools & Subagents</h3>
 
 							{!loadingTools &&
 								toolsStatus?.categories &&

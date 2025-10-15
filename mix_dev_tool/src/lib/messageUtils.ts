@@ -4,11 +4,7 @@ import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall, ToolCallData } from "@/types/common";
 import type { MediaOutput } from "@/types/media";
 import type { TimelineEntry, UIMessage } from "@/types/message";
-import {
-	createFileAttachment,
-	createFolderAttachment,
-} from "@/utils/attachmentUtils";
-import { PlatformFeatures } from "@/utils/platform";
+import { createFileAttachment } from "@/utils/attachmentUtils";
 
 interface ParsedContent {
 	text: string;
@@ -64,25 +60,8 @@ const convertMediaToAttachments = async (
 				// Create attachment with just the filename as path
 				attachment = createFileAttachment(filename);
 			} else {
-				// Handle local file paths (during upload)
-				if (PlatformFeatures.hasFileSystemAccess()) {
-					// Desktop: Check if directory using stat
-					try {
-						const { stat } = await import("@tauri-apps/plugin-fs");
-						const fileStat = await stat(mediaPath);
-						if (fileStat.isDirectory) {
-							attachment = await createFolderAttachment(mediaPath);
-						} else {
-							attachment = createFileAttachment(mediaPath);
-						}
-					} catch (_statError) {
-						// If stat fails, try to create as file based on file extension
-						attachment = createFileAttachment(mediaPath);
-					}
-				} else {
-					// Browser: Treat as file (folders not supported)
-					attachment = createFileAttachment(mediaPath);
-				}
+				// Treat as file
+				attachment = createFileAttachment(mediaPath);
 			}
 
 			if (attachment) {
