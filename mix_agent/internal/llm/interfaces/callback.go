@@ -13,22 +13,22 @@ const (
 // CallbackConfig defines configuration for a tool callback
 type CallbackConfig struct {
 	// Tool to attach callback to (e.g., "show_media", "bash", "*" for all tools)
-	ToolName string `json:"tool_name"`
+	ToolName string `json:"toolName"`
 
 	// Type of callback (bash_script or sub_agent)
 	Type CallbackType `json:"type"`
 
 	// For bash_script type
-	BashCommand string `json:"bash_command,omitempty"`
-	BashTimeout int    `json:"bash_timeout,omitempty"` // milliseconds
+	BashCommand string `json:"bashCommand,omitempty"`
+	BashTimeout int    `json:"bashTimeout,omitempty"` // milliseconds
 
 	// For sub_agent type
-	SubAgentPrompt     string `json:"sub_agent_prompt,omitempty"`
-	SubAgentType       string `json:"sub_agent_type,omitempty"`
-	IncludeFullHistory bool   `json:"include_full_history,omitempty"`
+	SubAgentPrompt     string `json:"subAgentPrompt,omitempty"`
+	SubAgentType       string `json:"subAgentType,omitempty"`
+	IncludeFullHistory bool   `json:"includeFullHistory,omitempty"`
 
 	// Common options
-	NonBlocking bool `json:"non_blocking,omitempty"` // Run async without waiting
+	NonBlocking bool `json:"nonBlocking,omitempty"` // Run async without waiting
 }
 
 // CallbackContext provides context for callback execution

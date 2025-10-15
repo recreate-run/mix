@@ -151,11 +151,16 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 		// 2. Get session-level callbacks (from client configuration)
 		sessionCallbacks, err := a.getSessionCallbacks(ctx, sessionID, toolCall.Name)
 		if err != nil {
-			logging.Warn("Failed to load session callbacks", "error", err, "sessionID", sessionID, "tool", toolCall.Name)
-		}
-
-		// 3. Merge callbacks (server + session)
-		allCallbacks := mergeCallbacks(serverCallbacks, sessionCallbacks)
+			logging.Error("Failed to load session callbacks", "error", err, "sessionID", sessionID, "tool", toolCall.Name)
+			// Fail fast: callback loading failure indicates data corruption or DB issue
+			toolErr = fmt.Errorf("failed to load session callbacks: %w", err)
+			toolResult = interfaces.ToolResponse{
+				Content: fmt.Sprintf("Error loading session callbacks: %v", err),
+				IsError: true,
+			}
+		} else {
+			// 3. Merge callbacks (server + session) - only if loading succeeded
+			allCallbacks := mergeCallbacks(serverCallbacks, sessionCallbacks)
 
 		if len(allCallbacks) > 0 {
 			// Get session storage directory for callback context
@@ -191,6 +196,7 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 					}
 				}
 			}
+		}
 		}
 	}
 
@@ -262,48 +268,11 @@ func (a *agent) getSessionCallbacks(ctx context.Context, sessionID string, toolN
 		return []interfaces.CallbackConfig{}, nil
 	}
 
-	// Parse and filter callbacks for this tool
+	// Filter callbacks for this tool (exact match or wildcard)
 	var filtered []interfaces.CallbackConfig
 	for _, cb := range allCallbacks {
-		// Type assert to map first (since GetCallbacks returns []interface{})
-		cbMap, ok := cb.(map[string]interface{})
-		if !ok {
-			logging.Warn("Invalid callback format in session, skipping", "sessionID", sessionID)
-			continue
-		}
-
-		// Convert map to CallbackConfig struct
-		var config interfaces.CallbackConfig
-
-		// Manual mapping to avoid json marshal/unmarshal overhead
-		if toolNameVal, ok := cbMap["tool_name"].(string); ok {
-			config.ToolName = toolNameVal
-		}
-		if typeVal, ok := cbMap["type"].(string); ok {
-			config.Type = interfaces.CallbackType(typeVal)
-		}
-		if bashCmd, ok := cbMap["bash_command"].(string); ok {
-			config.BashCommand = bashCmd
-		}
-		if timeout, ok := cbMap["bash_timeout"].(float64); ok {
-			config.BashTimeout = int(timeout)
-		}
-		if prompt, ok := cbMap["sub_agent_prompt"].(string); ok {
-			config.SubAgentPrompt = prompt
-		}
-		if agentType, ok := cbMap["sub_agent_type"].(string); ok {
-			config.SubAgentType = agentType
-		}
-		if includeHistory, ok := cbMap["include_full_history"].(bool); ok {
-			config.IncludeFullHistory = includeHistory
-		}
-		if nonBlocking, ok := cbMap["non_blocking"].(bool); ok {
-			config.NonBlocking = nonBlocking
-		}
-
-		// Filter by tool name (exact match or wildcard)
-		if config.ToolName == toolName || config.ToolName == "*" {
-			filtered = append(filtered, config)
+		if cb.ToolName == toolName || cb.ToolName == "*" {
+			filtered = append(filtered, cb)
 		}
 	}
 

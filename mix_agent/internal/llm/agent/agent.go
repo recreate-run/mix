@@ -139,6 +139,7 @@ type agent struct {
 	broker        *pubsub.Broker[AgentEvent]
 	sessions      session.Service
 	messages      message.Service
+	permissions   permission.Service
 	storageConfig session.Config
 
 	agentName config.AgentName
@@ -208,10 +209,10 @@ func NewAgentWithBroker(
 	// Create message accumulator (no periodic flushing)
 	accumulator := NewMessageAccumulator(messages)
 
-	// Create callback executor if permissions service is provided
-	var callbackExecutor interfaces.CallbackExecutor
-	if len(permissions) > 0 && permissions[0] != nil {
-		callbackExecutor = callbacks.NewExecutor(sessions, permissions[0])
+	// Extract permissions service (may be nil)
+	var perms permission.Service
+	if len(permissions) > 0 {
+		perms = permissions[0]
 	}
 
 	// Create new broker if not provided (for subagents sharing parent broker)
@@ -225,6 +226,7 @@ func NewAgentWithBroker(
 		provider:          agentProvider,
 		messages:          messages,
 		sessions:          sessions,
+		permissions:       perms,
 		storageConfig:     storageConfig,
 		tools:             agentTools,
 		titleProvider:     titleProvider,
@@ -232,9 +234,13 @@ func NewAgentWithBroker(
 		sessionProviders:  sync.Map{},
 		activeContexts:    sync.Map{},
 		accumulator:       accumulator,
-		callbackExecutor:  callbackExecutor,
 		ctx:               ctx,
 		cancel:            cancel,
+	}
+
+	// Create callback executor with factory function (if permissions service is provided)
+	if perms != nil {
+		agent.callbackExecutor = callbacks.NewExecutor(sessions, perms, messages, agent.createSubAgentForCallback)
 	}
 
 	// Inject agent reference into task tool (resolves circular dependency)
@@ -1542,4 +1548,97 @@ func (a *agent) ClearAllSessionProviders() {
 			logging.Error("Failed to refresh summarize provider", "error", err)
 		}
 	}
+}
+
+// createSubAgentForCallback is a factory function for creating subagents in callbacks
+// This function is passed to the callback executor to avoid circular dependencies
+func (a *agent) createSubAgentForCallback(subagentType string) (callbacks.SubAgent, error) {
+	// Get tools for the subagent type (reuse the same logic as task tool)
+	taskToolInstance := &taskTool{
+		sessions:    a.sessions,
+		messages:    a.messages,
+		permissions: a.permissions,
+		agent:       a,
+	}
+
+	agentTools := taskToolInstance.getToolsForSubagentType(subagentType)
+
+	// Use parent agent's broker so subagent events are published to the same broker
+	parentBroker := a.broker
+
+	// Create subagent with the same permissions as parent
+	subAgent, err := NewAgentWithBroker("sub", a.sessions, a.messages, agentTools, a.storageConfig, parentBroker, a.permissions)
+	if err != nil {
+		return nil, fmt.Errorf("error creating sub-agent: %w", err)
+	}
+
+	return &subAgentAdapter{service: subAgent}, nil
+}
+
+// subAgentAdapter adapts agent.Service to callbacks.SubAgent interface
+type subAgentAdapter struct {
+	service Service
+}
+
+// Run executes the subagent
+func (s *subAgentAdapter) Run(ctx context.Context, sessionID string, content string) (<-chan callbacks.AgentEvent, error) {
+	done, err := s.service.Run(ctx, sessionID, content)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the channel from agent.AgentEvent to callbacks.AgentEvent
+	convertedChan := make(chan callbacks.AgentEvent)
+	go func() {
+		defer close(convertedChan)
+		for event := range done {
+			convertedChan <- callbacks.AgentEvent{
+				Error:   event.Error,
+				Content: event.Content,
+				Message: &messageAdapter{msg: event.Message},
+			}
+		}
+	}()
+
+	return convertedChan, nil
+}
+
+// Shutdown stops the subagent
+func (s *subAgentAdapter) Shutdown() {
+	s.service.Shutdown()
+}
+
+// messageAdapter adapts message.Message to callbacks.Message interface
+type messageAdapter struct {
+	msg message.Message
+}
+
+func (m *messageAdapter) FinishReason() string {
+	if m.msg.Role == "" {
+		return ""
+	}
+	return string(m.msg.FinishReason())
+}
+
+func (m *messageAdapter) Role() string {
+	return string(m.msg.Role)
+}
+
+func (m *messageAdapter) Content() callbacks.MessageContent {
+	if m.msg.Role == "" {
+		return &messageContentAdapter{text: ""}
+	}
+	// Get the content and convert it to string
+	// This handles all content types (TextContent, BinaryContent, etc.)
+	content := m.msg.Content()
+	return &messageContentAdapter{text: content.String()}
+}
+
+// messageContentAdapter adapts message content to callbacks.MessageContent interface
+type messageContentAdapter struct {
+	text string
+}
+
+func (m *messageContentAdapter) String() string {
+	return m.text
 }

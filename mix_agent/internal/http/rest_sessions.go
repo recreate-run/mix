@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"mix/internal/app"
+	"mix/internal/llm/interfaces"
 	session2 "mix/internal/session"
 )
 
@@ -16,23 +17,56 @@ const (
 	MaxAppendPromptSize  = 50 * 1024  // 50KB
 )
 
+// validateCallbacks validates the business logic of callback configurations
+func validateCallbacks(callbacks []interfaces.CallbackConfig) error {
+	for i, cb := range callbacks {
+		// Check required fields
+		if cb.ToolName == "" {
+			return fmt.Errorf("callbacks[%d]: missing required field 'toolName'", i)
+		}
+
+		if cb.Type == "" {
+			return fmt.Errorf("callbacks[%d]: missing required field 'type'", i)
+		}
+
+		// Validate callback type
+		if cb.Type != interfaces.CallbackTypeBashScript && cb.Type != interfaces.CallbackTypeSubAgent {
+			return fmt.Errorf("callbacks[%d]: type must be 'bash_script' or 'sub_agent', got '%s'", i, cb.Type)
+		}
+
+		// Validate type-specific required fields
+		if cb.Type == interfaces.CallbackTypeBashScript {
+			if cb.BashCommand == "" {
+				return fmt.Errorf("callbacks[%d]: bash_script type requires 'bashCommand' field", i)
+			}
+		}
+
+		if cb.Type == interfaces.CallbackTypeSubAgent {
+			if cb.SubAgentPrompt == "" {
+				return fmt.Errorf("callbacks[%d]: sub_agent type requires 'subAgentPrompt' field", i)
+			}
+		}
+	}
+	return nil
+}
+
 // SessionData represents session information for REST API
 type SessionData struct {
-	ID                    string        `json:"id"`
-	ParentSessionID       string        `json:"parentSessionId,omitempty"`
-	ParentToolCallID      string        `json:"parentToolCallId,omitempty"`
-	Title                 string        `json:"title"`
-	SessionType           string        `json:"sessionType"`
-	SubagentType          string        `json:"subagentType,omitempty"`
-	UserMessageCount      int64         `json:"userMessageCount"`
-	AssistantMessageCount int64         `json:"assistantMessageCount"`
-	ToolCallCount         int64         `json:"toolCallCount"`
-	PromptTokens          int64         `json:"promptTokens"`
-	CompletionTokens      int64         `json:"completionTokens"`
-	Cost                  float64       `json:"cost"`
-	CreatedAt             time.Time     `json:"createdAt"`
-	FirstUserMessage      string        `json:"firstUserMessage,omitempty"`
-	Callbacks             []interface{} `json:"callbacks,omitempty"` // Session-level callbacks
+	ID                    string                        `json:"id"`
+	ParentSessionID       string                        `json:"parentSessionId,omitempty"`
+	ParentToolCallID      string                        `json:"parentToolCallId,omitempty"`
+	Title                 string                        `json:"title"`
+	SessionType           string                        `json:"sessionType"`
+	SubagentType          string                        `json:"subagentType,omitempty"`
+	UserMessageCount      int64                         `json:"userMessageCount"`
+	AssistantMessageCount int64                         `json:"assistantMessageCount"`
+	ToolCallCount         int64                         `json:"toolCallCount"`
+	PromptTokens          int64                         `json:"promptTokens"`
+	CompletionTokens      int64                         `json:"completionTokens"`
+	Cost                  float64                       `json:"cost"`
+	CreatedAt             time.Time                     `json:"createdAt"`
+	FirstUserMessage      string                        `json:"firstUserMessage,omitempty"`
+	Callbacks             []interfaces.CallbackConfig   `json:"callbacks,omitempty"` // Session-level callbacks
 }
 
 // SessionHandler handles REST endpoints for session operations
@@ -148,12 +182,12 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 // CreateSessionRequest represents the request body for creating a session
 type CreateSessionRequest struct {
-	Title              string        `json:"title"`
-	CustomSystemPrompt string        `json:"customSystemPrompt,omitempty"`
-	PromptMode         string        `json:"promptMode,omitempty"`
-	SessionType        string        `json:"sessionType,omitempty"`   // Only "main" or empty allowed
-	SubagentType       string        `json:"subagentType,omitempty"`  // Must be empty for API-created sessions
-	Callbacks          []interface{} `json:"callbacks,omitempty"`     // Session-level callbacks
+	Title              string                        `json:"title"`
+	CustomSystemPrompt string                        `json:"customSystemPrompt,omitempty"`
+	PromptMode         string                        `json:"promptMode,omitempty"`
+	SessionType        string                        `json:"sessionType,omitempty"`   // Only "main" or empty allowed
+	SubagentType       string                        `json:"subagentType,omitempty"`  // Must be empty for API-created sessions
+	Callbacks          []interfaces.CallbackConfig   `json:"callbacks,omitempty"`     // Session-level callbacks
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -232,6 +266,12 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 
 	// Set callbacks if provided
 	if len(req.Callbacks) > 0 {
+		// Validate callback structure before storing
+		if err := validateCallbacks(req.Callbacks); err != nil {
+			sendValidationError(w, "callbacks", err.Error())
+			return
+		}
+
 		if err := session.SetCallbacks(req.Callbacks); err != nil {
 			sendValidationError(w, "callbacks", fmt.Sprintf("invalid callback configuration: %v", err))
 			return

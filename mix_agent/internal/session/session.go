@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"mix/internal/db"
+	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools/shell"
 	"mix/internal/pubsub"
 
@@ -439,11 +440,11 @@ func NewService(q db.Querier, storageConfig Config) Service {
 }
 
 // GetCallbacks returns the parsed callback configurations for this session
-func (s *Session) GetCallbacks() ([]interface{}, error) {
+func (s *Session) GetCallbacks() ([]interfaces.CallbackConfig, error) {
 	if s.Callbacks == "" {
-		return []interface{}{}, nil
+		return []interfaces.CallbackConfig{}, nil
 	}
-	var callbacks []interface{}
+	var callbacks []interfaces.CallbackConfig
 	if err := json.Unmarshal([]byte(s.Callbacks), &callbacks); err != nil {
 		return nil, fmt.Errorf("failed to parse session callbacks: %w", err)
 	}
@@ -451,7 +452,7 @@ func (s *Session) GetCallbacks() ([]interface{}, error) {
 }
 
 // SetCallbacks sets the callback configurations for this session (JSON encoded)
-func (s *Session) SetCallbacks(callbacks []interface{}) error {
+func (s *Session) SetCallbacks(callbacks []interfaces.CallbackConfig) error {
 	if len(callbacks) == 0 {
 		s.Callbacks = ""
 		return nil

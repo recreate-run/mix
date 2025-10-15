@@ -249,8 +249,8 @@ go-lint:
 
 # Regenerate database query code with sqlc
 sqlc-generate:
-# 	@echo "Installing sqlc (v1.29.0)..."
-# 	@cd mix_agent && go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.29.0
+	@echo "Installing sqlc (v1.29.0)..."
+	@cd mix_agent && go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.29.0
 	@echo "Regenerating database query code..."
 	@cd mix_agent && sqlc generate
 	@echo "✅ Database query code regenerated successfully!"

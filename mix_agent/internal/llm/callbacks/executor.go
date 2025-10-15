@@ -8,22 +8,58 @@ import (
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools/shell"
 	"mix/internal/logging"
+	"mix/internal/message"
 	"mix/internal/permission"
 	"mix/internal/session"
 )
 
+// SubAgentFactory is a function that creates a subagent for callback execution
+type SubAgentFactory func(subagentType string) (SubAgent, error)
+
 type executor struct {
-	sessions    session.Service
-	permissions permission.Service
+	sessions        session.Service
+	permissions     permission.Service
+	messages        message.Service
+	createSubAgent  SubAgentFactory
+}
+
+// SubAgent defines the minimal interface for a subagent created by callbacks
+type SubAgent interface {
+	Run(ctx context.Context, sessionID string, content string) (<-chan AgentEvent, error)
+	Shutdown()
+}
+
+// AgentEvent represents an event from agent execution
+// This mirrors the agent.AgentEvent struct but avoids circular import
+type AgentEvent struct {
+	Error   error
+	Content string
+	Message Message
+}
+
+// Message represents a message in the agent conversation
+type Message interface {
+	FinishReason() string
+	Role() string
+	Content() MessageContent
+}
+
+// MessageContent represents message content
+type MessageContent interface {
+	String() string
 }
 
 func NewExecutor(
 	sessions session.Service,
 	permissions permission.Service,
+	messages message.Service,
+	createSubAgent SubAgentFactory,
 ) interfaces.CallbackExecutor {
 	return &executor{
-		sessions:    sessions,
-		permissions: permissions,
+		sessions:       sessions,
+		permissions:    permissions,
+		messages:       messages,
+		createSubAgent: createSubAgent,
 	}
 }
 
@@ -89,24 +125,127 @@ export CALLBACK_SESSION_ID=%s
 }
 
 func (e *executor) executeSubAgent(ctx context.Context, config interfaces.CallbackConfig, callbackCtx interfaces.CallbackContext) (interfaces.CallbackResult, error) {
-	// Build prompt with tool context
-	prompt := config.SubAgentPrompt
-	if prompt == "" {
-		return interfaces.CallbackResult{Success: false, Error: "sub_agent_prompt is required"}, nil
+	// Validate configuration
+	if config.SubAgentPrompt == "" {
+		return interfaces.CallbackResult{Success: false, Error: "subAgentPrompt is required"}, nil
+	}
+	if e.createSubAgent == nil {
+		logging.Warn("Sub-agent callback skipped: factory function not provided")
+		return interfaces.CallbackResult{
+			Success: false,
+			Error:   "subagent factory not set - sub_agent callbacks require factory function",
+		}, nil
 	}
 
-	// Sub-agent callbacks are not yet implemented due to circular dependency issues
-	// To implement this feature, we would need to:
-	// 1. Extract agent creation into a separate factory package
-	// 2. Use dependency injection to pass agent factory to callback executor
-	// 3. Get message history if config.IncludeFullHistory is true
-	// 4. Create sub-agent with appropriate tools based on config.SubAgentType
-	// 5. Run sub-agent and return its output
+	// Build prompt with tool execution context
+	prompt := buildSubAgentPrompt(config.SubAgentPrompt, callbackCtx)
+
+	// TODO: Get message history if config.IncludeFullHistory is true
+	// This is a stub for now - will be implemented later
+	if config.IncludeFullHistory {
+		logging.Debug("includeFullHistory parameter not yet implemented, ignoring")
+	}
+
+	// Determine subagent type (default to general-purpose)
+	subagentType := config.SubAgentType
+	if subagentType == "" {
+		subagentType = "general-purpose"
+	}
+
+	// Create subagent via factory function
+	subAgent, err := e.createSubAgent(subagentType)
+	if err != nil {
+		return interfaces.CallbackResult{
+			Success: false,
+			Error:   fmt.Sprintf("failed to create sub-agent: %v", err),
+		}, nil
+	}
+	defer subAgent.Shutdown()
+
+	// Create subagent session with parent tool call ID for persistent UI nesting
+	subSession, err := e.sessions.Create(
+		ctx,
+		"Callback: "+callbackCtx.ToolCall.Name,
+		"", // no custom system prompt
+		"default",
+		session.SessionTypeSubagent,
+		session.SubagentType(subagentType),
+		callbackCtx.SessionID,
+		callbackCtx.ToolCall.ID,
+	)
+	if err != nil {
+		return interfaces.CallbackResult{
+			Success: false,
+			Error:   fmt.Sprintf("failed to create subagent session: %v", err),
+		}, nil
+	}
+
+	// Run the subagent
+	done, err := subAgent.Run(ctx, subSession.ID, prompt)
+	if err != nil {
+		return interfaces.CallbackResult{
+			Success: false,
+			Error:   fmt.Sprintf("failed to run sub-agent: %v", err),
+		}, nil
+	}
+
+	// Wait for completion and collect output
+	var output strings.Builder
+	var finalMessage Message
+	for event := range done {
+		if event.Error != nil {
+			return interfaces.CallbackResult{
+				Success: false,
+				Error:   fmt.Sprintf("sub-agent error: %v", event.Error),
+			}, nil
+		}
+
+		// Collect content deltas
+		if event.Content != "" {
+			output.WriteString(event.Content)
+		}
+
+		// Check for final message
+		if event.Message != nil && event.Message.FinishReason() == "end_turn" {
+			finalMessage = event.Message
+		}
+	}
+
+	// Extract final response content
+	if finalMessage != nil && finalMessage.Content() != nil {
+		output.Reset()
+		output.WriteString(finalMessage.Content().String())
+	}
+
+	// Roll up subagent cost to parent session
+	updatedSubSession, err := e.sessions.Get(ctx, subSession.ID)
+	if err != nil {
+		logging.Warn("Failed to get subagent session for cost rollup", "error", err)
+	} else {
+		if err := e.sessions.IncrementCost(ctx, callbackCtx.SessionID, updatedSubSession.Cost); err != nil {
+			logging.Warn("Failed to increment parent session cost", "error", err, "parentSession", callbackCtx.SessionID)
+		}
+	}
 
 	return interfaces.CallbackResult{
-		Success: false,
-		Error:   "sub_agent callbacks not yet implemented - requires architecture refactoring to avoid circular dependencies",
+		Success: true,
+		Output:  output.String(),
 	}, nil
+}
+
+// buildSubAgentPrompt enriches the prompt with tool execution context
+func buildSubAgentPrompt(basePrompt string, callbackCtx interfaces.CallbackContext) string {
+	return fmt.Sprintf(`%s
+
+Tool Execution Context:
+- Tool: %s
+- Tool Call ID: %s
+- Result: %s`,
+		basePrompt,
+		callbackCtx.ToolCall.Name,
+		callbackCtx.ToolCall.ID,
+		callbackCtx.ToolResult.Content,
+	)
 }
 
 // shellQuote safely quotes a string for use in bash
