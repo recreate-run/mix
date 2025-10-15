@@ -3,8 +3,10 @@ package models
 import "maps"
 
 type (
-	ModelID       string
-	ModelProvider string
+	ModelID         string
+	ModelProvider   string
+	ReasoningEffort string
+	AuthMethod      string
 )
 
 type Model struct {
@@ -32,6 +34,21 @@ const (
 	ProviderBedrock ModelProvider = "bedrock"
 	// ForTests
 	ProviderMock ModelProvider = "__mock"
+)
+
+// ReasoningEffort levels
+const (
+	ReasoningEffortLow    ReasoningEffort = "low"
+	ReasoningEffortMedium ReasoningEffort = "medium"
+	ReasoningEffortHigh   ReasoningEffort = "high"
+	ReasoningEffortNone   ReasoningEffort = ""
+)
+
+// AuthMethod types
+const (
+	AuthMethodOAuth  AuthMethod = "oauth"
+	AuthMethodAPIKey AuthMethod = "api_key"
+	AuthMethodNone   AuthMethod = "none"
 )
 
 // Providers in order of popularity
