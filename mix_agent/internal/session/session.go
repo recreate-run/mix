@@ -78,6 +78,7 @@ func shouldPublish(ctx context.Context) bool {
 type Session struct {
 	ID                    string
 	ParentSessionID       string
+	ParentToolCallID      string       // Which tool call spawned this subagent session (for UI nesting)
 	Title                 string
 	UserMessageCount      int64
 	AssistantMessageCount int64
@@ -97,7 +98,7 @@ type Session struct {
 // Simplified Service interface for embedded binary
 type Service interface {
 	pubsub.Suscriber[Session]
-	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string) (Session, error)
+	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error)
 	Fork(ctx context.Context, sourceSessionID string, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
@@ -113,7 +114,7 @@ type service struct {
 	storageConfig Config
 }
 
-func (s *service) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string) (Session, error) {
+func (s *service) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error) {
 	// Default to 'main' session type if not specified
 	if sessionType == "" {
 		sessionType = SessionTypeMain
@@ -170,6 +171,7 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:                 sessionID,
 		ParentSessionID:    sql.NullString{String: parentSessionID, Valid: parentSessionID != ""},
+		ParentToolCallID:   sql.NullString{String: parentToolCallID, Valid: parentToolCallID != ""},
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{String: customSystemPrompt, Valid: customSystemPrompt != ""},
 		PromptMode:         sql.NullString{String: promptMode, Valid: promptMode != ""},
@@ -218,6 +220,7 @@ func (s *service) Fork(ctx context.Context, sourceSessionID string, title string
 	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:                 sessionID,
 		ParentSessionID:    sql.NullString{String: sourceSessionID, Valid: true},
+		ParentToolCallID:   sql.NullString{Valid: false}, // Forked sessions don't have parent tool calls
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{Valid: false}, // Forked sessions use default prompt
 		PromptMode:         sql.NullString{String: "default", Valid: true},
@@ -356,6 +359,7 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
+		ParentToolCallID:      item.ParentToolCallID.String,
 		Title:                 item.Title,
 		UserMessageCount:      item.UserMessageCount,
 		AssistantMessageCount: item.AssistantMessageCount,
@@ -377,6 +381,7 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
+		ParentToolCallID:      item.ParentToolCallID.String,
 		Title:                 item.Title,
 		UserMessageCount:      item.UserMessageCount,
 		AssistantMessageCount: item.AssistantMessageCount,
@@ -398,6 +403,7 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
+		ParentToolCallID:      item.ParentToolCallID.String,
 		Title:                 item.Title,
 		UserMessageCount:      0, // New sessions always have 0 messages
 		AssistantMessageCount: 0, // New sessions always have 0 messages

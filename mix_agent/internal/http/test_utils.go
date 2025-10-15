@@ -78,7 +78,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default", session2.SessionTypeMain, "", "")
+	session, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default", session2.SessionTypeMain, "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}

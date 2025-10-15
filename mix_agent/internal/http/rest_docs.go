@@ -87,6 +87,15 @@ func getOpenAPISpec() OpenAPISpec {
 					"summary":     "List all sessions",
 					"description": "Retrieve a list of all available sessions with their metadata",
 					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						{
+							"in":          "query",
+							"name":        "includeSubagents",
+							"schema":      map[string]interface{}{"type": "boolean", "default": false},
+							"required":    false,
+							"description": "Include subagent sessions in response (default: false, subagent sessions are hidden)",
+						},
+					},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("array", getSessionDataSchema(), "List of sessions"),
 						"401": createErrorResponse("Unauthorized - authentication required"),
@@ -1445,6 +1454,10 @@ func getOpenAPISpec() OpenAPISpec {
 						"parentSessionId": map[string]interface{}{
 							"type":        "string",
 							"description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+						},
+						"parentToolCallId": map[string]interface{}{
+							"type":        "string",
+							"description": "ID of the tool call that spawned this subagent session (null for non-subagent sessions)",
 						},
 						"title": map[string]interface{}{
 							"type":        "string",

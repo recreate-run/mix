@@ -279,7 +279,7 @@ func createClearHandler(app *app.App) func(ctx context.Context, args string) (st
 		}
 
 		// Create new session
-		session, err := app.Sessions.Create(ctx, "New Session", "", "default", session2.SessionTypeMain, "", "")
+		session, err := app.Sessions.Create(ctx, "New Session", "", "default", session2.SessionTypeMain, "", "", "")
 		if err != nil {
 			return returnError("clear", fmt.Sprintf("Failed to create new session: %v", err))
 		}

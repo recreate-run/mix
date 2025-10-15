@@ -219,7 +219,8 @@ async function loadSubagentTimeline(
 	const timelineMap = new Map<string, TimelineEntry[]>();
 
 	// Load all sessions to find subagents of this parent
-	const sessions = await mix.sessions.list();
+	// IMPORTANT: Include subagents in the response to enable nested timeline loading
+	const sessions = await mix.sessions.list({ includeSubagents: true });
 	const subagentSessions = sessions.filter(
 		(s) =>
 			s.parentSessionId === parentSessionId && s.sessionType === "subagent",

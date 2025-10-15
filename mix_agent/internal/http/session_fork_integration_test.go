@@ -58,7 +58,7 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	testSession, err := testApp.Sessions.Create(ctx, "Test Fork Session", "", "default", session.SessionTypeMain, "", "")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Fork Session", "", "default", session.SessionTypeMain, "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}

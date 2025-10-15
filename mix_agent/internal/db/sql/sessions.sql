@@ -2,6 +2,7 @@
 INSERT INTO sessions (
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
@@ -24,12 +25,14 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
+    ?,
     null,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
@@ -46,6 +49,7 @@ INSERT INTO sessions (
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
@@ -74,6 +78,7 @@ WHERE s.id = ? LIMIT 1;
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
@@ -102,6 +107,7 @@ ORDER BY s.created_at DESC;
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
@@ -150,6 +156,7 @@ WHERE id = ?
 RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,

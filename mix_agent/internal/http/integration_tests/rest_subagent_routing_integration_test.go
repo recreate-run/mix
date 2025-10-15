@@ -181,6 +181,7 @@ func TestSubagentEventRoutingVerifyHierarchy(t *testing.T) {
 		"subagent",       // session type
 		"general-purpose", // subagent type
 		mainSessionID,    // parent session ID
+		"test-tool-call-id", // parent tool call ID (test value)
 	)
 	if err != nil {
 		t.Fatalf("Failed to create subagent session: %v", err)

@@ -67,6 +67,7 @@ type Session struct {
 	PromptMode         sql.NullString `json:"prompt_mode"`
 	SessionType        string         `json:"session_type"`
 	SubagentType       sql.NullString `json:"subagent_type"`
+	ParentToolCallID   sql.NullString `json:"parent_tool_call_id"`
 }
 
 type UserPreference struct {

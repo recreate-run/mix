@@ -14,6 +14,7 @@ const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
@@ -36,12 +37,14 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
+    ?,
     null,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
@@ -58,6 +61,7 @@ INSERT INTO sessions (
 type CreateSessionParams struct {
 	ID                 string         `json:"id"`
 	ParentSessionID    sql.NullString `json:"parent_session_id"`
+	ParentToolCallID   sql.NullString `json:"parent_tool_call_id"`
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
@@ -71,6 +75,7 @@ type CreateSessionParams struct {
 type CreateSessionRow struct {
 	ID                 string         `json:"id"`
 	ParentSessionID    sql.NullString `json:"parent_session_id"`
+	ParentToolCallID   sql.NullString `json:"parent_tool_call_id"`
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
@@ -88,6 +93,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 	row := q.queryRow(ctx, q.createSessionStmt, createSession,
 		arg.ID,
 		arg.ParentSessionID,
+		arg.ParentToolCallID,
 		arg.Title,
 		arg.CustomSystemPrompt,
 		arg.PromptMode,
@@ -101,6 +107,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
+		&i.ParentToolCallID,
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
@@ -130,6 +137,7 @@ const getSessionByID = `-- name: GetSessionByID :one
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
@@ -158,6 +166,7 @@ WHERE s.id = ? LIMIT 1
 type GetSessionByIDRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	ParentToolCallID      sql.NullString `json:"parent_tool_call_id"`
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
@@ -180,6 +189,7 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
+		&i.ParentToolCallID,
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,
@@ -219,6 +229,7 @@ const listSessionsMetadata = `-- name: ListSessionsMetadata :many
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
@@ -247,6 +258,7 @@ ORDER BY s.created_at DESC
 type ListSessionsMetadataRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	ParentToolCallID      sql.NullString `json:"parent_tool_call_id"`
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
@@ -275,6 +287,7 @@ func (q *Queries) ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetad
 		if err := rows.Scan(
 			&i.ID,
 			&i.ParentSessionID,
+			&i.ParentToolCallID,
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
@@ -307,6 +320,7 @@ const listSessionsWithContent = `-- name: ListSessionsWithContent :many
 SELECT
     s.id,
     s.parent_session_id,
+    s.parent_tool_call_id,
     s.title,
     s.custom_system_prompt,
     s.prompt_mode,
@@ -344,6 +358,7 @@ ORDER BY s.created_at DESC
 type ListSessionsWithContentRow struct {
 	ID                    string         `json:"id"`
 	ParentSessionID       sql.NullString `json:"parent_session_id"`
+	ParentToolCallID      sql.NullString `json:"parent_tool_call_id"`
 	Title                 string         `json:"title"`
 	CustomSystemPrompt    sql.NullString `json:"custom_system_prompt"`
 	PromptMode            sql.NullString `json:"prompt_mode"`
@@ -373,6 +388,7 @@ func (q *Queries) ListSessionsWithContent(ctx context.Context) ([]ListSessionsWi
 		if err := rows.Scan(
 			&i.ID,
 			&i.ParentSessionID,
+			&i.ParentToolCallID,
 			&i.Title,
 			&i.CustomSystemPrompt,
 			&i.PromptMode,
@@ -417,6 +433,7 @@ WHERE id = ?
 RETURNING
     id,
     parent_session_id,
+    parent_tool_call_id,
     title,
     custom_system_prompt,
     prompt_mode,
@@ -444,6 +461,7 @@ type UpdateSessionParams struct {
 type UpdateSessionRow struct {
 	ID                 string         `json:"id"`
 	ParentSessionID    sql.NullString `json:"parent_session_id"`
+	ParentToolCallID   sql.NullString `json:"parent_tool_call_id"`
 	Title              string         `json:"title"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
@@ -472,6 +490,7 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (U
 	err := row.Scan(
 		&i.ID,
 		&i.ParentSessionID,
+		&i.ParentToolCallID,
 		&i.Title,
 		&i.CustomSystemPrompt,
 		&i.PromptMode,

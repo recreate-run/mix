@@ -100,12 +100,13 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 	defer agent.Shutdown()
 
-	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID)
+	// Create subagent session with parent tool call ID for persistent UI nesting
+	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, call.ID)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}
 
-	// Wrap context with tool call ID for event tracking
+	// Wrap context with tool call ID for runtime event tracking
 	toolCtx := withToolContext(ctx, call.ID)
 
 	// DEBUG: Verify tool context is set

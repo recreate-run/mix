@@ -20,6 +20,7 @@ const (
 type SessionData struct {
 	ID                    string    `json:"id"`
 	ParentSessionID       string    `json:"parentSessionId,omitempty"`
+	ParentToolCallID      string    `json:"parentToolCallId,omitempty"`
 	Title                 string    `json:"title"`
 	SessionType           string    `json:"sessionType"`
 	SubagentType          string    `json:"subagentType,omitempty"`
@@ -56,6 +57,10 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	}
 
 	ctx := r.Context()
+
+	// Check if subagent sessions should be included (for loading subagent timeline)
+	includeSubagents := r.URL.Query().Get("includeSubagents") == "true"
+
 	sessions, err := h.app.Sessions.ListWithContent(ctx)
 	if err != nil {
 		sendInternalError(w, "listing sessions", err)
@@ -65,14 +70,16 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	// Initialize as empty slice instead of nil to ensure JSON encodes as [] not null
 	result := make([]SessionData, 0)
 	for _, s := range sessions {
-		// Only include main and forked sessions - hide subagent sessions
-		if s.SessionType == "subagent" {
+		// Only include main and forked sessions by default - hide subagent sessions
+		// unless explicitly requested via query parameter
+		if s.SessionType == "subagent" && !includeSubagents {
 			continue
 		}
 
 		result = append(result, SessionData{
 			ID:                    s.ID,
 			ParentSessionID:       s.ParentSessionID.String,
+			ParentToolCallID:      s.ParentToolCallID.String,
 			Title:                 s.Title,
 			SessionType:           s.SessionType,                // String field from db.ListSessionsWithContentRow
 			SubagentType:          s.SubagentType.String,        // String field from db.ListSessionsWithContentRow
@@ -118,6 +125,7 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 	result := SessionData{
 		ID:                    session.ID,
 		ParentSessionID:       session.ParentSessionID,
+		ParentToolCallID:      session.ParentToolCallID,
 		Title:                 session.Title,
 		SessionType:           session.SessionType.String(),   // Convert typed field to string
 		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
@@ -210,7 +218,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	ctx := r.Context()
-	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "")
+	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "", "")
 	if err != nil {
 		sendInternalError(w, "creating session", err)
 		return
@@ -226,6 +234,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	result := SessionData{
 		ID:                    session.ID,
 		ParentSessionID:       session.ParentSessionID,
+		ParentToolCallID:      session.ParentToolCallID,
 		Title:                 session.Title,
 		SessionType:           session.SessionType.String(),   // Convert typed field to string
 		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
@@ -473,6 +482,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 	result := SessionData{
 		ID:                    updatedSession.ID,
 		ParentSessionID:       updatedSession.ParentSessionID,
+		ParentToolCallID:      updatedSession.ParentToolCallID,
 		Title:                 updatedSession.Title,
 		SessionType:           updatedSession.SessionType.String(),   // Convert typed field to string
 		SubagentType:          updatedSession.SubagentType.String(),  // Convert typed field to string

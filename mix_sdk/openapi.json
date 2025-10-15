@@ -1197,6 +1197,18 @@
       "get": {
         "description": "Retrieve a list of all available sessions with their metadata",
         "operationId": "listSessions",
+        "parameters": [
+          {
+            "description": "Include subagent sessions in response (default: false, subagent sessions are hidden)",
+            "in": "query",
+            "name": "includeSubagents",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3443,6 +3455,10 @@
           },
           "parentSessionId": {
             "description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+            "type": "string"
+          },
+          "parentToolCallId": {
+            "description": "ID of the tool call that spawned this subagent session (null for non-subagent sessions)",
             "type": "string"
           },
           "promptTokens": {
