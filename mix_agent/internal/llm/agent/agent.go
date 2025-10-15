@@ -33,14 +33,18 @@ type sessionRouting struct {
 	ParentToolCallID string // Which tool call spawned this subagent session
 }
 
-func withSessionRouting(ctx context.Context, routeTo, origin string) context.Context {
-	routing := sessionRouting{RouteTo: routeTo, Origin: origin}
-
-	// Preserve existing parentToolCallID if present
+// getRoutingOrEmpty extracts existing routing from context or returns empty struct
+func getRoutingOrEmpty(ctx context.Context) sessionRouting {
 	if r, ok := ctx.Value(sessionRoutingKey).(sessionRouting); ok {
-		routing.ParentToolCallID = r.ParentToolCallID
+		return r
 	}
+	return sessionRouting{}
+}
 
+func withSessionRouting(ctx context.Context, routeTo, origin string) context.Context {
+	routing := getRoutingOrEmpty(ctx)
+	routing.RouteTo = routeTo
+	routing.Origin = origin
 	return context.WithValue(ctx, sessionRoutingKey, routing)
 }
 
@@ -54,14 +58,8 @@ func getSessionRouting(ctx context.Context) (routeTo, origin, parentToolCallID s
 // withToolContext wraps context with tool call ID for subagent event tracking
 // Package-private since task-tool.go is in the same package
 func withToolContext(ctx context.Context, toolCallID string) context.Context {
-	routing := sessionRouting{ParentToolCallID: toolCallID}
-
-	// Preserve existing routing fields
-	if r, ok := ctx.Value(sessionRoutingKey).(sessionRouting); ok {
-		routing.RouteTo = r.RouteTo
-		routing.Origin = r.Origin
-	}
-
+	routing := getRoutingOrEmpty(ctx)
+	routing.ParentToolCallID = toolCallID
 	return context.WithValue(ctx, sessionRoutingKey, routing)
 }
 
@@ -946,24 +944,21 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 	return a.provider.Model(), nil
 }
 
+// setIfEmpty sets target to source if target is empty and source is not
+func setIfEmpty(target *string, source string) {
+	if *target == "" && source != "" {
+		*target = source
+	}
+}
+
 // Publish overrides the embedded Broker.Publish to auto-populate routing fields from context
 func (a *agent) Publish(ctx context.Context, t pubsub.EventType, event AgentEvent) error {
 	routeTo, origin, parentToolCallID := getSessionRouting(ctx)
 
 	// Auto-populate from context if not already set
-	if event.RouteTo == "" && routeTo != "" {
-		event.RouteTo = routeTo
-	}
-	if event.SessionID == "" && origin != "" {
-		event.SessionID = origin
-	}
-	if event.ParentToolCallID == "" && parentToolCallID != "" {
-		event.ParentToolCallID = parentToolCallID
-	}
-
-	// DEBUG: Log routing fields
-	fmt.Printf("[PUBLISH] type=%s sessionID=%s RouteTo=%s ParentToolCallID=%s\n",
-		event.Type, event.SessionID, event.RouteTo, event.ParentToolCallID)
+	setIfEmpty(&event.RouteTo, routeTo)
+	setIfEmpty(&event.SessionID, origin)
+	setIfEmpty(&event.ParentToolCallID, parentToolCallID)
 
 	return a.broker.Publish(ctx, t, event)
 }

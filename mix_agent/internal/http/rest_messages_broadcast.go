@@ -2,7 +2,6 @@ package http
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"mix/internal/llm/agent"
@@ -34,8 +33,6 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 				Content:          event.Content,
 				ParentToolCallID: parentToolCallID,
 			}
-			log.Printf("[CONTENT_EVENT] Creating ContentEvent - Type:%s Content:%s ParentToolCallID:'%s' (empty=%v)",
-				contentEvent.Type, contentEvent.Content, contentEvent.ParentToolCallID, contentEvent.ParentToolCallID == "")
 			registry.BroadcastEvent(targetSessionID, "content", contentEvent)
 		}
 

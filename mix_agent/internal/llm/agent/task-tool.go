@@ -103,15 +103,11 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	// Create subagent session with parent tool call ID for persistent UI nesting
 	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, call.ID)
 	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
+		return tools.ToolResponse{}, fmt.Errorf("error creating session for tool call %s: %w", call.ID, err)
 	}
 
 	// Wrap context with tool call ID for runtime event tracking
 	toolCtx := withToolContext(ctx, call.ID)
-
-	// DEBUG: Verify tool context is set
-	_, _, parentToolCallID := getSessionRouting(toolCtx)
-	fmt.Printf("[TASK TOOL] Setting parentToolCallID=%s for subagent session %s\n", parentToolCallID, subSession.ID)
 
 	done, err := agent.Run(toolCtx, subSession.ID, params.Prompt)
 	if err != nil {
@@ -156,13 +152,13 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	// Verify parent session exists before incrementing cost
 	// This prevents silent failures if parent was deleted during subagent execution
 	if _, err := b.sessions.Get(ctx, sessionID); err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("parent session not found: %s", err)
+		return tools.ToolResponse{}, fmt.Errorf("parent session %s not found during cost rollup: %w", sessionID, err)
 	}
 
 	// Atomically increment parent session cost to avoid race conditions
 	// when multiple subagents complete simultaneously
 	if err := b.sessions.IncrementCost(ctx, sessionID, updatedSubSession.Cost); err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error incrementing parent session cost: %s", err)
+		return tools.ToolResponse{}, fmt.Errorf("failed to increment parent session %s cost: %w", sessionID, err)
 	}
 
 	return tools.NewTextResponse(content), nil

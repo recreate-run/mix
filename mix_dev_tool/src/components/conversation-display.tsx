@@ -237,9 +237,6 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 					{/* Nested subagent events */}
 					{hasNestedEvents && group.nestedEntries && (
 						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-							<div className="text-xs text-muted-foreground mb-2 font-medium">
-								Subagent Activity ({group.nestedEntries.length} events)
-							</div>
 							{renderTimelineEntries(group.nestedEntries, true)}
 						</div>
 					)}

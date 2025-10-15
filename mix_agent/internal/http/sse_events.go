@@ -136,23 +136,10 @@ func (s *SSEWriter) WriteEvent(eventType string, data interface{}) error {
 	// Generate sequential event ID for this session
 	eventID := atomic.AddInt64(&s.eventID, 1)
 
-	// DEBUG: Log data before marshaling
-	if eventType == "content" {
-		if contentEvt, ok := data.(ContentEvent); ok {
-			fmt.Printf("[SSE_MARSHAL] eventType=%s ParentToolCallID='%s' empty=%v struct=%+v\n",
-				eventType, contentEvt.ParentToolCallID, contentEvt.ParentToolCallID == "", contentEvt)
-		}
-	}
-
 	// Marshal the data payload
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal SSE event data: %w", err)
-	}
-
-	// DEBUG: Log JSON output
-	if eventType == "content" {
-		fmt.Printf("[SSE_JSON] eventType=%s json=%s\n", eventType, string(jsonData))
 	}
 
 	// Calculate retry interval based on event type
