@@ -15,6 +15,7 @@ type taskTool struct {
 	sessions    session.Service
 	messages    message.Service
 	permissions permission.Service
+	agent       Service // Parent agent for re-publishing subagent events
 }
 
 const (
@@ -91,7 +92,9 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	}
 
 	agentTools := b.getToolsForSubagentType(params.SubagentType)
-	agent, err := NewAgent("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), b.permissions)
+	// Use parent agent's broker so subagent events are published to the same broker
+	parentBroker := b.agent.GetBroker()
+	agent, err := NewAgentWithBroker("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), parentBroker, b.permissions)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
 	}
@@ -102,7 +105,14 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 		return tools.ToolResponse{}, fmt.Errorf("error creating session: %s", err)
 	}
 
-	done, err := agent.Run(ctx, subSession.ID, params.Prompt)
+	// Wrap context with tool call ID for event tracking
+	toolCtx := withToolContext(ctx, call.ID)
+
+	// DEBUG: Verify tool context is set
+	_, _, parentToolCallID := getSessionRouting(toolCtx)
+	fmt.Printf("[TASK TOOL] Setting parentToolCallID=%s for subagent session %s\n", parentToolCallID, subSession.ID)
+
+	done, err := agent.Run(toolCtx, subSession.ID, params.Prompt)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error generating agent: %s", err)
 	}
@@ -137,16 +147,6 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 	content := response.Content().String()
 
 	// Log the final output returned by the sub-agent
-	previewLen := 100
-	if len(content) < previewLen {
-		previewLen = len(content)
-	}
-	preview := content
-	if len(content) > previewLen {
-		preview = content[:previewLen] + "..."
-	}
-	fmt.Printf("[TASK TOOL] Sub-agent returned %d characters: %q\n", len(content), preview)
-
 	updatedSubSession, err := b.sessions.Get(ctx, subSession.ID)
 	if err != nil {
 		return tools.ToolResponse{}, fmt.Errorf("error getting subagent session: %s", err)
@@ -177,4 +177,10 @@ func NewTaskTool(
 		messages:    Messages,
 		permissions: Permissions,
 	}
+}
+
+// SetAgent injects the parent agent reference after tool creation
+// This resolves the circular dependency where tools need the agent but agent needs tools
+func (b *taskTool) SetAgent(agent Service) {
+	b.agent = agent
 }

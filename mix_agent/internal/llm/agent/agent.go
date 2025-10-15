@@ -28,19 +28,41 @@ type contextKey string
 const sessionRoutingKey contextKey = "session_routing"
 
 type sessionRouting struct {
-	RouteTo string // Where events should be sent
-	Origin  string // Where events originated from
+	RouteTo          string // Where events should be sent
+	Origin           string // Where events originated from
+	ParentToolCallID string // Which tool call spawned this subagent session
 }
 
 func withSessionRouting(ctx context.Context, routeTo, origin string) context.Context {
-	return context.WithValue(ctx, sessionRoutingKey, sessionRouting{RouteTo: routeTo, Origin: origin})
+	routing := sessionRouting{RouteTo: routeTo, Origin: origin}
+
+	// Preserve existing parentToolCallID if present
+	if r, ok := ctx.Value(sessionRoutingKey).(sessionRouting); ok {
+		routing.ParentToolCallID = r.ParentToolCallID
+	}
+
+	return context.WithValue(ctx, sessionRoutingKey, routing)
 }
 
-func getSessionRouting(ctx context.Context) (routeTo, origin string) {
+func getSessionRouting(ctx context.Context) (routeTo, origin, parentToolCallID string) {
 	if r, ok := ctx.Value(sessionRoutingKey).(sessionRouting); ok {
-		return r.RouteTo, r.Origin
+		return r.RouteTo, r.Origin, r.ParentToolCallID
 	}
-	return "", ""
+	return "", "", ""
+}
+
+// withToolContext wraps context with tool call ID for subagent event tracking
+// Package-private since task-tool.go is in the same package
+func withToolContext(ctx context.Context, toolCallID string) context.Context {
+	routing := sessionRouting{ParentToolCallID: toolCallID}
+
+	// Preserve existing routing fields
+	if r, ok := ctx.Value(sessionRoutingKey).(sessionRouting); ok {
+		routing.RouteTo = r.RouteTo
+		routing.Origin = r.Origin
+	}
+
+	return context.WithValue(ctx, sessionRoutingKey, routing)
 }
 
 // Common errors
@@ -83,8 +105,9 @@ type AgentEvent struct {
 	Error   error
 
 	// Routing fields
-	SessionID string // What this event is about (provenance/origin)
-	RouteTo   string // Where to send this event (destination for SSE)
+	SessionID        string // What this event is about (provenance/origin)
+	RouteTo          string // Where to send this event (destination for SSE)
+	ParentToolCallID string // Which tool call spawned this subagent session
 
 	// When summarizing
 	Progress string
@@ -103,6 +126,7 @@ type AgentEvent struct {
 type Service interface {
 	pubsub.Suscriber[AgentEvent]
 	Model() models.Model
+	GetBroker() *pubsub.Broker[AgentEvent]
 	Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	Cancel(sessionID string)
@@ -114,7 +138,7 @@ type Service interface {
 }
 
 type agent struct {
-	*pubsub.Broker[AgentEvent]
+	broker        *pubsub.Broker[AgentEvent]
 	sessions      session.Service
 	messages      message.Service
 	storageConfig session.Config
@@ -138,6 +162,7 @@ type agent struct {
 	cancel context.CancelFunc
 }
 
+// NewAgent creates a new agent instance with a new broker
 func NewAgent(
 	agentName config.AgentName,
 	sessions session.Service,
@@ -145,6 +170,20 @@ func NewAgent(
 	agentTools []tools.BaseTool,
 	storageConfig session.Config,
 	permissions ...permission.Service, // Optional for backward compatibility
+) (Service, error) {
+	return NewAgentWithBroker(agentName, sessions, messages, agentTools, storageConfig, nil, permissions...)
+}
+
+// NewAgentWithBroker creates a new agent instance with an optional shared broker
+// If broker is nil, a new broker is created. This allows subagents to share the parent's broker.
+func NewAgentWithBroker(
+	agentName config.AgentName,
+	sessions session.Service,
+	messages message.Service,
+	agentTools []tools.BaseTool,
+	storageConfig session.Config,
+	broker *pubsub.Broker[AgentEvent],
+	permissions ...permission.Service,
 ) (Service, error) {
 	agentProvider, err := createAgentProvider(agentName)
 	if err != nil {
@@ -177,8 +216,13 @@ func NewAgent(
 		callbackExecutor = callbacks.NewExecutor(sessions, permissions[0])
 	}
 
+	// Create new broker if not provided (for subagents sharing parent broker)
+	if broker == nil {
+		broker = pubsub.NewBroker[AgentEvent]()
+	}
+
 	agent := &agent{
-		Broker:            pubsub.NewBroker[AgentEvent](),
+		broker:            broker,
 		agentName:         agentName,
 		provider:          agentProvider,
 		messages:          messages,
@@ -195,6 +239,14 @@ func NewAgent(
 		cancel:            cancel,
 	}
 
+	// Inject agent reference into task tool (resolves circular dependency)
+	for _, tool := range agentTools {
+		if taskTool, ok := tool.(*taskTool); ok {
+			taskTool.SetAgent(agent)
+			break
+		}
+	}
+
 	// Start session deletion cleanup goroutine
 	go agent.handleSessionEvents()
 
@@ -203,6 +255,14 @@ func NewAgent(
 
 func (a *agent) Model() models.Model {
 	return a.provider.Model()
+}
+
+func (a *agent) GetBroker() *pubsub.Broker[AgentEvent] {
+	return a.broker
+}
+
+func (a *agent) Subscribe(ctx context.Context) <-chan pubsub.Event[AgentEvent] {
+	return a.broker.Subscribe(ctx)
 }
 
 func (a *agent) Cancel(sessionID string) {
@@ -401,9 +461,11 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 				}
 				// Only forward intermediate events for this specific session (not final completion events)
 				// Forward events that originated from OR are routed to this session
-				if (event.Payload.SessionID == sessionID ||
+				shouldForward := (event.Payload.SessionID == sessionID ||
 					event.Payload.RouteTo == sessionID ||
-					event.Payload.Message.SessionID == sessionID) && !event.Payload.Done {
+					event.Payload.Message.SessionID == sessionID) && !event.Payload.Done
+
+				if shouldForward {
 					select {
 					case events <- event.Payload:
 					case <-genCtx.Done():
@@ -886,7 +948,7 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 
 // Publish overrides the embedded Broker.Publish to auto-populate routing fields from context
 func (a *agent) Publish(ctx context.Context, t pubsub.EventType, event AgentEvent) error {
-	routeTo, origin := getSessionRouting(ctx)
+	routeTo, origin, parentToolCallID := getSessionRouting(ctx)
 
 	// Auto-populate from context if not already set
 	if event.RouteTo == "" && routeTo != "" {
@@ -895,8 +957,15 @@ func (a *agent) Publish(ctx context.Context, t pubsub.EventType, event AgentEven
 	if event.SessionID == "" && origin != "" {
 		event.SessionID = origin
 	}
+	if event.ParentToolCallID == "" && parentToolCallID != "" {
+		event.ParentToolCallID = parentToolCallID
+	}
 
-	return a.Broker.Publish(ctx, t, event)
+	// DEBUG: Log routing fields
+	fmt.Printf("[PUBLISH] type=%s sessionID=%s RouteTo=%s ParentToolCallID=%s\n",
+		event.Type, event.SessionID, event.RouteTo, event.ParentToolCallID)
+
+	return a.broker.Publish(ctx, t, event)
 }
 
 func (a *agent) Summarize(ctx context.Context, sessionID string) error {

@@ -14,8 +14,8 @@ type MockService struct {
 	mock.Mock
 }
 
-func (m *MockService) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string) (Session, error) {
-	args := m.Called(ctx, title, customSystemPrompt, promptMode, sessionType, subagentType, parentSessionID)
+func (m *MockService) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error) {
+	args := m.Called(ctx, title, customSystemPrompt, promptMode, sessionType, subagentType, parentSessionID, parentToolCallID)
 	return args.Get(0).(Session), args.Error(1)
 }
 

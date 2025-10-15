@@ -23,18 +23,21 @@ export type TimelineEntry =
 			timestamp: number;
 			content: string;
 			id: string;
+			parentToolCallId?: string;
 	  }
 	| {
 			type: "tool";
 			timestamp: number;
 			content: ToolCall;
 			id: string;
+			parentToolCallId?: string;
 	  }
 	| {
 			type: "content";
 			timestamp: number;
 			content: string;
 			id: string;
+			parentToolCallId?: string;
 	  };
 
 export interface UIMessage {

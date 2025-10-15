@@ -65,6 +65,11 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	// Initialize as empty slice instead of nil to ensure JSON encodes as [] not null
 	result := make([]SessionData, 0)
 	for _, s := range sessions {
+		// Only include main and forked sessions - hide subagent sessions
+		if s.SessionType == "subagent" {
+			continue
+		}
+
 		result = append(result, SessionData{
 			ID:                    s.ID,
 			ParentSessionID:       s.ParentSessionID.String,

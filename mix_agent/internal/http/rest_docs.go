@@ -1902,6 +1902,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "integer",
 											"description": "Maximum number of retry attempts",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"error"},
 								},
@@ -1943,6 +1947,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "integer",
 											"description": "Duration of reasoning process in milliseconds",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "done"},
 								},
@@ -1968,6 +1976,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "Thinking or reasoning content",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "content"},
 								},
@@ -1992,6 +2004,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"content": map[string]interface{}{
 											"type":        "string",
 											"description": "Streaming content delta",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "content"},
@@ -2030,6 +2046,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "Tool execution status",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "name", "input", "id", "status"},
 								},
@@ -2058,6 +2078,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"input": map[string]interface{}{
 											"type":        "string",
 											"description": "Partial JSON parameter delta - may not be parseable until complete",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolCallId", "input"},
@@ -2091,6 +2115,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"toolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "Tool call identifier",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolName", "progress", "toolCallId"},
@@ -2128,6 +2156,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"toolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "Tool call identifier",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolName", "progress", "success", "toolCallId"},
@@ -2178,6 +2210,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "object",
 											"description": "Additional parameters for the permission request",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "id", "sessionId", "toolName", "description", "action"},
 								},
@@ -2206,6 +2242,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"done": map[string]interface{}{
 											"type":        "boolean",
 											"description": "Indicates if summarization is complete",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "progress", "done"},

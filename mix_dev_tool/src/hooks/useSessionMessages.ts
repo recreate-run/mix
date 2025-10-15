@@ -24,7 +24,11 @@ async function loadSessionMessages(
 
 async function loadAndConvertMessages(sessionId: string): Promise<UIMessage[]> {
 	const backendMessages = await loadSessionMessages(sessionId);
-	const uiMessages = await convertBackendMessagesToUI(backendMessages);
+	// Pass sessionId to enable subagent timeline reconstruction
+	const uiMessages = await convertBackendMessagesToUI(
+		backendMessages,
+		sessionId,
+	);
 	return uiMessages;
 }
 

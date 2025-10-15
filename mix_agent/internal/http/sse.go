@@ -12,6 +12,7 @@ import (
 	"mix/internal/llm/agent"
 	"mix/internal/logging"
 	"mix/internal/pubsub"
+	"mix/internal/session"
 )
 
 // Connection represents a single SSE connection
@@ -252,6 +253,12 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 			for sessionEvent := range sessionEvents {
 				switch sessionEvent.Type {
 				case pubsub.CreatedEvent:
+					// Only broadcast session_created for main and forked sessions
+					// Subagent sessions are internal implementation details
+					if sessionEvent.Payload.SessionType == session.SessionTypeSubagent {
+						continue
+					}
+
 					evt := SessionCreatedEvent{
 						Type:      "session_created",
 						SessionID: sessionEvent.Payload.ID,

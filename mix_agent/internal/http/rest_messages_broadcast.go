@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"mix/internal/llm/agent"
@@ -14,24 +15,37 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 	if targetSessionID == "" {
 		targetSessionID = sessionID // Fallback: use function parameter
 	}
+	parentToolCallID := event.ParentToolCallID
 
 	switch event.Type {
 	case agent.AgentEventTypeThinking:
 		// Send thinking delta event
-		registry.BroadcastEvent(targetSessionID, "thinking", ThinkingEvent{Type: "thinking", Content: event.Thinking})
+		registry.BroadcastEvent(targetSessionID, "thinking", ThinkingEvent{
+			Type:             "thinking",
+			Content:          event.Thinking,
+			ParentToolCallID: parentToolCallID,
+		})
 
 	case agent.AgentEventTypeContentDelta:
 		// Stream content deltas for text between tool calls
 		if event.Content != "" {
-			registry.BroadcastEvent(targetSessionID, "content", ContentEvent{Type: "content", Content: event.Content})
+			contentEvent := ContentEvent{
+				Type:             "content",
+				Content:          event.Content,
+				ParentToolCallID: parentToolCallID,
+			}
+			log.Printf("[CONTENT_EVENT] Creating ContentEvent - Type:%s Content:%s ParentToolCallID:'%s' (empty=%v)",
+				contentEvent.Type, contentEvent.Content, contentEvent.ParentToolCallID, contentEvent.ParentToolCallID == "")
+			registry.BroadcastEvent(targetSessionID, "content", contentEvent)
 		}
 
 	case agent.AgentEventTypeToolParameterDelta:
 		// Stream tool parameter deltas for real-time parameter visibility
 		registry.BroadcastEvent(targetSessionID, "tool_parameter_delta", ToolParameterDeltaEvent{
-			Type:       "tool_parameter_delta",
-			ToolCallID: event.ToolCallID,
-			Input:      event.Content, // Delta is stored in Content field
+			Type:             "tool_parameter_delta",
+			ToolCallID:       event.ToolCallID,
+			Input:            event.Content, // Delta is stored in Content field
+			ParentToolCallID: parentToolCallID,
 		})
 
 	case agent.AgentEventTypeResponse:
@@ -44,20 +58,38 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 				status = "completed"
 			}
 
-			registry.BroadcastEvent(targetSessionID, "tool", ToolEvent{Type: "tool", Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status})
+			registry.BroadcastEvent(targetSessionID, "tool", ToolEvent{
+				Type:             "tool",
+				Name:             toolCall.Name,
+				Input:            toolCall.Input,
+				ID:               toolCall.ID,
+				Status:           status,
+				ParentToolCallID: parentToolCallID,
+			})
 		}
 
 		// Send completion event only for final events, include final content
 		if event.Done {
 			// Check if this is a permission denied error
 			if event.Message.FinishReason() == "permission_denied" {
-				registry.BroadcastEvent(targetSessionID, "error", ErrorEvent{Error: "Permission denied"})
+				registry.BroadcastEvent(targetSessionID, "error", ErrorEvent{
+					Error:            "Permission denied",
+					ParentToolCallID: parentToolCallID,
+				})
 			} else {
 				content := event.Message.Content().String()
 				reasoningContent := event.Message.ReasoningContent()
 				reasoning := reasoningContent.String()
 				reasoningDuration := reasoningContent.Duration
-				registry.BroadcastEvent(targetSessionID, "complete", CompleteEvent{Type: "complete", Content: content, MessageID: event.Message.ID, Done: true, Reasoning: reasoning, ReasoningDuration: reasoningDuration})
+				registry.BroadcastEvent(targetSessionID, "complete", CompleteEvent{
+					Type:              "complete",
+					Content:           content,
+					MessageID:         event.Message.ID,
+					Done:              true,
+					Reasoning:         reasoning,
+					ReasoningDuration: reasoningDuration,
+					ParentToolCallID:  parentToolCallID,
+				})
 			}
 		}
 
@@ -82,32 +114,38 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 			}
 
 			errorEvent := ErrorEvent{
-				Error: "This request would exceed your account's rate limit. The application will automatically retry.",
-				Type: "rate_limit_error",
-				RetryAfter: retryAfter,
-				Attempt: attempt,
-				MaxAttempts: maxAttempts,
+				Error:            "This request would exceed your account's rate limit. The application will automatically retry.",
+				Type:             "rate_limit_error",
+				RetryAfter:       retryAfter,
+				Attempt:          attempt,
+				MaxAttempts:      maxAttempts,
+				ParentToolCallID: parentToolCallID,
 			}
 
 			registry.BroadcastEvent(targetSessionID, "rate_limit_error", errorEvent)
 		} else {
-			registry.BroadcastEvent(targetSessionID, "error", ErrorEvent{Error: event.Error.Error()})
+			registry.BroadcastEvent(targetSessionID, "error", ErrorEvent{
+				Error:            event.Error.Error(),
+				ParentToolCallID: parentToolCallID,
+			})
 		}
 
 	case agent.AgentEventTypeSummarize:
 		registry.BroadcastEvent(targetSessionID, "summarize", SummarizeEvent{
-			Type:     "summarize",
-			Progress: event.Progress,
-			Done:     event.Done,
+			Type:             "summarize",
+			Progress:         event.Progress,
+			Done:             event.Done,
+			ParentToolCallID: parentToolCallID,
 		})
 
 	case agent.AgentEventTypeToolExecutionStart:
 		toolName := extractToolNameFromProgress(event.Progress)
 		registry.BroadcastEvent(targetSessionID, "tool_execution_start", ToolExecutionStartEvent{
-			Type:       "tool_execution_start",
-			ToolName:   toolName,
-			Progress:   event.Progress,
-			ToolCallID: event.ToolCallID,
+			Type:             "tool_execution_start",
+			ToolName:         toolName,
+			Progress:         event.Progress,
+			ToolCallID:       event.ToolCallID,
+			ParentToolCallID: parentToolCallID,
 		})
 
 	case agent.AgentEventTypeToolExecutionComplete:
@@ -115,11 +153,12 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 		success := !strings.Contains(strings.ToLower(event.Progress), "error") && !strings.Contains(strings.ToLower(event.Progress), "failed")
 
 		registry.BroadcastEvent(targetSessionID, "tool_execution_complete", ToolExecutionCompleteEvent{
-			Type:       "tool_execution_complete",
-			ToolName:   toolName,
-			Progress:   event.Progress,
-			Success:    success,
-			ToolCallID: event.ToolCallID,
+			Type:             "tool_execution_complete",
+			ToolName:         toolName,
+			Progress:         event.Progress,
+			Success:          success,
+			ToolCallID:       event.ToolCallID,
+			ParentToolCallID: parentToolCallID,
 		})
 	}
 }
