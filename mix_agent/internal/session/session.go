@@ -178,7 +178,7 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{String: customSystemPrompt, Valid: customSystemPrompt != ""},
 		PromptMode:         sql.NullString{String: promptMode, Valid: promptMode != ""},
-		Callbacks:          sql.NullString{Valid: false}, // Callbacks set separately via SetCallbacks()
+		Callbacks:          sql.NullString{Valid: false}, // Session callbacks initially empty, updated via Save() when configured
 		SessionType:        sessionTypeStr,
 		SubagentType:       sql.NullString{String: subagentTypeStr, Valid: subagentTypeStr != ""},
 	})
@@ -457,6 +457,14 @@ func (s *Session) SetCallbacks(callbacks []interfaces.CallbackConfig) error {
 		s.Callbacks = ""
 		return nil
 	}
+
+	// Validate each callback
+	for i, cb := range callbacks {
+		if err := cb.Validate(); err != nil {
+			return fmt.Errorf("callbacks[%d]: %w", i, err)
+		}
+	}
+
 	data, err := json.Marshal(callbacks)
 	if err != nil {
 		return fmt.Errorf("failed to encode session callbacks: %w", err)

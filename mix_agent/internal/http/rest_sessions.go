@@ -18,39 +18,6 @@ const (
 	MaxAppendPromptSize  = 50 * 1024  // 50KB
 )
 
-// validateCallbacks validates the business logic of callback configurations
-func validateCallbacks(callbacks []interfaces.CallbackConfig) error {
-	for i, cb := range callbacks {
-		// Check required fields
-		if cb.ToolName == "" {
-			return fmt.Errorf("callbacks[%d]: missing required field 'toolName'", i)
-		}
-
-		if cb.Type == "" {
-			return fmt.Errorf("callbacks[%d]: missing required field 'type'", i)
-		}
-
-		// Validate callback type
-		if cb.Type != interfaces.CallbackTypeBashScript && cb.Type != interfaces.CallbackTypeSubAgent {
-			return fmt.Errorf("callbacks[%d]: type must be 'bash_script' or 'sub_agent', got '%s'", i, cb.Type)
-		}
-
-		// Validate type-specific required fields
-		if cb.Type == interfaces.CallbackTypeBashScript {
-			if cb.BashCommand == "" {
-				return fmt.Errorf("callbacks[%d]: bash_script type requires 'bashCommand' field", i)
-			}
-		}
-
-		if cb.Type == interfaces.CallbackTypeSubAgent {
-			if cb.SubAgentPrompt == "" {
-				return fmt.Errorf("callbacks[%d]: sub_agent type requires 'subAgentPrompt' field", i)
-			}
-		}
-	}
-	return nil
-}
-
 // SessionData represents session information for REST API
 type SessionData struct {
 	ID                    string                        `json:"id"`
@@ -73,6 +40,32 @@ type SessionData struct {
 // SessionHandler handles REST endpoints for session operations
 type SessionHandler struct {
 	app *app.App
+}
+
+// sessionToData converts a Session to SessionData for API responses.
+// Returns an error if callback parsing fails.
+func sessionToData(session session2.Session) (SessionData, error) {
+	callbacks, err := session.GetCallbacks()
+	if err != nil {
+		return SessionData{}, fmt.Errorf("failed to parse session callbacks: %w", err)
+	}
+
+	return SessionData{
+		ID:                    session.ID,
+		ParentSessionID:       session.ParentSessionID,
+		ParentToolCallID:      session.ParentToolCallID,
+		Title:                 session.Title,
+		SessionType:           session.SessionType.String(),
+		SubagentType:          session.SubagentType.String(),
+		UserMessageCount:      session.UserMessageCount,
+		AssistantMessageCount: session.AssistantMessageCount,
+		ToolCallCount:         session.ToolCallCount,
+		PromptTokens:          session.PromptTokens,
+		CompletionTokens:      session.CompletionTokens,
+		Cost:                  session.Cost,
+		CreatedAt:             time.Unix(session.CreatedAt, 0),
+		Callbacks:             callbacks,
+	}, nil
 }
 
 // NewSessionHandler creates a new session handler
@@ -158,24 +151,10 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Get callbacks if present
-	callbacks, _ := session.GetCallbacks()
-
-	result := SessionData{
-		ID:                    session.ID,
-		ParentSessionID:       session.ParentSessionID,
-		ParentToolCallID:      session.ParentToolCallID,
-		Title:                 session.Title,
-		SessionType:           session.SessionType.String(),   // Convert typed field to string
-		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
-		UserMessageCount:      session.UserMessageCount,
-		AssistantMessageCount: session.AssistantMessageCount,
-		ToolCallCount:         session.ToolCallCount,
-		PromptTokens:          session.PromptTokens,
-		CompletionTokens:      session.CompletionTokens,
-		Cost:                  session.Cost,
-		CreatedAt:             time.Unix(session.CreatedAt, 0),
-		Callbacks:             callbacks,
+	result, err := sessionToData(session)
+	if err != nil {
+		sendInternalError(w, "converting session data", err)
+		return
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
@@ -267,14 +246,8 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 
 	// Set callbacks if provided
 	if len(req.Callbacks) > 0 {
-		// Validate callback structure before storing
-		if err := validateCallbacks(req.Callbacks); err != nil {
-			sendValidationError(w, "callbacks", err.Error())
-			return
-		}
-
 		if err := session.SetCallbacks(req.Callbacks); err != nil {
-			sendValidationError(w, "callbacks", fmt.Sprintf("invalid callback configuration: %v", err))
+			sendValidationError(w, "callbacks", err.Error())
 			return
 		}
 
@@ -293,24 +266,10 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		_ = h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
 	}
 
-	// Get callbacks for response
-	callbacks, _ := session.GetCallbacks()
-
-	result := SessionData{
-		ID:                    session.ID,
-		ParentSessionID:       session.ParentSessionID,
-		ParentToolCallID:      session.ParentToolCallID,
-		Title:                 session.Title,
-		SessionType:           session.SessionType.String(),   // Convert typed field to string
-		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
-		UserMessageCount:      session.UserMessageCount,
-		AssistantMessageCount: session.AssistantMessageCount,
-		ToolCallCount:         session.ToolCallCount,
-		PromptTokens:          session.PromptTokens,
-		CompletionTokens:      session.CompletionTokens,
-		Cost:                  session.Cost,
-		CreatedAt:             time.Unix(session.CreatedAt, 0),
-		Callbacks:             callbacks,
+	result, err := sessionToData(session)
+	if err != nil {
+		sendInternalError(w, "converting session data", err)
+		return
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)
@@ -475,14 +434,6 @@ func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *
 		return
 	}
 
-	// Validate callback structure before updating
-	if len(req.Callbacks) > 0 {
-		if err := validateCallbacks(req.Callbacks); err != nil {
-			sendValidationError(w, "callbacks", err.Error())
-			return
-		}
-	}
-
 	ctx := r.Context()
 
 	// Get existing session
@@ -492,9 +443,9 @@ func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *
 		return
 	}
 
-	// Update callbacks
+	// Update callbacks (validation happens inside SetCallbacks)
 	if err := session.SetCallbacks(req.Callbacks); err != nil {
-		sendValidationError(w, "callbacks", fmt.Sprintf("failed to set callbacks: %v", err))
+		sendValidationError(w, "callbacks", err.Error())
 		return
 	}
 
@@ -505,25 +456,10 @@ func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *
 		return
 	}
 
-	// Get callbacks for response
-	callbacks, _ := updatedSession.GetCallbacks()
-
-	// Convert to API response format
-	result := SessionData{
-		ID:                    updatedSession.ID,
-		ParentSessionID:       updatedSession.ParentSessionID,
-		ParentToolCallID:      updatedSession.ParentToolCallID,
-		Title:                 updatedSession.Title,
-		SessionType:           updatedSession.SessionType.String(),
-		SubagentType:          updatedSession.SubagentType.String(),
-		UserMessageCount:      updatedSession.UserMessageCount,
-		AssistantMessageCount: updatedSession.AssistantMessageCount,
-		ToolCallCount:         updatedSession.ToolCallCount,
-		PromptTokens:          updatedSession.PromptTokens,
-		CompletionTokens:      updatedSession.CompletionTokens,
-		Cost:                  updatedSession.Cost,
-		CreatedAt:             time.Unix(updatedSession.CreatedAt, 0),
-		Callbacks:             callbacks,
+	result, err := sessionToData(updatedSession)
+	if err != nil {
+		sendInternalError(w, "converting session data", err)
+		return
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)

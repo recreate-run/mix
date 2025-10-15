@@ -140,15 +140,9 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 	})
 	toolDuration := time.Since(toolStartTime)
 
-	// Execute post-tool callbacks (both server-side and session-level)
+	// Execute post-tool callbacks (session-level)
 	if a.callbackExecutor != nil && toolErr == nil && !toolResult.IsError {
-		// 1. Get server-side callbacks (from tool implementation)
-		var serverCallbacks []interfaces.CallbackConfig
-		if callbackTool, ok := tool.(interfaces.CallbackTool); ok {
-			serverCallbacks = callbackTool.GetCallbacks()
-		}
-
-		// 2. Get session-level callbacks (from client configuration)
+		// Get session-level callbacks (from client configuration)
 		sessionCallbacks, err := a.getSessionCallbacks(ctx, sessionID, toolCall.Name)
 		if err != nil {
 			logging.Error("Failed to load session callbacks", "error", err, "sessionID", sessionID, "tool", toolCall.Name)
@@ -158,11 +152,7 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 				Content: fmt.Sprintf("Error loading session callbacks: %v", err),
 				IsError: true,
 			}
-		} else {
-			// 3. Merge callbacks (server + session) - only if loading succeeded
-			allCallbacks := mergeCallbacks(serverCallbacks, sessionCallbacks)
-
-		if len(allCallbacks) > 0 {
+		} else if len(sessionCallbacks) > 0 {
 			// Get session storage directory for callback context
 			sessionStorageDir, _ := tools.GetSessionStorageDirectory(ctx)
 			messageID, _ := ctx.Value(tools.MessageIDContextKey).(string)
@@ -175,7 +165,7 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 				SessionStorageDir: sessionStorageDir,
 			}
 
-			for i, callbackConfig := range allCallbacks {
+			for i, callbackConfig := range sessionCallbacks {
 				if callbackConfig.NonBlocking {
 					// Execute async without waiting
 					go func(cfg interfaces.CallbackConfig, cbCtx interfaces.CallbackContext, idx int) {
@@ -196,7 +186,6 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 					}
 				}
 			}
-		}
 		}
 	}
 
@@ -271,18 +260,10 @@ func (a *agent) getSessionCallbacks(ctx context.Context, sessionID string, toolN
 	// Filter callbacks for this tool (exact match or wildcard)
 	var filtered []interfaces.CallbackConfig
 	for _, cb := range allCallbacks {
-		if cb.ToolName == toolName || cb.ToolName == "*" {
+		if cb.MatchesTool(toolName) {
 			filtered = append(filtered, cb)
 		}
 	}
 
 	return filtered, nil
-}
-
-// mergeCallbacks combines server-side and session-level callbacks
-func mergeCallbacks(server, session []interfaces.CallbackConfig) []interfaces.CallbackConfig {
-	result := make([]interfaces.CallbackConfig, 0, len(server)+len(session))
-	result = append(result, server...)   // Server callbacks first
-	result = append(result, session...)  // Session callbacks extend/override
-	return result
 }
