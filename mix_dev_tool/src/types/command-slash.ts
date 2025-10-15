@@ -6,7 +6,6 @@ export type { HierarchicalModelData };
 export interface CommandSlashProps {
 	onClose: () => void;
 	sessionId: string;
-	onFeedbackMessage?: (message: string) => void;
 	onNewSession?: () => void;
 	onQueryClientInvalidate?: (keys: QueryKey) => void;
 	onSubmitMessage?: (message: string) => void;

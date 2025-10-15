@@ -48,9 +48,6 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 	// Core conversation state
 	const [text, setText] = useState<string>("");
 
-	// Feedback notification state
-	const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-
 	// UI Interaction Mode 1: Slash Commands (dropdown when typing "/help", "/clear" etc.)
 	const [showSlashCommands, setShowSlashCommands] = useState(false);
 	const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
@@ -193,22 +190,13 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 		useBoundStore.getState().addReference(displayReference, fullUrl);
 
 		// Show success notification
-		setFeedbackMessage(`File uploaded successfully: ${fileName}`);
-		setTimeout(() => setFeedbackMessage(null), 3000);
+		toast.success(`File uploaded successfully: ${fileName}`);
 	};
 
 	// Handle file upload error
 	const handleFileUploadError = (error: string) => {
 		// Show error feedback with specific error message
-		setFeedbackMessage(`Error: File upload failed - ${error}`);
-
-		// Auto-hide after 3 seconds
-		setTimeout(() => {
-			setFeedbackMessage(null);
-		}, 3000);
-
-		// Don't add error message to chat interface
-		// Just show the notification
+		toast.error(`File upload failed: ${error}`);
 	};
 
 	// Initialize new hooks
@@ -402,8 +390,7 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 			!sseStream.error.includes("cancelled") &&
 			!sseStream.cancelled
 		) {
-			setFeedbackMessage(`Error: Failed to send prompt - ${sseStream.error}`);
-			setTimeout(() => setFeedbackMessage(null), 5000);
+			toast.error(`Failed to send prompt: ${sseStream.error}`);
 		}
 	}, [sseStream.error, sseStream.cancelled]);
 
@@ -523,8 +510,7 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 			// If this is the first message, we need to clear the entire session
 			// For now, just pre-populate and let user know they need to delete messages manually
 			setText(messageToEdit.content);
-			setFeedbackMessage("This is the first message. Edit and resubmit.");
-			setTimeout(() => setFeedbackMessage(null), 3000);
+			toast.info("This is the first message. Edit and resubmit.");
 			return;
 		}
 
@@ -551,16 +537,10 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 			}
 
 			// Show success feedback
-			setFeedbackMessage("Ready to edit message");
-			setTimeout(() => {
-				setFeedbackMessage(null);
-			}, 2000);
+			toast.success("Ready to edit message");
 		} catch (error) {
 			console.error("Failed to rewind conversation:", error);
-			setFeedbackMessage("Error: Failed to rewind conversation");
-			setTimeout(() => {
-				setFeedbackMessage(null);
-			}, 3000);
+			toast.error("Failed to rewind conversation");
 		}
 	};
 
@@ -592,19 +572,6 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 	return (
 		<div className="relative flex h-full w-full p-8">
 			<div className="flex-1 overflow-y-auto">
-				{/* Feedback message notification */}
-				{feedbackMessage && (
-					<div
-						className={`-translate-x-1/2 fade-in slide-in-from-top-5 fixed top-4 left-1/2 z-50 transform animate-in rounded-md px-4 py-2 shadow-md duration-300 ${
-							feedbackMessage.startsWith("Error:")
-								? "bg-destructive text-destructive-foreground"
-								: "bg-primary text-primary-foreground"
-						}`}
-					>
-						{feedbackMessage}
-					</div>
-				)}
-
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
 					{/* Session header with clear (left) and export (right) buttons */}
 					{session && messages.length > 0 && (
@@ -755,7 +722,6 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 								setShowCommands(false);
 								setShowSlashCommands(false);
 							}}
-							onFeedbackMessage={setFeedbackMessage}
 							onNewSession={handleNewSession}
 							onQueryClientInvalidate={(keys) =>
 								queryClient.invalidateQueries({ queryKey: keys })
