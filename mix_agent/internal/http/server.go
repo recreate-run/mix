@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"mix/internal/app"
+	"mix/internal/auth"
+	"mix/internal/config"
 	"mix/internal/logging"
 	"mix/internal/version"
 )
@@ -28,6 +30,23 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	// Create session-aware asset handler
 	fileHandler := NewFileHandler(app)
 	sessionAssetHandler := NewSessionAssetHandler(app, app.StorageConfig)
+
+	// Initialize and start the OAuth token refresh service
+	credentialsService := config.GetAPICredentials()
+	if credentialsService != nil {
+		// Check every 30 minutes for tokens that need refresh (uses 35-minute expiry buffer)
+		tokenRefreshService := auth.NewTokenRefreshService(credentialsService, 30*time.Minute)
+
+		// Set the service in the auth handler so endpoints can use it
+		authHandler.SetTokenRefreshService(tokenRefreshService)
+
+		// Start the background refresh service
+		go tokenRefreshService.Start(ctx)
+
+		logging.Info("OAuth token refresh service started", "checkInterval", "30m")
+	} else {
+		logging.Warn("Credentials service not available - OAuth token refresh service disabled")
+	}
 
 	// Create dedicated HTTP mux with CORS middleware
 	mux := http.NewServeMux()
@@ -129,6 +148,10 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/auth/validate", authHandler.HandleValidatePreferredProvider)
 	mux.HandleFunc("POST /api/auth/oauth/{provider}", authHandler.HandleStartOAuth)
 	mux.HandleFunc("POST /api/auth/oauth-callback", authHandler.HandleOAuthCallback)
+
+	// OAuth token management endpoints
+	mux.HandleFunc("POST /internal/auth/refresh-tokens", authHandler.HandleRefreshTokens)
+	mux.HandleFunc("GET /health/auth", authHandler.HandleOAuthHealth)
 
 	// Tools management endpoints
 	// mux.HandleFunc("POST /api/tools/credentials", toolsHandler.HandleStoreToolAPIKey)
