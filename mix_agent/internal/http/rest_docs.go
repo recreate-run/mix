@@ -316,6 +316,80 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/sessions/{id}/callbacks": map[string]interface{}{
+				"patch": map[string]interface{}{
+					"operationId":  "updateSessionCallbacks",
+					"summary":     "Update session callbacks",
+					"description": "Update the callback configurations for a session. Callbacks execute automatically after tool completion. Pass an empty array to clear all callbacks.",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID to update"),
+					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"callbacks"},
+						"properties": map[string]interface{}{
+							"callbacks": map[string]interface{}{
+								"type":        "array",
+								"description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+								"items": map[string]interface{}{
+									"type": "object",
+									"required": []string{"toolName", "type"},
+									"properties": map[string]interface{}{
+										"toolName": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+											"example":     "show_media",
+										},
+										"type": map[string]interface{}{
+											"type":        "string",
+											"enum":        []string{"bash_script", "sub_agent"},
+											"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
+										},
+										"bashCommand": map[string]interface{}{
+											"type":        "string",
+											"description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
+											"example":     "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
+										},
+										"bashTimeout": map[string]interface{}{
+											"type":        "integer",
+											"description": "Timeout in milliseconds for bash execution (default: 120000)",
+											"default":     120000,
+											"maximum":     120000,
+										},
+										"subAgentPrompt": map[string]interface{}{
+											"type":        "string",
+											"description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
+											"example":     "Analyze the tool output and suggest improvements",
+										},
+										"subAgentType": map[string]interface{}{
+											"type":        "string",
+											"description": "Type of sub-agent to spawn (default: 'general-purpose')",
+											"default":     "general-purpose",
+											"example":     "general-purpose",
+										},
+										"includeFullHistory": map[string]interface{}{
+											"type":        "boolean",
+											"description": "Include full conversation history in sub-agent context (not yet implemented)",
+											"default":     false,
+										},
+										"nonBlocking": map[string]interface{}{
+											"type":        "boolean",
+											"description": "Run callback asynchronously without waiting for completion",
+											"default":     false,
+										},
+									},
+								},
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", getSessionDataSchema(), "Session callbacks updated successfully"),
+						"400": createErrorResponse("Invalid request - validation error in callbacks array"),
+						"404": createErrorResponse("Session not found"),
+					},
+				},
+			},
 			"/api/sessions/{id}/rewind": map[string]interface{}{
 				"post": map[string]interface{}{
 					"operationId":  "rewindSession",

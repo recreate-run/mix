@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -443,6 +444,89 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 
 	// Return 204 No Content for successful deletion
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// UpdateCallbacksRequest represents the request body for updating session callbacks
+type UpdateCallbacksRequest struct {
+	Callbacks []interfaces.CallbackConfig `json:"callbacks"`
+}
+
+// HandleUpdateSessionCallbacks handles PATCH /api/sessions/{id}/callbacks
+func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "PATCH" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	var req UpdateCallbacksRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendValidationError(w, "body", fmt.Sprintf("Invalid JSON: %v", err))
+		return
+	}
+
+	// Validate callback structure before updating
+	if len(req.Callbacks) > 0 {
+		if err := validateCallbacks(req.Callbacks); err != nil {
+			sendValidationError(w, "callbacks", err.Error())
+			return
+		}
+	}
+
+	ctx := r.Context()
+
+	// Get existing session
+	session, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Update callbacks
+	if err := session.SetCallbacks(req.Callbacks); err != nil {
+		sendValidationError(w, "callbacks", fmt.Sprintf("failed to set callbacks: %v", err))
+		return
+	}
+
+	// Save updated session
+	updatedSession, err := h.app.Sessions.Save(ctx, session)
+	if err != nil {
+		sendInternalError(w, "updating session callbacks", err)
+		return
+	}
+
+	// Get callbacks for response
+	callbacks, _ := updatedSession.GetCallbacks()
+
+	// Convert to API response format
+	result := SessionData{
+		ID:                    updatedSession.ID,
+		ParentSessionID:       updatedSession.ParentSessionID,
+		ParentToolCallID:      updatedSession.ParentToolCallID,
+		Title:                 updatedSession.Title,
+		SessionType:           updatedSession.SessionType.String(),
+		SubagentType:          updatedSession.SubagentType.String(),
+		UserMessageCount:      updatedSession.UserMessageCount,
+		AssistantMessageCount: updatedSession.AssistantMessageCount,
+		ToolCallCount:         updatedSession.ToolCallCount,
+		PromptTokens:          updatedSession.PromptTokens,
+		CompletionTokens:      updatedSession.CompletionTokens,
+		Cost:                  updatedSession.Cost,
+		CreatedAt:             time.Unix(updatedSession.CreatedAt, 0),
+		Callbacks:             callbacks,
+	}
+
+	sendJSONResponse(w, http.StatusOK, result)
 }
 
 // RewindSessionRequest represents the request body for rewinding a session
