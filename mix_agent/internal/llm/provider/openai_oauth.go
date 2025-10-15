@@ -59,6 +59,29 @@ type OpenAIIDTokenInfo struct {
 	ChatGPTPlanType string `json:"chatgpt_plan_type,omitempty"`
 }
 
+// OpenAIOrganization represents an organization in JWT claims
+type OpenAIOrganization struct {
+	ID        string `json:"id"`
+	IsDefault bool   `json:"is_default"`
+}
+
+// OpenAIAuthClaims represents the https://api.openai.com/auth namespace in JWT
+type OpenAIAuthClaims struct {
+	ChatGPTAccountID string                   `json:"chatgpt_account_id"`
+	OrganizationID   string                   `json:"organization_id,omitempty"`
+	Organizations    []OpenAIOrganization     `json:"organizations,omitempty"`
+}
+
+// OpenAIIDTokenClaims represents the full ID token claims
+type OpenAIIDTokenClaims struct {
+	Auth OpenAIAuthClaims `json:"https://api.openai.com/auth"`
+}
+
+// OpenAIAccessTokenClaims represents the full access token claims
+type OpenAIAccessTokenClaims struct {
+	Auth OpenAIAuthClaims `json:"https://api.openai.com/auth"`
+}
+
 // NewOpenAIOAuthFlow creates a new OpenAI OAuth flow with PKCE
 func NewOpenAIOAuthFlow() (*OpenAIOAuthFlow, error) {
 	// Generate PKCE codes
@@ -274,13 +297,13 @@ func (flow *OpenAIOAuthFlow) exchangeCodeForCredentials(code string) (*OpenAICre
 	}
 
 	// Step 2: Parse ID token to extract claims
-	tokenClaims, err := parseOpenAIJWTClaims(tokenData.IDToken)
+	tokenClaims, err := parseOpenAIJWTClaims[OpenAIIDTokenClaims](tokenData.IDToken)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse ID token: %w", err)
 	}
 
 	// Parse access token claims
-	accessClaims, err := parseOpenAIJWTClaims(tokenData.AccessToken)
+	accessClaims, err := parseOpenAIJWTClaims[OpenAIAccessTokenClaims](tokenData.AccessToken)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse access token: %w", err)
 	}
@@ -342,57 +365,39 @@ func (flow *OpenAIOAuthFlow) exchangeAuthCode(code string) (*OpenAICredentials, 
 	}
 
 	// Extract account ID from ID token claims
-	claims, err := parseOpenAIJWTClaims(tokenResp.IDToken)
+	claims, err := parseOpenAIJWTClaims[OpenAIIDTokenClaims](tokenResp.IDToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ID token claims: %w", err)
-	}
-
-	var accountID string
-	if authClaims, ok := claims["https://api.openai.com/auth"].(map[string]interface{}); ok {
-		if id, ok := authClaims["chatgpt_account_id"].(string); ok {
-			accountID = id
-		}
 	}
 
 	return &OpenAICredentials{
 		IDToken:      tokenResp.IDToken,
 		AccessToken:  tokenResp.AccessToken,
 		RefreshToken: tokenResp.RefreshToken,
-		AccountID:    accountID,
+		AccountID:    claims.Auth.ChatGPTAccountID,
 	}, nil
 }
 
 // obtainAPIKey exchanges OAuth tokens for OpenAI API key
-func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]interface{}, tokenData *OpenAICredentials) (string, string, error) {
-	authClaims, ok := tokenClaims["https://api.openai.com/auth"].(map[string]interface{})
-	if !ok {
-		return "", "", fmt.Errorf("missing auth claims in ID token - you may need to create an organization and project at https://platform.openai.com first")
-	}
+func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims *OpenAIIDTokenClaims, accessClaims *OpenAIAccessTokenClaims, tokenData *OpenAICredentials) (string, string, error) {
+	authClaims := tokenClaims.Auth
 
 	// CRITICAL FIX: Extract organization from either direct field OR organizations array (reference implementation works with array)
-	orgID, hasOrgID := authClaims["organization_id"].(string)
+	orgID := authClaims.OrganizationID
 
 	// If no direct organization_id, extract from organizations array like reference implementation
-	if !hasOrgID || orgID == "" {
-		if orgs, ok := authClaims["organizations"].([]interface{}); ok && len(orgs) > 0 {
+	if orgID == "" {
+		if len(authClaims.Organizations) > 0 {
 			// Find the default organization first, otherwise use the first one
-			for _, org := range orgs {
-				if orgMap, ok := org.(map[string]interface{}); ok {
-					if isDefault, _ := orgMap["is_default"].(bool); isDefault {
-						if id, ok := orgMap["id"].(string); ok {
-							orgID = id
-							break
-						}
-					}
+			for _, org := range authClaims.Organizations {
+				if org.IsDefault {
+					orgID = org.ID
+					break
 				}
 			}
 			// If no default found, use the first organization
-			if orgID == "" && len(orgs) > 0 {
-				if orgMap, ok := orgs[0].(map[string]interface{}); ok {
-					if id, ok := orgMap["id"].(string); ok {
-						orgID = id
-					}
-				}
+			if orgID == "" {
+				orgID = authClaims.Organizations[0].ID
 			}
 		}
 	}
@@ -457,8 +462,8 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims, accessClaims map[string]i
 	return exchangeResp.AccessToken, successURL, nil
 }
 
-// parseOpenAIJWTClaims parses JWT claims from a token
-func parseOpenAIJWTClaims(token string) (map[string]interface{}, error) {
+// parseOpenAIJWTClaims parses JWT claims from a token into a strongly-typed struct
+func parseOpenAIJWTClaims[T any](token string) (*T, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("invalid JWT format - expected 3 parts, got %d", len(parts))
@@ -475,12 +480,12 @@ func parseOpenAIJWTClaims(token string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to decode JWT payload (length %d): %w", len(payload), err)
 	}
 
-	var claims map[string]interface{}
+	var claims T
 	if err := json.Unmarshal(decoded, &claims); err != nil {
 		return nil, fmt.Errorf("failed to parse JWT claims from decoded payload (length %d): %w", len(decoded), err)
 	}
 
-	return claims, nil
+	return &claims, nil
 }
 
 // openBrowser opens a URL in the default browser

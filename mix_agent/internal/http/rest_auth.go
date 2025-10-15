@@ -47,9 +47,9 @@ type AuthStatusResponse struct {
 
 // ProviderAuthStatus represents authentication status for a single provider
 type ProviderAuthStatus struct {
-	Authenticated bool   `json:"authenticated"`
-	AuthMethod    string `json:"auth_method"` // "oauth", "api_key", "none"
-	DisplayName   string `json:"display_name"`
+	Authenticated bool               `json:"authenticated"`
+	AuthMethod    models.AuthMethod  `json:"auth_method"`
+	DisplayName   string             `json:"display_name"`
 }
 
 // HandleStoreAPIKey handles POST /api/auth/api-key
@@ -325,7 +325,7 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 	response := map[string]interface{}{
 		"valid":       isAuthenticated,
 		"provider":    string(preferredProvider),
-		"auth_method": authMethod,
+		"auth_method": models.AuthMethod(authMethod),
 		"message": func() string {
 			if isAuthenticated {
 				return fmt.Sprintf("Ready to use %s", preferredProvider)
@@ -511,7 +511,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 
 	for _, p := range providers {
 		var authenticated bool
-		var authMethod string
+		var authMethod models.AuthMethod
 
 		// Check OAuth first (only for Anthropic)
 		hasOAuth := false
@@ -529,7 +529,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 
 		// Determine authentication status
 		authenticated = hasOAuth || hasAPIKey
-		authMethod = getAuthMethod(hasAPIKey, hasOAuth)
+		authMethod = models.AuthMethod(getAuthMethod(hasAPIKey, hasOAuth))
 
 		// Mark as preferred if this matches user's preference
 		displayName := p.displayName
