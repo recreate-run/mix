@@ -32,6 +32,7 @@ import { RateLimitDisplay } from "./rate-limit-display";
 import { ResponseRenderer } from "./response-renderer";
 import { StatusUI } from "./status-ui";
 import { TodoList } from "./todo-list";
+import { CallbackResultDisplay } from "./callback-result-display";
 
 type StreamingState = {
 	processing: boolean;
@@ -160,6 +161,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 		| { type: "thinking"; entries: string[]; timestamps: number[] }
 		| { type: "tool"; entry: TimelineEntry; nestedEntries?: TimelineEntry[] }
 		| { type: "content"; entry: TimelineEntry }
+		| { type: "callback_result"; entry: TimelineEntry }
 	> = [];
 
 	for (const entry of entriesToRender) {
@@ -182,6 +184,8 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 				entry,
 				nestedEntries: nested,
 			});
+		} else if (entry.type === "callback_result") {
+			groupedEntries.push({ type: "callback_result", entry });
 		} else {
 			groupedEntries.push({ type: "content", entry });
 		}
@@ -216,6 +220,14 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 				<div className="mb-4" key={`content-${group.entry.id}`}>
 					<ResponseRenderer content={group.entry.content as string} />
 				</div>
+			);
+		}
+		if (group.type === "callback_result") {
+			return (
+				<CallbackResultDisplay
+					key={`callback-${group.entry.id}`}
+					result={group.entry.content as any}
+				/>
 			);
 		}
 

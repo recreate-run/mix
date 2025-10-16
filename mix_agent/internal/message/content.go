@@ -142,6 +142,23 @@ type ToolResult struct {
 
 func (ToolResult) isPart() {}
 
+type CallbackResult struct {
+	ToolCallID     string `json:"tool_call_id"`     // Links back to the tool call that triggered this callback
+	ToolName       string `json:"tool_name"`        // Name of the tool that triggered callback
+	CallbackName   string `json:"callback_name,omitempty"` // Human-readable name of the callback
+	CallbackType   string `json:"callback_type"`    // "bash_script" or "sub_agent"
+	Stdout         string `json:"stdout,omitempty"` // For bash callbacks: stdout output
+	Stderr         string `json:"stderr,omitempty"` // For bash callbacks: stderr output
+	ExitCode       int    `json:"exit_code"`        // For bash callbacks: exit code
+	SubAgentID     string `json:"subagent_id,omitempty"` // For subagent callbacks: ID of spawned session
+	SubAgentResult string `json:"subagent_result,omitempty"` // For subagent callbacks: result summary
+	NonBlocking    bool   `json:"non_blocking"`     // Whether callback ran async
+	Success        bool   `json:"success"`          // Whether callback succeeded
+	Error          string `json:"error,omitempty"`  // Error message if failed
+}
+
+func (CallbackResult) isPart() {}
+
 type ThinkingBlock struct {
 	Thinking  string `json:"thinking"`
 	Signature string `json:"signature"`
@@ -267,6 +284,20 @@ func (m *Message) ToolResults() []ToolResult {
 		}
 	}
 	return toolResults
+}
+
+func (m *Message) CallbackResults() []CallbackResult {
+	callbackResults := make([]CallbackResult, 0)
+	for _, part := range m.Parts {
+		if c, ok := part.(CallbackResult); ok {
+			callbackResults = append(callbackResults, c)
+		}
+	}
+	return callbackResults
+}
+
+func (m *Message) AddCallbackResult(cr CallbackResult) {
+	m.Parts = append(m.Parts, cr)
 }
 
 func (m *Message) IsFinished() bool {

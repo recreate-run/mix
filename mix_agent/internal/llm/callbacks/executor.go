@@ -17,10 +17,10 @@ import (
 type SubAgentFactory func(subagentType string) (SubAgent, error)
 
 type executor struct {
-	sessions        session.Service
-	permissions     permission.Service
-	messages        message.Service
-	createSubAgent  SubAgentFactory
+	sessions       session.Service
+	permissions    permission.Service
+	messages       message.Service
+	createSubAgent SubAgentFactory
 }
 
 // SubAgent defines the minimal interface for a subagent created by callbacks
@@ -119,6 +119,12 @@ export CALLBACK_SESSION_ID=%s
 			result.Error += "\n"
 		}
 		result.Error += err.Error()
+	}
+
+	// Save callback result as a message for display in frontend
+	if err := e.saveCallbackResultMessage(ctx, callbackCtx, config, result.Success, stdout, stderr, exitCode, "", ""); err != nil {
+		logging.Error("Failed to save callback result message", "error", err)
+		// Don't fail the callback if message saving fails - just log it
 	}
 
 	return result, nil
@@ -227,6 +233,12 @@ func (e *executor) executeSubAgent(ctx context.Context, config interfaces.Callba
 		}
 	}
 
+	// Save callback result as a message for display in frontend
+	if err := e.saveCallbackResultMessage(ctx, callbackCtx, config, true, "", "", 0, subSession.ID, output.String()); err != nil {
+		logging.Error("Failed to save callback result message", "error", err)
+		// Don't fail the callback if message saving fails - just log it
+	}
+
 	return interfaces.CallbackResult{
 		Success: true,
 		Output:  output.String(),
@@ -254,4 +266,42 @@ func shellQuote(s string) string {
 	// Replace single quotes with '\'' (end quote, escaped quote, start quote)
 	escaped := strings.ReplaceAll(s, "'", "'\\''")
 	return fmt.Sprintf("'%s'", escaped)
+}
+
+// saveCallbackResultMessage creates a tool message with callback result content part
+func (e *executor) saveCallbackResultMessage(
+	ctx context.Context,
+	callbackCtx interfaces.CallbackContext,
+	config interfaces.CallbackConfig,
+	success bool,
+	stdout, stderr string,
+	exitCode int,
+	subAgentID, subAgentResult string,
+) error {
+	callbackResult := message.CallbackResult{
+		ToolCallID:     callbackCtx.ToolCall.ID,
+		ToolName:       callbackCtx.ToolCall.Name,
+		CallbackName:   config.Name,
+		CallbackType:   string(config.Type),
+		Stdout:         stdout,
+		Stderr:         stderr,
+		ExitCode:       exitCode,
+		SubAgentID:     subAgentID,
+		SubAgentResult: subAgentResult,
+		NonBlocking:    config.NonBlocking,
+		Success:        success,
+	}
+
+	// Add error message if callback failed
+	if !success && stderr != "" {
+		callbackResult.Error = stderr
+	}
+
+	// Create a tool message with the callback result
+	_, err := e.messages.Create(ctx, callbackCtx.SessionID, message.CreateMessageParams{
+		Role:  message.Tool,
+		Parts: []message.ContentPart{callbackResult},
+	})
+
+	return err
 }

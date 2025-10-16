@@ -165,13 +165,18 @@ function CallbackCard({ callback, onDelete }: CallbackCardProps) {
 		<Card className="relative">
 			<CardHeader className="p-3 pb-2">
 				<div className="flex items-start justify-between gap-2">
-					<div className="flex flex-wrap gap-1">
-						<Badge variant="secondary" className="text-xs">
-							{callback.toolName || "*"}
-						</Badge>
-						<Badge variant="outline" className="text-xs">
-							{callback.type}
-						</Badge>
+					<div className="flex-1 min-w-0">
+						<div className="font-medium text-sm mb-1 truncate">
+							{callback.name}
+						</div>
+						<div className="flex flex-wrap gap-1">
+							<Badge variant="secondary" className="text-xs">
+								{callback.toolName || "*"}
+							</Badge>
+							<Badge variant="outline" className="text-xs">
+								{callback.type}
+							</Badge>
+						</div>
 					</div>
 					<Button
 						variant="ghost"
@@ -223,6 +228,7 @@ interface CallbackFormProps {
 }
 
 function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
+	const [name, setName] = React.useState("");
 	const [toolName, setToolName] = React.useState("*");
 	const [type, setType] = React.useState<CallbackType>(
 		CallbackType.BashScript,
@@ -238,7 +244,11 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 
+		// Generate default name if not provided
+		const callbackName = name.trim() || `Callback #${Math.floor(Math.random() * 9000) + 1000}`;
+
 		const callback: Callback = {
+			name: callbackName,
 			toolName,
 			type,
 			...(isBashScript
@@ -258,6 +268,19 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
+			<div className="space-y-2">
+				<Label htmlFor="name" className="text-xs">
+					Callback Name
+				</Label>
+				<Input
+					id="name"
+					value={name}
+					onChange={(e) => setName(e.target.value)}
+					placeholder="Callback #1234 (auto-generated)"
+					className="h-8 text-xs"
+				/>
+			</div>
+
 			<div className="space-y-2">
 				<Label htmlFor="toolName" className="text-xs">
 					Tool Name

@@ -1544,6 +1544,11 @@ func getOpenAPISpec() OpenAPISpec {
 					"description": "Session-level callback configuration that executes after tool completion",
 					"required": []string{"toolName", "type"},
 					"properties": map[string]interface{}{
+						"name": map[string]interface{}{
+							"type":        "string",
+							"description": "Human-readable name for this callback (optional, defaults to 'Callback #XXXX')",
+							"example":     "Log Output",
+						},
 						"toolName": map[string]interface{}{
 							"type":        "string",
 							"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
@@ -1737,6 +1742,13 @@ func getOpenAPISpec() OpenAPISpec {
 							},
 							"description": "Tool calls made during message processing",
 						},
+					"callbackResults": map[string]interface{}{
+						"type": "array",
+						"items": map[string]interface{}{
+							"$ref": "#/components/schemas/CallbackResultData",
+						},
+						"description": "Callback execution results (optional)",
+					},
 						"reasoning": map[string]interface{}{
 							"type":        "string",
 							"description": "Reasoning process (optional)",
@@ -1933,6 +1945,62 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 					"required": []string{"id", "name", "input", "type", "finished"},
+				},
+				"CallbackResultData": map[string]interface{}{
+					"type": "object",
+					"description": "Callback execution result information",
+					"properties": map[string]interface{}{
+						"tool_call_id": map[string]interface{}{
+							"type":        "string",
+							"description": "ID of the tool call that triggered this callback",
+						},
+						"tool_name": map[string]interface{}{
+							"type":        "string",
+							"description": "Name of the tool that triggered callback",
+						},
+						"callback_name": map[string]interface{}{
+							"type":        "string",
+							"description": "Human-readable name of the callback (optional)",
+						},
+						"callback_type": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"bash_script", "sub_agent"},
+							"description": "Type of callback executed",
+						},
+						"stdout": map[string]interface{}{
+							"type":        "string",
+							"description": "Standard output from bash callback (optional)",
+						},
+						"stderr": map[string]interface{}{
+							"type":        "string",
+							"description": "Standard error from bash callback (optional)",
+						},
+						"exit_code": map[string]interface{}{
+							"type":        "integer",
+							"description": "Exit code from bash callback (optional)",
+						},
+						"subagent_id": map[string]interface{}{
+							"type":        "string",
+							"description": "ID of spawned sub-agent session (optional)",
+						},
+						"subagent_result": map[string]interface{}{
+							"type":        "string",
+							"description": "Result from sub-agent execution (optional)",
+						},
+						"non_blocking": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether callback ran asynchronously",
+						},
+						"success": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether callback executed successfully",
+						},
+						"error": map[string]interface{}{
+							"type":        "string",
+							"description": "Error message if callback failed (optional)",
+						},
+					},
+					"required": []string{"tool_call_id", "tool_name", "callback_type", "non_blocking", "success"},
 				},
 				"FileInfo": map[string]interface{}{
 					"type": "object",

@@ -32,16 +32,33 @@ type ToolCallData struct {
 	IsError  bool   `json:"isError,omitempty"`
 }
 
+// CallbackResultData represents callback result information for REST API
+type CallbackResultData struct {
+	ToolCallID     string `json:"tool_call_id"`
+	ToolName       string `json:"tool_name"`
+	CallbackName   string `json:"callback_name,omitempty"`
+	CallbackType   string `json:"callback_type"`
+	Stdout         string `json:"stdout,omitempty"`
+	Stderr         string `json:"stderr,omitempty"`
+	ExitCode       int    `json:"exit_code,omitempty"`
+	SubAgentID     string `json:"subagent_id,omitempty"`
+	SubAgentResult string `json:"subagent_result,omitempty"`
+	NonBlocking    bool   `json:"non_blocking"`
+	Success        bool   `json:"success"`
+	Error          string `json:"error,omitempty"`
+}
+
 // MessageData represents message information for REST API
 type MessageData struct {
-	ID                string         `json:"id"`
-	SessionID         string         `json:"sessionId"`
-	Role              string         `json:"role"`
-	UserInput         string         `json:"userInput"`
-	AssistantResponse string         `json:"assistantResponse,omitempty"`
-	ToolCalls         []ToolCallData `json:"toolCalls,omitempty"`
-	Reasoning         string         `json:"reasoning,omitempty"`
-	ReasoningDuration int64          `json:"reasoningDuration,omitempty"`
+	ID                string               `json:"id"`
+	SessionID         string               `json:"sessionId"`
+	Role              string               `json:"role"`
+	UserInput         string               `json:"userInput"`
+	AssistantResponse string               `json:"assistantResponse,omitempty"`
+	ToolCalls         []ToolCallData       `json:"toolCalls,omitempty"`
+	CallbackResults   []CallbackResultData `json:"callbackResults,omitempty"`
+	Reasoning         string               `json:"reasoning,omitempty"`
+	ReasoningDuration int64                `json:"reasoningDuration,omitempty"`
 }
 
 // ExportToolCall represents comprehensive tool call information for transcript export
@@ -472,7 +489,8 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 		// Extract tool calls and match with tool results
 		toolCalls := msg.ToolCalls()
 		toolResults := msg.ToolResults()
-		
+		callbackResults := msg.CallbackResults()
+
 		// Extract reasoning content from both ReasoningContent and ThinkingBlock parts
 		var reasoning string
 		var reasoningDuration int64
@@ -534,7 +552,29 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 		if len(toolCallsData) > 0 {
 			messageData.ToolCalls = toolCallsData
 		}
-		
+
+		// Convert callback results
+		if len(callbackResults) > 0 {
+			callbackResultsData := make([]CallbackResultData, len(callbackResults))
+			for i, cr := range callbackResults {
+				callbackResultsData[i] = CallbackResultData{
+					ToolCallID:     cr.ToolCallID,
+					ToolName:       cr.ToolName,
+					CallbackName:   cr.CallbackName,
+					CallbackType:   cr.CallbackType,
+					Stdout:         cr.Stdout,
+					Stderr:         cr.Stderr,
+					ExitCode:       cr.ExitCode,
+					SubAgentID:     cr.SubAgentID,
+					SubAgentResult: cr.SubAgentResult,
+					NonBlocking:    cr.NonBlocking,
+					Success:        cr.Success,
+					Error:          cr.Error,
+				}
+			}
+			messageData.CallbackResults = callbackResultsData
+		}
+
 		// Add reasoning content if present
 		if reasoning != "" {
 			messageData.Reasoning = reasoning

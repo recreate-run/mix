@@ -148,6 +148,21 @@ const convertBackendMessageToUI = async (
 		}
 	}
 
+	// Add callback results to timeline
+	if (
+		backendMessage.callbackResults &&
+		backendMessage.callbackResults.length > 0
+	) {
+		for (const cr of backendMessage.callbackResults) {
+			timeline.push({
+				type: "callback_result",
+				timestamp: Date.now(),
+				content: cr,
+				id: `callback-${cr.toolCallId}-${backendMessage.id}`,
+			});
+		}
+	}
+
 	return {
 		id: backendMessage.id,
 		content: text,

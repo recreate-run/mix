@@ -1,3 +1,4 @@
+import type { CallbackResultData } from "mix-typescript-sdk/models";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "./common";
 import type { MediaOutput } from "./media";
@@ -28,7 +29,11 @@ type BaseTimelineEntry = {
 export type TimelineEntry =
 	| (BaseTimelineEntry & { type: "thinking"; content: string })
 	| (BaseTimelineEntry & { type: "tool"; content: ToolCall })
-	| (BaseTimelineEntry & { type: "content"; content: string });
+	| (BaseTimelineEntry & { type: "content"; content: string })
+	| (BaseTimelineEntry & {
+			type: "callback_result";
+			content: CallbackResultData;
+	  });
 
 export interface UIMessage {
 	id?: string;

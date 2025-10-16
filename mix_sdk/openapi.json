@@ -2622,6 +2622,13 @@
             "description": "Assistant's response message (optional)",
             "type": "string"
           },
+          "callbackResults": {
+            "description": "Callback execution results (optional)",
+            "items": {
+              "$ref": "#/components/schemas/CallbackResultData"
+            },
+            "type": "array"
+          },
           "id": {
             "description": "Unique message identifier",
             "type": "string"
@@ -2679,6 +2686,11 @@
             "description": "Include full conversation history in sub-agent context (not yet implemented)",
             "type": "boolean"
           },
+          "name": {
+            "description": "Human-readable name for this callback (optional, defaults to 'Callback #XXXX')",
+            "example": "Log Output",
+            "type": "string"
+          },
           "nonBlocking": {
             "default": false,
             "description": "Run callback asynchronously without waiting for completion",
@@ -2710,6 +2722,71 @@
         "required": [
           "toolName",
           "type"
+        ],
+        "type": "object"
+      },
+      "CallbackResultData": {
+        "description": "Callback execution result information",
+        "properties": {
+          "callback_name": {
+            "description": "Human-readable name of the callback (optional)",
+            "type": "string"
+          },
+          "callback_type": {
+            "description": "Type of callback executed",
+            "enum": [
+              "bash_script",
+              "sub_agent"
+            ],
+            "type": "string"
+          },
+          "error": {
+            "description": "Error message if callback failed (optional)",
+            "type": "string"
+          },
+          "exit_code": {
+            "description": "Exit code from bash callback (optional)",
+            "type": "integer"
+          },
+          "non_blocking": {
+            "description": "Whether callback ran asynchronously",
+            "type": "boolean"
+          },
+          "stderr": {
+            "description": "Standard error from bash callback (optional)",
+            "type": "string"
+          },
+          "stdout": {
+            "description": "Standard output from bash callback (optional)",
+            "type": "string"
+          },
+          "subagent_id": {
+            "description": "ID of spawned sub-agent session (optional)",
+            "type": "string"
+          },
+          "subagent_result": {
+            "description": "Result from sub-agent execution (optional)",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether callback executed successfully",
+            "type": "boolean"
+          },
+          "tool_call_id": {
+            "description": "ID of the tool call that triggered this callback",
+            "type": "string"
+          },
+          "tool_name": {
+            "description": "Name of the tool that triggered callback",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_call_id",
+          "tool_name",
+          "callback_type",
+          "non_blocking",
+          "success"
         ],
         "type": "object"
       },
