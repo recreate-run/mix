@@ -32,11 +32,8 @@ import {
 	useSessionCallbacks,
 	useUpdateCallbacks,
 } from "@/hooks/useSessionCallbacks";
-import type {
-	UpdateSessionCallbacksCallback,
-	UpdateSessionCallbacksType,
-} from "mix-typescript-sdk/models/operations/updatesessioncallbacks.js";
-import { UpdateSessionCallbacksType as CallbackType } from "mix-typescript-sdk/models/operations/updatesessioncallbacks.js";
+import type { Callback } from "mix-typescript-sdk/models/callback.js";
+import { CallbackType } from "mix-typescript-sdk/models/callback.js";
 
 interface RightSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	sessionId?: string;
@@ -58,7 +55,7 @@ export function RightSidebar({ sessionId, ...props }: RightSidebarProps) {
 		});
 	};
 
-	const handleAddCallback = (callback: UpdateSessionCallbacksCallback) => {
+	const handleAddCallback = (callback: Callback) => {
 		const newCallbacks = [...callbacks, callback];
 		updateCallbacks.mutate({
 			sessionId: currentSessionId,
@@ -157,7 +154,7 @@ export function RightSidebar({ sessionId, ...props }: RightSidebarProps) {
 }
 
 interface CallbackCardProps {
-	callback: UpdateSessionCallbacksCallback;
+	callback: Callback;
 	onDelete: () => void;
 }
 
@@ -221,13 +218,13 @@ function CallbackCard({ callback, onDelete }: CallbackCardProps) {
 }
 
 interface CallbackFormProps {
-	onSubmit: (callback: UpdateSessionCallbacksCallback) => void;
+	onSubmit: (callback: Callback) => void;
 	onCancel: () => void;
 }
 
 function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 	const [toolName, setToolName] = React.useState("*");
-	const [type, setType] = React.useState<UpdateSessionCallbacksType>(
+	const [type, setType] = React.useState<CallbackType>(
 		CallbackType.BashScript,
 	);
 	const [bashCommand, setBashCommand] = React.useState("");
@@ -241,7 +238,7 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 
-		const callback: UpdateSessionCallbacksCallback = {
+		const callback: Callback = {
 			toolName,
 			type,
 			...(isBashScript
@@ -294,7 +291,7 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 				</Label>
 				<Select
 					value={type}
-					onValueChange={(v) => setType(v as UpdateSessionCallbacksType)}
+					onValueChange={(v) => setType(v as CallbackType)}
 				>
 					<SelectTrigger id="type" className="h-8 text-xs">
 						<SelectValue />

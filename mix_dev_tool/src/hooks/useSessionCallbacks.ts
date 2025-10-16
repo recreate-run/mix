@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { UpdateSessionCallbacksCallback } from "mix-typescript-sdk/models/operations/updatesessioncallbacks.js";
+import type { Callback } from "mix-typescript-sdk/models/callback.js";
 import type { SessionData } from "mix-typescript-sdk/models/sessiondata.js";
 import { toast } from "sonner";
 import { CACHE_KEYS } from "@/lib/cache-keys";
@@ -16,8 +16,7 @@ export function useSessionCallbacks(sessionId: string) {
 		...query,
 		data: query.data
 			? {
-					callbacks: (query.data.callbacks ||
-						[]) as UpdateSessionCallbacksCallback[],
+					callbacks: (query.data.callbacks || []) as Callback[],
 					sessionId: query.data.id,
 				}
 			: undefined,
@@ -26,7 +25,7 @@ export function useSessionCallbacks(sessionId: string) {
 
 interface UpdateCallbacksParams {
 	sessionId: string;
-	callbacks: Array<UpdateSessionCallbacksCallback>;
+	callbacks: Array<Callback>;
 }
 
 interface MutationContext {

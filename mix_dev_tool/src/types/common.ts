@@ -1,5 +1,5 @@
+import type { Callback } from "mix-typescript-sdk/models/callback.js";
 import type {
-	Callback,
 	SessionType,
 	SubagentType,
 } from "mix-typescript-sdk/models/sessiondata.js";
