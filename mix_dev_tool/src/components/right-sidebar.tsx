@@ -215,6 +215,18 @@ function CallbackCard({ callback, onDelete }: CallbackCardProps) {
 								Type: {callback.subAgentType}
 							</p>
 						)}
+						<div className="flex flex-wrap gap-1 mt-1">
+							{callback.nonBlocking && (
+								<Badge variant="outline" className="text-xs">
+									Non-blocking
+								</Badge>
+							)}
+							{callback.includeFullHistory && (
+								<Badge variant="outline" className="text-xs">
+									Full history
+								</Badge>
+							)}
+						</div>
 					</>
 				)}
 			</CardContent>
@@ -238,6 +250,8 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 	const [nonBlocking, setNonBlocking] = React.useState(false);
 	const [subAgentPrompt, setSubAgentPrompt] = React.useState("");
 	const [subAgentType, setSubAgentType] = React.useState("general-purpose");
+	const [subAgentNonBlocking, setSubAgentNonBlocking] = React.useState(false);
+	const [includeFullHistory, setIncludeFullHistory] = React.useState(false);
 
 	const isBashScript = type === CallbackType.BashScript;
 
@@ -260,6 +274,8 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 				: {
 						subAgentPrompt,
 						subAgentType,
+						nonBlocking: subAgentNonBlocking,
+						includeFullHistory,
 					}),
 		};
 
@@ -384,9 +400,48 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 			) : (
 				<>
 					<div className="space-y-2">
-						<Label htmlFor="subAgentPrompt" className="text-xs">
-							Sub-agent Prompt
-						</Label>
+						<div className="flex items-center justify-between">
+							<Label htmlFor="subAgentPrompt" className="text-xs">
+								Sub-agent Prompt
+							</Label>
+							<Popover>
+								<PopoverTrigger asChild>
+									<Button variant="ghost" size="icon" className="h-6 w-6">
+										<Settings className="h-3 w-3" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className="w-64" align="end">
+									<div className="space-y-4">
+										<div className="flex items-center space-x-2">
+											<Switch
+												id="subAgentNonBlocking"
+												checked={subAgentNonBlocking}
+												onCheckedChange={setSubAgentNonBlocking}
+											/>
+											<Label htmlFor="subAgentNonBlocking" className="text-xs">
+												Non-blocking (async)
+											</Label>
+										</div>
+
+										<div className="space-y-1">
+											<div className="flex items-center space-x-2">
+												<Switch
+													id="includeFullHistory"
+													checked={includeFullHistory}
+													onCheckedChange={setIncludeFullHistory}
+												/>
+												<Label htmlFor="includeFullHistory" className="text-xs">
+													Include full history
+												</Label>
+											</div>
+											<p className="text-[10px] text-muted-foreground ml-8">
+												(not yet implemented)
+											</p>
+										</div>
+									</div>
+								</PopoverContent>
+							</Popover>
+						</div>
 						<Textarea
 							id="subAgentPrompt"
 							value={subAgentPrompt}

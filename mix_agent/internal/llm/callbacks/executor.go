@@ -146,6 +146,12 @@ func (e *executor) executeSubAgent(ctx context.Context, config interfaces.Callba
 	// Build prompt with tool execution context
 	prompt := buildSubAgentPrompt(config.SubAgentPrompt, callbackCtx)
 
+	logging.Info("SubAgent callback input",
+		"sessionID", callbackCtx.SessionID,
+		"subAgentType", config.SubAgentType,
+		"prompt", prompt,
+	)
+
 	// TODO: Get message history if config.IncludeFullHistory is true
 	// This is a stub for now - will be implemented later
 	if config.IncludeFullHistory {
@@ -233,15 +239,23 @@ func (e *executor) executeSubAgent(ctx context.Context, config interfaces.Callba
 		}
 	}
 
+	outputStr := output.String()
+	logging.Info("SubAgent callback output",
+		"sessionID", callbackCtx.SessionID,
+		"subAgentSessionID", subSession.ID,
+		"output", outputStr,
+		"outputLength", len(outputStr),
+	)
+
 	// Save callback result as a message for display in frontend
-	if err := e.saveCallbackResultMessage(ctx, callbackCtx, config, true, "", "", 0, subSession.ID, output.String()); err != nil {
+	if err := e.saveCallbackResultMessage(ctx, callbackCtx, config, true, "", "", 0, subSession.ID, outputStr); err != nil {
 		logging.Error("Failed to save callback result message", "error", err)
 		// Don't fail the callback if message saving fails - just log it
 	}
 
 	return interfaces.CallbackResult{
 		Success: true,
-		Output:  output.String(),
+		Output:  outputStr,
 	}, nil
 }
 

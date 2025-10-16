@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, Loader2, ExternalLink } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CallbackResultData } from "mix-typescript-sdk/models";
 
@@ -98,13 +98,7 @@ export function CallbackResultDisplay({
 	// Render subagent callback
 	if (result.callbackType === "sub_agent") {
 		return (
-			<div
-				className={cn(
-					"my-4 rounded-lg border-t-4 p-4 flex gap-3",
-					stateStyles[state],
-					className,
-				)}
-			>
+			<div className={cn("p-4 flex gap-3", className)}>
 				<StateIcon />
 				<div className="flex-1 min-w-0 space-y-2">
 					<div className="flex items-baseline gap-2 flex-wrap">
@@ -113,18 +107,6 @@ export function CallbackResultDisplay({
 							{result.toolName}
 						</span>
 					</div>
-
-					{result.subagentId && (
-						<a
-							href={`/sessions/${result.subagentId}`}
-							className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-							rel="noopener noreferrer"
-							target="_blank"
-						>
-							View sub-agent session
-							<ExternalLink className="h-3 w-3" />
-						</a>
-					)}
 
 					{result.subagentResult && (
 						<div className="bg-background/50 rounded p-2 text-xs">
