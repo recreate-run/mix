@@ -29,7 +29,7 @@ func NewMediaShowcaseTool() BaseTool {
 
 func (t *mediaShowcaseTool) Info() ToolInfo {
 	return ToolInfo{
-		Name:        "show_media",
+		Name:        "ShowMedia",
 		Description: LoadToolDescription("show_media"),
 		Parameters: map[string]any{
 			"outputs": map[string]any{

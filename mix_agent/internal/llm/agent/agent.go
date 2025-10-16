@@ -69,8 +69,8 @@ var (
 	ErrRequestCancelled = errors.New("request cancelled by user")
 
 	// Specific cancellation reasons for better diagnostics
-	ErrRequestCancelledByUser    = errors.New("request cancelled by user")
-	ErrRequestCancelledTimeout   = errors.New("request cancelled: timeout exceeded")
+	ErrRequestCancelledByUser     = errors.New("request cancelled by user")
+	ErrRequestCancelledTimeout    = errors.New("request cancelled: timeout exceeded")
 	ErrRequestCancelledDisconnect = errors.New("request cancelled: client disconnected")
 )
 
@@ -1194,14 +1194,15 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 
 	// Allow read-only and planning tools
 	allowedTools := map[string]bool{
-		"ReadText":       true,
-		"ls":             true,
-		"grep":           true,
-		"glob":           true,
-		"todo_write":     true,
-		"exit_plan_mode": true,
-		"fetch":          true,
-		"ReadMedia":      true,
+		"ReadText":     true,
+		"Grep":         true,
+		"Glob":         true,
+		"TodoWrite":    true,
+		"ExitPlanMode": true,
+		"ReadMedia":    true,
+		"WebFetch":     true,
+		"Search":       true,
+		"Task":         true,
 	}
 
 	return allowedTools[toolName]

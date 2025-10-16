@@ -1260,42 +1260,7 @@
                   "callbacks": {
                     "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
                     "items": {
-                      "properties": {
-                        "bashCommand": {
-                          "description": "Bash command to execute (for bash_script type). Has access to environment variables.",
-                          "example": "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
-                          "type": "string"
-                        },
-                        "bashTimeout": {
-                          "default": 120000,
-                          "description": "Timeout in milliseconds for bash execution (default: 120000)",
-                          "maximum": 120000,
-                          "type": "integer"
-                        },
-                        "nonBlocking": {
-                          "default": true,
-                          "description": "Run callback asynchronously without waiting for completion",
-                          "type": "boolean"
-                        },
-                        "toolName": {
-                          "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
-                          "example": "show_media",
-                          "type": "string"
-                        },
-                        "type": {
-                          "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents (not yet implemented)",
-                          "enum": [
-                            "bash_script",
-                            "sub_agent"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "toolName",
-                        "type"
-                      ],
-                      "type": "object"
+                      "$ref": "#/components/schemas/Callback"
                     },
                     "type": "array"
                   },
@@ -1534,58 +1499,7 @@
                   "callbacks": {
                     "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
                     "items": {
-                      "properties": {
-                        "bashCommand": {
-                          "description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
-                          "example": "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
-                          "type": "string"
-                        },
-                        "bashTimeout": {
-                          "default": 120000,
-                          "description": "Timeout in milliseconds for bash execution (default: 120000)",
-                          "maximum": 120000,
-                          "type": "integer"
-                        },
-                        "includeFullHistory": {
-                          "default": false,
-                          "description": "Include full conversation history in sub-agent context (not yet implemented)",
-                          "type": "boolean"
-                        },
-                        "nonBlocking": {
-                          "default": false,
-                          "description": "Run callback asynchronously without waiting for completion",
-                          "type": "boolean"
-                        },
-                        "subAgentPrompt": {
-                          "description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
-                          "example": "Analyze the tool output and suggest improvements",
-                          "type": "string"
-                        },
-                        "subAgentType": {
-                          "default": "general-purpose",
-                          "description": "Type of sub-agent to spawn (default: 'general-purpose')",
-                          "example": "general-purpose",
-                          "type": "string"
-                        },
-                        "toolName": {
-                          "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
-                          "example": "show_media",
-                          "type": "string"
-                        },
-                        "type": {
-                          "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
-                          "enum": [
-                            "bash_script",
-                            "sub_agent"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "toolName",
-                        "type"
-                      ],
-                      "type": "object"
+                      "$ref": "#/components/schemas/Callback"
                     },
                     "type": "array"
                   }
@@ -2748,22 +2662,73 @@
         ],
         "type": "object"
       },
+      "Callback": {
+        "description": "Session-level callback configuration that executes after tool completion",
+        "properties": {
+          "bashCommand": {
+            "description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
+            "type": "string"
+          },
+          "bashTimeout": {
+            "default": 120000,
+            "description": "Timeout in milliseconds for bash execution (default: 120000)",
+            "type": "integer"
+          },
+          "includeFullHistory": {
+            "default": false,
+            "description": "Include full conversation history in sub-agent context (not yet implemented)",
+            "type": "boolean"
+          },
+          "nonBlocking": {
+            "default": false,
+            "description": "Run callback asynchronously without waiting for completion",
+            "type": "boolean"
+          },
+          "subAgentPrompt": {
+            "description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
+            "type": "string"
+          },
+          "subAgentType": {
+            "default": "general-purpose",
+            "description": "Type of sub-agent to spawn (default: 'general-purpose')",
+            "type": "string"
+          },
+          "toolName": {
+            "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+            "example": "*",
+            "type": "string"
+          },
+          "type": {
+            "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
+            "enum": [
+              "bash_script",
+              "sub_agent"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "toolName",
+          "type"
+        ],
+        "type": "object"
+      },
       "CoreToolName": {
         "description": "Core built-in tool names",
         "enum": [
-          "bash",
+          "Bash",
           "ReadText",
-          "glob",
+          "Glob",
           "ReadMedia",
-          "grep",
-          "write",
-          "edit",
+          "Grep",
+          "Write",
+          "Edit",
           "python_execution",
-          "search",
-          "todo_write",
-          "exit_plan_mode",
-          "show_media",
-          "task"
+          "Search",
+          "TodoWrite",
+          "ExitPlanMode",
+          "ShowMedia",
+          "Task"
         ],
         "type": "string"
       },
@@ -3749,33 +3714,7 @@
           "callbacks": {
             "description": "Session-level callback configurations (optional)",
             "items": {
-              "properties": {
-                "bashCommand": {
-                  "description": "Bash command to execute (for bash_script type)",
-                  "type": "string"
-                },
-                "bashTimeout": {
-                  "description": "Timeout in milliseconds for bash execution",
-                  "type": "integer"
-                },
-                "nonBlocking": {
-                  "description": "Run callback asynchronously",
-                  "type": "boolean"
-                },
-                "toolName": {
-                  "description": "Tool to attach callback to",
-                  "type": "string"
-                },
-                "type": {
-                  "description": "Callback type",
-                  "enum": [
-                    "bash_script",
-                    "sub_agent"
-                  ],
-                  "type": "string"
-                }
-              },
-              "type": "object"
+              "$ref": "#/components/schemas/Callback"
             },
             "type": "array"
           },

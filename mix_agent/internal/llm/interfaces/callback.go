@@ -15,7 +15,7 @@ const (
 
 // CallbackConfig defines configuration for a tool callback
 type CallbackConfig struct {
-	// Tool to attach callback to (e.g., "show_media", "bash", "*" for all tools)
+	// Tool to attach callback to (e.g., "ShowMedia", "Bash", "*" for all tools)
 	ToolName string `json:"toolName"`
 
 	// Type of callback (bash_script or sub_agent)

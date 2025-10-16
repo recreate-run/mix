@@ -1521,9 +1521,9 @@ func getOpenAPISpec() OpenAPISpec {
 				"CoreToolName": map[string]interface{}{
 					"type": "string",
 					"enum": []string{
-						"bash", "ReadText", "glob", "ReadMedia", "grep", "write", "edit",
-						"python_execution", "search", "todo_write", "exit_plan_mode",
-						"show_media", "task",
+						"Bash", "ReadText", "Glob", "ReadMedia", "Grep", "Write", "Edit",
+						"python_execution", "Search", "TodoWrite", "ExitPlanMode",
+						"ShowMedia", "Task",
 					},
 					"description": "Core built-in tool names",
 				},

@@ -271,11 +271,19 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 					</SelectTrigger>
 					<SelectContent>
 						<SelectItem value="*">* (All tools)</SelectItem>
-						<SelectItem value="bash">bash</SelectItem>
-						<SelectItem value="show_media">show_media</SelectItem>
-						<SelectItem value="read">read</SelectItem>
-						<SelectItem value="write">write</SelectItem>
-						<SelectItem value="edit">edit</SelectItem>
+						<SelectItem value="Bash">Bash</SelectItem>
+						<SelectItem value="Edit">Edit</SelectItem>
+						<SelectItem value="Write">Write</SelectItem>
+						<SelectItem value="ReadText">ReadText</SelectItem>
+						<SelectItem value="ReadMedia">ReadMedia</SelectItem>
+						<SelectItem value="Glob">Glob</SelectItem>
+						<SelectItem value="Grep">Grep</SelectItem>
+						<SelectItem value="ShowMedia">ShowMedia</SelectItem>
+						<SelectItem value="Task">Task</SelectItem>
+						<SelectItem value="WebFetch">WebFetch</SelectItem>
+						<SelectItem value="Search">Search</SelectItem>
+						<SelectItem value="TodoWrite">TodoWrite</SelectItem>
+						<SelectItem value="ExitPlanMode">ExitPlanMode</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>

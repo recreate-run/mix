@@ -22,7 +22,7 @@ func TestExitPlanModeTool_Info(t *testing.T) {
 	info := tool.Info()
 
 	// Verify basic structure
-	assert.Equal(t, "exit_plan_mode", info.Name)
+	assert.Equal(t, "ExitPlanMode", info.Name)
 	assert.NotEmpty(t, info.Description)
 	assert.Contains(t, info.Description, "plan mode")
 	assert.Contains(t, info.Description, "finished presenting your plan")
@@ -88,7 +88,7 @@ func TestExitPlanModeTool_Run_Success(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			params := ToolCall{
 				ID:    "test-id",
-				Name:  "exit_plan_mode",
+				Name:  "ExitPlanMode",
 				Input: `{"plan":"` + strings.ReplaceAll(tt.plan, "\n", "\\n") + `"}`,
 			}
 
@@ -118,7 +118,7 @@ func TestExitPlanModeTool_Run_EmptyPlan(t *testing.T) {
 	// Test truly empty plan
 	params := ToolCall{
 		ID:    "test-id",
-		Name:  "exit_plan_mode",
+		Name:  "ExitPlanMode",
 		Input: `{"plan":""}`,
 	}
 
@@ -138,7 +138,7 @@ func TestExitPlanModeTool_Run_WhitespaceOnlyPlan(t *testing.T) {
 	// Whitespace-only plan should be accepted since implementation only checks for empty string
 	params := ToolCall{
 		ID:    "test-id",
-		Name:  "exit_plan_mode",
+		Name:  "ExitPlanMode",
 		Input: `{"plan":"   "}`,
 	}
 
@@ -183,7 +183,7 @@ func TestExitPlanModeTool_Run_InvalidJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			params := ToolCall{
 				ID:    "test-id",
-				Name:  "exit_plan_mode",
+				Name:  "ExitPlanMode",
 				Input: tt.input,
 			}
 
@@ -220,7 +220,7 @@ func TestExitPlanModeTool_Run_MissingPlanField(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			params := ToolCall{
 				ID:    "test-id",
-				Name:  "exit_plan_mode",
+				Name:  "ExitPlanMode",
 				Input: tt.input,
 			}
 
@@ -252,7 +252,7 @@ func TestExitPlanModeTool_ResponseFormat(t *testing.T) {
 	planContent := "Test plan with specific content"
 	params := ToolCall{
 		ID:    "test-id",
-		Name:  "exit_plan_mode",
+		Name:  "ExitPlanMode",
 		Input: `{"plan":"` + planContent + `"}`,
 	}
 
@@ -290,7 +290,7 @@ func TestExitPlanModeTool_ImplementsBaseTool(t *testing.T) {
 	ctx := context.Background()
 	params := ToolCall{
 		ID:    "test-id",
-		Name:  "exit_plan_mode",
+		Name:  "ExitPlanMode",
 		Input: `{"plan":"test"}`,
 	}
 

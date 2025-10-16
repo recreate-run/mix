@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	GlobToolName = "glob"
+	GlobToolName = "Glob"
 )
 
 type GlobParams struct {
