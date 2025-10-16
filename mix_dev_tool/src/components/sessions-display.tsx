@@ -14,10 +14,9 @@ interface SessionsDisplayProps {
 }
 
 export function SessionsDisplay({ data }: SessionsDisplayProps) {
-	const formatTimestamp = (timestamp: string) => {
+	const formatTimestamp = (timestamp: Date) => {
 		if (!timestamp) return "";
-		const date = new Date(timestamp); // RFC3339 parses directly
-		return date.toLocaleDateString();
+		return timestamp.toLocaleDateString();
 	};
 
 	// Generate markdown string
@@ -30,7 +29,7 @@ export function SessionsDisplay({ data }: SessionsDisplayProps) {
 
 	// Sort sessions by created date (most recent first)
 	const sortedSessions = [...data.sessions].sort(
-		(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+		(a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
 	);
 
 	sortedSessions.forEach((session) => {

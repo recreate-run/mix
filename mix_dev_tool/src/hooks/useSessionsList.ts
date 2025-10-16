@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import type { SessionData as SDKSessionData } from "mix-typescript-sdk/models";
 import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
 import type { SessionData } from "@/types/common";
@@ -24,16 +23,7 @@ async function loadSessionsList(): Promise<SessionData[]> {
 		return [];
 	}
 
-	// Transform SDK SessionData to match local interface (Date -> string)
-	const transformedSessions = response.map((session: SDKSessionData) => ({
-		...session,
-		createdAt:
-			session.createdAt instanceof Date
-				? session.createdAt.toISOString()
-				: session.createdAt,
-	}));
-
-	return transformedSessions;
+	return response;
 }
 
 export function useSessionsList() {

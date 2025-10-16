@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SessionData } from "mix-typescript-sdk/models/sessiondata.js";
 import { toast } from "sonner";
 import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
-import type { Session, SessionData } from "@/types/common";
+import type { Session } from "@/types/common";
 
 interface CreateSessionParams {
 	title: string;
@@ -38,13 +39,8 @@ export function useCreateSession() {
 export function useActiveSession(sessionId: string) {
 	return useQuery({
 		queryKey: CACHE_KEYS.session(sessionId),
-		queryFn: async (): Promise<Session | null> => {
-			const response = await mix.sessions.get({ id: sessionId });
-
-			return {
-				id: response.id,
-				title: response.title,
-			};
+		queryFn: async (): Promise<SessionData | null> => {
+			return await mix.sessions.get({ id: sessionId });
 		},
 		// refetchOnWindowFocus: false,
 		enabled: !!sessionId, // Only run when sessionId exists

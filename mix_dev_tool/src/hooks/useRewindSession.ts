@@ -20,14 +20,7 @@ async function rewindSession(
 		},
 	});
 
-	// Transform SDK SessionData to match local interface (Date -> string)
-	return {
-		...response,
-		createdAt:
-			response.createdAt instanceof Date
-				? response.createdAt.toISOString()
-				: response.createdAt,
-	};
+	return response;
 }
 
 export function useRewindSession() {

@@ -144,36 +144,7 @@ func getOpenAPISpec() OpenAPISpec {
 								"type":        "array",
 								"description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
 								"items": map[string]interface{}{
-									"type": "object",
-									"required": []string{"toolName", "type"},
-									"properties": map[string]interface{}{
-										"toolName": map[string]interface{}{
-											"type":        "string",
-											"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
-											"example":     "show_media",
-										},
-										"type": map[string]interface{}{
-											"type":        "string",
-											"enum":        []string{"bash_script", "sub_agent"},
-											"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents (not yet implemented)",
-										},
-										"bashCommand": map[string]interface{}{
-											"type":        "string",
-											"description": "Bash command to execute (for bash_script type). Has access to environment variables.",
-											"example":     "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
-										},
-										"bashTimeout": map[string]interface{}{
-											"type":        "integer",
-											"description": "Timeout in milliseconds for bash execution (default: 120000)",
-											"default":     120000,
-											"maximum":     120000,
-										},
-										"nonBlocking": map[string]interface{}{
-											"type":        "boolean",
-											"description": "Run callback asynchronously without waiting for completion",
-											"default":     true,
-										},
-									},
+									"$ref": "#/components/schemas/Callback",
 								},
 							},
 						},
@@ -333,52 +304,7 @@ func getOpenAPISpec() OpenAPISpec {
 								"type":        "array",
 								"description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
 								"items": map[string]interface{}{
-									"type": "object",
-									"required": []string{"toolName", "type"},
-									"properties": map[string]interface{}{
-										"toolName": map[string]interface{}{
-											"type":        "string",
-											"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
-											"example":     "show_media",
-										},
-										"type": map[string]interface{}{
-											"type":        "string",
-											"enum":        []string{"bash_script", "sub_agent"},
-											"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
-										},
-										"bashCommand": map[string]interface{}{
-											"type":        "string",
-											"description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
-											"example":     "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
-										},
-										"bashTimeout": map[string]interface{}{
-											"type":        "integer",
-											"description": "Timeout in milliseconds for bash execution (default: 120000)",
-											"default":     120000,
-											"maximum":     120000,
-										},
-										"subAgentPrompt": map[string]interface{}{
-											"type":        "string",
-											"description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
-											"example":     "Analyze the tool output and suggest improvements",
-										},
-										"subAgentType": map[string]interface{}{
-											"type":        "string",
-											"description": "Type of sub-agent to spawn (default: 'general-purpose')",
-											"default":     "general-purpose",
-											"example":     "general-purpose",
-										},
-										"includeFullHistory": map[string]interface{}{
-											"type":        "boolean",
-											"description": "Include full conversation history in sub-agent context (not yet implemented)",
-											"default":     false,
-										},
-										"nonBlocking": map[string]interface{}{
-											"type":        "boolean",
-											"description": "Run callback asynchronously without waiting for completion",
-											"default":     false,
-										},
-									},
+									"$ref": "#/components/schemas/Callback",
 								},
 							},
 						},
@@ -1613,6 +1539,51 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"description": "Tool name - either a core tool or MCP tool following {serverName}_{toolName} pattern",
 				},
+				"Callback": map[string]interface{}{
+					"type": "object",
+					"description": "Session-level callback configuration that executes after tool completion",
+					"required": []string{"toolName", "type"},
+					"properties": map[string]interface{}{
+						"toolName": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+							"example":     "*",
+						},
+						"type": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"bash_script", "sub_agent"},
+							"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
+						},
+						"bashCommand": map[string]interface{}{
+							"type":        "string",
+							"description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
+						},
+						"bashTimeout": map[string]interface{}{
+							"type":        "integer",
+							"description": "Timeout in milliseconds for bash execution (default: 120000)",
+							"default":     120000,
+						},
+						"nonBlocking": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Run callback asynchronously without waiting for completion",
+							"default":     false,
+						},
+						"subAgentPrompt": map[string]interface{}{
+							"type":        "string",
+							"description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
+						},
+						"subAgentType": map[string]interface{}{
+							"type":        "string",
+							"description": "Type of sub-agent to spawn (default: 'general-purpose')",
+							"default":     "general-purpose",
+						},
+						"includeFullHistory": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Include full conversation history in sub-agent context (not yet implemented)",
+							"default":     false,
+						},
+					},
+				},
 				"ErrorResponse": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -1713,30 +1684,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "array",
 							"description": "Session-level callback configurations (optional)",
 							"items": map[string]interface{}{
-								"type": "object",
-								"properties": map[string]interface{}{
-									"toolName": map[string]interface{}{
-										"type":        "string",
-										"description": "Tool to attach callback to",
-									},
-									"type": map[string]interface{}{
-										"type":        "string",
-										"enum":        []string{"bash_script", "sub_agent"},
-										"description": "Callback type",
-									},
-									"bashCommand": map[string]interface{}{
-										"type":        "string",
-										"description": "Bash command to execute (for bash_script type)",
-									},
-									"bashTimeout": map[string]interface{}{
-										"type":        "integer",
-										"description": "Timeout in milliseconds for bash execution",
-									},
-									"nonBlocking": map[string]interface{}{
-										"type":        "boolean",
-										"description": "Run callback asynchronously",
-									},
-								},
+								"$ref": "#/components/schemas/Callback",
 							},
 						},
 					},

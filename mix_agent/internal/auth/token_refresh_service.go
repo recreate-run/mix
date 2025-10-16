@@ -27,7 +27,6 @@ func NewTokenRefreshService(credentialsService *credentials.APICredentialsServic
 
 // Start begins the background token refresh service
 func (s *TokenRefreshService) Start(ctx context.Context) {
-	logging.Info("Starting OAuth token refresh service", "checkInterval", s.checkInterval)
 
 	// Run initial refresh check immediately
 	s.RefreshExpiredTokens(ctx)
@@ -58,7 +57,6 @@ func (s *TokenRefreshService) Stop() {
 // Uses a 35-minute buffer to ensure tokens are refreshed before they're considered expired by IsTokenExpired()
 // With 30-minute background checks + 5-minute safety margin = zero downtime
 func (s *TokenRefreshService) RefreshExpiredTokens(ctx context.Context) {
-	logging.Info("Checking for OAuth tokens expiring soon")
 
 	// Get tokens expiring within 35 minutes (database query buffer matches IsTokenExpired buffer)
 	expiredCreds, err := s.credentialsService.GetExpiredOAuthCredentials(ctx)
@@ -68,7 +66,7 @@ func (s *TokenRefreshService) RefreshExpiredTokens(ctx context.Context) {
 	}
 
 	if len(expiredCreds) == 0 {
-		logging.Info("No tokens expiring soon")
+		logging.Info("No auth tokens expiring soon")
 		return
 	}
 
@@ -86,8 +84,6 @@ func (s *TokenRefreshService) refreshSingleToken(ctx context.Context, cred *cred
 		// TODO: Add alerting mechanism here (e.g., webhook, email, Slack)
 		return
 	}
-
-	logging.Info("Attempting to refresh token", "provider", cred.Provider)
 
 	// Convert to provider format for refresh
 	oauthCred := &provider.OAuthCredentials{
