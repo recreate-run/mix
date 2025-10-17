@@ -1484,7 +1484,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"get": map[string]interface{}{
 					"operationId":  "listLLMTools",
 					"summary":     "List LLM tools",
-					"description": "Returns the list of all LLM tools that Claude can invoke (Bash, Edit, Read, Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite, ExitPlanMode, Task). This is useful for creating tool callbacks or understanding available agent capabilities.",
+					"description": "Returns the list of all LLM tools that Claude can invoke. The list is dynamically extracted from the actual tools registered in CoderAgentTools() (agent/tools.go), ensuring it always reflects the current tool availability. Typical tools include: Bash, Edit, Read, Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite, ExitPlanMode, and Task. This endpoint is useful for creating tool callbacks or understanding available agent capabilities.",
 					"tags":        []string{"Tools"},
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
