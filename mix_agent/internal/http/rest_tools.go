@@ -206,8 +206,9 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 	WriteJSONResponse(w, http.StatusOK, response)
 }
 
-// HandleToolsStatus handles GET /api/tools/status
-func (h *ToolsHandler) HandleToolsStatus(w http.ResponseWriter, r *http.Request) {
+// HandleToolCredentialsStatus handles GET /api/tools/credentials-status
+// Returns authentication/credential status for external tool integrations (Brave Search, Gemini, etc.)
+func (h *ToolsHandler) HandleToolCredentialsStatus(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 	if handleCORSPreflight(w, r) {
 		return
@@ -219,10 +220,59 @@ func (h *ToolsHandler) HandleToolsStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	status := h.checkAllToolsStatus(r.Context())
-	
+
 	// Convert to array format for SDK compatibility
 	arrayFormat := h.convertToArrayFormat(status)
 	WriteJSONResponse(w, http.StatusOK, arrayFormat)
+}
+
+// LLMToolInfo represents information about an LLM tool
+type LLMToolInfo struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Parameters  map[string]any `json:"parameters"`
+	Required    []string       `json:"required"`
+}
+
+// LLMToolsListResponse represents the list of all LLM tools available
+type LLMToolsListResponse struct {
+	Tools []LLMToolInfo `json:"tools"`
+}
+
+// HandleListLLMTools handles GET /api/tools
+// Returns the list of all LLM tools that Claude can invoke (Bash, Edit, Read, Write, etc.)
+// This list is dynamically extracted from the actual tools available to the agent.
+func (h *ToolsHandler) HandleListLLMTools(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "GET" {
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		return
+	}
+
+	// Get tools dynamically from the agent
+	agentTools := h.app.CoderAgent.GetTools()
+
+	// Convert agent tools to API response format
+	llmTools := make([]LLMToolInfo, 0, len(agentTools))
+	for _, tool := range agentTools {
+		info := tool.Info()
+		llmTools = append(llmTools, LLMToolInfo{
+			Name:        info.Name,
+			Description: info.Description,
+			Parameters:  info.Parameters,
+			Required:    info.Required,
+		})
+	}
+
+	response := LLMToolsListResponse{
+		Tools: llmTools,
+	}
+
+	WriteJSONResponse(w, http.StatusOK, response)
 }
 
 // convertToArrayFormat converts the map-based tools structure to an array-based format for SDK compatibility

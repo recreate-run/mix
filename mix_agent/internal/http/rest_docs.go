@@ -1515,6 +1515,143 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			// Tools Management Endpoints
+			"/api/tools": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "listLLMTools",
+					"summary":     "List LLM tools",
+					"description": "Returns the list of all LLM tools that Claude can invoke. The list is dynamically extracted from the actual tools registered in CoderAgentTools() (agent/tools.go), ensuring it always reflects the current tool availability. Typical tools include: Bash, Edit, Read, Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite, ExitPlanMode, and Task. This endpoint is useful for creating tool callbacks or understanding available agent capabilities.",
+					"tags":        []string{"Tools"},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "List of LLM tools",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"tools": map[string]interface{}{
+												"type": "array",
+												"items": map[string]interface{}{
+													"type": "object",
+													"properties": map[string]interface{}{
+														"name": map[string]interface{}{
+															"type":        "string",
+															"description": "Tool name",
+															"example":     "Bash",
+														},
+														"description": map[string]interface{}{
+															"type":        "string",
+															"description": "Tool description",
+															"example":     "Execute bash commands in a persistent shell session",
+														},
+														"parameters": map[string]interface{}{
+															"type":        "object",
+															"description": "Tool parameter schema",
+														},
+														"required": map[string]interface{}{
+															"type":        "array",
+															"items":       map[string]interface{}{"type": "string"},
+															"description": "Required parameters",
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
+			"/api/tools/credentials-status": map[string]interface{}{
+				"get": map[string]interface{}{
+					"operationId":  "getToolCredentialsStatus",
+					"summary":     "Get tool credentials status",
+					"description": "Returns authentication/credential status for external tool integrations (Brave Search, Gemini Vision, etc.). This endpoint checks if API keys are configured for tools that require external service credentials.",
+					"tags":        []string{"Tools"},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Tool credentials status",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"categories": map[string]interface{}{
+												"type": "object",
+												"description": "Tool categories grouped by type",
+												"additionalProperties": map[string]interface{}{
+													"type": "object",
+													"properties": map[string]interface{}{
+														"display_name": map[string]interface{}{
+															"type":        "string",
+															"description": "Category display name",
+															"example":     "Web Search",
+														},
+														"description": map[string]interface{}{
+															"type":        "string",
+															"description": "Category description",
+															"example":     "Search the web for real-time information",
+														},
+														"icon": map[string]interface{}{
+															"type":        "string",
+															"description": "Category icon",
+															"example":     "🔍",
+														},
+														"tools": map[string]interface{}{
+															"type": "array",
+															"description": "Tools in this category",
+															"items": map[string]interface{}{
+																"type": "object",
+																"properties": map[string]interface{}{
+																	"authenticated": map[string]interface{}{
+																		"type":        "boolean",
+																		"description": "Whether the tool has valid credentials",
+																		"example":     true,
+																	},
+																	"display_name": map[string]interface{}{
+																		"type":        "string",
+																		"description": "Tool display name",
+																		"example":     "Brave Search",
+																	},
+																	"description": map[string]interface{}{
+																		"type":        "string",
+																		"description": "Tool description",
+																		"example":     "Privacy-focused web search with real-time results",
+																	},
+																	"api_key_format": map[string]interface{}{
+																		"type":        "string",
+																		"description": "Expected API key format",
+																		"example":     "BSA...",
+																	},
+																	"api_key_required": map[string]interface{}{
+																		"type":        "boolean",
+																		"description": "Whether an API key is required",
+																		"example":     true,
+																	},
+																	"provider": map[string]interface{}{
+																		"type":        "string",
+																		"description": "Provider identifier",
+																		"example":     "brave",
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 		},
 		Components: OpenAPIComponents{
 			Schemas: map[string]interface{}{

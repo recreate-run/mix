@@ -1,9 +1,18 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionsList } from "@/hooks/useSessionsList";
 
 export const Route = createFileRoute("/")({
+	beforeLoad: async () => {
+		// In production, redirect to playground
+		if (import.meta.env.PROD) {
+			throw redirect({
+				to: "/playground",
+				replace: true,
+			});
+		}
+	},
 	component: AutoRedirectHome,
 });
 
