@@ -132,6 +132,7 @@ type Service interface {
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
 	Summarize(ctx context.Context, sessionID string) error
 	ClearAllSessionProviders()
+	GetTools() []tools.BaseTool
 	Shutdown()
 }
 
@@ -257,6 +258,10 @@ func (a *agent) Model() models.Model {
 
 func (a *agent) GetBroker() *pubsub.Broker[AgentEvent] {
 	return a.broker
+}
+
+func (a *agent) GetTools() []tools.BaseTool {
+	return a.tools
 }
 
 func (a *agent) Subscribe(ctx context.Context) <-chan pubsub.Event[AgentEvent] {

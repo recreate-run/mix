@@ -156,7 +156,8 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	// Tools management endpoints
 	// mux.HandleFunc("POST /api/tools/credentials", toolsHandler.HandleStoreToolAPIKey)
 	// mux.HandleFunc("DELETE /api/tools/credentials/{tool_type}/{provider}", toolsHandler.HandleDeleteToolCredential)
-	mux.HandleFunc("GET /api/tools/status", toolsHandler.HandleToolsStatus)
+	mux.HandleFunc("GET /api/tools/credentials-status", toolsHandler.HandleToolCredentialsStatus)
+	mux.HandleFunc("GET /api/tools", toolsHandler.HandleListLLMTools)
 
 	addr := host + ":" + strconv.Itoa(port)
 	server := &http.Server{

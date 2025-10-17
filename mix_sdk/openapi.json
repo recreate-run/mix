@@ -1250,55 +1250,13 @@
         ]
       },
       "post": {
-        "description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution.",
+        "description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.",
         "operationId": "createSession",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "properties": {
-                  "callbacks": {
-                    "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
-                    "items": {
-                      "properties": {
-                        "bashCommand": {
-                          "description": "Bash command to execute (for bash_script type). Has access to environment variables.",
-                          "example": "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
-                          "type": "string"
-                        },
-                        "bashTimeout": {
-                          "default": 120000,
-                          "description": "Timeout in milliseconds for bash execution (default: 120000)",
-                          "maximum": 120000,
-                          "type": "integer"
-                        },
-                        "nonBlocking": {
-                          "default": true,
-                          "description": "Run callback asynchronously without waiting for completion",
-                          "type": "boolean"
-                        },
-                        "toolName": {
-                          "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
-                          "example": "show_media",
-                          "type": "string"
-                        },
-                        "type": {
-                          "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents (not yet implemented)",
-                          "enum": [
-                            "bash_script",
-                            "sub_agent"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "toolName",
-                        "type"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  },
                   "customSystemPrompt": {
                     "description": "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax.",
                     "example": "You are a helpful assistant specialized in $<domain>. Always be concise and accurate.",
@@ -1506,132 +1464,6 @@
           }
         },
         "summary": "Get a specific session",
-        "tags": [
-          "Sessions"
-        ]
-      }
-    },
-    "/api/sessions/{id}/callbacks": {
-      "patch": {
-        "description": "Update the callback configurations for a session. Callbacks execute automatically after tool completion. Pass an empty array to clear all callbacks.",
-        "operationId": "updateSessionCallbacks",
-        "parameters": [
-          {
-            "description": "Session ID to update",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "callbacks": {
-                    "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
-                    "items": {
-                      "properties": {
-                        "bashCommand": {
-                          "description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
-                          "example": "echo \"Media created: $CALLBACK_TOOL_RESULT\" >> /tmp/media.log",
-                          "type": "string"
-                        },
-                        "bashTimeout": {
-                          "default": 120000,
-                          "description": "Timeout in milliseconds for bash execution (default: 120000)",
-                          "maximum": 120000,
-                          "type": "integer"
-                        },
-                        "includeFullHistory": {
-                          "default": false,
-                          "description": "Include full conversation history in sub-agent context (not yet implemented)",
-                          "type": "boolean"
-                        },
-                        "nonBlocking": {
-                          "default": false,
-                          "description": "Run callback asynchronously without waiting for completion",
-                          "type": "boolean"
-                        },
-                        "subAgentPrompt": {
-                          "description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
-                          "example": "Analyze the tool output and suggest improvements",
-                          "type": "string"
-                        },
-                        "subAgentType": {
-                          "default": "general-purpose",
-                          "description": "Type of sub-agent to spawn (default: 'general-purpose')",
-                          "example": "general-purpose",
-                          "type": "string"
-                        },
-                        "toolName": {
-                          "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
-                          "example": "show_media",
-                          "type": "string"
-                        },
-                        "type": {
-                          "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
-                          "enum": [
-                            "bash_script",
-                            "sub_agent"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "toolName",
-                        "type"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  }
-                },
-                "required": [
-                  "callbacks"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionData"
-                }
-              }
-            },
-            "description": "Session callbacks updated successfully"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Invalid request - validation error in callbacks array"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Session not found"
-          }
-        },
-        "summary": "Update session callbacks",
         "tags": [
           "Sessions"
         ]
@@ -2341,6 +2173,166 @@
         "summary": "Get system information",
         "tags": [
           "System"
+        ]
+      }
+    },
+    "/api/tools": {
+      "get": {
+        "description": "Returns the list of all LLM tools that Claude can invoke. The list is dynamically extracted from the actual tools registered in CoderAgentTools() (agent/tools.go), ensuring it always reflects the current tool availability. Typical tools include: Bash, Edit, Read, Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite, ExitPlanMode, and Task. This endpoint is useful for creating tool callbacks or understanding available agent capabilities.",
+        "operationId": "listLLMTools",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "tools": {
+                      "items": {
+                        "properties": {
+                          "description": {
+                            "description": "Tool description",
+                            "example": "Execute bash commands in a persistent shell session",
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Tool name",
+                            "example": "Bash",
+                            "type": "string"
+                          },
+                          "parameters": {
+                            "description": "Tool parameter schema",
+                            "type": "object"
+                          },
+                          "required": {
+                            "description": "Required parameters",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of LLM tools"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List LLM tools",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/tools/credentials-status": {
+      "get": {
+        "description": "Returns authentication/credential status for external tool integrations (Brave Search, Gemini Vision, etc.). This endpoint checks if API keys are configured for tools that require external service credentials.",
+        "operationId": "getToolCredentialsStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "categories": {
+                      "additionalProperties": {
+                        "properties": {
+                          "description": {
+                            "description": "Category description",
+                            "example": "Search the web for real-time information",
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "description": "Category display name",
+                            "example": "Web Search",
+                            "type": "string"
+                          },
+                          "icon": {
+                            "description": "Category icon",
+                            "example": "🔍",
+                            "type": "string"
+                          },
+                          "tools": {
+                            "description": "Tools in this category",
+                            "items": {
+                              "properties": {
+                                "api_key_format": {
+                                  "description": "Expected API key format",
+                                  "example": "BSA...",
+                                  "type": "string"
+                                },
+                                "api_key_required": {
+                                  "description": "Whether an API key is required",
+                                  "example": true,
+                                  "type": "boolean"
+                                },
+                                "authenticated": {
+                                  "description": "Whether the tool has valid credentials",
+                                  "example": true,
+                                  "type": "boolean"
+                                },
+                                "description": {
+                                  "description": "Tool description",
+                                  "example": "Privacy-focused web search with real-time results",
+                                  "type": "string"
+                                },
+                                "display_name": {
+                                  "description": "Tool display name",
+                                  "example": "Brave Search",
+                                  "type": "string"
+                                },
+                                "provider": {
+                                  "description": "Provider identifier",
+                                  "example": "brave",
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "description": "Tool categories grouped by type",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Tool credentials status"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get tool credentials status",
+        "tags": [
+          "Tools"
         ]
       }
     },
@@ -3745,39 +3737,6 @@
           "assistantMessageCount": {
             "description": "Number of assistant messages in session",
             "type": "integer"
-          },
-          "callbacks": {
-            "description": "Session-level callback configurations (optional)",
-            "items": {
-              "properties": {
-                "bashCommand": {
-                  "description": "Bash command to execute (for bash_script type)",
-                  "type": "string"
-                },
-                "bashTimeout": {
-                  "description": "Timeout in milliseconds for bash execution",
-                  "type": "integer"
-                },
-                "nonBlocking": {
-                  "description": "Run callback asynchronously",
-                  "type": "boolean"
-                },
-                "toolName": {
-                  "description": "Tool to attach callback to",
-                  "type": "string"
-                },
-                "type": {
-                  "description": "Callback type",
-                  "enum": [
-                    "bash_script",
-                    "sub_agent"
-                  ],
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            },
-            "type": "array"
           },
           "completionTokens": {
             "description": "Total completion tokens used",
