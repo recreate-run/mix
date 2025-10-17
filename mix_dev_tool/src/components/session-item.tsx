@@ -1,4 +1,4 @@
-import { IconFolder, IconTrash } from "@tabler/icons-react";
+import { IconTrash } from "@tabler/icons-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -14,9 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { useDeleteSession } from "@/hooks/useSession";
-import { useSystemInfo } from "@/hooks/useSystemInfo";
 import type { SessionData } from "@/types/common";
-import { PlatformFeatures } from "@/utils/platform";
 import { getDisplayTitle } from "@/utils/sessionUtils";
 
 interface SessionItemProps {
@@ -35,7 +33,6 @@ export function SessionItem({
 	allSessions,
 }: SessionItemProps) {
 	const navigate = useNavigate();
-	const { data: systemInfo } = useSystemInfo();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
 	// Simple delete hook with navigation callback - no circular dependencies
@@ -70,30 +67,6 @@ export function SessionItem({
 		}
 	};
 
-	const handleOpenFolder = async (e: React.MouseEvent) => {
-		e.stopPropagation();
-
-		if (!PlatformFeatures.hasShellAccess()) {
-			console.error("Open folder feature is only available in desktop app");
-			return;
-		}
-
-		if (!systemInfo?.storageBasePath) {
-			console.error("Storage base path not available");
-			return;
-		}
-
-		try {
-			// Desktop: Open the session's storage directory in system file manager
-			const { open } = await import("@tauri-apps/plugin-shell");
-			const storagePath = `${systemInfo.storageBasePath}/${session.id}`;
-			console.log("Opening storage path:", storagePath);
-			await open(storagePath);
-		} catch (error) {
-			console.error("Failed to open storage folder:", error);
-		}
-	};
-
 	const formatDate = (date: Date) => {
 		const now = new Date();
 		const diffDays = Math.floor(
@@ -117,13 +90,7 @@ export function SessionItem({
 						: ""
 				}`}
 			>
-				<div
-					className={`flex translate-x-0 transition-transform duration-200 ease-out will-change-transform ${
-						PlatformFeatures.hasShellAccess()
-							? "group-hover/session-item:translate-x-[-80px]"
-							: "group-hover/session-item:translate-x-[-40px]"
-					}`}
-				>
+				<div className="flex translate-x-0 transition-transform duration-200 ease-out will-change-transform group-hover/session-item:translate-x-[-40px]">
 					<SidebarMenuButton
 						className="flex h-auto min-h-[60px] w-full flex-shrink-0 flex-col items-start gap-1 py-2 pr-2 hover:bg-transparent"
 						isActive={isActive}
@@ -138,16 +105,6 @@ export function SessionItem({
 							<span>{formatDate(createdDate)}</span>
 						</div>
 					</SidebarMenuButton>
-					{PlatformFeatures.hasShellAccess() && (
-						<Button
-							className="flex min-h-[60px] flex-shrink-0 cursor-pointer items-center justify-center bg-blue-500 hover:bg-blue-600"
-							onClick={handleOpenFolder}
-							size="icon"
-							title="Open storage folder"
-						>
-							<IconFolder />
-						</Button>
-					)}
 					<Button
 						className="flex min-h-[60px] flex-shrink-0 cursor-pointer items-center justify-center bg-red-500 hover:bg-red-500"
 						disabled={deleteSessionMutation.isPending || session.isDeleting}

@@ -19,7 +19,11 @@ const (
 // SessionData represents session information for REST API
 type SessionData struct {
 	ID                    string    `json:"id"`
+	ParentSessionID       string    `json:"parentSessionId,omitempty"`
+	ParentToolCallID      string    `json:"parentToolCallId,omitempty"`
 	Title                 string    `json:"title"`
+	SessionType           string    `json:"sessionType"`
+	SubagentType          string    `json:"subagentType,omitempty"`
 	UserMessageCount      int64     `json:"userMessageCount"`
 	AssistantMessageCount int64     `json:"assistantMessageCount"`
 	ToolCallCount         int64     `json:"toolCallCount"`
@@ -53,6 +57,10 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	}
 
 	ctx := r.Context()
+
+	// Check if subagent sessions should be included (for loading subagent timeline)
+	includeSubagents := r.URL.Query().Get("includeSubagents") == "true"
+
 	sessions, err := h.app.Sessions.ListWithContent(ctx)
 	if err != nil {
 		sendInternalError(w, "listing sessions", err)
@@ -62,9 +70,19 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	// Initialize as empty slice instead of nil to ensure JSON encodes as [] not null
 	result := make([]SessionData, 0)
 	for _, s := range sessions {
+		// Only include main and forked sessions by default - hide subagent sessions
+		// unless explicitly requested via query parameter
+		if s.SessionType == "subagent" && !includeSubagents {
+			continue
+		}
+
 		result = append(result, SessionData{
 			ID:                    s.ID,
+			ParentSessionID:       s.ParentSessionID.String,
+			ParentToolCallID:      s.ParentToolCallID.String,
 			Title:                 s.Title,
+			SessionType:           s.SessionType,                // String field from db.ListSessionsWithContentRow
+			SubagentType:          s.SubagentType.String,        // String field from db.ListSessionsWithContentRow
 			UserMessageCount:      s.UserMessageCount,
 			AssistantMessageCount: s.AssistantMessageCount,
 			ToolCallCount:         s.ToolCallCount,
@@ -106,7 +124,11 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 	result := SessionData{
 		ID:                    session.ID,
+		ParentSessionID:       session.ParentSessionID,
+		ParentToolCallID:      session.ParentToolCallID,
 		Title:                 session.Title,
+		SessionType:           session.SessionType.String(),   // Convert typed field to string
+		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      session.UserMessageCount,
 		AssistantMessageCount: session.AssistantMessageCount,
 		ToolCallCount:         session.ToolCallCount,
@@ -124,6 +146,8 @@ type CreateSessionRequest struct {
 	Title              string `json:"title"`
 	CustomSystemPrompt string `json:"customSystemPrompt,omitempty"`
 	PromptMode         string `json:"promptMode,omitempty"`
+	SessionType        string `json:"sessionType,omitempty"`        // Only "main" or empty allowed
+	SubagentType       string `json:"subagentType,omitempty"`       // Must be empty for API-created sessions
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -180,8 +204,21 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
+	// Validate session type - API can only create main sessions
+	// Subagent and forked sessions are created programmatically through dedicated flows
+	if req.SessionType != "" && req.SessionType != "main" {
+		sendValidationError(w, "sessionType", "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.")
+		return
+	}
+
+	// Subagent type must not be set for API-created sessions
+	if req.SubagentType != "" {
+		sendValidationError(w, "subagentType", "subagentType cannot be set for API-created sessions. Subagent sessions are created programmatically by the task delegation system.")
+		return
+	}
+
 	ctx := r.Context()
-	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode)
+	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "", "")
 	if err != nil {
 		sendInternalError(w, "creating session", err)
 		return
@@ -196,7 +233,11 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 
 	result := SessionData{
 		ID:                    session.ID,
+		ParentSessionID:       session.ParentSessionID,
+		ParentToolCallID:      session.ParentToolCallID,
 		Title:                 session.Title,
+		SessionType:           session.SessionType.String(),   // Convert typed field to string
+		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      session.UserMessageCount,
 		AssistantMessageCount: session.AssistantMessageCount,
 		ToolCallCount:         session.ToolCallCount,
@@ -266,7 +307,10 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 
 	result := SessionData{
 		ID:                    newSession.ID,
+		ParentSessionID:       newSession.ParentSessionID,
 		Title:                 newSession.Title,
+		SessionType:           newSession.SessionType.String(),   // Convert typed field to string
+		SubagentType:          newSession.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      newSession.UserMessageCount,
 		AssistantMessageCount: newSession.AssistantMessageCount,
 		ToolCallCount:         newSession.ToolCallCount,
@@ -437,7 +481,11 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 
 	result := SessionData{
 		ID:                    updatedSession.ID,
+		ParentSessionID:       updatedSession.ParentSessionID,
+		ParentToolCallID:      updatedSession.ParentToolCallID,
 		Title:                 updatedSession.Title,
+		SessionType:           updatedSession.SessionType.String(),   // Convert typed field to string
+		SubagentType:          updatedSession.SubagentType.String(),  // Convert typed field to string
 		UserMessageCount:      updatedSession.UserMessageCount,
 		AssistantMessageCount: updatedSession.AssistantMessageCount,
 		ToolCallCount:         updatedSession.ToolCallCount,

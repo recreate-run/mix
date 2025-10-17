@@ -87,6 +87,15 @@ func getOpenAPISpec() OpenAPISpec {
 					"summary":     "List all sessions",
 					"description": "Retrieve a list of all available sessions with their metadata",
 					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						{
+							"in":          "query",
+							"name":        "includeSubagents",
+							"schema":      map[string]interface{}{"type": "boolean", "default": false},
+							"required":    false,
+							"description": "Include subagent sessions in response (default: false, subagent sessions are hidden)",
+						},
+					},
 					"responses": map[string]interface{}{
 						"200": createSuccessResponse("array", getSessionDataSchema(), "List of sessions"),
 						"401": createErrorResponse("Unauthorized - authentication required"),
@@ -118,6 +127,18 @@ func getOpenAPISpec() OpenAPISpec {
 								"default":     "default",
 								"description": "Custom prompt handling mode:\n- 'default': Use base system prompt only (customSystemPrompt ignored)\n- 'append': Append customSystemPrompt to base system prompt (50KB limit)\n- 'replace': Replace base system prompt with customSystemPrompt (100KB limit)",
 								"example":     "append",
+							},
+							"sessionType": map[string]interface{}{
+								"type":        "string",
+								"enum":        []string{"main"},
+								"default":     "main",
+								"description": "Session type. API can only create 'main' sessions. Forked sessions are created via /fork endpoint. Subagent sessions are created automatically by the task delegation system.",
+								"example":     "main",
+							},
+							"subagentType": map[string]interface{}{
+								"type":        "string",
+								"description": "Subagent type - must not be set for API-created sessions. This field is reserved for programmatic subagent creation.",
+								"example":     "",
 							},
 						},
 					}),
@@ -167,6 +188,26 @@ func getOpenAPISpec() OpenAPISpec {
 												"error": map[string]interface{}{
 													"code":    400,
 													"message": "Custom prompt size (75KB) exceeds append mode limit of 50KB",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"invalid_session_type": map[string]interface{}{
+											"summary": "Invalid session type",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.",
+													"type":    "validation_error",
+												},
+											},
+										},
+										"subagent_type_not_allowed": map[string]interface{}{
+											"summary": "Subagent type not allowed for API-created sessions",
+											"value": map[string]interface{}{
+												"error": map[string]interface{}{
+													"code":    400,
+													"message": "subagentType cannot be set for API-created sessions. Subagent sessions are created programmatically by the task delegation system.",
 													"type":    "validation_error",
 												},
 											},
@@ -1502,9 +1543,27 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "Unique session identifier",
 						},
+						"parentSessionId": map[string]interface{}{
+							"type":        "string",
+							"description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+						},
+						"parentToolCallId": map[string]interface{}{
+							"type":        "string",
+							"description": "ID of the tool call that spawned this subagent session (null for non-subagent sessions)",
+						},
 						"title": map[string]interface{}{
 							"type":        "string",
 							"description": "Session title",
+						},
+						"sessionType": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"main", "forked", "subagent"},
+							"description": "Session type:\n- 'main': Root-level user interactions\n- 'forked': User-created conversation branches\n- 'subagent': Delegated task workers",
+						},
+						"subagentType": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"general-purpose"},
+							"description": "Subagent specialization type (only present for subagent sessions)",
 						},
 						"userMessageCount": map[string]interface{}{
 							"type":        "integer",
@@ -1529,7 +1588,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"cost": map[string]interface{}{
 							"type":        "number",
 							"format":      "double",
-							"description": "Total cost of session",
+							"description": "Total cost of session (for subagent sessions, costs are also accumulated in parent session)",
 						},
 						"createdAt": map[string]interface{}{
 							"type":        "string",
@@ -1541,7 +1600,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "First user message (optional)",
 						},
 					},
-					"required": []string{"id", "title", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
+					"required": []string{"id", "title", "sessionType", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
 				},
 				"MessageData": map[string]interface{}{
 					"type": "object",
@@ -1948,6 +2007,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "integer",
 											"description": "Maximum number of retry attempts",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"error"},
 								},
@@ -1989,6 +2052,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "integer",
 											"description": "Duration of reasoning process in milliseconds",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "done"},
 								},
@@ -2014,6 +2081,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "Thinking or reasoning content",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "content"},
 								},
@@ -2038,6 +2109,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"content": map[string]interface{}{
 											"type":        "string",
 											"description": "Streaming content delta",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "content"},
@@ -2076,6 +2151,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "Tool execution status",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "name", "input", "id", "status"},
 								},
@@ -2104,6 +2183,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"input": map[string]interface{}{
 											"type":        "string",
 											"description": "Partial JSON parameter delta - may not be parseable until complete",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolCallId", "input"},
@@ -2137,6 +2220,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"toolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "Tool call identifier",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolName", "progress", "toolCallId"},
@@ -2174,6 +2261,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"toolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "Tool call identifier",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "toolName", "progress", "success", "toolCallId"},
@@ -2224,6 +2315,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "object",
 											"description": "Additional parameters for the permission request",
 										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
 									},
 									"required": []string{"type", "id", "sessionId", "toolName", "description", "action"},
 								},
@@ -2252,6 +2347,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"done": map[string]interface{}{
 											"type":        "boolean",
 											"description": "Indicates if summarization is complete",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
 									},
 									"required": []string{"type", "progress", "done"},

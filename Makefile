@@ -57,6 +57,7 @@ help:
 	@echo "  frontend-knip - Run biome linter on frontend code"
 	@echo "  go-lint     - Run golangci-lint on Go backend code"
 	@echo "  go-test     - Run Go tests with coverage"
+	@echo "  sqlc-generate - Regenerate database query code with sqlc"
 	@echo "  generate-openapi - Generate JSON OpenAPI spec"
 	@echo "  help        - Show this help message"
 	@echo ""
@@ -245,6 +246,14 @@ frontend-knip:
 go-lint:
 	@echo "Running golangci-lint on Go backend code..."
 	cd mix_agent && golangci-lint run ./...
+
+# Regenerate database query code with sqlc
+sqlc-generate:
+	@echo "Installing sqlc (v1.29.0)..."
+	@cd mix_agent && go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.29.0
+	@echo "Regenerating database query code..."
+	@cd mix_agent && sqlc generate
+	@echo "✅ Database query code regenerated successfully!"
 
 # Generate TypeScript SDK from OpenAPI specification
 generate-openapi:

@@ -39,8 +39,8 @@ export function initPostHog() {
 
 		// Identify the user with the client ID and set app properties
 		posthog.identify(clientId, {
-			app_type: "tauri_desktop",
-			app_platform: "desktop",
+			app_type: "web",
+			app_platform: "browser",
 			app_version: "0.1.0",
 		});
 
@@ -90,22 +90,5 @@ export function trackSlashCommand(
 		});
 	} catch (error) {
 		console.error("Failed to track slash command:", error);
-	}
-}
-
-/**
- * Track general UI events (frontend-specific)
- */
-export function trackUIEvent(
-	eventName: string,
-	properties?: Record<string, string | number | boolean | null>,
-) {
-	try {
-		posthog.capture(eventName, {
-			timestamp: new Date().toISOString(),
-			...properties,
-		});
-	} catch (error) {
-		console.error("Failed to track UI event:", error);
 	}
 }

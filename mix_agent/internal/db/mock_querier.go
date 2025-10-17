@@ -192,6 +192,11 @@ func (m *MockQuerier) UpdateSession(ctx context.Context, arg UpdateSessionParams
 	return args.Get(0).(UpdateSessionRow), args.Error(1)
 }
 
+func (m *MockQuerier) IncrementSessionCost(ctx context.Context, arg IncrementSessionCostParams) error {
+	args := m.Called(ctx, arg)
+	return args.Error(0)
+}
+
 func (m *MockQuerier) DeleteSession(ctx context.Context, id string) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)

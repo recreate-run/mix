@@ -3,14 +3,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { cn } from "@/lib/utils";
-import { PlatformFeatures } from "@/utils/platform";
 import { useBoundStore } from "@/stores";
-import {
-	AUDIO_EXTENSIONS,
-	getFileTypeFromExtension,
-	IMAGE_EXTENSIONS,
-	VIDEO_EXTENSIONS,
-} from "@/utils/fileTypes";
+import { getFileTypeFromExtension } from "@/utils/fileTypes";
 
 interface FileUploadButtonProps {
 	sessionId: string;
@@ -63,129 +57,47 @@ export function FileUploadButton({
 	};
 
 	const handleFileSelect = async () => {
-		if (PlatformFeatures.hasNativeFilePicker()) {
-			// Desktop: Use Tauri native file picker
-			try {
-				// Dynamically import Tauri modules only when in Tauri environment
-				const { open } = await import("@tauri-apps/plugin-dialog");
-				const { readFile } = await import("@tauri-apps/plugin-fs");
+		// Use HTML file input
+		const input = document.createElement("input");
+		input.type = "file";
+		input.multiple = true;
+		// Set accept attribute with common file types
+		input.accept = [
+			// Images
+			"image/*",
+			// Videos
+			"video/*",
+			// Audio
+			"audio/*",
+			// Documents
+			".pdf",
+			".doc",
+			".docx",
+			".txt",
+			".md",
+			".rtf",
+			".csv",
+			".xls",
+			".xlsx",
+			// Code files
+			".js",
+			".ts",
+			".jsx",
+			".tsx",
+			".json",
+			".xml",
+			".html",
+			".css",
+		].join(",");
 
-				const selected = await open({
-					multiple: true,
-					filters: [
-						{
-							name: "All Files",
-							extensions: ["*"],
-						},
-						{
-							name: "Images",
-							extensions: [...IMAGE_EXTENSIONS],
-						},
-						{
-							name: "Videos",
-							extensions: [...VIDEO_EXTENSIONS],
-						},
-						{
-							name: "Audio",
-							extensions: [...AUDIO_EXTENSIONS],
-						},
-						{
-							name: "Documents",
-							extensions: [
-								"pdf",
-								"doc",
-								"docx",
-								"txt",
-								"md",
-								"rtf",
-								"csv",
-								"xls",
-								"xlsx",
-							],
-						},
-					],
-				});
-
-				if (!selected) {
-					return; // User cancelled
-				}
-
-				const filePaths = Array.isArray(selected) ? selected : [selected];
-
-				// Process each selected file
-				for (const filePath of filePaths) {
-					try {
-						// Read file data using Tauri FS plugin
-						const fileData = await readFile(filePath);
-
-						// Extract filename from path
-						const fileName = filePath.split(/[/\\]/).pop() || "unnamed-file";
-
-						// Create File object for upload
-						const file = new File([fileData], fileName, {
-							type: getMimeType(fileName),
-						});
-
-						// Process file
-						await processFile(file);
-					} catch (error) {
-						console.error(`Failed to upload file ${filePath}:`, error);
-						const errorMessage =
-							error instanceof Error ? error.message : "Unknown error";
-						onUploadError?.(
-							`Failed to upload ${filePath.split(/[/\\]/).pop()}: ${errorMessage}`,
-						);
-					}
-				}
-			} catch (error) {
-				console.error("Failed to open file picker:", error);
-				const errorMessage =
-					error instanceof Error ? error.message : "Unknown error";
-				onUploadError?.(`Failed to open file picker: ${errorMessage}`);
+		input.onchange = async () => {
+			const files = Array.from(input.files || []);
+			for (const file of files) {
+				await processFile(file);
 			}
-		} else {
-			// Browser: Use HTML file input
-			const input = document.createElement("input");
-			input.type = "file";
-			input.multiple = true;
-			// Set accept attribute with common file types
-			input.accept = [
-				// Images
-				"image/*",
-				// Videos
-				"video/*",
-				// Audio
-				"audio/*",
-				// Documents
-				".pdf",
-				".doc",
-				".docx",
-				".txt",
-				".md",
-				".rtf",
-				".csv",
-				".xls",
-				".xlsx",
-				// Code files
-				".js",
-				".ts",
-				".jsx",
-				".tsx",
-				".json",
-				".xml",
-				".html",
-				".css",
-			].join(",");
+		};
 
-			input.onchange = async () => {
-				const files = Array.from(input.files || []);
-				for (const file of files) {
-					await processFile(file);
-				}
-			};
-
-			input.click();
-		}
+		input.click();
 	};
 
 	// Drag and drop handlers
@@ -206,15 +118,41 @@ export function FileUploadButton({
 		e.stopPropagation();
 		setIsDraggingOver(false);
 
-		const files = Array.from(e.dataTransfer.files);
+		// Use DataTransferItemList for better folder support
+		const items = Array.from(e.dataTransfer.items);
 
-		if (files.length === 0) {
+		if (items.length === 0) {
 			return;
 		}
 
-		// Process each dropped file
-		for (const file of files) {
-			await processFile(file);
+		// Process each dropped item (files and folders)
+		for (const item of items) {
+			if (item.kind === 'file') {
+				const entry = item.webkitGetAsEntry();
+				if (entry) {
+					await processEntry(entry);
+				}
+			}
+		}
+	};
+
+	// Recursively process file system entries (files and folders)
+	const processEntry = async (entry: FileSystemEntry): Promise<void> => {
+		if (entry.isFile) {
+			const fileEntry = entry as FileSystemFileEntry;
+			fileEntry.file(async (file) => {
+				await processFile(file);
+			});
+		} else if (entry.isDirectory) {
+			const dirEntry = entry as FileSystemDirectoryEntry;
+			const reader = dirEntry.createReader();
+
+			// Read all entries in the directory
+			reader.readEntries(async (entries) => {
+				for (const childEntry of entries) {
+					await processEntry(childEntry);
+				}
+			});
 		}
 	};
 
@@ -264,61 +202,4 @@ export function FileUploadButton({
 	}
 
 	return buttonElement;
-}
-
-// Helper function to determine MIME type from file extension
-function getMimeType(fileName: string): string {
-	const extension = fileName.split(".").pop()?.toLowerCase();
-
-	const mimeTypes: Record<string, string> = {
-		// Images
-		png: "image/png",
-		jpg: "image/jpeg",
-		jpeg: "image/jpeg",
-		gif: "image/gif",
-		webp: "image/webp",
-		bmp: "image/bmp",
-		tiff: "image/tiff",
-
-		// Videos
-		mp4: "video/mp4",
-		webm: "video/webm",
-		mov: "video/quicktime",
-		avi: "video/x-msvideo",
-		mkv: "video/x-matroska",
-		wmv: "video/x-ms-wmv",
-		flv: "video/x-flv",
-		m4v: "video/x-m4v",
-
-		// Audio
-		mp3: "audio/mpeg",
-		wav: "audio/wav",
-		flac: "audio/flac",
-		aac: "audio/aac",
-		m4a: "audio/mp4",
-		ogg: "audio/ogg",
-
-		// Documents
-		pdf: "application/pdf",
-		doc: "application/msword",
-		docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		txt: "text/plain",
-		md: "text/markdown",
-		rtf: "application/rtf",
-		csv: "text/csv",
-		xls: "application/vnd.ms-excel",
-		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-		// Code
-		js: "text/javascript",
-		ts: "text/typescript",
-		jsx: "text/jsx",
-		tsx: "text/tsx",
-		json: "application/json",
-		xml: "application/xml",
-		html: "text/html",
-		css: "text/css",
-	};
-
-	return mimeTypes[extension || ""] || "application/octet-stream";
 }

@@ -109,7 +109,7 @@ func TestCreate(t *testing.T) {
 	mockQuerier.On("CreateSession", mock.Anything, mock.AnythingOfType("db.CreateSessionParams")).
 		Return(createRow, nil)
 
-	session, err := svc.Create(context.Background(), title, customSystemPrompt, promptMode)
+	session, err := svc.Create(context.Background(), title, customSystemPrompt, promptMode, SessionTypeMain, "", "", "")
 
 	assert.NoError(t, err)
 	assert.Equal(t, createRow.ID, session.ID)
@@ -248,6 +248,8 @@ func TestSave(t *testing.T) {
 	}
 
 	getRow := createTestGetSessionByIDRow()
+	getRow.ID = session.ID // Ensure getRow has the same ID as the session being saved
+	getRow.Title = session.Title // Match the title too for consistency
 
 	mockQuerier.On("UpdateSession", mock.Anything, mock.AnythingOfType("db.UpdateSessionParams")).
 		Return(updateRow, nil)

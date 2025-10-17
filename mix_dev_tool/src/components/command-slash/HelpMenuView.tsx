@@ -21,24 +21,15 @@ export function HelpMenuView({
 }: HelpMenuViewProps) {
 	const handleHelpItemSelect = async (item: (typeof helpData.menuItems)[0]) => {
 		if (item.action === "link" && item.url) {
-			// Open external link using Tauri shell with fallback
+			// Open external link
 			try {
-				const { open: shellOpen } = await import("@tauri-apps/plugin-shell");
-				await shellOpen(item.url);
-			} catch (shellError) {
-				console.warn(
-					"Tauri shell failed, falling back to window.open:",
-					shellError,
-				);
-				try {
-					window.open(item.url, "_blank", "noopener,noreferrer");
-				} catch (windowError) {
-					console.error("Both browser opening methods failed:", windowError);
-				}
+				window.open(item.url, "_blank", "noopener,noreferrer");
+			} catch (error) {
+				console.error("Failed to open link:", error);
 			}
 			onClose();
 		} else if (item.action === "commands") {
-			// Show available commands - trigger the original help command
+			// Show available commands
 			onExecuteCommand("help-commands");
 		}
 	};

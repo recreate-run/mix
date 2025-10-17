@@ -14,15 +14,15 @@ import (
 
 // UserPreferencesResponse represents the API response for user preferences
 type UserPreferencesResponse struct {
-	PreferredProvider        string `json:"preferred_provider"`
-	MainAgentModel           string `json:"main_agent_model"`
-	MainAgentMaxTokens       int64  `json:"main_agent_max_tokens"`
-	MainAgentReasoningEffort string `json:"main_agent_reasoning_effort"`
-	SubAgentModel            string `json:"sub_agent_model"`
-	SubAgentMaxTokens        int64  `json:"sub_agent_max_tokens"`
-	SubAgentReasoningEffort  string `json:"sub_agent_reasoning_effort"`
-	CreatedAt                int64  `json:"created_at"`
-	UpdatedAt                int64  `json:"updated_at"`
+	PreferredProvider        models.ModelProvider   `json:"preferred_provider"`
+	MainAgentModel           models.ModelID         `json:"main_agent_model"`
+	MainAgentMaxTokens       int64                  `json:"main_agent_max_tokens"`
+	MainAgentReasoningEffort models.ReasoningEffort `json:"main_agent_reasoning_effort"`
+	SubAgentModel            models.ModelID         `json:"sub_agent_model"`
+	SubAgentMaxTokens        int64                  `json:"sub_agent_max_tokens"`
+	SubAgentReasoningEffort  models.ReasoningEffort `json:"sub_agent_reasoning_effort"`
+	CreatedAt                int64                  `json:"created_at"`
+	UpdatedAt                int64                  `json:"updated_at"`
 }
 
 // UpdatePreferencesRequest represents the API request for updating preferences
@@ -80,13 +80,13 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 
 	// Convert database model to response model
 	response := UserPreferencesResponse{
-		PreferredProvider:        getStringValue(prefs.PreferredProvider),
-		MainAgentModel:           getStringValue(prefs.MainAgentModel),
+		PreferredProvider:        models.ModelProvider(getStringValue(prefs.PreferredProvider)),
+		MainAgentModel:           models.ModelID(getStringValue(prefs.MainAgentModel)),
 		MainAgentMaxTokens:       getInt64Value(prefs.MainAgentMaxTokens),
-		MainAgentReasoningEffort: getStringValue(prefs.MainAgentReasoningEffort),
-		SubAgentModel:            getStringValue(prefs.SubAgentModel),
+		MainAgentReasoningEffort: models.ReasoningEffort(getStringValue(prefs.MainAgentReasoningEffort)),
+		SubAgentModel:            models.ModelID(getStringValue(prefs.SubAgentModel)),
 		SubAgentMaxTokens:        getInt64Value(prefs.SubAgentMaxTokens),
-		SubAgentReasoningEffort:  getStringValue(prefs.SubAgentReasoningEffort),
+		SubAgentReasoningEffort:  models.ReasoningEffort(getStringValue(prefs.SubAgentReasoningEffort)),
 		CreatedAt:                prefs.CreatedAt,
 		UpdatedAt:                prefs.UpdatedAt,
 	}
@@ -332,13 +332,13 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 	}
 
 	response := UserPreferencesResponse{
-		PreferredProvider:        getStringValue(updatedPrefs.PreferredProvider),
-		MainAgentModel:           getStringValue(updatedPrefs.MainAgentModel),
+		PreferredProvider:        models.ModelProvider(getStringValue(updatedPrefs.PreferredProvider)),
+		MainAgentModel:           models.ModelID(getStringValue(updatedPrefs.MainAgentModel)),
 		MainAgentMaxTokens:       getInt64Value(updatedPrefs.MainAgentMaxTokens),
-		MainAgentReasoningEffort: getStringValue(updatedPrefs.MainAgentReasoningEffort),
-		SubAgentModel:            getStringValue(updatedPrefs.SubAgentModel),
+		MainAgentReasoningEffort: models.ReasoningEffort(getStringValue(updatedPrefs.MainAgentReasoningEffort)),
+		SubAgentModel:            models.ModelID(getStringValue(updatedPrefs.SubAgentModel)),
 		SubAgentMaxTokens:        getInt64Value(updatedPrefs.SubAgentMaxTokens),
-		SubAgentReasoningEffort:  getStringValue(updatedPrefs.SubAgentReasoningEffort),
+		SubAgentReasoningEffort:  models.ReasoningEffort(getStringValue(updatedPrefs.SubAgentReasoningEffort)),
 		CreatedAt:                updatedPrefs.CreatedAt,
 		UpdatedAt:                updatedPrefs.UpdatedAt,
 	}
@@ -424,13 +424,13 @@ func (h *PreferencesHandler) HandleResetPreferences(w http.ResponseWriter, r *ht
 	}
 
 	response := UserPreferencesResponse{
-		PreferredProvider:        getStringValue(resetPrefs.PreferredProvider),
-		MainAgentModel:           getStringValue(resetPrefs.MainAgentModel),
+		PreferredProvider:        models.ModelProvider(getStringValue(resetPrefs.PreferredProvider)),
+		MainAgentModel:           models.ModelID(getStringValue(resetPrefs.MainAgentModel)),
 		MainAgentMaxTokens:       getInt64Value(resetPrefs.MainAgentMaxTokens),
-		MainAgentReasoningEffort: getStringValue(resetPrefs.MainAgentReasoningEffort),
-		SubAgentModel:            getStringValue(resetPrefs.SubAgentModel),
+		MainAgentReasoningEffort: models.ReasoningEffort(getStringValue(resetPrefs.MainAgentReasoningEffort)),
+		SubAgentModel:            models.ModelID(getStringValue(resetPrefs.SubAgentModel)),
 		SubAgentMaxTokens:        getInt64Value(resetPrefs.SubAgentMaxTokens),
-		SubAgentReasoningEffort:  getStringValue(resetPrefs.SubAgentReasoningEffort),
+		SubAgentReasoningEffort:  models.ReasoningEffort(getStringValue(resetPrefs.SubAgentReasoningEffort)),
 		CreatedAt:                resetPrefs.CreatedAt,
 		UpdatedAt:                resetPrefs.UpdatedAt,
 	}
@@ -460,9 +460,9 @@ type AuthStatus struct {
 }
 
 type ProviderStatus struct {
-	Authenticated bool   `json:"authenticated"`
-	AuthMethod    string `json:"auth_method"` // "oauth", "api_key", "none"
-	DisplayName   string `json:"display_name"`
+	Authenticated bool               `json:"authenticated"`
+	AuthMethod    models.AuthMethod  `json:"auth_method"`
+	DisplayName   string             `json:"display_name"`
 }
 
 // DEPRECATED: getAuthMethod is replaced by functionality in AuthHandler

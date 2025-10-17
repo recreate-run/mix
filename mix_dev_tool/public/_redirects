@@ -1,5 +1,3 @@
 # Netlify redirects for Mix Playground Production
-# Redirect root to playground
-/   /playground   301
-
+# Root redirect is now handled by TanStack Router beforeLoad hook
 # SPA fallback is handled in netlify.toml

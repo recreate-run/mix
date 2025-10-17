@@ -1,7 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { mix } from "@/lib/mix-sdk";
-import { PlatformFeatures } from "@/utils/platform";
 
 interface ExportSessionOptions {
 	sessionId: string;
@@ -10,7 +9,6 @@ interface ExportSessionOptions {
 
 /**
  * Hook to export a session's complete transcript as a JSON file
- * Shows native save dialog with pre-filled filename
  */
 export function useSessionExport() {
 	return useMutation<unknown, Error, ExportSessionOptions>({
@@ -26,46 +24,19 @@ export function useSessionExport() {
 				.slice(0, -5); // Format: YYYY-MM-DDTHH-MM-SS
 			const filename = `${sessionId}_${timestamp}.json`;
 
-			if (PlatformFeatures.hasNativeDialogs()) {
-				// Desktop: Use Tauri native save dialog
-				const { downloadDir } = await import("@tauri-apps/api/path");
-				const { save } = await import("@tauri-apps/plugin-dialog");
-				const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+			// Download as blob
+			const jsonStr = JSON.stringify(data, null, 2);
+			const blob = new Blob([jsonStr], { type: "application/json" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
 
-				// Get Downloads directory path and ensure proper path separator
-				const downloadsPath = await downloadDir();
-				const defaultPath = downloadsPath.endsWith("/")
-					? `${downloadsPath}${filename}`
-					: `${downloadsPath}/${filename}`;
-
-				// Show native save dialog with pre-filled path
-				const filePath = await save({
-					defaultPath,
-				});
-
-				if (!filePath) {
-					throw new Error("Save cancelled");
-				}
-
-				// Write the file using Tauri's file system API
-				await writeTextFile(filePath, JSON.stringify(data, null, 2));
-
-				return { filePath, data };
-			} else {
-				// Browser: Download as blob
-				const jsonStr = JSON.stringify(data, null, 2);
-				const blob = new Blob([jsonStr], { type: "application/json" });
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = filename;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-
-				return { filePath: filename, data };
-			}
+			return { filePath: filename, data };
 		},
 		onSuccess: () => {
 			toast.success("Session exported successfully");
