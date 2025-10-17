@@ -57,6 +57,7 @@ type PersistentSSEState = {
 		text: string;
 		attachments?: Attachment[];
 	} | null;
+	assistantMessageId: string | null;
 };
 
 type PersistentSSEHook = PersistentSSEState & {
@@ -74,6 +75,7 @@ type PersistentSSEHook = PersistentSSEState & {
 	resetCancelledState: () => void;
 	clearNewlyCreatedSession: () => void;
 	clearStreamingContent: () => void;
+	clearPendingUserMessage: () => void;
 	grantPermission: (id: string) => Promise<void>;
 	denyPermission: (id: string) => Promise<void>;
 };
@@ -98,6 +100,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		permissionRequests: [],
 		newlyCreatedSessionId: null,
 		pendingUserMessage: null,
+		assistantMessageId: null,
 	});
 
 	const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
@@ -467,6 +470,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 										completeEvent.data.reasoningDuration || null,
 									completed: true,
 									processing: false,
+									assistantMessageId: completeEvent.data.messageId || null,
 								};
 							});
 							break;
@@ -599,6 +603,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			permissionRequests: [],
 			newlyCreatedSessionId: null,
 			pendingUserMessage: null,
+			assistantMessageId: null,
 		});
 
 		// Create new abort controller for this session
@@ -751,10 +756,18 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			cancelled: false,
 			completed: false,
 			pendingUserMessage: null,
+			assistantMessageId: null,
 		}));
 		toolCallsMap.current.clear();
 		toolParameterDeltas.current.clear();
 		timelineRef.current = [];
+	}, []);
+
+	const clearPendingUserMessage = useCallback(() => {
+		setState((prev) => ({
+			...prev,
+			pendingUserMessage: null,
+		}));
 	}, []);
 
 	const grantPermission = useCallback(async (id: string) => {
@@ -855,6 +868,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		resetCancelledState,
 		clearNewlyCreatedSession,
 		clearStreamingContent,
+		clearPendingUserMessage,
 		grantPermission,
 		denyPermission,
 	};
