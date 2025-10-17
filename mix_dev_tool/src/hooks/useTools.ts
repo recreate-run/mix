@@ -30,13 +30,13 @@ interface StoreCredentialsRequest {
 async function fetchToolsStatus(): Promise<ToolsStatus> {
 	try {
 		// Return empty structure if tools module not available
-		if (!mix.tools?.getToolsStatus) {
+		if (!mix.tools?.getToolCredentialsStatus) {
 			console.warn("Tools API not available in current SDK version");
 			return { categories: {} };
 		}
 
 		try {
-			const response = await mix.tools.getToolsStatus();
+			const response = await mix.tools.getToolCredentialsStatus();
 			// Transform SDK response to match our interface
 			const transformedCategories: Record<string, ToolCategory> = {};
 
