@@ -43,7 +43,6 @@ type CallbackResultData struct {
 	ExitCode       int    `json:"exit_code,omitempty"`
 	SubAgentID     string `json:"subagent_id,omitempty"`
 	SubAgentResult string `json:"subagent_result,omitempty"`
-	NonBlocking    bool   `json:"non_blocking"`
 	Success        bool   `json:"success"`
 	Error          string `json:"error,omitempty"`
 }
@@ -567,7 +566,6 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 					ExitCode:       cr.ExitCode,
 					SubAgentID:     cr.SubAgentID,
 					SubAgentResult: cr.SubAgentResult,
-					NonBlocking:    cr.NonBlocking,
 					Success:        cr.Success,
 					Error:          cr.Error,
 				}

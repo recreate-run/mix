@@ -486,11 +486,14 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 func (a *agent) processGeneration(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) AgentEvent {
 	// Starting message processing for session
 	_ = config.Get()
-	// List existing messages; if none, start title generation asynchronously.
-	msgs, err := a.messages.List(ctx, sessionID)
+
+	// Load conversation history with summary slicing
+	msgs, err := a.loadConversationHistory(ctx, sessionID)
 	if err != nil {
-		return a.err(fmt.Errorf("failed to list messages: %w", err))
+		return a.err(err)
 	}
+
+	// Start title generation asynchronously if this is the first message
 	if len(msgs) == 0 {
 		go func() {
 			defer logging.RecoverPanic("agent.Run", func() {
@@ -501,23 +504,6 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 				logging.Error(fmt.Sprintf("failed to generate title: %v", titleErr))
 			}
 		}()
-	}
-	session, err := a.sessions.Get(ctx, sessionID)
-	if err != nil {
-		return a.err(fmt.Errorf("failed to get session: %w", err))
-	}
-	if session.SummaryMessageID != "" {
-		summaryMsgInex := -1
-		for i, msg := range msgs {
-			if msg.ID == session.SummaryMessageID {
-				summaryMsgInex = i
-				break
-			}
-		}
-		if summaryMsgInex != -1 {
-			msgs = msgs[summaryMsgInex:]
-			msgs[0].Role = message.User
-		}
 	}
 
 	userMsg, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
@@ -537,7 +523,11 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			// Continue processing
 		}
 
-		// Starting conversation turn
+		// Log conversation turn start for observability
+		logging.Info("Starting conversation turn",
+			"conversationTurn", conversationTurn,
+			"historyLength", len(msgHistory),
+			"sessionID", sessionID)
 
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
@@ -556,16 +546,36 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			return a.err(fmt.Errorf("failed to process events: %w", err))
 		}
 
-		// Enhanced tool results logging for debugging
-		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
-			// We are not done, we need to respond with the tool response
-			// Tool execution completed, continuing conversation
+		// Append messages to history based on whether tools were used
+		hasTools := (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil
+		if hasTools {
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
+		} else {
+			msgHistory = append(msgHistory, agentMessage)
+		}
+
+		// Check for callback-injected messages after every agent turn (single check point)
+		reloadedHistory, err := a.loadConversationHistory(ctx, sessionID)
+		if err != nil {
+			logging.Error("Failed to reload conversation history", "error", err)
+		} else if len(reloadedHistory) > len(msgHistory) {
+			// Callbacks injected messages - continue conversation to process them
+			logging.Info("Detected callback-injected messages",
+				"previousLength", len(msgHistory),
+				"newLength", len(reloadedHistory),
+				"conversationTurn", conversationTurn)
+			msgHistory = reloadedHistory
 			conversationTurn++
 			continue
 		}
-		// Publish final completion event
 
+		// If agent used tools, continue to next turn
+		if hasTools {
+			conversationTurn++
+			continue
+		}
+
+		// Agent finished with no tools and no injected messages - conversation complete
 		finalEvent := AgentEvent{
 			Type:      AgentEventTypeResponse,
 			Message:   agentMessage,
@@ -598,6 +608,36 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 		Parts: parts,
 	})
 	return userMsg, err
+}
+
+// loadConversationHistory loads all messages for a session and applies summary slicing if configured
+func (a *agent) loadConversationHistory(ctx context.Context, sessionID string) ([]message.Message, error) {
+	msgs, err := a.messages.List(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list messages: %w", err)
+	}
+
+	// Apply summary slicing if configured
+	session, err := a.sessions.Get(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
+
+	if session.SummaryMessageID != "" {
+		summaryMsgInex := -1
+		for i, msg := range msgs {
+			if msg.ID == session.SummaryMessageID {
+				summaryMsgInex = i
+				break
+			}
+		}
+		if summaryMsgInex != -1 {
+			msgs = msgs[summaryMsgInex:]
+			msgs[0].Role = message.User
+		}
+	}
+
+	return msgs, nil
 }
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
@@ -692,6 +732,80 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	// Log tool execution errors but don't fail the entire flow
 	if toolErr != nil {
 		logging.Error("Some tools failed during execution", "error", toolErr, "sessionID", sessionID)
+	}
+
+	// Execute callbacks NOW that tool_result message is saved to database
+	// This ensures proper message ordering: Assistant(tool_use) → Tool(result) → User(injected)
+	if a.callbackExecutor != nil {
+		sessionStorageDir, _ := tools.GetSessionStorageDirectory(ctx)
+		messageID, _ := ctx.Value(tools.MessageIDContextKey).(string)
+
+		// Use WaitGroup to ensure all callbacks complete before returning
+		// This prevents race condition where agent checks for injected messages before callbacks finish
+		var callbackWg sync.WaitGroup
+
+		for _, toolCall := range toolCalls {
+			// Get tool result for this call
+			var toolResult interfaces.ToolResponse
+			for _, result := range toolResults {
+				if tr, ok := result.(message.ToolResult); ok && tr.ToolCallID == toolCall.ID {
+					toolResult = interfaces.ToolResponse{
+						Content:  tr.Content,
+						Metadata: tr.Metadata,
+						IsError:  tr.IsError,
+					}
+					break
+				}
+			}
+
+			// Skip callbacks for failed tools
+			if toolResult.IsError {
+				continue
+			}
+
+			// Load callbacks for this tool
+			sessionCallbacks, err := a.getSessionCallbacks(ctx, sessionID, toolCall.Name)
+			if err != nil {
+				logging.Error("Failed to load session callbacks", "error", err, "sessionID", sessionID, "tool", toolCall.Name)
+				continue
+			}
+
+			if len(sessionCallbacks) == 0 {
+				continue
+			}
+
+			// Track this callback goroutine
+			callbackWg.Add(1)
+
+			// Execute all callbacks asynchronously but sequentially
+			// This ensures: (1) Callbacks execute in parallel per tool, (2) Callbacks maintain execution order within each tool
+			callbackCtx := interfaces.CallbackContext{
+				SessionID:         sessionID,
+				MessageID:         messageID,
+				ToolCall:          interfaces.ToolCall{ID: toolCall.ID, Name: toolCall.Name, Input: toolCall.Input},
+				ToolResult:        toolResult,
+				SessionStorageDir: sessionStorageDir,
+			}
+
+			go func(callbacks []interfaces.CallbackConfig, cbCtx interfaces.CallbackContext, toolName string) {
+				defer callbackWg.Done()
+
+				// Execute callbacks sequentially in order
+				for _, cfg := range callbacks {
+					result, err := a.callbackExecutor.Execute(context.Background(), cfg, cbCtx)
+					if err != nil {
+						logging.Error("Callback execution failed", "tool", toolName, "callback", cfg.Name, "error", err)
+					} else if !result.Success {
+						logging.Warn("Callback completed with errors", "tool", toolName, "callback", cfg.Name, "error", result.Error)
+					}
+				}
+			}(sessionCallbacks, callbackCtx, toolCall.Name)
+		}
+
+		// Wait for all callbacks to complete before returning
+		// This ensures injected messages are saved to database before agent checks for them
+		callbackWg.Wait()
+		logging.Debug("All callbacks completed", "sessionID", sessionID)
 	}
 
 	// Publish completion event

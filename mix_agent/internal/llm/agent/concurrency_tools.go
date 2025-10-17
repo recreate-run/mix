@@ -140,57 +140,6 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 	})
 	toolDuration := time.Since(toolStartTime)
 
-	// Execute post-tool callbacks (session-level)
-	if a.callbackExecutor != nil && toolErr == nil && !toolResult.IsError {
-		// Get session-level callbacks (from client configuration)
-		sessionCallbacks, err := a.getSessionCallbacks(ctx, sessionID, toolCall.Name)
-		if err != nil {
-			logging.Error("Failed to load session callbacks", "error", err, "sessionID", sessionID, "tool", toolCall.Name)
-			// Fail fast: callback loading failure indicates data corruption or DB issue
-			toolErr = fmt.Errorf("failed to load session callbacks: %w", err)
-			toolResult = interfaces.ToolResponse{
-				Content: fmt.Sprintf("Error loading session callbacks: %v", err),
-				IsError: true,
-			}
-		} else if len(sessionCallbacks) > 0 {
-			// Get session storage directory for callback context
-			sessionStorageDir, _ := tools.GetSessionStorageDirectory(ctx)
-			messageID, _ := ctx.Value(tools.MessageIDContextKey).(string)
-
-			callbackCtx := interfaces.CallbackContext{
-				SessionID:         sessionID,
-				MessageID:         messageID,
-				ToolCall:          interfaces.ToolCall{ID: toolCall.ID, Name: toolCall.Name, Input: toolCall.Input},
-				ToolResult:        toolResult,
-				SessionStorageDir: sessionStorageDir,
-			}
-
-			for i, callbackConfig := range sessionCallbacks {
-				if callbackConfig.NonBlocking {
-					// Execute async without waiting
-					// Note: The callback executor will save the result message when done
-					go func(cfg interfaces.CallbackConfig, cbCtx interfaces.CallbackContext, idx int) {
-						// Use background context for async execution to avoid cancellation
-						result, err := a.callbackExecutor.Execute(context.Background(), cfg, cbCtx)
-						if err != nil {
-							logging.Error("Async callback execution failed", "tool", toolCall.Name, "error", err)
-						} else if !result.Success {
-							logging.Warn("Async callback completed with errors", "tool", toolCall.Name, "error", result.Error)
-						}
-					}(callbackConfig, callbackCtx, i)
-				} else {
-					// Execute synchronously
-					callbackResult, err := a.callbackExecutor.Execute(ctx, callbackConfig, callbackCtx)
-					if err != nil {
-						logging.Error("Callback execution failed", "tool", toolCall.Name, "error", err)
-					} else if !callbackResult.Success {
-						logging.Warn("Callback completed with errors", "tool", toolCall.Name, "error", callbackResult.Error)
-					}
-				}
-			}
-		}
-	}
-
 	// Publish tool execution completion event
 	completionProgress := fmt.Sprintf("Completed %s tool in %v", toolCall.Name, toolDuration)
 	if toolErr != nil {

@@ -160,6 +160,7 @@ interface CallbackCardProps {
 
 function CallbackCard({ callback, onDelete }: CallbackCardProps) {
 	const isBashScript = callback.type === CallbackType.BashScript;
+	const isSendMessage = callback.type === CallbackType.SendMessage;
 
 	return (
 		<Card className="relative">
@@ -199,11 +200,12 @@ function CallbackCard({ callback, onDelete }: CallbackCardProps) {
 								Timeout: {callback.bashTimeout}ms
 							</p>
 						)}
-						{callback.nonBlocking && (
-							<Badge variant="outline" className="text-xs mt-1">
-								Non-blocking
-							</Badge>
-						)}
+					</>
+				) : isSendMessage ? (
+					<>
+						<p className="text-xs bg-muted p-2 rounded">
+							{callback.messageContent || "No message"}
+						</p>
 					</>
 				) : (
 					<>
@@ -215,18 +217,13 @@ function CallbackCard({ callback, onDelete }: CallbackCardProps) {
 								Type: {callback.subAgentType}
 							</p>
 						)}
-						<div className="flex flex-wrap gap-1 mt-1">
-							{callback.nonBlocking && (
-								<Badge variant="outline" className="text-xs">
-									Non-blocking
-								</Badge>
-							)}
-							{callback.includeFullHistory && (
+						{callback.includeFullHistory && (
+							<div className="flex flex-wrap gap-1 mt-1">
 								<Badge variant="outline" className="text-xs">
 									Full history
 								</Badge>
-							)}
-						</div>
+							</div>
+						)}
 					</>
 				)}
 			</CardContent>
@@ -247,13 +244,14 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 	);
 	const [bashCommand, setBashCommand] = React.useState("");
 	const [bashTimeout, setBashTimeout] = React.useState("120000");
-	const [nonBlocking, setNonBlocking] = React.useState(false);
 	const [subAgentPrompt, setSubAgentPrompt] = React.useState("");
 	const [subAgentType, setSubAgentType] = React.useState("general-purpose");
-	const [subAgentNonBlocking, setSubAgentNonBlocking] = React.useState(false);
 	const [includeFullHistory, setIncludeFullHistory] = React.useState(false);
+	const [messageContent, setMessageContent] = React.useState("");
+	const [excludeFromContext, setExcludeFromContext] = React.useState(false);
 
 	const isBashScript = type === CallbackType.BashScript;
+	const isSendMessage = type === CallbackType.SendMessage;
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -269,14 +267,18 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 				? {
 						bashCommand,
 						bashTimeout: parseInt(bashTimeout, 10),
-						nonBlocking,
+						excludeFromContext,
 					}
-				: {
-						subAgentPrompt,
-						subAgentType,
-						nonBlocking: subAgentNonBlocking,
-						includeFullHistory,
-					}),
+				: isSendMessage
+					? {
+							messageContent,
+						}
+					: {
+							subAgentPrompt,
+							subAgentType,
+							includeFullHistory,
+							excludeFromContext,
+						}),
 		};
 
 		onSubmit(callback);
@@ -338,6 +340,7 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 					<SelectContent>
 						<SelectItem value={CallbackType.BashScript}>Bash Script</SelectItem>
 						<SelectItem value={CallbackType.SubAgent}>Sub Agent</SelectItem>
+						<SelectItem value={CallbackType.SendMessage}>Send Message</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
@@ -372,17 +375,6 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 												className="h-8 text-xs"
 											/>
 										</div>
-
-										<div className="flex items-center space-x-2">
-											<Switch
-												id="nonBlocking"
-												checked={nonBlocking}
-												onCheckedChange={setNonBlocking}
-											/>
-											<Label htmlFor="nonBlocking" className="text-xs">
-												Non-blocking (async)
-											</Label>
-										</div>
 									</div>
 								</PopoverContent>
 							</Popover>
@@ -395,6 +387,25 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 							className="text-xs font-mono min-h-20"
 							required
 						/>
+					</div>
+				</>
+			) : isSendMessage ? (
+				<>
+					<div className="space-y-2">
+						<Label htmlFor="messageContent" className="text-xs">
+							Message Content
+						</Label>
+						<Textarea
+							id="messageContent"
+							value={messageContent}
+							onChange={(e) => setMessageContent(e.target.value)}
+							placeholder="Please review the changes and provide feedback"
+							className="text-xs min-h-20"
+							required
+						/>
+						<p className="text-[10px] text-muted-foreground">
+							This message will be injected into the conversation after the tool completes
+						</p>
 					</div>
 				</>
 			) : (
@@ -412,17 +423,6 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 								</PopoverTrigger>
 								<PopoverContent className="w-64" align="end">
 									<div className="space-y-4">
-										<div className="flex items-center space-x-2">
-											<Switch
-												id="subAgentNonBlocking"
-												checked={subAgentNonBlocking}
-												onCheckedChange={setSubAgentNonBlocking}
-											/>
-											<Label htmlFor="subAgentNonBlocking" className="text-xs">
-												Non-blocking (async)
-											</Label>
-										</div>
-
 										<div className="space-y-1">
 											<div className="flex items-center space-x-2">
 												<Switch
@@ -464,6 +464,25 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 						/>
 					</div>
 				</>
+			)}
+
+			{/* Exclude from context option - only for bash_script and sub_agent */}
+			{!isSendMessage && (
+				<div className="space-y-2">
+					<div className="flex items-center space-x-2">
+						<Switch
+							id="excludeFromContext"
+							checked={excludeFromContext}
+							onCheckedChange={setExcludeFromContext}
+						/>
+						<Label htmlFor="excludeFromContext" className="text-xs">
+							Exclude from agent context
+						</Label>
+					</div>
+					<p className="text-[10px] text-muted-foreground ml-8">
+						Callback results will be saved and visible in UI but won't be included in agent's conversation context
+					</p>
+				</div>
 			)}
 
 			<div className="flex gap-2 pt-2">

@@ -11,6 +11,10 @@ type CallbackType string
 const (
 	CallbackTypeBashScript CallbackType = "bash_script"
 	CallbackTypeSubAgent   CallbackType = "sub_agent"
+	// CallbackTypeSendMessage injects a User message into the conversation.
+	// The message is injected after the tool completes and will be picked up
+	// by the agent on its next conversation turn.
+	CallbackTypeSendMessage CallbackType = "send_message"
 )
 
 // CallbackConfig defines configuration for a tool callback
@@ -33,8 +37,8 @@ type CallbackConfig struct {
 	SubAgentType       string `json:"subAgentType,omitempty"`
 	IncludeFullHistory bool   `json:"includeFullHistory,omitempty"`
 
-	// Common options
-	NonBlocking bool `json:"nonBlocking,omitempty"` // Run async without waiting
+	// For send_message type
+	MessageContent string `json:"messageContent,omitempty"`
 }
 
 // MatchesTool checks if this callback should be executed for the given tool name.
@@ -56,8 +60,8 @@ func (c CallbackConfig) Validate() error {
 	}
 
 	// Validate callback type
-	if c.Type != CallbackTypeBashScript && c.Type != CallbackTypeSubAgent {
-		return fmt.Errorf("type must be 'bash_script' or 'sub_agent', got '%s'", c.Type)
+	if c.Type != CallbackTypeBashScript && c.Type != CallbackTypeSubAgent && c.Type != CallbackTypeSendMessage {
+		return fmt.Errorf("type must be 'bash_script', 'sub_agent', or 'send_message', got '%s'", c.Type)
 	}
 
 	// Validate type-specific required fields
@@ -70,6 +74,12 @@ func (c CallbackConfig) Validate() error {
 	if c.Type == CallbackTypeSubAgent {
 		if c.SubAgentPrompt == "" {
 			return fmt.Errorf("sub_agent type requires 'subAgentPrompt' field")
+		}
+	}
+
+	if c.Type == CallbackTypeSendMessage {
+		if c.MessageContent == "" {
+			return fmt.Errorf("send_message type requires 'messageContent' field")
 		}
 	}
 

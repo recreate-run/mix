@@ -69,6 +69,8 @@ func (e *executor) Execute(ctx context.Context, config interfaces.CallbackConfig
 		return e.executeBash(ctx, config, callbackCtx)
 	case interfaces.CallbackTypeSubAgent:
 		return e.executeSubAgent(ctx, config, callbackCtx)
+	case interfaces.CallbackTypeSendMessage:
+		return e.executeSendMessage(ctx, config, callbackCtx)
 	default:
 		return interfaces.CallbackResult{}, fmt.Errorf("unknown callback type: %s", config.Type)
 	}
@@ -124,7 +126,8 @@ export CALLBACK_SESSION_ID=%s
 	// Save callback result as a message for display in frontend
 	if err := e.saveCallbackResultMessage(ctx, callbackCtx, config, result.Success, stdout, stderr, exitCode, "", ""); err != nil {
 		logging.Error("Failed to save callback result message", "error", err)
-		// Don't fail the callback if message saving fails - just log it
+		// Annotate output with warning (primary work succeeded, but metadata persistence failed)
+		result.Output = fmt.Sprintf("%s\n\n⚠️ Warning: Failed to save callback metadata: %v", result.Output, err)
 	}
 
 	return result, nil
@@ -248,15 +251,66 @@ func (e *executor) executeSubAgent(ctx context.Context, config interfaces.Callba
 	)
 
 	// Save callback result as a message for display in frontend
+	successOutput := outputStr
 	if err := e.saveCallbackResultMessage(ctx, callbackCtx, config, true, "", "", 0, subSession.ID, outputStr); err != nil {
 		logging.Error("Failed to save callback result message", "error", err)
-		// Don't fail the callback if message saving fails - just log it
+		// Annotate output with warning (subagent succeeded, but metadata persistence failed)
+		successOutput = fmt.Sprintf("%s\n\n⚠️ Warning: Failed to save callback metadata: %v", outputStr, err)
 	}
 
 	return interfaces.CallbackResult{
 		Success: true,
-		Output:  outputStr,
+		Output:  successOutput,
 	}, nil
+}
+
+func (e *executor) executeSendMessage(ctx context.Context, config interfaces.CallbackConfig, callbackCtx interfaces.CallbackContext) (interfaces.CallbackResult, error) {
+	// Validate configuration
+	if config.MessageContent == "" {
+		return interfaces.CallbackResult{Success: false, Error: "messageContent is required"}, nil
+	}
+
+	logging.Info("SendMessage callback executing",
+		"sessionID", callbackCtx.SessionID,
+		"toolName", callbackCtx.ToolCall.Name,
+		"messagePreview", truncateString(config.MessageContent, 50),
+	)
+
+	// Create a User message in the current session
+	// This will be picked up by the agent's next turn naturally
+	_, err := e.messages.Create(ctx, callbackCtx.SessionID, message.CreateMessageParams{
+		Role:  message.User,
+		Parts: []message.ContentPart{message.TextContent{Text: config.MessageContent}},
+	})
+
+	if err != nil {
+		logging.Error("Failed to create message in send_message callback", "error", err)
+		return interfaces.CallbackResult{
+			Success: false,
+			Error:   fmt.Sprintf("failed to inject message: %v", err),
+		}, nil
+	}
+
+	// Save callback result for UI display
+	successOutput := fmt.Sprintf("Message injected into conversation: %s", truncateString(config.MessageContent, 100))
+	if err := e.saveCallbackResultMessage(ctx, callbackCtx, config, true, "", "", 0, "", config.MessageContent); err != nil {
+		logging.Error("Failed to save callback result message", "error", err)
+		// Annotate output with warning (message injection succeeded, but metadata persistence failed)
+		successOutput = fmt.Sprintf("%s\n\n⚠️ Warning: Failed to save callback metadata: %v", successOutput, err)
+	}
+
+	return interfaces.CallbackResult{
+		Success: true,
+		Output:  successOutput,
+	}, nil
+}
+
+// truncateString truncates a string to maxLen characters with ellipsis
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // buildSubAgentPrompt enriches the prompt with tool execution context
@@ -302,7 +356,6 @@ func (e *executor) saveCallbackResultMessage(
 		ExitCode:       exitCode,
 		SubAgentID:     subAgentID,
 		SubAgentResult: subAgentResult,
-		NonBlocking:    config.NonBlocking,
 		Success:        success,
 	}
 

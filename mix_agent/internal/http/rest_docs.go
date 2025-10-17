@@ -1556,8 +1556,8 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 						"type": map[string]interface{}{
 							"type":        "string",
-							"enum":        []string{"bash_script", "sub_agent"},
-							"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
+							"enum":        []string{"bash_script", "sub_agent", "send_message"},
+							"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents, 'send_message' for injecting messages",
 						},
 						"bashCommand": map[string]interface{}{
 							"type":        "string",
@@ -1567,11 +1567,6 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "integer",
 							"description": "Timeout in milliseconds for bash execution (default: 120000)",
 							"default":     120000,
-						},
-						"nonBlocking": map[string]interface{}{
-							"type":        "boolean",
-							"description": "Run callback asynchronously without waiting for completion",
-							"default":     false,
 						},
 						"subAgentPrompt": map[string]interface{}{
 							"type":        "string",
@@ -1586,6 +1581,11 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "boolean",
 							"description": "Include full conversation history in sub-agent context (not yet implemented)",
 							"default":     false,
+						},
+						"messageContent": map[string]interface{}{
+							"type":        "string",
+							"description": "Message content to inject into the conversation (required for send_message type). Will be sent as a User message.",
+							"example":     "Please review the changes and run tests",
 						},
 					},
 				},
@@ -1964,7 +1964,7 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 						"callback_type": map[string]interface{}{
 							"type":        "string",
-							"enum":        []string{"bash_script", "sub_agent"},
+							"enum":        []string{"bash_script", "sub_agent", "send_message"},
 							"description": "Type of callback executed",
 						},
 						"stdout": map[string]interface{}{
@@ -1987,10 +1987,6 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "Result from sub-agent execution (optional)",
 						},
-						"non_blocking": map[string]interface{}{
-							"type":        "boolean",
-							"description": "Whether callback ran asynchronously",
-						},
 						"success": map[string]interface{}{
 							"type":        "boolean",
 							"description": "Whether callback executed successfully",
@@ -2000,7 +1996,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "Error message if callback failed (optional)",
 						},
 					},
-					"required": []string{"tool_call_id", "tool_name", "callback_type", "non_blocking", "success"},
+					"required": []string{"tool_call_id", "tool_name", "callback_type", "success"},
 				},
 				"FileInfo": map[string]interface{}{
 					"type": "object",

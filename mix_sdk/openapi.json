@@ -2686,15 +2686,15 @@
             "description": "Include full conversation history in sub-agent context (not yet implemented)",
             "type": "boolean"
           },
+          "messageContent": {
+            "description": "Message content to inject into the conversation (required for send_message type). Will be sent as a User message.",
+            "example": "Please review the changes and run tests",
+            "type": "string"
+          },
           "name": {
             "description": "Human-readable name for this callback (optional, defaults to 'Callback #XXXX')",
             "example": "Log Output",
             "type": "string"
-          },
-          "nonBlocking": {
-            "default": false,
-            "description": "Run callback asynchronously without waiting for completion",
-            "type": "boolean"
           },
           "subAgentPrompt": {
             "description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
@@ -2711,10 +2711,11 @@
             "type": "string"
           },
           "type": {
-            "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents",
+            "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents, 'send_message' for injecting messages",
             "enum": [
               "bash_script",
-              "sub_agent"
+              "sub_agent",
+              "send_message"
             ],
             "type": "string"
           }
@@ -2736,7 +2737,8 @@
             "description": "Type of callback executed",
             "enum": [
               "bash_script",
-              "sub_agent"
+              "sub_agent",
+              "send_message"
             ],
             "type": "string"
           },
@@ -2747,10 +2749,6 @@
           "exit_code": {
             "description": "Exit code from bash callback (optional)",
             "type": "integer"
-          },
-          "non_blocking": {
-            "description": "Whether callback ran asynchronously",
-            "type": "boolean"
           },
           "stderr": {
             "description": "Standard error from bash callback (optional)",
@@ -2785,7 +2783,6 @@
           "tool_call_id",
           "tool_name",
           "callback_type",
-          "non_blocking",
           "success"
         ],
         "type": "object"

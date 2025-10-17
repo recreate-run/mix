@@ -156,8 +156,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "thinking": {
 							const thinkingEvent = event as SSEThinkingEvent;
-							const thinkingContent = thinkingEvent.data.content || "";
-							const parentToolCallId = thinkingEvent.data.parentToolCallId;
+							const thinkingContent = thinkingEvent.data?.content || "";
+							const parentToolCallId = thinkingEvent.data?.parentToolCallId;
 
 							// Add to timeline
 							const thinkingEntry: TimelineEntry = {
@@ -181,8 +181,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "content": {
 							const contentEvent = event as SSEContentEvent;
-							const contentDelta = contentEvent.data.content || "";
-							const parentToolCallId = contentEvent.data.parentToolCallId;
+							const contentDelta = contentEvent.data?.content || "";
+							const parentToolCallId = contentEvent.data?.parentToolCallId;
 
 							// Find the last entry in timeline
 							const lastEntry =
@@ -225,8 +225,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "tool_parameter_delta": {
 							// Handle real-time tool parameter streaming
 							const deltaEvent = event as SSEToolParameterDeltaEvent;
-							const toolCallId = deltaEvent.data.toolCallId;
-							const inputDelta = deltaEvent.data.input;
+							const toolCallId = deltaEvent.data?.toolCallId;
+							const inputDelta = deltaEvent.data?.input;
 
 							// Validate required fields
 							if (!toolCallId || typeof toolCallId !== "string") {
@@ -309,43 +309,45 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool": {
 							const toolEvent = event as SSEToolEvent;
-							const parentToolCallId = toolEvent.data.parentToolCallId;
+							const parentToolCallId = toolEvent.data?.parentToolCallId;
 
 							const toolCall: ToolCall = {
-								id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
-								name: toolEvent.data.name || "unknown",
-								description: toolEvent.data.name || "Tool execution",
+								id:
+									toolEvent.data?.id ||
+									`${toolEvent.data?.name || "unknown"}-${Date.now()}`,
+								name: toolEvent.data?.name || "unknown",
+								description: toolEvent.data?.name || "Tool execution",
 								status:
-									(toolEvent.data.status as
+									(toolEvent.data?.status as
 										| "pending"
 										| "running"
 										| "completed"
 										| "error") || "pending",
-								parameters: toolEvent.data.input
-									? typeof toolEvent.data.input === "string"
+								parameters: toolEvent.data?.input
+									? typeof toolEvent.data?.input === "string"
 										? (() => {
 												try {
-													return JSON.parse(toolEvent.data.input);
+													return JSON.parse(toolEvent.data?.input);
 												} catch {
-													return { input: toolEvent.data.input };
+													return { input: toolEvent.data?.input };
 												}
 											})()
-										: toolEvent.data.input
+										: toolEvent.data?.input
 									: {},
 								result: undefined,
 								error: undefined,
 							};
 
 							if (
-								toolEvent.data.status === "running" &&
+								toolEvent.data?.status === "running" &&
 								!toolStartTimes.current.has(toolCall.id)
 							) {
 								toolStartTimes.current.set(toolCall.id, Date.now());
 							}
 
 							if (
-								(toolEvent.data.status === "completed" ||
-									toolEvent.data.status === "error") &&
+								(toolEvent.data?.status === "completed" ||
+									toolEvent.data?.status === "error") &&
 								toolStartTimes.current.has(toolCall.id)
 							) {
 								toolStartTimes.current.delete(toolCall.id);
@@ -388,8 +390,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool_execution_start": {
 							const toolStartEvent = event as SSEToolExecutionStartEvent;
-							const toolCallId = toolStartEvent.data.toolCallId;
-							const progress = toolStartEvent.data.progress;
+							const toolCallId = toolStartEvent.data?.toolCallId;
+							const progress = toolStartEvent.data?.progress;
 
 							const existingToolCall = toolCallsMap.current.get(toolCallId);
 							if (existingToolCall) {
@@ -421,9 +423,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool_execution_complete": {
 							const toolCompleteEvent = event as SSEToolExecutionCompleteEvent;
-							const toolCallId = toolCompleteEvent.data.toolCallId;
-							const progress = toolCompleteEvent.data.progress;
-							const success = toolCompleteEvent.data.success;
+							const toolCallId = toolCompleteEvent.data?.toolCallId;
+							const progress = toolCompleteEvent.data?.progress;
+							const success = toolCompleteEvent.data?.success;
 
 							const existingToolCall = toolCallsMap.current.get(toolCallId);
 							if (existingToolCall) {
@@ -462,9 +464,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							setState((prev) => {
 								return {
 									...prev,
-									reasoning: completeEvent.data.reasoning || null,
+									reasoning: completeEvent.data?.reasoning || null,
 									reasoningDuration:
-										completeEvent.data.reasoningDuration || null,
+										completeEvent.data?.reasoningDuration || null,
 									completed: true,
 									processing: false,
 								};
@@ -476,14 +478,14 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							const errorEvent = event as SSEErrorEvent;
 							setState((prev) => ({
 								...prev,
-								error: errorEvent.data.error || "Stream error",
+								error: errorEvent.data?.error || "Stream error",
 								connecting: false,
 								processing: false,
-								rateLimit: errorEvent.data.retryAfter
+								rateLimit: errorEvent.data?.retryAfter
 									? {
 											retryAfter: errorEvent.data.retryAfter,
-											attempt: errorEvent.data.attempt || 1,
-											maxAttempts: errorEvent.data.maxAttempts || 8,
+											attempt: errorEvent.data?.attempt || 1,
+											maxAttempts: errorEvent.data?.maxAttempts || 8,
 										}
 									: undefined,
 							}));
@@ -493,13 +495,13 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "permission": {
 							const permissionEvent = event as SSEPermissionEvent;
 							const permissionRequest: SSEPermissionRequest = {
-								id: permissionEvent.data.id,
-								sessionId: permissionEvent.data.sessionId,
-								toolName: permissionEvent.data.toolName,
-								description: permissionEvent.data.description,
-								action: permissionEvent.data.action,
-								path: permissionEvent.data.path || "",
-								params: permissionEvent.data.params || {},
+								id: permissionEvent.data?.id || "",
+								sessionId: permissionEvent.data?.sessionId || "",
+								toolName: permissionEvent.data?.toolName || "",
+								description: permissionEvent.data?.description || "",
+								action: permissionEvent.data?.action || "",
+								path: permissionEvent.data?.path || "",
+								params: permissionEvent.data?.params || {},
 							};
 
 							setState((prev) => ({
@@ -518,7 +520,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							// Store the newly created session ID for navigation
 							setState((prev) => ({
 								...prev,
-								newlyCreatedSessionId: sessionCreatedEvent.data.sessionId,
+								newlyCreatedSessionId:
+									sessionCreatedEvent.data?.sessionId || null,
 							}));
 
 							// Global session events - invalidate sessions list cache for real-time updates

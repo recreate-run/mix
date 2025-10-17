@@ -1,5 +1,6 @@
-import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, MessageSquare, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import type { CallbackResultData } from "mix-typescript-sdk/models";
 
 interface CallbackResultDisplayProps {
@@ -60,10 +61,10 @@ export function CallbackResultDisplay({
 						<span className="text-xs text-muted-foreground/70">
 							{result.toolName}
 						</span>
-						{result.nonBlocking && (
-							<span className="text-[10px] px-1.5 py-0.5 border border-blue-300 dark:border-blue-700 rounded text-blue-600 dark:text-blue-400">
-								async
-							</span>
+						{result.excludeFromContext && (
+							<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+								Excluded from context
+							</Badge>
 						)}
 					</div>
 
@@ -95,10 +96,52 @@ export function CallbackResultDisplay({
 		);
 	}
 
+	// Render send_message callback
+	if (result.callbackType === "send_message") {
+		return (
+			<div className={cn("rounded-lg p-4 flex gap-3", className)}>
+				<StateIcon />
+				<div className="flex-1 min-w-0 space-y-2">
+					<div className="flex items-baseline gap-2 flex-wrap">
+						<MessageSquare className="size-4 text-blue-600 dark:text-blue-400" />
+						<span className="font-semibold">{result.callbackName}</span>
+						<span className="text-xs text-muted-foreground/70">
+							{result.toolName}
+						</span>
+					</div>
+
+					{result.subagentResult && (
+						<div className="bg-background/50 rounded p-2 text-xs italic">
+							"{result.subagentResult}"
+						</div>
+					)}
+
+					{result.success && (
+						<div className="text-xs text-green-600 dark:text-green-400">
+							✓ Message injected into conversation
+						</div>
+					)}
+
+					{!result.success && result.error && (
+						<div className="text-xs text-red-600 dark:text-red-400">
+							{result.error}
+						</div>
+					)}
+				</div>
+			</div>
+		);
+	}
+
 	// Render subagent callback
 	if (result.callbackType === "sub_agent") {
 		return (
-			<div className={cn("p-4 flex gap-3", className)}>
+			<div
+				className={cn(
+					"my-4 rounded-lg border-t-4 p-4 flex gap-3",
+					stateStyles[state],
+					className,
+				)}
+			>
 				<StateIcon />
 				<div className="flex-1 min-w-0 space-y-2">
 					<div className="flex items-baseline gap-2 flex-wrap">
@@ -106,7 +149,24 @@ export function CallbackResultDisplay({
 						<span className="text-xs text-muted-foreground/70">
 							{result.toolName}
 						</span>
+						{result.excludeFromContext && (
+							<Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+								Excluded from context
+							</Badge>
+						)}
 					</div>
+
+					{result.subagentId && (
+						<a
+							href={`/sessions/${result.subagentId}`}
+							className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+							rel="noopener noreferrer"
+							target="_blank"
+						>
+							View sub-agent session
+							<ExternalLink className="h-3 w-3" />
+						</a>
+					)}
 
 					{result.subagentResult && (
 						<div className="bg-background/50 rounded p-2 text-xs">
