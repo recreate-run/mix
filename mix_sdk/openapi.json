@@ -2681,6 +2681,11 @@
             "description": "Timeout in milliseconds for bash execution (default: 120000)",
             "type": "integer"
           },
+          "excludeFromContext": {
+            "default": false,
+            "description": "Exclude callback results from agent context. Only applies to bash_script and sub_agent types. Not allowed for send_message.",
+            "type": "boolean"
+          },
           "includeFullHistory": {
             "default": false,
             "description": "Include full conversation history in sub-agent context (not yet implemented)",
@@ -2745,6 +2750,10 @@
           "error": {
             "description": "Error message if callback failed (optional)",
             "type": "string"
+          },
+          "exclude_from_context": {
+            "description": "Whether this callback result is excluded from agent context (optional)",
+            "type": "boolean"
           },
           "exit_code": {
             "description": "Exit code from bash callback (optional)",
@@ -3092,7 +3101,6 @@
               "tool_execution_start",
               "tool_execution_complete",
               "permission",
-              "summarize",
               "session_created",
               "session_deleted"
             ],
@@ -3289,7 +3297,6 @@
             "permission": "#/components/schemas/SSEPermissionEvent",
             "session_created": "#/components/schemas/SSESessionCreatedEvent",
             "session_deleted": "#/components/schemas/SSESessionDeletedEvent",
-            "summarize": "#/components/schemas/SSESummarizeEvent",
             "thinking": "#/components/schemas/SSEThinkingEvent",
             "tool": "#/components/schemas/SSEToolEvent",
             "tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
@@ -3331,9 +3338,6 @@
           },
           {
             "$ref": "#/components/schemas/SSEPermissionEvent"
-          },
-          {
-            "$ref": "#/components/schemas/SSESummarizeEvent"
           },
           {
             "$ref": "#/components/schemas/SSESessionCreatedEvent"
@@ -3502,47 +3506,6 @@
                 "required": [
                   "type",
                   "sessionId"
-                ],
-                "type": "object"
-              }
-            },
-            "required": [
-              "data"
-            ],
-            "type": "object"
-          }
-        ]
-      },
-      "SSESummarizeEvent": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/SSEBaseEvent"
-          },
-          {
-            "properties": {
-              "data": {
-                "properties": {
-                  "done": {
-                    "description": "Indicates if summarization is complete",
-                    "type": "boolean"
-                  },
-                  "parentToolCallId": {
-                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
-                    "type": "string"
-                  },
-                  "progress": {
-                    "description": "Summarization progress description",
-                    "type": "string"
-                  },
-                  "type": {
-                    "description": "Summarization event type",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "progress",
-                  "done"
                 ],
                 "type": "object"
               }

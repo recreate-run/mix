@@ -24,7 +24,6 @@ INSERT INTO sessions (
     prompt_tokens,
     completion_tokens,
     cost,
-    summary_message_id,
     updated_at,
     created_at
 ) VALUES (
@@ -40,7 +39,6 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
-    null,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING
@@ -57,8 +55,7 @@ INSERT INTO sessions (
     completion_tokens,
     cost,
     created_at,
-    updated_at,
-    summary_message_id
+    updated_at
 `
 
 type CreateSessionParams struct {
@@ -91,7 +88,6 @@ type CreateSessionRow struct {
 	Cost               float64        `json:"cost"`
 	CreatedAt          int64          `json:"created_at"`
 	UpdatedAt          int64          `json:"updated_at"`
-	SummaryMessageID   sql.NullString `json:"summary_message_id"`
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (CreateSessionRow, error) {
@@ -125,7 +121,6 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 		&i.Cost,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SummaryMessageID,
 	)
 	return i, err
 }
@@ -156,7 +151,6 @@ SELECT
     s.cost,
     s.created_at,
     s.updated_at,
-    s.summary_message_id,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count,
     COALESCE(counts.tool_call_count, 0) as tool_call_count
@@ -186,7 +180,6 @@ type GetSessionByIDRow struct {
 	Cost                  float64        `json:"cost"`
 	CreatedAt             int64          `json:"created_at"`
 	UpdatedAt             int64          `json:"updated_at"`
-	SummaryMessageID      sql.NullString `json:"summary_message_id"`
 	UserMessageCount      int64          `json:"user_message_count"`
 	AssistantMessageCount int64          `json:"assistant_message_count"`
 	ToolCallCount         int64          `json:"tool_call_count"`
@@ -210,7 +203,6 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (GetSessionByID
 		&i.Cost,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SummaryMessageID,
 		&i.UserMessageCount,
 		&i.AssistantMessageCount,
 		&i.ToolCallCount,
@@ -251,7 +243,6 @@ SELECT
     s.cost,
     s.created_at,
     s.updated_at,
-    s.summary_message_id,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count,
     COALESCE(counts.tool_call_count, 0) as tool_call_count
@@ -281,7 +272,6 @@ type ListSessionsMetadataRow struct {
 	Cost                  float64        `json:"cost"`
 	CreatedAt             int64          `json:"created_at"`
 	UpdatedAt             int64          `json:"updated_at"`
-	SummaryMessageID      sql.NullString `json:"summary_message_id"`
 	UserMessageCount      int64          `json:"user_message_count"`
 	AssistantMessageCount int64          `json:"assistant_message_count"`
 	ToolCallCount         int64          `json:"tool_call_count"`
@@ -311,7 +301,6 @@ func (q *Queries) ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetad
 			&i.Cost,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.SummaryMessageID,
 			&i.UserMessageCount,
 			&i.AssistantMessageCount,
 			&i.ToolCallCount,
@@ -345,7 +334,6 @@ SELECT
     s.cost,
     s.created_at,
     s.updated_at,
-    s.summary_message_id,
     COALESCE(first_msg.parts, '') as first_user_message,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count,
@@ -384,7 +372,6 @@ type ListSessionsWithContentRow struct {
 	Cost                  float64        `json:"cost"`
 	CreatedAt             int64          `json:"created_at"`
 	UpdatedAt             int64          `json:"updated_at"`
-	SummaryMessageID      sql.NullString `json:"summary_message_id"`
 	FirstUserMessage      string         `json:"first_user_message"`
 	UserMessageCount      int64          `json:"user_message_count"`
 	AssistantMessageCount int64          `json:"assistant_message_count"`
@@ -415,7 +402,6 @@ func (q *Queries) ListSessionsWithContent(ctx context.Context) ([]ListSessionsWi
 			&i.Cost,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.SummaryMessageID,
 			&i.FirstUserMessage,
 			&i.UserMessageCount,
 			&i.AssistantMessageCount,
@@ -443,7 +429,6 @@ SET
     callbacks = ?,
     prompt_tokens = ?,
     completion_tokens = ?,
-    summary_message_id = ?,
     cost = ?,
     updated_at = strftime('%s', 'now')
 WHERE id = ?
@@ -461,8 +446,7 @@ RETURNING
     completion_tokens,
     cost,
     created_at,
-    updated_at,
-    summary_message_id
+    updated_at
 `
 
 type UpdateSessionParams struct {
@@ -472,7 +456,6 @@ type UpdateSessionParams struct {
 	Callbacks          sql.NullString `json:"callbacks"`
 	PromptTokens       int64          `json:"prompt_tokens"`
 	CompletionTokens   int64          `json:"completion_tokens"`
-	SummaryMessageID   sql.NullString `json:"summary_message_id"`
 	Cost               float64        `json:"cost"`
 	ID                 string         `json:"id"`
 }
@@ -492,7 +475,6 @@ type UpdateSessionRow struct {
 	Cost               float64        `json:"cost"`
 	CreatedAt          int64          `json:"created_at"`
 	UpdatedAt          int64          `json:"updated_at"`
-	SummaryMessageID   sql.NullString `json:"summary_message_id"`
 }
 
 func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (UpdateSessionRow, error) {
@@ -503,7 +485,6 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (U
 		arg.Callbacks,
 		arg.PromptTokens,
 		arg.CompletionTokens,
-		arg.SummaryMessageID,
 		arg.Cost,
 		arg.ID,
 	)
@@ -523,7 +504,6 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) (U
 		&i.Cost,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SummaryMessageID,
 	)
 	return i, err
 }

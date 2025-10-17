@@ -62,7 +62,6 @@ type Session struct {
 	Cost               float64        `json:"cost"`
 	UpdatedAt          int64          `json:"updated_at"`
 	CreatedAt          int64          `json:"created_at"`
-	SummaryMessageID   sql.NullString `json:"summary_message_id"`
 	CustomSystemPrompt sql.NullString `json:"custom_system_prompt"`
 	PromptMode         sql.NullString `json:"prompt_mode"`
 	SessionType        string         `json:"session_type"`

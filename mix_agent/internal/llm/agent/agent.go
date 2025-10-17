@@ -89,7 +89,6 @@ type AgentEventType string
 const (
 	AgentEventTypeError                 AgentEventType = "error"
 	AgentEventTypeResponse              AgentEventType = "response"
-	AgentEventTypeSummarize             AgentEventType = "summarize"
 	AgentEventTypeThinking              AgentEventType = "thinking"
 	AgentEventTypeContentDelta          AgentEventType = "content_delta"
 	AgentEventTypeToolParameterDelta    AgentEventType = "tool_parameter_delta"
@@ -130,7 +129,6 @@ type Service interface {
 	Cancel(sessionID string)
 	CancelWithReason(sessionID string, reason string)
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
-	Summarize(ctx context.Context, sessionID string) error
 	ClearAllSessionProviders()
 	Shutdown()
 }
@@ -146,8 +144,7 @@ type agent struct {
 	tools     []tools.BaseTool
 	provider  interfaces.Provider
 
-	titleProvider     interfaces.Provider
-	summarizeProvider interfaces.Provider
+	titleProvider interfaces.Provider
 
 	sessionProviders sync.Map // Maps session ID to interfaces.Provider
 	activeContexts   sync.Map // Maps session ID to context.CancelFunc for cancellation
@@ -196,13 +193,6 @@ func NewAgentWithBroker(
 			return nil, err
 		}
 	}
-	var summarizeProvider interfaces.Provider
-	if agentName == config.AgentMain {
-		summarizeProvider, err = createAgentProvider(config.AgentMain)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -221,21 +211,20 @@ func NewAgentWithBroker(
 	}
 
 	agent := &agent{
-		broker:            broker,
-		agentName:         agentName,
-		provider:          agentProvider,
-		messages:          messages,
-		sessions:          sessions,
-		permissions:       perms,
-		storageConfig:     storageConfig,
-		tools:             agentTools,
-		titleProvider:     titleProvider,
-		summarizeProvider: summarizeProvider,
-		sessionProviders:  sync.Map{},
-		activeContexts:    sync.Map{},
-		accumulator:       accumulator,
-		ctx:               ctx,
-		cancel:            cancel,
+		broker:           broker,
+		agentName:        agentName,
+		provider:         agentProvider,
+		messages:         messages,
+		sessions:         sessions,
+		permissions:      perms,
+		storageConfig:    storageConfig,
+		tools:            agentTools,
+		titleProvider:    titleProvider,
+		sessionProviders: sync.Map{},
+		activeContexts:   sync.Map{},
+		accumulator:      accumulator,
+		ctx:              ctx,
+		cancel:           cancel,
 	}
 
 	// Create callback executor with factory function (if permissions service is provided)
@@ -284,13 +273,6 @@ func (a *agent) CancelWithReason(sessionID string, reason string) {
 	if cancel, ok := cancelFunc.(context.CancelFunc); ok {
 		cancel()
 		a.setSessionState(sessionID, SessionStateCancelled)
-	}
-
-	// Also check for summarize requests
-	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID + "-summarize"); exists {
-		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			cancel()
-		}
 	}
 }
 
@@ -487,7 +469,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	// Starting message processing for session
 	_ = config.Get()
 
-	// Load conversation history with summary slicing
+	// Load conversation history
 	msgs, err := a.loadConversationHistory(ctx, sessionID)
 	if err != nil {
 		return a.err(err)
@@ -610,34 +592,42 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 	return userMsg, err
 }
 
-// loadConversationHistory loads all messages for a session and applies summary slicing if configured
+// loadConversationHistory loads all messages for a session
 func (a *agent) loadConversationHistory(ctx context.Context, sessionID string) ([]message.Message, error) {
 	msgs, err := a.messages.List(ctx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list messages: %w", err)
 	}
 
-	// Apply summary slicing if configured
-	session, err := a.sessions.Get(ctx, sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session: %w", err)
-	}
-
-	if session.SummaryMessageID != "" {
-		summaryMsgInex := -1
-		for i, msg := range msgs {
-			if msg.ID == session.SummaryMessageID {
-				summaryMsgInex = i
-				break
-			}
+	// Filter out messages with excluded callback results
+	filteredMsgs := make([]message.Message, 0, len(msgs))
+	for _, msg := range msgs {
+		if shouldExcludeMessage(msg) {
+			continue
 		}
-		if summaryMsgInex != -1 {
-			msgs = msgs[summaryMsgInex:]
-			msgs[0].Role = message.User
-		}
+		filteredMsgs = append(filteredMsgs, msg)
 	}
+	msgs = filteredMsgs
 
 	return msgs, nil
+}
+
+// shouldExcludeMessage checks if a message contains callback results marked for exclusion from context
+func shouldExcludeMessage(msg message.Message) bool {
+	// Only check Tool messages for excluded callback results
+	if msg.Role != message.Tool {
+		return false
+	}
+
+	// Check if any callback result part has ExcludeFromContext set to true
+	callbackResults := msg.CallbackResults()
+	for _, result := range callbackResults {
+		if result.ExcludeFromContext {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
@@ -1036,8 +1026,8 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 
 	a.provider = provider
 
-	// Update title and summary providers if this is the main agent
-	// Since title and summary providers always use AgentMain config, we need to update them
+	// Update title provider if this is the main agent
+	// Since title provider always uses AgentMain config, we need to update it
 	// whenever AgentMain model changes
 	if agentName == config.AgentMain {
 		// Update title provider if it exists
@@ -1047,16 +1037,6 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 				logging.Warn("Failed to update title provider", "error", err)
 			} else {
 				a.titleProvider = titleProvider
-			}
-		}
-
-		// Update summary provider if it exists
-		if a.summarizeProvider != nil {
-			summarizeProvider, err := createAgentProvider(config.AgentMain)
-			if err != nil {
-				logging.Warn("Failed to update summary provider", "error", err)
-			} else {
-				a.summarizeProvider = summarizeProvider
 			}
 		}
 	}
@@ -1081,214 +1061,6 @@ func (a *agent) Publish(ctx context.Context, t pubsub.EventType, event AgentEven
 	setIfEmpty(&event.ParentToolCallID, parentToolCallID)
 
 	return a.broker.Publish(ctx, t, event)
-}
-
-func (a *agent) Summarize(ctx context.Context, sessionID string) error {
-	if a.summarizeProvider == nil {
-		return fmt.Errorf("summarize provider not available")
-	}
-
-	// Create a new context with cancellation
-	summarizeCtx, cancel := context.WithCancel(ctx)
-
-	// Store cancel function for potential cancellation
-	a.activeContexts.Store(sessionID+"-summarize", cancel)
-
-	go func() {
-		defer a.activeContexts.Delete(sessionID + "-summarize")
-		defer cancel()
-		event := AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Starting summarization...",
-		}
-
-		err := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish summarize start event", "error", err)
-		}
-		// Get all messages from the session
-		msgs, err := a.messages.List(summarizeCtx, sessionID)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to list messages: %w", err),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		summarizeCtx = context.WithValue(summarizeCtx, tools.SessionIDContextKey, sessionID)
-
-		// Get session working directory and add to context
-		session, err := a.sessions.Get(summarizeCtx, sessionID)
-		if err == nil {
-			summarizeCtx = tools.SetSessionStorageContext(summarizeCtx, session.ID, a.storageConfig)
-		}
-
-		if len(msgs) == 0 {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("no messages to summarize"),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-
-		event = AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Analyzing conversation...",
-		}
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish analyze event", "error", err)
-		}
-
-		// Add a system message to guide the summarization
-		summarizePrompt := "Provide a detailed but concise summary of our conversation above. Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next."
-
-		// Create a new message with the summarize prompt
-		promptMsg := message.Message{
-			Role:  message.User,
-			Parts: []message.ContentPart{message.TextContent{Text: summarizePrompt}},
-		}
-
-		// Append the prompt to the messages
-		msgsWithPrompt := append(msgs, promptMsg)
-
-		event = AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Generating summary...",
-		}
-
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish generate event", "error", err)
-		}
-
-		// Send the messages to the summarize provider
-		response, err := a.summarizeProvider.SendMessages(
-			summarizeCtx,
-			msgsWithPrompt,
-			make([]tools.BaseTool, 0),
-		)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to summarize: %w", err),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-
-		summary := strings.TrimSpace(response.Content)
-		if summary == "" {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("empty summary returned"),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		event = AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Creating new session...",
-		}
-
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish create session event", "error", err)
-		}
-		oldSession, err := a.sessions.Get(summarizeCtx, sessionID)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to get session: %w", err),
-				Done:  true,
-			}
-
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		// Create a message in the new session with the summary
-		msg, err := a.messages.Create(summarizeCtx, oldSession.ID, message.CreateMessageParams{
-			Role: message.Assistant,
-			Parts: []message.ContentPart{
-				message.TextContent{Text: summary},
-				message.Finish{
-					Reason: message.FinishReasonEndTurn,
-					Time:   time.Now().Unix(),
-				},
-			},
-			Model: a.summarizeProvider.Model().ID,
-		})
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to create summary message: %w", err),
-				Done:  true,
-			}
-
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		oldSession.SummaryMessageID = msg.ID
-		oldSession.CompletionTokens = response.Usage.OutputTokens
-		oldSession.PromptTokens = 0
-		model := a.summarizeProvider.Model()
-		usage := response.Usage
-		cost := model.CostPer1MInCached/1e6*float64(usage.CacheCreationTokens) +
-			model.CostPer1MOutCached/1e6*float64(usage.CacheReadTokens) +
-			model.CostPer1MIn/1e6*float64(usage.InputTokens) +
-			model.CostPer1MOut/1e6*float64(usage.OutputTokens)
-		oldSession.Cost += cost
-		_, err = a.sessions.Save(summarizeCtx, oldSession)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to save session: %w", err),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-		}
-
-		event = AgentEvent{
-			Type:      AgentEventTypeSummarize,
-			SessionID: oldSession.ID,
-			Progress:  "Summary complete",
-			Done:      true,
-		}
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish complete event", "error", err)
-		}
-		// Send final success event with the new session ID
-	}()
-
-	return nil
 }
 
 // filterToolsForPlanMode returns only read-only and planning tools for plan mode
@@ -1645,22 +1417,13 @@ func (a *agent) ClearAllSessionProviders() {
 		logging.Error("Failed to update main agent provider", "error", err)
 	}
 
-	// Refresh title and summarize providers (they always use AgentMain config)
+	// Refresh title provider (it always uses AgentMain config)
 	if a.titleProvider != nil {
 		newTitleProvider, err := createAgentProvider(config.AgentMain)
 		if err == nil {
 			a.titleProvider = newTitleProvider
 		} else {
 			logging.Error("Failed to refresh title provider", "error", err)
-		}
-	}
-
-	if a.summarizeProvider != nil {
-		newSummarizeProvider, err := createAgentProvider(config.AgentMain)
-		if err == nil {
-			a.summarizeProvider = newSummarizeProvider
-		} else {
-			logging.Error("Failed to refresh summarize provider", "error", err)
 		}
 	}
 }

@@ -53,13 +53,6 @@ type ToolParameterDeltaEvent struct {
 	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
-type SummarizeEvent struct {
-	Type             string `json:"type"`
-	Progress         string `json:"progress"`
-	Done             bool   `json:"done"`
-	ParentToolCallID string `json:"parentToolCallId,omitempty"`
-}
-
 type PermissionEvent struct {
 	Type             string      `json:"type"`
 	ID               string      `json:"id"`

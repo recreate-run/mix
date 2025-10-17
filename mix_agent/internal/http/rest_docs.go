@@ -1587,6 +1587,11 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "Message content to inject into the conversation (required for send_message type). Will be sent as a User message.",
 							"example":     "Please review the changes and run tests",
 						},
+						"excludeFromContext": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Exclude callback results from agent context. Only applies to bash_script and sub_agent types. Not allowed for send_message.",
+							"default":     false,
+						},
 					},
 				},
 				"ErrorResponse": map[string]interface{}{
@@ -1995,6 +2000,10 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "Error message if callback failed (optional)",
 						},
+						"exclude_from_context": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether this callback result is excluded from agent context (optional)",
+						},
 					},
 					"required": []string{"tool_call_id", "tool_name", "callback_type", "success"},
 				},
@@ -2038,7 +2047,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"event": map[string]interface{}{
 							"type":        "string",
 							"description": "Event type identifier",
-							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "session_created", "session_deleted"},
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "session_created", "session_deleted"},
 						},
 						"retry": map[string]interface{}{
 							"type":        "integer",
@@ -2065,7 +2074,6 @@ func getOpenAPISpec() OpenAPISpec {
 							"tool_execution_start":   "#/components/schemas/SSEToolExecutionStartEvent",
 							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
 							"permission":             "#/components/schemas/SSEPermissionEvent",
-							"summarize":              "#/components/schemas/SSESummarizeEvent",
 							"session_created":        "#/components/schemas/SSESessionCreatedEvent",
 							"session_deleted":        "#/components/schemas/SSESessionDeletedEvent",
 						},
@@ -2082,7 +2090,6 @@ func getOpenAPISpec() OpenAPISpec {
 						{"$ref": "#/components/schemas/SSEToolExecutionStartEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
 						{"$ref": "#/components/schemas/SSEPermissionEvent"},
-						{"$ref": "#/components/schemas/SSESummarizeEvent"},
 						{"$ref": "#/components/schemas/SSESessionCreatedEvent"},
 						{"$ref": "#/components/schemas/SSESessionDeletedEvent"},
 					},
@@ -2473,39 +2480,6 @@ func getOpenAPISpec() OpenAPISpec {
 										},
 									},
 									"required": []string{"type", "id", "sessionId", "toolName", "description", "action"},
-								},
-							},
-							"required": []string{"data"},
-						},
-					},
-				},
-				"SSESummarizeEvent": map[string]interface{}{
-					"allOf": []map[string]interface{}{
-						{"$ref": "#/components/schemas/SSEBaseEvent"},
-						{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"data": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"type": map[string]interface{}{
-											"type":        "string",
-											"description": "Summarization event type",
-										},
-										"progress": map[string]interface{}{
-											"type":        "string",
-											"description": "Summarization progress description",
-										},
-										"done": map[string]interface{}{
-											"type":        "boolean",
-											"description": "Indicates if summarization is complete",
-										},
-										"parentToolCallId": map[string]interface{}{
-											"type":        "string",
-											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
-										},
-									},
-									"required": []string{"type", "progress", "done"},
 								},
 							},
 							"required": []string{"data"},

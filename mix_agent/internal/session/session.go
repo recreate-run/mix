@@ -87,7 +87,6 @@ type Session struct {
 	ToolCallCount         int64
 	PromptTokens          int64
 	CompletionTokens      int64
-	SummaryMessageID      string
 	CustomSystemPrompt    string
 	PromptMode            string
 	Callbacks             string       // JSON-encoded []interfaces.CallbackConfig
@@ -324,11 +323,7 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 		Callbacks:          sql.NullString{String: session.Callbacks, Valid: session.Callbacks != ""},
 		PromptTokens:       session.PromptTokens,
 		CompletionTokens:   session.CompletionTokens,
-		SummaryMessageID: sql.NullString{
-			String: session.SummaryMessageID,
-			Valid:  session.SummaryMessageID != "",
-		},
-		Cost: session.Cost,
+		Cost:               session.Cost,
 	})
 	if err != nil {
 		return Session{}, err
@@ -372,7 +367,6 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 		ToolCallCount:         item.ToolCallCount,
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
-		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
 		Callbacks:             item.Callbacks.String,
@@ -395,7 +389,6 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 		ToolCallCount:         item.ToolCallCount,
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
-		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
 		Callbacks:             item.Callbacks.String,
@@ -418,7 +411,6 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 		ToolCallCount:         0, // New sessions always have 0 messages
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
-		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
 		Callbacks:             item.Callbacks.String,

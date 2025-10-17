@@ -12,7 +12,6 @@ INSERT INTO sessions (
     prompt_tokens,
     completion_tokens,
     cost,
-    summary_message_id,
     updated_at,
     created_at
 ) VALUES (
@@ -28,7 +27,6 @@ INSERT INTO sessions (
     ?,
     ?,
     ?,
-    null,
     strftime('%s', 'now'),
     strftime('%s', 'now')
 ) RETURNING
@@ -45,8 +43,7 @@ INSERT INTO sessions (
     completion_tokens,
     cost,
     created_at,
-    updated_at,
-    summary_message_id;
+    updated_at;
 
 -- name: GetSessionByID :one
 SELECT
@@ -64,7 +61,6 @@ SELECT
     s.cost,
     s.created_at,
     s.updated_at,
-    s.summary_message_id,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count,
     COALESCE(counts.tool_call_count, 0) as tool_call_count
@@ -94,7 +90,6 @@ SELECT
     s.cost,
     s.created_at,
     s.updated_at,
-    s.summary_message_id,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count,
     COALESCE(counts.tool_call_count, 0) as tool_call_count
@@ -124,7 +119,6 @@ SELECT
     s.cost,
     s.created_at,
     s.updated_at,
-    s.summary_message_id,
     COALESCE(first_msg.parts, '') as first_user_message,
     COALESCE(counts.user_message_count, 0) as user_message_count,
     COALESCE(counts.assistant_message_count, 0) as assistant_message_count,
@@ -156,7 +150,6 @@ SET
     callbacks = ?,
     prompt_tokens = ?,
     completion_tokens = ?,
-    summary_message_id = ?,
     cost = ?,
     updated_at = strftime('%s', 'now')
 WHERE id = ?
@@ -174,8 +167,7 @@ RETURNING
     completion_tokens,
     cost,
     created_at,
-    updated_at,
-    summary_message_id;
+    updated_at;
 
 -- name: IncrementSessionCost :exec
 UPDATE sessions

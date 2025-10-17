@@ -39,6 +39,10 @@ type CallbackConfig struct {
 
 	// For send_message type
 	MessageContent string `json:"messageContent,omitempty"`
+
+	// ExcludeFromContext prevents callback results from being included in agent context.
+	// Only applies to bash_script and sub_agent types. Cannot be true for send_message.
+	ExcludeFromContext bool `json:"excludeFromContext,omitempty"`
 }
 
 // MatchesTool checks if this callback should be executed for the given tool name.
@@ -80,6 +84,10 @@ func (c CallbackConfig) Validate() error {
 	if c.Type == CallbackTypeSendMessage {
 		if c.MessageContent == "" {
 			return fmt.Errorf("send_message type requires 'messageContent' field")
+		}
+		// send_message callbacks cannot be excluded from context because they create conversation content
+		if c.ExcludeFromContext {
+			return fmt.Errorf("send_message callbacks cannot be excluded from context")
 		}
 	}
 

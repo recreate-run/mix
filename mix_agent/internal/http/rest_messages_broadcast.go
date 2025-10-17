@@ -127,14 +127,6 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 			})
 		}
 
-	case agent.AgentEventTypeSummarize:
-		registry.BroadcastEvent(targetSessionID, "summarize", SummarizeEvent{
-			Type:             "summarize",
-			Progress:         event.Progress,
-			Done:             event.Done,
-			ParentToolCallID: parentToolCallID,
-		})
-
 	case agent.AgentEventTypeToolExecutionStart:
 		toolName := extractToolNameFromProgress(event.Progress)
 		registry.BroadcastEvent(targetSessionID, "tool_execution_start", ToolExecutionStartEvent{

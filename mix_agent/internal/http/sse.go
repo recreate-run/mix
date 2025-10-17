@@ -427,11 +427,6 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 			}
 		}
 
-	case agent.AgentEventTypeSummarize:
-		if err := sseWriter.WriteEvent("summarize", SummarizeEvent{Type: "summarize", Progress: event.Progress, Done: event.Done}); err != nil {
-			return err
-		}
-
 	case agent.AgentEventTypeToolExecutionStart:
 		// Extract tool name from progress message
 		toolName := "tool" // Default fallback

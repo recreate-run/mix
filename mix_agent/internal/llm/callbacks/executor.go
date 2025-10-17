@@ -347,16 +347,17 @@ func (e *executor) saveCallbackResultMessage(
 	subAgentID, subAgentResult string,
 ) error {
 	callbackResult := message.CallbackResult{
-		ToolCallID:     callbackCtx.ToolCall.ID,
-		ToolName:       callbackCtx.ToolCall.Name,
-		CallbackName:   config.Name,
-		CallbackType:   string(config.Type),
-		Stdout:         stdout,
-		Stderr:         stderr,
-		ExitCode:       exitCode,
-		SubAgentID:     subAgentID,
-		SubAgentResult: subAgentResult,
-		Success:        success,
+		ToolCallID:         callbackCtx.ToolCall.ID,
+		ToolName:           callbackCtx.ToolCall.Name,
+		CallbackName:       config.Name,
+		CallbackType:       string(config.Type),
+		Stdout:             stdout,
+		Stderr:             stderr,
+		ExitCode:           exitCode,
+		SubAgentID:         subAgentID,
+		SubAgentResult:     subAgentResult,
+		Success:            success,
+		ExcludeFromContext: config.ExcludeFromContext,
 	}
 
 	// Add error message if callback failed
