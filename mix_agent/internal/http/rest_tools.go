@@ -206,8 +206,9 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 	WriteJSONResponse(w, http.StatusOK, response)
 }
 
-// HandleToolsStatus handles GET /api/tools/status
-func (h *ToolsHandler) HandleToolsStatus(w http.ResponseWriter, r *http.Request) {
+// HandleToolCredentialsStatus handles GET /api/tools/credentials-status
+// Returns authentication/credential status for external tool integrations (Brave Search, Gemini, etc.)
+func (h *ToolsHandler) HandleToolCredentialsStatus(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 	if handleCORSPreflight(w, r) {
 		return
@@ -219,10 +220,157 @@ func (h *ToolsHandler) HandleToolsStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	status := h.checkAllToolsStatus(r.Context())
-	
+
 	// Convert to array format for SDK compatibility
 	arrayFormat := h.convertToArrayFormat(status)
 	WriteJSONResponse(w, http.StatusOK, arrayFormat)
+}
+
+// LLMToolInfo represents information about an LLM tool
+type LLMToolInfo struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Parameters  map[string]any `json:"parameters"`
+	Required    []string       `json:"required"`
+}
+
+// LLMToolsListResponse represents the list of all LLM tools available
+type LLMToolsListResponse struct {
+	Tools []LLMToolInfo `json:"tools"`
+}
+
+// HandleListLLMTools handles GET /api/tools
+// Returns the list of all LLM tools that Claude can invoke (Bash, Edit, Read, Write, etc.)
+func (h *ToolsHandler) HandleListLLMTools(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "GET" {
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		return
+	}
+
+	// Get the agent to extract tools (this is a simplified approach)
+	// In a real implementation, you might want to get this from a service or registry
+	tools := []LLMToolInfo{
+		{
+			Name:        "Bash",
+			Description: "Execute bash commands in a persistent shell session",
+			Parameters: map[string]any{
+				"command":     map[string]any{"type": "string", "description": "The command to execute"},
+				"description": map[string]any{"type": "string", "description": "Description of what the command does"},
+			},
+			Required: []string{"command"},
+		},
+		{
+			Name:        "Edit",
+			Description: "Performs exact string replacements in files",
+			Parameters: map[string]any{
+				"file_path":   map[string]any{"type": "string", "description": "The absolute path to the file to modify"},
+				"old_string":  map[string]any{"type": "string", "description": "The text to replace"},
+				"new_string":  map[string]any{"type": "string", "description": "The text to replace it with"},
+				"replace_all": map[string]any{"type": "boolean", "description": "Replace all occurrences"},
+			},
+			Required: []string{"file_path", "old_string", "new_string"},
+		},
+		{
+			Name:        "Glob",
+			Description: "Fast file pattern matching tool",
+			Parameters: map[string]any{
+				"pattern": map[string]any{"type": "string", "description": "The glob pattern to match files against"},
+				"path":    map[string]any{"type": "string", "description": "The directory to search in"},
+			},
+			Required: []string{"pattern"},
+		},
+		{
+			Name:        "Grep",
+			Description: "A powerful search tool built on ripgrep",
+			Parameters: map[string]any{
+				"pattern":     map[string]any{"type": "string", "description": "The regular expression pattern to search for"},
+				"path":        map[string]any{"type": "string", "description": "File or directory to search in"},
+				"output_mode": map[string]any{"type": "string", "description": "Output mode: content, files_with_matches, or count"},
+			},
+			Required: []string{"pattern"},
+		},
+		{
+			Name:        "Read",
+			Description: "Reads a file from the local filesystem",
+			Parameters: map[string]any{
+				"file_path": map[string]any{"type": "string", "description": "The absolute path to the file to read"},
+				"offset":    map[string]any{"type": "number", "description": "The line number to start reading from"},
+				"limit":     map[string]any{"type": "number", "description": "The number of lines to read"},
+			},
+			Required: []string{"file_path"},
+		},
+		{
+			Name:        "Write",
+			Description: "Writes a file to the local filesystem",
+			Parameters: map[string]any{
+				"file_path": map[string]any{"type": "string", "description": "The absolute path to the file to write"},
+				"content":   map[string]any{"type": "string", "description": "The content to write to the file"},
+			},
+			Required: []string{"file_path", "content"},
+		},
+		{
+			Name:        "WebFetch",
+			Description: "Fetches content from a specified URL",
+			Parameters: map[string]any{
+				"url":    map[string]any{"type": "string", "description": "The URL to fetch content from"},
+				"prompt": map[string]any{"type": "string", "description": "The prompt to run on the fetched content"},
+			},
+			Required: []string{"url", "prompt"},
+		},
+		{
+			Name:        "WebSearch",
+			Description: "Search the web and use the results to inform responses",
+			Parameters: map[string]any{
+				"query": map[string]any{"type": "string", "description": "The search query to use"},
+			},
+			Required: []string{"query"},
+		},
+		{
+			Name:        "ReadMedia",
+			Description: "Read and analyze images, videos, PDFs, and other media files",
+			Parameters: map[string]any{
+				"file_path": map[string]any{"type": "string", "description": "The path to the media file"},
+			},
+			Required: []string{"file_path"},
+		},
+		{
+			Name:        "TodoWrite",
+			Description: "Create and manage a structured task list",
+			Parameters: map[string]any{
+				"todos": map[string]any{"type": "array", "description": "The updated todo list"},
+			},
+			Required: []string{"todos"},
+		},
+		{
+			Name:        "ExitPlanMode",
+			Description: "Exit plan mode and prompt user to start implementation",
+			Parameters: map[string]any{
+				"plan": map[string]any{"type": "string", "description": "The plan you came up with"},
+			},
+			Required: []string{"plan"},
+		},
+		{
+			Name:        "Task",
+			Description: "Launch a new agent to handle complex, multi-step tasks autonomously",
+			Parameters: map[string]any{
+				"description":    map[string]any{"type": "string", "description": "A short description of the task"},
+				"prompt":         map[string]any{"type": "string", "description": "The task for the agent to perform"},
+				"subagent_type":  map[string]any{"type": "string", "description": "The type of specialized agent to use"},
+			},
+			Required: []string{"description", "prompt", "subagent_type"},
+		},
+	}
+
+	response := LLMToolsListResponse{
+		Tools: tools,
+	}
+
+	WriteJSONResponse(w, http.StatusOK, response)
 }
 
 // convertToArrayFormat converts the map-based tools structure to an array-based format for SDK compatibility
