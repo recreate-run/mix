@@ -696,10 +696,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			const preStreamingIds = new Set<string>(
 				existingMessages?.messages?.map((m) => m.id) || [],
 			);
-			console.log(
-				"[DEBUG] Captured pre-streaming message IDs:",
-				Array.from(preStreamingIds),
-			);
 
 			setState((prev) => ({
 				...prev,

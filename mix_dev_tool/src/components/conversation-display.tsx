@@ -357,7 +357,6 @@ export function ConversationDisplay({
 				// New assistant messages are being streamed via SSE and shouldn't show from DB
 				return msg.from !== "assistant";
 			});
-			console.log('[DEBUG] Filtered new assistant messages. Pre-streaming IDs:', sseStream.preStreamingMessageIds.size, 'From', messages.length, 'to', filtered.length);
 			return filtered;
 		}
 
