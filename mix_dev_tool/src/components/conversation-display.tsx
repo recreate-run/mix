@@ -345,7 +345,7 @@ export function ConversationDisplay({
 
 	return (
 		<div className="relative h-full flex-1 py-16">
-			<div className="">
+			<div className="space-y-6">
 				{messages.map((message, index) => {
 					return (
 						<AIMessage
