@@ -475,8 +475,7 @@ export function ConversationDisplay({
 						</AIMessageContent>
 					</AIMessage>
 				)}
-				{(sseStream.processing && !sseStream.completed) ||
-				(sseStream.cancelled &&
+				{((sseStream.processing || sseStream.completed || sseStream.cancelled) &&
 					(sseStream.finalContent ||
 						sseStream.timeline?.length ||
 						sseStream.toolCalls?.length)) ? (
@@ -541,15 +540,15 @@ export function ConversationDisplay({
 										<div className="mt-4 text-muted-foreground">
 											Execution paused
 										</div>
-									) : sseStream.completed ? null : (
-										<ConversationLoader />
-									)}
+									) : sseStream.processing && !sseStream.completed ? (
+									<ConversationLoader />
+									) : null}
 								</>
 							) : sseStream.cancelled ? (
 								<div className="text-muted-foreground">Execution paused</div>
-							) : (
+							) : sseStream.processing && !sseStream.completed ? (
 								<ConversationLoader />
-							)}
+							) : null}
 						</AIMessageContent>
 					</AIMessage>
 				) : null}

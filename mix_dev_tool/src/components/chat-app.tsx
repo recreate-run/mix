@@ -129,47 +129,6 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 		isPlayground,
 	]);
 
-	// Handle streaming completion: invalidate cache, then clear streaming UI
-	useEffect(() => {
-		if (
-			sseStream.completed &&
-			!sseStream.processing &&
-			(sseStream.finalContent || sseStream.toolCalls.length > 0) &&
-			session?.id
-		) {
-			// First, invalidate cache to fetch fresh messages from backend
-			queryClient.invalidateQueries({
-				queryKey: CACHE_KEYS.sessionMessages(session.id),
-			});
-		}
-	}, [
-		sseStream.completed,
-		sseStream.processing,
-		sseStream.finalContent,
-		sseStream.toolCalls.length,
-		session?.id,
-		queryClient,
-	]);
-
-	// Clear streaming UI after cache refetch completes (runs after above effect)
-	useEffect(() => {
-		if (
-			sseStream.completed &&
-			!sseStream.processing &&
-			!sessionMessages.isLoading &&
-			sessionMessages.data
-		) {
-			// Cache now has fresh data - safe to clear streaming UI
-			sseStream.clearStreamingContent();
-		}
-	}, [
-		sseStream.completed,
-		sseStream.processing,
-		sessionMessages.isLoading,
-		sessionMessages.data,
-		sseStream.clearStreamingContent,
-	]);
-
 	// Apps functionality removed - UI attachment system is separate from API fields
 
 	const fileRef = useFileReference(text, setText, session?.id);
