@@ -516,6 +516,17 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							break;
 						}
 
+						case "user_message_created": {
+							const userMsgEvent = event as SSEUserMessageCreatedEvent;
+
+							// Store user message ID for duplicate detection
+							setState((prev) => ({
+								...prev,
+								userMessageId: userMsgEvent.data.messageId,
+							}));
+							break;
+						}
+
 						case "session_created": {
 							const sessionCreatedEvent = event as SSESessionCreatedEvent;
 
