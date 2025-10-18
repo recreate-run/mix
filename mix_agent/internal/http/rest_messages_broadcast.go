@@ -157,6 +157,15 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 			ToolCallID:       event.ToolCallID,
 			ParentToolCallID: parentToolCallID,
 		})
+
+	case agent.AgentEventTypeUserMessageCreated:
+		// Broadcast user message created event with message ID
+		registry.BroadcastEvent(targetSessionID, "user_message_created", UserMessageCreatedEvent{
+			Type:             "user_message_created",
+			MessageID:        event.Message.ID,
+			Content:          event.Message.Content().String(),
+			ParentToolCallID: parentToolCallID,
+		})
 	}
 }
 

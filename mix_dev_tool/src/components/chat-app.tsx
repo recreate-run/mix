@@ -191,18 +191,18 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 		if (!sseStream.pendingUserMessage || messages.length === 0) return;
 
 		// Check if pending message exists in the last few stored messages
-		const pendingText = sseStream.pendingUserMessage.text;
-		const recentMessages = messages.slice(-3);
+		const pendingText = sseStream.pendingUserMessage.text.trim();
+		const recentMessages = messages.slice(-5); // Check last 5 messages instead of 3
 
 		const messageExists = recentMessages.some(
-			(msg) => msg.from === "user" && msg.content === pendingText,
+			(msg) => msg.from === "user" && msg.content.trim() === pendingText,
 		);
 
 		if (messageExists) {
 			// Message has been saved to DB and is in stored messages - clear only pending message without affecting streaming
 			sseStream.clearPendingUserMessage();
 		}
-	}, [messages, sseStream.pendingUserMessage, sseStream.clearPendingUserMessage]);
+	}, [messages, sseStream.pendingUserMessage]);
 
 	const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
 		userMessageRefs.current[index] = el;

@@ -113,6 +113,13 @@ type SessionDeletedEvent struct {
 	SessionID string `json:"sessionId"`
 }
 
+type UserMessageCreatedEvent struct {
+	Type             string `json:"type"`
+	MessageID        string `json:"messageId"`
+	Content          string `json:"content"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
+}
+
 // SSEWriter handles session-scoped SSE writing with automatic compliance
 type SSEWriter struct {
 	w         http.ResponseWriter

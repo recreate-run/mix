@@ -302,13 +302,13 @@ export function ConversationDisplay({
 		// If there are no stored messages yet, show the pending message
 		if (messages.length === 0) return true;
 
-		// Check the last few messages (up to 3) to see if pending message already exists
+		// Check the last few messages (up to 5) to see if pending message already exists
 		// This handles cases where user switches tabs during streaming and cache refetches
-		const recentMessages = messages.slice(-3);
-		const pendingText = sseStream.pendingUserMessage.text;
+		const recentMessages = messages.slice(-5);
+		const pendingText = sseStream.pendingUserMessage.text.trim();
 
 		for (const msg of recentMessages) {
-			if (msg.from === "user" && msg.content === pendingText) {
+			if (msg.from === "user" && msg.content.trim() === pendingText) {
 				// Message already exists in stored messages - don't show pending
 				return false;
 			}
