@@ -3046,6 +3046,7 @@
               "tool_execution_complete",
               "permission",
               "summarize",
+              "user_message_created",
               "session_created",
               "session_deleted"
             ],
@@ -3247,7 +3248,8 @@
             "tool": "#/components/schemas/SSEToolEvent",
             "tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
             "tool_execution_start": "#/components/schemas/SSEToolExecutionStartEvent",
-            "tool_parameter_delta": "#/components/schemas/SSEToolParameterDeltaEvent"
+            "tool_parameter_delta": "#/components/schemas/SSEToolParameterDeltaEvent",
+            "user_message_created": "#/components/schemas/SSEUserMessageCreatedEvent"
           },
           "propertyName": "event"
         },
@@ -3287,6 +3289,9 @@
           },
           {
             "$ref": "#/components/schemas/SSESummarizeEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEUserMessageCreatedEvent"
           },
           {
             "$ref": "#/components/schemas/SSESessionCreatedEvent"
@@ -3721,6 +3726,48 @@
                   "type",
                   "toolCallId",
                   "input"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSEUserMessageCreatedEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "content": {
+                    "description": "Content of the user message",
+                    "type": "string"
+                  },
+                  "messageId": {
+                    "description": "ID of the created user message",
+                    "type": "string"
+                  },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "User message created event type",
+                    "example": "user_message_created",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "messageId",
+                  "content"
                 ],
                 "type": "object"
               }
