@@ -60,6 +60,7 @@ type PersistentSSEState = {
 	} | null;
 	assistantMessageId: string | null;
 	userMessageId: string | null;
+	preStreamingMessageIds: Set<string>; // IDs of messages that existed before streaming started
 };
 
 type PersistentSSEHook = PersistentSSEState & {
@@ -104,6 +105,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		pendingUserMessage: null,
 		assistantMessageId: null,
 		userMessageId: null,
+		preStreamingMessageIds: new Set(),
 	});
 
 	const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
@@ -686,6 +688,19 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				throw new Error("No session ID available");
 			}
 
+			// Capture current message IDs before streaming starts
+			// This allows us to filter out only NEW messages created during streaming
+			const existingMessages = queryClient.getQueryData<{
+				messages: Array<{ id: string }>;
+			}>(CACHE_KEYS.sessionMessages(sessionId));
+			const preStreamingIds = new Set<string>(
+				existingMessages?.messages?.map((m) => m.id) || [],
+			);
+			console.log(
+				"[DEBUG] Captured pre-streaming message IDs:",
+				Array.from(preStreamingIds),
+			);
+
 			setState((prev) => ({
 				...prev,
 				error: null,
@@ -704,6 +719,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 					text: userText,
 					attachments,
 				},
+				preStreamingMessageIds: preStreamingIds,
 			}));
 
 			toolCallsMap.current.clear();
@@ -733,7 +749,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				throw error;
 			}
 		},
-		[sessionId],
+		[sessionId, queryClient],
 	);
 
 	const cancelMessage = useCallback(async () => {
@@ -785,6 +801,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			pendingUserMessage: null,
 			assistantMessageId: null,
 			userMessageId: null,
+			preStreamingMessageIds: new Set(),
 		}));
 		toolCallsMap.current.clear();
 		toolParameterDeltas.current.clear();

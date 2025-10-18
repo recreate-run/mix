@@ -53,6 +53,7 @@ type StreamingState = {
 		attachments?: Attachment[];
 	} | null;
 	assistantMessageId: string | null;
+	preStreamingMessageIds: Set<string>;
 };
 
 // Helper function to detect URLs
@@ -334,34 +335,47 @@ export function ConversationDisplay({
 		return true;
 	};
 
-	// Filter out any assistant messages that match the current streaming content
+	// Filter out any assistant messages that were created during current streaming session
 	const getFilteredMessages = () => {
-		// If we have an assistantMessageId from streaming events, filter out that specific message
+		// During streaming OR just after completion (while streaming UI is still showing),
+		// filter out NEW assistant messages that appeared during this stream.
+		// Keep filtering until streaming content is cleared to prevent flash/duplicates.
+		// Keep messages that existed before streaming started (tracked in preStreamingMessageIds)
 		if (
-			sseStream.processing &&
-			sseStream.assistantMessageId &&
 			messages.length > 0 &&
-			(sseStream.timeline?.length || sseStream.toolCalls?.length)
+			sseStream.preStreamingMessageIds &&
+			sseStream.preStreamingMessageIds.size >= 0 &&
+			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent) &&
+			(sseStream.processing || sseStream.completed)
 		) {
-			// Filter out the assistant message with the matching ID
-			// This is the most reliable way to prevent duplicates since the backend
-			// creates the assistant message in the DB immediately when streaming starts
-			return messages.filter((msg) => msg.id !== sseStream.assistantMessageId);
+			const filtered = messages.filter((msg) => {
+				// Keep all messages that existed before streaming started
+				if (sseStream.preStreamingMessageIds.has(msg.id)) {
+					return true;
+				}
+				// For new messages, only keep user messages (filter out new assistant messages)
+				// New assistant messages are being streamed via SSE and shouldn't show from DB
+				return msg.from !== "assistant";
+			});
+			console.log('[DEBUG] Filtered new assistant messages. Pre-streaming IDs:', sseStream.preStreamingMessageIds.size, 'From', messages.length, 'to', filtered.length);
+			return filtered;
 		}
 
 		return messages;
 	};
 
+	const filteredMessages = getFilteredMessages();
+
 	// Check if streaming assistant message is already in stored messages to prevent duplicates
 	const shouldShowStreamingAssistant = () => {
-		// First, check if we have an assistantMessageId and if it's already in stored messages
+		// First, check if we have an assistantMessageId and if it's already in FILTERED messages
 		// This check must happen BEFORE the processing check to prevent duplicates on tab switch
 		if (sseStream.assistantMessageId) {
-			const messageExists = messages.some(
+			const messageExists = filteredMessages.some(
 				(msg) => msg.id === sseStream.assistantMessageId,
 			);
 
-			// If message exists in stored messages, don't show streaming version
+			// If message exists in filtered messages, don't show streaming version
 			if (messageExists) return false;
 		}
 
@@ -376,8 +390,6 @@ export function ConversationDisplay({
 				sseStream.toolCalls?.length)
 		);
 	};
-
-	const filteredMessages = getFilteredMessages();
 
 	return (
 		<div className="relative h-full flex-1 py-16">
