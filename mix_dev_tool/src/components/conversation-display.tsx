@@ -52,6 +52,7 @@ type StreamingState = {
 		text: string;
 		attachments?: Attachment[];
 	} | null;
+	assistantMessageId: string | null;
 };
 
 // Helper function to detect URLs
@@ -317,6 +318,31 @@ export function ConversationDisplay({
 		return true;
 	};
 
+	// Check if streaming assistant message is already in stored messages to prevent duplicates
+	const shouldShowStreamingAssistant = () => {
+		// Always show during active streaming (not yet completed)
+		if (sseStream.processing && !sseStream.completed) return true;
+
+		// If streaming is completed and we have an assistantMessageId, check if it's in stored messages
+		if (sseStream.completed && sseStream.assistantMessageId) {
+			// Check if this message ID already exists in stored messages
+			const messageExists = messages.some(
+				(msg) => msg.id === sseStream.assistantMessageId,
+			);
+
+			// If message exists in stored messages, don't show streaming version
+			if (messageExists) return false;
+		}
+
+		// Show streaming content if we have content and it's not in stored messages yet
+		return (
+			(sseStream.processing || sseStream.completed || sseStream.cancelled) &&
+			(sseStream.finalContent ||
+				sseStream.timeline?.length ||
+				sseStream.toolCalls?.length)
+		);
+	};
+
 	return (
 		<div className="relative h-full flex-1 py-16">
 			<div className="">
@@ -475,10 +501,7 @@ export function ConversationDisplay({
 						</AIMessageContent>
 					</AIMessage>
 				)}
-				{((sseStream.processing || sseStream.completed || sseStream.cancelled) &&
-					(sseStream.finalContent ||
-						sseStream.timeline?.length ||
-						sseStream.toolCalls?.length)) ? (
+				{shouldShowStreamingAssistant() ? (
 					<AIMessage from="assistant">
 						<AIMessageContent>
 							{/* Show timeline-based interleaved thinking and tools during streaming */}
