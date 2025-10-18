@@ -12,6 +12,7 @@ import type {
 	SSEToolExecutionCompleteEvent,
 	SSEToolExecutionStartEvent,
 	SSEToolParameterDeltaEvent,
+	SSEUserMessageCreatedEvent,
 } from "mix-typescript-sdk/models/sseeventstream";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CACHE_KEYS } from "@/lib/cache-keys";
@@ -58,6 +59,7 @@ type PersistentSSEState = {
 		attachments?: Attachment[];
 	} | null;
 	assistantMessageId: string | null;
+	userMessageId: string | null;
 };
 
 type PersistentSSEHook = PersistentSSEState & {
@@ -101,6 +103,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		newlyCreatedSessionId: null,
 		pendingUserMessage: null,
 		assistantMessageId: null,
+		userMessageId: null,
 	});
 
 	const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
@@ -615,6 +618,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			newlyCreatedSessionId: null,
 			pendingUserMessage: null,
 			assistantMessageId: null,
+			userMessageId: null,
 		});
 
 		// Create new abort controller for this session
@@ -768,6 +772,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			completed: false,
 			pendingUserMessage: null,
 			assistantMessageId: null,
+			userMessageId: null,
 		}));
 		toolCallsMap.current.clear();
 		toolParameterDeltas.current.clear();
