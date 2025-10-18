@@ -164,6 +164,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							const thinkingEvent = event as SSEThinkingEvent;
 							const thinkingContent = thinkingEvent.data.content || "";
 							const parentToolCallId = thinkingEvent.data.parentToolCallId;
+							const assistantMessageId = thinkingEvent.data.assistantMessageId;
 
 							// Add to timeline
 							const thinkingEntry: TimelineEntry = {
@@ -181,6 +182,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								reasoning: (prev.reasoning || "") + thinkingContent,
 								timeline: [...timelineRef.current],
 								processing: true,
+								assistantMessageId:
+									assistantMessageId || prev.assistantMessageId,
 							}));
 							break;
 						}
@@ -189,6 +192,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							const contentEvent = event as SSEContentEvent;
 							const contentDelta = contentEvent.data.content || "";
 							const parentToolCallId = contentEvent.data.parentToolCallId;
+							const assistantMessageId = contentEvent.data.assistantMessageId;
 
 							// Find the last entry in timeline
 							const lastEntry =
@@ -224,6 +228,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								finalContent: (prev.finalContent || "") + contentDelta,
 								timeline: [...timelineRef.current],
 								processing: true,
+								assistantMessageId:
+									assistantMessageId || prev.assistantMessageId,
 							}));
 							break;
 						}
@@ -233,6 +239,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							const deltaEvent = event as SSEToolParameterDeltaEvent;
 							const toolCallId = deltaEvent.data.toolCallId;
 							const inputDelta = deltaEvent.data.input;
+							const assistantMessageId = deltaEvent.data.assistantMessageId;
 
 							// Validate required fields
 							if (!toolCallId || typeof toolCallId !== "string") {
@@ -305,6 +312,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 									...prev,
 									toolCalls: Array.from(toolCallsMap.current.values()),
 									timeline: [...timelineRef.current],
+									assistantMessageId:
+										assistantMessageId || prev.assistantMessageId,
 								}));
 
 								// Clear accumulated deltas after successful parse to prevent stale accumulation
@@ -316,6 +325,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "tool": {
 							const toolEvent = event as SSEToolEvent;
 							const parentToolCallId = toolEvent.data.parentToolCallId;
+							const assistantMessageId = toolEvent.data.assistantMessageId;
 
 							const toolCall: ToolCall = {
 								id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
@@ -388,6 +398,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								toolCalls: Array.from(toolCallsMap.current.values()),
 								timeline: [...timelineRef.current],
 								processing: true,
+								assistantMessageId:
+									assistantMessageId || prev.assistantMessageId,
 							}));
 							break;
 						}

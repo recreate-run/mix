@@ -336,42 +336,17 @@ export function ConversationDisplay({
 
 	// Filter out any assistant messages that match the current streaming content
 	const getFilteredMessages = () => {
-		// If we're actively streaming and have both stored messages and streaming content
+		// If we have an assistantMessageId from streaming events, filter out that specific message
 		if (
 			sseStream.processing &&
+			sseStream.assistantMessageId &&
 			messages.length > 0 &&
 			(sseStream.timeline?.length || sseStream.toolCalls?.length)
 		) {
-			// If we have a userMessageId from the pending user message, use it to identify
-			// which assistant response is currently streaming
-			if (sseStream.userMessageId) {
-				// Find the user message with this ID
-				const userMessageIndex = messages.findIndex(
-					(msg) => msg.from === "user" && msg.id === sseStream.userMessageId,
-				);
-
-				if (userMessageIndex !== -1) {
-					// If there's an assistant message right after this user message,
-					// it's the one being streamed - filter it out
-					if (
-						userMessageIndex + 1 < messages.length &&
-						messages[userMessageIndex + 1].from === "assistant"
-					) {
-						return [
-							...messages.slice(0, userMessageIndex + 1),
-							...messages.slice(userMessageIndex + 2),
-						];
-					}
-				}
-			}
-
-			// Fallback: if no userMessageId, just remove the last assistant message if it exists
-			if (!sseStream.completed) {
-				const lastMessage = messages[messages.length - 1];
-				if (lastMessage.from === "assistant") {
-					return messages.slice(0, -1);
-				}
-			}
+			// Filter out the assistant message with the matching ID
+			// This is the most reliable way to prevent duplicates since the backend
+			// creates the assistant message in the DB immediately when streaming starts
+			return messages.filter((msg) => msg.id !== sseStream.assistantMessageId);
 		}
 
 		return messages;
