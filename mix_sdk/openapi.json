@@ -3157,6 +3157,10 @@
             "properties": {
               "data": {
                 "properties": {
+                  "assistantMessageId": {
+                    "description": "ID of the assistant message this content belongs to",
+                    "type": "string"
+                  },
                   "content": {
                     "description": "Streaming content delta",
                     "type": "string"
@@ -3521,6 +3525,10 @@
             "properties": {
               "data": {
                 "properties": {
+                  "assistantMessageId": {
+                    "description": "ID of the assistant message this thinking belongs to",
+                    "type": "string"
+                  },
                   "content": {
                     "description": "Thinking or reasoning content",
                     "type": "string"
@@ -3557,6 +3565,10 @@
             "properties": {
               "data": {
                 "properties": {
+                  "assistantMessageId": {
+                    "description": "ID of the assistant message this tool belongs to",
+                    "type": "string"
+                  },
                   "id": {
                     "description": "Tool execution identifier",
                     "type": "string"
@@ -3705,6 +3717,10 @@
             "properties": {
               "data": {
                 "properties": {
+                  "assistantMessageId": {
+                    "description": "ID of the assistant message this tool parameter delta belongs to",
+                    "type": "string"
+                  },
                   "input": {
                     "description": "Partial JSON parameter delta - may not be parseable until complete",
                     "type": "string"

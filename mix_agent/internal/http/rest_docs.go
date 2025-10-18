@@ -2224,6 +2224,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
+										"assistantMessageId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the assistant message this thinking belongs to",
+										},
 									},
 									"required": []string{"type", "content"},
 								},
@@ -2252,6 +2256,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"parentToolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
+										"assistantMessageId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the assistant message this content belongs to",
 										},
 									},
 									"required": []string{"type", "content"},
@@ -2294,6 +2302,10 @@ func getOpenAPISpec() OpenAPISpec {
 											"type":        "string",
 											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
 										},
+										"assistantMessageId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the assistant message this tool belongs to",
+										},
 									},
 									"required": []string{"type", "name", "input", "id", "status"},
 								},
@@ -2326,6 +2338,10 @@ func getOpenAPISpec() OpenAPISpec {
 										"parentToolCallId": map[string]interface{}{
 											"type":        "string",
 											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
+										"assistantMessageId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the assistant message this tool parameter delta belongs to",
 										},
 									},
 									"required": []string{"type", "toolCallId", "input"},

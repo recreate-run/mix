@@ -188,63 +188,68 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 		}
 	}
 
-	return groupedEntries.map((group, _index) => {
-		if (group.type === "thinking") {
-			const totalContent = group.entries.join("");
-			const duration =
-				group.timestamps.length > 1
-					? Math.round(
-							(group.timestamps[group.timestamps.length - 1] -
-								group.timestamps[0]) /
-								1000,
-						)
-					: 0;
+	return (
+		<div className="space-y-4">
+			{groupedEntries.map((group, _index) => {
+				if (group.type === "thinking") {
+					const totalContent = group.entries.join("");
+					const duration =
+						group.timestamps.length > 1
+							? Math.round(
+									(group.timestamps[group.timestamps.length - 1] -
+										group.timestamps[0]) /
+										1000,
+								)
+							: 0;
 
-			return (
-				<AIReasoning
-					className="w-full"
-					duration={duration > 0 ? duration : undefined}
-					isStreaming={false}
-					key={`thinking-${group.timestamps[0]}`}
-				>
-					<AIReasoningTrigger />
-					<AIReasoningContent>{totalContent}</AIReasoningContent>
-				</AIReasoning>
-			);
-		}
-		if (group.type === "content") {
-			return (
-				<div key={`content-${group.entry.id}`}>
-					<ResponseRenderer content={group.entry.content as string} />
-				</div>
-			);
-		}
-
-		// Tool with potential nested subagent events
-		const toolCall = group.entry.content as ToolCall;
-		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
-
-		return (
-			<AIToolLadder key={`tool-${group.entry.id}`}>
-				<AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
-					<AIToolHeader
-						description={toolCall.description}
-						name={toolCall.name}
-						status={toolCall.status}
-						toolCall={toolCall}
-					/>
-					<AIToolContent toolCall={toolCall} />
-
-					{/* Nested subagent events */}
-					{hasNestedEvents && group.nestedEntries && (
-						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-							{renderTimelineEntries(group.nestedEntries, true)}
+					return (
+						<AIReasoning
+							className="w-full"
+							duration={duration > 0 ? duration : undefined}
+							isStreaming={false}
+							key={`thinking-${group.timestamps[0]}`}
+						>
+							<AIReasoningTrigger />
+							<AIReasoningContent>{totalContent}</AIReasoningContent>
+						</AIReasoning>
+					);
+				}
+				if (group.type === "content") {
+					return (
+						<div key={`content-${group.entry.id}`}>
+							<ResponseRenderer content={group.entry.content as string} />
 						</div>
-					)}
-				</AIToolStep>
-			</AIToolLadder>
-		);
-	});
+					);
+				}
+
+				// Tool with potential nested subagent events
+				const toolCall = group.entry.content as ToolCall;
+				const hasNestedEvents =
+					group.nestedEntries && group.nestedEntries.length > 0;
+
+				return (
+					<AIToolLadder key={`tool-${group.entry.id}`} className="mb-0">
+						<AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
+							<AIToolHeader
+								description={toolCall.description}
+								name={toolCall.name}
+								status={toolCall.status}
+								toolCall={toolCall}
+							/>
+							<AIToolContent toolCall={toolCall} />
+
+							{/* Nested subagent events */}
+							{hasNestedEvents && group.nestedEntries && (
+								<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
+									{renderTimelineEntries(group.nestedEntries, true)}
+								</div>
+							)}
+						</AIToolStep>
+					</AIToolLadder>
+				);
+			})}
+		</div>
+	);
 };
 
 const MessageCopyButton = ({ content }: { content: string }) => {
@@ -329,6 +334,49 @@ export function ConversationDisplay({
 		return true;
 	};
 
+	// Filter out any assistant messages that match the current streaming content
+	const getFilteredMessages = () => {
+		// If we're actively streaming and have both stored messages and streaming content
+		if (
+			sseStream.processing &&
+			messages.length > 0 &&
+			(sseStream.timeline?.length || sseStream.toolCalls?.length)
+		) {
+			// If we have a userMessageId from the pending user message, use it to identify
+			// which assistant response is currently streaming
+			if (sseStream.userMessageId) {
+				// Find the user message with this ID
+				const userMessageIndex = messages.findIndex(
+					(msg) => msg.from === "user" && msg.id === sseStream.userMessageId,
+				);
+
+				if (userMessageIndex !== -1) {
+					// If there's an assistant message right after this user message,
+					// it's the one being streamed - filter it out
+					if (
+						userMessageIndex + 1 < messages.length &&
+						messages[userMessageIndex + 1].from === "assistant"
+					) {
+						return [
+							...messages.slice(0, userMessageIndex + 1),
+							...messages.slice(userMessageIndex + 2),
+						];
+					}
+				}
+			}
+
+			// Fallback: if no userMessageId, just remove the last assistant message if it exists
+			if (!sseStream.completed) {
+				const lastMessage = messages[messages.length - 1];
+				if (lastMessage.from === "assistant") {
+					return messages.slice(0, -1);
+				}
+			}
+		}
+
+		return messages;
+	};
+
 	// Check if streaming assistant message is already in stored messages to prevent duplicates
 	const shouldShowStreamingAssistant = () => {
 		// First, check if we have an assistantMessageId and if it's already in stored messages
@@ -354,10 +402,12 @@ export function ConversationDisplay({
 		);
 	};
 
+	const filteredMessages = getFilteredMessages();
+
 	return (
 		<div className="relative h-full flex-1 py-16">
 			<div className="space-y-6">
-				{messages.map((message, index) => {
+				{filteredMessages.map((message, index) => {
 					return (
 						<AIMessage
 							from={message.from}
@@ -472,6 +522,7 @@ export function ConversationDisplay({
 												(toolCall, index) => (
 													<AIToolLadder
 														key={`direct-tool-${toolCall.id}-${index}`}
+														className="mb-0"
 													>
 														<AIToolStep
 															isLast={true}
@@ -553,6 +604,7 @@ export function ConversationDisplay({
 											(toolCall, index) => (
 												<AIToolLadder
 													key={`streaming-direct-tool-${toolCall.id}-${index}`}
+													className="mb-0"
 												>
 													<AIToolStep
 														isLast={true}
