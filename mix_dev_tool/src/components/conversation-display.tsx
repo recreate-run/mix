@@ -302,8 +302,19 @@ export function ConversationDisplay({
 		// If there are no stored messages yet, show the pending message
 		if (messages.length === 0) return true;
 
+		// Prefer ID-based matching if we have a user message ID
+		if (sseStream.userMessageId) {
+			// Check if this message ID already exists in stored messages
+			const messageExists = messages.some(
+				(msg) => msg.from === "user" && msg.id === sseStream.userMessageId,
+			);
+
+			// If message exists in stored messages, don't show pending version
+			if (messageExists) return false;
+		}
+
+		// Fallback to content-based matching for backward compatibility
 		// Check the last few messages (up to 5) to see if pending message already exists
-		// This handles cases where user switches tabs during streaming and cache refetches
 		const recentMessages = messages.slice(-5);
 		const pendingText = sseStream.pendingUserMessage.text.trim();
 
