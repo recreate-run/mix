@@ -331,12 +331,9 @@ export function ConversationDisplay({
 
 	// Check if streaming assistant message is already in stored messages to prevent duplicates
 	const shouldShowStreamingAssistant = () => {
-		// Always show during active streaming (not yet completed)
-		if (sseStream.processing && !sseStream.completed) return true;
-
-		// If streaming is completed and we have an assistantMessageId, check if it's in stored messages
-		if (sseStream.completed && sseStream.assistantMessageId) {
-			// Check if this message ID already exists in stored messages
+		// First, check if we have an assistantMessageId and if it's already in stored messages
+		// This check must happen BEFORE the processing check to prevent duplicates on tab switch
+		if (sseStream.assistantMessageId) {
 			const messageExists = messages.some(
 				(msg) => msg.id === sseStream.assistantMessageId,
 			);
@@ -344,6 +341,9 @@ export function ConversationDisplay({
 			// If message exists in stored messages, don't show streaming version
 			if (messageExists) return false;
 		}
+
+		// Show during active streaming (not yet completed)
+		if (sseStream.processing && !sseStream.completed) return true;
 
 		// Show streaming content if we have content and it's not in stored messages yet
 		return (
