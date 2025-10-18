@@ -2023,7 +2023,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"event": map[string]interface{}{
 							"type":        "string",
 							"description": "Event type identifier",
-							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "session_created", "session_deleted"},
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "user_message_created", "session_created", "session_deleted"},
 						},
 						"retry": map[string]interface{}{
 							"type":        "integer",
@@ -2051,6 +2051,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
 							"permission":             "#/components/schemas/SSEPermissionEvent",
 							"summarize":              "#/components/schemas/SSESummarizeEvent",
+							"user_message_created":   "#/components/schemas/SSEUserMessageCreatedEvent",
 							"session_created":        "#/components/schemas/SSESessionCreatedEvent",
 							"session_deleted":        "#/components/schemas/SSESessionDeletedEvent",
 						},
@@ -2068,6 +2069,7 @@ func getOpenAPISpec() OpenAPISpec {
 						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
 						{"$ref": "#/components/schemas/SSEPermissionEvent"},
 						{"$ref": "#/components/schemas/SSESummarizeEvent"},
+						{"$ref": "#/components/schemas/SSEUserMessageCreatedEvent"},
 						{"$ref": "#/components/schemas/SSESessionCreatedEvent"},
 						{"$ref": "#/components/schemas/SSESessionDeletedEvent"},
 					},
@@ -2491,6 +2493,40 @@ func getOpenAPISpec() OpenAPISpec {
 										},
 									},
 									"required": []string{"type", "progress", "done"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEUserMessageCreatedEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "User message created event type",
+											"example":     "user_message_created",
+										},
+										"messageId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the created user message",
+										},
+										"content": map[string]interface{}{
+											"type":        "string",
+											"description": "Content of the user message",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
+									},
+									"required": []string{"type", "messageId", "content"},
 								},
 							},
 							"required": []string{"data"},
