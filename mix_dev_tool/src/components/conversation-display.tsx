@@ -202,7 +202,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 
 			return (
 				<AIReasoning
-					className="mb-4 w-full"
+					className="w-full"
 					duration={duration > 0 ? duration : undefined}
 					isStreaming={false}
 					key={`thinking-${group.timestamps[0]}`}
@@ -214,7 +214,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 		}
 		if (group.type === "content") {
 			return (
-				<div className="mb-4" key={`content-${group.entry.id}`}>
+				<div key={`content-${group.entry.id}`}>
 					<ResponseRenderer content={group.entry.content as string} />
 				</div>
 			);
