@@ -52,6 +52,7 @@ type StreamingState = {
 		text: string;
 		attachments?: Attachment[];
 	} | null;
+	userMessageId: string | null;
 	assistantMessageId: string | null;
 	preStreamingMessageIds: Set<string>;
 };
@@ -348,7 +349,13 @@ export function ConversationDisplay({
 		) {
 			const filtered = messages.filter((msg) => {
 				// Keep all messages that existed before streaming started
-				if (sseStream.preStreamingMessageIds.has(msg.id)) {
+				if (!msg.id) {
+					console.warn(
+						"Message missing ID during streaming filter - cannot determine if pre-existing",
+						{ from: msg.from, content: msg.content?.substring(0, 50) },
+					);
+				}
+				if (msg.id && sseStream.preStreamingMessageIds.has(msg.id)) {
 					return true;
 				}
 				// For new messages, only keep user messages (filter out new assistant messages)

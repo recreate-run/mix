@@ -44,7 +44,11 @@ interface ChatAppProps {
 	isPlayground?: boolean;
 }
 
-export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppProps) {
+export function ChatApp({
+	sessionId,
+	onClear,
+	isPlayground = false,
+}: ChatAppProps) {
 	// Core conversation state
 	const [text, setText] = useState<string>("");
 
@@ -360,16 +364,16 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 		sseStream.toolCalls.length,
 	]);
 
-	// Handle streaming errors - simple and clean
-	useEffect(() => {
-		if (
-			sseStream.error &&
-			!sseStream.error.includes("cancelled") &&
-			!sseStream.cancelled
-		) {
-			toast.error(`Failed to send prompt: ${sseStream.error}`);
-		}
-	}, [sseStream.error, sseStream.cancelled]);
+	// // Handle streaming errors - simple and clean (commnted out since it seemd redundant. verify and remov quickly)
+	// useEffect(() => {
+	// 	if (
+	// 		sseStream.error &&
+	// 		!sseStream.error.includes("cancelled") &&
+	// 		!sseStream.cancelled
+	// 	) {
+	// 		toast.error(`Failed to send prompt: ${sseStream.error}`);
+	// 	}
+	// }, [sseStream.error, sseStream.cancelled]);
 
 	// Declarative focus management - refocus chat input when all popups are closed
 	useEffect(() => {

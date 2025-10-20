@@ -633,6 +633,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			pendingUserMessage: null,
 			assistantMessageId: null,
 			userMessageId: null,
+			preStreamingMessageIds: new Set(),
 		});
 
 		// Create new abort controller for this session
