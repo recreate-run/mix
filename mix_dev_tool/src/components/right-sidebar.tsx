@@ -66,7 +66,7 @@ export function RightSidebar({ sessionId, ...props }: RightSidebarProps) {
 
 	if (!sessionId) {
 		return (
-			<Sidebar {...props}>
+			<Sidebar collapsible="none" {...props}>
 				<SidebarContent>
 					<SidebarGroup>
 						<SidebarGroupLabel>Session Callbacks</SidebarGroupLabel>
@@ -83,7 +83,7 @@ export function RightSidebar({ sessionId, ...props }: RightSidebarProps) {
 	}
 
 	return (
-		<Sidebar {...props}>
+		<Sidebar collapsible="none" {...props}>
 			<SidebarContent>
 				<SidebarGroup>
 					<SidebarGroupLabel>Session Callbacks</SidebarGroupLabel>
