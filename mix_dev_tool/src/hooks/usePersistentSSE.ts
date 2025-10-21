@@ -19,7 +19,7 @@ import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "@/types/common";
-import type { TimelineEntry } from "@/types/message";
+import type { TimelineEntry, UIMessage } from "@/types/message";
 import { expandFileReferences } from "@/utils/attachmentUtils";
 
 export type SSEPermissionRequest = {
@@ -116,6 +116,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 	const currentSessionRef = useRef<string>("");
 	const streamAbortController = useRef<AbortController | null>(null);
 	const lastEventIdRef = useRef<string | undefined>(undefined);
+	// Track user message data for cache updates
+	const userMessageIdRef = useRef<string | null>(null);
+	const pendingUserMessageRef = useRef<{
+		text: string;
+		attachments?: Attachment[];
+	} | null>(null);
 
 	useEffect(() => {
 		connectedRef.current = state.connected;
@@ -479,6 +485,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "complete": {
 							const completeEvent = event as SSECompleteEvent;
+
 							setState((prev) => {
 								return {
 									...prev,
@@ -490,6 +497,72 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 									assistantMessageId: completeEvent.data.messageId || null,
 								};
 							});
+
+							// Update cache directly with streaming data (instead of invalidating)
+							queryClient.setQueryData<UIMessage[]>(
+								CACHE_KEYS.sessionMessages(sessionId),
+								(oldMessages = []) => {
+									const userMsgId = userMessageIdRef.current;
+									const asstMsgId = completeEvent.data.messageId;
+
+									// Check if messages already exist (e.g., from tab switch/reload)
+									const userExists =
+										userMsgId && oldMessages.some((m) => m.id === userMsgId);
+									const asstExists =
+										asstMsgId && oldMessages.some((m) => m.id === asstMsgId);
+
+									if (userExists && asstExists) {
+										return oldMessages; // Both already in cache
+									}
+
+									const newMessages: UIMessage[] = [];
+
+									// Add user message if not in cache
+									if (!userExists && pendingUserMessageRef.current) {
+										const userMessage: UIMessage = {
+											id: userMsgId || undefined,
+											content: pendingUserMessageRef.current.text,
+											from: "user",
+											attachments: pendingUserMessageRef.current.attachments,
+										};
+										newMessages.push(userMessage);
+									}
+
+									// Add assistant message if not in cache
+									if (!asstExists) {
+										// Reconstruct final content from timeline
+										let finalContent = "";
+										for (const entry of timelineRef.current) {
+											if (entry.type === "content") {
+												finalContent += entry.content;
+											}
+										}
+
+										const toolCallsArray = Array.from(
+											toolCallsMap.current.values(),
+										);
+
+										const assistantMessage: UIMessage = {
+											id: asstMsgId || undefined,
+											content: finalContent || completeEvent.data.content || "",
+											from: "assistant",
+											toolCalls:
+												toolCallsArray.length > 0 ? toolCallsArray : undefined,
+											timeline:
+												timelineRef.current.length > 0
+													? [...timelineRef.current]
+													: undefined,
+											reasoning: completeEvent.data.reasoning || undefined,
+											reasoningDuration:
+												completeEvent.data.reasoningDuration || undefined,
+										};
+										newMessages.push(assistantMessage);
+									}
+
+									return [...oldMessages, ...newMessages];
+								},
+							);
+
 							break;
 						}
 
@@ -535,6 +608,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "user_message_created": {
 							const userMsgEvent = event as SSEUserMessageCreatedEvent;
+
+							// Track in ref for cache update
+							userMessageIdRef.current = userMsgEvent.data.messageId;
 
 							// Store user message ID for duplicate detection
 							setState((prev) => ({
@@ -612,6 +688,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		toolParameterDeltas.current.clear();
 		timelineRef.current = [];
 		lastEventIdRef.current = undefined;
+		userMessageIdRef.current = null;
+		pendingUserMessageRef.current = null;
 		currentSessionRef.current = sessionId;
 
 		setState({
@@ -680,6 +758,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			timelineRef.current = [];
 			currentSessionRef.current = "";
 			lastEventIdRef.current = undefined;
+			userMessageIdRef.current = null;
+			pendingUserMessageRef.current = null;
 		};
 	}, []);
 
@@ -691,12 +771,19 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 			// Capture current message IDs before streaming starts
 			// This allows us to filter out only NEW messages created during streaming
-			const existingMessages = queryClient.getQueryData<{
-				messages: Array<{ id: string }>;
-			}>(CACHE_KEYS.sessionMessages(sessionId));
-			const preStreamingIds = new Set<string>(
-				existingMessages?.messages?.map((m) => m.id) || [],
+			const existingMessages = queryClient.getQueryData<UIMessage[]>(
+				CACHE_KEYS.sessionMessages(sessionId),
 			);
+			const preStreamingIds = new Set<string>(
+				existingMessages?.map((m) => m.id).filter((id): id is string => !!id) ||
+					[],
+			);
+
+			// Track pending user message in ref for cache update
+			pendingUserMessageRef.current = {
+				text: userText,
+				attachments,
+			};
 
 			setState((prev) => ({
 				...prev,
