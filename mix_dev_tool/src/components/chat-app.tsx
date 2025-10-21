@@ -42,15 +42,18 @@ interface ChatAppProps {
 	sessionId: string;
 	onClear?: () => void;
 	isPlayground?: boolean;
+	initialMessage?: string | null;
 }
 
 export function ChatApp({
 	sessionId,
 	onClear,
 	isPlayground = false,
+	initialMessage = null,
 }: ChatAppProps) {
 	// Core conversation state
 	const [text, setText] = useState<string>("");
+	const hasSubmittedInitialMessage = useRef(false);
 
 	// UI Interaction Mode 1: Slash Commands (dropdown when typing "/help", "/clear" etc.)
 	const [showSlashCommands, setShowSlashCommands] = useState(false);
@@ -92,11 +95,32 @@ export function ChatApp({
 	const queryClient = useQueryClient();
 	const { data: preferences } = usePreferences();
 
+	// Submit initial message from playground (if provided)
+	useEffect(() => {
+		if (
+			initialMessage &&
+			!hasSubmittedInitialMessage.current &&
+			sseStream.connected
+		) {
+			hasSubmittedInitialMessage.current = true;
+			sseStream.submitMessage({
+				text: initialMessage,
+				attachments,
+				referenceMap,
+				planMode: false,
+			});
+			// Clear attachments after submitting
+			clearAttachments();
+		}
+	}, [initialMessage, sseStream.connected, sseStream, attachments, referenceMap, clearAttachments]);
+
 	// Handle session changes: clear UI state when switching sessions
 	useEffect(() => {
 		if (session?.id && session.id !== previousSessionIdRef.current) {
-			// Clear input when switching to a different session (but not on initial load)
-			if (previousSessionIdRef.current !== "") {
+			// Clear input when switching to a different session (but not on initial load or playground transition)
+			// Don't clear if we're in playground mode and this is the first render (transition from PlaygroundWelcome)
+			const isPlaygroundTransition = isPlayground && previousSessionIdRef.current === "";
+			if (previousSessionIdRef.current !== "" && !isPlaygroundTransition) {
 				setText("");
 				clearAttachments();
 				interruptedMessageAddedRef.current = false;
@@ -106,7 +130,7 @@ export function ChatApp({
 			// Invalidate preferences to fetch fresh data for the new session
 			queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
 		}
-	}, [session?.id, clearAttachments, queryClient]);
+	}, [session?.id, clearAttachments, queryClient, isPlayground]);
 
 	// Handle navigation to newly created sessions (skip in playground mode)
 	useEffect(() => {

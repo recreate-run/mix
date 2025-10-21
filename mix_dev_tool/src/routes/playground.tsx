@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChatApp } from "@/components/chat-app";
 import { PlaygroundWelcome } from "@/components/playground-welcome";
-import { usePersistentSSE } from "@/hooks/usePersistentSSE";
 import { useCreateSession } from "@/hooks/useSession";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
-import { useBoundStore } from "@/stores";
 
 export const Route = createFileRoute("/playground")({
 	component: PlaygroundApp,
@@ -18,30 +16,12 @@ const PLAYGROUND_SESSION_KEY = "mix-playground-session-id";
 function PlaygroundApp() {
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [isReady, setIsReady] = useState(false);
+	const [initialMessage, setInitialMessage] = useState<string | null>(null);
 	const createSession = useCreateSession();
 	const sessionMessages = useSessionMessages(sessionId || "");
-	const sseStream = usePersistentSSE(sessionId || "");
-
-	// Get attachments from store
-	const attachments = useBoundStore((state) => state.attachments);
-	const referenceMap = useBoundStore((state) => state.referenceMap);
 
 	const messages = sessionMessages.data || [];
-	const hasMessages =
-		messages.length > 0 ||
-		sseStream.processing ||
-		sseStream.pendingUserMessage !== null;
-
-	// Show error toasts for streaming errors
-	useEffect(() => {
-		if (
-			sseStream.error &&
-			!sseStream.error.includes("cancelled") &&
-			!sseStream.cancelled
-		) {
-			toast.error(`Failed to send message: ${sseStream.error}`);
-		}
-	}, [sseStream.error, sseStream.cancelled]);
+	const hasMessages = messages.length > 0 || initialMessage !== null;
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Run only once on mount to prevent multiple session creation
 	useEffect(() => {
@@ -81,23 +61,12 @@ function PlaygroundApp() {
 	}, []); // Run only once on mount
 
 	const handleSubmit = (text: string) => {
-		if (sessionId && sseStream.connected) {
-			sseStream.submitMessage({
-				text,
-				attachments,
-				referenceMap,
-				planMode: false,
-			});
-		}
+		// Store the initial message and switch to ChatApp
+		setInitialMessage(text);
 	};
 
 	const handleClear = async () => {
 		try {
-			// Clear streaming state first if needed
-			if (sseStream.processing) {
-				await sseStream.cancelMessage();
-			}
-
 			// Create new session
 			const newSession = await createSession.mutateAsync({
 				title: `Playground Session - ${new Date().toLocaleDateString()}`,
@@ -106,11 +75,9 @@ function PlaygroundApp() {
 			// Update localStorage with new session ID
 			localStorage.setItem(PLAYGROUND_SESSION_KEY, newSession.id);
 
-			// Clear any SSE streaming state
-			sseStream.clearStreamingContent();
-
-			// Update state to new session (this will trigger re-render and reconnect SSE)
+			// Update state to new session and clear initial message
 			setSessionId(newSession.id);
+			setInitialMessage(null);
 
 			toast.success("Playground cleared - starting fresh!");
 		} catch (error) {
@@ -139,7 +106,12 @@ function PlaygroundApp() {
 					onClear={handleClear}
 				/>
 			) : (
-				<ChatApp sessionId={sessionId} onClear={handleClear} isPlayground />
+				<ChatApp
+					sessionId={sessionId}
+					onClear={handleClear}
+					isPlayground
+					initialMessage={initialMessage}
+				/>
 			)}
 		</div>
 	);
