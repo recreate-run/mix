@@ -44,7 +44,11 @@ interface ChatAppProps {
 	isPlayground?: boolean;
 }
 
-export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppProps) {
+export function ChatApp({
+	sessionId,
+	onClear,
+	isPlayground = false,
+}: ChatAppProps) {
 	// Core conversation state
 	const [text, setText] = useState<string>("");
 
@@ -129,47 +133,6 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 		isPlayground,
 	]);
 
-	// Handle streaming completion: invalidate cache, then clear streaming UI
-	useEffect(() => {
-		if (
-			sseStream.completed &&
-			!sseStream.processing &&
-			(sseStream.finalContent || sseStream.toolCalls.length > 0) &&
-			session?.id
-		) {
-			// First, invalidate cache to fetch fresh messages from backend
-			queryClient.invalidateQueries({
-				queryKey: CACHE_KEYS.sessionMessages(session.id),
-			});
-		}
-	}, [
-		sseStream.completed,
-		sseStream.processing,
-		sseStream.finalContent,
-		sseStream.toolCalls.length,
-		session?.id,
-		queryClient,
-	]);
-
-	// Clear streaming UI after cache refetch completes (runs after above effect)
-	useEffect(() => {
-		if (
-			sseStream.completed &&
-			!sseStream.processing &&
-			!sessionMessages.isLoading &&
-			sessionMessages.data
-		) {
-			// Cache now has fresh data - safe to clear streaming UI
-			sseStream.clearStreamingContent();
-		}
-	}, [
-		sseStream.completed,
-		sseStream.processing,
-		sessionMessages.isLoading,
-		sessionMessages.data,
-		sseStream.clearStreamingContent,
-	]);
-
 	// Apps functionality removed - UI attachment system is separate from API fields
 
 	const fileRef = useFileReference(text, setText, session?.id);
@@ -232,18 +195,18 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 		if (!sseStream.pendingUserMessage || messages.length === 0) return;
 
 		// Check if pending message exists in the last few stored messages
-		const pendingText = sseStream.pendingUserMessage.text;
-		const recentMessages = messages.slice(-3);
+		const pendingText = sseStream.pendingUserMessage.text.trim();
+		const recentMessages = messages.slice(-5); // Check last 5 messages instead of 3
 
 		const messageExists = recentMessages.some(
-			(msg) => msg.from === "user" && msg.content === pendingText,
+			(msg) => msg.from === "user" && msg.content.trim() === pendingText,
 		);
 
 		if (messageExists) {
 			// Message has been saved to DB and is in stored messages - clear only pending message without affecting streaming
 			sseStream.clearPendingUserMessage();
 		}
-	}, [messages, sseStream.pendingUserMessage, sseStream.clearPendingUserMessage]);
+	}, [messages, sseStream.pendingUserMessage]);
 
 	const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
 		userMessageRefs.current[index] = el;
@@ -401,16 +364,16 @@ export function ChatApp({ sessionId, onClear, isPlayground = false }: ChatAppPro
 		sseStream.toolCalls.length,
 	]);
 
-	// Handle streaming errors - simple and clean
-	useEffect(() => {
-		if (
-			sseStream.error &&
-			!sseStream.error.includes("cancelled") &&
-			!sseStream.cancelled
-		) {
-			toast.error(`Failed to send prompt: ${sseStream.error}`);
-		}
-	}, [sseStream.error, sseStream.cancelled]);
+	// // Handle streaming errors - simple and clean (commnted out since it seemd redundant. verify and remov quickly)
+	// useEffect(() => {
+	// 	if (
+	// 		sseStream.error &&
+	// 		!sseStream.error.includes("cancelled") &&
+	// 		!sseStream.cancelled
+	// 	) {
+	// 		toast.error(`Failed to send prompt: ${sseStream.error}`);
+	// 	}
+	// }, [sseStream.error, sseStream.cancelled]);
 
 	// Declarative focus management - refocus chat input when all popups are closed
 	useEffect(() => {

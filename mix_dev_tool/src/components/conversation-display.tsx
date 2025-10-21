@@ -19,6 +19,7 @@ import {
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "@/types/common";
+import type { MediaOutput } from "@/types/media";
 import type { TimelineEntry, UIMessage } from "@/types/message";
 import { convertToAssetServerUrl } from "@/utils/assetServer";
 import { getYouTubeEmbedUrl, isYouTubeUrl } from "@/utils/videoUrlDetection";
@@ -52,6 +53,9 @@ type StreamingState = {
 		text: string;
 		attachments?: Attachment[];
 	} | null;
+	userMessageId: string | null;
+	assistantMessageId: string | null;
+	preStreamingMessageIds: Set<string>;
 };
 
 // Helper function to detect URLs
@@ -130,7 +134,13 @@ const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 };
 
 // Helper function to render timeline entries chronologically
-const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
+const renderTimelineEntries = (
+	timeline: TimelineEntry[],
+	isNested = false,
+	mediaOutputs?: MediaOutput[],
+	sessionId?: string,
+	getMediaSrc?: (path: string, sessionId: string) => string,
+) => {
 	if (!timeline || timeline.length === 0) return null;
 
 	let entriesToRender = timeline;
@@ -223,6 +233,19 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 		const toolCall = group.entry.content as ToolCall;
 		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
 
+		// Special rendering for show_media tool
+		if (toolCall.name === "show_media" && mediaOutputs && sessionId && getMediaSrc) {
+			return (
+				<div key={`media-showcase-${group.entry.id}`} className="mb-4">
+					<MediaShowcase
+						getMediaSrc={getMediaSrc}
+						mediaOutputs={mediaOutputs}
+						sessionId={sessionId}
+					/>
+				</div>
+			);
+		}
+
 		return (
 			<AIToolLadder key={`tool-${group.entry.id}`}>
 				<AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
@@ -237,7 +260,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 					{/* Nested subagent events */}
 					{hasNestedEvents && group.nestedEntries && (
 						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-							{renderTimelineEntries(group.nestedEntries, true)}
+							{renderTimelineEntries(group.nestedEntries, true, mediaOutputs, sessionId, getMediaSrc)}
 						</div>
 					)}
 				</AIToolStep>
@@ -301,13 +324,24 @@ export function ConversationDisplay({
 		// If there are no stored messages yet, show the pending message
 		if (messages.length === 0) return true;
 
-		// Check the last few messages (up to 3) to see if pending message already exists
-		// This handles cases where user switches tabs during streaming and cache refetches
-		const recentMessages = messages.slice(-3);
-		const pendingText = sseStream.pendingUserMessage.text;
+		// Prefer ID-based matching if we have a user message ID
+		if (sseStream.userMessageId) {
+			// Check if this message ID already exists in stored messages
+			const messageExists = messages.some(
+				(msg) => msg.from === "user" && msg.id === sseStream.userMessageId,
+			);
+
+			// If message exists in stored messages, don't show pending version
+			if (messageExists) return false;
+		}
+
+		// Fallback to content-based matching for backward compatibility
+		// Check the last few messages (up to 5) to see if pending message already exists
+		const recentMessages = messages.slice(-5);
+		const pendingText = sseStream.pendingUserMessage.text.trim();
 
 		for (const msg of recentMessages) {
-			if (msg.from === "user" && msg.content === pendingText) {
+			if (msg.from === "user" && msg.content.trim() === pendingText) {
 				// Message already exists in stored messages - don't show pending
 				return false;
 			}
@@ -317,10 +351,75 @@ export function ConversationDisplay({
 		return true;
 	};
 
+	// Filter out any assistant messages that were created during current streaming session
+	const getFilteredMessages = () => {
+		// During streaming OR just after completion (while streaming UI is still showing),
+		// filter out NEW assistant messages that appeared during this stream.
+		// Keep filtering until streaming content is cleared to prevent flash/duplicates.
+		// Keep messages that existed before streaming started (tracked in preStreamingMessageIds)
+
+		// IMPORTANT: Only filter during ACTIVE streaming (processing=true)
+		// After reload, completed=true but we want to show all messages from DB
+		const shouldFilter =
+			messages.length > 0 &&
+			sseStream.preStreamingMessageIds &&
+			sseStream.preStreamingMessageIds.size >= 0 &&
+			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent) &&
+			sseStream.processing; // ← Changed: Only filter during active streaming, not after completion
+
+		if (shouldFilter) {
+			const filtered = messages.filter((msg) => {
+				// Keep all messages that existed before streaming started
+				if (!msg.id) {
+					console.warn(
+						"Message missing ID during streaming filter - cannot determine if pre-existing",
+						{ from: msg.from, content: msg.content?.substring(0, 50) },
+					);
+				}
+				if (msg.id && sseStream.preStreamingMessageIds.has(msg.id)) {
+					return true;
+				}
+				// For new messages, only keep user messages (filter out new assistant messages)
+				// New assistant messages are being streamed via SSE and shouldn't show from DB
+				return msg.from !== "assistant";
+			});
+			return filtered;
+		}
+
+		return messages;
+	};
+
+	const filteredMessages = getFilteredMessages();
+
+	// Check if streaming assistant message is already in stored messages to prevent duplicates
+	const shouldShowStreamingAssistant = () => {
+		// First, check if we have an assistantMessageId and if it's already in FILTERED messages
+		// This check must happen BEFORE the processing check to prevent duplicates on tab switch
+		if (sseStream.assistantMessageId) {
+			const messageExists = filteredMessages.some(
+				(msg) => msg.id === sseStream.assistantMessageId,
+			);
+
+			// If message exists in filtered messages, don't show streaming version
+			if (messageExists) return false;
+		}
+
+		// Show during active streaming (not yet completed)
+		if (sseStream.processing && !sseStream.completed) return true;
+
+		// Show streaming content if we have content and it's not in stored messages yet
+		return (
+			(sseStream.processing || sseStream.completed || sseStream.cancelled) &&
+			(sseStream.finalContent ||
+				sseStream.timeline?.length ||
+				sseStream.toolCalls?.length)
+		);
+	};
+
 	return (
 		<div className="relative h-full flex-1 py-16">
-			<div className="">
-				{messages.map((message, index) => {
+			<div className="space-y-6">
+				{filteredMessages.map((message, index) => {
 					return (
 						<AIMessage
 							from={message.from}
@@ -332,47 +431,32 @@ export function ConversationDisplay({
 							<AIMessageContent>
 								{message.from === "assistant" ? (
 									<>
-										{/* Render media outputs as primary content */}
-										{message.mediaOutputs && sessionId ? (
-											<>
-												<MediaShowcase
-													getMediaSrc={getMediaSrc}
-													mediaOutputs={message.mediaOutputs}
-													sessionId={sessionId}
-												/>
-												<AIMessageContent.Content>
-													{/* Render timeline-based interleaved thinking and tools */}
-													{message.timeline &&
-														renderTimelineEntries(message.timeline)}
-												</AIMessageContent.Content>
-											</>
-										) : message.mediaOutputs ? (
-											<>
-												<div className="text-muted-foreground text-sm">
-													Media content requires session ID
-												</div>
-												<AIMessageContent.Content>
-													{/* Render timeline-based interleaved thinking and tools */}
-													{message.timeline &&
-														renderTimelineEntries(message.timeline)}
-												</AIMessageContent.Content>
-											</>
-										) : (
-											<AIMessageContent.Content>
-												{/* Render timeline-based interleaved thinking and tools */}
-												{message.timeline &&
-													renderTimelineEntries(message.timeline)}
-												{message.status ? (
-													<StatusUI statusState={message.status} />
-												) : message.provider ? (
-													<ProviderDisplay data={message.provider} />
-												) : message.model ? (
-													<ModelDisplay data={message.model} />
-												) : (
-													<ResponseRenderer content={message.content} />
-												)}
-											</AIMessageContent.Content>
-										)}
+									{/* Render timeline-based interleaved thinking and tools (media rendered inline) */}
+									{message.timeline && message.timeline.length > 0 ? (
+										renderTimelineEntries(
+											message.timeline,
+											false,
+											message.mediaOutputs,
+											sessionId,
+											getMediaSrc,
+										)
+									) : message.status ? (
+										<AIMessageContent.Content>
+											<StatusUI statusState={message.status} />
+										</AIMessageContent.Content>
+									) : message.provider ? (
+										<AIMessageContent.Content>
+											<ProviderDisplay data={message.provider} />
+										</AIMessageContent.Content>
+									) : message.model ? (
+										<AIMessageContent.Content>
+											<ModelDisplay data={message.model} />
+										</AIMessageContent.Content>
+									) : (
+										<AIMessageContent.Content>
+											<ResponseRenderer content={message.content} />
+										</AIMessageContent.Content>
+									)}
 										{message.content && (
 											<AIMessageContent.Toolbar>
 												<MessageCopyButton content={message.content} />
@@ -475,15 +559,19 @@ export function ConversationDisplay({
 						</AIMessageContent>
 					</AIMessage>
 				)}
-				{(sseStream.processing && !sseStream.completed) ||
-				(sseStream.cancelled &&
-					(sseStream.finalContent ||
-						sseStream.timeline?.length ||
-						sseStream.toolCalls?.length)) ? (
+				{shouldShowStreamingAssistant() ? (
 					<AIMessage from="assistant">
 						<AIMessageContent>
 							{/* Show timeline-based interleaved thinking and tools during streaming */}
-							{sseStream.timeline && renderTimelineEntries(sseStream.timeline)}
+							{sseStream.timeline &&
+								renderTimelineEntries(
+									sseStream.timeline,
+									false,
+									sseStream.toolCalls?.find((tc) => tc.name === "show_media")
+										?.parameters?.outputs as MediaOutput[] | undefined,
+									sessionId,
+									getMediaSrc,
+								)}
 							{/* Show rate limit message when rate limiting is detected */}
 							{sseStream.rateLimit ? (
 								<div className="mt-4">
@@ -541,15 +629,15 @@ export function ConversationDisplay({
 										<div className="mt-4 text-muted-foreground">
 											Execution paused
 										</div>
-									) : sseStream.completed ? null : (
-										<ConversationLoader />
-									)}
+									) : sseStream.processing && !sseStream.completed ? (
+									<ConversationLoader />
+									) : null}
 								</>
 							) : sseStream.cancelled ? (
 								<div className="text-muted-foreground">Execution paused</div>
-							) : (
+							) : sseStream.processing && !sseStream.completed ? (
 								<ConversationLoader />
-							)}
+							) : null}
 						</AIMessageContent>
 					</AIMessage>
 				) : null}

@@ -20,18 +20,20 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 	case agent.AgentEventTypeThinking:
 		// Send thinking delta event
 		registry.BroadcastEvent(targetSessionID, "thinking", ThinkingEvent{
-			Type:             "thinking",
-			Content:          event.Thinking,
-			ParentToolCallID: parentToolCallID,
+			Type:               "thinking",
+			Content:            event.Thinking,
+			ParentToolCallID:   parentToolCallID,
+			AssistantMessageID: event.Message.ID,
 		})
 
 	case agent.AgentEventTypeContentDelta:
 		// Stream content deltas for text between tool calls
 		if event.Content != "" {
 			contentEvent := ContentEvent{
-				Type:             "content",
-				Content:          event.Content,
-				ParentToolCallID: parentToolCallID,
+				Type:               "content",
+				Content:            event.Content,
+				ParentToolCallID:   parentToolCallID,
+				AssistantMessageID: event.Message.ID,
 			}
 			registry.BroadcastEvent(targetSessionID, "content", contentEvent)
 		}
@@ -39,10 +41,11 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 	case agent.AgentEventTypeToolParameterDelta:
 		// Stream tool parameter deltas for real-time parameter visibility
 		registry.BroadcastEvent(targetSessionID, "tool_parameter_delta", ToolParameterDeltaEvent{
-			Type:             "tool_parameter_delta",
-			ToolCallID:       event.ToolCallID,
-			Input:            event.Content, // Delta is stored in Content field
-			ParentToolCallID: parentToolCallID,
+			Type:               "tool_parameter_delta",
+			ToolCallID:         event.ToolCallID,
+			Input:              event.Content, // Delta is stored in Content field
+			ParentToolCallID:   parentToolCallID,
+			AssistantMessageID: event.Message.ID,
 		})
 
 	case agent.AgentEventTypeResponse:
@@ -56,12 +59,13 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 			}
 
 			registry.BroadcastEvent(targetSessionID, "tool", ToolEvent{
-				Type:             "tool",
-				Name:             toolCall.Name,
-				Input:            toolCall.Input,
-				ID:               toolCall.ID,
-				Status:           status,
-				ParentToolCallID: parentToolCallID,
+				Type:               "tool",
+				Name:               toolCall.Name,
+				Input:              toolCall.Input,
+				ID:                 toolCall.ID,
+				Status:             status,
+				ParentToolCallID:   parentToolCallID,
+				AssistantMessageID: event.Message.ID,
 			})
 		}
 
@@ -155,6 +159,15 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 			Progress:         event.Progress,
 			Success:          success,
 			ToolCallID:       event.ToolCallID,
+			ParentToolCallID: parentToolCallID,
+		})
+
+	case agent.AgentEventTypeUserMessageCreated:
+		// Broadcast user message created event with message ID
+		registry.BroadcastEvent(targetSessionID, "user_message_created", UserMessageCreatedEvent{
+			Type:             "user_message_created",
+			MessageID:        event.Message.ID,
+			Content:          event.Message.Content().String(),
 			ParentToolCallID: parentToolCallID,
 		})
 	}
