@@ -340,13 +340,17 @@ export function ConversationDisplay({
 		// filter out NEW assistant messages that appeared during this stream.
 		// Keep filtering until streaming content is cleared to prevent flash/duplicates.
 		// Keep messages that existed before streaming started (tracked in preStreamingMessageIds)
-		if (
+
+		// IMPORTANT: Only filter during ACTIVE streaming (processing=true)
+		// After reload, completed=true but we want to show all messages from DB
+		const shouldFilter =
 			messages.length > 0 &&
 			sseStream.preStreamingMessageIds &&
 			sseStream.preStreamingMessageIds.size >= 0 &&
 			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent) &&
-			(sseStream.processing || sseStream.completed)
-		) {
+			sseStream.processing; // ← Changed: Only filter during active streaming, not after completion
+
+		if (shouldFilter) {
 			const filtered = messages.filter((msg) => {
 				// Keep all messages that existed before streaming started
 				if (!msg.id) {
