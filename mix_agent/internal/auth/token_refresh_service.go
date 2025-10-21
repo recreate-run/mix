@@ -66,7 +66,6 @@ func (s *TokenRefreshService) RefreshExpiredTokens(ctx context.Context) {
 	}
 
 	if len(expiredCreds) == 0 {
-		logging.Info("No auth tokens expiring soon")
 		return
 	}
 

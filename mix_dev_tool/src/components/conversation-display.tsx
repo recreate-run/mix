@@ -306,6 +306,29 @@ export function ConversationDisplay({
 		onPlanAction?.("keep-planning", messageIndex);
 	};
 
+	// Check if pending user message is already in stored messages to prevent duplicates
+	const shouldShowPendingMessage = () => {
+		if (!sseStream.pendingUserMessage) return false;
+
+		// If there are no stored messages yet, show the pending message
+		if (messages.length === 0) return true;
+
+		// Check the last few messages (up to 3) to see if pending message already exists
+		// This handles cases where user switches tabs during streaming and cache refetches
+		const recentMessages = messages.slice(-3);
+		const pendingText = sseStream.pendingUserMessage.text;
+
+		for (const msg of recentMessages) {
+			if (msg.from === "user" && msg.content === pendingText) {
+				// Message already exists in stored messages - don't show pending
+				return false;
+			}
+		}
+
+		// Pending message not found in recent stored messages - show it
+		return true;
+	};
+
 	return (
 		<div className="relative h-full flex-1 py-16">
 			<div className="">
@@ -447,8 +470,8 @@ export function ConversationDisplay({
 						</AIMessage>
 					);
 				})}
-				{/* Show optimistic user message during streaming */}
-				{sseStream.pendingUserMessage && (
+				{/* Show optimistic user message during streaming - only if not already in stored messages */}
+				{shouldShowPendingMessage() && sseStream.pendingUserMessage && (
 					<AIMessage from="user">
 						<AIMessageContent>
 							<AIMessageContent.Content>
