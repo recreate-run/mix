@@ -190,66 +190,63 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 		}
 	}
 
-	return (
-		<div className="space-y-4">
-			{groupedEntries.map((group, _index) => {
-				if (group.type === "thinking") {
-					const totalContent = group.entries.join("");
-					const duration =
-						group.timestamps.length > 1
-							? Math.round(
-									(group.timestamps[group.timestamps.length - 1] -
-										group.timestamps[0]) /
-										1000,
-								)
-							: 0;
+	return groupedEntries.map((group, _index) => {
+		if (group.type === "thinking") {
+			const totalContent = group.entries.join("");
+			const duration =
+				group.timestamps.length > 1
+					? Math.round(
+							(group.timestamps[group.timestamps.length - 1] -
+								group.timestamps[0]) /
+								1000,
+						)
+					: 0;
 
-					return (
-						<AIReasoning
-							className="w-full"
-							duration={duration > 0 ? duration : undefined}
-							isStreaming={false}
-							key={`thinking-${group.timestamps[0]}`}
-						>
-							<AIReasoningTrigger />
-							<AIReasoningContent>{totalContent}</AIReasoningContent>
-						</AIReasoning>
-					);
-				}
-				if (group.type === "content") {
-					return (
-						<ResponseRenderer key={`content-${group.entry.id}`} content={group.entry.content as string} />
-					);
-				}
+			return (
+				<AIReasoning
+					className="mb-4 w-full"
+					duration={duration > 0 ? duration : undefined}
+					isStreaming={false}
+					key={`thinking-${group.timestamps[0]}`}
+				>
+					<AIReasoningTrigger />
+					<AIReasoningContent>{totalContent}</AIReasoningContent>
+				</AIReasoning>
+			);
+		}
+		if (group.type === "content") {
+			return (
+				<div className="mb-4" key={`content-${group.entry.id}`}>
+					<ResponseRenderer content={group.entry.content as string} />
+				</div>
+			);
+		}
 
-				// Tool with potential nested subagent events
-				const toolCall = group.entry.content as ToolCall;
-				const hasNestedEvents =
-					group.nestedEntries && group.nestedEntries.length > 0;
+		// Tool with potential nested subagent events
+		const toolCall = group.entry.content as ToolCall;
+		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
 
-				return (
-					<AIToolLadder key={`tool-${group.entry.id}`} className="mb-0">
-						<AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
-							<AIToolHeader
-								description={toolCall.description}
-								name={toolCall.name}
-								status={toolCall.status}
-								toolCall={toolCall}
-							/>
-							<AIToolContent toolCall={toolCall} />
+		return (
+			<AIToolLadder key={`tool-${group.entry.id}`}>
+				<AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
+					<AIToolHeader
+						description={toolCall.description}
+						name={toolCall.name}
+						status={toolCall.status}
+						toolCall={toolCall}
+					/>
+					<AIToolContent toolCall={toolCall} />
 
-							{/* Nested subagent events */}
-							{hasNestedEvents && group.nestedEntries && (
-								<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-									{renderTimelineEntries(group.nestedEntries, true)}
-								</div>
-							)}
-						</AIToolStep>
-					</AIToolLadder>
-				);
-			})}
-		</div>
-	);
+					{/* Nested subagent events */}
+					{hasNestedEvents && group.nestedEntries && (
+						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
+							{renderTimelineEntries(group.nestedEntries, true)}
+						</div>
+					)}
+				</AIToolStep>
+			</AIToolLadder>
+		);
+	});
 };
 
 const MessageCopyButton = ({ content }: { content: string }) => {
@@ -423,10 +420,10 @@ export function ConversationDisplay({
 													sessionId={sessionId}
 												/>
 												{message.timeline && message.timeline.length > 0 && (
-													<AIMessageContent.Content>
+													<>
 														{/* Render timeline-based interleaved thinking and tools */}
 														{renderTimelineEntries(message.timeline)}
-													</AIMessageContent.Content>
+													</>
 												)}
 											</>
 										) : message.mediaOutputs ? (
@@ -435,28 +432,36 @@ export function ConversationDisplay({
 													Media content requires session ID
 												</div>
 												{message.timeline && message.timeline.length > 0 && (
-													<AIMessageContent.Content>
+													<>
 														{/* Render timeline-based interleaved thinking and tools */}
 														{renderTimelineEntries(message.timeline)}
-													</AIMessageContent.Content>
+													</>
 												)}
 											</>
 										) : (
-											<AIMessageContent.Content>
+											<>
 												{/* Render timeline-based interleaved thinking and tools */}
 												{message.timeline &&
 												message.timeline.length > 0 ? (
 													renderTimelineEntries(message.timeline)
 												) : message.status ? (
-													<StatusUI statusState={message.status} />
+													<AIMessageContent.Content>
+														<StatusUI statusState={message.status} />
+													</AIMessageContent.Content>
 												) : message.provider ? (
-													<ProviderDisplay data={message.provider} />
+													<AIMessageContent.Content>
+														<ProviderDisplay data={message.provider} />
+													</AIMessageContent.Content>
 												) : message.model ? (
-													<ModelDisplay data={message.model} />
+													<AIMessageContent.Content>
+														<ModelDisplay data={message.model} />
+													</AIMessageContent.Content>
 												) : (
-													<ResponseRenderer content={message.content} />
+													<AIMessageContent.Content>
+														<ResponseRenderer content={message.content} />
+													</AIMessageContent.Content>
 												)}
-											</AIMessageContent.Content>
+											</>
 										)}
 										{message.content && (
 											<AIMessageContent.Toolbar>
@@ -516,31 +521,26 @@ export function ConversationDisplay({
 										)}
 										{/* Render regular tool calls directly ONLY when timeline is not available or empty */}
 										{(!message.timeline || message.timeline.length === 0) &&
-											filterNonSpecialTools(message.toolCalls).length > 0 && (
-												<div className="space-y-4">
-													{filterNonSpecialTools(message.toolCalls).map(
-														(toolCall, index) => (
-															<AIToolLadder
-																key={`direct-tool-${toolCall.id}-${index}`}
-																className="mb-0"
-															>
-																<AIToolStep
-																	isLast={true}
-																	status={toolCall.status}
-																	stepNumber={1}
-																>
-																	<AIToolHeader
-																		description={toolCall.description}
-																		name={toolCall.name}
-																		status={toolCall.status}
-																		toolCall={toolCall}
-																	/>
-																	<AIToolContent toolCall={toolCall} />
-																</AIToolStep>
-															</AIToolLadder>
-														),
-													)}
-												</div>
+											filterNonSpecialTools(message.toolCalls).map(
+												(toolCall, index) => (
+													<AIToolLadder
+														key={`direct-tool-${toolCall.id}-${index}`}
+													>
+														<AIToolStep
+															isLast={true}
+															status={toolCall.status}
+															stepNumber={1}
+														>
+															<AIToolHeader
+																description={toolCall.description}
+																name={toolCall.name}
+																status={toolCall.status}
+																toolCall={toolCall}
+															/>
+															<AIToolContent toolCall={toolCall} />
+														</AIToolStep>
+													</AIToolLadder>
+												),
 											)}
 									</>
 								)}
@@ -602,31 +602,26 @@ export function ConversationDisplay({
 									)}
 									{/* Render streaming regular tool calls directly ONLY when timeline is not available or empty */}
 									{(!sseStream.timeline || sseStream.timeline.length === 0) &&
-										filterNonSpecialTools(sseStream.toolCalls).length > 0 && (
-											<div className="space-y-4">
-												{filterNonSpecialTools(sseStream.toolCalls).map(
-													(toolCall, index) => (
-														<AIToolLadder
-															key={`streaming-direct-tool-${toolCall.id}-${index}`}
-															className="mb-0"
-														>
-															<AIToolStep
-																isLast={true}
-																status={toolCall.status}
-																stepNumber={1}
-															>
-																<AIToolHeader
-																	description={toolCall.description}
-																	name={toolCall.name}
-																	status={toolCall.status}
-																	toolCall={toolCall}
-																/>
-																<AIToolContent toolCall={toolCall} />
-															</AIToolStep>
-														</AIToolLadder>
-													),
-												)}
-											</div>
+										filterNonSpecialTools(sseStream.toolCalls).map(
+											(toolCall, index) => (
+												<AIToolLadder
+													key={`streaming-direct-tool-${toolCall.id}-${index}`}
+												>
+													<AIToolStep
+														isLast={true}
+														status={toolCall.status}
+														stepNumber={1}
+													>
+														<AIToolHeader
+															description={toolCall.description}
+															name={toolCall.name}
+															status={toolCall.status}
+															toolCall={toolCall}
+														/>
+														<AIToolContent toolCall={toolCall} />
+													</AIToolStep>
+												</AIToolLadder>
+											),
 										)}
 									{sseStream.cancelled ? (
 										<div className="mt-4 text-muted-foreground">
