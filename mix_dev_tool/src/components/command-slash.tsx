@@ -14,7 +14,6 @@ import { HelpMenuView } from "./command-slash/HelpMenuView";
 import { MCPServersView } from "./command-slash/MCPServersView";
 import { MCPToolsView } from "./command-slash/MCPToolsView";
 import { ModelSelectionView } from "./command-slash/ModelSelectionView";
-import { PermissionsView } from "./command-slash/PermissionsView";
 import { ProvidersView } from "./command-slash/ProvidersView";
 import { SessionsView } from "./command-slash/SessionsView";
 
@@ -187,7 +186,6 @@ export function CommandSlash({
 			return "Search providers...";
 		}
 		if (state.isShowingMCP) return "Search MCP servers...";
-		if (state.isShowingPermissions) return "Search permissions...";
 		if (state.isShowingSessions) return "Search sessions...";
 		if (state.isShowingHelp) return "Search help topics...";
 		return "Search commands...";
@@ -217,14 +215,6 @@ export function CommandSlash({
 									onBackToCommands={() => handleSelect("back-to-commands")}
 									onNavigateToSession={handleNavigateToSession}
 									sessionId={sessionId}
-								/>
-							);
-						}
-
-						if (state.isShowingPermissions) {
-							return (
-								<PermissionsView
-									onBackToCommands={() => handleSelect("back-to-commands")}
 								/>
 							);
 						}
