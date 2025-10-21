@@ -19,6 +19,7 @@ import {
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "@/types/common";
+import type { MediaOutput } from "@/types/media";
 import type { TimelineEntry, UIMessage } from "@/types/message";
 import { convertToAssetServerUrl } from "@/utils/assetServer";
 import { getYouTubeEmbedUrl, isYouTubeUrl } from "@/utils/videoUrlDetection";
@@ -133,7 +134,13 @@ const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 };
 
 // Helper function to render timeline entries chronologically
-const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
+const renderTimelineEntries = (
+	timeline: TimelineEntry[],
+	isNested = false,
+	mediaOutputs?: MediaOutput[],
+	sessionId?: string,
+	getMediaSrc?: (path: string, sessionId: string) => string,
+) => {
 	if (!timeline || timeline.length === 0) return null;
 
 	let entriesToRender = timeline;
@@ -226,6 +233,19 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 		const toolCall = group.entry.content as ToolCall;
 		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
 
+		// Special rendering for show_media tool
+		if (toolCall.name === "show_media" && mediaOutputs && sessionId && getMediaSrc) {
+			return (
+				<div key={`media-showcase-${group.entry.id}`} className="mb-4">
+					<MediaShowcase
+						getMediaSrc={getMediaSrc}
+						mediaOutputs={mediaOutputs}
+						sessionId={sessionId}
+					/>
+				</div>
+			);
+		}
+
 		return (
 			<AIToolLadder key={`tool-${group.entry.id}`}>
 				<AIToolStep isLast={true} status={toolCall.status} stepNumber={1}>
@@ -240,7 +260,7 @@ const renderTimelineEntries = (timeline: TimelineEntry[], isNested = false) => {
 					{/* Nested subagent events */}
 					{hasNestedEvents && group.nestedEntries && (
 						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-							{renderTimelineEntries(group.nestedEntries, true)}
+							{renderTimelineEntries(group.nestedEntries, true, mediaOutputs, sessionId, getMediaSrc)}
 						</div>
 					)}
 				</AIToolStep>
@@ -411,58 +431,32 @@ export function ConversationDisplay({
 							<AIMessageContent>
 								{message.from === "assistant" ? (
 									<>
-										{/* Render media outputs as primary content */}
-										{message.mediaOutputs && sessionId ? (
-											<>
-												<MediaShowcase
-													getMediaSrc={getMediaSrc}
-													mediaOutputs={message.mediaOutputs}
-													sessionId={sessionId}
-												/>
-												{message.timeline && message.timeline.length > 0 && (
-													<>
-														{/* Render timeline-based interleaved thinking and tools */}
-														{renderTimelineEntries(message.timeline)}
-													</>
-												)}
-											</>
-										) : message.mediaOutputs ? (
-											<>
-												<div className="text-muted-foreground text-sm">
-													Media content requires session ID
-												</div>
-												{message.timeline && message.timeline.length > 0 && (
-													<>
-														{/* Render timeline-based interleaved thinking and tools */}
-														{renderTimelineEntries(message.timeline)}
-													</>
-												)}
-											</>
-										) : (
-											<>
-												{/* Render timeline-based interleaved thinking and tools */}
-												{message.timeline &&
-												message.timeline.length > 0 ? (
-													renderTimelineEntries(message.timeline)
-												) : message.status ? (
-													<AIMessageContent.Content>
-														<StatusUI statusState={message.status} />
-													</AIMessageContent.Content>
-												) : message.provider ? (
-													<AIMessageContent.Content>
-														<ProviderDisplay data={message.provider} />
-													</AIMessageContent.Content>
-												) : message.model ? (
-													<AIMessageContent.Content>
-														<ModelDisplay data={message.model} />
-													</AIMessageContent.Content>
-												) : (
-													<AIMessageContent.Content>
-														<ResponseRenderer content={message.content} />
-													</AIMessageContent.Content>
-												)}
-											</>
-										)}
+									{/* Render timeline-based interleaved thinking and tools (media rendered inline) */}
+									{message.timeline && message.timeline.length > 0 ? (
+										renderTimelineEntries(
+											message.timeline,
+											false,
+											message.mediaOutputs,
+											sessionId,
+											getMediaSrc,
+										)
+									) : message.status ? (
+										<AIMessageContent.Content>
+											<StatusUI statusState={message.status} />
+										</AIMessageContent.Content>
+									) : message.provider ? (
+										<AIMessageContent.Content>
+											<ProviderDisplay data={message.provider} />
+										</AIMessageContent.Content>
+									) : message.model ? (
+										<AIMessageContent.Content>
+											<ModelDisplay data={message.model} />
+										</AIMessageContent.Content>
+									) : (
+										<AIMessageContent.Content>
+											<ResponseRenderer content={message.content} />
+										</AIMessageContent.Content>
+									)}
 										{message.content && (
 											<AIMessageContent.Toolbar>
 												<MessageCopyButton content={message.content} />
@@ -569,7 +563,15 @@ export function ConversationDisplay({
 					<AIMessage from="assistant">
 						<AIMessageContent>
 							{/* Show timeline-based interleaved thinking and tools during streaming */}
-							{sseStream.timeline && renderTimelineEntries(sseStream.timeline)}
+							{sseStream.timeline &&
+								renderTimelineEntries(
+									sseStream.timeline,
+									false,
+									sseStream.toolCalls?.find((tc) => tc.name === "show_media")
+										?.parameters?.outputs as MediaOutput[] | undefined,
+									sessionId,
+									getMediaSrc,
+								)}
 							{/* Show rate limit message when rate limiting is detected */}
 							{sseStream.rateLimit ? (
 								<div className="mt-4">

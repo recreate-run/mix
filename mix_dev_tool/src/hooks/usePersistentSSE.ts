@@ -19,6 +19,7 @@ import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "@/types/common";
+import type { MediaOutput } from "@/types/media";
 import type { TimelineEntry, UIMessage } from "@/types/message";
 import { expandFileReferences } from "@/utils/attachmentUtils";
 
@@ -542,6 +543,11 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 											toolCallsMap.current.values(),
 										);
 
+										// Extract media outputs from show_media tool call (if present)
+										const mediaOutputs = toolCallsArray.find(
+											(tc) => tc.name === "show_media",
+										)?.parameters?.outputs as MediaOutput[] | undefined;
+
 										const assistantMessage: UIMessage = {
 											id: asstMsgId || undefined,
 											content: finalContent || completeEvent.data.content || "",
@@ -551,6 +557,10 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 											timeline:
 												timelineRef.current.length > 0
 													? [...timelineRef.current]
+													: undefined,
+											mediaOutputs:
+												mediaOutputs && mediaOutputs.length > 0
+													? mediaOutputs
 													: undefined,
 											reasoning: completeEvent.data.reasoning || undefined,
 											reasoningDuration:
