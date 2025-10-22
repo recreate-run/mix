@@ -579,7 +579,7 @@ export function ChatApp({
 			<div className="flex-1 overflow-y-auto">
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
 					{/* Session header with clear (left) and export (right) buttons */}
-					{session && messages.length > 0 && (
+					{session && (messages.length > 0 || (isPlayground && initialMessage)) && (
 						<div className="mb-4 flex items-center justify-between">
 							{/* Clear button - only show in playground mode when there are messages */}
 							{isPlayground && onClear ? (
