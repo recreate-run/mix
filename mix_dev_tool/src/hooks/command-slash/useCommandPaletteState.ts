@@ -69,7 +69,6 @@ export function useCommandPaletteState() {
 	};
 
 	// Derived state
-	const isShowingPermissions = currentView === "permissions";
 	const isShowingSessions = currentView === "sessions";
 	const isShowingMCP = currentView === "mcp";
 	const isShowingMCPTools = currentView === "mcp-tools";
@@ -110,7 +109,6 @@ export function useCommandPaletteState() {
 		resetCommandStates,
 
 		// Derived state
-		isShowingPermissions,
 		isShowingSessions,
 		isShowingMCP,
 		isShowingMCPTools,

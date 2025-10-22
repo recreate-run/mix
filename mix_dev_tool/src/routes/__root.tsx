@@ -3,16 +3,25 @@ import {
 	createRootRoute,
 	Link,
 	Outlet,
-	useNavigate,
-	useRouterState,
+	redirect,
 } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const Route = createRootRoute({
+	beforeLoad: async ({ location }) => {
+		const isProduction = import.meta.env.PROD;
+
+		if (isProduction && !location.pathname.startsWith("/playground")) {
+			throw redirect({
+				to: "/playground",
+				replace: true,
+			});
+		}
+	},
 	component: RootComponent,
 	notFoundComponent: defaultNotFoundComponent,
 	errorComponent: defaultErrorComponent,
@@ -21,20 +30,6 @@ export const Route = createRootRoute({
 const queryClient = new QueryClient();
 
 function RootComponent() {
-	const navigate = useNavigate();
-	const routerState = useRouterState();
-
-	// In production (web build), only allow /playground route
-	// Redirect any other routes to /playground
-	useEffect(() => {
-		const isProduction = import.meta.env.PROD;
-		const currentPath = routerState.location.pathname;
-
-		if (isProduction && !currentPath.startsWith("/playground")) {
-			navigate({ to: "/playground", replace: true });
-		}
-	}, [navigate, routerState.location.pathname]);
-
 	return (
 		<QueryClientProvider client={queryClient}>
 			<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
