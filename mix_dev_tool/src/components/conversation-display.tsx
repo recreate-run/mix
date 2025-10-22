@@ -358,14 +358,14 @@ export function ConversationDisplay({
 		// Keep filtering until streaming content is cleared to prevent flash/duplicates.
 		// Keep messages that existed before streaming started (tracked in preStreamingMessageIds)
 
-		// IMPORTANT: Only filter during ACTIVE streaming (processing=true)
-		// After reload, completed=true but we want to show all messages from DB
+		// IMPORTANT: Filter while streaming UI is showing (timeline/toolCalls/finalContent exists)
+		// AND preStreamingMessageIds is populated (indicates an active/recent stream)
+		// Stop filtering only when streaming content is cleared (e.g., after tab switch back and content cleared)
 		const shouldFilter =
 			messages.length > 0 &&
 			sseStream.preStreamingMessageIds &&
 			sseStream.preStreamingMessageIds.size >= 0 &&
-			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent) &&
-			sseStream.processing; // ← Changed: Only filter during active streaming, not after completion
+			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent);
 
 		if (shouldFilter) {
 			const filtered = messages.filter((msg) => {
