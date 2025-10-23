@@ -1,5 +1,6 @@
 import { Check, Copy, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CoreToolName } from "mix-typescript-sdk/models";
 import { Button } from "@/components/ui/button";
 import {
 	AIMessage,
@@ -90,7 +91,7 @@ interface ConversationDisplayProps {
 
 // Helper function to extract todos from TodoWrite tool calls
 const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
-	const todoWriteCalls = toolCalls.filter((tc) => tc.name === "TodoWrite");
+	const todoWriteCalls = toolCalls.filter((tc) => tc.name === CoreToolName.TodoWrite);
 	if (todoWriteCalls.length === 0) return [];
 
 	// Find the latest TodoWrite call with complete parameters to avoid flicker
@@ -111,7 +112,7 @@ const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
 
 // Helper function to extract plan content from ExitPlanMode tool calls
 const extractPlanFromToolCalls = (toolCalls: ToolCall[]) => {
-	const planTool = toolCalls.find((tc) => tc.name === "ExitPlanMode");
+	const planTool = toolCalls.find((tc) => tc.name === CoreToolName.ExitPlanMode);
 	if (!planTool) return "";
 
 	try {
@@ -124,13 +125,13 @@ const extractPlanFromToolCalls = (toolCalls: ToolCall[]) => {
 
 // Helper function to check if a message contains ExitPlanMode tool call
 const hasExitPlanModeTool = (toolCalls: ToolCall[]) => {
-	return toolCalls?.some((tc) => tc.name === "ExitPlanMode");
+	return toolCalls?.some((tc) => tc.name === CoreToolName.ExitPlanMode);
 };
 
 // Helper function to filter out special tools (TodoWrite, ExitPlanMode, ShowMedia) from toolCalls
 const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 	return toolCalls.filter(
-		(tc) => tc.name !== "TodoWrite" && tc.name !== "ExitPlanMode" && tc.name !== "ShowMedia",
+		(tc) => tc.name !== CoreToolName.TodoWrite && tc.name !== CoreToolName.ExitPlanMode && tc.name !== CoreToolName.ShowMedia,
 	);
 };
 
@@ -246,7 +247,7 @@ const renderTimelineEntries = (
 		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
 
 		// Special rendering for ShowMedia tool
-		if (toolCall.name === "ShowMedia" && mediaOutputs && sessionId && getMediaSrc) {
+		if (toolCall.name === CoreToolName.ShowMedia && mediaOutputs && sessionId && getMediaSrc) {
 			return (
 				<div key={`media-showcase-${group.entry.id}`} className="mb-4">
 					<MediaShowcase
@@ -579,7 +580,7 @@ export function ConversationDisplay({
 								renderTimelineEntries(
 									sseStream.timeline,
 									false,
-									sseStream.toolCalls?.find((tc) => tc.name === "ShowMedia")
+									sseStream.toolCalls?.find((tc) => tc.name === CoreToolName.ShowMedia)
 										?.parameters?.outputs as MediaOutput[] | undefined,
 									sessionId,
 									getMediaSrc,

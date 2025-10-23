@@ -1,4 +1,5 @@
 import type { BackendMessage } from "mix-typescript-sdk/models";
+import { CoreToolName } from "mix-typescript-sdk/models";
 import { mix } from "@/lib/mix-sdk";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall, ToolCallData } from "@/types/common";
@@ -112,8 +113,9 @@ const convertBackendMessageToUI = async (
 		: undefined;
 
 	// Extract media outputs from ShowMedia tool calls
-	const mediaOutputs = toolCalls?.find((tc) => tc.name === "ShowMedia")
-		?.parameters?.outputs as MediaOutput[] | undefined;
+	const mediaOutputs = toolCalls?.find(
+		(tc) => tc.name === CoreToolName.ShowMedia,
+	)?.parameters?.outputs as MediaOutput[] | undefined;
 
 	// Build timeline from stored data
 	// NOTE: Only create timeline if we have reasoning or subagent events
@@ -142,7 +144,7 @@ const convertBackendMessageToUI = async (
 			if (
 				backendMessage.reasoning?.trim() ||
 				hasSubagentEvents ||
-				tc.name === "ShowMedia"
+				tc.name === CoreToolName.ShowMedia
 			) {
 				timeline.push({
 					type: "tool",

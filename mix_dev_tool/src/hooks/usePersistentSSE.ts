@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { CoreToolName } from "mix-typescript-sdk/models";
 import type { SendMessageRequestBody } from "mix-typescript-sdk/models/operations/sendmessage";
 import type {
 	SSECompleteEvent,
@@ -545,7 +546,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 										// Extract media outputs from ShowMedia tool call (if present)
 										const mediaOutputs = toolCallsArray.find(
-											(tc) => tc.name === "ShowMedia",
+											(tc) => tc.name === CoreToolName.ShowMedia,
 										)?.parameters?.outputs as MediaOutput[] | undefined;
 
 										const assistantMessage: UIMessage = {
