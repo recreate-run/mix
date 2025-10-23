@@ -495,6 +495,10 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 	return eventChan
 }
 
+func (o *openaiClient) CountTokens(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (int64, error) {
+	return 0, errors.New("token counting not implemented for OpenAI provider")
+}
+
 func (o *openaiClient) shouldRetry(attempts int, err error) (bool, int64, error) {
 	var apierr *openai.Error
 	if !errors.As(err, &apierr) {

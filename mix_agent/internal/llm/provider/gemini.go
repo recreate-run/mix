@@ -473,6 +473,10 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 	return eventChan
 }
 
+func (g *geminiClient) CountTokens(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (int64, error) {
+	return 0, errors.New("token counting not implemented for Gemini provider")
+}
+
 func (g *geminiClient) shouldRetry(attempts int, err error) (bool, int64, error) {
 	// Check if error is a rate limit error
 	if attempts > maxRetries {

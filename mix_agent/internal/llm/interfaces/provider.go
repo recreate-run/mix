@@ -57,4 +57,5 @@ type Provider interface {
 type ProviderClient interface {
 	Send(ctx context.Context, messages []message.Message, tools []BaseTool) (*ProviderResponse, error)
 	Stream(ctx context.Context, messages []message.Message, tools []BaseTool) <-chan ProviderEvent
+	CountTokens(ctx context.Context, messages []message.Message, tools []BaseTool) (int64, error)
 }

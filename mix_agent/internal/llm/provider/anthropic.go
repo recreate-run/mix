@@ -703,6 +703,39 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 	return eventChan
 }
 
+func (a *anthropicClient) CountTokens(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (int64, error) {
+	// Prepare messages using existing logic
+	preparedMessages := a.preparedMessages(a.convertMessages(messages), a.convertTools(tools))
+
+	// Convert MessageNewParams to MessageCountTokensParams
+	countParams := anthropic.MessageCountTokensParams{
+		Model:    preparedMessages.Model,
+		Messages: preparedMessages.Messages,
+		System: anthropic.MessageCountTokensParamsSystemUnion{
+			OfTextBlockArray: preparedMessages.System,
+		},
+		Tools:    make([]anthropic.MessageCountTokensToolUnionParam, len(preparedMessages.Tools)),
+		Thinking: preparedMessages.Thinking,
+	}
+
+	// Convert tools to CountTokens format
+	for i, tool := range preparedMessages.Tools {
+		if tool.OfTool != nil {
+			countParams.Tools[i] = anthropic.MessageCountTokensToolUnionParam{
+				OfTool: tool.OfTool,
+			}
+		}
+	}
+
+	// Call the token counting API
+	result, err := a.client.Messages.CountTokens(ctx, countParams)
+	if err != nil {
+		return 0, fmt.Errorf("token counting failed: %w", err)
+	}
+
+	return result.InputTokens, nil
+}
+
 // errorType represents different types of LLM API errors for better messaging
 type errorType string
 

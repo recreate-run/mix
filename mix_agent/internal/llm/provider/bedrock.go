@@ -98,3 +98,10 @@ func (b *bedrockClient) Stream(ctx context.Context, messages []message.Message, 
 
 	return b.childProvider.Stream(ctx, messages, tools)
 }
+
+func (b *bedrockClient) CountTokens(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (int64, error) {
+	if b.childProvider == nil {
+		return 0, errors.New("unsupported model for bedrock provider")
+	}
+	return b.childProvider.CountTokens(ctx, messages, tools)
+}
