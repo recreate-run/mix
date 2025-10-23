@@ -38,19 +38,21 @@ type CompleteEvent struct {
 }
 
 type ToolEvent struct {
-	Type             string `json:"type"`
-	Name             string `json:"name"`
-	Input            string `json:"input"`
-	ID               string `json:"id"`
-	Status           string `json:"status"`
-	ParentToolCallID string `json:"parentToolCallId,omitempty"`
+	Type               string `json:"type"`
+	Name               string `json:"name"`
+	Input              string `json:"input"`
+	ID                 string `json:"id"`
+	Status             string `json:"status"`
+	ParentToolCallID   string `json:"parentToolCallId,omitempty"`
+	AssistantMessageID string `json:"assistantMessageId,omitempty"`
 }
 
 type ToolParameterDeltaEvent struct {
-	Type             string `json:"type"`
-	ToolCallID       string `json:"toolCallId"`
-	Input            string `json:"input"` // Partial JSON parameter delta
-	ParentToolCallID string `json:"parentToolCallId,omitempty"`
+	Type               string `json:"type"`
+	ToolCallID         string `json:"toolCallId"`
+	Input              string `json:"input"` // Partial JSON parameter delta
+	ParentToolCallID   string `json:"parentToolCallId,omitempty"`
+	AssistantMessageID string `json:"assistantMessageId,omitempty"`
 }
 
 type PermissionEvent struct {
@@ -66,9 +68,10 @@ type PermissionEvent struct {
 }
 
 type ThinkingEvent struct {
-	Type             string `json:"type"`
-	Content          string `json:"content"`
-	ParentToolCallID string `json:"parentToolCallId,omitempty"`
+	Type               string `json:"type"`
+	Content            string `json:"content"`
+	ParentToolCallID   string `json:"parentToolCallId,omitempty"`
+	AssistantMessageID string `json:"assistantMessageId,omitempty"`
 }
 
 type ToolExecutionStartEvent struct {
@@ -89,9 +92,10 @@ type ToolExecutionCompleteEvent struct {
 }
 
 type ContentEvent struct {
-	Type             string `json:"type"`
-	Content          string `json:"content"`
-	ParentToolCallID string `json:"parentToolCallId,omitempty"`
+	Type               string `json:"type"`
+	Content            string `json:"content"`
+	ParentToolCallID   string `json:"parentToolCallId,omitempty"`
+	AssistantMessageID string `json:"assistantMessageId,omitempty"`
 }
 
 type SessionCreatedEvent struct {
@@ -104,6 +108,13 @@ type SessionCreatedEvent struct {
 type SessionDeletedEvent struct {
 	Type      string `json:"type"`
 	SessionID string `json:"sessionId"`
+}
+
+type UserMessageCreatedEvent struct {
+	Type             string `json:"type"`
+	MessageID        string `json:"messageId"`
+	Content          string `json:"content"`
+	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
 // SSEWriter handles session-scoped SSE writing with automatic compliance

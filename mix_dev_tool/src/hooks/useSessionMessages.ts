@@ -40,6 +40,8 @@ export function useSessionMessages(sessionId: string | null) {
 			return result;
 		},
 		enabled: !!sessionId,
+		staleTime: 0, // Always treat data as stale, refetch on mount
+		refetchOnMount: true, // Always refetch when component mounts
 	});
 
 	return query;

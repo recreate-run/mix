@@ -239,9 +239,7 @@ interface CallbackFormProps {
 function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 	const [name, setName] = React.useState("");
 	const [toolName, setToolName] = React.useState("*");
-	const [type, setType] = React.useState<CallbackType>(
-		CallbackType.BashScript,
-	);
+	const [type, setType] = React.useState<CallbackType>(CallbackType.BashScript);
 	const [bashCommand, setBashCommand] = React.useState("");
 	const [bashTimeout, setBashTimeout] = React.useState("120000");
 	const [subAgentPrompt, setSubAgentPrompt] = React.useState("");
@@ -257,7 +255,8 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 		e.preventDefault();
 
 		// Generate default name if not provided
-		const callbackName = name.trim() || `Callback #${Math.floor(Math.random() * 9000) + 1000}`;
+		const callbackName =
+			name.trim() || `Callback #${Math.floor(Math.random() * 9000) + 1000}`;
 
 		const callback: Callback = {
 			name: callbackName,
@@ -330,17 +329,16 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 				<Label htmlFor="type" className="text-xs">
 					Callback Type
 				</Label>
-				<Select
-					value={type}
-					onValueChange={(v) => setType(v as CallbackType)}
-				>
+				<Select value={type} onValueChange={(v) => setType(v as CallbackType)}>
 					<SelectTrigger id="type" className="h-8 text-xs">
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>
 						<SelectItem value={CallbackType.BashScript}>Bash Script</SelectItem>
 						<SelectItem value={CallbackType.SubAgent}>Sub Agent</SelectItem>
-						<SelectItem value={CallbackType.SendMessage}>Send Message</SelectItem>
+						<SelectItem value={CallbackType.SendMessage}>
+							Send Message
+						</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
@@ -404,7 +402,8 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 							required
 						/>
 						<p className="text-[10px] text-muted-foreground">
-							This message will be injected into the conversation after the tool completes
+							This message will be injected into the conversation after the tool
+							completes
 						</p>
 					</div>
 				</>
@@ -479,9 +478,6 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 							Exclude from agent context
 						</Label>
 					</div>
-					<p className="text-[10px] text-muted-foreground ml-8">
-						Callback results will be saved and visible in UI but won't be included in agent's conversation context
-					</p>
 				</div>
 			)}
 

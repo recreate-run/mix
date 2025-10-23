@@ -94,6 +94,7 @@ const (
 	AgentEventTypeToolParameterDelta    AgentEventType = "tool_parameter_delta"
 	AgentEventTypeToolExecutionStart    AgentEventType = "tool_execution_start"
 	AgentEventTypeToolExecutionComplete AgentEventType = "tool_execution_complete"
+	AgentEventTypeUserMessageCreated    AgentEventType = "user_message_created"
 )
 
 type AgentEvent struct {
@@ -497,6 +498,13 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	if err != nil {
 		return a.err(fmt.Errorf("failed to create user message: %w", err))
 	}
+
+	// Emit user message created event so frontend can track it
+	_ = a.Publish(ctx, pubsub.EventType(sessionID), AgentEvent{
+		Type:    AgentEventTypeUserMessageCreated,
+		Message: userMsg,
+	})
+
 	// Append the new user message to the conversation history.
 	msgHistory := append(msgs, userMsg)
 

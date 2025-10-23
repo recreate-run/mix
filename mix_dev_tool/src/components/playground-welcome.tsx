@@ -35,7 +35,6 @@ export function PlaygroundWelcome({
 	// Attachment store hooks
 	const attachments = useBoundStore((state) => state.attachments);
 	const referenceMap = useBoundStore((state) => state.referenceMap);
-	const clearAttachments = useBoundStore((state) => state.clearAttachments);
 	const syncWithText = useBoundStore((state) => state.syncWithText);
 
 	// Preferences for model display
@@ -55,7 +54,7 @@ export function PlaygroundWelcome({
 		if (inputValue.trim()) {
 			onSubmit(inputValue);
 			setInputValue("");
-			clearAttachments();
+			// Don't clear attachments here - ChatApp will use them for the initial message submission
 		}
 	};
 

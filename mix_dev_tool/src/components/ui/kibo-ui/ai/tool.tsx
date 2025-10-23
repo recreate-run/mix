@@ -388,7 +388,7 @@ export const AIToolLadder = ({
 	children,
 	...props
 }: AIToolLadderProps) => (
-	<div className={cn("relative mb-2 space-y-2", className)} {...props}>
+	<div className={cn("relative mb-4 space-y-2", className)} {...props}>
 		{children}
 	</div>
 );

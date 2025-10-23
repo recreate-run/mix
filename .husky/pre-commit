@@ -19,6 +19,15 @@ if [ -n "$STAGED_FRONTEND_FILES" ]; then
     echo "📝 Formatting frontend code..."
     make frontend-format
 
+    echo "🔎 Linting frontend code..."
+    make frontend-lint
+
+    echo "🔍 Type checking frontend code..."
+    if ! make frontend-typecheck; then
+        echo "❌ TypeScript type checking failed. Please fix the errors before committing."
+        exit 1
+    fi
+
     # Check if formatting changed any files
     if ! git diff --exit-code mix_dev_tool/ > /dev/null 2>&1; then
         echo "✅ Auto-formatted frontend files, re-staging changes..."

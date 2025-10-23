@@ -116,6 +116,8 @@ const convertBackendMessageToUI = async (
 		?.parameters?.outputs as MediaOutput[] | undefined;
 
 	// Build timeline from stored data
+	// NOTE: Only create timeline if we have reasoning or subagent events
+	// For simple messages with tools, let the regular rendering handle it
 	const timeline: TimelineEntry[] = [];
 
 	// Add reasoning block if available
@@ -128,21 +130,28 @@ const convertBackendMessageToUI = async (
 		});
 	}
 
-	// Add tool calls to timeline, with their subagent events nested underneath
+	// Add tool calls to timeline ONLY if we have subagent events or reasoning
+	// Otherwise, let regular tool rendering handle it for consistency
 	if (toolCalls && toolCalls.length > 0) {
 		for (const tc of toolCalls) {
-			timeline.push({
-				type: "tool",
-				timestamp: Date.now(),
-				content: tc,
-				id: tc.id,
-			});
+			// Check if this tool has subagent events
+			const hasSubagentEvents = subagentTimeline?.has(tc.id);
 
-			// Add subagent events for THIS specific tool call only
-			if (subagentTimeline?.has(tc.id)) {
-				const subagentEvents = subagentTimeline.get(tc.id);
-				if (subagentEvents) {
-					timeline.push(...subagentEvents);
+			// Only add to timeline if there's reasoning or subagent events
+			if (backendMessage.reasoning?.trim() || hasSubagentEvents) {
+				timeline.push({
+					type: "tool",
+					timestamp: Date.now(),
+					content: tc,
+					id: tc.id,
+				});
+
+				// Add subagent events for THIS specific tool call only
+				if (hasSubagentEvents && subagentTimeline) {
+					const subagentEvents = subagentTimeline.get(tc.id);
+					if (subagentEvents) {
+						timeline.push(...subagentEvents);
+					}
 				}
 			}
 		}

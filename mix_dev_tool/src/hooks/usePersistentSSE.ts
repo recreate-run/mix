@@ -12,13 +12,15 @@ import type {
 	SSEToolExecutionCompleteEvent,
 	SSEToolExecutionStartEvent,
 	SSEToolParameterDeltaEvent,
+	SSEUserMessageCreatedEvent,
 } from "mix-typescript-sdk/models/sseeventstream";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall } from "@/types/common";
-import type { TimelineEntry } from "@/types/message";
+import type { MediaOutput } from "@/types/media";
+import type { TimelineEntry, UIMessage } from "@/types/message";
 import { expandFileReferences } from "@/utils/attachmentUtils";
 
 export type SSEPermissionRequest = {
@@ -58,6 +60,8 @@ type PersistentSSEState = {
 		attachments?: Attachment[];
 	} | null;
 	assistantMessageId: string | null;
+	userMessageId: string | null;
+	preStreamingMessageIds: Set<string>; // IDs of messages that existed before streaming started
 };
 
 type PersistentSSEHook = PersistentSSEState & {
@@ -101,6 +105,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		newlyCreatedSessionId: null,
 		pendingUserMessage: null,
 		assistantMessageId: null,
+		userMessageId: null,
+		preStreamingMessageIds: new Set(),
 	});
 
 	const toolCallsMap = useRef<Map<string, ToolCall>>(new Map());
@@ -111,6 +117,12 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 	const currentSessionRef = useRef<string>("");
 	const streamAbortController = useRef<AbortController | null>(null);
 	const lastEventIdRef = useRef<string | undefined>(undefined);
+	// Track user message data for cache updates
+	const userMessageIdRef = useRef<string | null>(null);
+	const pendingUserMessageRef = useRef<{
+		text: string;
+		attachments?: Attachment[];
+	} | null>(null);
 
 	useEffect(() => {
 		connectedRef.current = state.connected;
@@ -159,8 +171,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "thinking": {
 							const thinkingEvent = event as SSEThinkingEvent;
-							const thinkingContent = thinkingEvent.data?.content || "";
-							const parentToolCallId = thinkingEvent.data?.parentToolCallId;
+							const thinkingContent = thinkingEvent.data.content || "";
+							const parentToolCallId = thinkingEvent.data.parentToolCallId;
+							const assistantMessageId = thinkingEvent.data.assistantMessageId;
 
 							// Add to timeline
 							const thinkingEntry: TimelineEntry = {
@@ -178,14 +191,17 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								reasoning: (prev.reasoning || "") + thinkingContent,
 								timeline: [...timelineRef.current],
 								processing: true,
+								assistantMessageId:
+									assistantMessageId || prev.assistantMessageId,
 							}));
 							break;
 						}
 
 						case "content": {
 							const contentEvent = event as SSEContentEvent;
-							const contentDelta = contentEvent.data?.content || "";
-							const parentToolCallId = contentEvent.data?.parentToolCallId;
+							const contentDelta = contentEvent.data.content || "";
+							const parentToolCallId = contentEvent.data.parentToolCallId;
+							const assistantMessageId = contentEvent.data.assistantMessageId;
 
 							// Find the last entry in timeline
 							const lastEntry =
@@ -221,6 +237,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								finalContent: (prev.finalContent || "") + contentDelta,
 								timeline: [...timelineRef.current],
 								processing: true,
+								assistantMessageId:
+									assistantMessageId || prev.assistantMessageId,
 							}));
 							break;
 						}
@@ -228,8 +246,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "tool_parameter_delta": {
 							// Handle real-time tool parameter streaming
 							const deltaEvent = event as SSEToolParameterDeltaEvent;
-							const toolCallId = deltaEvent.data?.toolCallId;
-							const inputDelta = deltaEvent.data?.input;
+							const toolCallId = deltaEvent.data.toolCallId;
+							const inputDelta = deltaEvent.data.input;
+							const assistantMessageId = deltaEvent.data.assistantMessageId;
 
 							// Validate required fields
 							if (!toolCallId || typeof toolCallId !== "string") {
@@ -302,6 +321,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 									...prev,
 									toolCalls: Array.from(toolCallsMap.current.values()),
 									timeline: [...timelineRef.current],
+									assistantMessageId:
+										assistantMessageId || prev.assistantMessageId,
 								}));
 
 								// Clear accumulated deltas after successful parse to prevent stale accumulation
@@ -312,45 +333,44 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool": {
 							const toolEvent = event as SSEToolEvent;
-							const parentToolCallId = toolEvent.data?.parentToolCallId;
+							const parentToolCallId = toolEvent.data.parentToolCallId;
+							const assistantMessageId = toolEvent.data.assistantMessageId;
 
 							const toolCall: ToolCall = {
-								id:
-									toolEvent.data?.id ||
-									`${toolEvent.data?.name || "unknown"}-${Date.now()}`,
-								name: toolEvent.data?.name || "unknown",
-								description: toolEvent.data?.name || "Tool execution",
+								id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
+								name: toolEvent.data.name || "unknown",
+								description: toolEvent.data.name || "Tool execution",
 								status:
-									(toolEvent.data?.status as
+									(toolEvent.data.status as
 										| "pending"
 										| "running"
 										| "completed"
 										| "error") || "pending",
-								parameters: toolEvent.data?.input
-									? typeof toolEvent.data?.input === "string"
+								parameters: toolEvent.data.input
+									? typeof toolEvent.data.input === "string"
 										? (() => {
 												try {
-													return JSON.parse(toolEvent.data?.input);
+													return JSON.parse(toolEvent.data.input);
 												} catch {
-													return { input: toolEvent.data?.input };
+													return { input: toolEvent.data.input };
 												}
 											})()
-										: toolEvent.data?.input
+										: toolEvent.data.input
 									: {},
 								result: undefined,
 								error: undefined,
 							};
 
 							if (
-								toolEvent.data?.status === "running" &&
+								toolEvent.data.status === "running" &&
 								!toolStartTimes.current.has(toolCall.id)
 							) {
 								toolStartTimes.current.set(toolCall.id, Date.now());
 							}
 
 							if (
-								(toolEvent.data?.status === "completed" ||
-									toolEvent.data?.status === "error") &&
+								(toolEvent.data.status === "completed" ||
+									toolEvent.data.status === "error") &&
 								toolStartTimes.current.has(toolCall.id)
 							) {
 								toolStartTimes.current.delete(toolCall.id);
@@ -387,14 +407,16 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								toolCalls: Array.from(toolCallsMap.current.values()),
 								timeline: [...timelineRef.current],
 								processing: true,
+								assistantMessageId:
+									assistantMessageId || prev.assistantMessageId,
 							}));
 							break;
 						}
 
 						case "tool_execution_start": {
 							const toolStartEvent = event as SSEToolExecutionStartEvent;
-							const toolCallId = toolStartEvent.data?.toolCallId;
-							const progress = toolStartEvent.data?.progress;
+							const toolCallId = toolStartEvent.data.toolCallId;
+							const progress = toolStartEvent.data.progress;
 
 							const existingToolCall = toolCallsMap.current.get(toolCallId);
 							if (existingToolCall) {
@@ -426,9 +448,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "tool_execution_complete": {
 							const toolCompleteEvent = event as SSEToolExecutionCompleteEvent;
-							const toolCallId = toolCompleteEvent.data?.toolCallId;
-							const progress = toolCompleteEvent.data?.progress;
-							const success = toolCompleteEvent.data?.success;
+							const toolCallId = toolCompleteEvent.data.toolCallId;
+							const progress = toolCompleteEvent.data.progress;
+							const success = toolCompleteEvent.data.success;
 
 							const existingToolCall = toolCallsMap.current.get(toolCallId);
 							if (existingToolCall) {
@@ -464,17 +486,93 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 						case "complete": {
 							const completeEvent = event as SSECompleteEvent;
+
 							setState((prev) => {
 								return {
 									...prev,
-									reasoning: completeEvent.data?.reasoning || null,
+									reasoning: completeEvent.data.reasoning || null,
 									reasoningDuration:
-										completeEvent.data?.reasoningDuration || null,
+										completeEvent.data.reasoningDuration || null,
 									completed: true,
 									processing: false,
 									assistantMessageId: completeEvent.data.messageId || null,
 								};
 							});
+
+							// Update cache directly with streaming data (instead of invalidating)
+							queryClient.setQueryData<UIMessage[]>(
+								CACHE_KEYS.sessionMessages(sessionId),
+								(oldMessages = []) => {
+									const userMsgId = userMessageIdRef.current;
+									const asstMsgId = completeEvent.data.messageId;
+
+									// Check if messages already exist (e.g., from tab switch/reload)
+									const userExists =
+										userMsgId && oldMessages.some((m) => m.id === userMsgId);
+									const asstExists =
+										asstMsgId && oldMessages.some((m) => m.id === asstMsgId);
+
+									if (userExists && asstExists) {
+										return oldMessages; // Both already in cache
+									}
+
+									const newMessages: UIMessage[] = [];
+
+									// Add user message if not in cache
+									if (!userExists && pendingUserMessageRef.current) {
+										const userMessage: UIMessage = {
+											id: userMsgId || undefined,
+											content: pendingUserMessageRef.current.text,
+											from: "user",
+											attachments: pendingUserMessageRef.current.attachments,
+										};
+										newMessages.push(userMessage);
+									}
+
+									// Add assistant message if not in cache
+									if (!asstExists) {
+										// Reconstruct final content from timeline
+										let finalContent = "";
+										for (const entry of timelineRef.current) {
+											if (entry.type === "content") {
+												finalContent += entry.content;
+											}
+										}
+
+										const toolCallsArray = Array.from(
+											toolCallsMap.current.values(),
+										);
+
+										// Extract media outputs from show_media tool call (if present)
+										const mediaOutputs = toolCallsArray.find(
+											(tc) => tc.name === "show_media",
+										)?.parameters?.outputs as MediaOutput[] | undefined;
+
+										const assistantMessage: UIMessage = {
+											id: asstMsgId || undefined,
+											content: finalContent || completeEvent.data.content || "",
+											from: "assistant",
+											toolCalls:
+												toolCallsArray.length > 0 ? toolCallsArray : undefined,
+											timeline:
+												timelineRef.current.length > 0
+													? [...timelineRef.current]
+													: undefined,
+											mediaOutputs:
+												mediaOutputs && mediaOutputs.length > 0
+													? mediaOutputs
+													: undefined,
+											reasoning: completeEvent.data.reasoning || undefined,
+											reasoningDuration:
+												completeEvent.data.reasoningDuration || undefined,
+										};
+										newMessages.push(assistantMessage);
+									}
+
+									return [...oldMessages, ...newMessages];
+								},
+							);
+
 							break;
 						}
 
@@ -482,14 +580,14 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							const errorEvent = event as SSEErrorEvent;
 							setState((prev) => ({
 								...prev,
-								error: errorEvent.data?.error || "Stream error",
+								error: errorEvent.data.error || "Stream error",
 								connecting: false,
 								processing: false,
-								rateLimit: errorEvent.data?.retryAfter
+								rateLimit: errorEvent.data.retryAfter
 									? {
 											retryAfter: errorEvent.data.retryAfter,
-											attempt: errorEvent.data?.attempt || 1,
-											maxAttempts: errorEvent.data?.maxAttempts || 8,
+											attempt: errorEvent.data.attempt || 1,
+											maxAttempts: errorEvent.data.maxAttempts || 8,
 										}
 									: undefined,
 							}));
@@ -499,13 +597,13 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "permission": {
 							const permissionEvent = event as SSEPermissionEvent;
 							const permissionRequest: SSEPermissionRequest = {
-								id: permissionEvent.data?.id || "",
-								sessionId: permissionEvent.data?.sessionId || "",
-								toolName: permissionEvent.data?.toolName || "",
-								description: permissionEvent.data?.description || "",
-								action: permissionEvent.data?.action || "",
-								path: permissionEvent.data?.path || "",
-								params: permissionEvent.data?.params || {},
+								id: permissionEvent.data.id,
+								sessionId: permissionEvent.data.sessionId,
+								toolName: permissionEvent.data.toolName,
+								description: permissionEvent.data.description,
+								action: permissionEvent.data.action,
+								path: permissionEvent.data.path || "",
+								params: permissionEvent.data.params || {},
 							};
 
 							setState((prev) => ({
@@ -518,14 +616,27 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							break;
 						}
 
+						case "user_message_created": {
+							const userMsgEvent = event as SSEUserMessageCreatedEvent;
+
+							// Track in ref for cache update
+							userMessageIdRef.current = userMsgEvent.data.messageId;
+
+							// Store user message ID for duplicate detection
+							setState((prev) => ({
+								...prev,
+								userMessageId: userMsgEvent.data.messageId,
+							}));
+							break;
+						}
+
 						case "session_created": {
 							const sessionCreatedEvent = event as SSESessionCreatedEvent;
 
 							// Store the newly created session ID for navigation
 							setState((prev) => ({
 								...prev,
-								newlyCreatedSessionId:
-									sessionCreatedEvent.data?.sessionId || null,
+								newlyCreatedSessionId: sessionCreatedEvent.data.sessionId,
 							}));
 
 							// Global session events - invalidate sessions list cache for real-time updates
@@ -587,6 +698,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		toolParameterDeltas.current.clear();
 		timelineRef.current = [];
 		lastEventIdRef.current = undefined;
+		userMessageIdRef.current = null;
+		pendingUserMessageRef.current = null;
 		currentSessionRef.current = sessionId;
 
 		setState({
@@ -607,6 +720,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			newlyCreatedSessionId: null,
 			pendingUserMessage: null,
 			assistantMessageId: null,
+			userMessageId: null,
+			preStreamingMessageIds: new Set(),
 		});
 
 		// Create new abort controller for this session
@@ -653,6 +768,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			timelineRef.current = [];
 			currentSessionRef.current = "";
 			lastEventIdRef.current = undefined;
+			userMessageIdRef.current = null;
+			pendingUserMessageRef.current = null;
 		};
 	}, []);
 
@@ -661,6 +778,22 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			if (!sessionId) {
 				throw new Error("No session ID available");
 			}
+
+			// Capture current message IDs before streaming starts
+			// This allows us to filter out only NEW messages created during streaming
+			const existingMessages = queryClient.getQueryData<UIMessage[]>(
+				CACHE_KEYS.sessionMessages(sessionId),
+			);
+			const preStreamingIds = new Set<string>(
+				existingMessages?.map((m) => m.id).filter((id): id is string => !!id) ||
+					[],
+			);
+
+			// Track pending user message in ref for cache update
+			pendingUserMessageRef.current = {
+				text: userText,
+				attachments,
+			};
 
 			setState((prev) => ({
 				...prev,
@@ -680,6 +813,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 					text: userText,
 					attachments,
 				},
+				preStreamingMessageIds: preStreamingIds,
 			}));
 
 			toolCallsMap.current.clear();
@@ -709,7 +843,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				throw error;
 			}
 		},
-		[sessionId],
+		[sessionId, queryClient],
 	);
 
 	const cancelMessage = useCallback(async () => {
@@ -760,6 +894,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			completed: false,
 			pendingUserMessage: null,
 			assistantMessageId: null,
+			userMessageId: null,
+			preStreamingMessageIds: new Set(),
 		}));
 		toolCallsMap.current.clear();
 		toolParameterDeltas.current.clear();
