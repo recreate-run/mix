@@ -8,7 +8,7 @@ export const config = {
   },
   site: {
     name: "Mix",
-    description: "The Multimodal agents SDK",
+    description: "The Production Ready Agents SDK",
     url: process.env.NEXT_PUBLIC_SITE_URL,
   },
 } as const;

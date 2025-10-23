@@ -8,10 +8,9 @@ interface SessionDisplayProps {
 }
 
 export function SessionDisplay({ data }: SessionDisplayProps) {
-	const formatTimestamp = (timestamp: string) => {
+	const formatTimestamp = (timestamp: Date) => {
 		if (!timestamp) return "";
-		const date = new Date(timestamp); // RFC3339 parses directly
-		return date.toLocaleString();
+		return timestamp.toLocaleString();
 	};
 
 	// Generate markdown string

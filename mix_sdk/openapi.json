@@ -1250,13 +1250,20 @@
         ]
       },
       "post": {
-        "description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.",
+        "description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution.",
         "operationId": "createSession",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "properties": {
+                  "callbacks": {
+                    "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+                    "items": {
+                      "$ref": "#/components/schemas/Callback"
+                    },
+                    "type": "array"
+                  },
                   "customSystemPrompt": {
                     "description": "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax.",
                     "example": "You are a helpful assistant specialized in $<domain>. Always be concise and accurate.",
@@ -1464,6 +1471,81 @@
           }
         },
         "summary": "Get a specific session",
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/api/sessions/{id}/callbacks": {
+      "patch": {
+        "description": "Update the callback configurations for a session. Callbacks execute automatically after tool completion. Pass an empty array to clear all callbacks.",
+        "operationId": "updateSessionCallbacks",
+        "parameters": [
+          {
+            "description": "Session ID to update",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "callbacks": {
+                    "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+                    "items": {
+                      "$ref": "#/components/schemas/Callback"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "callbacks"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionData"
+                }
+              }
+            },
+            "description": "Session callbacks updated successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request - validation error in callbacks array"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Session not found"
+          }
+        },
+        "summary": "Update session callbacks",
         "tags": [
           "Sessions"
         ]
@@ -2700,6 +2782,13 @@
             "description": "Assistant's response message (optional)",
             "type": "string"
           },
+          "callbackResults": {
+            "description": "Callback execution results (optional)",
+            "items": {
+              "$ref": "#/components/schemas/CallbackResultData"
+            },
+            "type": "array"
+          },
           "id": {
             "description": "Unique message identifier",
             "type": "string"
@@ -2740,22 +2829,149 @@
         ],
         "type": "object"
       },
+      "Callback": {
+        "description": "Session-level callback configuration that executes after tool completion",
+        "properties": {
+          "bashCommand": {
+            "description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
+            "type": "string"
+          },
+          "bashTimeout": {
+            "default": 120000,
+            "description": "Timeout in milliseconds for bash execution (default: 120000)",
+            "type": "integer"
+          },
+          "excludeFromContext": {
+            "default": false,
+            "description": "Exclude callback results from agent context. Only applies to bash_script and sub_agent types. Not allowed for send_message.",
+            "type": "boolean"
+          },
+          "includeFullHistory": {
+            "default": false,
+            "description": "Include full conversation history in sub-agent context (not yet implemented)",
+            "type": "boolean"
+          },
+          "messageContent": {
+            "description": "Message content to inject into the conversation (required for send_message type). Will be sent as a User message.",
+            "example": "Please review the changes and run tests",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human-readable name for this callback (optional, defaults to 'Callback #XXXX')",
+            "example": "Log Output",
+            "type": "string"
+          },
+          "subAgentPrompt": {
+            "description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
+            "type": "string"
+          },
+          "subAgentType": {
+            "default": "general-purpose",
+            "description": "Type of sub-agent to spawn (default: 'general-purpose')",
+            "type": "string"
+          },
+          "toolName": {
+            "description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+            "example": "*",
+            "type": "string"
+          },
+          "type": {
+            "description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents, 'send_message' for injecting messages",
+            "enum": [
+              "bash_script",
+              "sub_agent",
+              "send_message"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "toolName",
+          "type"
+        ],
+        "type": "object"
+      },
+      "CallbackResultData": {
+        "description": "Callback execution result information",
+        "properties": {
+          "callback_name": {
+            "description": "Human-readable name of the callback (optional)",
+            "type": "string"
+          },
+          "callback_type": {
+            "description": "Type of callback executed",
+            "enum": [
+              "bash_script",
+              "sub_agent",
+              "send_message"
+            ],
+            "type": "string"
+          },
+          "error": {
+            "description": "Error message if callback failed (optional)",
+            "type": "string"
+          },
+          "exclude_from_context": {
+            "description": "Whether this callback result is excluded from agent context (optional)",
+            "type": "boolean"
+          },
+          "exit_code": {
+            "description": "Exit code from bash callback (optional)",
+            "type": "integer"
+          },
+          "stderr": {
+            "description": "Standard error from bash callback (optional)",
+            "type": "string"
+          },
+          "stdout": {
+            "description": "Standard output from bash callback (optional)",
+            "type": "string"
+          },
+          "subagent_id": {
+            "description": "ID of spawned sub-agent session (optional)",
+            "type": "string"
+          },
+          "subagent_result": {
+            "description": "Result from sub-agent execution (optional)",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether callback executed successfully",
+            "type": "boolean"
+          },
+          "tool_call_id": {
+            "description": "ID of the tool call that triggered this callback",
+            "type": "string"
+          },
+          "tool_name": {
+            "description": "Name of the tool that triggered callback",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_call_id",
+          "tool_name",
+          "callback_type",
+          "success"
+        ],
+        "type": "object"
+      },
       "CoreToolName": {
         "description": "Core built-in tool names",
         "enum": [
-          "bash",
+          "Bash",
           "ReadText",
-          "glob",
+          "Glob",
           "ReadMedia",
-          "grep",
-          "write",
-          "edit",
+          "Grep",
+          "Write",
+          "Edit",
           "python_execution",
-          "search",
-          "todo_write",
-          "exit_plan_mode",
-          "show_media",
-          "task"
+          "Search",
+          "TodoWrite",
+          "ExitPlanMode",
+          "ShowMedia",
+          "Task"
         ],
         "type": "string"
       },
@@ -3045,7 +3261,6 @@
               "tool_execution_start",
               "tool_execution_complete",
               "permission",
-              "summarize",
               "user_message_created",
               "session_created",
               "session_deleted"
@@ -3247,7 +3462,6 @@
             "permission": "#/components/schemas/SSEPermissionEvent",
             "session_created": "#/components/schemas/SSESessionCreatedEvent",
             "session_deleted": "#/components/schemas/SSESessionDeletedEvent",
-            "summarize": "#/components/schemas/SSESummarizeEvent",
             "thinking": "#/components/schemas/SSEThinkingEvent",
             "tool": "#/components/schemas/SSEToolEvent",
             "tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
@@ -3290,9 +3504,6 @@
           },
           {
             "$ref": "#/components/schemas/SSEPermissionEvent"
-          },
-          {
-            "$ref": "#/components/schemas/SSESummarizeEvent"
           },
           {
             "$ref": "#/components/schemas/SSEUserMessageCreatedEvent"
@@ -3464,47 +3675,6 @@
                 "required": [
                   "type",
                   "sessionId"
-                ],
-                "type": "object"
-              }
-            },
-            "required": [
-              "data"
-            ],
-            "type": "object"
-          }
-        ]
-      },
-      "SSESummarizeEvent": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/SSEBaseEvent"
-          },
-          {
-            "properties": {
-              "data": {
-                "properties": {
-                  "done": {
-                    "description": "Indicates if summarization is complete",
-                    "type": "boolean"
-                  },
-                  "parentToolCallId": {
-                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
-                    "type": "string"
-                  },
-                  "progress": {
-                    "description": "Summarization progress description",
-                    "type": "string"
-                  },
-                  "type": {
-                    "description": "Summarization event type",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "progress",
-                  "done"
                 ],
                 "type": "object"
               }
@@ -3800,6 +3970,13 @@
           "assistantMessageCount": {
             "description": "Number of assistant messages in session",
             "type": "integer"
+          },
+          "callbacks": {
+            "description": "Session-level callback configurations (optional)",
+            "items": {
+              "$ref": "#/components/schemas/Callback"
+            },
+            "type": "array"
           },
           "completionTokens": {
             "description": "Total completion tokens used",

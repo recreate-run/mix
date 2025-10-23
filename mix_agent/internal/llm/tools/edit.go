@@ -37,7 +37,7 @@ type editTool struct {
 }
 
 const (
-	EditToolName = "edit"
+	EditToolName = "Edit"
 )
 
 func NewEditTool(permissions permission.Service, files history.Service) BaseTool {

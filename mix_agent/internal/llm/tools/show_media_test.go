@@ -40,7 +40,7 @@ func TestMediaShowcaseToolInfo(t *testing.T) {
 	info := tool.Info()
 
 	// Test basic properties
-	assert.Equal(t, "show_media", info.Name)
+	assert.Equal(t, "ShowMedia", info.Name)
 	assert.NotEmpty(t, info.Description)
 	assert.NotNil(t, info.Parameters)
 	assert.Equal(t, []string{"outputs"}, info.Required)
@@ -331,7 +331,7 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "show_media",
+				Name:  "ShowMedia",
 				Input: tt.input,
 			}
 
@@ -531,7 +531,7 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "show_media",
+				Name:  "ShowMedia",
 				Input: tt.input,
 			}
 
@@ -670,7 +670,7 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "show_media",
+				Name:  "ShowMedia",
 				Input: tt.input,
 			}
 
@@ -830,7 +830,7 @@ func TestMediaShowcaseToolWithContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "show_media",
+				Name:  "ShowMedia",
 				Input: tt.input,
 			}
 
@@ -869,7 +869,7 @@ func TestErrorMessageFormat(t *testing.T) {
 
 	call := ToolCall{
 		ID:    "test-call",
-		Name:  "show_media",
+		Name:  "ShowMedia",
 		Input: input,
 	}
 
@@ -900,7 +900,7 @@ func BenchmarkMediaShowcaseToolRun(b *testing.B) {
 
 	call := ToolCall{
 		ID:    "test-call",
-		Name:  "show_media",
+		Name:  "ShowMedia",
 		Input: input,
 	}
 

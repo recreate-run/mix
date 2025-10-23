@@ -130,7 +130,7 @@ type searchTool struct {
 }
 
 const (
-	SearchToolName   = "search"
+	SearchToolName   = "Search"
 	MaxSearchResults = 3
 )
 

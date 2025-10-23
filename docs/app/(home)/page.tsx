@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { DemoCards } from "@/components/demo-cards";
 import { homepageDemos } from "@/lib/demos";
 
-const title = "The Multimodal Agents SDK";
-const description = "Built-in multimodal tools. One-command Supabase setup.";
+const title = "The Production Ready Agents SDK";
+const description =
+	"Interated DevTools, one-command Supabase deployment, and the best model model for each tool.";
 
 export const metadata: Metadata = {
 	title,

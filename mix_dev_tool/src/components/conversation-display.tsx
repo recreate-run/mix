@@ -1,5 +1,6 @@
 import { Check, Copy, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CoreToolName } from "mix-typescript-sdk/models";
 import { Button } from "@/components/ui/button";
 import {
 	AIMessage,
@@ -33,6 +34,7 @@ import { RateLimitDisplay } from "./rate-limit-display";
 import { ResponseRenderer } from "./response-renderer";
 import { StatusUI } from "./status-ui";
 import { TodoList } from "./todo-list";
+import { CallbackResultDisplay } from "./callback-result-display";
 
 type StreamingState = {
 	processing: boolean;
@@ -87,12 +89,12 @@ interface ConversationDisplayProps {
 	sessionId?: string;
 }
 
-// Helper function to extract todos from todo_write tool calls
+// Helper function to extract todos from TodoWrite tool calls
 const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
-	const todoWriteCalls = toolCalls.filter((tc) => tc.name === "todo_write");
+	const todoWriteCalls = toolCalls.filter((tc) => tc.name === CoreToolName.TodoWrite);
 	if (todoWriteCalls.length === 0) return [];
 
-	// Find the latest todo_write call with complete parameters to avoid flicker
+	// Find the latest TodoWrite call with complete parameters to avoid flicker
 	// When a new call starts streaming, it may not have parameters yet
 	for (let i = todoWriteCalls.length - 1; i >= 0; i--) {
 		const call = todoWriteCalls[i];
@@ -108,9 +110,9 @@ const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
 	return [];
 };
 
-// Helper function to extract plan content from exit_plan_mode tool calls
+// Helper function to extract plan content from ExitPlanMode tool calls
 const extractPlanFromToolCalls = (toolCalls: ToolCall[]) => {
-	const planTool = toolCalls.find((tc) => tc.name === "exit_plan_mode");
+	const planTool = toolCalls.find((tc) => tc.name === CoreToolName.ExitPlanMode);
 	if (!planTool) return "";
 
 	try {
@@ -121,15 +123,15 @@ const extractPlanFromToolCalls = (toolCalls: ToolCall[]) => {
 	}
 };
 
-// Helper function to check if a message contains exit_plan_mode tool call
+// Helper function to check if a message contains ExitPlanMode tool call
 const hasExitPlanModeTool = (toolCalls: ToolCall[]) => {
-	return toolCalls?.some((tc) => tc.name === "exit_plan_mode");
+	return toolCalls?.some((tc) => tc.name === CoreToolName.ExitPlanMode);
 };
 
-// Helper function to filter out special tools (todo_write, exit_plan_mode) from toolCalls
+// Helper function to filter out special tools (TodoWrite, ExitPlanMode, ShowMedia) from toolCalls
 const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 	return toolCalls.filter(
-		(tc) => tc.name !== "todo_write" && tc.name !== "exit_plan_mode",
+		(tc) => tc.name !== CoreToolName.TodoWrite && tc.name !== CoreToolName.ExitPlanMode && tc.name !== CoreToolName.ShowMedia,
 	);
 };
 
@@ -170,6 +172,7 @@ const renderTimelineEntries = (
 		| { type: "thinking"; entries: string[]; timestamps: number[] }
 		| { type: "tool"; entry: TimelineEntry; nestedEntries?: TimelineEntry[] }
 		| { type: "content"; entry: TimelineEntry }
+		| { type: "callback_result"; entry: TimelineEntry }
 	> = [];
 
 	for (const entry of entriesToRender) {
@@ -192,6 +195,8 @@ const renderTimelineEntries = (
 				entry,
 				nestedEntries: nested,
 			});
+		} else if (entry.type === "callback_result") {
+			groupedEntries.push({ type: "callback_result", entry });
 		} else {
 			groupedEntries.push({ type: "content", entry });
 		}
@@ -228,13 +233,21 @@ const renderTimelineEntries = (
 				</div>
 			);
 		}
+		if (group.type === "callback_result") {
+			return (
+				<CallbackResultDisplay
+					key={`callback-${group.entry.id}`}
+					result={group.entry.content as any}
+				/>
+			);
+		}
 
 		// Tool with potential nested subagent events
 		const toolCall = group.entry.content as ToolCall;
 		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
 
-		// Special rendering for show_media tool
-		if (toolCall.name === "show_media" && mediaOutputs && sessionId && getMediaSrc) {
+		// Special rendering for ShowMedia tool
+		if (toolCall.name === CoreToolName.ShowMedia && mediaOutputs && sessionId && getMediaSrc) {
 			return (
 				<div key={`media-showcase-${group.entry.id}`} className="mb-4">
 					<MediaShowcase
@@ -293,7 +306,7 @@ export function ConversationDisplay({
 }: ConversationDisplayProps) {
 	const [showPlanOptions, setShowPlanOptions] = useState<number | null>(null);
 
-	// Detect when a new message with exit_plan_mode is added and show plan options
+	// Detect when a new message with ExitPlanMode is added and show plan options
 	useEffect(() => {
 		if (messages.length > 0) {
 			const lastMessage = messages[messages.length - 1];
@@ -358,14 +371,14 @@ export function ConversationDisplay({
 		// Keep filtering until streaming content is cleared to prevent flash/duplicates.
 		// Keep messages that existed before streaming started (tracked in preStreamingMessageIds)
 
-		// IMPORTANT: Filter while streaming UI is showing (timeline/toolCalls/finalContent exists)
-		// AND preStreamingMessageIds is populated (indicates an active/recent stream)
-		// Stop filtering only when streaming content is cleared (e.g., after tab switch back and content cleared)
+		// IMPORTANT: Only filter during ACTIVE streaming (processing=true)
+		// After reload, completed=true but we want to show all messages from DB
 		const shouldFilter =
 			messages.length > 0 &&
 			sseStream.preStreamingMessageIds &&
 			sseStream.preStreamingMessageIds.size >= 0 &&
-			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent);
+			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent) &&
+			sseStream.processing; // ← Changed: Only filter during active streaming, not after completion
 
 		if (shouldFilter) {
 			const filtered = messages.filter((msg) => {
@@ -567,7 +580,7 @@ export function ConversationDisplay({
 								renderTimelineEntries(
 									sseStream.timeline,
 									false,
-									sseStream.toolCalls?.find((tc) => tc.name === "show_media")
+									sseStream.toolCalls?.find((tc) => tc.name === CoreToolName.ShowMedia)
 										?.parameters?.outputs as MediaOutput[] | undefined,
 									sessionId,
 									getMediaSrc,

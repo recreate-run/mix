@@ -14,7 +14,7 @@ func NewExitPlanModeTool() *ExitPlanModeTool {
 
 func (t *ExitPlanModeTool) Info() ToolInfo {
 	return ToolInfo{
-		Name:        "exit_plan_mode",
+		Name:        "ExitPlanMode",
 		Description: "Use this tool when you are in plan mode and have finished presenting your plan and are ready to execute. This will prompt the user to exit plan mode.",
 		Parameters: map[string]any{
 			"plan": map[string]any{

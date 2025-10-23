@@ -11,8 +11,6 @@ import (
 func TestToolTypeConstants(t *testing.T) {
 	assert.Equal(t, ToolType("web_search"), ToolTypeWebSearch)
 	assert.Equal(t, ToolType("multimodal_analyzer"), ToolTypeMultimodalAnalyzer)
-	assert.Equal(t, ToolType("image_generation"), ToolTypeImageGeneration)
-	assert.Equal(t, ToolType("code_analysis"), ToolTypeCodeAnalysis)
 }
 
 // Test ToolProvider constants
@@ -432,8 +430,6 @@ func TestInitializeCategories(t *testing.T) {
 	expectedCategories := []ToolType{
 		ToolTypeWebSearch,
 		ToolTypeMultimodalAnalyzer,
-		ToolTypeImageGeneration,
-		ToolTypeCodeAnalysis,
 	}
 
 	for _, expectedType := range expectedCategories {

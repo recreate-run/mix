@@ -6,6 +6,7 @@ import {
 	XCircleIcon,
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
+import { CoreToolName } from "mix-typescript-sdk/models";
 import { Button } from "@/components/ui/button";
 import {
 	Collapsible,
@@ -60,11 +61,11 @@ const formatToolContent = (
 ): string => {
 	const { truncate = false, limit = TOOL_CONTENT_TRUNCATE_LIMIT } = options;
 
-	// Only apply special key-value formatting for "barch" tool
-	const shouldApplyKeyValueFormatting = toolName?.toLowerCase() === "bash";
+	// Only apply special key-value formatting for Bash tool
+	const shouldApplyKeyValueFormatting = toolName?.toLowerCase() === CoreToolName.Bash.toLowerCase();
 
 	// For Task tool, only show the prompt parameter
-	const isTaskTool = toolName?.toLowerCase() === "task";
+	const isTaskTool = toolName?.toLowerCase() === CoreToolName.Task.toLowerCase();
 
 	let processedContent = "";
 

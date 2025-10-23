@@ -30,7 +30,7 @@ type bashTool struct {
 }
 
 const (
-	BashToolName = "bash"
+	BashToolName = "Bash"
 
 	DefaultTimeout  = 1 * 60 * 1000  // 1 minutes in milliseconds
 	MaxTimeout      = 10 * 60 * 1000 // 10 minutes in milliseconds

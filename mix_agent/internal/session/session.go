@@ -3,9 +3,11 @@ package session
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"mix/internal/db"
+	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools/shell"
 	"mix/internal/pubsub"
 
@@ -85,9 +87,9 @@ type Session struct {
 	ToolCallCount         int64
 	PromptTokens          int64
 	CompletionTokens      int64
-	SummaryMessageID      string
 	CustomSystemPrompt    string
 	PromptMode            string
+	Callbacks             string       // JSON-encoded []interfaces.CallbackConfig
 	SessionType           SessionType  // Type-safe session category
 	SubagentType          SubagentType // Type-safe subagent specialization
 	Cost                  float64
@@ -175,6 +177,7 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{String: customSystemPrompt, Valid: customSystemPrompt != ""},
 		PromptMode:         sql.NullString{String: promptMode, Valid: promptMode != ""},
+		Callbacks:          sql.NullString{Valid: false}, // Session callbacks initially empty, updated via Save() when configured
 		SessionType:        sessionTypeStr,
 		SubagentType:       sql.NullString{String: subagentTypeStr, Valid: subagentTypeStr != ""},
 	})
@@ -224,7 +227,8 @@ func (s *service) Fork(ctx context.Context, sourceSessionID string, title string
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{Valid: false}, // Forked sessions use default prompt
 		PromptMode:         sql.NullString{String: "default", Valid: true},
-		SessionType:        SessionTypeForked.String(), // Type-safe constant
+		Callbacks:          sql.NullString{Valid: false}, // Forked sessions start without callbacks
+		SessionType:        SessionTypeForked.String(),   // Type-safe constant
 		SubagentType:       sql.NullString{Valid: false}, // Not a subagent
 	})
 	if err != nil {
@@ -316,13 +320,10 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 		Title:              session.Title,
 		CustomSystemPrompt: sql.NullString{String: session.CustomSystemPrompt, Valid: session.CustomSystemPrompt != ""},
 		PromptMode:         sql.NullString{String: session.PromptMode, Valid: session.PromptMode != ""},
+		Callbacks:          sql.NullString{String: session.Callbacks, Valid: session.Callbacks != ""},
 		PromptTokens:       session.PromptTokens,
 		CompletionTokens:   session.CompletionTokens,
-		SummaryMessageID: sql.NullString{
-			String: session.SummaryMessageID,
-			Valid:  session.SummaryMessageID != "",
-		},
-		Cost: session.Cost,
+		Cost:               session.Cost,
 	})
 	if err != nil {
 		return Session{}, err
@@ -366,10 +367,10 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 		ToolCallCount:         item.ToolCallCount,
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
-		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
-		SessionType:           SessionType(item.SessionType),        // Convert string to type
+		Callbacks:             item.Callbacks.String,
+		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
@@ -388,10 +389,10 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 		ToolCallCount:         item.ToolCallCount,
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
-		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
-		SessionType:           SessionType(item.SessionType),        // Convert string to type
+		Callbacks:             item.Callbacks.String,
+		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
@@ -410,10 +411,10 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 		ToolCallCount:         0, // New sessions always have 0 messages
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
-		SummaryMessageID:      item.SummaryMessageID.String,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
 		PromptMode:            item.PromptMode.String,
-		SessionType:           SessionType(item.SessionType),        // Convert string to type
+		Callbacks:             item.Callbacks.String,
+		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
@@ -428,4 +429,38 @@ func NewService(q db.Querier, storageConfig Config) Service {
 		q:             q,
 		storageConfig: storageConfig,
 	}
+}
+
+// GetCallbacks returns the parsed callback configurations for this session
+func (s *Session) GetCallbacks() ([]interfaces.CallbackConfig, error) {
+	if s.Callbacks == "" {
+		return []interfaces.CallbackConfig{}, nil
+	}
+	var callbacks []interfaces.CallbackConfig
+	if err := json.Unmarshal([]byte(s.Callbacks), &callbacks); err != nil {
+		return nil, fmt.Errorf("failed to parse session callbacks: %w", err)
+	}
+	return callbacks, nil
+}
+
+// SetCallbacks sets the callback configurations for this session (JSON encoded)
+func (s *Session) SetCallbacks(callbacks []interfaces.CallbackConfig) error {
+	if len(callbacks) == 0 {
+		s.Callbacks = ""
+		return nil
+	}
+
+	// Validate each callback
+	for i, cb := range callbacks {
+		if err := cb.Validate(); err != nil {
+			return fmt.Errorf("callbacks[%d]: %w", i, err)
+		}
+	}
+
+	data, err := json.Marshal(callbacks)
+	if err != nil {
+		return fmt.Errorf("failed to encode session callbacks: %w", err)
+	}
+	s.Callbacks = string(data)
+	return nil
 }

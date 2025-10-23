@@ -6,6 +6,5 @@ ALTER TABLE sessions ADD COLUMN subagent_type TEXT;
 
 -- +goose Down
 -- +goose StatementBegin
-ALTER TABLE sessions DROP COLUMN subagent_type;
-ALTER TABLE sessions DROP COLUMN session_type;
+-- No rollback - columns are required for other features
 -- +goose StatementEnd

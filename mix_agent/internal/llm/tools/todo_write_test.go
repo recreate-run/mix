@@ -69,7 +69,7 @@ func TestTodoWriteTool_Info(t *testing.T) {
 	tool := NewTodoWriteTool()
 	info := tool.Info()
 
-	assert.Equal(t, "todo_write", info.Name)
+	assert.Equal(t, "TodoWrite", info.Name)
 	assert.NotEmpty(t, info.Description)
 	assert.Equal(t, []string{"todos"}, info.Required)
 
@@ -171,7 +171,7 @@ func TestTodoWriteTool_Run_Success(t *testing.T) {
 
 			call := ToolCall{
 				ID:    "test-id",
-				Name:  "todo_write",
+				Name:  "TodoWrite",
 				Input: string(paramsJSON),
 			}
 
@@ -219,7 +219,7 @@ func TestTodoWriteTool_Run_InvalidJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-id",
-				Name:  "todo_write",
+				Name:  "TodoWrite",
 				Input: tt.input,
 			}
 
@@ -286,7 +286,7 @@ func TestTodoWriteTool_Run_ValidationErrors(t *testing.T) {
 
 			call := ToolCall{
 				ID:    "test-id",
-				Name:  "todo_write",
+				Name:  "TodoWrite",
 				Input: string(paramsJSON),
 			}
 
@@ -407,7 +407,7 @@ func TestTodoWriteTool_EdgeCases(t *testing.T) {
 
 		call := ToolCall{
 			ID:    "test-id",
-			Name:  "todo_write",
+			Name:  "TodoWrite",
 			Input: string(paramsJSON),
 		}
 
@@ -437,7 +437,7 @@ func TestTodoWriteTool_EdgeCases(t *testing.T) {
 
 		call := ToolCall{
 			ID:    "test-id",
-			Name:  "todo_write",
+			Name:  "TodoWrite",
 			Input: string(paramsJSON),
 		}
 

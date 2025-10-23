@@ -11,8 +11,6 @@ type ToolType string
 const (
 	ToolTypeWebSearch          ToolType = "web_search"
 	ToolTypeMultimodalAnalyzer ToolType = "multimodal_analyzer"
-	ToolTypeImageGeneration    ToolType = "image_generation"
-	ToolTypeCodeAnalysis       ToolType = "code_analysis"
 )
 
 // ToolProvider represents a specific provider within a tool category
@@ -119,22 +117,6 @@ func (tr *ToolRegistry) initializeCategories() {
 		Description: "Analyze images, videos, and other media",
 		Icon:        "👁️",
 		Tools:       tr.getToolsByType(ToolTypeMultimodalAnalyzer),
-	}
-
-	tr.categories[ToolTypeImageGeneration] = ToolCategory{
-		Type:        ToolTypeImageGeneration,
-		DisplayName: "Image Generation",
-		Description: "Generate images using AI",
-		Icon:        "🎨",
-		Tools:       tr.getToolsByType(ToolTypeImageGeneration),
-	}
-
-	tr.categories[ToolTypeCodeAnalysis] = ToolCategory{
-		Type:        ToolTypeCodeAnalysis,
-		DisplayName: "Code Analysis",
-		Description: "Analyze and understand code",
-		Icon:        "💻",
-		Tools:       tr.getToolsByType(ToolTypeCodeAnalysis),
 	}
 }
 

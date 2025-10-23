@@ -16,6 +16,7 @@ make frontend-typecheck     # Always use this for frontend typechecking
 - Run `make` from the project's top-level directory. If it fails, you probably weren't there.
 - You MUST check the tail-log after finishing each task
 - ALWAYS update mix_agent/internal/http/rest_docs.go when modifying any backend API endpoints, request/response schemas, or validation rules
+- When adding new API fields/types, update the OpenAPI spec in rest_docs.go, then wait for the user to regenerate the SDK (version bump in package.json) - NEVER create local TypeScript type augmentations
 - Before writing database migrations, ALWAYS search for tool-specific patterns first (e.g., "goose sqlite foreign key") - don't write migrations based on general SQL knowledge alone
 
 ## Architecture
