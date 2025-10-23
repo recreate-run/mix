@@ -42,7 +42,7 @@ type grepTool struct{
 }
 
 const (
-	GrepToolName = "grep"
+	GrepToolName = "Grep"
 )
 
 func NewGrepTool(permissions permission.Service) BaseTool {

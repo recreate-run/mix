@@ -44,7 +44,7 @@ func NewTodoWriteTool() BaseTool {
 
 func (t *todoWriteTool) Info() ToolInfo {
 	return ToolInfo{
-		Name:        "todo_write",
+		Name:        "TodoWrite",
 		Description: LoadToolDescription("todo_write"),
 		Parameters: map[string]any{
 			"todos": map[string]any{

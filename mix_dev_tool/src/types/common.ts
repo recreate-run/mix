@@ -1,3 +1,8 @@
+import type { Callback } from "mix-typescript-sdk/models/callback.js";
+import type {
+	SessionType,
+	SubagentType,
+} from "mix-typescript-sdk/models/sessiondata.js";
 import type { AIToolStatus } from "@/components/ui/kibo-ui/ai/tool";
 
 export type ToolCall = {
@@ -19,14 +24,19 @@ export interface Session {
 export interface SessionData {
 	id: string;
 	title: string;
+	sessionType: SessionType;
+	subagentType?: SubagentType;
+	parentSessionId?: string;
+	parentToolCallId?: string;
 	userMessageCount: number;
 	assistantMessageCount: number;
 	toolCallCount: number;
 	promptTokens: number;
 	completionTokens: number;
 	cost: number;
-	createdAt: string; // RFC3339 date string from backend Go time.Time
+	createdAt: Date; // Parsed from backend RFC3339 date string
 	firstUserMessage?: string;
+	callbacks?: Callback[];
 	// Client-side only properties for UI state
 	isDeleting?: boolean;
 }

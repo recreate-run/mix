@@ -33,6 +33,7 @@ import { RateLimitDisplay } from "./rate-limit-display";
 import { ResponseRenderer } from "./response-renderer";
 import { StatusUI } from "./status-ui";
 import { TodoList } from "./todo-list";
+import { CallbackResultDisplay } from "./callback-result-display";
 
 type StreamingState = {
 	processing: boolean;
@@ -170,6 +171,7 @@ const renderTimelineEntries = (
 		| { type: "thinking"; entries: string[]; timestamps: number[] }
 		| { type: "tool"; entry: TimelineEntry; nestedEntries?: TimelineEntry[] }
 		| { type: "content"; entry: TimelineEntry }
+		| { type: "callback_result"; entry: TimelineEntry }
 	> = [];
 
 	for (const entry of entriesToRender) {
@@ -192,6 +194,8 @@ const renderTimelineEntries = (
 				entry,
 				nestedEntries: nested,
 			});
+		} else if (entry.type === "callback_result") {
+			groupedEntries.push({ type: "callback_result", entry });
 		} else {
 			groupedEntries.push({ type: "content", entry });
 		}
@@ -226,6 +230,14 @@ const renderTimelineEntries = (
 				<div className="mb-4" key={`content-${group.entry.id}`}>
 					<ResponseRenderer content={group.entry.content as string} />
 				</div>
+			);
+		}
+		if (group.type === "callback_result") {
+			return (
+				<CallbackResultDisplay
+					key={`callback-${group.entry.id}`}
+					result={group.entry.content as any}
+				/>
 			);
 		}
 
@@ -358,14 +370,14 @@ export function ConversationDisplay({
 		// Keep filtering until streaming content is cleared to prevent flash/duplicates.
 		// Keep messages that existed before streaming started (tracked in preStreamingMessageIds)
 
-		// IMPORTANT: Filter while streaming UI is showing (timeline/toolCalls/finalContent exists)
-		// AND preStreamingMessageIds is populated (indicates an active/recent stream)
-		// Stop filtering only when streaming content is cleared (e.g., after tab switch back and content cleared)
+		// IMPORTANT: Only filter during ACTIVE streaming (processing=true)
+		// After reload, completed=true but we want to show all messages from DB
 		const shouldFilter =
 			messages.length > 0 &&
 			sseStream.preStreamingMessageIds &&
 			sseStream.preStreamingMessageIds.size >= 0 &&
-			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent);
+			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent) &&
+			sseStream.processing; // ← Changed: Only filter during active streaming, not after completion
 
 		if (shouldFilter) {
 			const filtered = messages.filter((msg) => {

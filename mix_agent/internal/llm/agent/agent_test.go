@@ -32,15 +32,14 @@ func CreateTestAgent(t *testing.T, mockSessions *session.MockService, mockMessag
 		broker:            pubsub.NewBroker[AgentEvent](),
 		agentName:         config.AgentMain,
 		provider:          mockProvider,
-		messages:          mockMessages,
-		sessions:          mockSessions,
-		storageConfig:     storageConfig,
-		tools:             agentTools,
-		titleProvider:     mockProvider,
-		summarizeProvider: mockProvider,
-		accumulator:       accumulator,
-		ctx:               ctx,
-		cancel:            cancel,
+		messages:       mockMessages,
+		sessions:       mockSessions,
+		storageConfig:  storageConfig,
+		tools:          agentTools,
+		titleProvider:  mockProvider,
+		accumulator:    accumulator,
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 }
 
@@ -51,7 +50,6 @@ func CreateTestSession() session.Session {
 		UserMessageCount:      0,
 		AssistantMessageCount: 0,
 		ToolCallCount:         0,
-		SummaryMessageID:      "",
 		CreatedAt:             time.Now().Unix(),
 		UpdatedAt:             time.Now().Unix(),
 	}
@@ -120,28 +118,6 @@ func TestCancel(t *testing.T) {
 
 	// Check that context was cancelled (should not exist in map anymore)
 	_, exists := agent.activeContexts.Load(sessionID)
-	assert.False(t, exists)
-}
-
-// Test Cancel with summarize context
-func TestCancelSummarize(t *testing.T) {
-	mockSessions := &session.MockService{}
-	mockMessages := &message.MockService{}
-	mockProvider := &interfaces.MockProvider{}
-
-	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
-
-	sessionID := "test-session-123"
-
-	// Set up a summarize context to cancel
-	_, cancel := context.WithCancel(context.Background())
-	agent.activeContexts.Store(sessionID+"-summarize", cancel)
-
-	// Test cancel
-	agent.Cancel(sessionID)
-
-	// Check that summarize context was cancelled
-	_, exists := agent.activeContexts.Load(sessionID + "-summarize")
 	assert.False(t, exists)
 }
 

@@ -60,7 +60,7 @@ const formatToolContent = (
 ): string => {
 	const { truncate = false, limit = TOOL_CONTENT_TRUNCATE_LIMIT } = options;
 
-	// Only apply special key-value formatting for "barch" tool
+	// Only apply special key-value formatting for "Bash" tool
 	const shouldApplyKeyValueFormatting = toolName?.toLowerCase() === "bash";
 
 	// For Task tool, only show the prompt parameter

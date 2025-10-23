@@ -131,19 +131,14 @@ const convertBackendMessageToUI = async (
 	}
 
 	// Add tool calls to timeline ONLY if we have subagent events or reasoning
-	// Exception: show_media is ALWAYS added to timeline for proper rendering
 	// Otherwise, let regular tool rendering handle it for consistency
 	if (toolCalls && toolCalls.length > 0) {
 		for (const tc of toolCalls) {
 			// Check if this tool has subagent events
-			const hasSubagentEvents = subagentTimeline && subagentTimeline.has(tc.id);
+			const hasSubagentEvents = subagentTimeline?.has(tc.id);
 
-			// Add to timeline if: reasoning exists, subagent events exist, OR it's show_media tool
-			if (
-				backendMessage.reasoning?.trim() ||
-				hasSubagentEvents ||
-				tc.name === "show_media"
-			) {
+			// Only add to timeline if there's reasoning or subagent events
+			if (backendMessage.reasoning?.trim() || hasSubagentEvents) {
 				timeline.push({
 					type: "tool",
 					timestamp: Date.now(),
@@ -152,13 +147,28 @@ const convertBackendMessageToUI = async (
 				});
 
 				// Add subagent events for THIS specific tool call only
-				if (hasSubagentEvents) {
+				if (hasSubagentEvents && subagentTimeline) {
 					const subagentEvents = subagentTimeline.get(tc.id);
 					if (subagentEvents) {
 						timeline.push(...subagentEvents);
 					}
 				}
 			}
+		}
+	}
+
+	// Add callback results to timeline
+	if (
+		backendMessage.callbackResults &&
+		backendMessage.callbackResults.length > 0
+	) {
+		for (const cr of backendMessage.callbackResults) {
+			timeline.push({
+				type: "callback_result",
+				timestamp: Date.now(),
+				content: cr,
+				id: `callback-${cr.toolCallId}-${backendMessage.id}`,
+			});
 		}
 	}
 

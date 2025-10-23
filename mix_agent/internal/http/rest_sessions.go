@@ -1,12 +1,14 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"mix/internal/app"
+	"mix/internal/llm/interfaces"
 	session2 "mix/internal/session"
 )
 
@@ -18,25 +20,52 @@ const (
 
 // SessionData represents session information for REST API
 type SessionData struct {
-	ID                    string    `json:"id"`
-	ParentSessionID       string    `json:"parentSessionId,omitempty"`
-	ParentToolCallID      string    `json:"parentToolCallId,omitempty"`
-	Title                 string    `json:"title"`
-	SessionType           string    `json:"sessionType"`
-	SubagentType          string    `json:"subagentType,omitempty"`
-	UserMessageCount      int64     `json:"userMessageCount"`
-	AssistantMessageCount int64     `json:"assistantMessageCount"`
-	ToolCallCount         int64     `json:"toolCallCount"`
-	PromptTokens          int64     `json:"promptTokens"`
-	CompletionTokens      int64     `json:"completionTokens"`
-	Cost                  float64   `json:"cost"`
-	CreatedAt             time.Time `json:"createdAt"`
-	FirstUserMessage      string    `json:"firstUserMessage,omitempty"`
+	ID                    string                        `json:"id"`
+	ParentSessionID       string                        `json:"parentSessionId,omitempty"`
+	ParentToolCallID      string                        `json:"parentToolCallId,omitempty"`
+	Title                 string                        `json:"title"`
+	SessionType           string                        `json:"sessionType"`
+	SubagentType          string                        `json:"subagentType,omitempty"`
+	UserMessageCount      int64                         `json:"userMessageCount"`
+	AssistantMessageCount int64                         `json:"assistantMessageCount"`
+	ToolCallCount         int64                         `json:"toolCallCount"`
+	PromptTokens          int64                         `json:"promptTokens"`
+	CompletionTokens      int64                         `json:"completionTokens"`
+	Cost                  float64                       `json:"cost"`
+	CreatedAt             time.Time                     `json:"createdAt"`
+	FirstUserMessage      string                        `json:"firstUserMessage,omitempty"`
+	Callbacks             []interfaces.CallbackConfig   `json:"callbacks,omitempty"` // Session-level callbacks
 }
 
 // SessionHandler handles REST endpoints for session operations
 type SessionHandler struct {
 	app *app.App
+}
+
+// sessionToData converts a Session to SessionData for API responses.
+// Returns an error if callback parsing fails.
+func sessionToData(session session2.Session) (SessionData, error) {
+	callbacks, err := session.GetCallbacks()
+	if err != nil {
+		return SessionData{}, fmt.Errorf("failed to parse session callbacks: %w", err)
+	}
+
+	return SessionData{
+		ID:                    session.ID,
+		ParentSessionID:       session.ParentSessionID,
+		ParentToolCallID:      session.ParentToolCallID,
+		Title:                 session.Title,
+		SessionType:           session.SessionType.String(),
+		SubagentType:          session.SubagentType.String(),
+		UserMessageCount:      session.UserMessageCount,
+		AssistantMessageCount: session.AssistantMessageCount,
+		ToolCallCount:         session.ToolCallCount,
+		PromptTokens:          session.PromptTokens,
+		CompletionTokens:      session.CompletionTokens,
+		Cost:                  session.Cost,
+		CreatedAt:             time.Unix(session.CreatedAt, 0),
+		Callbacks:             callbacks,
+	}, nil
 }
 
 // NewSessionHandler creates a new session handler
@@ -122,20 +151,10 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result := SessionData{
-		ID:                    session.ID,
-		ParentSessionID:       session.ParentSessionID,
-		ParentToolCallID:      session.ParentToolCallID,
-		Title:                 session.Title,
-		SessionType:           session.SessionType.String(),   // Convert typed field to string
-		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
-		UserMessageCount:      session.UserMessageCount,
-		AssistantMessageCount: session.AssistantMessageCount,
-		ToolCallCount:         session.ToolCallCount,
-		PromptTokens:          session.PromptTokens,
-		CompletionTokens:      session.CompletionTokens,
-		Cost:                  session.Cost,
-		CreatedAt:             time.Unix(session.CreatedAt, 0),
+	result, err := sessionToData(session)
+	if err != nil {
+		sendInternalError(w, "converting session data", err)
+		return
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
@@ -143,11 +162,12 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 // CreateSessionRequest represents the request body for creating a session
 type CreateSessionRequest struct {
-	Title              string `json:"title"`
-	CustomSystemPrompt string `json:"customSystemPrompt,omitempty"`
-	PromptMode         string `json:"promptMode,omitempty"`
-	SessionType        string `json:"sessionType,omitempty"`        // Only "main" or empty allowed
-	SubagentType       string `json:"subagentType,omitempty"`       // Must be empty for API-created sessions
+	Title              string                        `json:"title"`
+	CustomSystemPrompt string                        `json:"customSystemPrompt,omitempty"`
+	PromptMode         string                        `json:"promptMode,omitempty"`
+	SessionType        string                        `json:"sessionType,omitempty"`   // Only "main" or empty allowed
+	SubagentType       string                        `json:"subagentType,omitempty"`  // Must be empty for API-created sessions
+	Callbacks          []interfaces.CallbackConfig   `json:"callbacks,omitempty"`     // Session-level callbacks
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -224,6 +244,21 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Set callbacks if provided
+	if len(req.Callbacks) > 0 {
+		if err := session.SetCallbacks(req.Callbacks); err != nil {
+			sendValidationError(w, "callbacks", err.Error())
+			return
+		}
+
+		// Save session with callbacks
+		session, err = h.app.Sessions.Save(ctx, session)
+		if err != nil {
+			sendInternalError(w, "saving session callbacks", err)
+			return
+		}
+	}
+
 	// Track session creation
 	if h.app.Analytics != nil {
 		hasCustomPrompt := req.CustomSystemPrompt != ""
@@ -231,20 +266,10 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		_ = h.app.Analytics.TrackSessionCreated(ctx, session.ID, req.Title, hasCustomPrompt, promptMode, customPromptLength)
 	}
 
-	result := SessionData{
-		ID:                    session.ID,
-		ParentSessionID:       session.ParentSessionID,
-		ParentToolCallID:      session.ParentToolCallID,
-		Title:                 session.Title,
-		SessionType:           session.SessionType.String(),   // Convert typed field to string
-		SubagentType:          session.SubagentType.String(),  // Convert typed field to string
-		UserMessageCount:      session.UserMessageCount,
-		AssistantMessageCount: session.AssistantMessageCount,
-		ToolCallCount:         session.ToolCallCount,
-		PromptTokens:          session.PromptTokens,
-		CompletionTokens:      session.CompletionTokens,
-		Cost:                  session.Cost,
-		CreatedAt:             time.Unix(session.CreatedAt, 0),
+	result, err := sessionToData(session)
+	if err != nil {
+		sendInternalError(w, "converting session data", err)
+		return
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)
@@ -378,6 +403,66 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 
 	// Return 204 No Content for successful deletion
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// UpdateCallbacksRequest represents the request body for updating session callbacks
+type UpdateCallbacksRequest struct {
+	Callbacks []interfaces.CallbackConfig `json:"callbacks"`
+}
+
+// HandleUpdateSessionCallbacks handles PATCH /api/sessions/{id}/callbacks
+func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != "PATCH" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return
+	}
+
+	var req UpdateCallbacksRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendValidationError(w, "body", fmt.Sprintf("Invalid JSON: %v", err))
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get existing session
+	session, err := h.app.Sessions.Get(ctx, sessionID)
+	if err != nil {
+		sendNotFoundError(w, "Session", sessionID)
+		return
+	}
+
+	// Update callbacks (validation happens inside SetCallbacks)
+	if err := session.SetCallbacks(req.Callbacks); err != nil {
+		sendValidationError(w, "callbacks", err.Error())
+		return
+	}
+
+	// Save updated session
+	updatedSession, err := h.app.Sessions.Save(ctx, session)
+	if err != nil {
+		sendInternalError(w, "updating session callbacks", err)
+		return
+	}
+
+	result, err := sessionToData(updatedSession)
+	if err != nil {
+		sendInternalError(w, "converting session data", err)
+		return
+	}
+
+	sendJSONResponse(w, http.StatusOK, result)
 }
 
 // RewindSessionRequest represents the request body for rewinding a session

@@ -42,8 +42,6 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 
 		// Start the background refresh service
 		go tokenRefreshService.Start(ctx)
-
-		logging.Info("OAuth token refresh service started", "checkInterval", "30m")
 	} else {
 		logging.Warn("Credentials service not available - OAuth token refresh service disabled")
 	}
@@ -56,7 +54,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Set CORS headers for all requests
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 			w.Header().Set("Access-Control-Max-Age", "86400")
 
@@ -117,6 +115,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 	mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.HandleGetSession)
 	mux.HandleFunc("POST /api/sessions", sessionHandler.HandleCreateSession)
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
+	mux.HandleFunc("PATCH /api/sessions/{id}/callbacks", sessionHandler.HandleUpdateSessionCallbacks)
 	mux.HandleFunc("POST /api/sessions/{id}/rewind", sessionHandler.HandleRewindSession)
 	mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.HandleDeleteSession)
 

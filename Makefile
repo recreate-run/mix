@@ -52,6 +52,7 @@ help:
 	@echo "  test-installation - Test if all dependencies are installed"
 	@echo "  test-all    - Run all environment validation tests (no running servers required)"
 	@echo "  frontend-typecheck - Run TypeScript typecheck on frontend code"
+	@echo "  lint        - Run linters for both Go backend and frontend"
 	@echo "  frontend-format - Run knip linter on frontend code"
 	@echo "  frontend-lint - Run knip linter on frontend code"
 	@echo "  frontend-knip - Run biome linter on frontend code"
@@ -241,6 +242,10 @@ frontend-lint:
 frontend-knip:
 	@echo "Running knip linter on frontend..."
 	cd mix_dev_tool && bun knip
+
+# Run linters for both Go backend and frontend
+lint: go-lint frontend-lint
+	@echo "✅ All linting completed successfully!"
 
 # Run golangci-lint on Go backend code
 go-lint:

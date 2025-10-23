@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"mix/internal/llm/interfaces"
 )
 
 type mediaShowcaseTool struct{}
@@ -31,7 +29,7 @@ func NewMediaShowcaseTool() BaseTool {
 
 func (t *mediaShowcaseTool) Info() ToolInfo {
 	return ToolInfo{
-		Name:        "show_media",
+		Name:        "ShowMedia",
 		Description: LoadToolDescription("show_media"),
 		Parameters: map[string]any{
 			"outputs": map[string]any{
@@ -176,26 +174,4 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 		Type:    "text",
 		Content: message,
 	}, nil
-}
-
-// GetCallbacks implements the CallbackTool interface
-// This allows post-processing of showcased media files
-func (t *mediaShowcaseTool) GetCallbacks() []interfaces.CallbackConfig {
-	// Callbacks are disabled by default
-	// To enable, return a configured callback array like:
-	//
-	// return []interfaces.CallbackConfig{
-	// 	{
-	// 		Type: interfaces.CallbackTypeBashScript,
-	// 		BashCommand: `
-	// 			echo "Processing media: $CALLBACK_TOOL_NAME" >> media_callback.log
-	// 			echo "Session: $CALLBACK_SESSION_ID" >> media_callback.log
-	// 			echo "Result: $CALLBACK_TOOL_RESULT" >> media_callback.log
-	// 		`,
-	// 		BashTimeout: 30000, // 30 seconds
-	// 		NonBlocking: true,
-	// 	},
-	// }
-
-	return []interfaces.CallbackConfig{}
 }

@@ -36,7 +36,7 @@ type WriteResponseMetadata struct {
 }
 
 const (
-	WriteToolName = "write"
+	WriteToolName = "Write"
 )
 
 func NewWriteTool(permissions permission.Service, files history.Service) BaseTool {

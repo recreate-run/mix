@@ -105,7 +105,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"post": map[string]interface{}{
 					"operationId":  "createSession",
 					"summary":     "Create a new session",
-					"description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.",
+					"description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution.",
 					"tags":        []string{"Sessions"},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type": "object",
@@ -139,6 +139,13 @@ func getOpenAPISpec() OpenAPISpec {
 								"type":        "string",
 								"description": "Subagent type - must not be set for API-created sessions. This field is reserved for programmatic subagent creation.",
 								"example":     "",
+							},
+							"callbacks": map[string]interface{}{
+								"type":        "array",
+								"description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+								"items": map[string]interface{}{
+									"$ref": "#/components/schemas/Callback",
+								},
 							},
 						},
 					}),
@@ -277,6 +284,35 @@ func getOpenAPISpec() OpenAPISpec {
 						"201": createSuccessResponse("object", getSessionDataSchema(), "Forked session"),
 						"400": createErrorResponse("Invalid request - messageIndex must be >= 0"),
 						"404": createErrorResponse("Source session not found"),
+					},
+				},
+			},
+			"/api/sessions/{id}/callbacks": map[string]interface{}{
+				"patch": map[string]interface{}{
+					"operationId":  "updateSessionCallbacks",
+					"summary":     "Update session callbacks",
+					"description": "Update the callback configurations for a session. Callbacks execute automatically after tool completion. Pass an empty array to clear all callbacks.",
+					"tags":        []string{"Sessions"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Session ID to update"),
+					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type": "object",
+						"required": []string{"callbacks"},
+						"properties": map[string]interface{}{
+							"callbacks": map[string]interface{}{
+								"type":        "array",
+								"description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
+								"items": map[string]interface{}{
+									"$ref": "#/components/schemas/Callback",
+								},
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"200": createSuccessResponse("object", getSessionDataSchema(), "Session callbacks updated successfully"),
+						"400": createErrorResponse("Invalid request - validation error in callbacks array"),
+						"404": createErrorResponse("Session not found"),
 					},
 				},
 			},
@@ -1622,9 +1658,9 @@ func getOpenAPISpec() OpenAPISpec {
 				"CoreToolName": map[string]interface{}{
 					"type": "string",
 					"enum": []string{
-						"bash", "ReadText", "glob", "ReadMedia", "grep", "write", "edit",
-						"python_execution", "search", "todo_write", "exit_plan_mode",
-						"show_media", "task",
+						"Bash", "ReadText", "Glob", "ReadMedia", "Grep", "Write", "Edit",
+						"python_execution", "Search", "TodoWrite", "ExitPlanMode",
+						"ShowMedia", "Task",
 					},
 					"description": "Core built-in tool names",
 				},
@@ -1639,6 +1675,61 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 					"description": "Tool name - either a core tool or MCP tool following {serverName}_{toolName} pattern",
+				},
+				"Callback": map[string]interface{}{
+					"type": "object",
+					"description": "Session-level callback configuration that executes after tool completion",
+					"required": []string{"toolName", "type"},
+					"properties": map[string]interface{}{
+						"name": map[string]interface{}{
+							"type":        "string",
+							"description": "Human-readable name for this callback (optional, defaults to 'Callback #XXXX')",
+							"example":     "Log Output",
+						},
+						"toolName": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+							"example":     "*",
+						},
+						"type": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"bash_script", "sub_agent", "send_message"},
+							"description": "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents, 'send_message' for injecting messages",
+						},
+						"bashCommand": map[string]interface{}{
+							"type":        "string",
+							"description": "Bash command to execute (required for bash_script type). Has access to environment variables.",
+						},
+						"bashTimeout": map[string]interface{}{
+							"type":        "integer",
+							"description": "Timeout in milliseconds for bash execution (default: 120000)",
+							"default":     120000,
+						},
+						"subAgentPrompt": map[string]interface{}{
+							"type":        "string",
+							"description": "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended.",
+						},
+						"subAgentType": map[string]interface{}{
+							"type":        "string",
+							"description": "Type of sub-agent to spawn (default: 'general-purpose')",
+							"default":     "general-purpose",
+						},
+						"includeFullHistory": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Include full conversation history in sub-agent context (not yet implemented)",
+							"default":     false,
+						},
+						"messageContent": map[string]interface{}{
+							"type":        "string",
+							"description": "Message content to inject into the conversation (required for send_message type). Will be sent as a User message.",
+							"example":     "Please review the changes and run tests",
+						},
+						"excludeFromContext": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Exclude callback results from agent context. Only applies to bash_script and sub_agent types. Not allowed for send_message.",
+							"default":     false,
+						},
+					},
 				},
 				"ErrorResponse": map[string]interface{}{
 					"type": "object",
@@ -1736,6 +1827,13 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "First user message (optional)",
 						},
+						"callbacks": map[string]interface{}{
+							"type":        "array",
+							"description": "Session-level callback configurations (optional)",
+							"items": map[string]interface{}{
+								"$ref": "#/components/schemas/Callback",
+							},
+						},
 					},
 					"required": []string{"id", "title", "sessionType", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
 				},
@@ -1786,6 +1884,13 @@ func getOpenAPISpec() OpenAPISpec {
 							},
 							"description": "Tool calls made during message processing",
 						},
+					"callbackResults": map[string]interface{}{
+						"type": "array",
+						"items": map[string]interface{}{
+							"$ref": "#/components/schemas/CallbackResultData",
+						},
+						"description": "Callback execution results (optional)",
+					},
 						"reasoning": map[string]interface{}{
 							"type":        "string",
 							"description": "Reasoning process (optional)",
@@ -1983,6 +2088,62 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"required": []string{"id", "name", "input", "type", "finished"},
 				},
+				"CallbackResultData": map[string]interface{}{
+					"type": "object",
+					"description": "Callback execution result information",
+					"properties": map[string]interface{}{
+						"tool_call_id": map[string]interface{}{
+							"type":        "string",
+							"description": "ID of the tool call that triggered this callback",
+						},
+						"tool_name": map[string]interface{}{
+							"type":        "string",
+							"description": "Name of the tool that triggered callback",
+						},
+						"callback_name": map[string]interface{}{
+							"type":        "string",
+							"description": "Human-readable name of the callback (optional)",
+						},
+						"callback_type": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"bash_script", "sub_agent", "send_message"},
+							"description": "Type of callback executed",
+						},
+						"stdout": map[string]interface{}{
+							"type":        "string",
+							"description": "Standard output from bash callback (optional)",
+						},
+						"stderr": map[string]interface{}{
+							"type":        "string",
+							"description": "Standard error from bash callback (optional)",
+						},
+						"exit_code": map[string]interface{}{
+							"type":        "integer",
+							"description": "Exit code from bash callback (optional)",
+						},
+						"subagent_id": map[string]interface{}{
+							"type":        "string",
+							"description": "ID of spawned sub-agent session (optional)",
+						},
+						"subagent_result": map[string]interface{}{
+							"type":        "string",
+							"description": "Result from sub-agent execution (optional)",
+						},
+						"success": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether callback executed successfully",
+						},
+						"error": map[string]interface{}{
+							"type":        "string",
+							"description": "Error message if callback failed (optional)",
+						},
+						"exclude_from_context": map[string]interface{}{
+							"type":        "boolean",
+							"description": "Whether this callback result is excluded from agent context (optional)",
+						},
+					},
+					"required": []string{"tool_call_id", "tool_name", "callback_type", "success"},
+				},
 				"FileInfo": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -2023,7 +2184,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"event": map[string]interface{}{
 							"type":        "string",
 							"description": "Event type identifier",
-							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "summarize", "user_message_created", "session_created", "session_deleted"},
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "user_message_created", "session_created", "session_deleted"},
 						},
 						"retry": map[string]interface{}{
 							"type":        "integer",
@@ -2050,7 +2211,6 @@ func getOpenAPISpec() OpenAPISpec {
 							"tool_execution_start":   "#/components/schemas/SSEToolExecutionStartEvent",
 							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
 							"permission":             "#/components/schemas/SSEPermissionEvent",
-							"summarize":              "#/components/schemas/SSESummarizeEvent",
 							"user_message_created":   "#/components/schemas/SSEUserMessageCreatedEvent",
 							"session_created":        "#/components/schemas/SSESessionCreatedEvent",
 							"session_deleted":        "#/components/schemas/SSESessionDeletedEvent",
@@ -2068,7 +2228,6 @@ func getOpenAPISpec() OpenAPISpec {
 						{"$ref": "#/components/schemas/SSEToolExecutionStartEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
 						{"$ref": "#/components/schemas/SSEPermissionEvent"},
-						{"$ref": "#/components/schemas/SSESummarizeEvent"},
 						{"$ref": "#/components/schemas/SSEUserMessageCreatedEvent"},
 						{"$ref": "#/components/schemas/SSESessionCreatedEvent"},
 						{"$ref": "#/components/schemas/SSESessionDeletedEvent"},
@@ -2476,39 +2635,6 @@ func getOpenAPISpec() OpenAPISpec {
 										},
 									},
 									"required": []string{"type", "id", "sessionId", "toolName", "description", "action"},
-								},
-							},
-							"required": []string{"data"},
-						},
-					},
-				},
-				"SSESummarizeEvent": map[string]interface{}{
-					"allOf": []map[string]interface{}{
-						{"$ref": "#/components/schemas/SSEBaseEvent"},
-						{
-							"type": "object",
-							"properties": map[string]interface{}{
-								"data": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"type": map[string]interface{}{
-											"type":        "string",
-											"description": "Summarization event type",
-										},
-										"progress": map[string]interface{}{
-											"type":        "string",
-											"description": "Summarization progress description",
-										},
-										"done": map[string]interface{}{
-											"type":        "boolean",
-											"description": "Indicates if summarization is complete",
-										},
-										"parentToolCallId": map[string]interface{}{
-											"type":        "string",
-											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
-										},
-									},
-									"required": []string{"type", "progress", "done"},
 								},
 							},
 							"required": []string{"data"},

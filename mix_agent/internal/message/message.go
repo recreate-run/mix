@@ -256,6 +256,7 @@ const (
 	uriType                 partType = "uri"
 	toolCallType            partType = "tool_call"
 	toolResultType          partType = "tool_result"
+	callbackResultType      partType = "callback_result"
 	finishType              partType = "finish"
 )
 
@@ -289,6 +290,8 @@ func marshallParts(parts []ContentPart) ([]byte, error) {
 			typ = toolCallType
 		case ToolResult:
 			typ = toolResultType
+		case CallbackResult:
+			typ = callbackResultType
 		case Finish:
 			typ = finishType
 		case ThinkingBlock:
@@ -375,6 +378,12 @@ func unmarshallParts(data []byte) ([]ContentPart, error) {
 			parts = append(parts, part)
 		case toolResultType:
 			part := ToolResult{}
+			if err := json.Unmarshal(wrapper.Data, &part); err != nil {
+				return nil, err
+			}
+			parts = append(parts, part)
+		case callbackResultType:
+			part := CallbackResult{}
 			if err := json.Unmarshal(wrapper.Data, &part); err != nil {
 				return nil, err
 			}

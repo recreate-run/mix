@@ -19,7 +19,7 @@ type taskTool struct {
 }
 
 const (
-	TaskToolName = "task"
+	TaskToolName = "Task"
 )
 
 type TaskParams struct {

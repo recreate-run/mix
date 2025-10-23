@@ -69,8 +69,8 @@ var (
 	ErrRequestCancelled = errors.New("request cancelled by user")
 
 	// Specific cancellation reasons for better diagnostics
-	ErrRequestCancelledByUser    = errors.New("request cancelled by user")
-	ErrRequestCancelledTimeout   = errors.New("request cancelled: timeout exceeded")
+	ErrRequestCancelledByUser     = errors.New("request cancelled by user")
+	ErrRequestCancelledTimeout    = errors.New("request cancelled: timeout exceeded")
 	ErrRequestCancelledDisconnect = errors.New("request cancelled: client disconnected")
 )
 
@@ -89,7 +89,6 @@ type AgentEventType string
 const (
 	AgentEventTypeError                 AgentEventType = "error"
 	AgentEventTypeResponse              AgentEventType = "response"
-	AgentEventTypeSummarize             AgentEventType = "summarize"
 	AgentEventTypeThinking              AgentEventType = "thinking"
 	AgentEventTypeContentDelta          AgentEventType = "content_delta"
 	AgentEventTypeToolParameterDelta    AgentEventType = "tool_parameter_delta"
@@ -131,7 +130,6 @@ type Service interface {
 	Cancel(sessionID string)
 	CancelWithReason(sessionID string, reason string)
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
-	Summarize(ctx context.Context, sessionID string) error
 	ClearAllSessionProviders()
 	GetTools() []tools.BaseTool
 	Shutdown()
@@ -141,14 +139,14 @@ type agent struct {
 	broker        *pubsub.Broker[AgentEvent]
 	sessions      session.Service
 	messages      message.Service
+	permissions   permission.Service
 	storageConfig session.Config
 
 	agentName config.AgentName
 	tools     []tools.BaseTool
 	provider  interfaces.Provider
 
-	titleProvider     interfaces.Provider
-	summarizeProvider interfaces.Provider
+	titleProvider interfaces.Provider
 
 	sessionProviders sync.Map // Maps session ID to interfaces.Provider
 	activeContexts   sync.Map // Maps session ID to context.CancelFunc for cancellation
@@ -197,23 +195,16 @@ func NewAgentWithBroker(
 			return nil, err
 		}
 	}
-	var summarizeProvider interfaces.Provider
-	if agentName == config.AgentMain {
-		summarizeProvider, err = createAgentProvider(config.AgentMain)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Create message accumulator (no periodic flushing)
 	accumulator := NewMessageAccumulator(messages)
 
-	// Create callback executor if permissions service is provided
-	var callbackExecutor interfaces.CallbackExecutor
-	if len(permissions) > 0 && permissions[0] != nil {
-		callbackExecutor = callbacks.NewExecutor(sessions, permissions[0])
+	// Extract permissions service (may be nil)
+	var perms permission.Service
+	if len(permissions) > 0 {
+		perms = permissions[0]
 	}
 
 	// Create new broker if not provided (for subagents sharing parent broker)
@@ -222,21 +213,25 @@ func NewAgentWithBroker(
 	}
 
 	agent := &agent{
-		broker:            broker,
-		agentName:         agentName,
-		provider:          agentProvider,
-		messages:          messages,
-		sessions:          sessions,
-		storageConfig:     storageConfig,
-		tools:             agentTools,
-		titleProvider:     titleProvider,
-		summarizeProvider: summarizeProvider,
-		sessionProviders:  sync.Map{},
-		activeContexts:    sync.Map{},
-		accumulator:       accumulator,
-		callbackExecutor:  callbackExecutor,
-		ctx:               ctx,
-		cancel:            cancel,
+		broker:           broker,
+		agentName:        agentName,
+		provider:         agentProvider,
+		messages:         messages,
+		sessions:         sessions,
+		permissions:      perms,
+		storageConfig:    storageConfig,
+		tools:            agentTools,
+		titleProvider:    titleProvider,
+		sessionProviders: sync.Map{},
+		activeContexts:   sync.Map{},
+		accumulator:      accumulator,
+		ctx:              ctx,
+		cancel:           cancel,
+	}
+
+	// Create callback executor with factory function (if permissions service is provided)
+	if perms != nil {
+		agent.callbackExecutor = callbacks.NewExecutor(sessions, perms, messages, agent.createSubAgentForCallback)
 	}
 
 	// Inject agent reference into task tool (resolves circular dependency)
@@ -284,13 +279,6 @@ func (a *agent) CancelWithReason(sessionID string, reason string) {
 	if cancel, ok := cancelFunc.(context.CancelFunc); ok {
 		cancel()
 		a.setSessionState(sessionID, SessionStateCancelled)
-	}
-
-	// Also check for summarize requests
-	if cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID + "-summarize"); exists {
-		if cancel, ok := cancelFunc.(context.CancelFunc); ok {
-			cancel()
-		}
 	}
 }
 
@@ -486,11 +474,14 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 func (a *agent) processGeneration(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) AgentEvent {
 	// Starting message processing for session
 	_ = config.Get()
-	// List existing messages; if none, start title generation asynchronously.
-	msgs, err := a.messages.List(ctx, sessionID)
+
+	// Load conversation history
+	msgs, err := a.loadConversationHistory(ctx, sessionID)
 	if err != nil {
-		return a.err(fmt.Errorf("failed to list messages: %w", err))
+		return a.err(err)
 	}
+
+	// Start title generation asynchronously if this is the first message
 	if len(msgs) == 0 {
 		go func() {
 			defer logging.RecoverPanic("agent.Run", func() {
@@ -501,23 +492,6 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 				logging.Error(fmt.Sprintf("failed to generate title: %v", titleErr))
 			}
 		}()
-	}
-	session, err := a.sessions.Get(ctx, sessionID)
-	if err != nil {
-		return a.err(fmt.Errorf("failed to get session: %w", err))
-	}
-	if session.SummaryMessageID != "" {
-		summaryMsgInex := -1
-		for i, msg := range msgs {
-			if msg.ID == session.SummaryMessageID {
-				summaryMsgInex = i
-				break
-			}
-		}
-		if summaryMsgInex != -1 {
-			msgs = msgs[summaryMsgInex:]
-			msgs[0].Role = message.User
-		}
 	}
 
 	userMsg, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
@@ -544,7 +518,11 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			// Continue processing
 		}
 
-		// Starting conversation turn
+		// Log conversation turn start for observability
+		logging.Info("Starting conversation turn",
+			"conversationTurn", conversationTurn,
+			"historyLength", len(msgHistory),
+			"sessionID", sessionID)
 
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
@@ -563,16 +541,36 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			return a.err(fmt.Errorf("failed to process events: %w", err))
 		}
 
-		// Enhanced tool results logging for debugging
-		if (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil {
-			// We are not done, we need to respond with the tool response
-			// Tool execution completed, continuing conversation
+		// Append messages to history based on whether tools were used
+		hasTools := (agentMessage.FinishReason() == message.FinishReasonToolUse) && toolResults != nil
+		if hasTools {
 			msgHistory = append(msgHistory, agentMessage, *toolResults)
+		} else {
+			msgHistory = append(msgHistory, agentMessage)
+		}
+
+		// Check for callback-injected messages after every agent turn (single check point)
+		reloadedHistory, err := a.loadConversationHistory(ctx, sessionID)
+		if err != nil {
+			logging.Error("Failed to reload conversation history", "error", err)
+		} else if len(reloadedHistory) > len(msgHistory) {
+			// Callbacks injected messages - continue conversation to process them
+			logging.Info("Detected callback-injected messages",
+				"previousLength", len(msgHistory),
+				"newLength", len(reloadedHistory),
+				"conversationTurn", conversationTurn)
+			msgHistory = reloadedHistory
 			conversationTurn++
 			continue
 		}
-		// Publish final completion event
 
+		// If agent used tools, continue to next turn
+		if hasTools {
+			conversationTurn++
+			continue
+		}
+
+		// Agent finished with no tools and no injected messages - conversation complete
 		finalEvent := AgentEvent{
 			Type:      AgentEventTypeResponse,
 			Message:   agentMessage,
@@ -605,6 +603,44 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 		Parts: parts,
 	})
 	return userMsg, err
+}
+
+// loadConversationHistory loads all messages for a session
+func (a *agent) loadConversationHistory(ctx context.Context, sessionID string) ([]message.Message, error) {
+	msgs, err := a.messages.List(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list messages: %w", err)
+	}
+
+	// Filter out messages with excluded callback results
+	filteredMsgs := make([]message.Message, 0, len(msgs))
+	for _, msg := range msgs {
+		if shouldExcludeMessage(msg) {
+			continue
+		}
+		filteredMsgs = append(filteredMsgs, msg)
+	}
+	msgs = filteredMsgs
+
+	return msgs, nil
+}
+
+// shouldExcludeMessage checks if a message contains callback results marked for exclusion from context
+func shouldExcludeMessage(msg message.Message) bool {
+	// Only check Tool messages for excluded callback results
+	if msg.Role != message.Tool {
+		return false
+	}
+
+	// Check if any callback result part has ExcludeFromContext set to true
+	callbackResults := msg.CallbackResults()
+	for _, result := range callbackResults {
+		if result.ExcludeFromContext {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
@@ -699,6 +735,80 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	// Log tool execution errors but don't fail the entire flow
 	if toolErr != nil {
 		logging.Error("Some tools failed during execution", "error", toolErr, "sessionID", sessionID)
+	}
+
+	// Execute callbacks NOW that tool_result message is saved to database
+	// This ensures proper message ordering: Assistant(tool_use) → Tool(result) → User(injected)
+	if a.callbackExecutor != nil {
+		sessionStorageDir, _ := tools.GetSessionStorageDirectory(ctx)
+		messageID, _ := ctx.Value(tools.MessageIDContextKey).(string)
+
+		// Use WaitGroup to ensure all callbacks complete before returning
+		// This prevents race condition where agent checks for injected messages before callbacks finish
+		var callbackWg sync.WaitGroup
+
+		for _, toolCall := range toolCalls {
+			// Get tool result for this call
+			var toolResult interfaces.ToolResponse
+			for _, result := range toolResults {
+				if tr, ok := result.(message.ToolResult); ok && tr.ToolCallID == toolCall.ID {
+					toolResult = interfaces.ToolResponse{
+						Content:  tr.Content,
+						Metadata: tr.Metadata,
+						IsError:  tr.IsError,
+					}
+					break
+				}
+			}
+
+			// Skip callbacks for failed tools
+			if toolResult.IsError {
+				continue
+			}
+
+			// Load callbacks for this tool
+			sessionCallbacks, err := a.getSessionCallbacks(ctx, sessionID, toolCall.Name)
+			if err != nil {
+				logging.Error("Failed to load session callbacks", "error", err, "sessionID", sessionID, "tool", toolCall.Name)
+				continue
+			}
+
+			if len(sessionCallbacks) == 0 {
+				continue
+			}
+
+			// Track this callback goroutine
+			callbackWg.Add(1)
+
+			// Execute all callbacks asynchronously but sequentially
+			// This ensures: (1) Callbacks execute in parallel per tool, (2) Callbacks maintain execution order within each tool
+			callbackCtx := interfaces.CallbackContext{
+				SessionID:         sessionID,
+				MessageID:         messageID,
+				ToolCall:          interfaces.ToolCall{ID: toolCall.ID, Name: toolCall.Name, Input: toolCall.Input},
+				ToolResult:        toolResult,
+				SessionStorageDir: sessionStorageDir,
+			}
+
+			go func(callbacks []interfaces.CallbackConfig, cbCtx interfaces.CallbackContext, toolName string) {
+				defer callbackWg.Done()
+
+				// Execute callbacks sequentially in order
+				for _, cfg := range callbacks {
+					result, err := a.callbackExecutor.Execute(context.Background(), cfg, cbCtx)
+					if err != nil {
+						logging.Error("Callback execution failed", "tool", toolName, "callback", cfg.Name, "error", err)
+					} else if !result.Success {
+						logging.Warn("Callback completed with errors", "tool", toolName, "callback", cfg.Name, "error", result.Error)
+					}
+				}
+			}(sessionCallbacks, callbackCtx, toolCall.Name)
+		}
+
+		// Wait for all callbacks to complete before returning
+		// This ensures injected messages are saved to database before agent checks for them
+		callbackWg.Wait()
+		logging.Debug("All callbacks completed", "sessionID", sessionID)
 	}
 
 	// Publish completion event
@@ -929,8 +1039,8 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 
 	a.provider = provider
 
-	// Update title and summary providers if this is the main agent
-	// Since title and summary providers always use AgentMain config, we need to update them
+	// Update title provider if this is the main agent
+	// Since title provider always uses AgentMain config, we need to update it
 	// whenever AgentMain model changes
 	if agentName == config.AgentMain {
 		// Update title provider if it exists
@@ -940,16 +1050,6 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 				logging.Warn("Failed to update title provider", "error", err)
 			} else {
 				a.titleProvider = titleProvider
-			}
-		}
-
-		// Update summary provider if it exists
-		if a.summarizeProvider != nil {
-			summarizeProvider, err := createAgentProvider(config.AgentMain)
-			if err != nil {
-				logging.Warn("Failed to update summary provider", "error", err)
-			} else {
-				a.summarizeProvider = summarizeProvider
 			}
 		}
 	}
@@ -976,214 +1076,6 @@ func (a *agent) Publish(ctx context.Context, t pubsub.EventType, event AgentEven
 	return a.broker.Publish(ctx, t, event)
 }
 
-func (a *agent) Summarize(ctx context.Context, sessionID string) error {
-	if a.summarizeProvider == nil {
-		return fmt.Errorf("summarize provider not available")
-	}
-
-	// Create a new context with cancellation
-	summarizeCtx, cancel := context.WithCancel(ctx)
-
-	// Store cancel function for potential cancellation
-	a.activeContexts.Store(sessionID+"-summarize", cancel)
-
-	go func() {
-		defer a.activeContexts.Delete(sessionID + "-summarize")
-		defer cancel()
-		event := AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Starting summarization...",
-		}
-
-		err := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish summarize start event", "error", err)
-		}
-		// Get all messages from the session
-		msgs, err := a.messages.List(summarizeCtx, sessionID)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to list messages: %w", err),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		summarizeCtx = context.WithValue(summarizeCtx, tools.SessionIDContextKey, sessionID)
-
-		// Get session working directory and add to context
-		session, err := a.sessions.Get(summarizeCtx, sessionID)
-		if err == nil {
-			summarizeCtx = tools.SetSessionStorageContext(summarizeCtx, session.ID, a.storageConfig)
-		}
-
-		if len(msgs) == 0 {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("no messages to summarize"),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-
-		event = AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Analyzing conversation...",
-		}
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish analyze event", "error", err)
-		}
-
-		// Add a system message to guide the summarization
-		summarizePrompt := "Provide a detailed but concise summary of our conversation above. Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next."
-
-		// Create a new message with the summarize prompt
-		promptMsg := message.Message{
-			Role:  message.User,
-			Parts: []message.ContentPart{message.TextContent{Text: summarizePrompt}},
-		}
-
-		// Append the prompt to the messages
-		msgsWithPrompt := append(msgs, promptMsg)
-
-		event = AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Generating summary...",
-		}
-
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish generate event", "error", err)
-		}
-
-		// Send the messages to the summarize provider
-		response, err := a.summarizeProvider.SendMessages(
-			summarizeCtx,
-			msgsWithPrompt,
-			make([]tools.BaseTool, 0),
-		)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to summarize: %w", err),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-
-		summary := strings.TrimSpace(response.Content)
-		if summary == "" {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("empty summary returned"),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		event = AgentEvent{
-			Type:     AgentEventTypeSummarize,
-			Progress: "Creating new session...",
-		}
-
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish create session event", "error", err)
-		}
-		oldSession, err := a.sessions.Get(summarizeCtx, sessionID)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to get session: %w", err),
-				Done:  true,
-			}
-
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		// Create a message in the new session with the summary
-		msg, err := a.messages.Create(summarizeCtx, oldSession.ID, message.CreateMessageParams{
-			Role: message.Assistant,
-			Parts: []message.ContentPart{
-				message.TextContent{Text: summary},
-				message.Finish{
-					Reason: message.FinishReasonEndTurn,
-					Time:   time.Now().Unix(),
-				},
-			},
-			Model: a.summarizeProvider.Model().ID,
-		})
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to create summary message: %w", err),
-				Done:  true,
-			}
-
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-			return
-		}
-		oldSession.SummaryMessageID = msg.ID
-		oldSession.CompletionTokens = response.Usage.OutputTokens
-		oldSession.PromptTokens = 0
-		model := a.summarizeProvider.Model()
-		usage := response.Usage
-		cost := model.CostPer1MInCached/1e6*float64(usage.CacheCreationTokens) +
-			model.CostPer1MOutCached/1e6*float64(usage.CacheReadTokens) +
-			model.CostPer1MIn/1e6*float64(usage.InputTokens) +
-			model.CostPer1MOut/1e6*float64(usage.OutputTokens)
-		oldSession.Cost += cost
-		_, err = a.sessions.Save(summarizeCtx, oldSession)
-		if err != nil {
-			event = AgentEvent{
-				Type:  AgentEventTypeError,
-				Error: fmt.Errorf("failed to save session: %w", err),
-				Done:  true,
-			}
-			publishErr := a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-			if publishErr != nil {
-				logging.Error("Failed to publish error event", "error", publishErr)
-			}
-		}
-
-		event = AgentEvent{
-			Type:      AgentEventTypeSummarize,
-			SessionID: oldSession.ID,
-			Progress:  "Summary complete",
-			Done:      true,
-		}
-		err = a.Publish(summarizeCtx, pubsub.CreatedEvent, event)
-		if err != nil {
-			logging.Error("Failed to publish complete event", "error", err)
-		}
-		// Send final success event with the new session ID
-	}()
-
-	return nil
-}
-
 // filterToolsForPlanMode returns only read-only and planning tools for plan mode
 func filterToolsForPlanMode(allTools []tools.BaseTool) []tools.BaseTool {
 	var planModeTools []tools.BaseTool
@@ -1201,14 +1093,15 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 
 	// Allow read-only and planning tools
 	allowedTools := map[string]bool{
-		"ReadText":       true,
-		"ls":             true,
-		"grep":           true,
-		"glob":           true,
-		"todo_write":     true,
-		"exit_plan_mode": true,
-		"fetch":          true,
-		"ReadMedia":      true,
+		"ReadText":     true,
+		"Grep":         true,
+		"Glob":         true,
+		"TodoWrite":    true,
+		"ExitPlanMode": true,
+		"ReadMedia":    true,
+		"WebFetch":     true,
+		"Search":       true,
+		"Task":         true,
 	}
 
 	return allowedTools[toolName]
@@ -1537,7 +1430,7 @@ func (a *agent) ClearAllSessionProviders() {
 		logging.Error("Failed to update main agent provider", "error", err)
 	}
 
-	// Refresh title and summarize providers (they always use AgentMain config)
+	// Refresh title provider (it always uses AgentMain config)
 	if a.titleProvider != nil {
 		newTitleProvider, err := createAgentProvider(config.AgentMain)
 		if err == nil {
@@ -1546,13 +1439,97 @@ func (a *agent) ClearAllSessionProviders() {
 			logging.Error("Failed to refresh title provider", "error", err)
 		}
 	}
+}
 
-	if a.summarizeProvider != nil {
-		newSummarizeProvider, err := createAgentProvider(config.AgentMain)
-		if err == nil {
-			a.summarizeProvider = newSummarizeProvider
-		} else {
-			logging.Error("Failed to refresh summarize provider", "error", err)
-		}
+// createSubAgentForCallback is a factory function for creating subagents in callbacks
+// This function is passed to the callback executor to avoid circular dependencies
+func (a *agent) createSubAgentForCallback(subagentType string) (callbacks.SubAgent, error) {
+	// Get tools for the subagent type (reuse the same logic as task tool)
+	taskToolInstance := &taskTool{
+		sessions:    a.sessions,
+		messages:    a.messages,
+		permissions: a.permissions,
+		agent:       a,
 	}
+
+	agentTools := taskToolInstance.getToolsForSubagentType(subagentType)
+
+	// Use parent agent's broker so subagent events are published to the same broker
+	parentBroker := a.broker
+
+	// Create subagent with the same permissions as parent
+	subAgent, err := NewAgentWithBroker("sub", a.sessions, a.messages, agentTools, a.storageConfig, parentBroker, a.permissions)
+	if err != nil {
+		return nil, fmt.Errorf("error creating sub-agent: %w", err)
+	}
+
+	return &subAgentAdapter{service: subAgent}, nil
+}
+
+// subAgentAdapter adapts agent.Service to callbacks.SubAgent interface
+type subAgentAdapter struct {
+	service Service
+}
+
+// Run executes the subagent
+func (s *subAgentAdapter) Run(ctx context.Context, sessionID string, content string) (<-chan callbacks.AgentEvent, error) {
+	done, err := s.service.Run(ctx, sessionID, content)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the channel from agent.AgentEvent to callbacks.AgentEvent
+	convertedChan := make(chan callbacks.AgentEvent)
+	go func() {
+		defer close(convertedChan)
+		for event := range done {
+			convertedChan <- callbacks.AgentEvent{
+				Error:   event.Error,
+				Content: event.Content,
+				Message: &messageAdapter{msg: event.Message},
+			}
+		}
+	}()
+
+	return convertedChan, nil
+}
+
+// Shutdown stops the subagent
+func (s *subAgentAdapter) Shutdown() {
+	s.service.Shutdown()
+}
+
+// messageAdapter adapts message.Message to callbacks.Message interface
+type messageAdapter struct {
+	msg message.Message
+}
+
+func (m *messageAdapter) FinishReason() string {
+	if m.msg.Role == "" {
+		return ""
+	}
+	return string(m.msg.FinishReason())
+}
+
+func (m *messageAdapter) Role() string {
+	return string(m.msg.Role)
+}
+
+func (m *messageAdapter) Content() callbacks.MessageContent {
+	if m.msg.Role == "" {
+		return &messageContentAdapter{text: ""}
+	}
+	// Get the content and convert it to string
+	// This handles all content types (TextContent, BinaryContent, etc.)
+	content := m.msg.Content()
+	return &messageContentAdapter{text: content.String()}
+}
+
+// messageContentAdapter adapts message content to callbacks.MessageContent interface
+type messageContentAdapter struct {
+	text string
+}
+
+func (m *messageContentAdapter) String() string {
+	return m.text
 }
