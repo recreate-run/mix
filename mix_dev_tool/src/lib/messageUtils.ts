@@ -1,4 +1,5 @@
 import type { BackendMessage } from "mix-typescript-sdk/models";
+import { CoreToolName, SessionType } from "mix-typescript-sdk/models";
 import { mix } from "@/lib/mix-sdk";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall, ToolCallData } from "@/types/common";
@@ -111,9 +112,10 @@ const convertBackendMessageToUI = async (
 		? convertToolCallsToUI(backendMessage.toolCalls)
 		: undefined;
 
-	// Extract media outputs from show_media tool calls
-	const mediaOutputs = toolCalls?.find((tc) => tc.name === "show_media")
-		?.parameters?.outputs as MediaOutput[] | undefined;
+	// Extract media outputs from ShowMedia tool calls
+	const mediaOutputs = toolCalls?.find(
+		(tc) => tc.name === CoreToolName.ShowMedia,
+	)?.parameters?.outputs as MediaOutput[] | undefined;
 
 	// Build timeline from stored data
 	// NOTE: Only create timeline if we have reasoning or subagent events
@@ -131,14 +133,19 @@ const convertBackendMessageToUI = async (
 	}
 
 	// Add tool calls to timeline ONLY if we have subagent events or reasoning
+	// Exception: ShowMedia is ALWAYS added to timeline for proper rendering
 	// Otherwise, let regular tool rendering handle it for consistency
 	if (toolCalls && toolCalls.length > 0) {
 		for (const tc of toolCalls) {
 			// Check if this tool has subagent events
 			const hasSubagentEvents = subagentTimeline?.has(tc.id);
 
-			// Only add to timeline if there's reasoning or subagent events
-			if (backendMessage.reasoning?.trim() || hasSubagentEvents) {
+			// Add to timeline if: reasoning exists, subagent events exist, OR it's ShowMedia tool
+			if (
+				backendMessage.reasoning?.trim() ||
+				hasSubagentEvents ||
+				tc.name === CoreToolName.ShowMedia
+			) {
 				timeline.push({
 					type: "tool",
 					timestamp: Date.now(),
@@ -226,7 +233,8 @@ async function loadSubagentTimeline(
 	const sessions = await mix.sessions.list({ includeSubagents: true });
 	const subagentSessions = sessions.filter(
 		(s) =>
-			s.parentSessionId === parentSessionId && s.sessionType === "subagent",
+			s.parentSessionId === parentSessionId &&
+			s.sessionType === SessionType.Subagent,
 	);
 
 	// Load messages for each subagent session

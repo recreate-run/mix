@@ -34,6 +34,7 @@ import {
 } from "@/hooks/useSessionCallbacks";
 import type { Callback } from "mix-typescript-sdk/models/callback.js";
 import { CallbackType } from "mix-typescript-sdk/models/callback.js";
+import { CoreToolName } from "mix-typescript-sdk/models";
 
 interface RightSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	sessionId?: string;
@@ -308,19 +309,18 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 					</SelectTrigger>
 					<SelectContent>
 						<SelectItem value="*">* (All tools)</SelectItem>
-						<SelectItem value="Bash">Bash</SelectItem>
-						<SelectItem value="Edit">Edit</SelectItem>
-						<SelectItem value="Write">Write</SelectItem>
-						<SelectItem value="ReadText">ReadText</SelectItem>
-						<SelectItem value="ReadMedia">ReadMedia</SelectItem>
-						<SelectItem value="Glob">Glob</SelectItem>
-						<SelectItem value="Grep">Grep</SelectItem>
-						<SelectItem value="ShowMedia">ShowMedia</SelectItem>
-						<SelectItem value="Task">Task</SelectItem>
-						<SelectItem value="WebFetch">WebFetch</SelectItem>
-						<SelectItem value="Search">Search</SelectItem>
-						<SelectItem value="TodoWrite">TodoWrite</SelectItem>
-						<SelectItem value="ExitPlanMode">ExitPlanMode</SelectItem>
+						<SelectItem value={CoreToolName.Bash}>Bash</SelectItem>
+						<SelectItem value={CoreToolName.Edit}>Edit</SelectItem>
+						<SelectItem value={CoreToolName.Write}>Write</SelectItem>
+						<SelectItem value={CoreToolName.ReadText}>ReadText</SelectItem>
+						<SelectItem value={CoreToolName.ReadMedia}>ReadMedia</SelectItem>
+						<SelectItem value={CoreToolName.Glob}>Glob</SelectItem>
+						<SelectItem value={CoreToolName.Grep}>Grep</SelectItem>
+						<SelectItem value={CoreToolName.ShowMedia}>ShowMedia</SelectItem>
+						<SelectItem value={CoreToolName.Task}>Task</SelectItem>
+						<SelectItem value={CoreToolName.Search}>Search</SelectItem>
+						<SelectItem value={CoreToolName.TodoWrite}>TodoWrite</SelectItem>
+						<SelectItem value={CoreToolName.ExitPlanMode}>ExitPlanMode</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
