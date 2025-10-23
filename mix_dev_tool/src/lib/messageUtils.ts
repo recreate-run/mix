@@ -1,5 +1,5 @@
 import type { BackendMessage } from "mix-typescript-sdk/models";
-import { CoreToolName } from "mix-typescript-sdk/models";
+import { CoreToolName, SessionType } from "mix-typescript-sdk/models";
 import { mix } from "@/lib/mix-sdk";
 import type { Attachment } from "@/stores/attachmentSlice";
 import type { ToolCall, ToolCallData } from "@/types/common";
@@ -233,7 +233,8 @@ async function loadSubagentTimeline(
 	const sessions = await mix.sessions.list({ includeSubagents: true });
 	const subagentSessions = sessions.filter(
 		(s) =>
-			s.parentSessionId === parentSessionId && s.sessionType === "subagent",
+			s.parentSessionId === parentSessionId &&
+			s.sessionType === SessionType.Subagent,
 	);
 
 	// Load messages for each subagent session
