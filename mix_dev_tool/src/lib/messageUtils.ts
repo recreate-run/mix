@@ -111,8 +111,8 @@ const convertBackendMessageToUI = async (
 		? convertToolCallsToUI(backendMessage.toolCalls)
 		: undefined;
 
-	// Extract media outputs from show_media tool calls
-	const mediaOutputs = toolCalls?.find((tc) => tc.name === "show_media")
+	// Extract media outputs from ShowMedia tool calls
+	const mediaOutputs = toolCalls?.find((tc) => tc.name === "ShowMedia")
 		?.parameters?.outputs as MediaOutput[] | undefined;
 
 	// Build timeline from stored data
@@ -131,14 +131,19 @@ const convertBackendMessageToUI = async (
 	}
 
 	// Add tool calls to timeline ONLY if we have subagent events or reasoning
+	// Exception: ShowMedia is ALWAYS added to timeline for proper rendering
 	// Otherwise, let regular tool rendering handle it for consistency
 	if (toolCalls && toolCalls.length > 0) {
 		for (const tc of toolCalls) {
 			// Check if this tool has subagent events
 			const hasSubagentEvents = subagentTimeline?.has(tc.id);
 
-			// Only add to timeline if there's reasoning or subagent events
-			if (backendMessage.reasoning?.trim() || hasSubagentEvents) {
+			// Add to timeline if: reasoning exists, subagent events exist, OR it's ShowMedia tool
+			if (
+				backendMessage.reasoning?.trim() ||
+				hasSubagentEvents ||
+				tc.name === "ShowMedia"
+			) {
 				timeline.push({
 					type: "tool",
 					timestamp: Date.now(),
