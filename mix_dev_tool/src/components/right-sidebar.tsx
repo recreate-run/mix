@@ -32,9 +32,11 @@ import {
 	useSessionCallbacks,
 	useUpdateCallbacks,
 } from "@/hooks/useSessionCallbacks";
+import { useSessionMessages } from "@/hooks/useSessionMessages";
 import type { Callback } from "mix-typescript-sdk/models/callback.js";
 import { CallbackType } from "mix-typescript-sdk/models/callback.js";
 import { CoreToolName } from "mix-typescript-sdk/models";
+import { SdkCodeSnippet } from "./sdk-code-snippet";
 
 interface RightSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	sessionId?: string;
@@ -44,9 +46,12 @@ export function RightSidebar({ sessionId, ...props }: RightSidebarProps) {
 	const [isAddingCallback, setIsAddingCallback] = React.useState(false);
 	const { data, isLoading } = useSessionCallbacks(sessionId || "");
 	const updateCallbacks = useUpdateCallbacks();
+	const sessionMessages = useSessionMessages(sessionId || "");
 
 	const callbacks = data?.callbacks || [];
 	const currentSessionId = data?.sessionId || sessionId || "";
+	const messages = sessionMessages.data || [];
+	const firstUserMessage = messages.find((msg) => msg.from === "user");
 
 	const handleDeleteCallback = (index: number) => {
 		const newCallbacks = callbacks.filter((_, i) => i !== index);
@@ -86,6 +91,17 @@ export function RightSidebar({ sessionId, ...props }: RightSidebarProps) {
 	return (
 		<Sidebar collapsible="none" {...props}>
 			<SidebarContent>
+				{/* Get code button */}
+				{firstUserMessage && (
+					<div className="p-4 border-b">
+						<SdkCodeSnippet
+							sessionId={sessionId}
+							message={firstUserMessage.content}
+							attachments={firstUserMessage.attachments}
+						/>
+					</div>
+				)}
+
 				<SidebarGroup>
 					<SidebarGroupLabel>Session Callbacks</SidebarGroupLabel>
 					<SidebarGroupContent className="space-y-3 p-4">
