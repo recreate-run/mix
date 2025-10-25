@@ -35,7 +35,6 @@ import { ResponseRenderer } from "./response-renderer";
 import { StatusUI } from "./status-ui";
 import { TodoList } from "./todo-list";
 import { CallbackResultDisplay } from "./callback-result-display";
-import { SdkCodeSnippet } from "./sdk-code-snippet";
 
 type StreamingState = {
 	processing: boolean;
@@ -502,14 +501,6 @@ export function ConversationDisplay({
 												</Button>
 											)}
 										</AIMessageContent.Toolbar>
-										{/* SDK Code Snippet */}
-										{sessionId && (
-											<SdkCodeSnippet
-												sessionId={sessionId}
-												message={message.content}
-												attachments={message.attachments}
-											/>
-										)}
 									</>
 								)}
 								{/* Render special tools (todos, plans) and legacy tools when timeline is not available */}
@@ -578,14 +569,6 @@ export function ConversationDisplay({
 									)}
 								{sseStream.pendingUserMessage.text}
 							</AIMessageContent.Content>
-							{/* SDK Code Snippet */}
-							{sessionId && (
-								<SdkCodeSnippet
-									sessionId={sessionId}
-									message={sseStream.pendingUserMessage.text}
-									attachments={sseStream.pendingUserMessage.attachments}
-								/>
-							)}
 						</AIMessageContent>
 					</AIMessage>
 				)}
