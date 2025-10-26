@@ -11,6 +11,7 @@ type (
 	messageIDContextKey       string
 	sessionStorageContextKey  string
 	planModeContextKey        string
+	thinkingBudgetContextKey  string
 )
 
 const (
@@ -18,6 +19,7 @@ const (
 	MessageIDContextKey       messageIDContextKey       = "message_id"
 	SessionStorageContextKey  sessionStorageContextKey  = "session_storage"
 	PlanModeContextKey        planModeContextKey        = "plan_mode"
+	ThinkingBudgetContextKey  thinkingBudgetContextKey  = "thinking_budget"
 )
 
 type ToolInfo struct {
