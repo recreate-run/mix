@@ -2076,6 +2076,18 @@
                   "text": {
                     "description": "The text content of the message",
                     "type": "string"
+                  },
+                  "thinking_level": {
+                    "description": "Thinking level: off (disabled), basic (4k tokens), medium (10k tokens), maximum (32k tokens). If not provided, determined by keywords in message.",
+                    "enum": [
+                      "off",
+                      "basic",
+                      "medium",
+                      "maximum"
+                    ],
+                    "example": "medium",
+                    "nullable": true,
+                    "type": "string"
                   }
                 },
                 "required": [

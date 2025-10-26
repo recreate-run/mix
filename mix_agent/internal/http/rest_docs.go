@@ -404,6 +404,13 @@ func getOpenAPISpec() OpenAPISpec {
 								"description": "Whether the message is in planning mode",
 								"default":     false,
 							},
+							"thinking_level": map[string]interface{}{
+								"type":        "string",
+								"description": "Thinking level: off (disabled), basic (4k tokens), medium (10k tokens), maximum (32k tokens). If not provided, determined by keywords in message.",
+								"enum":        []string{"off", "basic", "medium", "maximum"},
+								"nullable":    true,
+								"example":     "medium",
+							},
 						},
 					}),
 					"responses": map[string]interface{}{
