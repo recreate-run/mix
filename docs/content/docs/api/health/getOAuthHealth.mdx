@@ -1,0 +1,30 @@
+---
+title: Get OAuth authentication health
+description: >-
+  Get health status of all OAuth credentials. Background service refreshes
+  tokens 35 minutes before expiry. API calls mark tokens expired 5 minutes
+  before expiry. Health statuses: 'healthy' (tokens valid, >5min remaining),
+  'degraded' (some tokens within 5min of expiry but refreshable), 'unhealthy'
+  (tokens expired without refresh capability)
+full: true
+_openapi:
+  method: GET
+  route: /health/auth
+  toc: []
+  structuredData:
+    headings: []
+    contents:
+      - content: >-
+          Get health status of all OAuth credentials. Background service
+          refreshes tokens 35 minutes before expiry. API calls mark tokens
+          expired 5 minutes before expiry. Health statuses: 'healthy' (tokens
+          valid, >5min remaining), 'degraded' (some tokens within 5min of expiry
+          but refreshable), 'unhealthy' (tokens expired without refresh
+          capability)
+---
+
+{/* <!-- This file is auto-generated. Do not edit manually. --> */}
+
+Get health status of all OAuth credentials. Background service refreshes tokens 35 minutes before expiry. API calls mark tokens expired 5 minutes before expiry. Health statuses: 'healthy' (tokens valid, >5min remaining), 'degraded' (some tokens within 5min of expiry but refreshable), 'unhealthy' (tokens expired without refresh capability)
+
+<APIPage document={"./lib/mix-api-spec.yaml"} operations={[{"path":"/health/auth","method":"get"}]} webhooks={[]} hasHead={false} />

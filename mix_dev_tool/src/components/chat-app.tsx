@@ -737,13 +737,13 @@ export function ChatApp({
 													Thinking: Off
 												</SelectItem>
 												<SelectItem value={ThinkingLevel.Basic}>
-													Thinking: Basic
+													Thinking: Low
 												</SelectItem>
 												<SelectItem value={ThinkingLevel.Medium}>
 													Thinking: Medium
 												</SelectItem>
 												<SelectItem value={ThinkingLevel.Maximum}>
-													Thinking: Maximum
+													Thinking: High
 												</SelectItem>
 											</SelectContent>
 										</Select>

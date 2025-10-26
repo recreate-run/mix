@@ -2,7 +2,8 @@
 title: Create a new session
 description: >-
   Create a new session with required title and optional custom system prompt.
-  Session automatically gets isolated storage directory.
+  Session automatically gets isolated storage directory. Supports session-level
+  callbacks for automated actions after tool execution.
 full: true
 _openapi:
   method: POST
@@ -14,10 +15,12 @@ _openapi:
       - content: >-
           Create a new session with required title and optional custom system
           prompt. Session automatically gets isolated storage directory.
+          Supports session-level callbacks for automated actions after tool
+          execution.
 ---
 
 {/* <!-- This file is auto-generated. Do not edit manually. --> */}
 
-Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory.
+Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution.
 
 <APIPage document={"./lib/mix-api-spec.yaml"} operations={[{"path":"/api/sessions","method":"post"}]} webhooks={[]} hasHead={false} />

@@ -1,0 +1,33 @@
+---
+title: List LLM tools
+description: >-
+  Returns the list of all LLM tools that Claude can invoke. The list is
+  dynamically extracted from the actual tools registered in CoderAgentTools()
+  (agent/tools.go), ensuring it always reflects the current tool availability.
+  Typical tools include: Bash, Edit, Read, Write, Grep, Glob, WebFetch,
+  WebSearch, ReadMedia, TodoWrite, ExitPlanMode, and Task. This endpoint is
+  useful for creating tool callbacks or understanding available agent
+  capabilities.
+full: true
+_openapi:
+  method: GET
+  route: /api/tools
+  toc: []
+  structuredData:
+    headings: []
+    contents:
+      - content: >-
+          Returns the list of all LLM tools that Claude can invoke. The list is
+          dynamically extracted from the actual tools registered in
+          CoderAgentTools() (agent/tools.go), ensuring it always reflects the
+          current tool availability. Typical tools include: Bash, Edit, Read,
+          Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite,
+          ExitPlanMode, and Task. This endpoint is useful for creating tool
+          callbacks or understanding available agent capabilities.
+---
+
+{/* <!-- This file is auto-generated. Do not edit manually. --> */}
+
+Returns the list of all LLM tools that Claude can invoke. The list is dynamically extracted from the actual tools registered in CoderAgentTools() (agent/tools.go), ensuring it always reflects the current tool availability. Typical tools include: Bash, Edit, Read, Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite, ExitPlanMode, and Task. This endpoint is useful for creating tool callbacks or understanding available agent capabilities.
+
+<APIPage document={"./lib/mix-api-spec.yaml"} operations={[{"path":"/api/tools","method":"get"}]} webhooks={[]} hasHead={false} />
