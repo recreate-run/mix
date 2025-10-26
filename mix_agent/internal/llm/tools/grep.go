@@ -1,35 +1,32 @@
 package tools
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"mix/internal/fileutil"
 	"mix/internal/permission"
 )
 
 type GrepParams struct {
-	Pattern     string `json:"pattern"`
-	Path        string `json:"path"`
-	Include     string `json:"include"`
-	LiteralText bool   `json:"literal_text"`
-}
-
-type grepMatch struct {
-	path     string
-	modTime  time.Time
-	lineNum  int
-	lineText string
+	Pattern         string `json:"pattern"`
+	Path            string `json:"path"`
+	Glob            string `json:"glob"`
+	Type            string `json:"type"`
+	OutputMode      string `json:"output_mode"`
+	CaseInsensitive bool   `json:"-i"`
+	ShowLineNumbers bool   `json:"-n"`
+	ContextAfter    int    `json:"-A"`
+	ContextBefore   int    `json:"-B"`
+	ContextAround   int    `json:"-C"`
+	Multiline       bool   `json:"multiline"`
+	HeadLimit       int    `json:"head_limit"`
 }
 
 type GrepResponseMetadata struct {
@@ -37,7 +34,7 @@ type GrepResponseMetadata struct {
 	Truncated       bool `json:"truncated"`
 }
 
-type grepTool struct{
+type grepTool struct {
 	permissions permission.Service
 }
 
@@ -62,31 +59,52 @@ func (g *grepTool) Info() ToolInfo {
 			},
 			"path": map[string]any{
 				"type":        "string",
-				"description": "The directory to search in. Defaults to the current working directory.",
+				"description": "File or directory to search in (rg PATH). Defaults to current working directory.",
 			},
-			"include": map[string]any{
+			"glob": map[string]any{
 				"type":        "string",
-				"description": "File pattern to include in the search (e.g. \"*.js\", \"*.{ts,tsx}\")",
+				"description": "Glob pattern to filter files (e.g. \"*.js\", \"*.{ts,tsx}\") - maps to rg --glob",
 			},
-			"literal_text": map[string]any{
+			"type": map[string]any{
+				"type":        "string",
+				"description": "File type to search (rg --type). Common types: js, py, rust, go, java, etc. More efficient than include for standard file types.",
+			},
+			"output_mode": map[string]any{
+				"type":        "string",
+				"description": "Output mode: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (supports head_limit), \"count\" shows match counts (supports head_limit). Defaults to \"files_with_matches\".",
+				"enum":        []string{"content", "files_with_matches", "count"},
+			},
+			"-i": map[string]any{
 				"type":        "boolean",
-				"description": "If true, the pattern will be treated as literal text with special regex characters escaped. Default is false.",
+				"description": "Case insensitive search (rg -i)",
+			},
+			"-n": map[string]any{
+				"type":        "boolean",
+				"description": "Show line numbers in output (rg -n). Requires output_mode: \"content\", ignored otherwise.",
+			},
+			"-A": map[string]any{
+				"type":        "number",
+				"description": "Number of lines to show after each match (rg -A). Requires output_mode: \"content\", ignored otherwise.",
+			},
+			"-B": map[string]any{
+				"type":        "number",
+				"description": "Number of lines to show before each match (rg -B). Requires output_mode: \"content\", ignored otherwise.",
+			},
+			"-C": map[string]any{
+				"type":        "number",
+				"description": "Number of lines to show before and after each match (rg -C). Requires output_mode: \"content\", ignored otherwise.",
+			},
+			"multiline": map[string]any{
+				"type":        "boolean",
+				"description": "Enable multiline mode where . matches newlines and patterns can span lines (rg -U --multiline-dotall). Default: false.",
+			},
+			"head_limit": map[string]any{
+				"type":        "number",
+				"description": "Limit output to first N lines/entries, equivalent to \"| head -N\". Works across all output modes: content (limits output lines), files_with_matches (limits file paths), count (limits count entries). When unspecified, shows all results from ripgrep.",
 			},
 		},
 		Required: []string{"pattern"},
 	}
-}
-
-// escapeRegexPattern escapes special regex characters so they're treated as literal characters
-func escapeRegexPattern(pattern string) string {
-	specialChars := []string{"\\", ".", "+", "*", "?", "(", ")", "[", "]", "{", "}", "^", "$", "|"}
-	escaped := pattern
-
-	for _, char := range specialChars {
-		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
-	}
-
-	return escaped
 }
 
 func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
@@ -99,10 +117,9 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return NewTextErrorResponse("pattern is required"), nil
 	}
 
-	// If literal_text is true, escape the pattern
-	searchPattern := params.Pattern
-	if params.LiteralText {
-		searchPattern = escapeRegexPattern(params.Pattern)
+	// Default output mode
+	if params.OutputMode == "" {
+		params.OutputMode = "files_with_matches"
 	}
 
 	searchPath := params.Path
@@ -115,9 +132,9 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	}
 
 	// Check permissions before searching files
-	sessionID, messageID := GetContextValues(ctx)
-	if sessionID == "" || messageID == "" {
-		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for searching files")
+	sessionID, _ := GetContextValues(ctx)
+	if sessionID == "" {
+		return ToolResponse{}, fmt.Errorf("session ID is required for searching files")
 	}
 
 	// Request permission to search files
@@ -128,232 +145,260 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 			ToolName:    GrepToolName,
 			Action:      fmt.Sprintf("Search files with pattern: %s", params.Pattern),
 			Description: fmt.Sprintf("Search files in %s with pattern: %s", searchPath, params.Pattern),
-			Params: GrepParams{
-				Pattern:     params.Pattern,
-				Path:        searchPath,
-				Include:     params.Include,
-				LiteralText: params.LiteralText,
-			},
+			Params:      params,
 		},
 	)
 	if !p {
 		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
 
-	matches, truncated, err := searchFiles(searchPattern, searchPath, params.Include, 100)
+	output, count, truncated, err := searchFilesAdvanced(params, searchPath)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error searching files: %w", err)
-	}
-
-	var output string
-	if len(matches) == 0 {
-		output = "No files found"
-	} else {
-		output = fmt.Sprintf("Found %d matches\n", len(matches))
-
-		currentFile := ""
-		for _, match := range matches {
-			if currentFile != match.path {
-				if currentFile != "" {
-					output += "\n"
-				}
-				currentFile = match.path
-				output += fmt.Sprintf("%s:\n", match.path)
-			}
-			if match.lineNum > 0 {
-				output += fmt.Sprintf("  Line %d: %s\n", match.lineNum, match.lineText)
-			} else {
-				output += fmt.Sprintf("  %s\n", match.path)
-			}
-		}
-
-		if truncated {
-			output += "\n(Results are truncated. Consider using a more specific path or pattern.)"
-		}
 	}
 
 	return WithResponseMetadata(
 		NewTextResponse(output),
 		GrepResponseMetadata{
-			NumberOfMatches: len(matches),
+			NumberOfMatches: count,
 			Truncated:       truncated,
 		},
 	), nil
 }
 
-func searchFiles(pattern, rootPath, include string, limit int) ([]grepMatch, bool, error) {
-	matches, err := searchWithRipgrep(pattern, rootPath, include)
-	if err != nil {
-		matches, err = searchFilesWithRegex(pattern, rootPath, include)
-		if err != nil {
-			return nil, false, err
-		}
-	}
-
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].modTime.After(matches[j].modTime)
-	})
-
-	truncated := len(matches) > limit
-	if truncated {
-		matches = matches[:limit]
-	}
-
-	return matches, truncated, nil
-}
-
-func searchWithRipgrep(pattern, path, include string) ([]grepMatch, error) {
+func searchFilesAdvanced(params GrepParams, searchPath string) (string, int, bool, error) {
 	_, err := exec.LookPath("rg")
 	if err != nil {
-		return nil, fmt.Errorf("ripgrep not found: %w", err)
+		return "", 0, false, fmt.Errorf("ripgrep not found: %w", err)
 	}
 
-	// Use -n to show line numbers and include the matched line
-	args := []string{"-H", "-n", pattern}
-	if include != "" {
-		args = append(args, "--glob", include)
-	}
-	args = append(args, path)
+	args := buildRipgrepArgs(params)
+	args = append(args, searchPath)
 
 	cmd := exec.Command("rg", args...)
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			return []grepMatch{}, nil
+			return "No matches found", 0, false, nil
 		}
-		return nil, err
+		return "", 0, false, err
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	matches := make([]grepMatch, 0, len(lines))
+	outputStr := string(output)
+	if outputStr == "" {
+		return "No matches found", 0, false, nil
+	}
 
+	// Process output based on mode
+	switch params.OutputMode {
+	case "content":
+		return processContentOutput(outputStr, params)
+	case "files_with_matches":
+		return processFilesOutput(outputStr, params)
+	case "count":
+		return processCountOutput(outputStr, params)
+	default:
+		return "", 0, false, fmt.Errorf("unknown output mode: %s", params.OutputMode)
+	}
+}
+
+func buildRipgrepArgs(params GrepParams) []string {
+	args := []string{}
+
+	// Output format based on mode
+	switch params.OutputMode {
+	case "files_with_matches":
+		args = append(args, "-l") // --files-with-matches
+	case "count":
+		args = append(args, "-c") // --count
+	case "content":
+		args = append(args, "-H") // Include filename
+		if params.ShowLineNumbers {
+			args = append(args, "-n") // Line numbers
+		}
+		// Context lines
+		if params.ContextAround > 0 {
+			args = append(args, fmt.Sprintf("-C%d", params.ContextAround))
+		} else {
+			if params.ContextBefore > 0 {
+				args = append(args, fmt.Sprintf("-B%d", params.ContextBefore))
+			}
+			if params.ContextAfter > 0 {
+				args = append(args, fmt.Sprintf("-A%d", params.ContextAfter))
+			}
+		}
+	}
+
+	// Case insensitive
+	if params.CaseInsensitive {
+		args = append(args, "-i")
+	}
+
+	// Multiline mode
+	if params.Multiline {
+		args = append(args, "-U", "--multiline-dotall")
+	}
+
+	// File filtering
+	if params.Glob != "" {
+		args = append(args, "--glob", params.Glob)
+	}
+	if params.Type != "" {
+		args = append(args, "--type", params.Type)
+	}
+
+	// Pattern
+	args = append(args, params.Pattern)
+
+	return args
+}
+
+func processContentOutput(output string, params GrepParams) (string, int, bool, error) {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+
+	// Apply head_limit to output lines
+	truncated := false
+	if params.HeadLimit > 0 && len(lines) > params.HeadLimit {
+		lines = lines[:params.HeadLimit]
+		truncated = true
+	}
+
+	// Count unique files in the output
+	fileSet := make(map[string]bool)
+	for _, line := range lines {
+		if line == "" || line == "--" {
+			continue
+		}
+		// Extract filename (before first : or -)
+		var filename string
+		if idx := strings.Index(line, ":"); idx != -1 {
+			filename = line[:idx]
+		} else if idx := strings.Index(line, "-"); idx != -1 {
+			filename = line[:idx]
+		}
+		if filename != "" {
+			fileSet[filename] = true
+		}
+	}
+
+	result := strings.Join(lines, "\n")
+	if truncated {
+		result += "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
+	}
+
+	return result, len(fileSet), truncated, nil
+}
+
+func processFilesOutput(output string, params GrepParams) (string, int, bool, error) {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+
+	// Parse file paths and get modification times
+	type fileWithTime struct {
+		path    string
+		modTime time.Time
+	}
+
+	filesWithTimes := []fileWithTime{}
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-
-		// Parse ripgrep output format: file:line:content
-		parts := strings.SplitN(line, ":", 3)
-		if len(parts) < 3 {
-			continue
-		}
-
-		filePath := parts[0]
-		lineNum, err := strconv.Atoi(parts[1])
+		fileInfo, err := os.Stat(line)
 		if err != nil {
 			continue
 		}
-		lineText := parts[2]
-
-		fileInfo, err := os.Stat(filePath)
-		if err != nil {
-			continue // Skip files we can't access
-		}
-
-		matches = append(matches, grepMatch{
-			path:     filePath,
-			modTime:  fileInfo.ModTime(),
-			lineNum:  lineNum,
-			lineText: lineText,
+		filesWithTimes = append(filesWithTimes, fileWithTime{
+			path:    line,
+			modTime: fileInfo.ModTime(),
 		})
 	}
 
-	return matches, nil
-}
-
-func searchFilesWithRegex(pattern, rootPath, include string) ([]grepMatch, error) {
-	matches := []grepMatch{}
-
-	regex, err := regexp.Compile(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("invalid regex pattern: %w", err)
-	}
-
-	var includePattern *regexp.Regexp
-	if include != "" {
-		regexPattern := globToRegex(include)
-		includePattern, err = regexp.Compile(regexPattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid include pattern: %w", err)
-		}
-	}
-
-	err = filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip errors
-		}
-
-		if info.IsDir() {
-			return nil // Skip directories
-		}
-
-		if fileutil.SkipHidden(path) {
-			return nil
-		}
-
-		if includePattern != nil && !includePattern.MatchString(path) {
-			return nil
-		}
-
-		match, lineNum, lineText, err := fileContainsPattern(path, regex)
-		if err != nil {
-			return nil // Skip files we can't read
-		}
-
-		if match {
-			matches = append(matches, grepMatch{
-				path:     path,
-				modTime:  info.ModTime(),
-				lineNum:  lineNum,
-				lineText: lineText,
-			})
-
-			if len(matches) >= 200 {
-				return filepath.SkipAll
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return matches, nil
-}
-
-func fileContainsPattern(filePath string, pattern *regexp.Regexp) (bool, int, string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return false, 0, "", err
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	scanner := bufio.NewScanner(file)
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		if pattern.MatchString(line) {
-			return true, lineNum, line, nil
-		}
-	}
-
-	return false, 0, "", scanner.Err()
-}
-
-func globToRegex(glob string) string {
-	regexPattern := strings.ReplaceAll(glob, ".", "\\.")
-	regexPattern = strings.ReplaceAll(regexPattern, "*", ".*")
-	regexPattern = strings.ReplaceAll(regexPattern, "?", ".")
-
-	re := regexp.MustCompile(`\{([^}]+)\}`)
-	regexPattern = re.ReplaceAllStringFunc(regexPattern, func(match string) string {
-		inner := match[1 : len(match)-1]
-		return "(" + strings.ReplaceAll(inner, ",", "|") + ")"
+	// Sort by modification time (newest first)
+	sort.Slice(filesWithTimes, func(i, j int) bool {
+		return filesWithTimes[i].modTime.After(filesWithTimes[j].modTime)
 	})
 
-	return regexPattern
+	// Apply head_limit
+	truncated := false
+	if params.HeadLimit > 0 && len(filesWithTimes) > params.HeadLimit {
+		filesWithTimes = filesWithTimes[:params.HeadLimit]
+		truncated = true
+	}
+
+	// Build output
+	result := make([]string, len(filesWithTimes))
+	for i, f := range filesWithTimes {
+		result[i] = f.path
+	}
+
+	outputStr := strings.Join(result, "\n")
+	if truncated {
+		outputStr += "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
+	}
+
+	return outputStr, len(filesWithTimes), truncated, nil
+}
+
+func processCountOutput(output string, params GrepParams) (string, int, bool, error) {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+
+	// Parse count entries and get modification times
+	type countEntry struct {
+		path    string
+		count   int
+		modTime time.Time
+	}
+
+	entries := []countEntry{}
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		// Format: file:count
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		filePath := parts[0]
+		count, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue
+		}
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			continue
+		}
+		entries = append(entries, countEntry{
+			path:    filePath,
+			count:   count,
+			modTime: fileInfo.ModTime(),
+		})
+	}
+
+	// Sort by modification time (newest first)
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].modTime.After(entries[j].modTime)
+	})
+
+	// Apply head_limit
+	truncated := false
+	if params.HeadLimit > 0 && len(entries) > params.HeadLimit {
+		entries = entries[:params.HeadLimit]
+		truncated = true
+	}
+
+	// Build output
+	result := make([]string, len(entries))
+	totalCount := 0
+	for i, e := range entries {
+		result[i] = fmt.Sprintf("%s:%d", e.path, e.count)
+		totalCount += e.count
+	}
+
+	outputStr := strings.Join(result, "\n")
+	if truncated {
+		outputStr += "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
+	}
+
+	return outputStr, len(entries), truncated, nil
 }

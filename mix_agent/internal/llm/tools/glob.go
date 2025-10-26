@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"mix/internal/fileutil"
 	"mix/internal/logging"
@@ -105,9 +106,9 @@ func globFiles(pattern, searchPath string, limit int) ([]string, bool, error) {
 	cmdRg := fileutil.GetRgCmd(pattern)
 	if cmdRg != nil {
 		cmdRg.Dir = searchPath
-		matches, err := runRipgrep(cmdRg, searchPath, limit)
+		matches, truncated, err := runRipgrep(cmdRg, searchPath, limit)
 		if err == nil {
-			return matches, len(matches) >= limit && limit > 0, nil
+			return matches, truncated, nil
 		}
 		logging.Warn(fmt.Sprintf("Ripgrep execution failed: %v. Falling back to doublestar.", err))
 	}
@@ -115,13 +116,13 @@ func globFiles(pattern, searchPath string, limit int) ([]string, bool, error) {
 	return fileutil.GlobWithDoublestar(pattern, searchPath, limit)
 }
 
-func runRipgrep(cmd *exec.Cmd, searchRoot string, limit int) ([]string, error) {
+func runRipgrep(cmd *exec.Cmd, searchRoot string, limit int) ([]string, bool, error) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 {
-			return nil, nil
+			return nil, false, nil
 		}
-		return nil, fmt.Errorf("ripgrep: %w\n%s", err, out)
+		return nil, false, fmt.Errorf("ripgrep: %w\n%s", err, out)
 	}
 
 	var matches []string
@@ -139,12 +140,37 @@ func runRipgrep(cmd *exec.Cmd, searchRoot string, limit int) ([]string, error) {
 		matches = append(matches, absPath)
 	}
 
-	sort.SliceStable(matches, func(i, j int) bool {
-		return len(matches[i]) < len(matches[j])
+	// Get file modification times and sort by most recent first
+	type fileWithTime struct {
+		path    string
+		modTime time.Time
+	}
+
+	filesWithTimes := make([]fileWithTime, 0, len(matches))
+	for _, path := range matches {
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		filesWithTimes = append(filesWithTimes, fileWithTime{
+			path:    path,
+			modTime: info.ModTime(),
+		})
+	}
+
+	sort.SliceStable(filesWithTimes, func(i, j int) bool {
+		return filesWithTimes[i].modTime.After(filesWithTimes[j].modTime)
 	})
 
-	if limit > 0 && len(matches) > limit {
-		matches = matches[:limit]
+	// Apply limit and extract paths
+	result := make([]string, 0, len(filesWithTimes))
+	limitToApply := len(filesWithTimes)
+	if limit > 0 && limit < len(filesWithTimes) {
+		limitToApply = limit
 	}
-	return matches, nil
+	for i := 0; i < limitToApply; i++ {
+		result = append(result, filesWithTimes[i].path)
+	}
+
+	return result, limit > 0 && len(filesWithTimes) > limit, nil
 }
