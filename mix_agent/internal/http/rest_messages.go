@@ -201,21 +201,15 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// If not authenticated, show a provider-specific error message
+	// If not authenticated, return proper 401 error and broadcast to SSE
 	if !authenticated {
 		helpfulMsg := getAuthenticationErrorMessage(ctx)
 
-		// Broadcast error event to SSE so frontend stops processing
+		// Broadcast error event to SSE connections (if any are active)
 		registry.BroadcastEvent(sessionID, "error", ErrorEvent{Error: helpfulMsg})
 
-		result := MessageData{
-			ID:                "system-auth-prompt",
-			Role:              "assistant",
-			UserInput:         req.Text,
-			AssistantResponse: helpfulMsg,
-		}
-
-		sendJSONResponse(w, http.StatusOK, result)
+		// Return 401 Unauthorized with the helpful message
+		sendErrorResponse(w, ErrorTypeUnauthorized, helpfulMsg)
 		return
 	}
 

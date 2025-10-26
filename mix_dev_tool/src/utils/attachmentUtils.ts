@@ -1,14 +1,6 @@
 import type { Attachment } from "@/stores/attachmentSlice";
 import { getFileType, type SupportedFileTypes } from "@/utils/fileTypes";
 
-// Helper function for folder attachment creation
-const countMediaFilesInFolder = async (
-	_folderPath: string,
-	_supportedTypes?: SupportedFileTypes,
-): Promise<{ images: number; videos: number; audios: number }> => {
-	return { images: 0, videos: 0, audios: 0 };
-};
-
 // Attachment creation utilities
 export const createFileAttachment = (
 	filePath: string,
@@ -29,23 +21,6 @@ export const createFileAttachment = (
 		path: filePath,
 		// Note: Preview URL will be generated when sessionStorageDirectory is available
 		extension: fileName.split(".").pop()?.toLowerCase(),
-	};
-};
-
-export const createFolderAttachment = async (
-	folderPath: string,
-	supportedTypes?: SupportedFileTypes,
-): Promise<Attachment> => {
-	const folderName = folderPath.split("/").pop() || folderPath;
-	const mediaCount = await countMediaFilesInFolder(folderPath, supportedTypes);
-
-	return {
-		id: `folder:${folderPath}`,
-		name: folderName,
-		type: "folder",
-		path: folderPath,
-		mediaCount,
-		isDirectory: true,
 	};
 };
 

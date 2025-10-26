@@ -93,8 +93,13 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 			return NewTextErrorResponse(fmt.Sprintf("Path is a directory, not a file: %s", filePath)), nil
 		}
 
-		modTime := fileInfo.ModTime()
+		// MUST read file first before writing to existing files
 		lastRead := getLastReadTime(filePath)
+		if lastRead.IsZero() {
+			return NewTextErrorResponse(fmt.Sprintf("File %s already exists. You MUST use the Read tool first to read the file's contents before writing to it. This tool will fail if you did not read the file first.", filePath)), nil
+		}
+
+		modTime := fileInfo.ModTime()
 		if modTime.After(lastRead) {
 			return NewTextErrorResponse(fmt.Sprintf("File %s has been modified since it was last read.\nLast modification: %s\nLast read: %s\n\nPlease read the file again before modifying it.",
 				filePath, modTime.Format(time.RFC3339), lastRead.Format(time.RFC3339))), nil

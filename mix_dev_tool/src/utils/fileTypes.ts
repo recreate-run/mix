@@ -14,7 +14,7 @@ export interface SupportedFileTypes {
 type FileType = "image" | "video" | "audio" | "text";
 
 // Static extension arrays - single source of truth
-export const IMAGE_EXTENSIONS = [
+const IMAGE_EXTENSIONS = [
 	"png",
 	"jpg",
 	"jpeg",
@@ -23,7 +23,7 @@ export const IMAGE_EXTENSIONS = [
 	"bmp",
 	"tiff",
 ] as const;
-export const VIDEO_EXTENSIONS = [
+const VIDEO_EXTENSIONS = [
 	"mp4",
 	"webm",
 	"mov",
@@ -33,14 +33,7 @@ export const VIDEO_EXTENSIONS = [
 	"flv",
 	"m4v",
 ] as const;
-export const AUDIO_EXTENSIONS = [
-	"mp3",
-	"wav",
-	"flac",
-	"aac",
-	"m4a",
-	"ogg",
-] as const;
+const AUDIO_EXTENSIONS = ["mp3", "wav", "flac", "aac", "m4a", "ogg"] as const;
 const TEXT_EXTENSIONS = ["md", "txt"] as const;
 
 // Type-safe extension checking helpers
@@ -102,23 +95,4 @@ export function getFileType(
 	if (supportedTypes.audio.extensions.includes(extension)) return "audio";
 
 	return null;
-}
-
-// Helper functions for backward compatibility
-export function getImageExtensions(
-	supportedTypes?: SupportedFileTypes,
-): string[] {
-	return supportedTypes?.image.extensions.map((ext) => ext.slice(1)) || [];
-}
-
-export function getVideoExtensions(
-	supportedTypes?: SupportedFileTypes,
-): string[] {
-	return supportedTypes?.video.extensions.map((ext) => ext.slice(1)) || [];
-}
-
-export function getAudioExtensions(
-	supportedTypes?: SupportedFileTypes,
-): string[] {
-	return supportedTypes?.audio.extensions.map((ext) => ext.slice(1)) || [];
 }

@@ -4,10 +4,10 @@ ensuring proper handling and security measures.
 Before executing the command, please follow these steps:
 
 1. Directory Verification:
-   - If the command will create new directories or files, first use the LS tool to
-verify the parent directory exists and is the correct location
-   - For example, before running "mkdir foo/bar", first use LS to check that "foo"
-exists and is the intended parent directory
+   - If the command will create new directories or files, first use `ls` to verify
+the parent directory exists and is the correct location
+   - For example, before running "mkdir foo/bar", first use `ls foo` to check that
+"foo" exists and is the intended parent directory
 
 2. Command Execution:
    - Always quote file paths that contain spaces with double quotes (e.g., cd "path
@@ -34,19 +34,19 @@ background, which allows you to continue working while the command runs. You can
 monitor the output using the Bash tool as it becomes available. Never use
 `run_in_background` to run 'sleep' as it will return immediately. You do not need to
 use '&' at the end of the command when using this parameter.
-- VERY IMPORTANT: You MUST avoid using search commands like `find` and `grep`.
-Instead use Grep, Glob, or Task to search. You MUST avoid read tools like `cat`,
-`head`, `tail`, and `ls`, and use Read and LS to read files.
-- If you _still_ need to run `grep`, STOP. ALWAYS USE ripgrep at `rg` first, which
-all Mix users have pre-installed.
-  - When issuing multiple commands, use the ';' or '&&' operator to separate them.
-DO NOT use newlines (newlines are ok in quoted strings).
-  - Try to maintain your current working directory throughout the session by using
+- VERY IMPORTANT: You MUST avoid using search commands like `find` and `grep`. Instead use Grep, Glob, or Task to search. You MUST avoid read tools like `cat`, `head`, and `tail`, and use Read to read files.
+- When issuing multiple commands:
+  - If the commands are independent and can run in parallel, make multiple Bash tool calls in a single message. For example, if you need to run "git status" and "git diff", send a single message with two Bash tool calls in parallel.
+  - If the commands depend on each other and must run sequentially, use a single Bash call with '&&' to chain them together (e.g., `git add . && git commit -m "message" && git push`). For instance, if one operation must complete before another starts (like mkdir before cp, Write before Bash for git operations, or git add before git commit), run these operations sequentially instead.
+  - Use ';' only when you need to run commands sequentially but don't care if earlier commands fail
+  - DO NOT use newlines to separate commands (newlines are ok in quoted strings)
+- Try to maintain your current working directory throughout the session by using
 absolute paths and avoiding usage of `cd`. You may use `cd` if the User explicitly
 requests it.
-   <good-example>
-   pytest /foo/bar/tests
-   </good-example>
-   <bad-example>
-   cd /foo/bar && pytest tests
-   </bad-example>
+<good-example>
+
+pytest /foo/bar/tests
+</good-example>
+<bad-example>
+cd /foo/bar && pytest tests
+</bad-example>
