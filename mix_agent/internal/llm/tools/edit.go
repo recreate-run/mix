@@ -15,9 +15,10 @@ import (
 )
 
 type EditParams struct {
-	FilePath  string `json:"file_path"`
-	OldString string `json:"old_string"`
-	NewString string `json:"new_string"`
+	FilePath   string `json:"file_path"`
+	OldString  string `json:"old_string"`
+	NewString  string `json:"new_string"`
+	ReplaceAll bool   `json:"replace_all,omitempty"`
 }
 
 type EditPermissionsParams struct {
@@ -54,7 +55,7 @@ func (e *editTool) Info() ToolInfo {
 		Parameters: map[string]any{
 			"file_path": map[string]any{
 				"type":        "string",
-				"description": "The absolute path to the file to modify",
+				"description": "The absolute path to the file to modify (must be absolute, not relative)",
 			},
 			"old_string": map[string]any{
 				"type":        "string",
@@ -62,7 +63,12 @@ func (e *editTool) Info() ToolInfo {
 			},
 			"new_string": map[string]any{
 				"type":        "string",
-				"description": "The text to replace it with",
+				"description": "The text to replace it with (must be different from old_string)",
+			},
+			"replace_all": map[string]any{
+				"type":        "boolean",
+				"description": "Replace all occurences of old_string (default false)",
+				"default":     false,
 			},
 		},
 		Required: []string{"file_path", "old_string", "new_string"},
@@ -101,7 +107,7 @@ func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 			return response, err
 		}
 	} else {
-		response, err = e.replaceContent(ctx, params.FilePath, params.OldString, params.NewString)
+		response, err = e.replaceContent(ctx, params.FilePath, params.OldString, params.NewString, params.ReplaceAll)
 		if err != nil {
 			return response, err
 		}
@@ -218,7 +224,7 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 	}
 
 	if getLastReadTime(filePath).IsZero() {
-		return NewTextErrorResponse("you must read the file before editing it. Use the View tool first"), nil
+		return NewTextErrorResponse("This tool will error if you attempt an edit without reading the file. Use the Read tool first."), nil
 	}
 
 	modTime := fileInfo.ModTime()
@@ -240,11 +246,6 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 	index := strings.Index(oldContent, oldString)
 	if index == -1 {
 		return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
-	}
-
-	lastIndex := strings.LastIndex(oldContent, oldString)
-	if index != lastIndex {
-		return NewTextErrorResponse("old_string appears multiple times in the file. Please provide more context to ensure a unique match"), nil
 	}
 
 	newContent := oldContent[:index] + oldContent[index+len(oldString):]
@@ -327,7 +328,7 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 	), nil
 }
 
-func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newString string) (ToolResponse, error) {
+func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newString string, replaceAll bool) (ToolResponse, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -341,7 +342,7 @@ func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newS
 	}
 
 	if getLastReadTime(filePath).IsZero() {
-		return NewTextErrorResponse("you must read the file before editing it. Use the View tool first"), nil
+		return NewTextErrorResponse("This tool will error if you attempt an edit without reading the file. Use the Read tool first."), nil
 	}
 
 	modTime := fileInfo.ModTime()
@@ -360,17 +361,27 @@ func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newS
 
 	oldContent := string(content)
 
-	index := strings.Index(oldContent, oldString)
-	if index == -1 {
-		return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
-	}
+	var newContent string
+	if replaceAll {
+		// Replace all occurrences
+		if !strings.Contains(oldContent, oldString) {
+			return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
+		}
+		newContent = strings.ReplaceAll(oldContent, oldString, newString)
+	} else {
+		// Replace only one occurrence, ensuring it's unique
+		index := strings.Index(oldContent, oldString)
+		if index == -1 {
+			return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
+		}
 
-	lastIndex := strings.LastIndex(oldContent, oldString)
-	if index != lastIndex {
-		return NewTextErrorResponse("old_string appears multiple times in the file. Please provide more context to ensure a unique match"), nil
-	}
+		lastIndex := strings.LastIndex(oldContent, oldString)
+		if index != lastIndex {
+			return NewTextErrorResponse("The edit will FAIL if `old_string` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `replace_all` to change every instance of `old_string`."), nil
+		}
 
-	newContent := oldContent[:index] + newString + oldContent[index+len(oldString):]
+		newContent = oldContent[:index] + newString + oldContent[index+len(oldString):]
+	}
 
 	if oldContent == newContent {
 		return NewTextErrorResponse("new content is the same as old content. No changes made."), nil

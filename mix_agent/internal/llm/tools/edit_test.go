@@ -462,7 +462,7 @@ func TestEditTool_ReplaceContent_Success(t *testing.T) {
 	mockFiles.On("CreateVersion", ctx, "test-session-id", tempFile, mock.AnythingOfType("string")).Return(
 		history.File{}, nil)
 
-	response, err := tool.replaceContent(ctx, tempFile, oldString, newString)
+	response, err := tool.replaceContent(ctx, tempFile, oldString, newString, false)
 
 	assert.NoError(t, err)
 	assert.False(t, response.IsError)
@@ -495,7 +495,7 @@ func TestEditTool_ReplaceContent_FileNotFound(t *testing.T) {
 	ctx := setupEditTestContext()
 	nonExistentFile := "/tmp/nonexistent_file.txt"
 
-	response, err := tool.replaceContent(ctx, nonExistentFile, "old", "new")
+	response, err := tool.replaceContent(ctx, nonExistentFile, "old", "new", false)
 
 	assert.NoError(t, err)
 	assert.True(t, response.IsError)
@@ -513,11 +513,11 @@ func TestEditTool_ReplaceContent_FileNotRead(t *testing.T) {
 	tempFile := createTempFile(t, "content")
 	defer cleanupTempFile(tempFile)
 
-	response, err := tool.replaceContent(ctx, tempFile, "old", "new")
+	response, err := tool.replaceContent(ctx, tempFile, "old", "new", false)
 
 	assert.NoError(t, err)
 	assert.True(t, response.IsError)
-	assert.Contains(t, response.Content, "you must read the file before editing")
+	assert.Contains(t, response.Content, "This tool will error if you attempt an edit without reading the file")
 }
 
 func TestEditTool_ReplaceContent_OldStringNotFound(t *testing.T) {
@@ -533,7 +533,7 @@ func TestEditTool_ReplaceContent_OldStringNotFound(t *testing.T) {
 
 	recordFileRead(tempFile)
 
-	response, err := tool.replaceContent(ctx, tempFile, "nonexistent", "new")
+	response, err := tool.replaceContent(ctx, tempFile, "nonexistent", "new", false)
 
 	assert.NoError(t, err)
 	assert.True(t, response.IsError)
@@ -553,11 +553,11 @@ func TestEditTool_ReplaceContent_MultipleOccurrences(t *testing.T) {
 
 	recordFileRead(tempFile)
 
-	response, err := tool.replaceContent(ctx, tempFile, "Hello", "Hi")
+	response, err := tool.replaceContent(ctx, tempFile, "Hello", "Hi", false)
 
 	assert.NoError(t, err)
 	assert.True(t, response.IsError)
-	assert.Contains(t, response.Content, "old_string appears multiple times")
+	assert.Contains(t, response.Content, "old_string is not unique")
 }
 
 func TestEditTool_ReplaceContent_NoChange(t *testing.T) {
@@ -574,7 +574,7 @@ func TestEditTool_ReplaceContent_NoChange(t *testing.T) {
 
 	recordFileRead(tempFile)
 
-	response, err := tool.replaceContent(ctx, tempFile, "World", "World")
+	response, err := tool.replaceContent(ctx, tempFile, "World", "World", false)
 
 	assert.NoError(t, err)
 	assert.True(t, response.IsError)
@@ -600,7 +600,7 @@ func TestEditTool_ReplaceContent_FileModifiedSinceRead(t *testing.T) {
 	err := os.WriteFile(tempFile, []byte("modified content"), 0644)
 	require.NoError(t, err)
 
-	response, err := tool.replaceContent(ctx, tempFile, "original", "new")
+	response, err := tool.replaceContent(ctx, tempFile, "original", "new", false)
 
 	assert.NoError(t, err)
 	assert.True(t, response.IsError)

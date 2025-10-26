@@ -420,9 +420,21 @@ export function ConversationDisplay({
 		// Show during active streaming (not yet completed)
 		if (sseStream.processing && !sseStream.completed) return true;
 
+		// After completion, only show streaming content if it's NOT already in the cache
+		// This prevents duplicates when user switches tabs during streaming
+		if (sseStream.completed) {
+			// If we have streaming content but completion already added it to cache, don't show
+			// Check if the last message in filtered messages is from assistant
+			const lastMessage = filteredMessages[filteredMessages.length - 1];
+			if (lastMessage && lastMessage.from === "assistant") {
+				// Assistant message already in cache, don't show streaming version
+				return false;
+			}
+		}
+
 		// Show streaming content if we have content and it's not in stored messages yet
 		return (
-			(sseStream.processing || sseStream.completed || sseStream.cancelled) &&
+			(sseStream.processing || sseStream.cancelled) &&
 			(sseStream.finalContent ||
 				sseStream.timeline?.length ||
 				sseStream.toolCalls?.length)
