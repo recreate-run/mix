@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@/styles/App.css";
+import type { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChatApp } from "@/components/chat-app";
@@ -17,6 +18,8 @@ function PlaygroundApp() {
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [isReady, setIsReady] = useState(false);
 	const [initialMessage, setInitialMessage] = useState<string | null>(null);
+	const [initialThinkingLevel, setInitialThinkingLevel] =
+		useState<ThinkingLevel | null>(null);
 	const createSession = useCreateSession();
 	const sessionMessages = useSessionMessages(sessionId || "");
 
@@ -60,9 +63,10 @@ function PlaygroundApp() {
 		initSession();
 	}, []); // Run only once on mount
 
-	const handleSubmit = (text: string) => {
-		// Store the initial message and switch to ChatApp
+	const handleSubmit = (text: string, thinkingLevel: ThinkingLevel) => {
+		// Store the initial message and thinking level, then switch to ChatApp
 		setInitialMessage(text);
+		setInitialThinkingLevel(thinkingLevel);
 	};
 
 	const handleClear = async () => {
@@ -75,9 +79,10 @@ function PlaygroundApp() {
 			// Update localStorage with new session ID
 			localStorage.setItem(PLAYGROUND_SESSION_KEY, newSession.id);
 
-			// Update state to new session and clear initial message
+			// Update state to new session and clear initial message and thinking level
 			setSessionId(newSession.id);
 			setInitialMessage(null);
+			setInitialThinkingLevel(null);
 
 			toast.success("Playground cleared - starting fresh!");
 		} catch (error) {
@@ -111,6 +116,7 @@ function PlaygroundApp() {
 					onClear={handleClear}
 					isPlayground
 					initialMessage={initialMessage}
+					initialThinkingLevel={initialThinkingLevel}
 				/>
 			)}
 		</div>

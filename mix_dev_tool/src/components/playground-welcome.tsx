@@ -14,10 +14,18 @@ import { buildSessionFileUrl } from "@/utils/attachmentUtils";
 import { AttachmentPreview } from "./attachment-preview";
 import { Badge } from "@/components/ui/badge";
 import { EXAMPLE_PROMPTS } from "@/lib/data";
+import { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 interface PlaygroundWelcomeProps {
 	sessionId: string;
-	onSubmit: (text: string) => void;
+	onSubmit: (text: string, thinkingLevel: ThinkingLevel) => void;
 	onClear: () => Promise<void>;
 }
 
@@ -28,6 +36,9 @@ export function PlaygroundWelcome({
 }: PlaygroundWelcomeProps) {
 	const [inputValue, setInputValue] = useState("");
 	const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+	const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
+		ThinkingLevel.Off,
+	);
 	const sessionMessages = useSessionMessages(sessionId);
 	const messages = sessionMessages.data || [];
 	const hasMessages = messages.length > 0;
@@ -52,7 +63,7 @@ export function PlaygroundWelcome({
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (inputValue.trim()) {
-			onSubmit(inputValue);
+			onSubmit(inputValue, thinkingLevel);
 			setInputValue("");
 			// Don't clear attachments here - ChatApp will use them for the initial message submission
 		}
@@ -152,7 +163,7 @@ export function PlaygroundWelcome({
 							/>
 							<AIInputToolbar>
 								<AIInputTools>
-									<div className="absolute bottom-1 left-1 flex">
+									<div className="absolute bottom-1 left-1 flex items-center gap-1.5">
 										{/* File Upload Button */}
 										<FileUploadButton
 											className="ml-1"
@@ -160,6 +171,35 @@ export function PlaygroundWelcome({
 											onUploadSuccess={handleFileUploadSuccess}
 											sessionId={sessionId}
 										/>
+
+										{/* Thinking Level Selector */}
+										<Select
+											onValueChange={(value) =>
+												setThinkingLevel(value as ThinkingLevel)
+											}
+											value={thinkingLevel}
+										>
+											<SelectTrigger
+												className="h-8 w-auto min-w-[120px] border-none bg-transparent text-muted-foreground text-xs shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+												size="sm"
+											>
+												<SelectValue placeholder="Thinking: Off" />
+											</SelectTrigger>
+											<SelectContent align="start">
+												<SelectItem value={ThinkingLevel.Off}>
+													Thinking: Off
+												</SelectItem>
+												<SelectItem value={ThinkingLevel.Basic}>
+													Thinking: Basic
+												</SelectItem>
+												<SelectItem value={ThinkingLevel.Medium}>
+													Thinking: Medium
+												</SelectItem>
+												<SelectItem value={ThinkingLevel.Maximum}>
+													Thinking: Maximum
+												</SelectItem>
+											</SelectContent>
+										</Select>
 									</div>
 
 									{/* Current Model Display */}

@@ -52,6 +52,7 @@ interface ChatAppProps {
 	onClear?: () => void;
 	isPlayground?: boolean;
 	initialMessage?: string | null;
+	initialThinkingLevel?: ThinkingLevel | null;
 }
 
 export function ChatApp({
@@ -59,6 +60,7 @@ export function ChatApp({
 	onClear,
 	isPlayground = false,
 	initialMessage = null,
+	initialThinkingLevel = null,
 }: ChatAppProps) {
 	// Core conversation state
 	const [text, setText] = useState<string>("");
@@ -122,12 +124,17 @@ export function ChatApp({
 				attachments,
 				referenceMap,
 				planMode: false,
+				thinkingLevel:
+					initialThinkingLevel && initialThinkingLevel !== ThinkingLevel.Off
+						? initialThinkingLevel
+						: undefined,
 			});
 			// Clear attachments after submitting
 			clearAttachments();
 		}
 	}, [
 		initialMessage,
+		initialThinkingLevel,
 		sseStream.connected,
 		sseStream,
 		attachments,
