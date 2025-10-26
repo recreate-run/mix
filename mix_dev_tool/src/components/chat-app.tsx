@@ -37,6 +37,7 @@ import { CommandSlash } from "./command-slash";
 import { ConversationDisplay } from "./conversation-display";
 import { FileUploadButton } from "./file-upload-button";
 import { PermissionDialog } from "./permission-dialog";
+import { SdkCodeSnippet } from "./sdk-code-snippet";
 
 interface ChatAppProps {
 	sessionId: string;
@@ -204,6 +205,7 @@ export function ChatApp({
 	// Simple auto-scroll to last user message
 	const userMessageRefs = useRef<(HTMLDivElement | null)[]>([]);
 	const messages = sessionMessages.data || [];
+	const firstUserMessage = messages.find((msg) => msg.from === "user");
 
 	useEffect(() => {
 		const lastUserMessageIndex = messages.findLastIndex(
@@ -568,6 +570,17 @@ export function ChatApp({
 
 	return (
 		<div className="relative flex h-full w-full p-8">
+			{/* Fixed top-right Get code button - only in playground mode */}
+			{isPlayground && firstUserMessage && (
+				<div className="fixed top-4 right-4 z-50 rounded-lg border bg-background p-4 shadow-lg">
+					<SdkCodeSnippet
+						sessionId={sessionId}
+						message={firstUserMessage.content}
+						attachments={firstUserMessage.attachments}
+					/>
+				</div>
+			)}
+
 			<div className="flex-1 overflow-y-auto">
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
 					{/* Session header with clear (left) and export (right) buttons */}
