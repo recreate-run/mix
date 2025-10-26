@@ -1,6 +1,9 @@
 ---
-title: Send a message to session
-description: Send a user message to a specific session for AI processing
+title: Send a message to session (async)
+description: >-
+  Send a user message to a specific session for AI processing. Returns
+  immediately with 202 Accepted. All results stream via Server-Sent Events (SSE)
+  connection.
 full: true
 _openapi:
   method: POST
@@ -9,11 +12,14 @@ _openapi:
   structuredData:
     headings: []
     contents:
-      - content: Send a user message to a specific session for AI processing
+      - content: >-
+          Send a user message to a specific session for AI processing. Returns
+          immediately with 202 Accepted. All results stream via Server-Sent
+          Events (SSE) connection.
 ---
 
 {/* <!-- This file is auto-generated. Do not edit manually. --> */}
 
-Send a user message to a specific session for AI processing
+Send a user message to a specific session for AI processing. Returns immediately with 202 Accepted. All results stream via Server-Sent Events (SSE) connection.
 
 <APIPage document={"./lib/mix-api-spec.yaml"} operations={[{"path":"/api/sessions/{id}/messages","method":"post"}]} webhooks={[]} hasHead={false} />
