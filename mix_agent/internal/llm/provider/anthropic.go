@@ -25,6 +25,7 @@ type anthropicOptions struct {
 	useBedrock             bool
 	disableCache           bool
 	thinkingBudget         func(userMessage string) int
+	explicitThinkingBudget *int
 	useOAuth               bool
 	oauthCreds             *OAuthCredentials
 	useInterleavedThinking bool
@@ -279,11 +280,18 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		}
 	}
 
-	// Enable thinking based on budget function - but ensure API compatibility
+	// Enable thinking based on explicit budget or budget function - but ensure API compatibility
 	if a.options.thinkingBudget != nil {
 		tokenBudget := 0 // Default to disabled
-		if messageContent != "" {
+
+		// Check for explicit budget override FIRST
+		if a.options.explicitThinkingBudget != nil {
+			tokenBudget = *a.options.explicitThinkingBudget
+			logging.Debug("Using explicit thinking budget", "tokenBudget", tokenBudget)
+		} else if messageContent != "" {
+			// Fall back to keyword detection
 			tokenBudget = a.options.thinkingBudget(messageContent)
+			logging.Debug("Using keyword-based thinking budget", "tokenBudget", tokenBudget)
 		}
 
 		// Check if conversation history contains thinking blocks
@@ -305,14 +313,14 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		if tokenBudget > 0 {
 			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(tokenBudget))
 			temperature = anthropic.Float(1)
-			logging.Debug("Thinking enabled", "tokenBudget", tokenBudget, "messageContent", messageContent)
+			logging.Debug("Thinking enabled for Anthropic API", "tokenBudget", tokenBudget)
 		} else if hasThinkingInHistory {
 			// Enable with minimal budget for API compatibility
 			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(1024)
 			temperature = anthropic.Float(1)
-			logging.Debug("Thinking enabled for API compatibility - conversation contains thinking blocks", "tokenBudget", 1024)
+			logging.Debug("Thinking enabled for API compatibility", "tokenBudget", 1024)
 		} else {
-			logging.Debug("Thinking disabled - no 'think' phrase detected and no thinking in history", "messageContent", messageContent)
+			logging.Debug("Thinking disabled - no budget provided and no thinking in history")
 		}
 	} else {
 		logging.Debug("No thinking budget function - thinking disabled")
@@ -916,6 +924,12 @@ func DefaultThinkingBudgetFn(s string) int {
 func WithAnthropicThinkingBudgetFn(fn func(string) int) AnthropicOption {
 	return func(options *anthropicOptions) {
 		options.thinkingBudget = fn
+	}
+}
+
+func WithExplicitThinkingBudget(budget *int) AnthropicOption {
+	return func(options *anthropicOptions) {
+		options.explicitThinkingBudget = budget
 	}
 }
 
