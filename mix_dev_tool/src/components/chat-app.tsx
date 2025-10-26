@@ -9,9 +9,10 @@ import {
 	Select,
 	SelectContent,
 	SelectItem,
-	SelectTrigger,
+	// SelectTrigger, // Commented out - only used in commented Plan Mode code
 	SelectValue,
 } from "@/components/ui/select";
+import { AIInputModelSelectTrigger } from "@/components/ui/kibo-ui/ai/input";
 import {
 	AIInput,
 	AIInputSubmit,
@@ -725,12 +726,12 @@ export function ChatApp({
 											}
 											value={thinkingLevel}
 										>
-											<SelectTrigger
-												className="h-8 w-auto min-w-[120px] border-none bg-transparent text-muted-foreground text-xs shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+											<AIInputModelSelectTrigger
+												className="h-8 w-auto min-w-[120px] text-xs"
 												size="sm"
 											>
 												<SelectValue placeholder="Thinking: Off" />
-											</SelectTrigger>
+											</AIInputModelSelectTrigger>
 											<SelectContent align="start">
 												<SelectItem value={ThinkingLevel.Off}>
 													Thinking: Off
