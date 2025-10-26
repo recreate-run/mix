@@ -112,14 +112,22 @@ export function ChatApp({
 			// Clear attachments after submitting
 			clearAttachments();
 		}
-	}, [initialMessage, sseStream.connected, sseStream, attachments, referenceMap, clearAttachments]);
+	}, [
+		initialMessage,
+		sseStream.connected,
+		sseStream,
+		attachments,
+		referenceMap,
+		clearAttachments,
+	]);
 
 	// Handle session changes: clear UI state when switching sessions
 	useEffect(() => {
 		if (session?.id && session.id !== previousSessionIdRef.current) {
 			// Clear input when switching to a different session (but not on initial load or playground transition)
 			// Don't clear if we're in playground mode and this is the first render (transition from PlaygroundWelcome)
-			const isPlaygroundTransition = isPlayground && previousSessionIdRef.current === "";
+			const isPlaygroundTransition =
+				isPlayground && previousSessionIdRef.current === "";
 			if (previousSessionIdRef.current !== "" && !isPlaygroundTransition) {
 				setText("");
 				clearAttachments();
@@ -388,26 +396,12 @@ export function ChatApp({
 		sseStream.toolCalls.length,
 	]);
 
-	// // Handle streaming errors - simple and clean (commnted out since it seemd redundant. verify and remov quickly)
-	// useEffect(() => {
-	// 	if (
-	// 		sseStream.error &&
-	// 		!sseStream.error.includes("cancelled") &&
-	// 		!sseStream.cancelled
-	// 	) {
-	// 		toast.error(`Failed to send prompt: ${sseStream.error}`);
-	// 	}
-	// }, [sseStream.error, sseStream.cancelled]);
-
 	// Declarative focus management - refocus chat input when all popups are closed
 	useEffect(() => {
 		if (!(showCommands || fileRef.show || showSlashCommands) && inputElement) {
 			inputElement.focus();
 		}
 	}, [showCommands, fileRef.show, showSlashCommands, inputElement]);
-
-	// Handle pause state changes - simplified since pausing is not implemented
-	// (Keeping this for compatibility but it won't trigger since isPaused will always be false)
 
 	const submitMessage = async (
 		messageText: string,
@@ -442,8 +436,6 @@ export function ChatApp({
 		} catch (error) {
 			// Restore input on error
 			setText(messageText);
-			// Note: attachments are already cleared, would need more complex state management to restore them
-			console.error("Failed to submit message:", error);
 			toast.error(
 				error instanceof Error ? error.message : "Failed to submit message",
 			);
@@ -579,37 +571,41 @@ export function ChatApp({
 			<div className="flex-1 overflow-y-auto">
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
 					{/* Session header with clear (left) and export (right) buttons */}
-					{session && (messages.length > 0 || (isPlayground && initialMessage) || sseStream.processing || sseStream.pendingUserMessage) && (
-						<div className="mb-4 flex items-center justify-between">
-							{/* Clear button - only show in playground mode when there are messages */}
-							{isPlayground && onClear ? (
-								<Button
-									onClick={onClear}
-									size="sm"
-									title="Clear playground and start fresh"
-									variant="secondary"
-									className="gap-2 shadow-sm"
-								>
-									<RotateCcw className="h-4 w-4" />
-									Clear
-								</Button>
-							) : (
-								<div />
-							)}
-							{/* Export button - hide in playground mode */}
-							{!isPlayground && (
-								<Button
-									disabled={exportSessionMutation.isPending}
-									onClick={handleExport}
-									size="sm"
-									title="Export session transcript"
-									variant="ghost"
-								>
-									<FileDown className="h-4 w-4" />
-								</Button>
-							)}
-						</div>
-					)}
+					{session &&
+						(messages.length > 0 ||
+							(isPlayground && initialMessage) ||
+							sseStream.processing ||
+							sseStream.pendingUserMessage) && (
+							<div className="mb-4 flex items-center justify-between">
+								{/* Clear button - only show in playground mode when there are messages */}
+								{isPlayground && onClear ? (
+									<Button
+										onClick={onClear}
+										size="sm"
+										title="Clear playground and start fresh"
+										variant="secondary"
+										className="gap-2 shadow-sm"
+									>
+										<RotateCcw className="h-4 w-4" />
+										Clear
+									</Button>
+								) : (
+									<div />
+								)}
+								{/* Export button - hide in playground mode */}
+								{!isPlayground && (
+									<Button
+										disabled={exportSessionMutation.isPending}
+										onClick={handleExport}
+										size="sm"
+										title="Export session transcript"
+										variant="ghost"
+									>
+										<FileDown className="h-4 w-4" />
+									</Button>
+								)}
+							</div>
+						)}
 
 					{/* Loading indicator for messages */}
 					{sessionMessages.isLoading && (
