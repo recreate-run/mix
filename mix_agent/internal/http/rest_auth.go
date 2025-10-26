@@ -291,12 +291,8 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 	// Get preferred provider
 	preferredProvider, err := userPrefs.GetPreferredProvider(ctx)
 	if err != nil || preferredProvider == "" {
-		response := map[string]interface{}{
-			"valid":   false,
-			"error":   "No preferred provider set",
-			"message": "Please set a preferred provider first",
-		}
-		WriteJSONResponse(w, http.StatusOK, response)
+		// Return 400 Bad Request - user needs to set a preferred provider first
+		WriteErrorResponse(w, http.StatusBadRequest, "No preferred provider set. Please set a preferred provider first", "NO_PREFERRED_PROVIDER")
 		return
 	}
 
