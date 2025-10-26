@@ -65,18 +65,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.store_api_key(api_key="<value>", provider="brave")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -94,6 +82,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.store_api_key(api_key="<value>", provider="brave")
+
+                # Handle response
+                print(res)
   "/api/auth/oauth-callback":
     post:
       description: "Process OAuth callback and exchange code for access token"
@@ -152,18 +152,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.handle_o_auth_callback(code="<value>", provider="<value>", state="Arizona")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -182,6 +170,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.handle_o_auth_callback(code="<value>", provider="<value>", state="Arizona")
+
+                # Handle response
+                print(res)
   "/api/auth/oauth/{provider}":
     post:
       description: "Initiate OAuth authentication flow for a specific provider"
@@ -224,18 +224,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.start_o_auth_flow(provider="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -252,6 +240,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.start_o_auth_flow(provider="<value>")
+
+                # Handle response
+                print(res)
   "/api/auth/status":
     get:
       description: "Get authentication status for all supported providers"
@@ -292,18 +292,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.get_auth_status()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -318,6 +306,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.get_auth_status()
+
+                # Handle response
+                print(res)
   "/api/auth/validate":
     get:
       description: "Check if the user's preferred provider is authenticated"
@@ -355,18 +355,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.validate_preferred_provider()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -381,6 +369,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.validate_preferred_provider()
+
+                # Handle response
+                print(res)
   "/api/auth/{provider}":
     delete:
       description: "Delete stored API key and/or OAuth credentials for a provider"
@@ -423,18 +423,6 @@ paths:
       tags:
         - "Authentication"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.authentication.delete_credentials(provider="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -451,6 +439,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.delete_credentials(provider="<value>")
+
+                # Handle response
+                print(res)
   "/api/commands":
     get:
       description: "Retrieve list of all available commands"
@@ -485,18 +485,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.list_commands()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -511,6 +499,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.list_commands()
+
+                # Handle response
+                print(res)
   "/api/commands/{name}":
     get:
       description: "Retrieve details about a specific command"
@@ -548,18 +548,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.get_command(name="<value>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -576,6 +564,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.get_command(name="<value>")
+
+                # Handle response
+                print(res)
   "/api/mcp":
     get:
       description: "Retrieve list of available Model Context Protocol (MCP) servers"
@@ -633,18 +633,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.list_mcp_servers()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -659,6 +647,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.list_mcp_servers()
+
+                # Handle response
+                print(res)
   "/api/messages/history":
     get:
       description: "Retrieve message history across all sessions with optional pagination"
@@ -702,18 +702,6 @@ paths:
         - "Messages"
       x-speakeasy-name-override: "getHistory"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.messages.get_history(limit=50, offset=0)
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -728,6 +716,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.messages.get_history(limit=50, offset=0)
+
+                # Handle response
+                print(res)
   "/api/permissions/{id}/deny":
     post:
       description: "Deny a specific permission"
@@ -770,18 +770,6 @@ paths:
         - "Permissions"
       x-speakeasy-name-override: "deny"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.permissions.deny(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -798,6 +786,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.permissions.deny(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/permissions/{id}/grant":
     post:
       description: "Grant a specific permission"
@@ -840,18 +840,6 @@ paths:
         - "Permissions"
       x-speakeasy-name-override: "grant"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.permissions.grant(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -868,6 +856,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.permissions.grant(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/preferences":
     get:
       description: "Retrieve current user preferences including model and provider settings"
@@ -937,18 +937,6 @@ paths:
       tags:
         - "Preferences"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.get_preferences()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -963,6 +951,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.get_preferences()
+
+                # Handle response
+                print(res)
     post:
       description: "Update user preferences including model and provider settings"
       operationId: "updatePreferences"
@@ -1043,18 +1043,6 @@ paths:
       tags:
         - "Preferences"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.update_preferences()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1069,6 +1057,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.update_preferences()
+
+                # Handle response
+                print(res)
   "/api/preferences/providers":
     get:
       description: "Retrieve list of available AI providers and their supported models"
@@ -1101,18 +1101,6 @@ paths:
       tags:
         - "Preferences"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.get_available_providers()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1127,6 +1115,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.get_available_providers()
+
+                # Handle response
+                print(res)
   "/api/preferences/reset":
     post:
       description: "Reset user preferences to default values"
@@ -1175,18 +1175,6 @@ paths:
       tags:
         - "Preferences"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.preferences.reset_preferences()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1201,10 +1189,30 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.preferences.reset_preferences()
+
+                # Handle response
+                print(res)
   "/api/sessions":
     get:
       description: "Retrieve a list of all available sessions with their metadata"
       operationId: "listSessions"
+      parameters:
+        - description: "Include subagent sessions in response (default: false, subagent sessions are hidden)"
+          in: "query"
+          name: "includeSubagents"
+          required: false
+          schema:
+            default: false
+            type: "boolean"
       responses:
         "200":
           content:
@@ -1228,18 +1236,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "list"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.list()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1248,20 +1244,36 @@ paths:
             const mix = new Mix();
 
             async function run() {
-              const result = await mix.sessions.list();
+              const result = await mix.sessions.list({});
 
               console.log(result);
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.list(include_subagents=False)
+
+                # Handle response
+                print(res)
     post:
-      description: "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory."
+      description: "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution."
       operationId: "createSession"
       requestBody:
         content:
           "application/json":
             schema:
               properties:
+                "callbacks":
+                  description: "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID"
+                  items: {"$ref": "#/components/schemas/Callback"}
+                  type: "array"
                 "customSystemPrompt":
                   description: "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax."
                   example: "You are a helpful assistant specialized in $<domain>. Always be concise and accurate."
@@ -1275,6 +1287,17 @@ paths:
                     - "append"
                     - "replace"
                   example: "append"
+                  type: "string"
+                "sessionType":
+                  default: "main"
+                  description: "Session type. API can only create 'main' sessions. Forked sessions are created via /fork endpoint. Subagent sessions are created automatically by the task delegation system."
+                  enum:
+                    - "main"
+                  example: "main"
+                  type: "string"
+                "subagentType":
+                  description: "Subagent type - must not be set for API-created sessions. This field is reserved for programmatic subagent creation."
+                  example: ""
                   type: "string"
                 "title":
                   description: "Title for the session"
@@ -1296,6 +1319,9 @@ paths:
                 "invalid_prompt_mode":
                   summary: "Invalid prompt mode"
                   value: {"error": {"code": 400, "message": "promptMode must be 'default', 'append', or 'replace'", "type": "validation_error"}}
+                "invalid_session_type":
+                  summary: "Invalid session type"
+                  value: {"error": {"code": 400, "message": "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.", "type": "validation_error"}}
                 "missing_title":
                   summary: "Missing required title"
                   value: {"error": {"code": 400, "message": "title is required", "type": "validation_error"}}
@@ -1305,6 +1331,9 @@ paths:
                 "prompt_size_exceeded_replace":
                   summary: "Custom prompt size exceeds replace mode limit"
                   value: {"error": {"code": 400, "message": "Custom prompt size (150KB) exceeds replace mode limit of 100KB", "type": "validation_error"}}
+                "subagent_type_not_allowed":
+                  summary: "Subagent type not allowed for API-created sessions"
+                  value: {"error": {"code": 400, "message": "subagentType cannot be set for API-created sessions. Subagent sessions are created programmatically by the task delegation system.", "type": "validation_error"}}
               schema: {"$ref": "#/components/schemas/ErrorResponse"}
           description: "Invalid request data"
       summary: "Create a new session"
@@ -1312,18 +1341,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "create"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.create(title="<value>", custom_system_prompt="You are a helpful assistant specialized in $<domain>. Always be concise and accurate.", prompt_mode="append")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1333,8 +1350,17 @@ paths:
 
             async function run() {
               const result = await mix.sessions.create({
+                callbacks: [
+                  {
+                    messageContent: "Please review the changes and run tests",
+                    name: "Log Output",
+                    toolName: "*",
+                    type: "send_message",
+                  },
+                ],
                 customSystemPrompt: "You are a helpful assistant specialized in $<domain>. Always be concise and accurate.",
                 promptMode: "append",
+                subagentType: "",
                 title: "<value>",
               });
 
@@ -1342,6 +1368,25 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.create(title="<value>", callbacks=[
+                    {
+                        "message_content": "Please review the changes and run tests",
+                        "name": "Log Output",
+                        "tool_name": "*",
+                        "type": "send_message",
+                    },
+                ], custom_system_prompt="You are a helpful assistant specialized in $<domain>. Always be concise and accurate.", prompt_mode="append", session_type="main", subagent_type="")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}":
     delete:
       description: "Permanently delete a session and all its data"
@@ -1366,17 +1411,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "delete"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                mix.sessions.delete(id="<id>")
-
-                # Use the SDK ...
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1393,6 +1427,17 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                mix.sessions.delete(id="<id>")
+
+                # Use the SDK ...
     get:
       description: "Retrieve detailed information about a specific session"
       operationId: "getSession"
@@ -1419,18 +1464,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "get"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.get(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1447,6 +1480,93 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.get(id="<id>")
+
+                # Handle response
+                print(res)
+  "/api/sessions/{id}/callbacks":
+    patch:
+      description: "Update the callback configurations for a session. Callbacks execute automatically after tool completion. Pass an empty array to clear all callbacks."
+      operationId: "updateSessionCallbacks"
+      parameters:
+        - description: "Session ID to update"
+          in: "path"
+          name: "id"
+          required: true
+          schema:
+            type: "string"
+      requestBody:
+        content:
+          "application/json":
+            schema:
+              properties:
+                "callbacks":
+                  description: "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID"
+                  items: {"$ref": "#/components/schemas/Callback"}
+                  type: "array"
+              required:
+                - "callbacks"
+              type: "object"
+        required: true
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/SessionData"}
+          description: "Session callbacks updated successfully"
+        "400":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Invalid request - validation error in callbacks array"
+        "404":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Session not found"
+      summary: "Update session callbacks"
+      tags:
+        - "Sessions"
+      x-codeSamples:
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.sessions.updateSessionCallbacks({
+                id: "<id>",
+                requestBody: {
+                  callbacks: [],
+                },
+              });
+
+              console.log(result);
+            }
+
+            run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.update_session_callbacks(id="<id>", callbacks=[])
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/cancel":
     post:
       description: "Cancel any ongoing agent processing in the specified session"
@@ -1480,18 +1600,6 @@ paths:
       x-speakeasy-group: "sessions"
       x-speakeasy-name-override: "cancelProcessing"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.cancel_processing(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1508,6 +1616,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.cancel_processing(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/export":
     get:
       description: "Export complete session transcript with all messages, tool calls, reasoning, and metadata as JSON"
@@ -1546,18 +1666,6 @@ paths:
       tags:
         - "Sessions"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.export_session(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1574,6 +1682,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.export_session(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/files":
     get:
       description: "List all files in session storage directory"
@@ -1602,18 +1722,6 @@ paths:
       tags:
         - "Files"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.files.list_session_files(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1630,6 +1738,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.files.list_session_files(id="<id>")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/files/upload":
     post:
       description: "Upload a file to session-specific storage directory"
@@ -1679,21 +1799,6 @@ paths:
       tags:
         - "Files"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.files.upload_session_file(id="<id>", file={
-                    "file_name": "example.file",
-                    "content": open("example.file", "rb"),
-                })
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1714,6 +1819,21 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.files.upload_session_file(id="<id>", file={
+                    "file_name": "example.file",
+                    "content": open("example.file", "rb"),
+                })
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/files/{filename}":
     delete:
       description: "Delete a specific file from session storage. Only files are supported - directories cannot be deleted."
@@ -1748,17 +1868,6 @@ paths:
       tags:
         - "Files"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                mix.files.delete_session_file(id="<id>", filename="example.file")
-
-                # Use the SDK ...
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1776,6 +1885,17 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                mix.files.delete_session_file(id="<id>", filename="example.file")
+
+                # Use the SDK ...
     get:
       description: "Download or serve a specific file from session storage. Supports thumbnail generation with ?thumb parameter."
       operationId: "getSessionFile"
@@ -1828,18 +1948,6 @@ paths:
       tags:
         - "Files"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.files.get_session_file(id="<id>", filename="example.file")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1857,6 +1965,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.files.get_session_file(id="<id>", filename="example.file")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/fork":
     post:
       description: "Create a new session based on an existing session, copying messages up to a specified index"
@@ -1905,18 +2025,6 @@ paths:
         - "Sessions"
       x-speakeasy-name-override: "fork"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.fork(id="<id>", message_index=385832)
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1936,6 +2044,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.fork(id="<id>", message_index=385832)
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/messages":
     get:
       description: "Retrieve all messages from a specific session"
@@ -1965,18 +2085,6 @@ paths:
         - "Messages"
       x-speakeasy-name-override: "listSession"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.messages.list_session(id="<id>")
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -1993,8 +2101,20 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.messages.list_session(id="<id>")
+
+                # Handle response
+                print(res)
     post:
-      description: "Send a user message to a specific session for AI processing"
+      description: "Send a user message to a specific session for AI processing. Returns immediately with 202 Accepted. All results stream via Server-Sent Events (SSE) connection."
       operationId: "sendMessage"
       parameters:
         - description: "Session ID"
@@ -2015,16 +2135,38 @@ paths:
                 "text":
                   description: "The text content of the message"
                   type: "string"
+                "thinking_level":
+                  description: "Thinking level: off (disabled), basic (4k tokens), medium (10k tokens), maximum (32k tokens). If not provided, determined by keywords in message."
+                  enum:
+                    - "off"
+                    - "basic"
+                    - "medium"
+                    - "maximum"
+                  example: "medium"
+                  nullable: true
+                  type: "string"
               required:
                 - "text"
               type: "object"
         required: true
       responses:
-        "200":
+        "202":
           content:
             "application/json":
-              schema: {"$ref": "#/components/schemas/BackendMessage"}
-          description: "Message sent and processed"
+              schema:
+                properties:
+                  "sessionId":
+                    description: "Session ID for the processing task"
+                    type: "string"
+                  "status":
+                    description: "Processing status"
+                    example: "processing"
+                    type: "string"
+                required:
+                  - "status"
+                  - "sessionId"
+                type: "object"
+          description: "Message accepted for processing. Agent runs asynchronously and streams results via SSE."
         "400":
           content:
             "application/json":
@@ -2035,23 +2177,11 @@ paths:
             "application/json":
               schema: {"$ref": "#/components/schemas/ErrorResponse"}
           description: "Session not found"
-      summary: "Send a message to session"
+      summary: "Send a message to session (async)"
       tags:
         - "Messages"
       x-speakeasy-name-override: "send"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.messages.send(id="<id>", text="<value>", plan_mode=False)
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2064,6 +2194,7 @@ paths:
                 id: "<id>",
                 requestBody: {
                   text: "<value>",
+                  thinkingLevel: "medium",
                 },
               });
 
@@ -2071,6 +2202,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.messages.send(id="<id>", text="<value>", plan_mode=False, thinking_level="medium")
+
+                # Handle response
+                print(res)
   "/api/sessions/{id}/rewind":
     post:
       description: "Delete messages after a specified message in the current session, optionally cleaning up media files created after that point"
@@ -2118,18 +2261,6 @@ paths:
       tags:
         - "Sessions"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.sessions.rewind_session(id="<id>", message_id="<id>", cleanup_media=True)
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2149,6 +2280,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.sessions.rewind_session(id="<id>", message_id="<id>", cleanup_media=True)
+
+                # Handle response
+                print(res)
   "/api/system/info":
     get:
       description: "Retrieve system information including storage configuration"
@@ -2175,18 +2318,6 @@ paths:
       tags:
         - "System"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.get_system_info()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2201,6 +2332,181 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.get_system_info()
+
+                # Handle response
+                print(res)
+  "/api/tools":
+    get:
+      description: "Returns the list of all LLM tools that Claude can invoke. The list is dynamically extracted from the actual tools registered in CoderAgentTools() (agent/tools.go), ensuring it always reflects the current tool availability. Typical tools include: Bash, Edit, Read, Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite, ExitPlanMode, and Task. This endpoint is useful for creating tool callbacks or understanding available agent capabilities."
+      operationId: "listLLMTools"
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema:
+                properties:
+                  "tools":
+                    items:
+                      properties:
+                        "description":
+                          description: "Tool description"
+                          example: "Execute bash commands in a persistent shell session"
+                          type: "string"
+                        "name":
+                          description: "Tool name"
+                          example: "Bash"
+                          type: "string"
+                        "parameters":
+                          description: "Tool parameter schema"
+                          type: "object"
+                        "required":
+                          description: "Required parameters"
+                          items:
+                            type: "string"
+                          type: "array"
+                      type: "object"
+                    type: "array"
+                type: "object"
+          description: "List of LLM tools"
+        "500":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Internal server error"
+      summary: "List LLM tools"
+      tags:
+        - "Tools"
+      x-codeSamples:
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.tools.listLLMTools();
+
+              console.log(result);
+            }
+
+            run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.tools.list_llm_tools()
+
+                # Handle response
+                print(res)
+  "/api/tools/credentials-status":
+    get:
+      description: "Returns authentication/credential status for external tool integrations (Brave Search, Gemini Vision, etc.). This endpoint checks if API keys are configured for tools that require external service credentials."
+      operationId: "getToolCredentialsStatus"
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema:
+                properties:
+                  "categories":
+                    additionalProperties:
+                      properties:
+                        "description":
+                          description: "Category description"
+                          example: "Search the web for real-time information"
+                          type: "string"
+                        "display_name":
+                          description: "Category display name"
+                          example: "Web Search"
+                          type: "string"
+                        "icon":
+                          description: "Category icon"
+                          example: "\U0001F50D"
+                          type: "string"
+                        "tools":
+                          description: "Tools in this category"
+                          items:
+                            properties:
+                              "api_key_format":
+                                description: "Expected API key format"
+                                example: "BSA..."
+                                type: "string"
+                              "api_key_required":
+                                description: "Whether an API key is required"
+                                example: true
+                                type: "boolean"
+                              "authenticated":
+                                description: "Whether the tool has valid credentials"
+                                example: true
+                                type: "boolean"
+                              "description":
+                                description: "Tool description"
+                                example: "Privacy-focused web search with real-time results"
+                                type: "string"
+                              "display_name":
+                                description: "Tool display name"
+                                example: "Brave Search"
+                                type: "string"
+                              "provider":
+                                description: "Provider identifier"
+                                example: "brave"
+                                type: "string"
+                            type: "object"
+                          type: "array"
+                      type: "object"
+                    description: "Tool categories grouped by type"
+                    type: "object"
+                type: "object"
+          description: "Tool credentials status"
+        "500":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Internal server error"
+      summary: "Get tool credentials status"
+      tags:
+        - "Tools"
+      x-codeSamples:
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.tools.getToolCredentialsStatus();
+
+              console.log(result);
+            }
+
+            run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.tools.get_tool_credentials_status()
+
+                # Handle response
+                print(res)
   "/api/tools/status":
     get:
       description: "Get status and authentication information for all available tools and categories"
@@ -2252,18 +2558,6 @@ paths:
       tags:
         - "Tools"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.tools.get_tools_status()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2278,6 +2572,18 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.tools.get_tools_status()
+
+                # Handle response
+                print(res)
   "/health":
     get:
       description: "Check server health and status"
@@ -2309,18 +2615,6 @@ paths:
         - "System"
       x-speakeasy-name-override: "getHealth"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.system.get_health()
-
-                # Handle response
-                print(res)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2335,6 +2629,226 @@ paths:
             }
 
             run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.system.get_health()
+
+                # Handle response
+                print(res)
+  "/health/auth":
+    get:
+      description: "Get health status of all OAuth credentials. Background service refreshes tokens 35 minutes before expiry. API calls mark tokens expired 5 minutes before expiry. Health statuses: 'healthy' (tokens valid, >5min remaining), 'degraded' (some tokens within 5min of expiry but refreshable), 'unhealthy' (tokens expired without refresh capability)"
+      operationId: "getOAuthHealth"
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema:
+                properties:
+                  "providers":
+                    additionalProperties:
+                      properties:
+                        "error":
+                          description: "Error message if status is 'error'"
+                          type: "string"
+                        "expires_at":
+                          description: "Token expiration time"
+                          format: "date-time"
+                          type: "string"
+                        "expires_in":
+                          description: "Human-readable time until expiration"
+                          example: "2h30m15s"
+                          type: "string"
+                        "last_refresh":
+                          description: "Last time token was refreshed"
+                          format: "date-time"
+                          type: "string"
+                        "provider":
+                          description: "Provider name"
+                          type: "string"
+                        "status":
+                          description: "Token status"
+                          enum:
+                            - "active"
+                            - "expired"
+                            - "expired_no_refresh"
+                            - "error"
+                            - "not_found"
+                          type: "string"
+                      required:
+                        - "provider"
+                        - "status"
+                      type: "object"
+                    description: "Map of provider OAuth health status"
+                    type: "object"
+                  "status":
+                    description: "Overall health status"
+                    enum:
+                      - "healthy"
+                      - "degraded"
+                      - "unhealthy"
+                    example: "healthy"
+                    type: "string"
+                  "timestamp":
+                    description: "Health check timestamp"
+                    format: "date-time"
+                    type: "string"
+                required:
+                  - "status"
+                  - "providers"
+                  - "timestamp"
+                type: "object"
+          description: "OAuth health status"
+        "500":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Health check service not available or internal error"
+      summary: "Get OAuth authentication health"
+      tags:
+        - "Health"
+        - "Authentication"
+      x-codeSamples:
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.authentication.getOAuthHealth();
+
+              console.log(result);
+            }
+
+            run();
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.health.getOAuthHealth();
+
+              console.log(result);
+            }
+
+            run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.get_o_auth_health()
+
+                # Handle response
+                print(res)
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.health.get_o_auth_health()
+
+                # Handle response
+                print(res)
+  "/internal/auth/refresh-tokens":
+    post:
+      description: "Manually trigger OAuth token refresh for all expired tokens. Normally tokens are refreshed automatically by the background service every 30 minutes."
+      operationId: "refreshOAuthTokens"
+      responses:
+        "200":
+          content:
+            "application/json":
+              schema:
+                properties:
+                  "message":
+                    description: "Status message"
+                    example: "Token refresh triggered successfully"
+                    type: "string"
+                  "status":
+                    description: "Operation status"
+                    example: "success"
+                    type: "string"
+                type: "object"
+          description: "Token refresh triggered"
+        "500":
+          content:
+            "application/json":
+              schema: {"$ref": "#/components/schemas/ErrorResponse"}
+          description: "Token refresh service not available or internal error"
+      summary: "Manually refresh OAuth tokens"
+      tags:
+        - "Authentication"
+        - "Internal"
+      x-codeSamples:
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.authentication.refreshOAuthTokens();
+
+              console.log(result);
+            }
+
+            run();
+        - lang: typescript
+          label: Typescript (SDK)
+          source: |-
+            import { Mix } from "mix-typescript-sdk";
+
+            const mix = new Mix();
+
+            async function run() {
+              const result = await mix.internal.refreshOAuthTokens();
+
+              console.log(result);
+            }
+
+            run();
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.authentication.refresh_o_auth_tokens()
+
+                # Handle response
+                print(res)
+        - lang: python
+          label: Python (SDK)
+          source: |-
+            from mix_python_sdk import Mix
+
+
+            with Mix() as mix:
+
+                res = mix.internal.refresh_o_auth_tokens()
+
+                # Handle response
+                print(res)
   "/stream":
     get:
       description: "Establishes a persistent SSE connection for receiving real-time updates during message processing. Connection remains open for multiple messages and includes proper reconnection support with Last-Event-ID header."
@@ -2391,20 +2905,6 @@ paths:
       tags:
         - "Streaming"
       x-codeSamples:
-        - lang: python
-          label: Python (SDK)
-          source: |-
-            from mix_python_sdk import Mix
-
-
-            with Mix() as mix:
-
-                res = mix.streaming.stream_events(session_id="<id>")
-
-                with res as event_stream:
-                    for event in event_stream:
-                        # handle event
-                        print(event, flush=True)
         - lang: typescript
           label: Typescript (SDK)
           source: |-
@@ -2423,54 +2923,6 @@ paths:
             }
 
             run();
-  "/stream/{id}/message":
-    post:
-      description: "Send a message to a session via the streaming pipeline. This endpoint integrates with active SSE connections to broadcast real-time processing events including thinking, content, tool execution, and completion events."
-      operationId: "sendStreamingMessage"
-      parameters:
-        - description: "Session ID to send message to"
-          in: "path"
-          name: "id"
-          required: true
-          schema:
-            type: "string"
-      requestBody:
-        content:
-          "application/json":
-            schema:
-              properties:
-                "content":
-                  description: "Message content to send for processing"
-                  type: "string"
-              required:
-                - "content"
-              type: "object"
-        required: true
-      responses:
-        "200":
-          content:
-            "application/json":
-              schema: {"$ref": "#/components/schemas/StreamMessageResponse"}
-          description: "Message broadcasted to streaming pipeline. Real-time processing events will be sent via active SSE connections."
-        "400":
-          content:
-            "application/json":
-              schema: {"$ref": "#/components/schemas/ErrorResponse"}
-          description: "Invalid message content"
-        "404":
-          content:
-            "application/json":
-              schema: {"$ref": "#/components/schemas/ErrorResponse"}
-          description: "Session not found"
-        "500":
-          content:
-            "application/json":
-              schema: {"$ref": "#/components/schemas/ErrorResponse"}
-          description: "Internal server error"
-      summary: "Send message via streaming pipeline"
-      tags:
-        - "Streaming"
-      x-codeSamples:
         - lang: python
           label: Python (SDK)
           source: |-
@@ -2479,29 +2931,12 @@ paths:
 
             with Mix() as mix:
 
-                res = mix.streaming.send_streaming_message(id="<id>", content="<value>")
+                res = mix.streaming.stream_events(session_id="<id>")
 
-                # Handle response
-                print(res)
-        - lang: typescript
-          label: Typescript (SDK)
-          source: |-
-            import { Mix } from "mix-typescript-sdk";
-
-            const mix = new Mix();
-
-            async function run() {
-              const result = await mix.streaming.sendStreamingMessage({
-                id: "<id>",
-                requestBody: {
-                  content: "<value>",
-                },
-              });
-
-              console.log(result);
-            }
-
-            run();
+                with res as event_stream:
+                    for event in event_stream:
+                        # handle event
+                        print(event, flush=True)
 components:
   schemas:
     "BackendMessage":
@@ -2510,6 +2945,10 @@ components:
         "assistantResponse":
           description: "Assistant's response message (optional)"
           type: "string"
+        "callbackResults":
+          description: "Callback execution results (optional)"
+          items: {"$ref": "#/components/schemas/CallbackResultData"}
+          type: "array"
         "id":
           description: "Unique message identifier"
           type: "string"
@@ -2538,22 +2977,119 @@ components:
         - "role"
         - "userInput"
       type: "object"
+    "Callback":
+      description: "Session-level callback configuration that executes after tool completion"
+      properties:
+        "bashCommand":
+          description: "Bash command to execute (required for bash_script type). Has access to environment variables."
+          type: "string"
+        "bashTimeout":
+          default: 120000
+          description: "Timeout in milliseconds for bash execution (default: 120000)"
+          type: "integer"
+        "excludeFromContext":
+          default: false
+          description: "Exclude callback results from agent context. Only applies to bash_script and sub_agent types. Not allowed for send_message."
+          type: "boolean"
+        "includeFullHistory":
+          default: false
+          description: "Include full conversation history in sub-agent context (not yet implemented)"
+          type: "boolean"
+        "messageContent":
+          description: "Message content to inject into the conversation (required for send_message type). Will be sent as a User message."
+          example: "Please review the changes and run tests"
+          type: "string"
+        "name":
+          description: "Human-readable name for this callback (optional, defaults to 'Callback #XXXX')"
+          example: "Log Output"
+          type: "string"
+        "subAgentPrompt":
+          description: "Prompt for the sub-agent (required for sub_agent type). Tool execution context is automatically appended."
+          type: "string"
+        "subAgentType":
+          default: "general-purpose"
+          description: "Type of sub-agent to spawn (default: 'general-purpose')"
+          type: "string"
+        "toolName":
+          description: "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)"
+          example: "*"
+          type: "string"
+        "type":
+          description: "Callback type: 'bash_script' for shell commands, 'sub_agent' for spawning sub-agents, 'send_message' for injecting messages"
+          enum:
+            - "bash_script"
+            - "sub_agent"
+            - "send_message"
+          type: "string"
+      required:
+        - "toolName"
+        - "type"
+      type: "object"
+    "CallbackResultData":
+      description: "Callback execution result information"
+      properties:
+        "callback_name":
+          description: "Human-readable name of the callback (optional)"
+          type: "string"
+        "callback_type":
+          description: "Type of callback executed"
+          enum:
+            - "bash_script"
+            - "sub_agent"
+            - "send_message"
+          type: "string"
+        "error":
+          description: "Error message if callback failed (optional)"
+          type: "string"
+        "exclude_from_context":
+          description: "Whether this callback result is excluded from agent context (optional)"
+          type: "boolean"
+        "exit_code":
+          description: "Exit code from bash callback (optional)"
+          type: "integer"
+        "stderr":
+          description: "Standard error from bash callback (optional)"
+          type: "string"
+        "stdout":
+          description: "Standard output from bash callback (optional)"
+          type: "string"
+        "subagent_id":
+          description: "ID of spawned sub-agent session (optional)"
+          type: "string"
+        "subagent_result":
+          description: "Result from sub-agent execution (optional)"
+          type: "string"
+        "success":
+          description: "Whether callback executed successfully"
+          type: "boolean"
+        "tool_call_id":
+          description: "ID of the tool call that triggered this callback"
+          type: "string"
+        "tool_name":
+          description: "Name of the tool that triggered callback"
+          type: "string"
+      required:
+        - "tool_call_id"
+        - "tool_name"
+        - "callback_type"
+        - "success"
+      type: "object"
     "CoreToolName":
       description: "Core built-in tool names"
       enum:
-        - "bash"
+        - "Bash"
         - "ReadText"
-        - "glob"
+        - "Glob"
         - "ReadMedia"
-        - "grep"
-        - "write"
-        - "edit"
+        - "Grep"
+        - "Write"
+        - "Edit"
         - "python_execution"
-        - "search"
-        - "todo_write"
-        - "exit_plan_mode"
-        - "show_media"
-        - "task"
+        - "Search"
+        - "TodoWrite"
+        - "ExitPlanMode"
+        - "ShowMedia"
+        - "Task"
       type: "string"
     "ErrorResponse":
       properties:
@@ -2767,10 +3303,11 @@ components:
             - "thinking"
             - "content"
             - "tool"
+            - "tool_parameter_delta"
             - "tool_execution_start"
             - "tool_execution_complete"
             - "permission"
-            - "summarize"
+            - "user_message_created"
             - "session_created"
             - "session_deleted"
           type: "string"
@@ -2800,6 +3337,9 @@ components:
                   type: "boolean"
                 "messageId":
                   description: "Completed message identifier"
+                  type: "string"
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
                   type: "string"
                 "reasoning":
                   description: "Optional reasoning content"
@@ -2838,8 +3378,14 @@ components:
         - properties:
             "data":
               properties:
+                "assistantMessageId":
+                  description: "ID of the assistant message this content belongs to"
+                  type: "string"
                 "content":
                   description: "Streaming content delta"
+                  type: "string"
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
                   type: "string"
                 "type":
                   description: "Content event type"
@@ -2866,6 +3412,9 @@ components:
                 "maxAttempts":
                   description: "Maximum number of retry attempts"
                   type: "integer"
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
+                  type: "string"
                 "retryAfter":
                   description: "Milliseconds to wait before retry"
                   type: "integer"
@@ -2890,11 +3439,12 @@ components:
           "permission": "#/components/schemas/SSEPermissionEvent"
           "session_created": "#/components/schemas/SSESessionCreatedEvent"
           "session_deleted": "#/components/schemas/SSESessionDeletedEvent"
-          "summarize": "#/components/schemas/SSESummarizeEvent"
           "thinking": "#/components/schemas/SSEThinkingEvent"
           "tool": "#/components/schemas/SSEToolEvent"
           "tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent"
           "tool_execution_start": "#/components/schemas/SSEToolExecutionStartEvent"
+          "tool_parameter_delta": "#/components/schemas/SSEToolParameterDeltaEvent"
+          "user_message_created": "#/components/schemas/SSEUserMessageCreatedEvent"
         propertyName: "event"
       oneOf:
         - {"$ref": "#/components/schemas/SSEConnectedEvent"}
@@ -2904,10 +3454,11 @@ components:
         - {"$ref": "#/components/schemas/SSEThinkingEvent"}
         - {"$ref": "#/components/schemas/SSEContentEvent"}
         - {"$ref": "#/components/schemas/SSEToolEvent"}
+        - {"$ref": "#/components/schemas/SSEToolParameterDeltaEvent"}
         - {"$ref": "#/components/schemas/SSEToolExecutionStartEvent"}
         - {"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"}
         - {"$ref": "#/components/schemas/SSEPermissionEvent"}
-        - {"$ref": "#/components/schemas/SSESummarizeEvent"}
+        - {"$ref": "#/components/schemas/SSEUserMessageCreatedEvent"}
         - {"$ref": "#/components/schemas/SSESessionCreatedEvent"}
         - {"$ref": "#/components/schemas/SSESessionDeletedEvent"}
       type: "object"
@@ -2945,6 +3496,9 @@ components:
                 "params":
                   description: "Additional parameters for the permission request"
                   type: "object"
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
+                  type: "string"
                 "path":
                   description: "File path for permission request"
                   type: "string"
@@ -3015,37 +3569,20 @@ components:
           required:
             - "data"
           type: "object"
-    "SSESummarizeEvent":
-      allOf:
-        - {"$ref": "#/components/schemas/SSEBaseEvent"}
-        - properties:
-            "data":
-              properties:
-                "done":
-                  description: "Indicates if summarization is complete"
-                  type: "boolean"
-                "progress":
-                  description: "Summarization progress description"
-                  type: "string"
-                "type":
-                  description: "Summarization event type"
-                  type: "string"
-              required:
-                - "type"
-                - "progress"
-                - "done"
-              type: "object"
-          required:
-            - "data"
-          type: "object"
     "SSEThinkingEvent":
       allOf:
         - {"$ref": "#/components/schemas/SSEBaseEvent"}
         - properties:
             "data":
               properties:
+                "assistantMessageId":
+                  description: "ID of the assistant message this thinking belongs to"
+                  type: "string"
                 "content":
                   description: "Thinking or reasoning content"
+                  type: "string"
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
                   type: "string"
                 "type":
                   description: "Thinking event type"
@@ -3063,6 +3600,9 @@ components:
         - properties:
             "data":
               properties:
+                "assistantMessageId":
+                  description: "ID of the assistant message this tool belongs to"
+                  type: "string"
                 "id":
                   description: "Tool execution identifier"
                   type: "string"
@@ -3070,6 +3610,9 @@ components:
                   description: "Tool input parameters"
                   type: "string"
                 "name": {"$ref": "#/components/schemas/ToolName", "description": "Tool name being executed"}
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
+                  type: "string"
                 "status":
                   description: "Tool execution status"
                   type: "string"
@@ -3092,6 +3635,9 @@ components:
         - properties:
             "data":
               properties:
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
+                  type: "string"
                 "progress":
                   description: "Final execution progress description"
                   type: "string"
@@ -3121,6 +3667,9 @@ components:
         - properties:
             "data":
               properties:
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
+                  type: "string"
                 "progress":
                   description: "Execution progress description"
                   type: "string"
@@ -3140,16 +3689,76 @@ components:
           required:
             - "data"
           type: "object"
+    "SSEToolParameterDeltaEvent":
+      allOf:
+        - {"$ref": "#/components/schemas/SSEBaseEvent"}
+        - properties:
+            "data":
+              properties:
+                "assistantMessageId":
+                  description: "ID of the assistant message this tool parameter delta belongs to"
+                  type: "string"
+                "input":
+                  description: "Partial JSON parameter delta - may not be parseable until complete"
+                  type: "string"
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
+                  type: "string"
+                "toolCallId":
+                  description: "Tool call identifier for correlation"
+                  type: "string"
+                "type":
+                  description: "Tool parameter delta event type"
+                  type: "string"
+              required:
+                - "type"
+                - "toolCallId"
+                - "input"
+              type: "object"
+          required:
+            - "data"
+          type: "object"
+    "SSEUserMessageCreatedEvent":
+      allOf:
+        - {"$ref": "#/components/schemas/SSEBaseEvent"}
+        - properties:
+            "data":
+              properties:
+                "content":
+                  description: "Content of the user message"
+                  type: "string"
+                "messageId":
+                  description: "ID of the created user message"
+                  type: "string"
+                "parentToolCallId":
+                  description: "ID of the parent tool call that spawned this subagent (for nested events)"
+                  type: "string"
+                "type":
+                  description: "User message created event type"
+                  example: "user_message_created"
+                  type: "string"
+              required:
+                - "type"
+                - "messageId"
+                - "content"
+              type: "object"
+          required:
+            - "data"
+          type: "object"
     "SessionData":
       properties:
         "assistantMessageCount":
           description: "Number of assistant messages in session"
           type: "integer"
+        "callbacks":
+          description: "Session-level callback configurations (optional)"
+          items: {"$ref": "#/components/schemas/Callback"}
+          type: "array"
         "completionTokens":
           description: "Total completion tokens used"
           type: "integer"
         "cost":
-          description: "Total cost of session"
+          description: "Total cost of session (for subagent sessions, costs are also accumulated in parent session)"
           format: "double"
           type: "number"
         "createdAt":
@@ -3162,9 +3771,27 @@ components:
         "id":
           description: "Unique session identifier"
           type: "string"
+        "parentSessionId":
+          description: "Parent session ID for forked and subagent sessions (null for main sessions)"
+          type: "string"
+        "parentToolCallId":
+          description: "ID of the tool call that spawned this subagent session (null for non-subagent sessions)"
+          type: "string"
         "promptTokens":
           description: "Total prompt tokens used"
           type: "integer"
+        "sessionType":
+          description: "Session type:\n- 'main': Root-level user interactions\n- 'forked': User-created conversation branches\n- 'subagent': Delegated task workers"
+          enum:
+            - "main"
+            - "forked"
+            - "subagent"
+          type: "string"
+        "subagentType":
+          description: "Subagent specialization type (only present for subagent sessions)"
+          enum:
+            - "general-purpose"
+          type: "string"
         "title":
           description: "Session title"
           type: "string"
@@ -3177,6 +3804,7 @@ components:
       required:
         - "id"
         - "title"
+        - "sessionType"
         - "userMessageCount"
         - "assistantMessageCount"
         - "toolCallCount"
@@ -3184,21 +3812,6 @@ components:
         - "completionTokens"
         - "cost"
         - "createdAt"
-      type: "object"
-    "StreamMessageResponse":
-      description: "Response from streaming message endpoint indicating broadcast status"
-      properties:
-        "sessionId":
-          description: "Session identifier"
-          type: "string"
-        "status":
-          description: "Broadcast status"
-          enum:
-            - "broadcasted"
-          type: "string"
-      required:
-        - "status"
-        - "sessionId"
       type: "object"
     "ToolCallData":
       properties:

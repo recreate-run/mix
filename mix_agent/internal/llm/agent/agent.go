@@ -126,7 +126,7 @@ type Service interface {
 	Model() models.Model
 	GetBroker() *pubsub.Broker[AgentEvent]
 	Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error)
-	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error)
+	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, thinkingBudget *int, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	Cancel(sessionID string)
 	CancelWithReason(sessionID string, reason string)
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
@@ -362,10 +362,10 @@ func (a *agent) err(err error) AgentEvent {
 }
 
 func (a *agent) Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error) {
-	return a.RunWithPlanMode(ctx, sessionID, content, false, attachments...)
+	return a.RunWithPlanMode(ctx, sessionID, content, false, nil, attachments...)
 }
 
-func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, attachments ...message.Attachment) (<-chan AgentEvent, error) {
+func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, thinkingBudget *int, attachments ...message.Attachment) (<-chan AgentEvent, error) {
 	if !a.provider.Model().SupportsAttachments && attachments != nil {
 		attachments = nil
 	}
@@ -399,6 +399,11 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content s
 	// Add plan mode to context
 	if planMode {
 		genCtx = context.WithValue(genCtx, interfaces.PlanModeContextKey, true)
+	}
+
+	// Add thinking budget to context
+	if thinkingBudget != nil {
+		genCtx = context.WithValue(genCtx, interfaces.ThinkingBudgetContextKey, thinkingBudget)
 	}
 
 	// Subscribe to agent events for real-time streaming
@@ -1191,7 +1196,7 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 	return agentProvider, nil
 }
 
-func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig session.Config) (interfaces.Provider, error) {
+func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig session.Config, thinkingBudget *int) (interfaces.Provider, error) {
 	// Try to get agent config from database first
 	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
 	if err != nil {
@@ -1273,12 +1278,17 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 			),
 		)
 	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentMain {
+		anthropicOpts := []provider.AnthropicOption{
+			provider.WithAnthropicThinkingBudgetFn(provider.DefaultThinkingBudgetFn),
+			provider.WithAnthropicInterleavedThinking(),
+		}
+		// Add explicit thinking budget if provided
+		if thinkingBudget != nil {
+			anthropicOpts = append(anthropicOpts, provider.WithExplicitThinkingBudget(thinkingBudget))
+		}
 		opts = append(
 			opts,
-			provider.WithAnthropicOptions(
-				provider.WithAnthropicThinkingBudgetFn(provider.DefaultThinkingBudgetFn),
-				provider.WithAnthropicInterleavedThinking(),
-			),
+			provider.WithAnthropicOptions(anthropicOpts...),
 		)
 	}
 	sessionProvider, err := provider.NewProvider(
@@ -1293,6 +1303,24 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 }
 
 func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, session *session.Session) (interfaces.Provider, error) {
+	// Extract thinking budget from context if present
+	var thinkingBudget *int
+	if budgetValue := ctx.Value(interfaces.ThinkingBudgetContextKey); budgetValue != nil {
+		thinkingBudget = budgetValue.(*int)
+	}
+
+	// If explicit thinking budget is provided, skip caching and create a new provider
+	// This ensures request-specific thinking budgets are used correctly
+	if thinkingBudget != nil {
+		sessionProvider, err := createSessionProvider(ctx, a.agentName, session, a.storageConfig, thinkingBudget)
+		if err != nil {
+			logging.Error("Failed to create session provider with thinking budget", "sessionID", sessionID, "budget", *thinkingBudget, "error", err)
+			return nil, fmt.Errorf("failed to create session provider: %w", err)
+		}
+		logging.Debug("Created non-cached provider with explicit thinking budget", "sessionID", sessionID, "budget", *thinkingBudget)
+		return sessionProvider, nil
+	}
+
 	// Get user preferences to log current settings
 	userPrefs := config.GetUserPreferences()
 	var preferredProvider models.ModelProvider
@@ -1342,9 +1370,9 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 		}
 	}
 
-	// Create new session provider
+	// Create new session provider (no explicit thinking budget, will be cached)
 	// Creating new session provider
-	sessionProvider, err := createSessionProvider(ctx, a.agentName, session, a.storageConfig)
+	sessionProvider, err := createSessionProvider(ctx, a.agentName, session, a.storageConfig, nil)
 	if err != nil {
 		logging.Error("Failed to create session provider", "sessionID", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to create session provider: %w", err)

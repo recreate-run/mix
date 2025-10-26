@@ -3,7 +3,16 @@ import { FileDown, RotateCcw } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEventHandler, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
 import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	// SelectTrigger, // Commented out - only used in commented Plan Mode code
+	SelectValue,
+} from "@/components/ui/select";
+import { AIInputModelSelectTrigger } from "@/components/ui/kibo-ui/ai/input";
 import {
 	AIInput,
 	AIInputSubmit,
@@ -37,12 +46,14 @@ import { CommandSlash } from "./command-slash";
 import { ConversationDisplay } from "./conversation-display";
 import { FileUploadButton } from "./file-upload-button";
 import { PermissionDialog } from "./permission-dialog";
+import { SdkCodeSnippet } from "./sdk-code-snippet";
 
 interface ChatAppProps {
 	sessionId: string;
 	onClear?: () => void;
 	isPlayground?: boolean;
 	initialMessage?: string | null;
+	initialThinkingLevel?: ThinkingLevel | null;
 }
 
 export function ChatApp({
@@ -50,6 +61,7 @@ export function ChatApp({
 	onClear,
 	isPlayground = false,
 	initialMessage = null,
+	initialThinkingLevel = null,
 }: ChatAppProps) {
 	// Core conversation state
 	const [text, setText] = useState<string>("");
@@ -69,6 +81,11 @@ export function ChatApp({
 
 	// Mode toggles and session management
 	const [isPlanMode, setIsPlanMode] = useState(false);
+
+	// Thinking level configuration
+	const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
+		ThinkingLevel.Off,
+	);
 
 	// Component lifecycle refs
 	const interruptedMessageAddedRef = useRef(false);
@@ -108,12 +125,17 @@ export function ChatApp({
 				attachments,
 				referenceMap,
 				planMode: false,
+				thinkingLevel:
+					initialThinkingLevel && initialThinkingLevel !== ThinkingLevel.Off
+						? initialThinkingLevel
+						: undefined,
 			});
 			// Clear attachments after submitting
 			clearAttachments();
 		}
 	}, [
 		initialMessage,
+		initialThinkingLevel,
 		sseStream.connected,
 		sseStream,
 		attachments,
@@ -204,6 +226,7 @@ export function ChatApp({
 	// Simple auto-scroll to last user message
 	const userMessageRefs = useRef<(HTMLDivElement | null)[]>([]);
 	const messages = sessionMessages.data || [];
+	const firstUserMessage = messages.find((msg) => msg.from === "user");
 
 	useEffect(() => {
 		const lastUserMessageIndex = messages.findLastIndex(
@@ -429,6 +452,8 @@ export function ChatApp({
 				referenceMap,
 				planMode:
 					overridePlanMode !== undefined ? overridePlanMode : isPlanMode,
+				thinkingLevel:
+					thinkingLevel !== ThinkingLevel.Off ? thinkingLevel : undefined,
 			});
 
 			// Don't invalidate cache immediately - optimistic UI will show the message
@@ -568,6 +593,17 @@ export function ChatApp({
 
 	return (
 		<div className="relative flex h-full w-full p-8">
+			{/* Fixed top-right Get code button - only in playground mode */}
+			{isPlayground && firstUserMessage && (
+				<div className="fixed top-4 right-4 z-50 rounded-lg border bg-background p-4 shadow-lg">
+					<SdkCodeSnippet
+						sessionId={sessionId}
+						message={firstUserMessage.content}
+						attachments={firstUserMessage.attachments}
+					/>
+				</div>
+			)}
+
 			<div className="flex-1 overflow-y-auto">
 				<div className="@container/main px mx-auto mt-4 flex max-w-4xl flex-1 flex-col gap-2 pb-24">
 					{/* Session header with clear (left) and export (right) buttons */}
@@ -674,7 +710,7 @@ export function ChatApp({
 							/>
 							<AIInputToolbar>
 								<AIInputTools>
-									<div className="absolute bottom-1 left-1 flex">
+									<div className="absolute bottom-1 left-1 flex items-center gap-1.5">
 										{/* File Upload Button */}
 										<FileUploadButton
 											className="ml-1"
@@ -682,6 +718,35 @@ export function ChatApp({
 											onUploadSuccess={handleFileUploadSuccess}
 											sessionId={session.id}
 										/>
+
+										{/* Thinking Level Selector */}
+										<Select
+											onValueChange={(value) =>
+												setThinkingLevel(value as ThinkingLevel)
+											}
+											value={thinkingLevel}
+										>
+											<AIInputModelSelectTrigger
+												className="h-8 w-auto min-w-[120px] text-xs"
+												size="sm"
+											>
+												<SelectValue placeholder="Thinking: Off" />
+											</AIInputModelSelectTrigger>
+											<SelectContent align="start">
+												<SelectItem value={ThinkingLevel.Off}>
+													Thinking: Off
+												</SelectItem>
+												<SelectItem value={ThinkingLevel.Basic}>
+													Thinking: Low
+												</SelectItem>
+												<SelectItem value={ThinkingLevel.Medium}>
+													Thinking: Medium
+												</SelectItem>
+												<SelectItem value={ThinkingLevel.Maximum}>
+													Thinking: High
+												</SelectItem>
+											</SelectContent>
+										</Select>
 
 										{/* Plan Mode selection, hidden for now */}
 										{/* <Select

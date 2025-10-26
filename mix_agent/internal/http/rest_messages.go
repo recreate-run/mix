@@ -127,8 +127,32 @@ func NewMessageHandler(app *app.App) *MessageHandler {
 
 // SendMessageRequest represents the request body for sending a message
 type SendMessageRequest struct {
-	Text     string `json:"text"`
-	PlanMode bool   `json:"plan_mode,omitempty"`
+	Text          string  `json:"text"`
+	PlanMode      bool    `json:"plan_mode,omitempty"`
+	ThinkingLevel *string `json:"thinking_level,omitempty"`
+}
+
+// thinkingLevelToBudget converts thinking level enum to token budget
+func thinkingLevelToBudget(level *string) *int {
+	if level == nil {
+		return nil
+	}
+
+	var budget int
+	switch *level {
+	case "off":
+		budget = 0
+	case "basic":
+		budget = 4000
+	case "medium":
+		budget = 10000
+	case "maximum":
+		budget = 31999
+	default:
+		return nil // Invalid level
+	}
+
+	return &budget
 }
 
 // Helper function to get command names for logging
@@ -191,6 +215,24 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		sendValidationError(w, "content", "message content is required")
 		return
 	}
+
+	// Validate thinking level if provided
+	if req.ThinkingLevel != nil {
+		level := *req.ThinkingLevel
+		validLevels := map[string]bool{
+			"off":     true,
+			"basic":   true,
+			"medium":  true,
+			"maximum": true,
+		}
+		if !validLevels[level] {
+			sendValidationError(w, "thinking_level", "must be one of: off, basic, medium, maximum")
+			return
+		}
+	}
+
+	// Convert thinking level to budget
+	thinkingBudget := thinkingLevelToBudget(req.ThinkingLevel)
 
 	ctx := r.Context()
 
@@ -261,7 +303,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	// from killing long-running agent tasks. The agent can only be cancelled via the explicit cancel endpoint.
 	agentCtx := context.Background()
 
-	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode)
+	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode, thinkingBudget)
 	if err != nil {
 		logging.Error("Failed to start agent processing",
 			"sessionID", sessionID,

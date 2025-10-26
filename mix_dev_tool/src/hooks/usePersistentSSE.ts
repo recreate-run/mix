@@ -1,6 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { CoreToolName } from "mix-typescript-sdk/models";
-import type { SendMessageRequestBody } from "mix-typescript-sdk/models/operations/sendmessage";
+import type {
+	SendMessageRequestBody,
+	ThinkingLevel,
+} from "mix-typescript-sdk/models/operations/sendmessage";
 import type {
 	SSECompleteEvent,
 	SSEContentEvent,
@@ -71,6 +74,7 @@ type PersistentSSEHook = PersistentSSEState & {
 		attachments?: Attachment[];
 		referenceMap?: Map<string, string>;
 		planMode?: boolean;
+		thinkingLevel?: ThinkingLevel;
 	}) => Promise<void>;
 
 	buttonStatus: "ready" | "streaming" | "paused" | "error";
@@ -951,12 +955,14 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			attachments?: Attachment[];
 			referenceMap?: Map<string, string>;
 			planMode?: boolean;
+			thinkingLevel?: ThinkingLevel;
 		}) => {
 			const {
 				text,
 				attachments = [],
 				referenceMap = new Map(),
 				planMode = false,
+				thinkingLevel,
 			} = params;
 
 			if (!(text && sessionId && state.connected)) {
@@ -970,6 +976,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 				const messageData: SendMessageRequestBody = {
 					text: expandedText,
 					planMode,
+					...(thinkingLevel !== undefined && { thinkingLevel }),
 				};
 
 				// Send to backend with optimistic UI - pass original text and attachments
