@@ -524,7 +524,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 
 		// Log conversation turn start for observability
-		logging.Info("Starting conversation turn",
+		logging.Debug("Starting conversation turn",
 			"conversationTurn", conversationTurn,
 			"historyLength", len(msgHistory),
 			"sessionID", sessionID)
