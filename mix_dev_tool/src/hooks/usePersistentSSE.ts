@@ -626,11 +626,19 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 
 							// Track in ref for cache update
 							userMessageIdRef.current = userMsgEvent.data.messageId;
+							pendingUserMessageRef.current = {
+								text: userMsgEvent.data.content,
+								attachments: [],
+							};
 
-							// Store user message ID for duplicate detection
+							// Store user message ID and content for duplicate detection and display
 							setState((prev) => ({
 								...prev,
 								userMessageId: userMsgEvent.data.messageId,
+								pendingUserMessage: {
+									text: userMsgEvent.data.content,
+									attachments: [],
+								},
 							}));
 							break;
 						}
