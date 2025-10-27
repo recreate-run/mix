@@ -179,6 +179,17 @@ const convertBackendMessageToUI = async (
 		}
 	}
 
+	// Add message content to timeline if we have a timeline (reasoning/tools exist)
+	// This ensures the actual response is rendered when timeline rendering is used
+	if (timeline.length > 0 && text.trim()) {
+		timeline.push({
+			type: "content",
+			timestamp: Date.now(),
+			content: text,
+			id: `stored-content-${backendMessage.id}`,
+		});
+	}
+
 	return {
 		id: backendMessage.id,
 		content: text,
