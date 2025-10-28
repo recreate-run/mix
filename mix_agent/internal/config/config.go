@@ -129,10 +129,10 @@ func Load(sessionStorageDir string, debug bool, skipPermissions bool) (*Config, 
 		Data: Data{
 			Directory: defaultDataDirectory,
 		},
-		Database:    loadDatabaseConfig(),
-		WorkingDir:  sessionStorageDir,
-		PromptsDir:  promptsDir,
-		MCPServers:  getDefaultMCPServers(),
+		Database:   loadDatabaseConfig(),
+		WorkingDir: sessionStorageDir,
+		PromptsDir: promptsDir,
+		MCPServers: getDefaultMCPServers(),
 		// Providers removed - managed by database API credentials service
 		Agents:          make(map[AgentName]Agent), // Keep for legacy compatibility but unused
 		SkipPermissions: skipPermissions,
@@ -373,7 +373,7 @@ func GetAPICredentials() *credentials.APICredentialsService {
 	return apiCredentialsService
 }
 
-// GetAgentFromDatabase returns agent configuration from database 
+// GetAgentFromDatabase returns agent configuration from database
 func GetAgentFromDatabase(ctx context.Context, agentName AgentName) (Agent, error) {
 	if userPreferencesService == nil {
 		return Agent{}, fmt.Errorf("user preferences service not initialized")

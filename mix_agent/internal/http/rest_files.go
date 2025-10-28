@@ -13,12 +13,12 @@ import (
 
 // FileInfo represents information about a file in session storage
 type FileInfo struct {
-	Name         string  `json:"name"`         // The stored filename (sanitized)
+	Name         string  `json:"name"`                   // The stored filename (sanitized)
 	OriginalName *string `json:"originalName,omitempty"` // The original filename if different from stored name
 	Size         int64   `json:"size"`
 	Modified     int64   `json:"modified"` // Unix timestamp
 	IsDir        bool    `json:"isDir"`
-	URL          string  `json:"url"`          // Static URL to access the file
+	URL          string  `json:"url"` // Static URL to access the file
 }
 
 // FileHandler handles REST endpoints for session file operations
@@ -235,7 +235,6 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 
 	sendJSONResponse(w, http.StatusOK, files)
 }
-
 
 // HandleDeleteFile handles DELETE /api/sessions/{id}/files/{filename}
 func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {

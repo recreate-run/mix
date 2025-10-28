@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-
 // TestEventData represents expected event data structures
 type TestEventData struct {
 	Type      string `json:"type"`
@@ -451,7 +450,7 @@ func TestSSESlashCommandHelp(t *testing.T) {
 			if helpType, ok := helpResponse["type"].(string); !ok || helpType != "help" {
 				t.Error("Help response missing or invalid 'type' field")
 			}
-			
+
 			// Check commands array
 			if commands, ok := helpResponse["commands"].([]interface{}); !ok || len(commands) == 0 {
 				t.Error("Help response missing or empty 'commands' array")
@@ -502,7 +501,6 @@ func TestPersistentConnection(t *testing.T) {
 
 	t.Logf("Successfully established and maintained persistent connection")
 }
-
 
 // Test message queueing endpoint directly
 func TestMessageQueueing(t *testing.T) {

@@ -234,7 +234,7 @@ func (g *geminiClient) Send(ctx context.Context, messages []message.Message, too
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
 	}
-	
+
 	// Only add system instruction if we have a non-empty system message
 	if g.providerOptions.systemMessage != "" {
 		config.SystemInstruction = &genai.Content{
@@ -337,7 +337,7 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 	config := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
 	}
-	
+
 	// Only add system instruction if we have a non-empty system message
 	if g.providerOptions.systemMessage != "" {
 		config.SystemInstruction = &genai.Content{
@@ -683,7 +683,7 @@ func (g *geminiClient) isSupportedInlineFormat(mimeType string) bool {
 		"image/heif",
 		"application/pdf",
 	}
-	
+
 	for _, supported := range supportedInlineFormats {
 		if mimeType == supported {
 			return true
@@ -706,7 +706,7 @@ func (g *geminiClient) isSupportedVideoFormat(mimeType string) bool {
 		"video/wmv",
 		"video/3gpp",
 	}
-	
+
 	for _, supported := range supportedVideoFormats {
 		if mimeType == supported {
 			return true

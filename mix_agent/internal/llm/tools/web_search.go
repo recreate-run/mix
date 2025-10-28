@@ -231,7 +231,7 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	}
 
 	apiKey, err := credentialsService.GetAPIKey(ctx, "brave")
-	if err != nil || apiKey == ""  {
+	if err != nil || apiKey == "" {
 		logging.Error("Brave Search API key not configured")
 		return NewTextErrorResponse("FATAL_CONFIGURATION_ERROR: Cannot proceed - Brave Search API key not configured. User must configure API key in Settings > Tools & Agents before using search. STOP EXECUTION - Do not attempt alternative approaches or suggest workarounds."), nil
 	}

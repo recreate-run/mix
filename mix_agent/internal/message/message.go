@@ -91,7 +91,6 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
 	return message, nil
 }
 
-
 func (s *service) Update(ctx context.Context, message Message) error {
 	parts, err := marshallParts(message.Parts)
 	if err != nil {
@@ -183,7 +182,7 @@ func (s *service) CopyMessagesToSession(ctx context.Context, sourceSessionID, ta
 		if err != nil {
 			return err
 		}
-		
+
 		// Track the last message to check for incomplete tool sequences
 		if lastMessage == nil || len(dbMessages) > 0 {
 			msg, convertErr := s.fromDBItem(dbMessage)
@@ -247,17 +246,17 @@ func (s *service) fromDBItem(item db.Message) (Message, error) {
 type partType string
 
 const (
-	reasoningType           partType = "reasoning"
-	thinkingBlockType       partType = "thinking_block"
-	redactedThinkingType    partType = "redacted_thinking"
-	textType                partType = "text"
-	imageURLType            partType = "image_url"
-	binaryType              partType = "binary"
-	uriType                 partType = "uri"
-	toolCallType            partType = "tool_call"
-	toolResultType          partType = "tool_result"
-	callbackResultType      partType = "callback_result"
-	finishType              partType = "finish"
+	reasoningType        partType = "reasoning"
+	thinkingBlockType    partType = "thinking_block"
+	redactedThinkingType partType = "redacted_thinking"
+	textType             partType = "text"
+	imageURLType         partType = "image_url"
+	binaryType           partType = "binary"
+	uriType              partType = "uri"
+	toolCallType         partType = "tool_call"
+	toolResultType       partType = "tool_result"
+	callbackResultType   partType = "callback_result"
+	finishType           partType = "finish"
 )
 
 type partWrapper struct {

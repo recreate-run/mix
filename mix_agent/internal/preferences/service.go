@@ -27,7 +27,7 @@ type Agent struct {
 
 // UserPreferencesService handles user preferences from database
 type UserPreferencesService struct {
-	queries db.Querier
+	queries          db.Querier
 	preferencesCache sync.Map // Caches user preferences to avoid database hits
 }
 
@@ -39,7 +39,7 @@ func NewUserPreferencesService(database *sql.DB) *UserPreferencesService {
 // NewUserPreferencesServiceWithQuerierAndPreload creates a service with custom querier and preload control
 func NewUserPreferencesServiceWithQuerierAndPreload(querier db.Querier, enablePreload bool) *UserPreferencesService {
 	service := &UserPreferencesService{
-		queries: querier,
+		queries:          querier,
 		preferencesCache: sync.Map{},
 	}
 
@@ -65,7 +65,7 @@ func (ups *UserPreferencesService) GetUserPreferences(ctx context.Context) (*db.
 		ups.preferencesCache.Store("default_user", &prefs)
 		return &prefs, nil
 	}
-	
+
 	// Return error as is - including sql.ErrNoRows if preferences don't exist
 	return nil, err
 }
@@ -74,20 +74,20 @@ func (ups *UserPreferencesService) GetUserPreferences(ctx context.Context) (*db.
 func (ups *UserPreferencesService) CreateDefaultUserPreferences(ctx context.Context) (*db.UserPreference, error) {
 	// Creating default user preferences
 	defaultPrefs := db.CreateUserPreferencesParams{
-		PreferredProvider:       sql.NullString{String: "anthropic", Valid: true},
-		MainAgentModel:          sql.NullString{String: "claude-sonnet-4-5", Valid: true},
-		MainAgentMaxTokens:      sql.NullInt64{Int64: 4096, Valid: true},
+		PreferredProvider:        sql.NullString{String: "anthropic", Valid: true},
+		MainAgentModel:           sql.NullString{String: "claude-sonnet-4-5", Valid: true},
+		MainAgentMaxTokens:       sql.NullInt64{Int64: 4096, Valid: true},
 		MainAgentReasoningEffort: sql.NullString{String: "", Valid: false},
-		SubAgentModel:           sql.NullString{String: "claude-sonnet-4-5", Valid: true},
-		SubAgentMaxTokens:       sql.NullInt64{Int64: 2048, Valid: true},
-		SubAgentReasoningEffort: sql.NullString{String: "", Valid: false},
+		SubAgentModel:            sql.NullString{String: "claude-sonnet-4-5", Valid: true},
+		SubAgentMaxTokens:        sql.NullInt64{Int64: 2048, Valid: true},
+		SubAgentReasoningEffort:  sql.NullString{String: "", Valid: false},
 	}
-	
+
 	createdPrefs, err := ups.queries.CreateUserPreferences(ctx, defaultPrefs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create default user preferences: %w", err)
 	}
-	
+
 	// Store in cache for future fast access
 	ups.preferencesCache.Store("default_user", &createdPrefs)
 	return &createdPrefs, nil
@@ -100,20 +100,20 @@ func (ups *UserPreferencesService) GetOrCreateUserPreferences(ctx context.Contex
 	if err == nil {
 		return prefs, nil
 	}
-	
+
 	// If not found, create default preferences
 	if err == sql.ErrNoRows {
 		return ups.CreateDefaultUserPreferences(ctx)
 	}
-	
+
 	return nil, fmt.Errorf("failed to get user preferences: %w", err)
 }
 
 // UpdateMainAgentPreferences updates the main agent model preferences
 func (ups *UserPreferencesService) UpdateMainAgentPreferences(ctx context.Context, modelID models.ModelID, maxTokens int64, reasoningEffort string) error {
 	params := db.UpdateMainAgentModelParams{
-		MainAgentModel:          sql.NullString{String: string(modelID), Valid: true},
-		MainAgentMaxTokens:      sql.NullInt64{Int64: maxTokens, Valid: true},
+		MainAgentModel:           sql.NullString{String: string(modelID), Valid: true},
+		MainAgentMaxTokens:       sql.NullInt64{Int64: maxTokens, Valid: true},
 		MainAgentReasoningEffort: sql.NullString{String: reasoningEffort, Valid: reasoningEffort != ""},
 	}
 
@@ -175,7 +175,7 @@ func (ups *UserPreferencesService) GetAgentConfig(ctx context.Context, agentName
 			return Agent{}, err
 		}
 	}
-	
+
 	switch agentName {
 	case AgentMain:
 		return Agent{
@@ -220,7 +220,7 @@ func (ups *UserPreferencesService) GetPreferredProvider(ctx context.Context) (mo
 // PreloadPreferences loads all preferences into the cache to avoid database hits
 func (ups *UserPreferencesService) PreloadPreferences(ctx context.Context) {
 	logging.Debug("Preloading user preferences into cache")
-	
+
 	// Try to get existing preferences
 	prefs, err := ups.queries.GetUserPreferences(ctx)
 	if err != nil {
@@ -232,7 +232,7 @@ func (ups *UserPreferencesService) PreloadPreferences(ctx context.Context) {
 		logging.Error("Failed to preload user preferences", "error", err)
 		return
 	}
-	
+
 	// Store in cache
 	ups.preferencesCache.Store("default_user", &prefs)
 	logging.Debug("User preferences successfully preloaded into cache")

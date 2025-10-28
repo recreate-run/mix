@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"mix/internal/config"
-	"mix/internal/llm/models"
 	"mix/internal/llm/interfaces"
+	"mix/internal/llm/models"
 	"mix/internal/logging"
 	"mix/internal/message"
 
@@ -82,7 +82,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	// 1. OAuth API key (if valid)
 	// 2. Database API key (passed in opts.apiKey from caller)
 	// Note: We no longer use environment variables or config file
-	
+
 	openaiClientOptions := []option.RequestOption{}
 
 	// Set up authentication - prioritize OAuth over API key
@@ -99,7 +99,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	} else {
 		// No auth available
 		logging.Warn("No authentication method available for OpenAI - neither OAuth nor database API key")
-		
+
 		// Check database directly as a last resort (double-check)
 		if config.GetAPICredentials() != nil {
 			ctx := context.Background()
@@ -297,7 +297,7 @@ func (o *openaiClient) Send(ctx context.Context, messages []message.Message, too
 				logging.Error("OpenAI API quota exceeded", "error", err, "errorMessage", err.Error())
 				return nil, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
 			}
-			
+
 			// Check for 401 and try OAuth token refresh
 			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {

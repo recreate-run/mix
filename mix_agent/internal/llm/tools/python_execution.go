@@ -130,7 +130,7 @@ func (p *pythonExecutionTool) executePythonCode(ctx context.Context, code string
 	cmd.Stderr = &stderr
 
 	err = cmd.Run()
-	
+
 	returnCode := 0
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {

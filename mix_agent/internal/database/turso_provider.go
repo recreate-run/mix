@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
 	"github.com/pressly/goose/v3"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 
 	"mix/internal/db"
 	"mix/internal/logging"

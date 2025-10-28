@@ -20,21 +20,21 @@ const (
 
 // SessionData represents session information for REST API
 type SessionData struct {
-	ID                    string                        `json:"id"`
-	ParentSessionID       string                        `json:"parentSessionId,omitempty"`
-	ParentToolCallID      string                        `json:"parentToolCallId,omitempty"`
-	Title                 string                        `json:"title"`
-	SessionType           string                        `json:"sessionType"`
-	SubagentType          string                        `json:"subagentType,omitempty"`
-	UserMessageCount      int64                         `json:"userMessageCount"`
-	AssistantMessageCount int64                         `json:"assistantMessageCount"`
-	ToolCallCount         int64                         `json:"toolCallCount"`
-	PromptTokens          int64                         `json:"promptTokens"`
-	CompletionTokens      int64                         `json:"completionTokens"`
-	Cost                  float64                       `json:"cost"`
-	CreatedAt             time.Time                     `json:"createdAt"`
-	FirstUserMessage      string                        `json:"firstUserMessage,omitempty"`
-	Callbacks             []interfaces.CallbackConfig   `json:"callbacks,omitempty"` // Session-level callbacks
+	ID                    string                      `json:"id"`
+	ParentSessionID       string                      `json:"parentSessionId,omitempty"`
+	ParentToolCallID      string                      `json:"parentToolCallId,omitempty"`
+	Title                 string                      `json:"title"`
+	SessionType           string                      `json:"sessionType"`
+	SubagentType          string                      `json:"subagentType,omitempty"`
+	UserMessageCount      int64                       `json:"userMessageCount"`
+	AssistantMessageCount int64                       `json:"assistantMessageCount"`
+	ToolCallCount         int64                       `json:"toolCallCount"`
+	PromptTokens          int64                       `json:"promptTokens"`
+	CompletionTokens      int64                       `json:"completionTokens"`
+	Cost                  float64                     `json:"cost"`
+	CreatedAt             time.Time                   `json:"createdAt"`
+	FirstUserMessage      string                      `json:"firstUserMessage,omitempty"`
+	Callbacks             []interfaces.CallbackConfig `json:"callbacks,omitempty"` // Session-level callbacks
 }
 
 // SessionHandler handles REST endpoints for session operations
@@ -110,8 +110,8 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 			ParentSessionID:       s.ParentSessionID.String,
 			ParentToolCallID:      s.ParentToolCallID.String,
 			Title:                 s.Title,
-			SessionType:           s.SessionType,                // String field from db.ListSessionsWithContentRow
-			SubagentType:          s.SubagentType.String,        // String field from db.ListSessionsWithContentRow
+			SessionType:           s.SessionType,         // String field from db.ListSessionsWithContentRow
+			SubagentType:          s.SubagentType.String, // String field from db.ListSessionsWithContentRow
 			UserMessageCount:      s.UserMessageCount,
 			AssistantMessageCount: s.AssistantMessageCount,
 			ToolCallCount:         s.ToolCallCount,
@@ -162,12 +162,12 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 // CreateSessionRequest represents the request body for creating a session
 type CreateSessionRequest struct {
-	Title              string                        `json:"title"`
-	CustomSystemPrompt string                        `json:"customSystemPrompt,omitempty"`
-	PromptMode         string                        `json:"promptMode,omitempty"`
-	SessionType        string                        `json:"sessionType,omitempty"`   // Only "main" or empty allowed
-	SubagentType       string                        `json:"subagentType,omitempty"`  // Must be empty for API-created sessions
-	Callbacks          []interfaces.CallbackConfig   `json:"callbacks,omitempty"`     // Session-level callbacks
+	Title              string                      `json:"title"`
+	CustomSystemPrompt string                      `json:"customSystemPrompt,omitempty"`
+	PromptMode         string                      `json:"promptMode,omitempty"`
+	SessionType        string                      `json:"sessionType,omitempty"`  // Only "main" or empty allowed
+	SubagentType       string                      `json:"subagentType,omitempty"` // Must be empty for API-created sessions
+	Callbacks          []interfaces.CallbackConfig `json:"callbacks,omitempty"`    // Session-level callbacks
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -220,7 +220,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 				sendValidationError(w, "customSystemPrompt", fmt.Sprintf("Custom prompt size (%dKB) exceeds append mode limit of %dKB", promptSize/1024, MaxAppendPromptSize/1024))
 				return
 			}
-		// default mode ignores custom prompt, so no size check needed
+			// default mode ignores custom prompt, so no size check needed
 		}
 	}
 
@@ -277,8 +277,8 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 
 // ForkSessionRequest represents the request body for forking a session
 type ForkSessionRequest struct {
-	MessageIndex    int64  `json:"messageIndex"`
-	Title           string `json:"title,omitempty"`
+	MessageIndex int64  `json:"messageIndex"`
+	Title        string `json:"title,omitempty"`
 }
 
 // HandleForkSession handles POST /api/sessions/{id}/fork
@@ -334,8 +334,8 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 		ID:                    newSession.ID,
 		ParentSessionID:       newSession.ParentSessionID,
 		Title:                 newSession.Title,
-		SessionType:           newSession.SessionType.String(),   // Convert typed field to string
-		SubagentType:          newSession.SubagentType.String(),  // Convert typed field to string
+		SessionType:           newSession.SessionType.String(),  // Convert typed field to string
+		SubagentType:          newSession.SubagentType.String(), // Convert typed field to string
 		UserMessageCount:      newSession.UserMessageCount,
 		AssistantMessageCount: newSession.AssistantMessageCount,
 		ToolCallCount:         newSession.ToolCallCount,
@@ -569,8 +569,8 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 		ParentSessionID:       updatedSession.ParentSessionID,
 		ParentToolCallID:      updatedSession.ParentToolCallID,
 		Title:                 updatedSession.Title,
-		SessionType:           updatedSession.SessionType.String(),   // Convert typed field to string
-		SubagentType:          updatedSession.SubagentType.String(),  // Convert typed field to string
+		SessionType:           updatedSession.SessionType.String(),  // Convert typed field to string
+		SubagentType:          updatedSession.SubagentType.String(), // Convert typed field to string
 		UserMessageCount:      updatedSession.UserMessageCount,
 		AssistantMessageCount: updatedSession.AssistantMessageCount,
 		ToolCallCount:         updatedSession.ToolCallCount,

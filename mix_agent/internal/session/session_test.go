@@ -243,7 +243,7 @@ func TestSave(t *testing.T) {
 	}
 
 	getRow := createTestGetSessionByIDRow()
-	getRow.ID = session.ID // Ensure getRow has the same ID as the session being saved
+	getRow.ID = session.ID       // Ensure getRow has the same ID as the session being saved
 	getRow.Title = session.Title // Match the title too for consistency
 
 	mockQuerier.On("UpdateSession", mock.Anything, mock.AnythingOfType("db.UpdateSessionParams")).

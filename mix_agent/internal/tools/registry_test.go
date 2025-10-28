@@ -326,11 +326,11 @@ func TestGetProviderIdentifier(t *testing.T) {
 // Test ParseProviderIdentifier
 func TestParseProviderIdentifier(t *testing.T) {
 	tests := []struct {
-		name        string
-		identifier  string
+		name         string
+		identifier   string
 		expectedType ToolType
 		expectedProv ToolProvider
-		expectError bool
+		expectError  bool
 	}{
 		{
 			name:         "valid identifier",
@@ -347,11 +347,11 @@ func TestParseProviderIdentifier(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:        "simple valid identifier",
-			identifier:  "type_provider",
+			name:         "simple valid identifier",
+			identifier:   "type_provider",
 			expectedType: ToolType("type"),
 			expectedProv: ToolProvider("provider"),
-			expectError: false,
+			expectError:  false,
 		},
 		{
 			name:        "invalid identifier - no underscore",
@@ -364,25 +364,25 @@ func TestParseProviderIdentifier(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "edge case - only underscore",
-			identifier:  "_",
+			name:         "edge case - only underscore",
+			identifier:   "_",
 			expectedType: ToolType(""),
 			expectedProv: ToolProvider(""),
-			expectError: false, // Function doesn't validate empty parts
+			expectError:  false, // Function doesn't validate empty parts
 		},
 		{
-			name:        "edge case - ends with underscore",
-			identifier:  "type_",
+			name:         "edge case - ends with underscore",
+			identifier:   "type_",
 			expectedType: ToolType("type"),
 			expectedProv: ToolProvider(""),
-			expectError: false, // Function doesn't validate empty parts
+			expectError:  false, // Function doesn't validate empty parts
 		},
 		{
-			name:        "edge case - starts with underscore",
-			identifier:  "_provider",
+			name:         "edge case - starts with underscore",
+			identifier:   "_provider",
 			expectedType: ToolType(""),
 			expectedProv: ToolProvider("provider"),
-			expectError: false, // Function doesn't validate empty parts
+			expectError:  false, // Function doesn't validate empty parts
 		},
 	}
 

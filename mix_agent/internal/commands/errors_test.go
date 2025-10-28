@@ -18,9 +18,9 @@ func TestErrorDefinitions(t *testing.T) {
 
 func TestErrorMessages(t *testing.T) {
 	tests := []struct {
-		name          string
-		err           error
-		expectedMsg   string
+		name        string
+		err         error
+		expectedMsg string
 	}{
 		{
 			name:        "ErrNotSlashCommand",

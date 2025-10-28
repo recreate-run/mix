@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if !serverReady {
-		cancel() // Stop server
+		cancel()     // Stop server
 		<-serverDone // Wait for server to finish
 		panic("Server failed to start within timeout")
 	}

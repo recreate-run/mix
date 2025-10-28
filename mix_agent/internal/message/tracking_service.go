@@ -10,7 +10,7 @@ import (
 
 // TrackingService wraps the message service with analytics tracking
 type TrackingService struct {
-	Service          // Embed the original message service
+	Service   // Embed the original message service
 	analytics analytics.Service
 }
 
@@ -40,7 +40,7 @@ func (ts *TrackingService) Create(ctx context.Context, sessionID string, params 
 				content = tc.Text
 			}
 		}
-		
+
 		if err := ts.analytics.TrackUserMessage(ctx, sessionID, msg.ID, content, string(params.Model)); err != nil {
 			logging.Error("Failed to track user message: %v", err)
 			// Don't return error, just log it
@@ -54,12 +54,12 @@ func (ts *TrackingService) Create(ctx context.Context, sessionID string, params 
 				break
 			}
 		}
-		
+
 		if err := ts.analytics.TrackAgentResponse(ctx, sessionID, msg.ID, content, string(params.Model)); err != nil {
 			logging.Error("Failed to track assistant response: %v", err)
 			// Don't return error, just log it
 		}
-		
+
 		// Track tool calls
 		for _, part := range params.Parts {
 			if tc, ok := part.(ToolCall); ok {
@@ -96,7 +96,7 @@ func (ts *TrackingService) Update(ctx context.Context, message Message) error {
 					if err := ts.analytics.TrackAgentResponse(ctx, message.SessionID, message.ID, content, string(message.Model)); err != nil {
 						logging.Error("Failed to track updated assistant response: %v", err)
 					} else {
-						logging.Debug("Tracked final assistant response for message %s with %d characters", 
+						logging.Debug("Tracked final assistant response for message %s with %d characters",
 							message.ID, len(content))
 					}
 				}
@@ -111,7 +111,7 @@ func (ts *TrackingService) Update(ctx context.Context, message Message) error {
 				// Don't return error, just log it
 			}
 		}
-		
+
 		// Also track tool results if they exist
 		toolResults := message.ToolResults()
 		for _, tr := range toolResults {
@@ -120,7 +120,7 @@ func (ts *TrackingService) Update(ctx context.Context, message Message) error {
 			if isError {
 				errorMsg = tr.Content
 			}
-			
+
 			if err := ts.analytics.TrackToolCall(ctx, message.SessionID, message.ID, tr.Name, "", tr.ToolCallID, !isError, errorMsg); err != nil {
 				logging.Error("Failed to track tool result: %v", err)
 			}
@@ -135,10 +135,10 @@ func (ts *TrackingService) trackOpenRouterResponse(ctx context.Context, message 
 	// Extract provider and model
 	provider := "openrouter"
 	model := strings.TrimPrefix(string(message.Model), "openrouter.")
-	
+
 	// Analyze thinking in the response
 	hasThinking, thinkingLength, _ := ExtractThinkingInfo(content)
-	
+
 	// Calculate response time using timestamps
 	var responseTimeMs int64
 	if message.CreatedAt > 0 && message.UpdatedAt > 0 {
@@ -150,14 +150,14 @@ func (ts *TrackingService) trackOpenRouterResponse(ctx context.Context, message 
 		// Fallback to current time if timestamps aren't valid
 		responseTimeMs = time.Since(time.Now().Add(-2 * time.Second)).Milliseconds()
 	}
-	
+
 	// Compile token usage information
 	// Since the Message struct doesn't have token fields, use estimated values
 	tokenUsage := map[string]int64{
 		"input":  int64(len(content) / 4), // Rough estimate: 4 chars per token
 		"output": int64(len(content) / 4),
 	}
-	
+
 	// Track with enhanced method
 	if err := ts.analytics.TrackAgentResponseWithProvider(
 		ctx, message.SessionID, message.ID, content,

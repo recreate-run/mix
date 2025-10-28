@@ -166,8 +166,8 @@ func TestMixedReadWriteOperations(t *testing.T) {
 	fileRecordMutex.RUnlock()
 
 	assert.Equal(t, testPath, record.path)
-	assert.Equal(t, readTime, record.readTime) // Read time should be preserved
-	assert.False(t, record.writeTime.IsZero()) // Write time should now be set
+	assert.Equal(t, readTime, record.readTime)       // Read time should be preserved
+	assert.False(t, record.writeTime.IsZero())       // Write time should now be set
 	assert.True(t, record.writeTime.After(readTime)) // Write should be after read
 }
 
@@ -275,11 +275,11 @@ func TestEdgeCasePaths(t *testing.T) {
 	clearFileRecords()
 
 	edgeCases := []string{
-		"", // empty path
-		"/", // root path
-		"relative/path.txt", // relative path
+		"",                           // empty path
+		"/",                          // root path
+		"relative/path.txt",          // relative path
 		"/path/with spaces/file.txt", // path with spaces
-		"/path/with/unicode/文件.txt", // unicode filename
+		"/path/with/unicode/文件.txt",  // unicode filename
 		"/very/long/path/that/goes/deep/into/nested/directories/file.txt", // long path
 	}
 

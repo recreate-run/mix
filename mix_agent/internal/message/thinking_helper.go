@@ -93,12 +93,12 @@ func hasThinkingMarker(content string) bool {
 	markers := []string{
 		"think", "reason", "analysis", "step", "examine", "consider",
 	}
-	
+
 	for _, marker := range markers {
 		if strings.Contains(strings.ToLower(content), marker) {
 			return true
 		}
 	}
-	
+
 	return false
 }

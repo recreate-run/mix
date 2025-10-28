@@ -80,7 +80,7 @@ func shouldPublish(ctx context.Context) bool {
 type Session struct {
 	ID                    string
 	ParentSessionID       string
-	ParentToolCallID      string       // Which tool call spawned this subagent session (for UI nesting)
+	ParentToolCallID      string // Which tool call spawned this subagent session (for UI nesting)
 	Title                 string
 	UserMessageCount      int64
 	AssistantMessageCount int64
@@ -354,7 +354,6 @@ func (s *service) IncrementCost(ctx context.Context, sessionID string, costDelta
 // Removed List method for embedded binary
 
 // Conversion methods for different query return types
-
 
 func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, error) {
 	return Session{

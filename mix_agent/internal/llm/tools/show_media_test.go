@@ -662,7 +662,7 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 				}]
 			}`,
 			shouldError: true,
-			errorMsg:   "gsap_animation requires config.url field for output 0",
+			errorMsg:    "gsap_animation requires config.url field for output 0",
 		},
 	}
 

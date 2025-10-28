@@ -39,10 +39,8 @@ func NewSessionAssetHandler(app *app.App, storageConfig session.Config) *Session
 		storageConfig: storageConfig,
 	}
 
-
 	return handler
 }
-
 
 // Thumbnail specification types
 type ThumbnailSpec struct {
@@ -587,10 +585,3 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 	http.ServeContent(w, r, filename, fileInfo.ModTime(), file)
 	return true, nil
 }
-
-
-
-
-
-
-

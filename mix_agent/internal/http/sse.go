@@ -29,7 +29,6 @@ type BroadcastEvent struct {
 	Data      interface{}
 }
 
-
 // ConnectionRegistry manages active SSE connections
 type ConnectionRegistry struct {
 	mu          sync.RWMutex
@@ -120,7 +119,6 @@ func (r *ConnectionRegistry) BroadcastEvent(sessionID string, eventType string, 
 	}
 }
 
-
 // HandleSSEStream handles persistent Server-Sent Events streaming for agent responses
 func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r *http.Request) {
 	// Set SSE headers
@@ -178,7 +176,6 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 		return
 	}
 
-
 	// Create connection
 	conn := &Connection{
 		SessionID:       sessionID,
@@ -224,7 +221,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 				// Only send permission events for the current session
 				if permissionEvent.Type == pubsub.CreatedEvent && permissionEvent.Payload.SessionID == sessionID {
 					// Send permission event to frontend
-					
+
 					permEvent := PermissionEvent{
 						Type:        "permission",
 						ID:          permissionEvent.Payload.ID,
@@ -379,14 +376,14 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 
 	case agent.AgentEventTypeError:
 		errMsg := event.Error.Error()
-		
+
 		// Special handling for rate limit errors
 		if strings.Contains(errMsg, "rate_limit_error") {
 			// Extract retry information if available
 			retryAfter := 60 // Default retry after 60 seconds
 			attempt := 1
 			maxAttempts := 8
-			
+
 			// Try to extract retry info from error message
 			// Check if this contains retry attempt information
 			if strings.Contains(errMsg, "Retrying due to rate limit") {
@@ -398,20 +395,20 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 					maxAttempts = totalAttempts
 				}
 			}
-			
+
 			errorEvent := ErrorEvent{
-				Error: "This request would exceed your account's rate limit. The application will automatically retry.",
-				Type: "rate_limit_error",
-				RetryAfter: retryAfter,
-				Attempt: attempt,
+				Error:       "This request would exceed your account's rate limit. The application will automatically retry.",
+				Type:        "rate_limit_error",
+				RetryAfter:  retryAfter,
+				Attempt:     attempt,
 				MaxAttempts: maxAttempts,
 			}
-			
+
 			if err := sseWriter.WriteEvent("rate_limit_error", errorEvent); err != nil {
 				return err
 			}
-			
-		// Special handling for authentication errors
+
+			// Special handling for authentication errors
 		} else if strings.Contains(errMsg, "authentication_error") ||
 			strings.Contains(errMsg, "x-api-key header is required") ||
 			strings.Contains(errMsg, "401 Unauthorized") {
@@ -452,7 +449,7 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 		// Extract tool name and success status from progress message
 		toolName := "tool" // Default fallback
 		success := true    // Default to success
-		
+
 		if strings.Contains(event.Progress, "Completed ") && strings.Contains(event.Progress, " tool") {
 			// Extract tool name from "Completed {toolName} tool in {duration}"
 			start := strings.Index(event.Progress, "Completed ") + len("Completed ")

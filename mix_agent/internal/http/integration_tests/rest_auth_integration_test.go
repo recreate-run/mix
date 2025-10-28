@@ -618,16 +618,16 @@ func TestRESTOAuthCallback(t *testing.T) {
 			// Skip error type verification for now while fixing tests
 			_ = tc.expectError
 			/*
-			if tc.expectError {
-				errorObj, ok := respData["error"].(map[string]interface{})
-				if !ok {
-					t.Fatalf("Expected error object in response, got none")
+				if tc.expectError {
+					errorObj, ok := respData["error"].(map[string]interface{})
+					if !ok {
+						t.Fatalf("Expected error object in response, got none")
+					}
+					errorType, ok := errorObj["type"].(string)
+					if !ok || errorType != tc.errorType {
+						t.Fatalf("Expected error type %s, got %v", tc.errorType, errorType)
+					}
 				}
-				errorType, ok := errorObj["type"].(string)
-				if !ok || errorType != tc.errorType {
-					t.Fatalf("Expected error type %s, got %v", tc.errorType, errorType)
-				}
-			}
 			*/
 		})
 	}

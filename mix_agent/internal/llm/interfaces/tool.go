@@ -7,19 +7,19 @@ import (
 
 // Context keys for session and message identification
 type (
-	sessionIDContextKey       string
-	messageIDContextKey       string
-	sessionStorageContextKey  string
-	planModeContextKey        string
-	thinkingBudgetContextKey  string
+	sessionIDContextKey      string
+	messageIDContextKey      string
+	sessionStorageContextKey string
+	planModeContextKey       string
+	thinkingBudgetContextKey string
 )
 
 const (
-	SessionIDContextKey       sessionIDContextKey       = "session_id"
-	MessageIDContextKey       messageIDContextKey       = "message_id"
-	SessionStorageContextKey  sessionStorageContextKey  = "session_storage"
-	PlanModeContextKey        planModeContextKey        = "plan_mode"
-	ThinkingBudgetContextKey  thinkingBudgetContextKey  = "thinking_budget"
+	SessionIDContextKey      sessionIDContextKey      = "session_id"
+	MessageIDContextKey      messageIDContextKey      = "message_id"
+	SessionStorageContextKey sessionStorageContextKey = "session_storage"
+	PlanModeContextKey       planModeContextKey       = "plan_mode"
+	ThinkingBudgetContextKey thinkingBudgetContextKey = "thinking_budget"
 )
 
 type ToolInfo struct {

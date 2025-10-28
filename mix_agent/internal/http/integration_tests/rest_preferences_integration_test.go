@@ -32,8 +32,8 @@ func TestRESTGetPreferencesInitial(t *testing.T) {
 	}
 
 	// Log the actual defaults for informational purposes
-	t.Logf("Default preferences: provider=%s, model=%s", 
-		preferences["preferred_provider"].(string), 
+	t.Logf("Default preferences: provider=%s, model=%s",
+		preferences["preferred_provider"].(string),
 		preferences["main_agent_model"].(string))
 
 	// Should always have available_providers
@@ -77,9 +77,9 @@ func TestRESTUpdatePreferences(t *testing.T) {
 	// First get available providers to use valid values
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	// Find first provider and model to use in test
 	var testProvider string
 	var testModel string
@@ -99,7 +99,7 @@ func TestRESTUpdatePreferences(t *testing.T) {
 
 	// Update preferences with valid data
 	updateRequest := map[string]interface{}{
-		"preferred_provider":           testProvider,
+		"preferred_provider":          testProvider,
 		"main_agent_model":            testModel,
 		"main_agent_max_tokens":       4096,
 		"main_agent_reasoning_effort": "medium",
@@ -150,9 +150,9 @@ func TestRESTGetPreferencesAfterUpdate(t *testing.T) {
 	// First set some preferences
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	var testProvider string
 	var testModel string
 	for providerName, providerData := range availableProviders {
@@ -167,7 +167,7 @@ func TestRESTGetPreferencesAfterUpdate(t *testing.T) {
 
 	updateRequest := map[string]interface{}{
 		"preferred_provider":    testProvider,
-		"main_agent_model":     testModel,
+		"main_agent_model":      testModel,
 		"main_agent_max_tokens": 8192,
 	}
 
@@ -214,9 +214,9 @@ func TestRESTPartialUpdatePreferences(t *testing.T) {
 	// Get available providers for valid values
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	var testProvider string
 	var testModel string
 	for providerName, providerData := range availableProviders {
@@ -231,7 +231,7 @@ func TestRESTPartialUpdatePreferences(t *testing.T) {
 
 	// Set initial preferences
 	initialRequest := map[string]interface{}{
-		"preferred_provider":           testProvider,
+		"preferred_provider":          testProvider,
 		"main_agent_model":            testModel,
 		"main_agent_max_tokens":       4096,
 		"main_agent_reasoning_effort": "medium",
@@ -243,8 +243,8 @@ func TestRESTPartialUpdatePreferences(t *testing.T) {
 
 	// Update tokens and reasoning effort (need model too since service updates together)
 	partialRequest := map[string]interface{}{
-		"main_agent_model":             testModel,
-		"main_agent_max_tokens":        8192,
+		"main_agent_model":            testModel,
+		"main_agent_max_tokens":       8192,
 		"main_agent_reasoning_effort": "medium", // Need to preserve this since it's updated together
 	}
 
@@ -330,9 +330,9 @@ func TestRESTResetPreferences(t *testing.T) {
 	// First set some custom preferences
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	var testProvider string
 	var testModel string
 	for providerName, providerData := range availableProviders {
@@ -346,7 +346,7 @@ func TestRESTResetPreferences(t *testing.T) {
 	}
 
 	customRequest := map[string]interface{}{
-		"preferred_provider":           testProvider,
+		"preferred_provider":          testProvider,
 		"main_agent_model":            testModel,
 		"main_agent_max_tokens":       8192,
 		"main_agent_reasoning_effort": "high",

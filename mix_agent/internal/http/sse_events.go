@@ -202,4 +202,3 @@ func (s *SSEWriter) calculateExponentialBackoff(attempt int) int {
 
 	return backoffMs
 }
-

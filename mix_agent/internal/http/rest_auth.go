@@ -47,9 +47,9 @@ type AuthStatusResponse struct {
 
 // ProviderAuthStatus represents authentication status for a single provider
 type ProviderAuthStatus struct {
-	Authenticated bool               `json:"authenticated"`
-	AuthMethod    models.AuthMethod  `json:"auth_method"`
-	DisplayName   string             `json:"display_name"`
+	Authenticated bool              `json:"authenticated"`
+	AuthMethod    models.AuthMethod `json:"auth_method"`
+	DisplayName   string            `json:"display_name"`
 }
 
 // HandleStoreAPIKey handles POST /api/auth/api-key
@@ -427,7 +427,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Store the OAuth credentials in database  
+	// Store the OAuth credentials in database
 	oauthCreds := &credentials.OAuthCredentials{
 		AccessToken:  oauthTokens.AccessToken,
 		RefreshToken: oauthTokens.RefreshToken,
@@ -435,7 +435,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		ClientID:     oauthTokens.ClientID,
 		Provider:     "anthropic",
 	}
-	
+
 	err = credentialsService.StoreOAuthCredentials(r.Context(), "anthropic", oauthCreds)
 	if err != nil {
 		logging.Error("Failed to store OAuth credentials", "error", err)

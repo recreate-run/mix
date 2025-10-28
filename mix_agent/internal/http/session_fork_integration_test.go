@@ -183,8 +183,8 @@ func TestSessionFork(t *testing.T) {
 
 	// Test forking at message index 4 (should copy first 4 messages)
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(4),
-		Title:          "Forked Test Session",
+		MessageIndex: int64(4),
+		Title:        "Forked Test Session",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -241,7 +241,7 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 
 	// Test forking without custom title
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(2),
+		MessageIndex: int64(2),
 		// No title - should use default
 	}
 
@@ -309,7 +309,7 @@ func TestSessionForkErrorHandling(t *testing.T) {
 		{
 			name: "invalid source session ID",
 			request: ForkSessionRequest{
-				MessageIndex:    int64(2),
+				MessageIndex: int64(2),
 			},
 			expectError: true,
 			statusCode:  500,
@@ -318,7 +318,7 @@ func TestSessionForkErrorHandling(t *testing.T) {
 		{
 			name: "negative message index",
 			request: ForkSessionRequest{
-				MessageIndex:    int64(-1),
+				MessageIndex: int64(-1),
 			},
 			expectError: true,
 			statusCode:  400,
@@ -390,8 +390,8 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 
 	// Test forking at exact message boundary
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(5), // Should copy all 5 messages
-		Title:          "Boundary Fork Test",
+		MessageIndex: int64(5), // Should copy all 5 messages
+		Title:        "Boundary Fork Test",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -434,8 +434,8 @@ func TestSessionForkWithZeroMessages(t *testing.T) {
 
 	// Test forking at message index 0 (should copy 0 messages, empty session)
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(0),
-		Title:          "Empty Fork Test",
+		MessageIndex: int64(0),
+		Title:        "Empty Fork Test",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)

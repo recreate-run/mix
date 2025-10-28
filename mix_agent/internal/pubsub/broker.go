@@ -122,6 +122,6 @@ func (b *Broker[T]) Publish(ctx context.Context, t EventType, payload T) error {
 			fmt.Printf("PUBSUB: Dropping event for full subscriber channel\n")
 		}
 	}
-	
+
 	return nil
 }

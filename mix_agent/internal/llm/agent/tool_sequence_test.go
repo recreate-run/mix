@@ -178,7 +178,7 @@ func TestStreamAndHandleEventsToolFailure(t *testing.T) {
 	eventChan <- interfaces.ProviderEvent{
 		Type: interfaces.EventComplete,
 		Response: &interfaces.ProviderResponse{
-			Content: "",
+			Content:      "",
 			FinishReason: message.FinishReasonToolUse,
 			ToolCalls: []message.ToolCall{
 				{

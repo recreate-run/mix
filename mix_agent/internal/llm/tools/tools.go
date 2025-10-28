@@ -21,9 +21,9 @@ var WithResponseMetadata = interfaces.WithResponseMetadata
 
 // Context key aliases for backward compatibility
 const (
-	SessionIDContextKey       = interfaces.SessionIDContextKey
-	MessageIDContextKey       = interfaces.MessageIDContextKey
-	SessionStorageContextKey  = interfaces.SessionStorageContextKey
+	SessionIDContextKey      = interfaces.SessionIDContextKey
+	MessageIDContextKey      = interfaces.MessageIDContextKey
+	SessionStorageContextKey = interfaces.SessionStorageContextKey
 )
 
 func GetContextValues(ctx context.Context) (string, string) {

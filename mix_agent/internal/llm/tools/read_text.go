@@ -253,9 +253,6 @@ func readTextFile(filePath string, offset, limit int) (string, int, error) {
 	return strings.Join(lines, "\n"), lineCount, nil
 }
 
-
-
-
 type LineScanner struct {
 	scanner *bufio.Scanner
 }

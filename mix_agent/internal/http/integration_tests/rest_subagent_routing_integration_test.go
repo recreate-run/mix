@@ -178,9 +178,9 @@ func TestSubagentEventRoutingVerifyHierarchy(t *testing.T) {
 		"Test Subagent Session",
 		"",
 		"default",
-		"subagent",       // session type
-		"general-purpose", // subagent type
-		mainSessionID,    // parent session ID
+		"subagent",          // session type
+		"general-purpose",   // subagent type
+		mainSessionID,       // parent session ID
 		"test-tool-call-id", // parent tool call ID (test value)
 	)
 	if err != nil {

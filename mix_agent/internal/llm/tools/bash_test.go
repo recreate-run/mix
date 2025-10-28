@@ -353,10 +353,10 @@ func TestBashToolRunContextValidation(t *testing.T) {
 	tool := NewBashTool(mockPermissionService)
 
 	tests := []struct {
-		name      string
-		sessionID string
-		messageID string
-		storageDir string
+		name        string
+		sessionID   string
+		messageID   string
+		storageDir  string
 		expectError bool
 		errorMsg    string
 	}{
@@ -410,9 +410,9 @@ func TestBashToolRunContextValidation(t *testing.T) {
 // Test safe command detection
 func TestSafeCommandDetection(t *testing.T) {
 	tests := []struct {
-		name     string
-		command  string
-		isSafe   bool
+		name    string
+		command string
+		isSafe  bool
 	}{
 		{
 			name:    "basic ls command",

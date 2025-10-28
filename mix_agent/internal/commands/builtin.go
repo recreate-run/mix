@@ -17,7 +17,6 @@ import (
 	session2 "mix/internal/session"
 )
 
-
 // HelpResponse represents the JSON response for the /help command
 type HelpResponse struct {
 	Type     string        `json:"type"`
@@ -44,8 +43,8 @@ type SessionResponse struct {
 	CompletionTokens      int64   `json:"completionTokens"`
 	Cost                  float64 `json:"cost"`
 	CreatedAt             int64   `json:"createdAt"`
-	UpdatedAt        int64   `json:"updatedAt"`
-	ParentSessionID  string  `json:"parentSessionId,omitempty"`
+	UpdatedAt             int64   `json:"updatedAt"`
+	ParentSessionID       string  `json:"parentSessionId,omitempty"`
 }
 
 // McpResponse represents the JSON response for the /mcp command
@@ -77,16 +76,16 @@ type SessionsResponse struct {
 
 // SessionSummary represents a session summary in the sessions list
 type SessionSummary struct {
-	ID              string  `json:"id"`
-	Title           string  `json:"title"`
+	ID                    string  `json:"id"`
+	Title                 string  `json:"title"`
 	UserMessageCount      int64   `json:"userMessageCount"`
 	AssistantMessageCount int64   `json:"assistantMessageCount"`
 	ToolCallCount         int64   `json:"toolCallCount"`
-	TotalTokens     int64   `json:"totalTokens"`
-	Cost            float64 `json:"cost"`
-	CreatedAt       int64   `json:"createdAt"`
-	UpdatedAt       int64   `json:"updatedAt"`
-	ParentSessionID string  `json:"parentSessionId,omitempty"`
+	TotalTokens           int64   `json:"totalTokens"`
+	Cost                  float64 `json:"cost"`
+	CreatedAt             int64   `json:"createdAt"`
+	UpdatedAt             int64   `json:"updatedAt"`
+	ParentSessionID       string  `json:"parentSessionId,omitempty"`
 }
 
 // ErrorResponse represents error responses from commands
@@ -123,12 +122,12 @@ type AuthLoginResponse struct {
 
 // SessionSwitchResponse represents responses that create a session and instruct client to switch
 type SessionSwitchResponse struct {
-	Type                  string  `json:"type"`
-	Action                string  `json:"action"` // "switch"
-	Message               string  `json:"message"`
-	Command               string  `json:"command,omitempty"`
-	SessionID             string  `json:"sessionId"`
-	SessionTitle          string  `json:"sessionTitle"`
+	Type         string `json:"type"`
+	Action       string `json:"action"` // "switch"
+	Message      string `json:"message"`
+	Command      string `json:"command,omitempty"`
+	SessionID    string `json:"sessionId"`
+	SessionTitle string `json:"sessionTitle"`
 }
 
 // BuiltinCommand represents a built-in command
@@ -177,12 +176,12 @@ func returnMessage(command, message string) (string, error) {
 // returnSessionSwitch creates a structured session switch response
 func returnSessionSwitch(command, message, sessionID, sessionTitle string) (string, error) {
 	response := SessionSwitchResponse{
-		Type:             "session_switch",
-		Action:           "switch", 
-		Message:          message,
-		Command:          command,
-		SessionID:        sessionID,
-		SessionTitle:     sessionTitle,
+		Type:         "session_switch",
+		Action:       "switch",
+		Message:      message,
+		Command:      command,
+		SessionID:    sessionID,
+		SessionTitle: sessionTitle,
 	}
 	jsonData, _ := json.Marshal(response)
 	return string(jsonData), nil
@@ -289,7 +288,6 @@ func createClearHandler(app *app.App) func(ctx context.Context, args string) (st
 	}
 }
 
-
 func createSessionsHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
 	return func(ctx context.Context, args string) (string, error) {
 		// Get all sessions from the database
@@ -302,16 +300,16 @@ func createSessionsHandler(app *app.App) func(ctx context.Context, args string) 
 		var sessionSummaries []SessionSummary
 		for _, session := range sessions {
 			sessionSummaries = append(sessionSummaries, SessionSummary{
-				ID:              session.ID,
-				Title:           session.Title,
+				ID:                    session.ID,
+				Title:                 session.Title,
 				UserMessageCount:      session.UserMessageCount,
 				AssistantMessageCount: session.AssistantMessageCount,
 				ToolCallCount:         session.ToolCallCount,
-				TotalTokens:     session.PromptTokens + session.CompletionTokens,
-				Cost:            session.Cost,
-				CreatedAt:       session.CreatedAt,
-				UpdatedAt:       session.UpdatedAt,
-				ParentSessionID: session.ParentSessionID,
+				TotalTokens:           session.PromptTokens + session.CompletionTokens,
+				Cost:                  session.Cost,
+				CreatedAt:             session.CreatedAt,
+				UpdatedAt:             session.UpdatedAt,
+				ParentSessionID:       session.ParentSessionID,
 			})
 		}
 
@@ -424,7 +422,6 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 		return string(jsonData), nil
 	}
 }
-
 
 // Authentication command handlers
 

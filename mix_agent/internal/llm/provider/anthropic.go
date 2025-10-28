@@ -11,8 +11,8 @@ import (
 
 	"mix/internal/config"
 	"mix/internal/credentials"
-	"mix/internal/llm/models"
 	"mix/internal/llm/interfaces"
+	"mix/internal/llm/models"
 	"mix/internal/logging"
 	"mix/internal/message"
 
@@ -56,7 +56,7 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 		logging.Warn("Credentials service unavailable")
 	}
 
-	// Check for OAuth credentials first (highest priority) 
+	// Check for OAuth credentials first (highest priority)
 	var oauthCreds *OAuthCredentials // Use old format for internal client compatibility
 	if credentialsService != nil {
 		ctx := context.Background() // Create context for database operations
@@ -83,8 +83,8 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 						Provider:     "anthropic",
 					}
 					if err := credentialsService.StoreOAuthCredentials(ctx, "anthropic", newCreds); err != nil {
-					logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-				}
+						logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
+					}
 					oauthCreds = refreshedCreds
 				} else {
 					logging.Warn("Failed to refresh OAuth token: %v", err)
@@ -715,10 +715,10 @@ func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message
 type errorType string
 
 const (
-	errorTypeOverloaded    errorType = "overloaded"
-	errorTypeRateLimit     errorType = "rate_limit"
-	errorTypeUnavailable   errorType = "unavailable"
-	errorTypeUnretryable   errorType = "unretryable"
+	errorTypeOverloaded  errorType = "overloaded"
+	errorTypeRateLimit   errorType = "rate_limit"
+	errorTypeUnavailable errorType = "unavailable"
+	errorTypeUnretryable errorType = "unretryable"
 )
 
 // detectRetryableError analyzes the error and returns whether it's retryable and its type
@@ -738,12 +738,12 @@ func (a *anthropicClient) detectRetryableError(err error) (bool, errorType) {
 	// Check for Anthropic API error types in response body
 	errStr := err.Error()
 	if strings.Contains(errStr, `"type":"overloaded_error"`) ||
-	   strings.Contains(errStr, `"message":"Overloaded"`) {
+		strings.Contains(errStr, `"message":"Overloaded"`) {
 		return true, errorTypeOverloaded
 	}
 
 	if strings.Contains(errStr, `"type":"rate_limit_error"`) ||
-	   strings.Contains(errStr, "rate_limit_error") {
+		strings.Contains(errStr, "rate_limit_error") {
 		return true, errorTypeRateLimit
 	}
 

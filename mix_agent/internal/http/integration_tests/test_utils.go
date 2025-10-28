@@ -19,8 +19,8 @@ import (
 	"mix/internal/config"
 	"mix/internal/db"
 	httphandlers "mix/internal/http"
-	"mix/internal/session"
 	_ "mix/internal/llm/models"
+	"mix/internal/session"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"

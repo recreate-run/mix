@@ -72,11 +72,11 @@ func TestGetContextValues(t *testing.T) {
 // Test GetSessionStorageDirectory function
 func TestGetSessionStorageDirectory(t *testing.T) {
 	tests := []struct {
-		name        string
+		name         string
 		setupContext func() context.Context
-		expectError bool
-		errorSubstr string
-		expectedDir string
+		expectError  bool
+		errorSubstr  string
+		expectedDir  string
 	}{
 		{
 			name: "valid storage directory",
@@ -147,15 +147,15 @@ func TestSetSessionStorageContext(t *testing.T) {
 			// expectedDir will be {config.BasePath}/session-123 - calculated dynamically
 		},
 		{
-			name:      "custom config with session ID",
-			sessionID: "test-session-456",
-			config:    session.Config{BasePath: "/custom/storage"},
+			name:        "custom config with session ID",
+			sessionID:   "test-session-456",
+			config:      session.Config{BasePath: "/custom/storage"},
 			expectedDir: "/custom/storage/test-session-456",
 		},
 		{
-			name:      "empty session ID",
-			sessionID: "",
-			config:    session.Config{BasePath: "/test/storage"},
+			name:        "empty session ID",
+			sessionID:   "",
+			config:      session.Config{BasePath: "/test/storage"},
 			expectedDir: "/test/storage", // filepath.Join doesn't add trailing slash for empty sessionID
 		},
 	}

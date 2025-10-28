@@ -460,9 +460,9 @@ type AuthStatus struct {
 }
 
 type ProviderStatus struct {
-	Authenticated bool               `json:"authenticated"`
-	AuthMethod    models.AuthMethod  `json:"auth_method"`
-	DisplayName   string             `json:"display_name"`
+	Authenticated bool              `json:"authenticated"`
+	AuthMethod    models.AuthMethod `json:"auth_method"`
+	DisplayName   string            `json:"display_name"`
 }
 
 // DEPRECATED: getAuthMethod is replaced by functionality in AuthHandler

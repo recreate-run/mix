@@ -62,31 +62,31 @@ type MessageData struct {
 
 // ExportToolCall represents comprehensive tool call information for transcript export
 type ExportToolCall struct {
-	ID         string      `json:"id"`
-	Name       string      `json:"name"`
-	Input      string      `json:"input"`
-	InputJSON  interface{} `json:"inputJson,omitempty"` // Parsed JSON for structured tools
-	Type       string      `json:"type"`
-	Finished   bool        `json:"finished"`
-	Result     string      `json:"result,omitempty"`
-	Metadata   string      `json:"metadata,omitempty"`
-	IsError    bool        `json:"isError,omitempty"`
+	ID        string      `json:"id"`
+	Name      string      `json:"name"`
+	Input     string      `json:"input"`
+	InputJSON interface{} `json:"inputJson,omitempty"` // Parsed JSON for structured tools
+	Type      string      `json:"type"`
+	Finished  bool        `json:"finished"`
+	Result    string      `json:"result,omitempty"`
+	Metadata  string      `json:"metadata,omitempty"`
+	IsError   bool        `json:"isError,omitempty"`
 }
 
 // ExportMessage represents comprehensive message information for transcript export
 type ExportMessage struct {
-	ID                    string              `json:"id"`
-	Role                  string              `json:"role"`
-	Content               string              `json:"content"`
-	ToolCalls             []ExportToolCall    `json:"toolCalls,omitempty"`
-	Reasoning             string              `json:"reasoning,omitempty"`
-	ReasoningDuration     int64               `json:"reasoningDuration,omitempty"`
-	ThinkingBlocks        []string            `json:"thinkingBlocks,omitempty"`
-	RedactedThinkingBlocks []string           `json:"redactedThinkingBlocks,omitempty"`
-	Model                 string              `json:"model,omitempty"`
-	FinishReason          string              `json:"finishReason,omitempty"`
-	CreatedAt             time.Time           `json:"createdAt"`
-	UpdatedAt             time.Time           `json:"updatedAt"`
+	ID                     string           `json:"id"`
+	Role                   string           `json:"role"`
+	Content                string           `json:"content"`
+	ToolCalls              []ExportToolCall `json:"toolCalls,omitempty"`
+	Reasoning              string           `json:"reasoning,omitempty"`
+	ReasoningDuration      int64            `json:"reasoningDuration,omitempty"`
+	ThinkingBlocks         []string         `json:"thinkingBlocks,omitempty"`
+	RedactedThinkingBlocks []string         `json:"redactedThinkingBlocks,omitempty"`
+	Model                  string           `json:"model,omitempty"`
+	FinishReason           string           `json:"finishReason,omitempty"`
+	CreatedAt              time.Time        `json:"createdAt"`
+	UpdatedAt              time.Time        `json:"updatedAt"`
 }
 
 // ExportSession represents comprehensive session information for transcript export
@@ -118,7 +118,7 @@ func NewMessageHandler(app *app.App) *MessageHandler {
 		logging.Error("Failed to load commands", "error", err)
 		// Continue with empty registry - API will return proper errors
 	}
-	
+
 	return &MessageHandler{
 		app:             app,
 		commandRegistry: registry,
@@ -263,10 +263,9 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-
 		// Add session context for commands that need session information
 		cmdCtx := context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
-		
+
 		commandResult, execErr := h.commandRegistry.ExecuteCommand(cmdCtx, parsed.Name, parsed.Arguments)
 		if execErr != nil {
 			logging.Error("Command execution failed", "name", parsed.Name, "error", execErr)
@@ -284,7 +283,6 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 			sendInternalError(w, "executing command", execErr)
 			return
 		}
-
 
 		// Return the command result immediately as a message
 		result := MessageData{
@@ -379,7 +377,6 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-
 	ctx := r.Context()
 	messages, err := h.app.Messages.List(ctx, sessionID)
 	if err != nil {
@@ -388,10 +385,7 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-
 	result := h.convertMessagesToData(messages)
-	
-	
 
 	sendJSONResponse(w, http.StatusOK, result)
 }
@@ -542,13 +536,13 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 				}
 			}
 		}
-		
+
 		// Create a map of tool results by tool call ID for quick lookup
 		resultsByID := make(map[string]message.ToolResult)
 		for _, tr := range toolResults {
 			resultsByID[tr.ToolCallID] = tr
 		}
-		
+
 		toolCallsData := make([]ToolCallData, len(toolCalls))
 		for i, tc := range toolCalls {
 			toolCallData := ToolCallData{
@@ -558,31 +552,31 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 				Type:     tc.Type,
 				Finished: tc.Finished,
 			}
-			
+
 			// Add result if available
 			if toolResult, exists := resultsByID[tc.ID]; exists {
 				toolCallData.Result = toolResult.Content
 				toolCallData.IsError = toolResult.IsError
 			}
-			
+
 			toolCallsData[i] = toolCallData
 		}
 
 		// Get message content
 		content := msg.Content().String()
-		
+
 		messageData := MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
 			UserInput: content, // All messages put their content in userInput, frontend uses role to determine how to display
 		}
-		
+
 		// For assistant messages, also set assistantResponse field
 		if msg.Role != message.User {
 			messageData.AssistantResponse = content
 		}
-		
+
 		// Only set tool calls if there are any
 		if len(toolCallsData) > 0 {
 			messageData.ToolCalls = toolCallsData
@@ -614,7 +608,7 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 			messageData.Reasoning = reasoning
 			messageData.ReasoningDuration = reasoningDuration
 		}
-		
+
 		result = append(result, messageData)
 	}
 	return result

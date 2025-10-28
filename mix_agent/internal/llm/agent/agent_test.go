@@ -29,17 +29,17 @@ func CreateTestAgent(t *testing.T, mockSessions *session.MockService, mockMessag
 	accumulator := NewMessageAccumulator(mockMessages)
 
 	return &agent{
-		broker:            pubsub.NewBroker[AgentEvent](),
-		agentName:         config.AgentMain,
-		provider:          mockProvider,
-		messages:       mockMessages,
-		sessions:       mockSessions,
-		storageConfig:  storageConfig,
-		tools:          agentTools,
-		titleProvider:  mockProvider,
-		accumulator:    accumulator,
-		ctx:            ctx,
-		cancel:         cancel,
+		broker:        pubsub.NewBroker[AgentEvent](),
+		agentName:     config.AgentMain,
+		provider:      mockProvider,
+		messages:      mockMessages,
+		sessions:      mockSessions,
+		storageConfig: storageConfig,
+		tools:         agentTools,
+		titleProvider: mockProvider,
+		accumulator:   accumulator,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 }
 
@@ -142,7 +142,7 @@ func TestGenerateTitle(t *testing.T) {
 	// Mock provider response for title generation
 	mockProvider.On("SendMessages", mock.Anything, mock.AnythingOfType("[]message.Message"), mock.AnythingOfType("[]interfaces.BaseTool")).
 		Return(&interfaces.ProviderResponse{
-			Content: "Test Title",
+			Content:      "Test Title",
 			FinishReason: message.FinishReasonEndTurn,
 		}, nil)
 

@@ -234,7 +234,6 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-
 func (s *service) fromDBItem(item db.File) File {
 	return File{
 		ID:        item.ID,

@@ -162,7 +162,7 @@ func runQuery(ctx context.Context, app *app.App, queryType, outputFormat string)
 
 	// JSON-RPC mode is no longer supported - removed for simplicity
 	if queryType == "json" {
-		return fmt.Errorf("JSON-RPC mode is no longer supported. Use specific query types: %v", 
+		return fmt.Errorf("JSON-RPC mode is no longer supported. Use specific query types: %v",
 			handler.GetSupportedQueryTypes())
 	}
 

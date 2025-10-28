@@ -67,9 +67,9 @@ type OpenAIOrganization struct {
 
 // OpenAIAuthClaims represents the https://api.openai.com/auth namespace in JWT
 type OpenAIAuthClaims struct {
-	ChatGPTAccountID string                   `json:"chatgpt_account_id"`
-	OrganizationID   string                   `json:"organization_id,omitempty"`
-	Organizations    []OpenAIOrganization     `json:"organizations,omitempty"`
+	ChatGPTAccountID string               `json:"chatgpt_account_id"`
+	OrganizationID   string               `json:"organization_id,omitempty"`
+	Organizations    []OpenAIOrganization `json:"organizations,omitempty"`
 }
 
 // OpenAIIDTokenClaims represents the full ID token claims
