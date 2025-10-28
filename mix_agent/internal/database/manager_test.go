@@ -31,7 +31,7 @@ func TestNewManagerUnsupportedType(t *testing.T) {
 	}
 
 	manager, err := NewManager(config)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, manager)
 	assert.Contains(t, err.Error(), "unsupported database provider type")
 }
@@ -84,18 +84,18 @@ func TestSQLiteManagerLifecycle(t *testing.T) {
 
 	// Test ping
 	err = manager.Ping(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test that the database file was created
 	dbPath := filepath.Join(testDir, "test.db")
 	_, err = os.Stat(dbPath)
-	assert.NoError(t, err, "Database file should be created")
+	require.NoError(t, err, "Database file should be created")
 
 	// Test transaction
 	tx, err := manager.BeginTx(ctx, nil)
 	require.NoError(t, err)
 	err = tx.Rollback()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test provider access
 	provider := manager.GetProvider()
@@ -104,7 +104,7 @@ func TestSQLiteManagerLifecycle(t *testing.T) {
 
 	// Test close
 	err = manager.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestSQLiteProviderDefaults(t *testing.T) {
@@ -159,12 +159,12 @@ func TestSQLiteProviderMigrations(t *testing.T) {
 	// Check that sessions table exists (from migrations)
 	var tableName string
 	err = db.QueryRowContext(ctx, "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").Scan(&tableName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "sessions", tableName)
 
 	// Check that messages table exists (from migrations)
 	err = db.QueryRowContext(ctx, "SELECT name FROM sqlite_master WHERE type='table' AND name='messages'").Scan(&tableName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "messages", tableName)
 }
 
@@ -183,7 +183,7 @@ func TestSQLiteProviderConnectErrors(t *testing.T) {
 
 	ctx := context.Background()
 	err = manager.Connect(ctx)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "data.dir is not set")
 }
 
@@ -272,18 +272,16 @@ func TestTursoProviderValidation(t *testing.T) {
 			err = manager.Connect(ctx)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorMsg != "" {
 					assert.Contains(t, err.Error(), tt.errorMsg)
 				}
-			} else {
+			} else if err != nil {
 				// Note: This will likely fail in tests since we don't have a real Turso database
 				// but it validates that the provider accepts the configuration correctly
 				// The actual connection failure is expected in test environment
-				if err != nil {
-					// Expected connection failure in test environment is okay
-					t.Logf("Expected connection failure in test environment: %v", err)
-				}
+				// Expected connection failure in test environment is okay
+				t.Logf("Expected connection failure in test environment: %v", err)
 			}
 		})
 	}
@@ -311,16 +309,16 @@ func TestTursoProviderMethods(t *testing.T) {
 	// Ping should fail when not connected
 	ctx := context.Background()
 	err = manager.Ping(ctx)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "database not connected")
 
 	// BeginTx should fail when not connected
 	tx, err := manager.BeginTx(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, tx)
 	assert.Contains(t, err.Error(), "database not connected")
 
 	// Close should not fail even when not connected
 	err = manager.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

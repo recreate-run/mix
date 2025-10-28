@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"mix/internal/session"
 )
@@ -18,10 +19,8 @@ func TestGetContextValues(t *testing.T) {
 		expectedMessageID string
 	}{
 		{
-			name: "empty context",
-			setupContext: func() context.Context {
-				return context.Background()
-			},
+			name:              "empty context",
+			setupContext:      context.Background,
 			expectedSessionID: "",
 			expectedMessageID: "",
 		},
@@ -88,12 +87,10 @@ func TestGetSessionStorageDirectory(t *testing.T) {
 			expectedDir: "/storage/session-123",
 		},
 		{
-			name: "missing storage directory in context",
-			setupContext: func() context.Context {
-				return context.Background()
-			},
-			expectError: true,
-			errorSubstr: "session storage directory not found in context",
+			name:         "missing storage directory in context",
+			setupContext: context.Background,
+			expectError:  true,
+			errorSubstr:  "session storage directory not found in context",
 		},
 		{
 			name: "non-string storage directory",
@@ -121,11 +118,11 @@ func TestGetSessionStorageDirectory(t *testing.T) {
 			dir, err := GetSessionStorageDirectory(ctx)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorSubstr)
 				assert.Empty(t, dir)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expectedDir, dir)
 			}
 		})
@@ -167,7 +164,7 @@ func TestSetSessionStorageContext(t *testing.T) {
 
 			// Extract the storage directory from the new context
 			dir, err := GetSessionStorageDirectory(newCtx)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			if tt.expectedDir != "" {
 				assert.Equal(t, tt.expectedDir, dir)
@@ -179,7 +176,7 @@ func TestSetSessionStorageContext(t *testing.T) {
 
 			// Verify the original context is unchanged
 			_, err = GetSessionStorageDirectory(ctx)
-			assert.Error(t, err) // Original context should not have storage directory
+			require.Error(t, err) // Original context should not have storage directory
 		})
 	}
 }
@@ -285,7 +282,7 @@ func TestContextFunctionIntegration(t *testing.T) {
 
 	// Test GetSessionStorageDirectory
 	storageDir, err := GetSessionStorageDirectory(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "/test/integration/storage/integration-test-session", storageDir)
 
 	// Verify original context values are preserved
@@ -302,8 +299,8 @@ func TestEdgeCases(t *testing.T) {
 		// Test with nil session ID
 		ctx = context.WithValue(ctx, SessionIDContextKey, nil)
 		sessionID, messageID := GetContextValues(ctx)
-		assert.Equal(t, "", sessionID)
-		assert.Equal(t, "", messageID)
+		assert.Empty(t, sessionID)
+		assert.Empty(t, messageID)
 
 		// Test panic behavior with non-string session ID
 		ctx = context.WithValue(ctx, SessionIDContextKey, 12345)
@@ -327,7 +324,7 @@ func TestEdgeCases(t *testing.T) {
 		ctx := SetSessionStorageContext(context.Background(), sessionID, config)
 		storageDir, err := GetSessionStorageDirectory(ctx)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, storageDir, sessionID)
 		assert.Contains(t, storageDir, "with spaces")
 	})

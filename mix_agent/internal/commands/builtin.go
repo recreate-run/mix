@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -163,14 +164,14 @@ func returnError(command, errorMsg string) (string, error) {
 }
 
 // returnMessage creates a structured informational message response
-func returnMessage(command, message string) (string, error) {
+func returnMessage(command, message string) string {
 	response := MessageResponse{
 		Type:    "message",
 		Message: message,
 		Command: command,
 	}
 	jsonData, _ := json.Marshal(response)
-	return string(jsonData), nil
+	return string(jsonData)
 }
 
 // returnSessionSwitch creates a structured session switch response
@@ -188,7 +189,7 @@ func returnSessionSwitch(command, message, sessionID, sessionTitle string) (stri
 }
 
 // GetBuiltinCommands returns all built-in commands
-func GetBuiltinCommands(registry *Registry, app *app.App) map[string]Command {
+func GetBuiltinCommands(registry *Registry, application *app.App) map[string]Command {
 	return map[string]Command{
 		"help": &BuiltinCommand{
 			name:        "help",
@@ -198,12 +199,12 @@ func GetBuiltinCommands(registry *Registry, app *app.App) map[string]Command {
 		"clear": &BuiltinCommand{
 			name:        "clear",
 			description: "Start new session",
-			handler:     createClearHandler(app),
+			handler:     createClearHandler(application),
 		},
 		"sessions": &BuiltinCommand{
 			name:        "sessions",
 			description: "List all available sessions",
-			handler:     createSessionsHandler(app),
+			handler:     createSessionsHandler(application),
 		},
 		"mcp": &BuiltinCommand{
 			name:        "mcp",
@@ -269,7 +270,7 @@ func createHelpHandler(registry *Registry) func(ctx context.Context, args string
 	}
 }
 
-func createClearHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
+func createClearHandler(application *app.App) func(ctx context.Context, args string) (string, error) {
 	return func(ctx context.Context, args string) (string, error) {
 		// Extract session ID from context - required for clear command
 		sessionID, ok := ctx.Value(tools.SessionIDContextKey).(string)
@@ -278,7 +279,7 @@ func createClearHandler(app *app.App) func(ctx context.Context, args string) (st
 		}
 
 		// Create new session
-		session, err := app.Sessions.Create(ctx, "New Session", "", "default", session2.SessionTypeMain, "", "", "")
+		session, err := application.Sessions.Create(ctx, "New Session", "", "default", session2.SessionTypeMain, "", "", "")
 		if err != nil {
 			return returnError("clear", fmt.Sprintf("Failed to create new session: %v", err))
 		}
@@ -288,28 +289,28 @@ func createClearHandler(app *app.App) func(ctx context.Context, args string) (st
 	}
 }
 
-func createSessionsHandler(app *app.App) func(ctx context.Context, args string) (string, error) {
+func createSessionsHandler(application *app.App) func(ctx context.Context, args string) (string, error) {
 	return func(ctx context.Context, args string) (string, error) {
 		// Get all sessions from the database
-		sessions, err := app.Sessions.List(ctx)
+		sessions, err := application.Sessions.List(ctx)
 		if err != nil {
 			return returnError("sessions", fmt.Sprintf("Error retrieving sessions: %v", err))
 		}
 
 		// Build session summaries
 		var sessionSummaries []SessionSummary
-		for _, session := range sessions {
+		for i := range sessions {
 			sessionSummaries = append(sessionSummaries, SessionSummary{
-				ID:                    session.ID,
-				Title:                 session.Title,
-				UserMessageCount:      session.UserMessageCount,
-				AssistantMessageCount: session.AssistantMessageCount,
-				ToolCallCount:         session.ToolCallCount,
-				TotalTokens:           session.PromptTokens + session.CompletionTokens,
-				Cost:                  session.Cost,
-				CreatedAt:             session.CreatedAt,
-				UpdatedAt:             session.UpdatedAt,
-				ParentSessionID:       session.ParentSessionID,
+				ID:                    sessions[i].ID,
+				Title:                 sessions[i].Title,
+				UserMessageCount:      sessions[i].UserMessageCount,
+				AssistantMessageCount: sessions[i].AssistantMessageCount,
+				ToolCallCount:         sessions[i].ToolCallCount,
+				TotalTokens:           sessions[i].PromptTokens + sessions[i].CompletionTokens,
+				Cost:                  sessions[i].Cost,
+				CreatedAt:             sessions[i].CreatedAt,
+				UpdatedAt:             sessions[i].UpdatedAt,
+				ParentSessionID:       sessions[i].ParentSessionID,
 			})
 		}
 
@@ -334,7 +335,7 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 		cfg := config.Get()
 
 		if len(cfg.MCPServers) == 0 {
-			return returnMessage("mcp", "No MCP servers configured.\n\nTo configure MCP servers, add them to your configuration file under 'mcpServers'.")
+			return returnMessage("mcp", "No MCP servers configured.\n\nTo configure MCP servers, add them to your configuration file under 'mcpServers'."), nil
 		}
 
 		// Sort server names for consistent output
@@ -362,11 +363,11 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 		// Build server data
 		var servers []McpServer
 		for _, name := range serverNames {
-			tools := serverTools[name]
+			serverToolList := serverTools[name]
 
 			// Determine connection status
 			var statusText string
-			connected := len(tools) > 0
+			connected := len(serverToolList) > 0
 			if connected {
 				statusText = "connected"
 			} else {
@@ -375,13 +376,13 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 
 			// Build tool list
 			var mcpTools []McpTool
-			if len(tools) > 0 {
+			if len(serverToolList) > 0 {
 				// Sort tools by name for consistent output
-				sort.Slice(tools, func(i, j int) bool {
-					return tools[i].Info().Name < tools[j].Info().Name
+				sort.Slice(serverToolList, func(i, j int) bool {
+					return serverToolList[i].Info().Name < serverToolList[j].Info().Name
 				})
 
-				for _, tool := range tools {
+				for _, tool := range serverToolList {
 					info := tool.Info()
 					// Remove server prefix from tool name for cleaner display
 					toolName := info.Name
@@ -402,7 +403,7 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 				Name:      name,
 				Status:    statusText,
 				Connected: connected,
-				ToolCount: len(tools),
+				ToolCount: len(serverToolList),
 				Tools:     mcpTools,
 			})
 		}
@@ -434,7 +435,7 @@ func createAuthStatusHandler() func(ctx context.Context, args string) (string, e
 
 		// Check Anthropic OAuth credentials
 		creds, err := storage.GetOAuthCredentials("anthropic")
-		if err != nil {
+		if err != nil && !errors.Is(err, provider.ErrOAuthCredentialNotFound) {
 			return returnError("status", fmt.Sprintf("Error checking credentials: %v", err))
 		}
 
@@ -447,18 +448,19 @@ func createAuthStatusHandler() func(ctx context.Context, args string) (string, e
 		}
 
 		// OAuth takes precedence over API key
-		if creds != nil && !creds.IsTokenExpired() {
+		switch {
+		case err == nil && !creds.IsTokenExpired():
 			response.Status = "authenticated"
 			response.ExpiresIn = (creds.ExpiresAt - time.Now().Unix()) / 60 // minutes
 			response.Message = "✅ Authenticated with Claude Code OAuth"
-		} else if hasAPIKey {
+		case hasAPIKey:
 			response.Status = "authenticated"
 			response.ExpiresIn = 0 // API keys don't expire
 			response.Message = "✅ Authenticated with Anthropic API Key"
-		} else {
+		default:
 			response.Status = "not_authenticated"
 			response.ExpiresIn = 0
-			if creds != nil && creds.IsTokenExpired() {
+			if err == nil && creds.IsTokenExpired() {
 				response.Message = "❌ Token expired. Please login again."
 			} else {
 				response.Message = "❌ Not authenticated. Use /login to authenticate."
@@ -483,7 +485,12 @@ func createLoginHandler() func(ctx context.Context, args string) (string, error)
 		}
 
 		existingCreds, err := storage.GetOAuthCredentials("anthropic")
-		if err == nil && existingCreds != nil && !existingCreds.IsTokenExpired() {
+		switch {
+		case errors.Is(err, provider.ErrOAuthCredentialNotFound):
+			// Not authenticated, continue with login flow
+		case err != nil:
+			return returnError("login", fmt.Sprintf("Failed to check existing credentials: %v", err))
+		case !existingCreds.IsTokenExpired():
 			response := AuthLoginResponse{
 				Type:    "auth_login",
 				Status:  "success",
@@ -531,7 +538,7 @@ func createLoginHandler() func(ctx context.Context, args string) (string, error)
 				Message: "🔐 Failed to open browser automatically. Please manually visit the URL above and complete OAuth authentication. Then run: /login <authorization_code>",
 			}
 			jsonData, _ := json.Marshal(response)
-			return string(jsonData), nil
+			return string(jsonData), fmt.Errorf("failed to open browser: %w", err)
 		}
 
 		response := AuthLoginResponse{
@@ -570,7 +577,7 @@ func handleAuthCodeExchange(authCode string, storage *provider.CredentialStorage
 			Message: "OAuth flow could not be completed automatically due to Cloudflare protection. \n\nPlease use an API key instead:\n\n1. Visit: https://console.anthropic.com/settings/keys\n2. Create a new API key\n3. Set the environment variable: export ANTHROPIC_API_KEY=your_api_key\n4. Restart the application\n\nThis will be fixed in a future update.",
 		}
 		jsonData, _ := json.Marshal(response)
-		return string(jsonData), nil
+		return string(jsonData), fmt.Errorf("oauth token exchange failed: %w", err)
 	}
 
 	// Store the credentials
@@ -602,8 +609,8 @@ func createLogoutHandler() func(ctx context.Context, args string) (string, error
 		}
 
 		// Check if authenticated with OAuth
-		creds, err := storage.GetOAuthCredentials("anthropic")
-		hasOAuth := err == nil && creds != nil
+		_, err = storage.GetOAuthCredentials("anthropic")
+		hasOAuth := err == nil
 
 		// Check if API key is set in environment
 		hasAPIKey := os.Getenv("ANTHROPIC_API_KEY") != ""
@@ -683,7 +690,7 @@ func createAuthCodeHandler() func(ctx context.Context, args string) (string, err
 				Message: "OAuth flow could not be completed automatically due to Cloudflare protection. \n\nPlease use an API key instead:\n\n1. Visit: https://console.anthropic.com/settings/keys\n2. Create a new API key\n3. Set the environment variable: export ANTHROPIC_API_KEY=your_api_key\n4. Restart the application\n\nThis will be fixed in a future update.",
 			}
 			jsonData, _ := json.Marshal(response)
-			return string(jsonData), nil
+			return string(jsonData), fmt.Errorf("oauth token exchange failed: %w", err)
 		}
 
 		// Store the credentials

@@ -422,7 +422,7 @@ func (m *Message) FinishToolCall(toolCallID string) {
 	}
 }
 
-func (m *Message) AppendToolCallInput(toolCallID string, inputDelta string) error {
+func (m *Message) AppendToolCallInput(toolCallID, inputDelta string) error {
 	for i, part := range m.Parts {
 		if c, ok := part.(ToolCall); ok {
 			if c.ID == toolCallID {

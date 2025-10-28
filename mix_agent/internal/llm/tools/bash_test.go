@@ -38,16 +38,16 @@ func (m *MockPermissionService) Publish(ctx context.Context, eventType pubsub.Ev
 	return args.Error(0)
 }
 
-func (m *MockPermissionService) GrantPersistant(permission permission.PermissionRequest) {
-	m.Called(permission)
+func (m *MockPermissionService) GrantPersistant(perm permission.PermissionRequest) {
+	m.Called(perm)
 }
 
-func (m *MockPermissionService) Grant(permission permission.PermissionRequest) {
-	m.Called(permission)
+func (m *MockPermissionService) Grant(perm permission.PermissionRequest) {
+	m.Called(perm)
 }
 
-func (m *MockPermissionService) Deny(permission permission.PermissionRequest) {
-	m.Called(permission)
+func (m *MockPermissionService) Deny(perm permission.PermissionRequest) {
+	m.Called(perm)
 }
 
 func (m *MockPermissionService) Request(opts permission.CreatePermissionRequest) bool {
@@ -113,13 +113,13 @@ func TestBashParamsJSONSerialization(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test marshaling
 			jsonData, err := json.Marshal(tt.params)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.JSONEq(t, tt.expected, string(jsonData))
 
 			// Test unmarshaling
 			var params BashParams
 			err = json.Unmarshal(jsonData, &params)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.params, params)
 		})
 	}
@@ -133,11 +133,11 @@ func TestBashPermissionsParamsJSONSerialization(t *testing.T) {
 	}
 
 	jsonData, err := json.Marshal(params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var unmarshaled BashPermissionsParams
 	err = json.Unmarshal(jsonData, &unmarshaled)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, params, unmarshaled)
 }
 
@@ -150,11 +150,11 @@ func TestBashResponseMetadataJSONSerialization(t *testing.T) {
 	}
 
 	jsonData, err := json.Marshal(metadata)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var unmarshaled BashResponseMetadata
 	err = json.Unmarshal(jsonData, &unmarshaled)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, metadata, unmarshaled)
 }
 
@@ -223,6 +223,7 @@ func createBashTestContext(sessionID, messageID, storageDir string) context.Cont
 
 // Helper function to create a temporary directory for testing
 func createTempDir(t *testing.T) string {
+	t.Helper()
 	dir, err := os.MkdirTemp("", "bash_test_*")
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -245,7 +246,7 @@ func TestBashToolRunInvalidJSON(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	assert.NoError(t, err) // The function returns an error response, not an error
+	require.NoError(t, err) // The function returns an error response, not an error
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "invalid parameters")
 }
@@ -264,7 +265,7 @@ func TestBashToolRunMissingCommand(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "missing command")
 }
@@ -287,7 +288,7 @@ func TestBashToolRunBannedCommand(t *testing.T) {
 
 			response, err := tool.Run(ctx, call)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.True(t, response.IsError)
 			assert.Contains(t, response.Content, fmt.Sprintf("command '%s' is not allowed", bannedCmd))
 		})
@@ -342,7 +343,7 @@ func TestBashToolRunTimeoutHandling(t *testing.T) {
 			_, err := tool.Run(ctx, call)
 			// The error here will be due to missing session context or shell setup,
 			// but not due to timeout parameter validation
-			assert.Error(t, err) // Expected due to missing session setup
+			require.Error(t, err) // Expected due to missing session setup
 		})
 	}
 }
@@ -398,10 +399,10 @@ func TestBashToolRunContextValidation(t *testing.T) {
 			_, err := tool.Run(ctx, call)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -600,7 +601,7 @@ func TestBashToolInterfaceCompliance(t *testing.T) {
 	call := interfaces.ToolCall{ID: "test", Name: "bash", Input: "{}"}
 	response, err := tool.Run(ctx, call)
 	// Should return error response for missing command, not Go error
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "missing command")
 }
@@ -626,8 +627,8 @@ func TestPermissionServiceIntegration(t *testing.T) {
 	_, err := tool.Run(ctx, call)
 
 	// Should return permission denied error
-	assert.Error(t, err)
-	assert.Equal(t, permission.ErrorPermissionDenied, err)
+	require.Error(t, err)
+	assert.Equal(t, permission.ErrPermissionDenied, err)
 
 	// Verify permission was requested
 	mockPermissionService.AssertExpectations(t)
@@ -652,7 +653,7 @@ func TestSafeCommandsBypassPermissions(t *testing.T) {
 	response, err := tool.Run(ctx, call)
 
 	// Should succeed without permission error
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "hello")
 
@@ -771,7 +772,7 @@ func TestMetadataGeneration(t *testing.T) {
 
 	// Test JSON serialization of metadata
 	jsonData, err := json.Marshal(metadata)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, string(jsonData), "start_time")
 	assert.Contains(t, string(jsonData), "end_time")
 }

@@ -20,9 +20,9 @@ type ToolsHandler struct {
 }
 
 // NewToolsHandler creates a new tools handler
-func NewToolsHandler(app *app.App) *ToolsHandler {
+func NewToolsHandler(a *app.App) *ToolsHandler {
 	return &ToolsHandler{
-		app: app,
+		app: a,
 	}
 }
 
@@ -76,7 +76,7 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -154,7 +154,7 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 		return
 	}
 
-	if r.Method != "DELETE" {
+	if r.Method != http.MethodDelete {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -214,7 +214,7 @@ func (h *ToolsHandler) HandleToolCredentialsStatus(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -248,7 +248,7 @@ func (h *ToolsHandler) HandleListLLMTools(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}

@@ -5,15 +5,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test error definitions
 func TestErrorDefinitions(t *testing.T) {
 	// Test that all expected errors are defined
-	assert.NotNil(t, ErrNotSlashCommand)
-	assert.NotNil(t, ErrEmptyCommand)
-	assert.NotNil(t, ErrCommandNotFound)
-	assert.NotNil(t, ErrCommandFailed)
+	require.Error(t, ErrNotSlashCommand)
+	require.Error(t, ErrEmptyCommand)
+	require.Error(t, ErrCommandNotFound)
+	require.Error(t, ErrCommandFailed)
 }
 
 func TestErrorMessages(t *testing.T) {
@@ -53,26 +54,20 @@ func TestErrorMessages(t *testing.T) {
 
 // Test error usage with errors.Is
 func TestErrorIsComparison(t *testing.T) {
-	// Test that errors can be compared with errors.Is
-	assert.True(t, errors.Is(ErrNotSlashCommand, ErrNotSlashCommand))
-	assert.True(t, errors.Is(ErrEmptyCommand, ErrEmptyCommand))
-	assert.True(t, errors.Is(ErrCommandNotFound, ErrCommandNotFound))
-	assert.True(t, errors.Is(ErrCommandFailed, ErrCommandFailed))
-
 	// Test that different errors are not equal
-	assert.False(t, errors.Is(ErrNotSlashCommand, ErrEmptyCommand))
-	assert.False(t, errors.Is(ErrCommandNotFound, ErrCommandFailed))
+	require.NotErrorIs(t, ErrNotSlashCommand, ErrEmptyCommand)
+	require.NotErrorIs(t, ErrCommandNotFound, ErrCommandFailed)
 }
 
 // Test wrapped errors
 func TestWrappedErrors(t *testing.T) {
 	// Test wrapped command not found error
 	wrappedNotFound := errors.New("command not found: test-cmd")
-	assert.False(t, errors.Is(wrappedNotFound, ErrCommandNotFound))
+	require.NotErrorIs(t, wrappedNotFound, ErrCommandNotFound)
 
 	// But actual wrapping should work
 	actualWrapped := errors.Join(ErrCommandNotFound, errors.New("test-cmd"))
-	assert.True(t, errors.Is(actualWrapped, ErrCommandNotFound))
+	require.ErrorIs(t, actualWrapped, ErrCommandNotFound)
 }
 
 // Test error types are consistent

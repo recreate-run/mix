@@ -98,7 +98,7 @@ func (ma *MessageAccumulator) Get(messageID string) (*message.Message, bool) {
 }
 
 // UpdateThinking appends thinking content without DB update
-func (ma *MessageAccumulator) UpdateThinking(messageID string, delta string) error {
+func (ma *MessageAccumulator) UpdateThinking(messageID, delta string) error {
 	ma.mu.RLock()
 	accumulated, exists := ma.messages[messageID]
 	ma.mu.RUnlock()
@@ -119,7 +119,7 @@ func (ma *MessageAccumulator) UpdateThinking(messageID string, delta string) err
 }
 
 // UpdateContent appends content delta without DB update
-func (ma *MessageAccumulator) UpdateContent(messageID string, delta string) error {
+func (ma *MessageAccumulator) UpdateContent(messageID, delta string) error {
 	ma.mu.RLock()
 	accumulated, exists := ma.messages[messageID]
 	ma.mu.RUnlock()
@@ -226,12 +226,10 @@ func (ma *MessageAccumulator) flushAllMessages() {
 		}
 		accumulated.mu.Unlock()
 	}
-
 }
 
 // Shutdown gracefully shuts down the accumulator
 func (ma *MessageAccumulator) Shutdown() {
-
 	// Flush all pending messages before shutdown
 	ma.flushAllMessages()
 

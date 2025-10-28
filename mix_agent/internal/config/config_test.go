@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"mix/internal/llm/models"
@@ -14,10 +15,11 @@ import (
 )
 
 // Test helper functions
-func setupTempConfig(t *testing.T) (string, func()) {
+func setupTempConfig(t *testing.T) (tempDir string, cleanup func()) {
+	t.Helper()
 	// Create temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "config_test_*")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Reset global config for clean test state
 	cfgMutex.Lock()
@@ -27,7 +29,7 @@ func setupTempConfig(t *testing.T) (string, func()) {
 	cfgMutex.Unlock()
 
 	// Cleanup function
-	cleanup := func() {
+	cleanup = func() {
 		cfgMutex.Lock()
 		cfg = nil
 		userPreferencesService = nil
@@ -46,7 +48,7 @@ func TestLoad(t *testing.T) {
 
 	config, err := Load(tempDir, false, false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Equal(t, tempDir, config.WorkingDir)
 	assert.Equal(t, defaultDataDirectory, config.Data.Directory)
@@ -63,7 +65,7 @@ func TestLoadWithDebug(t *testing.T) {
 
 	config, err := Load(tempDir, true, false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, config.Debug)
 }
 
@@ -74,7 +76,7 @@ func TestLoadWithSkipPermissions(t *testing.T) {
 
 	config, err := Load(tempDir, false, true)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, config.SkipPermissions)
 }
 
@@ -101,7 +103,7 @@ func TestGet(t *testing.T) {
 
 	// Load config
 	originalConfig, err := Load(tempDir, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Get should return same config
 	retrievedConfig := Get()
@@ -154,7 +156,7 @@ func TestGetAgentFromDatabase(t *testing.T) {
 
 	agent, err := GetAgentFromDatabase(context.Background(), AgentMain)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Agent{
 		Model:           expectedAgent.Model,
 		MaxTokens:       expectedAgent.MaxTokens,
@@ -171,7 +173,7 @@ func TestGetAgentFromDatabaseNotInitialized(t *testing.T) {
 
 	_, err := GetAgentFromDatabase(context.Background(), AgentMain)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "user preferences service not initialized")
 }
 
@@ -182,7 +184,7 @@ func TestGetAgentFromDatabaseUnknownAgent(t *testing.T) {
 
 	_, err := GetAgentFromDatabase(context.Background(), AgentName("unknown"))
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	// Will fail at service initialization check before agent name validation
 	assert.Contains(t, err.Error(), "user preferences service not initialized")
 }
@@ -198,7 +200,7 @@ func TestGetAgentFromDatabaseUnknownAgentWithService(t *testing.T) {
 
 	_, err := GetAgentFromDatabase(context.Background(), AgentName("unknown"))
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown agent name")
 }
 
@@ -216,16 +218,16 @@ func TestPromptsDirectory(t *testing.T) {
 
 	// Should return error when config not loaded
 	_, err := PromptsDirectory()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config not loaded")
 
 	// Load config
 	_, err = Load(tempDir, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Should return prompts directory
 	promptsDir, err := PromptsDirectory()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, promptsDir, ".mix/prompts")
 }
 
@@ -333,32 +335,32 @@ func TestShouldShowInitDialog(t *testing.T) {
 
 	// Should return error when config not loaded
 	_, err := ShouldShowInitDialog()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config not loaded")
 
 	// Load config
 	_, err = Load(tempDir, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Set data directory to temp directory for testing
 	cfg.Data.Directory = tempDir
 
 	// Create the data directory for testing
-	err = os.MkdirAll(cfg.Data.Directory, 0755)
-	assert.NoError(t, err)
+	err = os.MkdirAll(cfg.Data.Directory, 0o750)
+	require.NoError(t, err)
 
 	// Should show dialog when init flag doesn't exist
 	shouldShow, err := ShouldShowInitDialog()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, shouldShow)
 
 	// Mark as initialized
 	err = MarkProjectInitialized()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Should not show dialog when init flag exists
 	shouldShow, err = ShouldShowInitDialog()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, shouldShow)
 }
 
@@ -369,28 +371,28 @@ func TestMarkProjectInitialized(t *testing.T) {
 
 	// Should return error when config not loaded
 	err := MarkProjectInitialized()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config not loaded")
 
 	// Load config
 	_, err = Load(tempDir, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Set data directory to temp directory for testing
 	cfg.Data.Directory = tempDir
 
 	// Create the data directory for testing
-	err = os.MkdirAll(cfg.Data.Directory, 0755)
-	assert.NoError(t, err)
+	err = os.MkdirAll(cfg.Data.Directory, 0o750)
+	require.NoError(t, err)
 
 	// Should successfully mark as initialized
 	err = MarkProjectInitialized()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify init flag file exists
 	flagFilePath := filepath.Join(cfg.Data.Directory, InitFlagFilename)
 	_, err = os.Stat(flagFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // Test EnsurePromptsDirectory
@@ -400,25 +402,25 @@ func TestEnsurePromptsDirectory(t *testing.T) {
 
 	// Should return error when config not loaded
 	err := EnsurePromptsDirectory()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config not loaded")
 
 	// Load config
 	_, err = Load(tempDir, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Should successfully create prompts directory structure
 	err = EnsurePromptsDirectory()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify prompts directory exists
 	_, err = os.Stat(cfg.PromptsDir)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify tools subdirectory exists
 	toolsDir := filepath.Join(cfg.PromptsDir, "tools")
 	_, err = os.Stat(toolsDir)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // Test ensureEmbeddedDataDirectory function
@@ -426,13 +428,13 @@ func TestEnsureEmbeddedDataDirectory(t *testing.T) {
 	// This function creates .mix directory in home directory
 	// We'll test it creates directory without errors
 	err := ensureEmbeddedDataDirectory()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify .mix directory was created in home directory
 	homeDir, err := os.UserHomeDir()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mixDir := filepath.Join(homeDir, ".mix")
 	_, err = os.Stat(mixDir)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

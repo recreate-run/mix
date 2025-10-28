@@ -3,6 +3,7 @@ package preferences
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -102,7 +103,7 @@ func (ups *UserPreferencesService) GetOrCreateUserPreferences(ctx context.Contex
 	}
 
 	// If not found, create default preferences
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return ups.CreateDefaultUserPreferences(ctx)
 	}
 
@@ -166,7 +167,7 @@ func (ups *UserPreferencesService) GetAgentConfig(ctx context.Context, agentName
 	prefs, err := ups.GetUserPreferences(ctx) // This now checks cache first
 	if err != nil {
 		// If preferences don't exist, create default ones
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			prefs, err = ups.CreateDefaultUserPreferences(ctx) // This will cache the result
 			if err != nil {
 				return Agent{}, fmt.Errorf("failed to create default user preferences: %w", err)
@@ -200,7 +201,7 @@ func (ups *UserPreferencesService) GetPreferredProvider(ctx context.Context) (mo
 	prefs, err := ups.GetUserPreferences(ctx) // This now checks cache first
 	if err != nil {
 		// If preferences don't exist, create default ones
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			prefs, err = ups.CreateDefaultUserPreferences(ctx) // This will cache the result
 			if err != nil {
 				return "", fmt.Errorf("failed to create default user preferences: %w", err)
@@ -224,7 +225,7 @@ func (ups *UserPreferencesService) PreloadPreferences(ctx context.Context) {
 	// Try to get existing preferences
 	prefs, err := ups.queries.GetUserPreferences(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			logging.Debug("No preferences found in database during preload")
 			// Don't create default preferences here, let them be created on first access
 			return

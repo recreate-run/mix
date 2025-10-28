@@ -97,7 +97,7 @@ func TestRegistryExecuteCommand(t *testing.T) {
 
 	// Test executing non-existent command
 	result, err := registry.ExecuteCommand(context.Background(), "nonexistent", "args")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "command not found")
 	assert.Empty(t, result)
 
@@ -113,7 +113,7 @@ func TestRegistryExecuteCommand(t *testing.T) {
 
 	// Test successful execution
 	result, err = registry.ExecuteCommand(context.Background(), "success", "test args")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "success with test args", result)
 
 	// Add mock command that fails
@@ -128,7 +128,7 @@ func TestRegistryExecuteCommand(t *testing.T) {
 
 	// Test failed execution
 	result, err = registry.ExecuteCommand(context.Background(), "fail", "args")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "command execution failed")
 	assert.Empty(t, result)
 }
@@ -145,13 +145,13 @@ func TestRegistryLoadCommandsFromDir(t *testing.T) {
 
 	// Create subdirectory with command
 	subDir := filepath.Join(tempDir, "sub")
-	err := os.MkdirAll(subDir, 0755)
+	err := os.MkdirAll(subDir, 0o750)
 	require.NoError(t, err)
 	createTestCommandFile(t, subDir, "subcmd.md", "Sub command")
 
 	// Test loading commands from directory
 	err = registry.loadCommandsFromDir(tempDir, "test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify commands were loaded with scope prefix
 	cmd, exists := registry.GetCommand("test:test1")
@@ -180,7 +180,7 @@ func TestRegistryLoadCommandsFromDirNonexistent(t *testing.T) {
 	registry := NewRegistry()
 
 	err := registry.loadCommandsFromDir("/nonexistent/directory", "test")
-	assert.NoError(t, err) // Should not error for non-existent directory
+	require.NoError(t, err) // Should not error for non-existent directory
 }
 
 func TestRegistryLoadCommandsFromDirInvalidCommand(t *testing.T) {
@@ -195,7 +195,7 @@ invalid: yaml: content: here
 	createTestCommandFile(t, tempDir, "invalid.md", invalidContent)
 
 	err := registry.loadCommandsFromDir(tempDir, "test")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load command")
 }
 
@@ -218,13 +218,13 @@ func TestRegistryLoadCommandsIntegration(t *testing.T) {
 
 	// Create user commands directory
 	userCommandsDir := filepath.Join(tempHomeDir, ".mix", "commands")
-	err := os.MkdirAll(userCommandsDir, 0755)
+	err := os.MkdirAll(userCommandsDir, 0o750)
 	require.NoError(t, err)
 	createTestCommandFile(t, userCommandsDir, "user-cmd.md", "User command")
 
 	// Create project commands directory
 	projectCommandsDir := ".mix/commands"
-	err = os.MkdirAll(projectCommandsDir, 0755)
+	err = os.MkdirAll(projectCommandsDir, 0o750)
 	require.NoError(t, err)
 	defer func() {
 		_ = os.RemoveAll(".mix")
@@ -236,7 +236,7 @@ func TestRegistryLoadCommandsIntegration(t *testing.T) {
 
 	// Load commands
 	err = registry.LoadCommands(mockApp)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify project commands were loaded
 	cmd, exists := registry.GetCommand("project:project-cmd")

@@ -9,15 +9,15 @@ import (
 
 // Test ToolType constants
 func TestToolTypeConstants(t *testing.T) {
-	assert.Equal(t, ToolType("web_search"), ToolTypeWebSearch)
-	assert.Equal(t, ToolType("multimodal_analyzer"), ToolTypeMultimodalAnalyzer)
+	assert.Equal(t, ToolTypeWebSearch, ToolType("web_search"))
+	assert.Equal(t, ToolTypeMultimodalAnalyzer, ToolType("multimodal_analyzer"))
 }
 
 // Test ToolProvider constants
 func TestToolProviderConstants(t *testing.T) {
-	assert.Equal(t, ToolProvider("brave"), WebSearchBrave)
-	assert.Equal(t, ToolProvider("gemini"), MultimodalGemini)
-	assert.Equal(t, ToolProvider("openai"), MultimodalOpenAI)
+	assert.Equal(t, WebSearchBrave, ToolProvider("brave"))
+	assert.Equal(t, MultimodalGemini, ToolProvider("gemini"))
+	assert.Equal(t, MultimodalOpenAI, ToolProvider("openai"))
 }
 
 // Test ToolInfo structure
@@ -160,7 +160,7 @@ func TestGetAllCategories(t *testing.T) {
 	categories := registry.GetAllCategories()
 
 	// Should only include categories with enabled tools
-	assert.Greater(t, len(categories), 0)
+	assert.NotEmpty(t, categories)
 
 	// Verify web search category exists
 	var webSearchCategory *ToolCategory
@@ -264,10 +264,10 @@ func TestValidateAPIKey(t *testing.T) {
 			err := registry.ValidateAPIKey(tt.toolType, tt.provider, tt.apiKey)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -290,12 +290,12 @@ func TestValidateAPIKeyGeneric(t *testing.T) {
 
 	// Test generic validation (too short)
 	err := registry.ValidateAPIKey(ToolType("custom"), ToolProvider("custom_provider"), "short")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API key is too short")
 
 	// Test generic validation (valid length)
 	err = registry.ValidateAPIKey(ToolType("custom"), ToolProvider("custom_provider"), "long_enough_key")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // Test GetProviderIdentifier
@@ -391,12 +391,12 @@ func TestParseProviderIdentifier(t *testing.T) {
 			toolType, provider, err := ParseProviderIdentifier(tt.identifier)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if err != nil {
 					assert.Contains(t, err.Error(), "invalid provider identifier")
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expectedType, toolType)
 				assert.Equal(t, tt.expectedProv, provider)
 			}

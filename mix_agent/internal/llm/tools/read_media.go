@@ -44,6 +44,11 @@ type ReadMediaResponse struct {
 
 const (
 	ReadMediaToolName = "ReadMedia"
+
+	mediaTypeImage = "image"
+	mediaTypeAudio = "audio"
+	mediaTypeVideo = "video"
+	mediaTypePDF   = "pdf"
 )
 
 var supportedImageTypes = []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
@@ -66,7 +71,7 @@ func (r *readMediaTool) Info() ToolInfo {
 			},
 			"media_type": map[string]any{
 				"type":        "string",
-				"enum":        []string{"image", "audio", "video", "pdf"},
+				"enum":        []string{mediaTypeImage, mediaTypeAudio, mediaTypeVideo, mediaTypePDF},
 				"description": "Type of media analysis to perform",
 			},
 			"prompt": map[string]any{
@@ -102,7 +107,7 @@ func (r *readMediaTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 	// Check if Gemini API key is configured before processing any files
 	if err := r.validateGeminiAPIKey(ctx); err != nil {
 		logging.Error("Gemini API key not configured")
-		return NewTextErrorResponse("Configuration required: Gemini API key is not configured. Please configure your Gemini API key in Settings to use image analysis features. This is a configuration requirement and no alternative tools or approaches should be attempted."), nil
+		return NewTextErrorResponse("Configuration required: Gemini API key is not configured. Please configure your Gemini API key in Settings to use image analysis features. This is a configuration requirement and no alternative tools or approaches should be attempted."), fmt.Errorf("gemini API key validation failed: %w", err)
 	}
 
 	// Get session context
@@ -122,10 +127,7 @@ func (r *readMediaTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 	}
 
 	// Process files
-	results, err := r.processFiles(ctx, sessionID, messageID, files, params)
-	if err != nil {
-		return ToolResponse{}, err
-	}
+	results := r.processFiles(ctx, files, params)
 
 	// Create response
 	response := ReadMediaResponse{
@@ -148,13 +150,13 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 	}
 
 	// Validate analysis type
-	if params.MediaType != "image" && params.MediaType != "audio" && params.MediaType != "video" && params.MediaType != "pdf" {
+	if params.MediaType != mediaTypeImage && params.MediaType != mediaTypeAudio && params.MediaType != mediaTypeVideo && params.MediaType != mediaTypePDF {
 		return fmt.Errorf("media_type must be 'image', 'audio', 'video', or 'pdf'")
 	}
 
 	// Validate PDF pages parameter
 	if params.PdfPages != "" {
-		if params.MediaType != "pdf" {
+		if params.MediaType != mediaTypePDF {
 			return fmt.Errorf("pdf_pages parameter can only be used with media_type 'pdf'")
 		}
 		if err := ValidatePageSelection(params.PdfPages); err != nil {
@@ -164,7 +166,7 @@ func (r *readMediaTool) validateParams(params ReadMediaParams) error {
 
 	// Validate video interval parameter
 	if params.VideoInterval != "" {
-		if params.MediaType != "video" {
+		if params.MediaType != mediaTypeVideo {
 			return fmt.Errorf("video_interval parameter can only be used with media_type 'video'")
 		}
 		if _, _, err := parseVideoInterval(params.VideoInterval); err != nil {
@@ -213,29 +215,29 @@ func (r *readMediaTool) getFilesToProcess(params ReadMediaParams) ([]string, err
 	return []string{params.FilePath}, nil
 }
 
-func (r *readMediaTool) isSupportedFile(filePath string, mediaType string) bool {
+func (r *readMediaTool) isSupportedFile(filePath, mediaType string) bool {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	switch mediaType {
-	case "image":
+	case mediaTypeImage:
 		for _, supportedExt := range supportedImageTypes {
 			if ext == supportedExt {
 				return true
 			}
 		}
-	case "audio":
+	case mediaTypeAudio:
 		for _, supportedExt := range supportedAudioTypes {
 			if ext == supportedExt {
 				return true
 			}
 		}
-	case "video":
+	case mediaTypeVideo:
 		for _, supportedExt := range supportedVideoTypes {
 			if ext == supportedExt {
 				return true
 			}
 		}
-	case "pdf":
+	case mediaTypePDF:
 		for _, supportedExt := range supportedPDFTypes {
 			if ext == supportedExt {
 				return true
@@ -246,18 +248,18 @@ func (r *readMediaTool) isSupportedFile(filePath string, mediaType string) bool 
 	return false
 }
 
-func (r *readMediaTool) processFiles(ctx context.Context, sessionID, messageID string, files []string, params ReadMediaParams) ([]ReadMediaResult, error) {
-	var results []ReadMediaResult
+func (r *readMediaTool) processFiles(ctx context.Context, files []string, params ReadMediaParams) []ReadMediaResult {
+	results := make([]ReadMediaResult, 0, len(files))
 
 	for _, filePath := range files {
-		result := r.analyzeFile(ctx, sessionID, messageID, filePath, params)
+		result := r.analyzeFile(ctx, filePath, params)
 		results = append(results, result)
 	}
 
-	return results, nil
+	return results
 }
 
-func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, filePath string, params ReadMediaParams) ReadMediaResult {
+func (r *readMediaTool) analyzeFile(ctx context.Context, filePath string, params ReadMediaParams) ReadMediaResult {
 	result := ReadMediaResult{
 		FilePath:  filePath,
 		MediaType: params.MediaType,
@@ -283,7 +285,7 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 			result.Error = fmt.Sprintf("Error parsing video interval: %s", err)
 			return result
 		}
-	} else if params.MediaType == "video" {
+	} else if params.MediaType == mediaTypeVideo {
 		// Auto-truncate videos to first 10 minutes when no interval specified
 		startOffset = "0s"
 		endOffset = "600s" // 10 minutes = 600 seconds
@@ -297,7 +299,8 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 
 	// Create message with appropriate content type
 	var userMessage message.Message
-	if isURL(filePath) && isYouTubeURL(filePath) {
+	switch {
+	case isURL(filePath) && isYouTubeURL(filePath):
 		// For YouTube URLs, use URIContent with native Gemini support
 		userMessage = message.Message{
 			Role: message.User,
@@ -311,16 +314,16 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 				},
 			},
 		}
-	} else if isURL(filePath) {
+	case isURL(filePath):
 		// For all other URLs, download to memory and use BinaryContent
-		fileData, mimeType, err := r.downloadURLToMemory(filePath)
+		fileData, mimeType, err := r.downloadURLToMemory(ctx, filePath)
 		if err != nil {
 			result.Error = fmt.Sprintf("Error downloading from URL: %s", err)
 			return result
 		}
 
 		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
-		if params.MediaType == "pdf" {
+		if params.MediaType == mediaTypePDF {
 			var err error
 			fileData, analysisPrompt, err = processPDFContent(fileData, params.PdfPages, analysisPrompt)
 			if err != nil {
@@ -342,7 +345,7 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 				},
 			},
 		}
-	} else {
+	default:
 		// For local files, read content and use BinaryContent
 		fileData, mimeType, err := r.readFileContent(filePath)
 		if err != nil {
@@ -351,7 +354,7 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 		}
 
 		// For PDF files, extract pages (with auto-truncation if > 10 pages and no range specified)
-		if params.MediaType == "pdf" {
+		if params.MediaType == mediaTypePDF {
 			var err error
 			fileData, analysisPrompt, err = processPDFContent(fileData, params.PdfPages, analysisPrompt)
 			if err != nil {
@@ -387,7 +390,7 @@ func (r *readMediaTool) analyzeFile(ctx context.Context, sessionID, messageID, f
 	return result
 }
 
-func (r *readMediaTool) readFileContent(filePath string) ([]byte, string, error) {
+func (r *readMediaTool) readFileContent(filePath string) (data []byte, mimeType string, err error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to open file: %w", err)
@@ -396,20 +399,24 @@ func (r *readMediaTool) readFileContent(filePath string) ([]byte, string, error)
 		_ = file.Close()
 	}()
 
-	data, err := io.ReadAll(file)
+	data, err = io.ReadAll(file)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read file: %w", err)
 	}
 
 	// Detect MIME type
-	mimeType := detectMIMEType(filePath)
+	mimeType = detectMIMEType(filePath)
 
 	return data, mimeType, nil
 }
 
-func (r *readMediaTool) downloadURLToMemory(url string) ([]byte, string, error) {
+func (r *readMediaTool) downloadURLToMemory(ctx context.Context, url string) (data []byte, mimeType string, err error) {
 	// Download the media file from URL
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to download from URL: %w", err)
 	}
@@ -421,13 +428,13 @@ func (r *readMediaTool) downloadURLToMemory(url string) ([]byte, string, error) 
 	}
 
 	// Read the response body
-	data, err := io.ReadAll(resp.Body)
+	data, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read data: %w", err)
 	}
 
 	// Get MIME type from Content-Type header, fallback to extension-based detection
-	mimeType := resp.Header.Get("Content-Type")
+	mimeType = resp.Header.Get("Content-Type")
 	if mimeType == "" {
 		mimeType = detectMIMEType(url)
 	}
@@ -531,7 +538,7 @@ func detectMIMEType(path string) string {
 }
 
 // processPDFContent handles PDF page extraction and appends truncation notice if needed
-func processPDFContent(fileData []byte, pdfPages string, analysisPrompt string) ([]byte, string, error) {
+func processPDFContent(fileData []byte, pdfPages, analysisPrompt string) (extractedData []byte, modifiedPrompt string, err error) {
 	extractedData, truncated, err := ExtractPDFPages(fileData, pdfPages)
 	if err != nil {
 		return nil, "", err
@@ -612,7 +619,7 @@ func parseTimestamp(timestamp string) (int, error) {
 }
 
 // parseVideoInterval parses a video interval string and returns start/end offsets in Gemini format
-func parseVideoInterval(interval string) (string, string, error) {
+func parseVideoInterval(interval string) (startOffset, endOffset string, err error) {
 	parts := strings.Split(interval, "-")
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("video_interval must be in format 'start-end' (e.g., '00:20:50-00:26:10')")

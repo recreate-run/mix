@@ -2,6 +2,7 @@ package models
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -76,7 +77,16 @@ type localModel struct {
 }
 
 func listLocalModels(modelsEndpoint string) []localModel {
-	res, err := http.Get(modelsEndpoint)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, modelsEndpoint, http.NoBody)
+	if err != nil {
+		logging.Debug("Failed to create request",
+			"error", err,
+			"endpoint", modelsEndpoint,
+		)
+		return []localModel{}
+	}
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		logging.Debug("Failed to list local models",
 			"error", err,
@@ -107,8 +117,9 @@ func listLocalModels(modelsEndpoint string) []localModel {
 		return []localModel{}
 	}
 
-	var supportedModels []localModel
-	for _, model := range modelList.Data {
+	supportedModels := make([]localModel, 0, len(modelList.Data))
+	for i := range modelList.Data {
+		model := &modelList.Data[i]
 		if strings.HasSuffix(modelsEndpoint, lmStudioBetaModelsPath) {
 			if model.Object != "model" || model.Type != "llm" {
 				logging.Debug("Skipping unsupported LMStudio model",
@@ -122,15 +133,16 @@ func listLocalModels(modelsEndpoint string) []localModel {
 			}
 		}
 
-		supportedModels = append(supportedModels, model)
+		supportedModels = append(supportedModels, *model)
 	}
 
 	return supportedModels
 }
 
 func loadLocalModels(models []localModel) {
-	for i, m := range models {
-		model := convertLocalModel(m)
+	for i := range models {
+		m := &models[i]
+		model := convertLocalModel(*m)
 		SupportedModels[model.ID] = model
 
 		if i == 0 || m.State == "loaded" {
@@ -165,9 +177,9 @@ func friendlyModelName(modelID string) string {
 		mainID = mainID[slash+1:]
 	}
 
-	if at := strings.Index(modelID, "@"); at != -1 {
-		mainID = modelID[:at]
-		tag = modelID[at+1:]
+	if m, t, ok := strings.Cut(modelID, "@"); ok {
+		mainID = m
+		tag = t
 	}
 
 	match := modelInfoRegex.FindStringSubmatch(mainID)

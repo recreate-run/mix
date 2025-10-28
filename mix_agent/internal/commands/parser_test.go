@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test ParseCommand function
@@ -84,11 +85,11 @@ func TestParseCommand(t *testing.T) {
 			parsed, err := ParseCommand(tt.input)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrMsg)
 				assert.Nil(t, parsed)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotNil(t, parsed)
 				assert.Equal(t, tt.expectedName, parsed.Name)
 				assert.Equal(t, tt.expectedArgs, parsed.Arguments)
@@ -182,19 +183,19 @@ func TestParsedCommandFields(t *testing.T) {
 func TestParseCommandEdgeCases(t *testing.T) {
 	// Command with only spaces as arguments
 	parsed, err := ParseCommand("/cmd   ")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cmd", parsed.Name)
-	assert.Equal(t, "", parsed.Arguments)
+	assert.Empty(t, parsed.Arguments)
 
 	// Command with newlines (should work)
 	parsed, err = ParseCommand("/cmd with\nnewlines")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cmd", parsed.Name)
 	assert.Equal(t, "with\nnewlines", parsed.Arguments)
 
 	// Command with tabs (tabs are not treated as separators, only spaces)
 	parsed, err = ParseCommand("/cmd\twith\ttabs")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cmd\twith\ttabs", parsed.Name)
-	assert.Equal(t, "", parsed.Arguments)
+	assert.Empty(t, parsed.Arguments)
 }

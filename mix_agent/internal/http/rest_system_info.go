@@ -11,8 +11,8 @@ type SystemInfoHandler struct {
 	app *app.App
 }
 
-func NewSystemInfoHandler(app *app.App) *SystemInfoHandler {
-	return &SystemInfoHandler{app: app}
+func NewSystemInfoHandler(a *app.App) *SystemInfoHandler {
+	return &SystemInfoHandler{app: a}
 }
 
 type SystemInfoResponse struct {

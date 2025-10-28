@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"mix/internal/db"
@@ -18,11 +19,12 @@ import (
 
 // Test helper functions
 func createTestService(t *testing.T) (*service, *db.MockQuerier) {
+	t.Helper()
 	mockQuerier := &db.MockQuerier{}
 
 	// Create temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "session_test_*")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	storageConfig := Config{
 		BasePath: tempDir,
@@ -108,7 +110,7 @@ func TestCreate(t *testing.T) {
 
 	session, err := svc.Create(context.Background(), title, customSystemPrompt, promptMode, SessionTypeMain, "", "", "")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, createRow.ID, session.ID)
 	assert.Equal(t, title, session.Title)
 	assert.Equal(t, customSystemPrompt, session.CustomSystemPrompt)
@@ -138,7 +140,7 @@ func TestFork(t *testing.T) {
 
 	session, err := svc.Fork(context.Background(), sourceSessionID, title)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, createRow.ID, session.ID)
 	assert.Equal(t, title, session.Title)
 	assert.Equal(t, sourceSessionID, session.ParentSessionID)
@@ -159,7 +161,7 @@ func TestGet(t *testing.T) {
 
 	session, err := svc.Get(context.Background(), sessionID)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, getRow.ID, session.ID)
 	assert.Equal(t, getRow.Title, session.Title)
 	assert.Equal(t, getRow.UserMessageCount, session.UserMessageCount)
@@ -194,7 +196,7 @@ func TestList(t *testing.T) {
 
 	sessions, err := svc.List(context.Background())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, sessions, 1)
 	assert.Equal(t, listRows[0].ID, sessions[0].ID)
 
@@ -217,7 +219,7 @@ func TestListWithContent(t *testing.T) {
 
 	sessions, err := svc.ListWithContent(context.Background())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, sessions, 1)
 	assert.Equal(t, contentRows[0].ID, sessions[0].ID)
 
@@ -253,7 +255,7 @@ func TestSave(t *testing.T) {
 
 	updatedSession, err := svc.Save(context.Background(), session)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, session.ID, updatedSession.ID)
 	assert.Equal(t, session.Title, updatedSession.Title)
 
@@ -270,8 +272,8 @@ func TestDelete(t *testing.T) {
 
 	// Create session directory for cleanup test
 	sessionDir := filepath.Join(svc.storageConfig.BasePath, sessionID)
-	err := os.MkdirAll(sessionDir, 0755)
-	assert.NoError(t, err)
+	err := os.MkdirAll(sessionDir, 0o750)
+	require.NoError(t, err)
 
 	mockQuerier.On("GetSessionByID", mock.Anything, sessionID).
 		Return(getRow, nil)
@@ -280,7 +282,7 @@ func TestDelete(t *testing.T) {
 
 	err = svc.Delete(context.Background(), sessionID)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify directory was deleted
 	_, err = os.Stat(sessionDir)
@@ -297,7 +299,7 @@ func TestFromGetSessionByIDRow(t *testing.T) {
 
 	session, err := svc.fromGetSessionByIDRow(dbRow)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, dbRow.ID, session.ID)
 	assert.Equal(t, dbRow.Title, session.Title)
 	assert.Equal(t, dbRow.UserMessageCount, session.UserMessageCount)
@@ -324,9 +326,8 @@ func TestFromListSessionsMetadataRow(t *testing.T) {
 		UpdatedAt:             time.Now().Unix(),
 	}
 
-	session, err := svc.fromListSessionsMetadataRow(dbRow)
+	session := svc.fromListSessionsMetadataRow(dbRow)
 
-	assert.NoError(t, err)
 	assert.Equal(t, dbRow.ID, session.ID)
 	assert.Equal(t, dbRow.Title, session.Title)
 	assert.Equal(t, dbRow.UserMessageCount, session.UserMessageCount)
@@ -338,9 +339,8 @@ func TestFromCreatedSessionRow(t *testing.T) {
 
 	dbRow := createTestCreateSessionRow()
 
-	session, err := svc.fromCreatedSessionRow(dbRow)
+	session := svc.fromCreatedSessionRow(dbRow)
 
-	assert.NoError(t, err)
 	assert.Equal(t, dbRow.ID, session.ID)
 	assert.Equal(t, dbRow.Title, session.Title)
 	assert.Equal(t, int64(0), session.UserMessageCount) // New sessions have 0 messages

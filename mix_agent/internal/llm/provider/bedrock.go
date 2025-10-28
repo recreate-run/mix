@@ -52,7 +52,7 @@ func newBedrockClient(opts providerClientOptions) BedrockClient {
 	opts.model.APIModel = fmt.Sprintf("%s.%s", regionPrefix, modelName)
 
 	// Determine which provider to use based on the model
-	if strings.Contains(string(opts.model.APIModel), "anthropic") {
+	if strings.Contains(opts.model.APIModel, "anthropic") {
 		// Create Anthropic client with Bedrock configuration
 		anthropicOpts := opts
 		anthropicOpts.anthropicOptions = append(anthropicOpts.anthropicOptions,

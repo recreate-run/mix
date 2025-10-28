@@ -12,7 +12,7 @@ func CoderAgentTools(
 	permissions permission.Service,
 	sessions session.Service,
 	messages message.Service,
-	history history.Service,
+	historySvc history.Service,
 	manager *MCPClientManager,
 ) []tools.BaseTool {
 	// Don't block on MCP tools during initialization - they will be loaded in the background
@@ -20,13 +20,13 @@ func CoderAgentTools(
 	bashTool := tools.NewBashTool(permissions)
 	return []tools.BaseTool{
 		bashTool,
-		tools.NewEditTool(permissions, history),
+		tools.NewEditTool(permissions, historySvc),
 		tools.NewGlobTool(),
 		tools.NewGrepTool(permissions),
 		tools.NewReadTextTool(),
 		tools.NewWebFetchTool(permissions),
 		tools.NewWebSearchTool(permissions),
-		tools.NewWriteTool(permissions, history),
+		tools.NewWriteTool(permissions, historySvc),
 		// tools.NewPythonExecutionTool(permissions),
 		tools.NewReadMediaTool(),
 		tools.NewTodoWriteTool(),

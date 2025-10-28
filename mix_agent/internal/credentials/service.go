@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -17,6 +18,9 @@ import (
 	"mix/internal/llm/models"
 	"mix/internal/logging"
 )
+
+// ErrOAuthCredentialNotFound is returned when OAuth credentials are not found for a provider
+var ErrOAuthCredentialNotFound = errors.New("OAuth credential not found")
 
 // APICredentialsService handles encrypted API key and OAuth credential storage and retrieval
 type APICredentialsService struct {
@@ -188,7 +192,7 @@ func (acs *APICredentialsService) GetAPIKey(ctx context.Context, provider models
 	// API key not in cache, retrieving from database
 	credential, err := acs.queries.GetAPICredential(ctx, string(provider))
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// No API key found in database
 			// Cache the empty result to avoid repeated database lookups
 			acs.credentialsCache.Store(provider, "")
@@ -299,7 +303,6 @@ func (acs *APICredentialsService) ClearProviderCache(provider models.ModelProvid
 
 // PreloadCredentials loads all credentials into the cache to avoid database hits
 func (acs *APICredentialsService) PreloadCredentials(ctx context.Context) {
-
 	// List all credentials from the database
 	credentials, err := acs.queries.ListAPICredentials(ctx)
 	if err != nil {
@@ -433,9 +436,9 @@ func (acs *APICredentialsService) GetOAuthCredentials(ctx context.Context, provi
 	// OAuth credentials not in cache, retrieving from database
 	credential, err := acs.queries.GetOAuthCredential(ctx, provider)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// No OAuth credentials found in database
-			return nil, nil // No credential found
+			return nil, ErrOAuthCredentialNotFound
 		}
 		return nil, fmt.Errorf("failed to get OAuth credential: %w", err)
 	}
@@ -515,9 +518,9 @@ func (acs *APICredentialsService) ListOAuthCredentials(ctx context.Context) ([]s
 	}
 
 	providers := make([]string, 0) // Initialize as empty slice instead of nil
-	for _, cred := range credentials {
-		if cred.AccessToken.Valid && cred.AccessToken.String != "" {
-			providers = append(providers, cred.Provider)
+	for i := range credentials {
+		if credentials[i].AccessToken.Valid && credentials[i].AccessToken.String != "" {
+			providers = append(providers, credentials[i].Provider)
 		}
 	}
 
@@ -547,33 +550,33 @@ func (acs *APICredentialsService) PreloadOAuthCredentials(ctx context.Context) {
 	}
 
 	count := 0
-	for _, cred := range credentials {
-		if !cred.AccessToken.Valid || cred.AccessToken.String == "" {
+	for i := range credentials {
+		if !credentials[i].AccessToken.Valid || credentials[i].AccessToken.String == "" {
 			continue
 		}
 
 		// Decrypt credentials
-		accessToken, err := acs.decrypt(cred.AccessToken.String)
+		accessToken, err := acs.decrypt(credentials[i].AccessToken.String)
 		if err != nil {
-			logging.Error("Failed to decrypt access token during preload", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt access token during preload", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
-		refreshToken, err := acs.decrypt(cred.RefreshToken.String)
+		refreshToken, err := acs.decrypt(credentials[i].RefreshToken.String)
 		if err != nil {
-			logging.Error("Failed to decrypt refresh token during preload", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt refresh token during preload", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
-		idToken, err := acs.decrypt(cred.IDToken.String)
+		idToken, err := acs.decrypt(credentials[i].IDToken.String)
 		if err != nil {
-			logging.Error("Failed to decrypt ID token during preload", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt ID token during preload", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
-		apiKey, err := acs.decrypt(cred.ApiKey.String)
+		apiKey, err := acs.decrypt(credentials[i].ApiKey.String)
 		if err != nil {
-			logging.Error("Failed to decrypt API key during preload", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt API key during preload", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
@@ -582,15 +585,15 @@ func (acs *APICredentialsService) PreloadOAuthCredentials(ctx context.Context) {
 			RefreshToken: refreshToken,
 			IDToken:      idToken,
 			APIKey:       apiKey,
-			AccountID:    cred.AccountID.String,
-			ExpiresAt:    cred.ExpiresAt.Int64,
-			ClientID:     cred.ClientID,
-			Provider:     cred.Provider,
-			LastRefresh:  cred.LastRefresh.String,
+			AccountID:    credentials[i].AccountID.String,
+			ExpiresAt:    credentials[i].ExpiresAt.Int64,
+			ClientID:     credentials[i].ClientID,
+			Provider:     credentials[i].Provider,
+			LastRefresh:  credentials[i].LastRefresh.String,
 		}
 
 		// Store in cache
-		acs.oauthCache.Store(cred.Provider, oauthCreds)
+		acs.oauthCache.Store(credentials[i].Provider, oauthCreds)
 		count++
 	}
 
@@ -604,34 +607,34 @@ func (acs *APICredentialsService) GetExpiredOAuthCredentials(ctx context.Context
 		return nil, fmt.Errorf("failed to list expired OAuth credentials: %w", err)
 	}
 
-	var expiredCreds []*OAuthCredentials
-	for _, cred := range credentials {
-		if !cred.AccessToken.Valid || cred.AccessToken.String == "" {
+	expiredCreds := make([]*OAuthCredentials, 0, len(credentials))
+	for i := range credentials {
+		if !credentials[i].AccessToken.Valid || credentials[i].AccessToken.String == "" {
 			continue
 		}
 
 		// Decrypt credentials
-		accessToken, err := acs.decrypt(cred.AccessToken.String)
+		accessToken, err := acs.decrypt(credentials[i].AccessToken.String)
 		if err != nil {
-			logging.Error("Failed to decrypt access token for expired credential", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt access token for expired credential", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
-		refreshToken, err := acs.decrypt(cred.RefreshToken.String)
+		refreshToken, err := acs.decrypt(credentials[i].RefreshToken.String)
 		if err != nil {
-			logging.Error("Failed to decrypt refresh token for expired credential", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt refresh token for expired credential", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
-		idToken, err := acs.decrypt(cred.IDToken.String)
+		idToken, err := acs.decrypt(credentials[i].IDToken.String)
 		if err != nil {
-			logging.Error("Failed to decrypt ID token for expired credential", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt ID token for expired credential", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
-		apiKey, err := acs.decrypt(cred.ApiKey.String)
+		apiKey, err := acs.decrypt(credentials[i].ApiKey.String)
 		if err != nil {
-			logging.Error("Failed to decrypt API key for expired credential", "provider", cred.Provider, "error", err)
+			logging.Error("Failed to decrypt API key for expired credential", "provider", credentials[i].Provider, "error", err)
 			continue
 		}
 
@@ -640,11 +643,11 @@ func (acs *APICredentialsService) GetExpiredOAuthCredentials(ctx context.Context
 			RefreshToken: refreshToken,
 			IDToken:      idToken,
 			APIKey:       apiKey,
-			AccountID:    cred.AccountID.String,
-			ExpiresAt:    cred.ExpiresAt.Int64,
-			ClientID:     cred.ClientID,
-			Provider:     cred.Provider,
-			LastRefresh:  cred.LastRefresh.String,
+			AccountID:    credentials[i].AccountID.String,
+			ExpiresAt:    credentials[i].ExpiresAt.Int64,
+			ClientID:     credentials[i].ClientID,
+			Provider:     credentials[i].Provider,
+			LastRefresh:  credentials[i].LastRefresh.String,
 		}
 
 		expiredCreds = append(expiredCreds, oauthCreds)

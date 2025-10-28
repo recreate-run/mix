@@ -15,6 +15,12 @@ import (
 	"mix/internal/permission"
 )
 
+const (
+	statusConnected    = "connected"
+	cmdTypeFile        = "file"
+	cmdTypeBuiltin     = "builtin"
+)
+
 // ToolData represents tool information for REST API
 type ToolData struct {
 	Name        string `json:"name"`
@@ -43,16 +49,16 @@ type SystemHandler struct {
 }
 
 // NewSystemHandler creates a new system handler
-func NewSystemHandler(app *app.App) *SystemHandler {
+func NewSystemHandler(a *app.App) *SystemHandler {
 	// Create command registry
 	registry := commands.NewRegistry()
-	if err := registry.LoadCommands(app); err != nil {
+	if err := registry.LoadCommands(a); err != nil {
 		logging.Error("Failed to load commands", "error", err)
 		// Continue with empty registry - API will return proper errors
 	}
 
 	return &SystemHandler{
-		app:             app,
+		app:             a,
 		commandRegistry: registry,
 	}
 }
@@ -76,7 +82,7 @@ func (h *SystemHandler) HandleSetAPIKey(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -110,7 +116,7 @@ func (h *SystemHandler) HandleListMCPServers(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -141,25 +147,25 @@ func (h *SystemHandler) HandleListMCPServers(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Sort server names for consistent output
-	var serverNames []string
+	serverNames := make([]string, 0, len(cfg.MCPServers))
 	for name := range cfg.MCPServers {
 		serverNames = append(serverNames, name)
 	}
 	sort.Strings(serverNames)
 
 	for _, name := range serverNames {
-		tools := serverTools[name]
+		mcpTools := serverTools[name]
 
 		// Determine connection status
-		connected := len(tools) > 0
-		status := "connected"
+		connected := len(mcpTools) > 0
+		status := statusConnected
 		if !connected {
 			status = "failed"
 		}
 
 		// Convert tools to ToolData
 		var toolsData []ToolData
-		for _, tool := range tools {
+		for _, tool := range mcpTools {
 			info := tool.Info()
 			// Remove server prefix from tool name for cleaner display
 			toolName := info.Name
@@ -198,23 +204,23 @@ func (h *SystemHandler) HandleListCommands(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	allCommands := h.commandRegistry.GetAllCommands()
 
-	var result []CommandData
+	result := make([]CommandData, 0, len(allCommands))
 	builtins := map[string]bool{
 		"help": true, "clear": true, "session": true,
 		"sessions": true, "tools": true, "mcp": true,
 	}
 
 	for name, cmd := range allCommands {
-		cmdType := "file"
+		cmdType := cmdTypeFile
 		if builtins[name] {
-			cmdType = "builtin"
+			cmdType = cmdTypeBuiltin
 		}
 
 		result = append(result, CommandData{
@@ -239,7 +245,7 @@ func (h *SystemHandler) HandleGetCommand(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -261,9 +267,9 @@ func (h *SystemHandler) HandleGetCommand(w http.ResponseWriter, r *http.Request)
 		"sessions": true, "tools": true, "mcp": true,
 	}
 
-	cmdType := "file"
+	cmdType := cmdTypeFile
 	if builtins[commandName] {
-		cmdType = "builtin"
+		cmdType = cmdTypeBuiltin
 	}
 
 	result := CommandData{
@@ -287,7 +293,7 @@ func (h *SystemHandler) HandleGrantPermission(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -317,7 +323,7 @@ func (h *SystemHandler) HandleDenyPermission(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}

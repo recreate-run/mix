@@ -16,10 +16,10 @@ type CLIQueryHandler struct {
 }
 
 // NewCLIQueryHandler creates a new CLI query handler
-func NewCLIQueryHandler(app *app.App) *CLIQueryHandler {
+func NewCLIQueryHandler(a *app.App) *CLIQueryHandler {
 	return &CLIQueryHandler{
-		sessionHandler: NewSessionHandler(app),
-		systemHandler:  NewSystemHandler(app),
+		sessionHandler: NewSessionHandler(a),
+		systemHandler:  NewSystemHandler(a),
 	}
 }
 
@@ -33,18 +33,18 @@ func (h *CLIQueryHandler) HandleQueryType(ctx context.Context, queryType string)
 		}
 
 		var result []SessionData
-		for _, s := range sessions {
+		for i := range sessions {
 			result = append(result, SessionData{
-				ID:                    s.ID,
-				Title:                 s.Title,
-				UserMessageCount:      s.UserMessageCount,
-				AssistantMessageCount: s.AssistantMessageCount,
-				ToolCallCount:         s.ToolCallCount,
-				PromptTokens:          s.PromptTokens,
-				CompletionTokens:      s.CompletionTokens,
-				Cost:                  s.Cost,
-				CreatedAt:             time.Unix(s.CreatedAt, 0),
-				FirstUserMessage:      s.FirstUserMessage,
+				ID:                    sessions[i].ID,
+				Title:                 sessions[i].Title,
+				UserMessageCount:      sessions[i].UserMessageCount,
+				AssistantMessageCount: sessions[i].AssistantMessageCount,
+				ToolCallCount:         sessions[i].ToolCallCount,
+				PromptTokens:          sessions[i].PromptTokens,
+				CompletionTokens:      sessions[i].CompletionTokens,
+				Cost:                  sessions[i].Cost,
+				CreatedAt:             time.Unix(sessions[i].CreatedAt, 0),
+				FirstUserMessage:      sessions[i].FirstUserMessage,
 			})
 		}
 		return result, nil

@@ -67,7 +67,7 @@ func (e *editTool) Info() ToolInfo {
 			},
 			"replace_all": map[string]any{
 				"type":        "boolean",
-				"description": "Replace all occurences of old_string (default false)",
+				"description": "Replace all occurrences of old_string (default false)",
 				"default":     false,
 			},
 		},
@@ -78,7 +78,7 @@ func (e *editTool) Info() ToolInfo {
 func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 	var params EditParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
-		return NewTextErrorResponse("invalid parameters"), nil
+		return NewTextErrorResponse("invalid parameters"), fmt.Errorf("failed to unmarshal edit parameters: %w", err)
 	}
 
 	if params.FilePath == "" {
@@ -96,17 +96,18 @@ func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	var response ToolResponse
 	var err error
 
-	if params.OldString == "" {
+	switch {
+	case params.OldString == "":
 		response, err = e.createNewFile(ctx, params.FilePath, params.NewString)
 		if err != nil {
 			return response, err
 		}
-	} else if params.NewString == "" {
+	case params.NewString == "":
 		response, err = e.deleteContent(ctx, params.FilePath, params.OldString)
 		if err != nil {
 			return response, err
 		}
-	} else {
+	default:
 		response, err = e.replaceContent(ctx, params.FilePath, params.OldString, params.NewString, params.ReplaceAll)
 		if err != nil {
 			return response, err
@@ -136,7 +137,7 @@ func (e *editTool) createNewFile(ctx context.Context, filePath, content string) 
 	}
 
 	dir := filepath.Dir(filePath)
-	if err = os.MkdirAll(dir, 0o755); err != nil {
+	if err = os.MkdirAll(dir, 0o750); err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to create parent directories: %w", err)
 	}
 
@@ -175,10 +176,10 @@ func (e *editTool) createNewFile(ctx context.Context, filePath, content string) 
 		},
 	)
 	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
+		return ToolResponse{}, permission.ErrPermissionDenied
 	}
 
-	err = os.WriteFile(filePath, []byte(content), 0o644)
+	err = os.WriteFile(filePath, []byte(content), 0o600)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to write file: %w", err)
 	}
@@ -285,10 +286,10 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 		},
 	)
 	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
+		return ToolResponse{}, permission.ErrPermissionDenied
 	}
 
-	err = os.WriteFile(filePath, []byte(newContent), 0o644)
+	err = os.WriteFile(filePath, []byte(newContent), 0o600)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to write file: %w", err)
 	}
@@ -419,10 +420,10 @@ func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newS
 		},
 	)
 	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
+		return ToolResponse{}, permission.ErrPermissionDenied
 	}
 
-	err = os.WriteFile(filePath, []byte(newContent), 0o644)
+	err = os.WriteFile(filePath, []byte(newContent), 0o600)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to write file: %w", err)
 	}

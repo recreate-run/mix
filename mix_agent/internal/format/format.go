@@ -57,7 +57,7 @@ func GetHelpText() string {
 }
 
 // FormatOutput formats the AI response according to the specified format
-func FormatOutput(content string, formatStr string) string {
+func FormatOutput(content, formatStr string) string {
 	format, err := Parse(formatStr)
 	if err != nil {
 		// Default to text format on error
@@ -67,8 +67,6 @@ func FormatOutput(content string, formatStr string) string {
 	switch format {
 	case JSON:
 		return formatAsJSON(content)
-	case Text:
-		fallthrough
 	default:
 		return content
 	}
@@ -92,7 +90,7 @@ func formatAsJSON(content string) string {
 		jsonEscaped = strings.ReplaceAll(jsonEscaped, "\r", "\\r")
 		jsonEscaped = strings.ReplaceAll(jsonEscaped, "\t", "\\t")
 
-		return fmt.Sprintf("{\n  \"response\": \"%s\"\n}", jsonEscaped)
+		return fmt.Sprintf("{\n  \"response\": %q\n}", jsonEscaped)
 	}
 
 	return string(jsonBytes)

@@ -100,18 +100,22 @@ func TestAbstractionVsOriginalCompatibility(t *testing.T) {
 
 // Helper function to get table schema
 func getTableSchema(t *testing.T, conn *sql.DB, tableName string) string {
+	t.Helper()
 	var schema string
 	query := "SELECT sql FROM sqlite_master WHERE type='table' AND name=?"
-	err := conn.QueryRow(query, tableName).Scan(&schema)
+	ctx := context.Background()
+	err := conn.QueryRowContext(ctx, query, tableName).Scan(&schema)
 	require.NoError(t, err, "Should be able to get table schema for %s", tableName)
 	return schema
 }
 
 // Helper function to get current migration version
 func getCurrentMigrationVersion(t *testing.T, conn *sql.DB) string {
+	t.Helper()
 	var version string
 	query := "SELECT version_id FROM goose_db_version ORDER BY id DESC LIMIT 1"
-	err := conn.QueryRow(query).Scan(&version)
+	ctx := context.Background()
+	err := conn.QueryRowContext(ctx, query).Scan(&version)
 	require.NoError(t, err, "Should be able to get migration version")
 	return version
 }
@@ -149,7 +153,7 @@ func TestSQLCIntegration(t *testing.T) {
 
 	// Test a simple query (should not fail)
 	sessions, err := querier.ListSessionsMetadata(ctx)
-	assert.NoError(t, err, "SQLC queries should work with abstraction")
+	require.NoError(t, err, "SQLC queries should work with abstraction")
 	assert.NotNil(t, sessions, "Should get valid result from SQLC query")
 }
 

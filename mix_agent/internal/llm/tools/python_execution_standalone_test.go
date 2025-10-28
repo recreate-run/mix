@@ -203,19 +203,19 @@ func TestPythonExecutionTool_Run_BasicValidation(t *testing.T) {
 
 		// Test with empty context
 		_, err := tool.Run(context.Background(), call)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "session ID and message ID are required")
 
 		// Test with only session ID
 		ctx := context.WithValue(context.Background(), SessionIDContextKey, "session-123")
 		_, err = tool.Run(ctx, call)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "session ID and message ID are required")
 
 		// Test with only message ID
 		ctx = context.WithValue(context.Background(), MessageIDContextKey, "message-456")
 		_, err = tool.Run(ctx, call)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "session ID and message ID are required")
 	})
 }

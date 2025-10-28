@@ -1,6 +1,7 @@
 package integration_tests
 
 import (
+	"context"
 	"net/http"
 	"testing"
 )
@@ -14,7 +15,8 @@ func TestRESTCommandsListing(t *testing.T) {
 
 	// List available commands
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/commands", nil)
-	commandsList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	commandsList := validateArrayResponse(t, listResp)
 
 	if len(commandsList) == 0 {
 		t.Fatalf("Expected at least one command in list, got 0")
@@ -55,7 +57,8 @@ func TestRESTCommandDetails(t *testing.T) {
 
 	// First, get the list of available commands to find a valid command name
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/commands", nil)
-	commandsList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	commandsList := validateArrayResponse(t, listResp)
 
 	if len(commandsList) == 0 {
 		t.Skip("No commands available to test command details endpoint")
@@ -67,6 +70,7 @@ func TestRESTCommandDetails(t *testing.T) {
 
 	// Test getting valid command details
 	detailsResp := makeJSONRequest(t, result.Server, "GET", "/api/commands/"+commandName, nil)
+	defer func() { _ = detailsResp.Body.Close() }()
 	commandDetails := validateObjectResponse(t, detailsResp, http.StatusOK)
 
 	// Validate required fields in detailed response
@@ -88,6 +92,7 @@ func TestRESTCommandDetails(t *testing.T) {
 	// Test getting non-existent command (should return 404)
 	nonExistentName := "non-existent-command-name"
 	notFoundResp := makeJSONRequest(t, result.Server, "GET", "/api/commands/"+nonExistentName, nil)
+	defer func() { _ = notFoundResp.Body.Close() }()
 	if notFoundResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d for non-existent command, got %d", http.StatusNotFound, notFoundResp.StatusCode)
 	}
@@ -104,7 +109,8 @@ func TestRESTMCPServersListing(t *testing.T) {
 
 	// List MCP servers
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/mcp", nil)
-	mcpServersList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	mcpServersList := validateArrayResponse(t, listResp)
 
 	// MCP servers list can be empty, that's valid
 	t.Logf("✅ MCP servers listing test passed - Found %d MCP servers", len(mcpServersList))
@@ -136,6 +142,7 @@ func TestRESTHealthCheck(t *testing.T) {
 
 	// Check health endpoint
 	healthResp := makeJSONRequest(t, result.Server, "GET", "/health", nil)
+	defer func() { _ = healthResp.Body.Close() }()
 	healthData := validateObjectResponse(t, healthResp, http.StatusOK)
 
 	// Validate basic health fields
@@ -166,12 +173,13 @@ func TestRESTStreamEndpoint(t *testing.T) {
 		"title": "Stream Test Session",
 	}
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := sessionData["id"].(string)
 
 	// Make request to stream endpoint with required sessionId parameter
 	streamURL := result.Server.URL + "/stream?sessionId=" + sessionID
-	req, err := http.NewRequest("GET", streamURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, streamURL, http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to create stream request: %v", err)
 	}
@@ -214,7 +222,7 @@ func TestRESTStreamEndpoint(t *testing.T) {
 
 	// Basic validation that we got some SSE-like content
 	streamContent := string(buffer[:n])
-	if len(streamContent) == 0 {
+	if streamContent == "" {
 		t.Fatalf("Expected some stream content, got empty response")
 	}
 
@@ -233,13 +241,14 @@ func TestRESTStreamSubPathEndpoint(t *testing.T) {
 		"title": "Stream Sub-path Test Session",
 	}
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := sessionData["id"].(string)
 
 	// Test stream sub-path with a sample path and required sessionId parameter
 	testPath := "events/session-updates"
 	streamURL := result.Server.URL + "/stream/" + testPath + "?sessionId=" + sessionID
-	req, err := http.NewRequest("GET", streamURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, streamURL, http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to create stream sub-path request: %v", err)
 	}
@@ -276,7 +285,7 @@ func TestRESTStreamSubPathEndpoint(t *testing.T) {
 	}
 
 	streamContent := string(buffer[:n])
-	if len(streamContent) == 0 {
+	if streamContent == "" {
 		t.Fatalf("Expected some stream content from sub-path, got empty response")
 	}
 
@@ -295,6 +304,7 @@ func TestRESTPermissionGrant(t *testing.T) {
 
 	// Grant the permission
 	grantResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions/"+testPermissionID+"/grant", nil)
+	defer func() { _ = grantResp.Body.Close() }()
 	grantData := validateObjectResponse(t, grantResp, http.StatusOK)
 
 	status, ok := grantData["status"].(string)
@@ -327,6 +337,7 @@ func TestRESTPermissionDeny(t *testing.T) {
 
 	// Deny the permission
 	denyResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions/"+testPermissionID+"/deny", nil)
+	defer func() { _ = denyResp.Body.Close() }()
 	denyData := validateObjectResponse(t, denyResp, http.StatusOK)
 
 	status, ok := denyData["status"].(string)
@@ -356,12 +367,14 @@ func TestRESTPermissionInvalidID(t *testing.T) {
 
 	// Test grant with empty permission ID - should return 400
 	emptyGrantResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions//grant", nil)
+	defer func() { _ = emptyGrantResp.Body.Close() }()
 	if emptyGrantResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for empty permission ID in grant, got %d", http.StatusBadRequest, emptyGrantResp.StatusCode)
 	}
 
 	// Test deny with empty permission ID - should return 400
 	emptyDenyResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions//deny", nil)
+	defer func() { _ = emptyDenyResp.Body.Close() }()
 	if emptyDenyResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for empty permission ID in deny, got %d", http.StatusBadRequest, emptyDenyResp.StatusCode)
 	}

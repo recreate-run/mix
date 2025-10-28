@@ -592,10 +592,10 @@ export function ChatApp({
 				: !session?.id || sessionLoading || sseStream.isSubmitDisabled;
 
 	return (
-		<div className="relative flex h-full w-full p-8">
+		<div className="relative flex h-full w-full p-4 md:p-6 lg:p-8">
 			{/* Fixed top-right Get code button - only in playground mode */}
 			{isPlayground && firstUserMessage && (
-				<div className="fixed top-4 right-4 z-50 rounded-lg border bg-background p-4 shadow-lg">
+				<div className="fixed top-2 right-2 z-50 max-w-[calc(100vw-1rem)] rounded-lg border bg-background p-2 shadow-lg md:top-4 md:right-4 md:max-w-none md:p-4">
 					<SdkCodeSnippet
 						sessionId={sessionId}
 						message={firstUserMessage.content}
@@ -623,7 +623,7 @@ export function ChatApp({
 										className="gap-2 shadow-sm"
 									>
 										<RotateCcw className="h-4 w-4" />
-										Clear
+										<span className="hidden sm:inline">Clear</span>
 									</Button>
 								) : (
 									<div />
@@ -767,7 +767,7 @@ export function ChatApp({
 									</div>
 
 									{/* Current Model Display */}
-									<div className="absolute right-14 bottom-1 text-muted-foreground text-xs">
+									<div className="absolute right-14 bottom-1 hidden text-muted-foreground text-xs md:block">
 										{formatCurrentModel(preferences)}
 									</div>
 								</AIInputTools>

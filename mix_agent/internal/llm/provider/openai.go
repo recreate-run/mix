@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -18,6 +19,10 @@ import (
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/shared"
+)
+
+const (
+	reasoningEffortMedium = "medium"
 )
 
 type openaiOptions struct {
@@ -42,7 +47,7 @@ type OpenAIClient interfaces.ProviderClient
 
 func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	openaiOpts := openaiOptions{
-		reasoningEffort: "medium",
+		reasoningEffort: reasoningEffortMedium,
 	}
 	for _, o := range opts.openaiOptions {
 		o(&openaiOpts)
@@ -86,17 +91,17 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	openaiClientOptions := []option.RequestOption{}
 
 	// Set up authentication - prioritize OAuth over API key
-	if oauthCreds != nil && oauthCreds.APIKey != "" {
+	switch {
+	case oauthCreds != nil && oauthCreds.APIKey != "":
 		// Use OAuth API key
 		openaiOpts.useOAuth = true
 		openaiOpts.oauthCreds = oauthCreds
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(oauthCreds.APIKey))
 		logging.Info("Initialized OpenAI client with OAuth authentication")
-	} else if opts.apiKey != "" {
+	case opts.apiKey != "":
 		// Use database API key (passed in opts.apiKey from caller)
 		openaiClientOptions = append(openaiClientOptions, option.WithAPIKey(opts.apiKey))
-		// logging.Info("Initialized OpenAI client with database API key authentication")
-	} else {
+	default:
 		// No auth available
 		logging.Warn("No authentication method available for OpenAI - neither OAuth nor database API key")
 
@@ -233,7 +238,7 @@ func (o *openaiClient) finishReason(reason string) message.FinishReason {
 
 func (o *openaiClient) preparedParams(messages []openai.ChatCompletionMessageParamUnion, tools []openai.ChatCompletionToolParam) openai.ChatCompletionNewParams {
 	params := openai.ChatCompletionNewParams{
-		Model:    openai.ChatModel(o.providerOptions.model.APIModel),
+		Model:    o.providerOptions.model.APIModel,
 		Messages: messages,
 		Tools:    tools,
 	}
@@ -243,7 +248,7 @@ func (o *openaiClient) preparedParams(messages []openai.ChatCompletionMessagePar
 		switch o.options.reasoningEffort {
 		case "low":
 			params.ReasoningEffort = shared.ReasoningEffortLow
-		case "medium":
+		case reasoningEffortMedium:
 			params.ReasoningEffort = shared.ReasoningEffortMedium
 		case "high":
 			params.ReasoningEffort = shared.ReasoningEffortHigh
@@ -338,7 +343,7 @@ func (o *openaiClient) Send(ctx context.Context, messages []message.Message, too
 		}
 
 		toolCalls := o.toolCalls(*openaiResponse)
-		finishReason := o.finishReason(string(openaiResponse.Choices[0].FinishReason))
+		finishReason := o.finishReason(openaiResponse.Choices[0].FinishReason)
 
 		if len(toolCalls) > 0 {
 			finishReason = message.FinishReasonToolUse
@@ -404,13 +409,13 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 				chunk := openaiStream.Current()
 				acc.AddChunk(chunk)
 
-				for _, choice := range chunk.Choices {
-					if choice.Delta.Content != "" {
+				for i := range chunk.Choices {
+					if chunk.Choices[i].Delta.Content != "" {
 						eventChan <- interfaces.ProviderEvent{
 							Type:    interfaces.EventContentDelta,
-							Content: choice.Delta.Content,
+							Content: chunk.Choices[i].Delta.Content,
 						}
-						currentContent += choice.Delta.Content
+						currentContent += chunk.Choices[i].Delta.Content
 					}
 				}
 			}
@@ -418,7 +423,7 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 			err := openaiStream.Err()
 			if err == nil || errors.Is(err, io.EOF) {
 				// Stream completed successfully
-				finishReason := o.finishReason(string(acc.Choices[0].FinishReason))
+				finishReason := o.finishReason(acc.Choices[0].FinishReason)
 				if len(acc.Choices[0].Message.ToolCalls) > 0 {
 					toolCalls = append(toolCalls, o.toolCalls(acc.ChatCompletion)...)
 				}
@@ -495,7 +500,7 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 	return eventChan
 }
 
-func (o *openaiClient) shouldRetry(attempts int, err error) (bool, int64, error) {
+func (o *openaiClient) shouldRetry(attempts int, err error) (shouldRetry bool, retryAfterMs int64, retryErr error) {
 	var apierr *openai.Error
 	if !errors.As(err, &apierr) {
 		return false, 0, err
@@ -507,7 +512,7 @@ func (o *openaiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 		return false, 0, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
 	}
 
-	if apierr.StatusCode != 429 && apierr.StatusCode != 500 {
+	if apierr.StatusCode != http.StatusTooManyRequests && apierr.StatusCode != http.StatusInternalServerError {
 		return false, 0, err
 	}
 
@@ -523,7 +528,7 @@ func (o *openaiClient) shouldRetry(attempts int, err error) (bool, int64, error)
 	retryMs = backoffMs + jitterMs
 	if len(retryAfterValues) > 0 {
 		if _, err := fmt.Sscanf(retryAfterValues[0], "%d", &retryMs); err == nil {
-			retryMs = retryMs * 1000
+			retryMs *= 1000
 		}
 	}
 	return true, int64(retryMs), nil
@@ -533,7 +538,8 @@ func (o *openaiClient) toolCalls(completion openai.ChatCompletion) []message.Too
 	var toolCalls []message.ToolCall
 
 	if len(completion.Choices) > 0 && len(completion.Choices[0].Message.ToolCalls) > 0 {
-		for _, call := range completion.Choices[0].Message.ToolCalls {
+		for i := range completion.Choices[0].Message.ToolCalls {
+			call := &completion.Choices[0].Message.ToolCalls[i]
 			toolCall := message.ToolCall{
 				ID:       call.ID,
 				Name:     call.Function.Name,
@@ -580,7 +586,7 @@ func WithOpenAIDisableCache() OpenAIOption {
 
 func WithReasoningEffort(effort string) OpenAIOption {
 	return func(options *openaiOptions) {
-		defaultReasoningEffort := "medium"
+		defaultReasoningEffort := reasoningEffortMedium
 		switch effort {
 		case "low", "medium", "high":
 			defaultReasoningEffort = effort

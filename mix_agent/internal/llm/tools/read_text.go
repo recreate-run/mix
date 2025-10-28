@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -136,7 +137,7 @@ func (r *readTextTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 	var err error
 
 	if isURLPath {
-		content, lineCount, err = readTextFromURL(filePath, params.Offset, params.Limit)
+		content, lineCount, err = readTextFromURL(ctx, filePath, params.Offset, params.Limit)
 		if err != nil {
 			return NewTextErrorResponse(fmt.Sprintf("error reading from URL: %s", err)), nil
 		}
@@ -189,7 +190,7 @@ func addLineNumbers(content string, startLine int) string {
 
 	lines := strings.Split(content, "\n")
 
-	var result []string
+	result := make([]string, 0, len(lines))
 	for i, line := range lines {
 		line = strings.TrimSuffix(line, "\r")
 
@@ -201,7 +202,7 @@ func addLineNumbers(content string, startLine int) string {
 	return strings.Join(result, "\n")
 }
 
-func readTextFile(filePath string, offset, limit int) (string, int, error) {
+func readTextFile(filePath string, offset, limit int) (content string, lineCount int, err error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", 0, err
@@ -210,14 +211,14 @@ func readTextFile(filePath string, offset, limit int) (string, int, error) {
 		_ = file.Close()
 	}()
 
-	lineCount := 0
+	lineCount = 0
 
 	scanner := NewLineScanner(file)
 	if offset > 0 {
 		for lineCount < offset && scanner.Scan() {
 			lineCount++
 		}
-		if err = scanner.Err(); err != nil {
+		if err := scanner.Err(); err != nil {
 			return "", 0, err
 		}
 	}
@@ -317,7 +318,7 @@ func isBinaryContent(filePath string) bool {
 	// Read first 512 bytes to check for binary content
 	buffer := make([]byte, 512)
 	n, err := file.Read(buffer)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return false // If we can't read it, let the main function handle the error
 	}
 
@@ -347,9 +348,13 @@ func isBinaryContent(filePath string) bool {
 }
 
 // readTextFromURL downloads and reads text content from a URL
-func readTextFromURL(url string, offset, limit int) (string, int, error) {
+func readTextFromURL(ctx context.Context, url string, offset, limit int) (content string, lineCount int, err error) {
 	// Download the content from URL
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to download from URL: %w", err)
 	}
@@ -395,8 +400,8 @@ func isTextContentType(contentType string) bool {
 }
 
 // readTextFromReader reads text content from an io.Reader
-func readTextFromReader(reader io.Reader, offset, limit int) (string, int, error) {
-	lineCount := 0
+func readTextFromReader(reader io.Reader, offset, limit int) (content string, lineCount int, err error) {
+	lineCount = 0
 
 	scanner := NewLineScanner(reader)
 	if offset > 0 {

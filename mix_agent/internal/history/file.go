@@ -46,11 +46,11 @@ type service struct {
 	q  *db.Queries
 }
 
-func NewService(q *db.Queries, db *sql.DB) Service {
+func NewService(q *db.Queries, database *sql.DB) Service {
 	return &service{
 		Broker: pubsub.NewBroker[File](),
 		q:      q,
-		db:     db,
+		db:     database,
 	}
 }
 
@@ -76,9 +76,10 @@ func (s *service) CreateVersion(ctx context.Context, sessionID, path, content st
 
 	// Generate the next version
 	var nextVersion string
-	if latestVersion == InitialVersion {
+	switch {
+	case latestVersion == InitialVersion:
 		nextVersion = "v1"
-	} else if strings.HasPrefix(latestVersion, "v") {
+	case strings.HasPrefix(latestVersion, "v"):
 		versionNum, err := strconv.Atoi(latestVersion[1:])
 		if err != nil {
 			// If we can't parse the version, just use a timestamp-based version
@@ -86,7 +87,7 @@ func (s *service) CreateVersion(ctx context.Context, sessionID, path, content st
 		} else {
 			nextVersion = fmt.Sprintf("v%d", versionNum+1)
 		}
-	} else {
+	default:
 		// If the version format is unexpected, use a timestamp-based version
 		nextVersion = fmt.Sprintf("v%d", latestFile.CreatedAt)
 	}

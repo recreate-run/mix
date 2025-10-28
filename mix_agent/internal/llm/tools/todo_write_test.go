@@ -16,14 +16,14 @@ import (
 // Test constants
 func TestTodoConstants(t *testing.T) {
 	// Test TodoStatus constants
-	assert.Equal(t, TodoStatus("pending"), TodoStatusPending)
-	assert.Equal(t, TodoStatus("in_progress"), TodoStatusInProgress)
-	assert.Equal(t, TodoStatus("completed"), TodoStatusCompleted)
+	assert.Equal(t, TodoStatusPending, TodoStatus("pending"))
+	assert.Equal(t, TodoStatusInProgress, TodoStatus("in_progress"))
+	assert.Equal(t, TodoStatusCompleted, TodoStatus("completed"))
 
 	// Test TodoPriority constants
-	assert.Equal(t, TodoPriority("low"), TodoPriorityLow)
-	assert.Equal(t, TodoPriority("medium"), TodoPriorityMedium)
-	assert.Equal(t, TodoPriority("high"), TodoPriorityHigh)
+	assert.Equal(t, TodoPriorityLow, TodoPriority("low"))
+	assert.Equal(t, TodoPriorityMedium, TodoPriority("medium"))
+	assert.Equal(t, TodoPriorityHigh, TodoPriority("high"))
 }
 
 // Test Todo struct
@@ -176,7 +176,7 @@ func TestTodoWriteTool_Run_Success(t *testing.T) {
 			}
 
 			response, err := tool.Run(ctx, call)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.False(t, response.IsError)
 			assert.Contains(t, response.Content, "Successfully updated")
 			assert.Contains(t, response.Content, "todos")
@@ -186,11 +186,11 @@ func TestTodoWriteTool_Run_Success(t *testing.T) {
 			assert.FileExists(t, todosFile)
 
 			fileData, err := os.ReadFile(todosFile)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			var savedTodos []Todo
 			err = json.Unmarshal(fileData, &savedTodos)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Len(t, savedTodos, tt.expectedCount)
 
 			if tt.expectedCount > 0 {
@@ -224,7 +224,7 @@ func TestTodoWriteTool_Run_InvalidJSON(t *testing.T) {
 			}
 
 			response, err := tool.Run(ctx, call)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.True(t, response.IsError)
 			assert.Contains(t, response.Content, "Invalid parameters")
 		})
@@ -291,7 +291,7 @@ func TestTodoWriteTool_Run_ValidationErrors(t *testing.T) {
 			}
 
 			response, err := tool.Run(ctx, call)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.True(t, response.IsError)
 			assert.Contains(t, response.Content, tt.expectedErr)
 		})
@@ -412,7 +412,7 @@ func TestTodoWriteTool_EdgeCases(t *testing.T) {
 		}
 
 		response, err := tool.Run(ctx, call)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, response.IsError)
 	})
 
@@ -442,7 +442,7 @@ func TestTodoWriteTool_EdgeCases(t *testing.T) {
 		}
 
 		response, err := tool.Run(ctx, call)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, response.IsError)
 	})
 }
@@ -458,6 +458,6 @@ func TestTodoTypes(t *testing.T) {
 	assert.IsType(t, TodoPriority(""), priority)
 
 	// But underlying values should be comparable
-	assert.Equal(t, string(status), "pending")
-	assert.Equal(t, string(priority), "high")
+	assert.Equal(t, "pending", string(status))
+	assert.Equal(t, "high", string(priority))
 }

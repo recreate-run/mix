@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -17,7 +18,8 @@ func ExecuteAppleScript(ctx context.Context, script string) (string, error) {
 	if err != nil {
 		// Try to get stderr for more detailed error info
 		var stderr string
-		if exitError, ok := err.(*exec.ExitError); ok {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
 			stderr = string(exitError.Stderr)
 		}
 

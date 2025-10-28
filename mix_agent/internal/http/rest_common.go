@@ -50,7 +50,7 @@ func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 }
 
 // sendErrorResponse sends an enveloped error response
-func sendErrorResponse(w http.ResponseWriter, errorType string, message string) {
+func sendErrorResponse(w http.ResponseWriter, errorType, message string) {
 	status := errorStatusMap[errorType]
 	if status == 0 {
 		status = http.StatusInternalServerError
@@ -73,13 +73,13 @@ func sendErrorResponse(w http.ResponseWriter, errorType string, message string) 
 }
 
 // sendValidationError sends a validation error with 400 status
-func sendValidationError(w http.ResponseWriter, field string, message string) {
+func sendValidationError(w http.ResponseWriter, field, message string) {
 	fullMessage := fmt.Sprintf("Validation error for field '%s': %s", field, message)
 	sendErrorResponse(w, ErrorTypeValidation, fullMessage)
 }
 
 // sendNotFoundError sends a 404 error
-func sendNotFoundError(w http.ResponseWriter, resource string, id string) {
+func sendNotFoundError(w http.ResponseWriter, resource, id string) {
 	message := fmt.Sprintf("%s with ID '%s' not found", resource, id)
 	sendErrorResponse(w, ErrorTypeNotFound, message)
 }
@@ -97,7 +97,7 @@ func sendUnauthorizedError(w http.ResponseWriter, message string) {
 }
 
 // parseIntParam extracts and validates integer path parameters
-func parseIntParam(param string, paramName string) (int64, error) {
+func parseIntParam(param, paramName string) (int64, error) {
 	if param == "" {
 		return 0, fmt.Errorf("%s is required", paramName)
 	}
@@ -131,7 +131,7 @@ func setCORSHeaders(w http.ResponseWriter) {
 
 // handleCORSPreflight handles OPTIONS requests for CORS
 func handleCORSPreflight(w http.ResponseWriter, r *http.Request) bool {
-	if r.Method == "OPTIONS" {
+	if r.Method == http.MethodOptions {
 		setCORSHeaders(w)
 		w.WriteHeader(http.StatusOK)
 		return true
@@ -151,7 +151,7 @@ func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 }
 
 // WriteErrorResponse writes a standardized error response
-func WriteErrorResponse(w http.ResponseWriter, status int, message string, errorType string) {
+func WriteErrorResponse(w http.ResponseWriter, status int, message, errorType string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 

@@ -20,7 +20,7 @@ type LocalProvider struct {
 // NewLocalProvider creates a new local filesystem storage provider
 func NewLocalProvider(cfg Config) (*LocalProvider, error) {
 	// Ensure base path exists
-	if err := os.MkdirAll(cfg.Endpoint, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Endpoint, 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
@@ -43,7 +43,7 @@ func (p *LocalProvider) Upload(ctx context.Context, key string, data io.Reader, 
 	fullPath := filepath.Join(p.basePath, key)
 
 	// Create directories if needed
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create directories: %w", err)
 	}
 

@@ -6,30 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"mix/internal/app"
 	"mix/internal/message"
 )
 
-// Test Export: Session Export - GET /api/sessions/{id}/export
-func TestRESTSessionExport(t *testing.T) {
-	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
-
-	t.Log("Testing GET /api/sessions/{id}/export - Export session transcript")
-
-	// Create a session with some test data
-	sessionRequest := map[string]interface{}{
-		"title": "Export Test Session",
-	}
-
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
-	sessionID := createdSessionData["id"].(string)
-
-	// Create some test messages directly in the database to ensure we have content to export
-	ctx := context.Background()
+// Helper function to create test messages for export testing
+func createTestMessages(t *testing.T, ctx context.Context, application *app.App, sessionID string) {
+	t.Helper()
 
 	// Create a user message
-	_, err := result.App.Messages.Create(ctx, sessionID, message.CreateMessageParams{
+	_, err := application.Messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role: message.User,
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "Hello, this is a test message"},
@@ -41,7 +27,7 @@ func TestRESTSessionExport(t *testing.T) {
 	}
 
 	// Create an assistant message with tool call
-	_, err = result.App.Messages.Create(ctx, sessionID, message.CreateMessageParams{
+	_, err = application.Messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role: message.Assistant,
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "I'll help you with that"},
@@ -59,7 +45,7 @@ func TestRESTSessionExport(t *testing.T) {
 	}
 
 	// Create a tool result message
-	_, err = result.App.Messages.Create(ctx, sessionID, message.CreateMessageParams{
+	_, err = application.Messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role: message.Tool,
 		Parts: []message.ContentPart{
 			message.ToolResult{
@@ -73,12 +59,12 @@ func TestRESTSessionExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test tool result message: %v", err)
 	}
+}
 
-	// Test the export endpoint
-	exportResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/export", nil)
-	exportData := validateObjectResponse(t, exportResp, http.StatusOK)
+// Helper function to validate export session metadata
+func validateExportMetadata(t *testing.T, exportData map[string]interface{}, sessionID string) {
+	t.Helper()
 
-	// Verify the export structure
 	if exportData["id"].(string) != sessionID {
 		t.Errorf("Expected session ID %s, got %s", sessionID, exportData["id"].(string))
 	}
@@ -87,8 +73,18 @@ func TestRESTSessionExport(t *testing.T) {
 		t.Errorf("Expected title 'Export Test Session', got %s", exportData["title"].(string))
 	}
 
-	// Verify messages are present
-	messages := exportData["messages"].([]interface{})
+	// Verify timestamps are properly formatted
+	createdAt := exportData["createdAt"].(string)
+	_, err := time.Parse(time.RFC3339, createdAt)
+	if err != nil {
+		t.Errorf("Expected createdAt to be valid RFC3339 timestamp, got parse error: %v", err)
+	}
+}
+
+// Helper function to validate export messages structure
+func validateExportMessages(t *testing.T, messages []interface{}) {
+	t.Helper()
+
 	if len(messages) != 3 {
 		t.Errorf("Expected 3 messages, got %d", len(messages))
 	}
@@ -137,13 +133,40 @@ func TestRESTSessionExport(t *testing.T) {
 	if thirdMsg["role"].(string) != "tool" {
 		t.Errorf("Expected third message role to be 'tool', got %s", thirdMsg["role"].(string))
 	}
+}
 
-	// Verify timestamps are properly formatted
-	createdAt := exportData["createdAt"].(string)
-	_, err = time.Parse(time.RFC3339, createdAt)
-	if err != nil {
-		t.Errorf("Expected createdAt to be valid RFC3339 timestamp, got parse error: %v", err)
+// Test Export: Session Export - GET /api/sessions/{id}/export
+func TestRESTSessionExport(t *testing.T) {
+	result := setupIntegrationTestServer(t)
+	defer result.Server.Close()
+
+	t.Log("Testing GET /api/sessions/{id}/export - Export session transcript")
+
+	// Create a session with some test data
+	sessionRequest := map[string]interface{}{
+		"title": "Export Test Session",
 	}
+
+	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
+	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
+	sessionID := createdSessionData["id"].(string)
+
+	// Create test messages
+	ctx := context.Background()
+	createTestMessages(t, ctx, result.App, sessionID)
+
+	// Test the export endpoint
+	exportResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/export", nil)
+	defer func() { _ = exportResp.Body.Close() }()
+	exportData := validateObjectResponse(t, exportResp, http.StatusOK)
+
+	// Verify the export structure
+	validateExportMetadata(t, exportData, sessionID)
+
+	// Verify messages are present
+	messages := exportData["messages"].([]interface{})
+	validateExportMessages(t, messages)
 
 	// Verify Content-Disposition header for download
 	contentDisposition := exportResp.Header.Get("Content-Disposition")
@@ -165,6 +188,7 @@ func TestRESTSessionExportNotFound(t *testing.T) {
 	// Try to export a non-existent session
 	fakeSessionID := "non-existent-session-id"
 	exportResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+fakeSessionID+"/export", nil)
+	defer func() { _ = exportResp.Body.Close() }()
 
 	// Should return 404 Not Found
 	validateErrorResponse(t, exportResp, http.StatusNotFound)

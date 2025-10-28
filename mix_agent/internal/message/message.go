@@ -396,9 +396,7 @@ func unmarshallParts(data []byte) ([]ContentPart, error) {
 		default:
 			return nil, fmt.Errorf("unknown part type: %s", wrapper.Type)
 		}
-
 	}
-
 	return parts, nil
 }
 

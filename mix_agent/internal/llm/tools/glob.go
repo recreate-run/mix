@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -97,7 +98,7 @@ func (g *globTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	), nil
 }
 
-func globFiles(pattern, searchPath string, limit int) ([]string, bool, error) {
+func globFiles(pattern, searchPath string, limit int) (files []string, truncated bool, err error) {
 	// Check if search path exists
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
 		return nil, false, fmt.Errorf("directory does not exist: %s", searchPath)
@@ -116,16 +117,17 @@ func globFiles(pattern, searchPath string, limit int) ([]string, bool, error) {
 	return fileutil.GlobWithDoublestar(pattern, searchPath, limit)
 }
 
-func runRipgrep(cmd *exec.Cmd, searchRoot string, limit int) ([]string, bool, error) {
+func runRipgrep(cmd *exec.Cmd, searchRoot string, limit int) (matches []string, truncated bool, err error) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && ee.ExitCode() == 1 {
 			return nil, false, nil
 		}
 		return nil, false, fmt.Errorf("ripgrep: %w\n%s", err, out)
 	}
 
-	var matches []string
+	matches = []string{}
 	for _, p := range bytes.Split(out, []byte{0}) {
 		if len(p) == 0 {
 			continue

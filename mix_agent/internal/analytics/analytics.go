@@ -105,10 +105,10 @@ const (
 // Service defines the analytics tracking interface
 type Service interface {
 	// TrackUserMessage tracks a user's message/prompt
-	TrackUserMessage(ctx context.Context, sessionID, messageID, content string, model string) error
+	TrackUserMessage(ctx context.Context, sessionID, messageID, content, model string) error
 
 	// TrackAgentResponse tracks an assistant's response
-	TrackAgentResponse(ctx context.Context, sessionID, messageID, content string, model string) error
+	TrackAgentResponse(ctx context.Context, sessionID, messageID, content, model string) error
 
 	// TrackToolCall tracks a tool call
 	TrackToolCall(ctx context.Context, sessionID, messageID, toolName, toolInput, toolID string, success bool, errorMsg string) error
@@ -131,7 +131,7 @@ type Service interface {
 	TrackSessionRewound(ctx context.Context, sessionID, messageID string, messagesDeleted int, cleanupMedia bool) error
 
 	// TrackFileUploaded tracks file upload events
-	TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized bool, isMedia bool) error
+	TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized, isMedia bool) error
 
 	// TrackFileDeleted tracks file deletion events
 	TrackFileDeleted(ctx context.Context, sessionID, fileName string, fileExisted bool) error
@@ -196,7 +196,7 @@ func NewAnalyticsService(apiKey string) Service {
 }
 
 // TrackUserMessage tracks a user message event
-func (s *analyticsService) TrackUserMessage(ctx context.Context, sessionID, messageID, content string, model string) error {
+func (s *analyticsService) TrackUserMessage(ctx context.Context, sessionID, messageID, content, model string) error {
 	if !s.enabled {
 		return nil
 	}
@@ -239,7 +239,7 @@ func (s *analyticsService) TrackUserMessage(ctx context.Context, sessionID, mess
 }
 
 // TrackAgentResponse tracks an assistant response event
-func (s *analyticsService) TrackAgentResponse(ctx context.Context, sessionID, messageID, content string, model string) error {
+func (s *analyticsService) TrackAgentResponse(ctx context.Context, sessionID, messageID, content, model string) error {
 	if !s.enabled {
 		return nil
 	}
@@ -321,7 +321,6 @@ func (s *analyticsService) TrackAgentResponseWithProvider(ctx context.Context,
 	sessionID, messageID, content string, provider string, model string,
 	thinkingEnabled bool, thinkingLength int, responseTimeMs int64,
 	tokenUsage map[string]int64, cost float64) error {
-
 	if !s.enabled {
 		return nil
 	}
@@ -388,7 +387,6 @@ func (s *analyticsService) TrackAgentResponseWithProvider(ctx context.Context,
 // TrackProviderAuth tracks authentication events for providers
 func (s *analyticsService) TrackProviderAuth(ctx context.Context,
 	provider string, success bool, authMethod string) error {
-
 	if !s.enabled {
 		return nil
 	}
@@ -507,7 +505,7 @@ func (s *analyticsService) TrackSessionRewound(ctx context.Context, sessionID, m
 }
 
 // TrackFileUploaded tracks file upload events
-func (s *analyticsService) TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized bool, isMedia bool) error {
+func (s *analyticsService) TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized, isMedia bool) error {
 	if !s.enabled {
 		return nil
 	}

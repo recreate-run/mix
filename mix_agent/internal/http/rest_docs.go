@@ -12,11 +12,11 @@ func HandleDocumentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveOpenAPISpec(w, r)
+	serveOpenAPISpec(w)
 }
 
 // serveOpenAPISpec serves the OpenAPI 3.1 specification as JSON
-func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+func serveOpenAPISpec(w http.ResponseWriter) {
 	spec := getOpenAPISpec()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -50,6 +50,7 @@ type OpenAPIComponents struct {
 }
 
 // getOpenAPISpec returns the complete OpenAPI 3.1 specification with proper field ordering
+//nolint:funlen // OpenAPI spec is necessarily long
 func getOpenAPISpec() OpenAPISpec {
 	return OpenAPISpec{
 		OpenAPI: "3.1.0",

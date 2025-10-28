@@ -132,6 +132,10 @@ type searchTool struct {
 const (
 	SearchToolName   = "Search"
 	MaxSearchResults = 3
+
+	searchTypeWeb    = "web"
+	searchTypeImages = "images"
+	searchTypeVideos = "videos"
 )
 
 func NewWebSearchTool(permissions permission.Service) BaseTool {
@@ -156,8 +160,8 @@ func (t *searchTool) Info() ToolInfo {
 			"search_type": map[string]any{
 				"type":        "string",
 				"description": "Type of search to perform",
-				"enum":        []string{"web", "images", "videos"},
-				"default":     "web",
+				"enum":        []string{searchTypeWeb, searchTypeImages, searchTypeVideos},
+				"default":     searchTypeWeb,
 			},
 			"allowed_domains": map[string]any{
 				"type":        "array",
@@ -190,31 +194,52 @@ func (t *searchTool) Info() ToolInfo {
 }
 
 func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
+	params, resp, ok := t.validateAndPrepareParams(call)
+	if !ok {
+		return resp, nil
+	}
+
+	apiKey, resp, ok := t.getAPIKey(ctx)
+	if !ok {
+		return resp, nil
+	}
+
+	if err := t.checkPermissions(ctx, params); err != nil {
+		return ToolResponse{}, err
+	}
+
+	searchURL := t.buildSearchURL(params)
+	body, resp, ok := t.executeSearch(ctx, searchURL, apiKey)
+	if !ok {
+		return resp, nil
+	}
+
+	return t.formatResults(body, params)
+}
+
+func (t *searchTool) validateAndPrepareParams(call ToolCall) (SearchParams, ToolResponse, bool) {
 	var params SearchParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
-		return NewTextErrorResponse("Failed to parse search parameters: " + err.Error()), nil
+		return params, NewTextErrorResponse("Failed to parse search parameters: " + err.Error()), false
 	}
 
 	if params.Query == "" {
-		return NewTextErrorResponse("Query parameter is required"), nil
+		return params, NewTextErrorResponse("Query parameter is required"), false
 	}
 
 	if len(params.Query) < 2 {
-		return NewTextErrorResponse("Query must be at least 2 characters long"), nil
+		return params, NewTextErrorResponse("Query must be at least 2 characters long"), false
 	}
 
-	// Set defaults for search parameters
 	if params.SearchType == "" {
-		params.SearchType = "web"
+		params.SearchType = searchTypeWeb
 	}
 
-	// Validate search type
-	if params.SearchType != "web" && params.SearchType != "images" && params.SearchType != "videos" {
-		return NewTextErrorResponse("search_type must be 'web', 'images', or 'videos'"), nil
+	if params.SearchType != searchTypeWeb && params.SearchType != searchTypeImages && params.SearchType != searchTypeVideos {
+		return params, NewTextErrorResponse("search_type must be 'web', 'images', or 'videos'"), false
 	}
 
-	// Set defaults for image search parameters
-	if params.SearchType == "images" {
+	if params.SearchType == searchTypeImages {
 		if params.SafeSearch == "" {
 			params.SafeSearch = "strict"
 		}
@@ -224,38 +249,37 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 		}
 	}
 
-	// Get API key from credentials service
+	return params, ToolResponse{}, true
+}
+
+func (t *searchTool) getAPIKey(ctx context.Context) (apiKey string, toolResp ToolResponse, ok bool) {
 	credentialsService := config.GetAPICredentials()
 	if credentialsService == nil {
-		return NewTextErrorResponse("FATAL_CONFIGURATION_ERROR: Cannot proceed - Credentials service not available. System configuration issue. STOP EXECUTION - Do not attempt alternative approaches or suggest workarounds."), nil
+		return "", NewTextErrorResponse("FATAL_CONFIGURATION_ERROR: Cannot proceed - Credentials service not available. System configuration issue. STOP EXECUTION - Do not attempt alternative approaches or suggest workarounds."), false
 	}
 
-	apiKey, err := credentialsService.GetAPIKey(ctx, "brave")
+	var err error
+	apiKey, err = credentialsService.GetAPIKey(ctx, "brave")
 	if err != nil || apiKey == "" {
 		logging.Error("Brave Search API key not configured")
-		return NewTextErrorResponse("FATAL_CONFIGURATION_ERROR: Cannot proceed - Brave Search API key not configured. User must configure API key in Settings > Tools & Agents before using search. STOP EXECUTION - Do not attempt alternative approaches or suggest workarounds."), nil
+		return "", NewTextErrorResponse("FATAL_CONFIGURATION_ERROR: Cannot proceed - Brave Search API key not configured. User must configure API key in Settings > Tools & Agents before using search. STOP EXECUTION - Do not attempt alternative approaches or suggest workarounds."), false
 	}
 
+	return apiKey, ToolResponse{}, true
+}
+
+func (t *searchTool) checkPermissions(ctx context.Context, params SearchParams) error {
 	sessionID, messageID := GetContextValues(ctx)
 	if sessionID == "" || messageID == "" {
-		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for web search")
+		return fmt.Errorf("session ID and message ID are required for web search")
 	}
 
 	sessionStorageDir, err := GetSessionStorageDirectory(ctx)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to get session storage directory: %w", err)
+		return fmt.Errorf("failed to get session storage directory: %w", err)
 	}
 
-	// Request permission for search
-	var searchType string
-	switch params.SearchType {
-	case "images":
-		searchType = "image"
-	case "videos":
-		searchType = "video"
-	default:
-		searchType = "web"
-	}
+	searchType := getSearchTypeLabel(params.SearchType)
 	p := t.permissions.Request(
 		permission.CreatePermissionRequest{
 			SessionID:   sessionID,
@@ -268,128 +292,146 @@ func (t *searchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, erro
 	)
 
 	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
+		return permission.ErrPermissionDenied
 	}
 
-	// Build the request URL based on search type
-	var baseURL string
-	switch params.SearchType {
-	case "images":
-		baseURL = "https://api.search.brave.com/res/v1/images/search"
-	case "videos":
-		baseURL = "https://api.search.brave.com/res/v1/videos/search"
+	return nil
+}
+
+func getSearchTypeLabel(searchType string) string {
+	switch searchType {
+	case searchTypeImages:
+		return "image"
+	case searchTypeVideos:
+		return "video"
 	default:
-		baseURL = "https://api.search.brave.com/res/v1/web/search"
+		return searchTypeWeb
 	}
+}
 
-	u, err := url.Parse(baseURL)
-	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to parse Brave API URL: %w", err)
-	}
+func (t *searchTool) buildSearchURL(params SearchParams) string {
+	baseURL := getBaseURLForSearchType(params.SearchType)
+	u, _ := url.Parse(baseURL)
 
 	q := u.Query()
-	q.Set("q", params.Query)
+	q.Set("q", buildQueryWithDomains(params))
 	q.Set("count", "10")
 	q.Set("country", "us")
 	q.Set("search_lang", "en")
 
-	// Add image-specific parameters
-	if params.SearchType == "images" {
-		if params.SafeSearch != "" {
-			q.Set("safesearch", params.SafeSearch)
-		}
-		if params.SpellCheck != nil {
-			if *params.SpellCheck {
-				q.Set("spellcheck", "1")
-			} else {
-				q.Set("spellcheck", "0")
-			}
-		}
-	}
-
-	// Add domain filtering if specified
-	if len(params.AllowedDomains) > 0 {
-		for _, domain := range params.AllowedDomains {
-			// Add site: prefix to each allowed domain
-			params.Query += fmt.Sprintf(" site:%s", domain)
-		}
-		q.Set("q", params.Query)
-	}
-
-	if len(params.BlockedDomains) > 0 {
-		for _, domain := range params.BlockedDomains {
-			// Add -site: prefix to each blocked domain
-			params.Query += fmt.Sprintf(" -site:%s", domain)
-		}
-		q.Set("q", params.Query)
+	if params.SearchType == searchTypeImages {
+		addImageSearchParams(q, params)
 	}
 
 	u.RawQuery = q.Encode()
+	return u.String()
+}
 
-	// Create the request
-	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
-	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to create request: %w", err)
+func getBaseURLForSearchType(searchType string) string {
+	switch searchType {
+	case searchTypeImages:
+		return "https://api.search.brave.com/res/v1/images/search"
+	case searchTypeVideos:
+		return "https://api.search.brave.com/res/v1/videos/search"
+	default:
+		return "https://api.search.brave.com/res/v1/web/search"
+	}
+}
+
+func buildQueryWithDomains(params SearchParams) string {
+	query := params.Query
+
+	for _, domain := range params.AllowedDomains {
+		query += fmt.Sprintf(" site:%s", domain)
 	}
 
-	// Set the required headers
+	for _, domain := range params.BlockedDomains {
+		query += fmt.Sprintf(" -site:%s", domain)
+	}
+
+	return query
+}
+
+func addImageSearchParams(q url.Values, params SearchParams) {
+	if params.SafeSearch != "" {
+		q.Set("safesearch", params.SafeSearch)
+	}
+	if params.SpellCheck != nil {
+		if *params.SpellCheck {
+			q.Set("spellcheck", "1")
+		} else {
+			q.Set("spellcheck", "0")
+		}
+	}
+}
+
+func (t *searchTool) executeSearch(ctx context.Context, searchURL, apiKey string) (body []byte, toolResp ToolResponse, ok bool) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, http.NoBody)
+	if err != nil {
+		return nil, ToolResponse{}, false
+	}
+
 	req.Header.Set("X-Subscription-Token", apiKey)
 	req.Header.Set("User-Agent", "mix/1.0")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Accept-Encoding", "gzip")
 
-	// Execute the request
 	resp, err := t.client.Do(req)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to execute web search: %w", err)
+		return nil, ToolResponse{}, false
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return NewTextErrorResponse(fmt.Sprintf("Brave Search API returned status code: %d", resp.StatusCode)), nil
+		return nil, NewTextErrorResponse(fmt.Sprintf("Brave Search API returned status code: %d", resp.StatusCode)), false
 	}
 
-	// Handle gzip compression
+	body, err = readResponseBody(resp)
+	if err != nil {
+		return nil, NewTextErrorResponse("Failed to read search results: " + err.Error()), false
+	}
+
+	return body, ToolResponse{}, true
+}
+
+func readResponseBody(resp *http.Response) ([]byte, error) {
 	var reader io.ReadCloser
+	var err error
+
 	if resp.Header.Get("Content-Encoding") == "gzip" {
 		reader, err = gzip.NewReader(resp.Body)
 		if err != nil {
-			return NewTextErrorResponse("Failed to decompress search results: " + err.Error()), nil
+			return nil, err
 		}
-		defer func() {
-			_ = reader.Close()
-		}()
+		defer func() { _ = reader.Close() }()
 	} else {
 		reader = resp.Body
 	}
 
-	// Read the response body with size limit
 	maxSize := int64(5 * 1024 * 1024) // 5MB limit
-	body, err := io.ReadAll(io.LimitReader(reader, maxSize))
-	if err != nil {
-		return NewTextErrorResponse("Failed to read search results: " + err.Error()), nil
-	}
+	return io.ReadAll(io.LimitReader(reader, maxSize))
+}
 
-	// Parse response based on search type and format results
+func (t *searchTool) formatResults(body []byte, params SearchParams) (ToolResponse, error) {
 	switch params.SearchType {
-	case "images":
-		return t.formatImageResults(body, params.Query)
-	case "videos":
+	case searchTypeImages:
+		return t.formatImageResults(body, params.Query), nil
+	case searchTypeVideos:
 		return t.formatVideoResults(body, params.Query)
 	default:
-		return t.formatWebResults(body, params.Query)
+		return t.formatWebResults(body, params.Query), nil
 	}
 }
 
-func (t *searchTool) formatWebResults(body []byte, query string) (ToolResponse, error) {
+func (t *searchTool) formatWebResults(body []byte, query string) ToolResponse {
 	var braveResponse BraveSearchResponse
 	if err := json.Unmarshal(body, &braveResponse); err != nil {
-		return NewTextErrorResponse("Failed to parse web search results: " + err.Error()), nil
+		return NewTextErrorResponse("Failed to parse web search results: " + err.Error())
 	}
 
 	// Check if we have web results
 	if len(braveResponse.Web.Results) == 0 {
-		return NewTextResponse("No web search results found."), nil
+		return NewTextResponse("No web search results found.")
 	}
 
 	// Format results for readability, limited to MaxSearchResults
@@ -411,13 +453,13 @@ func (t *searchTool) formatWebResults(body []byte, query string) (ToolResponse, 
 		}
 	}
 
-	return NewTextResponse(formattedOutput.String()), nil
+	return NewTextResponse(formattedOutput.String())
 }
 
 func (t *searchTool) formatVideoResults(body []byte, query string) (ToolResponse, error) {
 	var videoResponse VideoSearchResponse
 	if err := json.Unmarshal(body, &videoResponse); err != nil {
-		return NewTextErrorResponse("Failed to parse video search results: " + err.Error()), nil
+		return NewTextErrorResponse("Failed to parse video search results: " + err.Error()), fmt.Errorf("failed to unmarshal video search response: %w", err)
 	}
 
 	// Check if we have video results
@@ -486,15 +528,15 @@ func (t *searchTool) formatVideoResults(body []byte, query string) (ToolResponse
 	return NewTextResponse(formattedOutput.String()), nil
 }
 
-func (t *searchTool) formatImageResults(body []byte, query string) (ToolResponse, error) {
+func (t *searchTool) formatImageResults(body []byte, query string) ToolResponse {
 	var imageResponse ImageSearchResponse
 	if err := json.Unmarshal(body, &imageResponse); err != nil {
-		return NewTextErrorResponse("Failed to parse image search results: " + err.Error()), nil
+		return NewTextErrorResponse("Failed to parse image search results: " + err.Error())
 	}
 
 	// Check if we have image results
 	if len(imageResponse.Results) == 0 {
-		return NewTextResponse("No image search results found."), nil
+		return NewTextResponse("No image search results found.")
 	}
 
 	// Format results for readability, limited to MaxSearchResults
@@ -540,5 +582,5 @@ func (t *searchTool) formatImageResults(body []byte, query string) (ToolResponse
 		}
 	}
 
-	return NewTextResponse(formattedOutput.String()), nil
+	return NewTextResponse(formattedOutput.String())
 }

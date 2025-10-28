@@ -11,20 +11,22 @@ import (
 )
 
 // Test helper functions
-func setupTempDir(t *testing.T) (string, func()) {
+func setupTempDir(t *testing.T) (dir string, cleanup func()) {
+	t.Helper()
 	tempDir, err := os.MkdirTemp("", "commands_test_*")
 	require.NoError(t, err)
 
-	cleanup := func() {
+	cleanupFunc := func() {
 		_ = os.RemoveAll(tempDir)
 	}
 
-	return tempDir, cleanup
+	return tempDir, cleanupFunc
 }
 
 func createTestCommandFile(t *testing.T, dir, filename, content string) string {
+	t.Helper()
 	filePath := filepath.Join(dir, filename)
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0o600)
 	require.NoError(t, err)
 	return filePath
 }
@@ -46,7 +48,7 @@ This is a test command with $ARGUMENTS placeholder.`
 
 	cmd, err := NewFileCommand("test", filePath)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "test", cmd.Name())
 	assert.Equal(t, "Test command", cmd.Description())
@@ -65,7 +67,7 @@ func TestNewFileCommandWithoutFrontmatter(t *testing.T) {
 
 	cmd, err := NewFileCommand("simple", filePath)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "simple", cmd.Name())
 	assert.Contains(t, cmd.Description(), "Custom command from simple.md")
 	assert.Equal(t, content, cmd.content)
@@ -88,7 +90,7 @@ This should be treated as regular content.`
 
 	cmd, err := NewFileCommand("incomplete", filePath)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, content, cmd.content) // Should treat entire content as prompt
 }
 
@@ -107,14 +109,14 @@ Command content`
 
 	_, err := NewFileCommand("invalid", filePath)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse YAML frontmatter")
 }
 
 func TestNewFileCommandFileNotFound(t *testing.T) {
 	_, err := NewFileCommand("nonexistent", "/nonexistent/file.md")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read command file")
 }
 
@@ -131,7 +133,7 @@ func TestFileCommandExecute(t *testing.T) {
 
 	result, err := cmd.Execute(context.Background(), "test args")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Execute command with test args here", result)
 }
 
@@ -147,7 +149,7 @@ func TestFileCommandExecuteNoArgs(t *testing.T) {
 
 	result, err := cmd.Execute(context.Background(), "")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Execute command with  here", result)
 }
 
@@ -162,7 +164,7 @@ func TestLoadCommandsFromDirectory(t *testing.T) {
 
 	// Create subdirectory with command
 	subDir := filepath.Join(tempDir, "sub")
-	err := os.MkdirAll(subDir, 0755)
+	err := os.MkdirAll(subDir, 0o750)
 	require.NoError(t, err)
 	createTestCommandFile(t, subDir, "subcmd.md", "Sub command content")
 
@@ -171,7 +173,7 @@ func TestLoadCommandsFromDirectory(t *testing.T) {
 
 	commands, err := LoadCommandsFromDirectory(tempDir)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, commands, 3)
 	assert.Contains(t, commands, "cmd1")
 	assert.Contains(t, commands, "cmd2")
@@ -182,7 +184,7 @@ func TestLoadCommandsFromDirectory(t *testing.T) {
 func TestLoadCommandsFromDirectoryNonexistent(t *testing.T) {
 	commands, err := LoadCommandsFromDirectory("/nonexistent/directory")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, commands)
 }
 
@@ -198,7 +200,7 @@ invalid: yaml: content: here
 
 	_, err := LoadCommandsFromDirectory(tempDir)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load command invalid")
 }
 
@@ -211,7 +213,7 @@ func TestParseFileWithEmptyContent(t *testing.T) {
 
 	err := cmd.parseFile("")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, cmd.content)
 	assert.Contains(t, cmd.description, "Custom command from empty.md")
 }
@@ -228,7 +230,7 @@ description: Only frontmatter
 
 	err := cmd.parseFile(content)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, cmd.content)
 	assert.Equal(t, "Only frontmatter", cmd.description)
 }
@@ -248,6 +250,6 @@ description: Test whitespace
 
 	err := cmd.parseFile(content)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Content with leading whitespace", cmd.content)
 }

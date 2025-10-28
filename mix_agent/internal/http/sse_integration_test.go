@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+const (
+	sseEventPrefix    = "event: "
+	sseDataPrefix     = "data: "
+	eventTypeConnected = "connected"
+)
+
 // TestEventData represents expected event data structures
 type TestEventData struct {
 	Type      string `json:"type"`
@@ -33,11 +39,12 @@ type SSEEvent struct {
 
 // Helper function to connect to persistent SSE stream
 func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, context.CancelFunc) {
+	t.Helper()
 	url := fmt.Sprintf("%s/stream?sessionId=%s", serverURL, sessionID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		cancel()
 		t.Fatalf("Failed to create SSE request: %v", err)
@@ -64,12 +71,19 @@ func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, cont
 // Helper function to send message to queue
 
 func sendMessageToQueue(t *testing.T, serverURL, sessionID, content string) {
+	t.Helper()
 	url := fmt.Sprintf("%s/stream/%s/message", serverURL, sessionID)
 
 	reqData := map[string]string{"content": content}
 	jsonData, _ := json.Marshal(reqData)
 
-	resp, err := http.Post(url, "application/json", strings.NewReader(string(jsonData)))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(jsonData)))
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to send message to queue: %v", err)
 	}
@@ -85,6 +99,7 @@ func sendMessageToQueue(t *testing.T, serverURL, sessionID, content string) {
 
 // Helper function to wait for and parse events from persistent connection
 func waitForEvents(t *testing.T, resp *http.Response, expectedMinEvents int, timeout time.Duration) []SSEEvent {
+	t.Helper()
 	var events []SSEEvent
 	eventChan := make(chan SSEEvent, 10)
 
@@ -106,10 +121,10 @@ func waitForEvents(t *testing.T, resp *http.Response, expectedMinEvents int, tim
 				continue
 			}
 
-			if strings.HasPrefix(line, "event: ") {
-				currentEvent.Type = strings.TrimPrefix(line, "event: ")
-			} else if strings.HasPrefix(line, "data: ") {
-				dataStr := strings.TrimPrefix(line, "data: ")
+			if strings.HasPrefix(line, sseEventPrefix) {
+				currentEvent.Type = strings.TrimPrefix(line, sseEventPrefix)
+			} else if strings.HasPrefix(line, sseDataPrefix) {
+				dataStr := strings.TrimPrefix(line, sseDataPrefix)
 				var data map[string]interface{}
 				if err := json.Unmarshal([]byte(dataStr), &data); err != nil {
 					t.Logf("Failed to parse event data: %v, data: %s", err, dataStr)
@@ -186,7 +201,7 @@ func TestSSEConnection(t *testing.T) {
 
 	// First event should be connected
 	firstEvent := events[0]
-	if firstEvent.Type != "connected" {
+	if firstEvent.Type != eventTypeConnected {
 		t.Errorf("Expected first event to be 'connected', got '%s'", firstEvent.Type)
 	}
 
@@ -224,14 +239,14 @@ func TestSSEContentStreaming(t *testing.T) {
 
 	// First event should be connected
 	firstEvent := events[0]
-	if firstEvent.Type != "connected" {
+	if firstEvent.Type != eventTypeConnected {
 		t.Errorf("Expected first event to be 'connected', got '%s'", firstEvent.Type)
 	}
 
 	// Look for completion event (might not be present if agent is still processing)
 	var completeEvent *SSEEvent
 	for _, event := range events {
-		if event.Type == "complete" {
+		if event.Type == eventTypeComplete {
 			completeEvent = &event
 			break
 		}
@@ -288,7 +303,7 @@ func TestSSEToolExecution(t *testing.T) {
 		switch event.Type {
 		case "tool":
 			toolEvents = append(toolEvents, event)
-		case "complete":
+		case eventTypeComplete:
 			completeEvent = &event
 		}
 	}
@@ -346,7 +361,7 @@ func TestSSEErrorHandling(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -414,14 +429,14 @@ func TestSSESlashCommandHelp(t *testing.T) {
 
 	// First event should be connected
 	firstEvent := events[0]
-	if firstEvent.Type != "connected" {
+	if firstEvent.Type != eventTypeConnected {
 		t.Errorf("Expected first event to be 'connected', got '%s'", firstEvent.Type)
 	}
 
 	// Look for completion event
 	var completeEvent *SSEEvent
 	for _, event := range events {
-		if event.Type == "complete" {
+		if event.Type == eventTypeComplete {
 			completeEvent = &event
 			break
 		}
@@ -495,7 +510,7 @@ func TestPersistentConnection(t *testing.T) {
 	// Wait for initial connected event
 	events := waitForEvents(t, resp, 1, 5*time.Second)
 
-	if len(events) != 1 || events[0].Type != "connected" {
+	if len(events) != 1 || events[0].Type != eventTypeConnected {
 		t.Fatalf("Expected exactly 1 connected event, got %d events", len(events))
 	}
 
@@ -546,9 +561,9 @@ func TestMultipleMessages(t *testing.T) {
 	var connectedCount int
 	for _, event := range allEvents {
 		switch event.Type {
-		case "complete":
+		case eventTypeComplete:
 			completeCount++
-		case "connected":
+		case eventTypeConnected:
 			connectedCount++
 		}
 	}

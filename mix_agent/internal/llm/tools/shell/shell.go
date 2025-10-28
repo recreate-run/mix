@@ -134,7 +134,9 @@ func newPersistentShell(cwd string) *PersistentShell {
 		shellArgs = []string{"-l"}
 	}
 
-	cmd := exec.Command(shellPath, shellArgs...)
+	// Use background context for long-lived shell process
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, shellPath, shellArgs...)
 	cmd.Dir = cwd
 
 	stdinPipe, err := cmd.StdinPipe()
@@ -222,7 +224,7 @@ echo $EXEC_EXIT_CODE > %s
 		shellQuote(statusFile),
 	)
 
-	_, err := s.stdin.Write([]byte(fullCommand + "\n"))
+	_, err := s.stdin.WriteString(fullCommand + "\n")
 	if err != nil {
 		return commandResult{
 			stderr:   fmt.Sprintf("Failed to write command to shell: %v", err),
@@ -299,7 +301,8 @@ func (s *PersistentShell) killChildren() {
 		return
 	}
 
-	pgrepCmd := exec.Command("pgrep", "-P", fmt.Sprintf("%d", s.cmd.Process.Pid))
+	ctx := context.Background()
+	pgrepCmd := exec.CommandContext(ctx, "pgrep", "-P", fmt.Sprintf("%d", s.cmd.Process.Pid))
 	output, err := pgrepCmd.Output()
 	if err != nil {
 		return
@@ -319,7 +322,7 @@ func (s *PersistentShell) killChildren() {
 	}
 }
 
-func (s *PersistentShell) Exec(ctx context.Context, command string, timeoutMs int) (string, string, int, bool, error) {
+func (s *PersistentShell) Exec(ctx context.Context, command string, timeoutMs int) (stdout, stderr string, exitCode int, interrupted bool, err error) {
 	if !s.IsAlive() {
 		return "", "Shell is not alive", 1, false, errors.New("shell is not alive")
 	}
@@ -346,7 +349,7 @@ func (s *PersistentShell) Close() {
 		return
 	}
 
-	_, _ = s.stdin.Write([]byte("exit\n"))
+	_, _ = s.stdin.WriteString("exit\n")
 
 	_ = s.cmd.Process.Kill()
 	s.isAlive = false

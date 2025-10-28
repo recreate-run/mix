@@ -59,9 +59,9 @@ func bashDescription() string {
 	return LoadToolDescription("bash")
 }
 
-func NewBashTool(permission permission.Service) BaseTool {
+func NewBashTool(permissionSvc permission.Service) BaseTool {
 	return &bashTool{
-		permissions: permission,
+		permissions: permissionSvc,
 	}
 }
 
@@ -86,7 +86,7 @@ func (b *bashTool) Info() ToolInfo {
 func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 	var params BashParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
-		return NewTextErrorResponse("invalid parameters"), nil
+		return NewTextErrorResponse("invalid parameters"), fmt.Errorf("failed to unmarshal bash parameters: %w", err)
 	}
 
 	if params.Timeout > MaxTimeout {
@@ -142,16 +142,16 @@ func (b *bashTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 			},
 		)
 		if !p {
-			return ToolResponse{}, permission.ErrorPermissionDenied
+			return ToolResponse{}, permission.ErrPermissionDenied
 		}
 	}
 
-	shell, err := shell.GetPersistentShell(sessionStorageDir)
+	sh, err := shell.GetPersistentShell(sessionStorageDir)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("failed to get shell for session: %w", err)
 	}
 
-	stdout, stderr, exitCode, interrupted, err := shell.Exec(ctx, params.Command, params.Timeout)
+	stdout, stderr, exitCode, interrupted, err := sh.Exec(ctx, params.Command, params.Timeout)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error executing command: %w", err)
 	}

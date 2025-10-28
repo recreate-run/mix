@@ -196,6 +196,7 @@ func TestConcurrentSessionOperations(t *testing.T) {
 			}
 
 			createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+			defer func() { _ = createResp.Body.Close() }()
 
 			if createResp.StatusCode == http.StatusCreated {
 				sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
@@ -378,11 +379,13 @@ func TestSessionIsolationUnderLoad(t *testing.T) {
 
 // createTestSessionForConcurrency creates a test session with a specific title
 func createTestSessionForConcurrency(t *testing.T, result *TestServerResult, title string) string {
+	t.Helper()
 	sessionRequest := map[string]interface{}{
 		"title": title,
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID, ok := sessionData["id"].(string)
@@ -395,6 +398,7 @@ func createTestSessionForConcurrency(t *testing.T, result *TestServerResult, tit
 
 // createMultipleTestSessions creates multiple test sessions concurrently
 func createMultipleTestSessions(t *testing.T, result *TestServerResult, count int) []string {
+	t.Helper()
 	var wg sync.WaitGroup
 	sessionIDs := make(chan string, count)
 
@@ -461,6 +465,7 @@ func TestNoConcurrencyRegressions(t *testing.T) {
 
 	msgResp := makeJSONRequest(t, result.Server, "POST",
 		"/api/sessions/"+sessionID+"/messages", messageRequest)
+	defer func() { _ = msgResp.Body.Close() }()
 
 	if msgResp.StatusCode != http.StatusOK {
 		t.Fatalf("Basic message functionality broken: expected status %d, got %d",
@@ -502,9 +507,9 @@ func TestErrorHandlingUnderConcurrency(t *testing.T) {
 		"Try to access a restricted resource",
 	}
 
-	for i, testCase := range testCases {
+	for _, testCase := range testCases {
 		wg.Add(1)
-		go func(index int, content string) {
+		go func(content string) {
 			defer wg.Done()
 
 			messageRequest := map[string]interface{}{
@@ -529,7 +534,7 @@ func TestErrorHandlingUnderConcurrency(t *testing.T) {
 				Duration:  duration,
 				Success:   success,
 			}
-		}(i, testCase)
+		}(testCase)
 	}
 
 	wg.Wait()

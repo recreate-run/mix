@@ -365,11 +365,11 @@ func TestParseIntParam(t *testing.T) {
 			result, err := parseIntParam(tt.param, tt.paramName)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 				assert.Equal(t, int64(0), result)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
 		})
@@ -415,13 +415,13 @@ func TestParseJSONBody(t *testing.T) {
 			// Prepare request body
 			var req *http.Request
 			if tt.body == nil {
-				req = httptest.NewRequest("POST", "/test", nil)
+				req = httptest.NewRequest(http.MethodPost, "/test", http.NoBody)
 			} else if str, ok := tt.body.(string); ok {
-				req = httptest.NewRequest("POST", "/test", bytes.NewReader([]byte(str)))
+				req = httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader([]byte(str)))
 			} else {
 				bodyBytes, err := json.Marshal(tt.body)
 				require.NoError(t, err)
-				req = httptest.NewRequest("POST", "/test", bytes.NewReader(bodyBytes))
+				req = httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(bodyBytes))
 			}
 			req.Header.Set("Content-Type", "application/json")
 
@@ -429,16 +429,17 @@ func TestParseJSONBody(t *testing.T) {
 			err := parseJSONBody(req, tt.target)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				// Verify data was parsed correctly
-				if expectedMap, ok := tt.body.(map[string]string); ok {
+				switch v := tt.body.(type) {
+				case map[string]string:
 					actualMap := tt.target.(*map[string]string)
-					assert.Equal(t, expectedMap, *actualMap)
-				} else if expectedSlice, ok := tt.body.([]string); ok {
+					assert.Equal(t, v, *actualMap)
+				case []string:
 					actualSlice := tt.target.(*[]string)
-					assert.Equal(t, expectedSlice, *actualSlice)
+					assert.Equal(t, v, *actualSlice)
 				}
 			}
 		})
@@ -487,7 +488,7 @@ func TestHandleCORSPreflight(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest(tt.method, "/test", nil)
+			req := httptest.NewRequest(tt.method, "/test", http.NoBody)
 
 			result := handleCORSPreflight(w, req)
 

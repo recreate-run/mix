@@ -15,6 +15,10 @@ import (
 	"mix/internal/session"
 )
 
+const (
+	eventTypeTool = "tool"
+)
+
 // Connection represents a single SSE connection
 type Connection struct {
 	SessionID       string
@@ -99,7 +103,7 @@ func (r *ConnectionRegistry) BroadcastToAll(eventType string, data interface{}) 
 }
 
 // BroadcastEvent broadcasts a structured event to all connections for a specific session
-func (r *ConnectionRegistry) BroadcastEvent(sessionID string, eventType string, data interface{}) {
+func (r *ConnectionRegistry) BroadcastEvent(sessionID, eventType string, data interface{}) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -120,7 +124,7 @@ func (r *ConnectionRegistry) BroadcastEvent(sessionID string, eventType string, 
 }
 
 // HandleSSEStream handles persistent Server-Sent Events streaming for agent responses
-func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r *http.Request) {
+func HandleSSEStream(ctx context.Context, application *app.App, w http.ResponseWriter, r *http.Request) {
 	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -128,7 +132,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
 
-	if r.Method == "OPTIONS" {
+	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -169,7 +173,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	// Current workaround: Clients can reconnect and continue from current conversation state.
 
 	// Validate session exists
-	_, err := app.Sessions.Get(ctx, sessionID)
+	_, err := application.Sessions.Get(ctx, sessionID)
 	if err != nil {
 		// Error already handled by SSEWriter
 		_ = sseWriter.WriteEvent("error", ErrorEvent{Error: fmt.Sprintf("Invalid session ID: %s", sessionID)})
@@ -201,7 +205,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	}
 
 	// Subscribe to permission events for this session
-	permissionEvents := app.Permissions.Subscribe(ctx)
+	permissionEvents := application.Permissions.Subscribe(ctx)
 
 	// Handle permission events in a separate goroutine with high priority
 	go func() {
@@ -246,7 +250,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 	sessionEventBroadcaster.Do(func() {
 		go func() {
 			// Use background context - this subscription outlives individual connections
-			sessionEvents := app.Sessions.Subscribe(context.Background())
+			sessionEvents := application.Sessions.Subscribe(context.Background())
 			for sessionEvent := range sessionEvents {
 				switch sessionEvent.Type {
 				case pubsub.CreatedEvent:
@@ -291,7 +295,7 @@ func HandleSSEStream(ctx context.Context, app *app.App, w http.ResponseWriter, r
 
 		case <-ctx.Done():
 			// Handler context cancelled (server shutdown, timeout, etc.)
-			app.CoderAgent.CancelWithReason(sessionID, "server_shutdown")
+			application.CoderAgent.CancelWithReason(sessionID, "server_shutdown")
 			return
 
 		case <-heartbeat.C:
@@ -351,7 +355,7 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 				status = "completed"
 			}
 
-			if err := sseWriter.WriteEvent("tool", ToolEvent{Type: "tool", Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status}); err != nil {
+			if err := sseWriter.WriteEvent(eventTypeTool, ToolEvent{Type: eventTypeTool, Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status}); err != nil {
 				return err
 			}
 		}
@@ -378,7 +382,8 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 		errMsg := event.Error.Error()
 
 		// Special handling for rate limit errors
-		if strings.Contains(errMsg, "rate_limit_error") {
+		switch {
+		case strings.Contains(errMsg, "rate_limit_error"):
 			// Extract retry information if available
 			retryAfter := 60 // Default retry after 60 seconds
 			attempt := 1
@@ -408,16 +413,16 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 				return err
 			}
 
-			// Special handling for authentication errors
-		} else if strings.Contains(errMsg, "authentication_error") ||
+		case strings.Contains(errMsg, "authentication_error") ||
 			strings.Contains(errMsg, "x-api-key header is required") ||
-			strings.Contains(errMsg, "401 Unauthorized") {
+			strings.Contains(errMsg, "401 Unauthorized"):
 			// Create a more helpful error message
 			helpfulMsg := "Authentication failed: Not logged in or token expired. Please use /login to authenticate with Claude Code."
 			if err := sseWriter.WriteEvent("error", ErrorEvent{Error: helpfulMsg}); err != nil {
 				return err
 			}
-		} else {
+
+		default:
 			// Normal error handling
 			if err := sseWriter.WriteEvent("error", ErrorEvent{Error: errMsg}); err != nil {
 				return err
@@ -426,7 +431,7 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 
 	case agent.AgentEventTypeToolExecutionStart:
 		// Extract tool name from progress message
-		toolName := "tool" // Default fallback
+		toolName := eventTypeTool // Default fallback
 		if strings.Contains(event.Progress, "Executing ") && strings.Contains(event.Progress, " tool") {
 			// Extract tool name from "Executing {toolName} tool"
 			start := strings.Index(event.Progress, "Executing ") + len("Executing ")
@@ -447,7 +452,7 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 
 	case agent.AgentEventTypeToolExecutionComplete:
 		// Extract tool name and success status from progress message
-		toolName := "tool" // Default fallback
+		toolName := eventTypeTool // Default fallback
 		success := true    // Default to success
 
 		if strings.Contains(event.Progress, "Completed ") && strings.Contains(event.Progress, " tool") {

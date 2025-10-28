@@ -26,16 +26,16 @@ const (
 	SessionStorageContextKey = interfaces.SessionStorageContextKey
 )
 
-func GetContextValues(ctx context.Context) (string, string) {
-	sessionID := ctx.Value(SessionIDContextKey)
-	messageID := ctx.Value(MessageIDContextKey)
-	if sessionID == nil {
+func GetContextValues(ctx context.Context) (sessionID, messageID string) {
+	sessionIDVal := ctx.Value(SessionIDContextKey)
+	messageIDVal := ctx.Value(MessageIDContextKey)
+	if sessionIDVal == nil {
 		return "", ""
 	}
-	if messageID == nil {
-		return sessionID.(string), ""
+	if messageIDVal == nil {
+		return sessionIDVal.(string), ""
 	}
-	return sessionID.(string), messageID.(string)
+	return sessionIDVal.(string), messageIDVal.(string)
 }
 
 // GetSessionStorageDirectory safely extracts the session storage directory from context

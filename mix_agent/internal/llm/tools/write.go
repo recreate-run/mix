@@ -114,7 +114,7 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	}
 
 	dir := filepath.Dir(filePath)
-	if err = os.MkdirAll(dir, 0o755); err != nil {
+	if err = os.MkdirAll(dir, 0o750); err != nil {
 		return ToolResponse{}, fmt.Errorf("error creating directory: %w", err)
 	}
 
@@ -156,10 +156,10 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 		},
 	)
 	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
+		return ToolResponse{}, permission.ErrPermissionDenied
 	}
 
-	err = os.WriteFile(filePath, []byte(params.Content), 0o644)
+	err = os.WriteFile(filePath, []byte(params.Content), 0o600)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error writing file: %w", err)
 	}

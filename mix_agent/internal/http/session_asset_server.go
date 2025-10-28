@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"image"
@@ -33,9 +34,9 @@ type SessionAssetHandler struct {
 }
 
 // NewSessionAssetHandler creates a new session asset handler
-func NewSessionAssetHandler(app *app.App, storageConfig session.Config) *SessionAssetHandler {
+func NewSessionAssetHandler(a *app.App, storageConfig session.Config) *SessionAssetHandler {
 	handler := &SessionAssetHandler{
-		app:           app,
+		app:           a,
 		storageConfig: storageConfig,
 	}
 
@@ -60,6 +61,10 @@ var (
 const (
 	MaxThumbnailSize = 1024 // Max width or height for thumbnails
 	MinThumbnailSize = 16   // Min width or height for thumbnails
+
+	thumbTypeBox    = "box"
+	thumbTypeWidth  = "width"
+	thumbTypeHeight = "height"
 )
 
 // File type checking functions
@@ -93,7 +98,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -193,7 +198,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 		timeParam := r.URL.Query().Get("time")
 
 		// Generate thumbnail using temp file
-		if err := h.serveThumbnail(w, r, sessionID, tempPath, thumbParam, timeParam); err != nil {
+		if err := h.serveThumbnail(w, r, tempPath, thumbParam, timeParam); err != nil {
 			logging.Error("Thumbnail generation failed", "tempPath", tempPath, "error", err)
 			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
 			return
@@ -227,43 +232,43 @@ func (h *SessionAssetHandler) parseThumbnailSpec(thumbParam string) (*ThumbnailS
 	if matches := boxSizeRegex.FindStringSubmatch(thumbParam); len(matches) == 2 {
 		size, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return nil, fmt.Errorf("invalid size: %v", err)
+			return nil, fmt.Errorf("invalid size: %w", err)
 		}
 		if size < MinThumbnailSize || size > MaxThumbnailSize {
 			return nil, fmt.Errorf("size must be between %d and %d", MinThumbnailSize, MaxThumbnailSize)
 		}
-		return &ThumbnailSpec{Type: "box", Size: size, Width: size, Height: size}, nil
+		return &ThumbnailSpec{Type: thumbTypeBox, Size: size, Width: size, Height: size}, nil
 	}
 
 	// Try width format: "w100" (width 100, height auto)
 	if matches := widthSizeRegex.FindStringSubmatch(thumbParam); len(matches) == 2 {
 		size, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return nil, fmt.Errorf("invalid width: %v", err)
+			return nil, fmt.Errorf("invalid width: %w", err)
 		}
 		if size < MinThumbnailSize || size > MaxThumbnailSize {
 			return nil, fmt.Errorf("width must be between %d and %d", MinThumbnailSize, MaxThumbnailSize)
 		}
-		return &ThumbnailSpec{Type: "width", Size: size, Width: size, Height: 0}, nil
+		return &ThumbnailSpec{Type: thumbTypeWidth, Size: size, Width: size, Height: 0}, nil
 	}
 
 	// Try height format: "h100" (height 100, width auto)
 	if matches := heightSizeRegex.FindStringSubmatch(thumbParam); len(matches) == 2 {
 		size, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return nil, fmt.Errorf("invalid height: %v", err)
+			return nil, fmt.Errorf("invalid height: %w", err)
 		}
 		if size < MinThumbnailSize || size > MaxThumbnailSize {
 			return nil, fmt.Errorf("height must be between %d and %d", MinThumbnailSize, MaxThumbnailSize)
 		}
-		return &ThumbnailSpec{Type: "height", Size: size, Width: 0, Height: size}, nil
+		return &ThumbnailSpec{Type: thumbTypeHeight, Size: size, Width: 0, Height: size}, nil
 	}
 
 	return nil, fmt.Errorf("invalid thumbnail format, use: 100 (box), w100 (width), or h100 (height)")
 }
 
 // generateThumbnailKey creates a consistent storage key for thumbnails
-func (h *SessionAssetHandler) generateThumbnailKey(sessionID, originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
+func (h *SessionAssetHandler) generateThumbnailKey(originalPath string, spec *ThumbnailSpec, timeOffset float64) string {
 	// Create hash of original path for consistent naming
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(originalPath)))
 
@@ -276,11 +281,11 @@ func (h *SessionAssetHandler) generateThumbnailKey(sessionID, originalPath strin
 	}
 
 	switch spec.Type {
-	case "box":
+	case thumbTypeBox:
 		filename = fmt.Sprintf("%s_box%d%s.jpg", hash, spec.Size, timeSuffix)
-	case "width":
+	case thumbTypeWidth:
 		filename = fmt.Sprintf("%s_w%d%s.jpg", hash, spec.Size, timeSuffix)
-	case "height":
+	case thumbTypeHeight:
 		filename = fmt.Sprintf("%s_h%d%s.jpg", hash, spec.Size, timeSuffix)
 	default:
 		filename = fmt.Sprintf("%s_unknown%s.jpg", hash, timeSuffix)
@@ -290,7 +295,7 @@ func (h *SessionAssetHandler) generateThumbnailKey(sessionID, originalPath strin
 }
 
 // serveThumbnail handles thumbnail generation and serving for both videos and images
-func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Request, sessionID, mediaPath, thumbParam, timeParam string) error {
+func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Request, mediaPath, thumbParam, timeParam string) error {
 	ctx := r.Context()
 
 	// Parse thumbnail specification
@@ -313,7 +318,7 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Generate thumbnail storage key with time offset
-	thumbnailKey := h.generateThumbnailKey(sessionID, mediaPath, spec, timeOffset)
+	thumbnailKey := h.generateThumbnailKey(mediaPath, spec, timeOffset)
 
 	// Check if thumbnail already exists in storage
 	exists, err := h.app.StorageProvider.Exists(ctx, thumbnailKey)
@@ -341,7 +346,7 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	tmpFile, err := os.CreateTemp("", "thumbnail-*.jpg")
 	if err != nil {
 		logging.Error("Failed to create temp file for thumbnail", "error", err)
-		return fmt.Errorf("failed to create temp file: %v", err)
+		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
 	_ = tmpFile.Close()
@@ -350,17 +355,18 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	}() // Clean up temp file after upload
 
 	// Generate thumbnail using FFmpeg based on file type
-	if isVideoFile(mediaPath) {
+	switch {
+	case isVideoFile(mediaPath):
 		if err := h.generateVideoThumbnail(mediaPath, tmpPath, spec, timeOffset); err != nil {
 			logging.Error("Failed to generate video thumbnail", "error", err)
 			return err
 		}
-	} else if isImageFile(mediaPath) {
+	case isImageFile(mediaPath):
 		if err := h.generateImageThumbnail(mediaPath, tmpPath, spec); err != nil {
 			logging.Error("Failed to generate image thumbnail", "error", err)
 			return err
 		}
-	} else {
+	default:
 		logging.Error("Unsupported file type for thumbnail", "mediaPath", mediaPath)
 		return fmt.Errorf("unsupported file type for thumbnail generation")
 	}
@@ -369,7 +375,7 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	thumbnailFile, err := os.Open(tmpPath)
 	if err != nil {
 		logging.Error("Failed to open generated thumbnail", "tmpPath", tmpPath, "error", err)
-		return fmt.Errorf("failed to open generated thumbnail: %v", err)
+		return fmt.Errorf("failed to open generated thumbnail: %w", err)
 	}
 	defer func() {
 		_ = thumbnailFile.Close()
@@ -378,13 +384,13 @@ func (h *SessionAssetHandler) serveThumbnail(w http.ResponseWriter, r *http.Requ
 	_, err = h.app.StorageProvider.Upload(ctx, thumbnailKey, thumbnailFile, "image/jpeg")
 	if err != nil {
 		logging.Error("Failed to upload thumbnail to storage", "key", thumbnailKey, "error", err)
-		return fmt.Errorf("failed to upload thumbnail: %v", err)
+		return fmt.Errorf("failed to upload thumbnail: %w", err)
 	}
 
 	// Serve the thumbnail directly (works for both local and remote storage)
 	if _, err := thumbnailFile.Seek(0, 0); err != nil {
 		logging.Error("Failed to seek thumbnail file", "error", err)
-		return fmt.Errorf("failed to seek thumbnail file: %v", err)
+		return fmt.Errorf("failed to seek thumbnail file: %w", err)
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
@@ -397,13 +403,13 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 	// Build FFmpeg scale filter based on thumbnail specification
 	var scaleFilter string
 	switch spec.Type {
-	case "box":
+	case thumbTypeBox:
 		// Fit within box while maintaining aspect ratio
 		scaleFilter = fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease", spec.Size, spec.Size)
-	case "width":
+	case thumbTypeWidth:
 		// Fixed width, auto height (maintains aspect ratio)
 		scaleFilter = fmt.Sprintf("scale=%d:-1", spec.Size)
-	case "height":
+	case thumbTypeHeight:
 		// Fixed height, auto width (maintains aspect ratio)
 		scaleFilter = fmt.Sprintf("scale=-1:%d", spec.Size)
 	default:
@@ -414,7 +420,8 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 	timeStr := fmt.Sprintf("%.2f", timeOffset)
 
 	// FFmpeg command to extract frame at specified time, scale maintaining aspect ratio, and save as JPEG
-	cmd := exec.Command("ffmpeg",
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-i", videoPath,
 		"-ss", timeStr,
 		"-frames:v", "1",
@@ -436,7 +443,7 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 			"ffmpegCommand", cmd.Args,
 			"error", err,
 			"ffmpegOutput", string(output))
-		return fmt.Errorf("ffmpeg failed: %v, output: %s", err, string(output))
+		return fmt.Errorf("ffmpeg failed: %w, output: %s", err, string(output))
 	}
 
 	// Verify thumbnail was created
@@ -444,7 +451,7 @@ func (h *SessionAssetHandler) generateVideoThumbnail(videoPath, thumbnailPath st
 		logging.Error("FFmpeg thumbnail verification failed",
 			"expectedThumbnailPath", thumbnailPath,
 			"verificationError", err)
-		return fmt.Errorf("thumbnail file not created: %v", err)
+		return fmt.Errorf("thumbnail file not created: %w", err)
 	}
 
 	return nil
@@ -455,7 +462,7 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	// Open source image file
 	sourceFile, err := os.Open(imagePath)
 	if err != nil {
-		return fmt.Errorf("failed to open source image: %v", err)
+		return fmt.Errorf("failed to open source image: %w", err)
 	}
 	defer func() {
 		_ = sourceFile.Close()
@@ -464,7 +471,7 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	// Decode image (supports JPEG, PNG, GIF automatically via imported decoders)
 	sourceImage, _, err := image.Decode(sourceFile)
 	if err != nil {
-		return fmt.Errorf("failed to decode image: %v", err)
+		return fmt.Errorf("failed to decode image: %w", err)
 	}
 
 	// Get original dimensions
@@ -476,7 +483,7 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	var targetWidth, targetHeight uint
 
 	switch spec.Type {
-	case "box":
+	case thumbTypeBox:
 		// Fit within box while maintaining aspect ratio
 		if originalWidth > originalHeight {
 			targetWidth = uint(spec.Size)
@@ -485,11 +492,11 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 			targetWidth = 0 // Auto-calculate to maintain aspect ratio
 			targetHeight = uint(spec.Size)
 		}
-	case "width":
+	case thumbTypeWidth:
 		// Fixed width, auto height (maintains aspect ratio)
 		targetWidth = uint(spec.Size)
 		targetHeight = 0
-	case "height":
+	case thumbTypeHeight:
 		// Fixed height, auto width (maintains aspect ratio)
 		targetWidth = 0
 		targetHeight = uint(spec.Size)
@@ -503,7 +510,7 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	// Create output file
 	outputFile, err := os.Create(thumbnailPath)
 	if err != nil {
-		return fmt.Errorf("failed to create thumbnail file: %v", err)
+		return fmt.Errorf("failed to create thumbnail file: %w", err)
 	}
 	defer func() {
 		_ = outputFile.Close()
@@ -512,7 +519,7 @@ func (h *SessionAssetHandler) generateImageThumbnail(imagePath, thumbnailPath st
 	// Encode as JPEG with high quality (quality 90 out of 100)
 	jpegOptions := &jpeg.Options{Quality: 90}
 	if err := jpeg.Encode(outputFile, resizedImage, jpegOptions); err != nil {
-		return fmt.Errorf("failed to encode JPEG: %v", err)
+		return fmt.Errorf("failed to encode JPEG: %w", err)
 	}
 
 	return nil
@@ -524,7 +531,7 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 	// Try to get session-specific storage root
 	sessionRoot, err := session.GetSessionRoot(sessionID, h.storageConfig)
 	if err != nil {
-		return false, fmt.Errorf("getting session root: %v", err)
+		return false, fmt.Errorf("getting session root: %w", err)
 	}
 	defer func() { _ = sessionRoot.Close() }()
 
@@ -559,7 +566,7 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 		// Parse optional time parameter for video segments
 		timeParam := r.URL.Query().Get("time")
 
-		if err := h.serveThumbnail(w, r, sessionID, filePath, thumbParam, timeParam); err != nil {
+		if err := h.serveThumbnail(w, r, filePath, thumbParam, timeParam); err != nil {
 			logging.Error("Thumbnail generation failed", "filePath", filePath, "error", err)
 			http.Error(w, fmt.Sprintf("Thumbnail generation failed: %v", err), http.StatusInternalServerError)
 			return true, nil
@@ -575,7 +582,7 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 	// Serve the file using session storage Root for security
 	file, err := sessionRoot.Open(filename)
 	if err != nil {
-		return false, fmt.Errorf("opening session file: %v", err)
+		return false, fmt.Errorf("opening session file: %w", err)
 	}
 	defer func() {
 		_ = file.Close()

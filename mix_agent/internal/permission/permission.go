@@ -18,7 +18,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrorPermissionDenied = errors.New("permission denied")
+var ErrPermissionDenied = errors.New("permission denied")
 
 type CreatePermissionRequest struct {
 	SessionID   string `json:"session_id"`

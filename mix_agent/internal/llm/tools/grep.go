@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -39,7 +40,11 @@ type grepTool struct {
 }
 
 const (
-	GrepToolName = "Grep"
+	GrepToolName                  = "Grep"
+	outputModeFilesWithMatches    = "files_with_matches"
+	outputModeContent             = "content"
+	outputModeCount               = "count"
+	truncatedResultsMessage       = "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
 )
 
 func NewGrepTool(permissions permission.Service) BaseTool {
@@ -72,7 +77,7 @@ func (g *grepTool) Info() ToolInfo {
 			"output_mode": map[string]any{
 				"type":        "string",
 				"description": "Output mode: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (supports head_limit), \"count\" shows match counts (supports head_limit). Defaults to \"files_with_matches\".",
-				"enum":        []string{"content", "files_with_matches", "count"},
+				"enum":        []string{outputModeContent, outputModeFilesWithMatches, outputModeCount},
 			},
 			"-i": map[string]any{
 				"type":        "boolean",
@@ -119,7 +124,7 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 
 	// Default output mode
 	if params.OutputMode == "" {
-		params.OutputMode = "files_with_matches"
+		params.OutputMode = outputModeFilesWithMatches
 	}
 
 	searchPath := params.Path
@@ -149,10 +154,10 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		},
 	)
 	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
+		return ToolResponse{}, permission.ErrPermissionDenied
 	}
 
-	output, count, truncated, err := searchFilesAdvanced(params, searchPath)
+	output, count, truncated, err := searchFilesAdvanced(ctx, params, searchPath)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error searching files: %w", err)
 	}
@@ -166,8 +171,8 @@ func (g *grepTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 	), nil
 }
 
-func searchFilesAdvanced(params GrepParams, searchPath string) (string, int, bool, error) {
-	_, err := exec.LookPath("rg")
+func searchFilesAdvanced(ctx context.Context, params GrepParams, searchPath string) (output string, count int, truncated bool, err error) {
+	_, err = exec.LookPath("rg")
 	if err != nil {
 		return "", 0, false, fmt.Errorf("ripgrep not found: %w", err)
 	}
@@ -175,27 +180,28 @@ func searchFilesAdvanced(params GrepParams, searchPath string) (string, int, boo
 	args := buildRipgrepArgs(params)
 	args = append(args, searchPath)
 
-	cmd := exec.Command("rg", args...)
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+	cmd := exec.CommandContext(ctx, "rg", args...)
+	outputBytes, cmdErr := cmd.Output()
+	if cmdErr != nil {
+		var exitErr *exec.ExitError
+		if errors.As(cmdErr, &exitErr) && exitErr.ExitCode() == 1 {
 			return "No matches found", 0, false, nil
 		}
-		return "", 0, false, err
+		return "", 0, false, cmdErr
 	}
 
-	outputStr := string(output)
+	outputStr := string(outputBytes)
 	if outputStr == "" {
 		return "No matches found", 0, false, nil
 	}
 
 	// Process output based on mode
 	switch params.OutputMode {
-	case "content":
+	case outputModeContent:
 		return processContentOutput(outputStr, params)
-	case "files_with_matches":
+	case outputModeFilesWithMatches:
 		return processFilesOutput(outputStr, params)
-	case "count":
+	case outputModeCount:
 		return processCountOutput(outputStr, params)
 	default:
 		return "", 0, false, fmt.Errorf("unknown output mode: %s", params.OutputMode)
@@ -207,11 +213,11 @@ func buildRipgrepArgs(params GrepParams) []string {
 
 	// Output format based on mode
 	switch params.OutputMode {
-	case "files_with_matches":
+	case outputModeFilesWithMatches:
 		args = append(args, "-l") // --files-with-matches
-	case "count":
+	case outputModeCount:
 		args = append(args, "-c") // --count
-	case "content":
+	case outputModeContent:
 		args = append(args, "-H") // Include filename
 		if params.ShowLineNumbers {
 			args = append(args, "-n") // Line numbers
@@ -253,11 +259,11 @@ func buildRipgrepArgs(params GrepParams) []string {
 	return args
 }
 
-func processContentOutput(output string, params GrepParams) (string, int, bool, error) {
+func processContentOutput(output string, params GrepParams) (result string, count int, truncated bool, err error) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
 	// Apply head_limit to output lines
-	truncated := false
+	truncated = false
 	if params.HeadLimit > 0 && len(lines) > params.HeadLimit {
 		lines = lines[:params.HeadLimit]
 		truncated = true
@@ -281,15 +287,15 @@ func processContentOutput(output string, params GrepParams) (string, int, bool, 
 		}
 	}
 
-	result := strings.Join(lines, "\n")
+	result = strings.Join(lines, "\n")
 	if truncated {
-		result += "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
+		result += truncatedResultsMessage
 	}
 
 	return result, len(fileSet), truncated, nil
 }
 
-func processFilesOutput(output string, params GrepParams) (string, int, bool, error) {
+func processFilesOutput(output string, params GrepParams) (outputStr string, count int, truncated bool, err error) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
 	// Parse file paths and get modification times
@@ -319,7 +325,7 @@ func processFilesOutput(output string, params GrepParams) (string, int, bool, er
 	})
 
 	// Apply head_limit
-	truncated := false
+	truncated = false
 	if params.HeadLimit > 0 && len(filesWithTimes) > params.HeadLimit {
 		filesWithTimes = filesWithTimes[:params.HeadLimit]
 		truncated = true
@@ -331,15 +337,15 @@ func processFilesOutput(output string, params GrepParams) (string, int, bool, er
 		result[i] = f.path
 	}
 
-	outputStr := strings.Join(result, "\n")
+	outputStr = strings.Join(result, "\n")
 	if truncated {
-		outputStr += "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
+		outputStr += truncatedResultsMessage
 	}
 
 	return outputStr, len(filesWithTimes), truncated, nil
 }
 
-func processCountOutput(output string, params GrepParams) (string, int, bool, error) {
+func processCountOutput(output string, params GrepParams) (outputStr string, count int, truncated bool, err error) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
 	// Parse count entries and get modification times
@@ -381,7 +387,7 @@ func processCountOutput(output string, params GrepParams) (string, int, bool, er
 	})
 
 	// Apply head_limit
-	truncated := false
+	truncated = false
 	if params.HeadLimit > 0 && len(entries) > params.HeadLimit {
 		entries = entries[:params.HeadLimit]
 		truncated = true
@@ -395,9 +401,9 @@ func processCountOutput(output string, params GrepParams) (string, int, bool, er
 		totalCount += e.count
 	}
 
-	outputStr := strings.Join(result, "\n")
+	outputStr = strings.Join(result, "\n")
 	if truncated {
-		outputStr += "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
+		outputStr += truncatedResultsMessage
 	}
 
 	return outputStr, len(entries), truncated, nil

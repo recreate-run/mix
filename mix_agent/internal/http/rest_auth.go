@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -23,9 +24,9 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(app *app.App) *AuthHandler {
+func NewAuthHandler(appInstance *app.App) *AuthHandler {
 	return &AuthHandler{
-		app: app,
+		app: appInstance,
 	}
 }
 
@@ -59,7 +60,7 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -139,7 +140,7 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if r.Method != "DELETE" {
+	if r.Method != http.MethodDelete {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -184,7 +185,7 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 	}
 
 	// Also clear OAuth credentials if this provider supports OAuth
-	if provider == "anthropic" || provider == "openai" {
+	if provider == providerAnthropic || provider == "openai" {
 		if err := credentialsService.DeleteOAuthCredentials(ctx, provider); err != nil {
 			logging.Warn("Failed to delete OAuth credentials", "error", err, "provider", provider)
 		}
@@ -206,7 +207,7 @@ func (h *AuthHandler) HandleAuthStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -224,7 +225,7 @@ func (h *AuthHandler) HandleStartOAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -242,7 +243,7 @@ func (h *AuthHandler) HandleStartOAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Currently only Anthropic supports OAuth
-	if provider != "anthropic" {
+	if provider != providerAnthropic {
 		WriteErrorResponse(w, http.StatusBadRequest, "OAuth not supported for this provider", "OAUTH_NOT_SUPPORTED")
 		return
 	}
@@ -274,7 +275,7 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -311,7 +312,7 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 
 		// Check OAuth for Anthropic if no API key
 		if !isAuthenticated && preferredProvider == models.ProviderAnthropic {
-			if h.checkOAuthCredentials("anthropic") {
+			if h.checkOAuthCredentials(providerAnthropic) {
 				isAuthenticated = true
 				authMethod = "oauth"
 			}
@@ -335,7 +336,7 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 
 // supportedProviders defines the limited set of providers we support
 var supportedProviders = map[string]struct{}{
-	"anthropic":  {},
+	providerAnthropic:  {},
 	"openai":     {},
 	"openrouter": {},
 	"gemini":     {},
@@ -349,7 +350,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -378,7 +379,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	}
 
 	// Currently only Anthropic supports OAuth
-	if req.Provider != "anthropic" {
+	if req.Provider != providerAnthropic {
 		// Track failed authentication attempt for unsupported provider
 		if h.app.Analytics != nil {
 			_ = h.app.Analytics.TrackProviderAuth(r.Context(), req.Provider, false, "oauth")
@@ -433,10 +434,10 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		RefreshToken: oauthTokens.RefreshToken,
 		ExpiresAt:    oauthTokens.ExpiresAt,
 		ClientID:     oauthTokens.ClientID,
-		Provider:     "anthropic",
+		Provider:     providerAnthropic,
 	}
 
-	err = credentialsService.StoreOAuthCredentials(r.Context(), "anthropic", oauthCreds)
+	err = credentialsService.StoreOAuthCredentials(r.Context(), providerAnthropic, oauthCreds)
 	if err != nil {
 		logging.Error("Failed to store OAuth credentials", "error", err)
 		// Track failure due to storage error
@@ -468,7 +469,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 		"status":     "success",
 		"provider":   req.Provider,
 		"message":    "OAuth authentication successful",
-		"expires_in": int64(oauthTokens.ExpiresAt - time.Now().Unix()),
+		"expires_in": oauthTokens.ExpiresAt - time.Now().Unix(),
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -499,7 +500,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 		displayName   string
 		supportsOAuth bool
 	}{
-		{"anthropic", models.ProviderAnthropic, "Anthropic", true},
+		{providerAnthropic, models.ProviderAnthropic, "Anthropic", true},
 		{"openai", models.ProviderOpenAI, "OpenAI", false},
 		{"openrouter", models.ProviderOpenRouter, "OpenRouter", false},
 		// {"gemini", models.ProviderGemini, "Google Gemini", false},
@@ -546,7 +547,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 // checkOAuthCredentials checks if OAuth credentials exist for a provider
 func (h *AuthHandler) checkOAuthCredentials(provider string) bool {
 	// Only Anthropic uses OAuth currently
-	if provider != "anthropic" {
+	if provider != providerAnthropic {
 		return false
 	}
 
@@ -559,10 +560,14 @@ func (h *AuthHandler) checkOAuthCredentials(provider string) bool {
 
 	// Check for OAuth credentials in database
 	creds, err := credentialsService.GetOAuthCredentials(context.Background(), provider)
-	if err != nil {
+	if errors.Is(err, credentials.ErrOAuthCredentialNotFound) {
 		return false
 	}
-	return creds != nil && !creds.IsTokenExpired()
+	if err != nil {
+		logging.Warn("Failed to get OAuth credentials", "error", err)
+		return false
+	}
+	return !creds.IsTokenExpired()
 }
 
 // HandleRefreshTokens handles POST /internal/auth/refresh-tokens
@@ -573,7 +578,7 @@ func (h *AuthHandler) HandleRefreshTokens(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -604,7 +609,7 @@ func (h *AuthHandler) HandleOAuthHealth(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}

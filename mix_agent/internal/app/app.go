@@ -129,7 +129,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 // Removed theme initialization for embedded binary
 
 // RunNonInteractive handles the execution flow when a prompt is provided via CLI flag.
-func (a *App) RunNonInteractive(ctx context.Context, prompt string, outputFormat string, quiet bool) error {
+func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string, quiet bool) error {
 	// Processing message for non-interactive mode
 	if !quiet {
 		fmt.Println("Processing...")

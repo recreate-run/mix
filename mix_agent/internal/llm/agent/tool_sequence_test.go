@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"mix/internal/llm/interfaces"
 	"mix/internal/message"
@@ -103,7 +104,7 @@ func TestToolSequenceValidationFix(t *testing.T) {
 	assert.Len(t, results, 2, "Should have results for both tools")
 
 	// 2. Error should be returned to indicate some tools failed, but execution should continue
-	assert.Error(t, err, "Should return error indicating tool execution failed")
+	require.Error(t, err, "Should return error indicating tool execution failed")
 
 	// 3. Verify that both tool results are present (success and failure)
 	successResult, ok1 := results[0].(message.ToolResult)
@@ -221,9 +222,9 @@ func TestStreamAndHandleEventsToolFailure(t *testing.T) {
 	assistantMsg, toolResultMsg, err := agent.streamAndHandleEvents(context.Background(), "test_session_123", msgHistory)
 
 	// Critical validation: even though tool failed, we should get both messages
-	assert.NotEqual(t, "", assistantMsg.ID, "Assistant message should be created")
+	assert.NotEmpty(t, assistantMsg.ID, "Assistant message should be created")
 	assert.NotNil(t, toolResultMsg, "Tool result message should be created even when tool fails")
-	assert.NoError(t, err, "Should not return error for tool execution failure (logged as warning instead)")
+	require.NoError(t, err, "Should not return error for tool execution failure (logged as warning instead)")
 
 	// Verify mock expectations
 	mockSessions.AssertExpectations(t)

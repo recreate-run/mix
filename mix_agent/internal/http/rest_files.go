@@ -11,6 +11,10 @@ import (
 	"mix/internal/session"
 )
 
+const (
+	schemeHTTPS = "https"
+)
+
 // FileInfo represents information about a file in session storage
 type FileInfo struct {
 	Name         string  `json:"name"`                   // The stored filename (sanitized)
@@ -27,9 +31,9 @@ type FileHandler struct {
 }
 
 // NewFileHandler creates a new file handler
-func NewFileHandler(app *app.App) *FileHandler {
+func NewFileHandler(a *app.App) *FileHandler {
 	return &FileHandler{
-		app: app,
+		app: a,
 	}
 }
 
@@ -72,7 +76,7 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -126,8 +130,8 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 
 	// Construct absolute URL from request
 	scheme := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-		scheme = "https"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == schemeHTTPS {
+		scheme = schemeHTTPS
 	}
 	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
 
@@ -176,7 +180,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -209,8 +213,8 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 
 	// Construct absolute URL from request
 	scheme := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-		scheme = "https"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == schemeHTTPS {
+		scheme = schemeHTTPS
 	}
 	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
 
@@ -243,7 +247,7 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != "DELETE" {
+	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}

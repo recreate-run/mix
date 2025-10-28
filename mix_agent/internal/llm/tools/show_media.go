@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+const (
+	mediaTypeGSAPAnimation = "gsap_animation"
+)
+
 type mediaShowcaseTool struct{}
 
 type MediaShowcaseParams struct {
@@ -98,7 +102,7 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 		}
 
 		// Path is only required for physical file types (not gsap_animation)
-		if output.Type != "gsap_animation" && output.Path == "" {
+		if output.Type != mediaTypeGSAPAnimation && output.Path == "" {
 			return NewTextErrorResponse(fmt.Sprintf("Output %d missing path", i)), nil
 		}
 
@@ -116,12 +120,12 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 		}
 
 		// Require HTTP/HTTPS URLs for all types except gsap_animation
-		if output.Type != "gsap_animation" && !isURL(output.Path) {
+		if output.Type != mediaTypeGSAPAnimation && !isURL(output.Path) {
 			return NewTextErrorResponse(fmt.Sprintf("For the show_media tool ,path must be a valid HTTP/HTTPS URL for output %d: %s", i, output.Path)), nil
 		}
 
 		// For gsap_animation, validate that config is provided
-		if output.Type == "gsap_animation" {
+		if output.Type == mediaTypeGSAPAnimation {
 			if output.Config == nil {
 				return NewTextErrorResponse(fmt.Sprintf("gsap_animation type requires config parameter for output %d", i)), nil
 			}

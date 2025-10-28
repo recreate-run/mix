@@ -8,6 +8,11 @@ import (
 	"sync/atomic"
 )
 
+const (
+	eventTypeError    = "error"
+	eventTypeComplete = "complete"
+)
+
 // SSE Event Types - Keep structs for type safety but remove interface overhead
 
 type ErrorEvent struct {
@@ -167,7 +172,7 @@ func (s *SSEWriter) WriteEvent(eventType string, data interface{}) error {
 // getRetryInterval calculates appropriate retry interval based on event type and data
 func (s *SSEWriter) getRetryInterval(eventType string, data interface{}) int {
 	switch eventType {
-	case "error":
+	case eventTypeError:
 		// Check if this is an ErrorEvent with exponential backoff
 		if errorEvent, ok := data.(ErrorEvent); ok && errorEvent.RetryAfter > 0 {
 			return errorEvent.RetryAfter
@@ -176,7 +181,7 @@ func (s *SSEWriter) getRetryInterval(eventType string, data interface{}) int {
 		return s.calculateExponentialBackoff(1) // Start with attempt 1
 	case "heartbeat":
 		return 45000 // 45 seconds for heartbeat
-	case "complete":
+	case eventTypeComplete:
 		return 30000 // 30 seconds after completion
 	default:
 		return 30000 // Default 30 second retry for all other events

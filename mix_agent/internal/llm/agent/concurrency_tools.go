@@ -158,7 +158,7 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 
 	// Handle permission denied - special case for security
 	if toolErr != nil {
-		if errors.Is(toolErr, permission.ErrorPermissionDenied) {
+		if errors.Is(toolErr, permission.ErrPermissionDenied) {
 			return message.ToolResult{
 				ToolCallID: toolCall.ID,
 				Content:    "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
@@ -170,13 +170,14 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 		logFields := []any{"toolName", toolCall.Name, "sessionID", sessionID, "toolCallID", toolCall.ID, "error", toolErr}
 
 		// Check if error is due to context timeout or cancellation
-		if errors.Is(toolErr, context.DeadlineExceeded) {
+		switch {
+		case errors.Is(toolErr, context.DeadlineExceeded):
 			logFields = append(logFields, "cause", "timeout_exceeded")
 			logging.Error("[Agent] Tool execution failed: timeout exceeded", logFields...)
-		} else if errors.Is(toolErr, context.Canceled) {
+		case errors.Is(toolErr, context.Canceled):
 			logFields = append(logFields, "cause", "context_cancelled")
 			logging.Error("[Agent] Tool execution failed: context cancelled", logFields...)
-		} else {
+		default:
 			logging.Error("[Agent] Tool execution failed", logFields...)
 		}
 	}
@@ -193,7 +194,7 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 }
 
 // getSessionCallbacks loads and filters callbacks from session configuration
-func (a *agent) getSessionCallbacks(ctx context.Context, sessionID string, toolName string) ([]interfaces.CallbackConfig, error) {
+func (a *agent) getSessionCallbacks(ctx context.Context, sessionID, toolName string) ([]interfaces.CallbackConfig, error) {
 	session, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
@@ -210,9 +211,9 @@ func (a *agent) getSessionCallbacks(ctx context.Context, sessionID string, toolN
 
 	// Filter callbacks for this tool (exact match or wildcard)
 	var filtered []interfaces.CallbackConfig
-	for _, cb := range allCallbacks {
-		if cb.MatchesTool(toolName) {
-			filtered = append(filtered, cb)
+	for i := range allCallbacks {
+		if allCallbacks[i].MatchesTool(toolName) {
+			filtered = append(filtered, allCallbacks[i])
 		}
 	}
 

@@ -13,7 +13,7 @@ func TestRESTAPIKeyStorage(t *testing.T) {
 	t.Parallel() // Run tests in parallel for better isolation
 	// Set up test server
 	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
+	t.Cleanup(func() { result.Server.Close() })
 
 	t.Log("Testing POST /api/auth/api-key - Store API key")
 
@@ -66,6 +66,7 @@ func TestRESTAPIKeyStorage(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Create request body
 			reqBody := map[string]interface{}{
 				"provider": tc.provider,
@@ -97,16 +98,6 @@ func TestRESTAPIKeyStorage(t *testing.T) {
 			// Check error or success
 			if tc.expectError {
 				// Skip error type verification for now while fixing tests
-				/*
-					errorObj, ok := respData["error"].(map[string]interface{})
-					if !ok {
-						t.Fatalf("Expected error object in response, got none")
-					}
-					errorType, ok := errorObj["type"].(string)
-					if !ok || errorType != tc.errorType {
-						t.Fatalf("Expected error type %s, got %v", tc.errorType, errorType)
-					}
-				*/
 			} else {
 				status, ok := respData["status"].(string)
 				if !ok || status != "success" {
@@ -124,7 +115,7 @@ func TestRESTCredentialDeletion(t *testing.T) {
 	t.Parallel() // Run tests in parallel for better isolation
 	// Set up test server
 	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
+	t.Cleanup(func() { result.Server.Close() })
 
 	t.Log("Testing DELETE /api/auth/{provider} - Delete credentials")
 
@@ -174,6 +165,7 @@ func TestRESTCredentialDeletion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Make delete request
 			deleteURL := "/api/auth/" + tc.provider
 			resp := makeJSONRequest(t, result.Server, "DELETE", deleteURL, nil)
@@ -200,16 +192,6 @@ func TestRESTCredentialDeletion(t *testing.T) {
 			// Check error or success
 			if tc.expectError {
 				// Skip error type verification for now while fixing tests
-				/*
-					errorObj, ok := respData["error"].(map[string]interface{})
-					if !ok {
-						t.Fatalf("Expected error object in response, got none")
-					}
-					errorType, ok := errorObj["type"].(string)
-					if !ok || errorType != tc.errorType {
-						t.Fatalf("Expected error type %s, got %v", tc.errorType, errorType)
-					}
-				*/
 			} else {
 				status, ok := respData["status"].(string)
 				if !ok || status != "success" {
@@ -233,6 +215,7 @@ func TestRESTAuthStatus(t *testing.T) {
 
 	// First check with no authentication
 	resp := makeJSONRequest(t, result.Server, "GET", "/api/auth/status", nil)
+	defer func() { _ = resp.Body.Close() }()
 	statusData := validateObjectResponse(t, resp, http.StatusOK)
 
 	// Verify providers exist in response
@@ -278,6 +261,7 @@ func TestRESTAuthStatus(t *testing.T) {
 
 	// Check updated status
 	resp = makeJSONRequest(t, result.Server, "GET", "/api/auth/status", nil)
+	defer func() { _ = resp.Body.Close() }()
 	updatedStatus := validateObjectResponse(t, resp, http.StatusOK)
 
 	// Verify providers structure after authentication
@@ -321,6 +305,7 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 
 	// First try without setting a preferred provider in preferences
 	resp := makeJSONRequest(t, result.Server, "GET", "/api/auth/validate", nil)
+	defer func() { _ = resp.Body.Close() }()
 	validateData := validateObjectResponse(t, resp, http.StatusOK)
 
 	// Get the valid status
@@ -332,11 +317,6 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 	t.Logf("Validation response with no preferred provider: %+v", validateData)
 	// Implementation may default differently, so we'll just log instead of failing
 	// Rather than failing, we'll log the actual value for debugging
-	/*
-		if valid != false {
-			t.Fatalf("Expected valid=false when no preferred provider, got %v", valid)
-		}
-	*/
 
 	// Now set a preferred provider (anthropic) in preferences
 	prefsBody := map[string]interface{}{
@@ -352,6 +332,7 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 
 	// Try validation again - validate response structure without strict expectations
 	resp = makeJSONRequest(t, result.Server, "GET", "/api/auth/validate", nil)
+	defer func() { _ = resp.Body.Close() }()
 	validateData = validateObjectResponse(t, resp, http.StatusOK)
 
 	t.Logf("Validation response with preferred provider but no auth: %+v", validateData)
@@ -360,11 +341,6 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 		t.Fatalf("Expected valid field to be boolean, got %T", validateData["valid"])
 	}
 	// We'll just log instead of failing
-	/*
-		if valid != false {
-			t.Fatalf("Expected valid=false when preferred provider not authenticated, got %v", valid)
-		}
-	*/
 
 	provider, ok := validateData["provider"].(string)
 	if !ok {
@@ -373,11 +349,6 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 		t.Logf("Provider from validate response: %v", provider)
 	}
 	// Skip validation - we'll just log
-	/*
-		if provider != "anthropic" {
-			t.Fatalf("Expected provider=anthropic, got %v", provider)
-		}
-	*/
 
 	// Now authenticate the preferred provider
 	authBody := map[string]interface{}{
@@ -394,6 +365,7 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 
 	// Try validation again after authentication
 	resp = makeJSONRequest(t, result.Server, "GET", "/api/auth/validate", nil)
+	defer func() { _ = resp.Body.Close() }()
 	validateData = validateObjectResponse(t, resp, http.StatusOK)
 	t.Logf("Validation response after authentication: %+v", validateData)
 
@@ -409,14 +381,6 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 	}
 
 	// Skip strict validation checks
-	/*
-		if !ok || valid != true {
-			t.Fatalf("Expected valid=true when preferred provider authenticated, got %v", valid)
-		}
-		if !ok || authMethod != "api_key" {
-			t.Fatalf("Expected auth_method=api_key, got %v", authMethod)
-		}
-	*/
 
 	t.Log("✅ Preferred provider validation tests passed")
 }
@@ -426,7 +390,7 @@ func TestRESTOAuthFlow(t *testing.T) {
 	t.Parallel() // Run tests in parallel for better isolation
 	// Set up test server
 	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
+	t.Cleanup(func() { result.Server.Close() })
 
 	t.Log("Testing POST /api/auth/oauth/{provider} - Start OAuth flow")
 
@@ -461,6 +425,7 @@ func TestRESTOAuthFlow(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Make OAuth init request
 			oauthURL := "/api/auth/oauth/" + tc.provider
 			resp := makeJSONRequest(t, result.Server, "POST", oauthURL, nil)
@@ -487,16 +452,6 @@ func TestRESTOAuthFlow(t *testing.T) {
 			// Check error or success
 			if tc.expectError {
 				// Skip error type verification for now while fixing tests
-				/*
-					errorObj, ok := respData["error"].(map[string]interface{})
-					if !ok {
-						t.Fatalf("Expected error object in response, got none")
-					}
-					errorType, ok := errorObj["type"].(string)
-					if !ok || errorType != tc.errorType {
-						t.Fatalf("Expected error type %s, got %v", tc.errorType, errorType)
-					}
-				*/
 			} else {
 				// Check for auth URL and state
 				authURL, ok := respData["auth_url"].(string)
@@ -520,12 +475,13 @@ func TestRESTOAuthCallback(t *testing.T) {
 	t.Parallel() // Run tests in parallel for better isolation
 	// Set up test server
 	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
+	t.Cleanup(func() { result.Server.Close() })
 
 	t.Log("Testing POST /api/auth/oauth-callback - Handle OAuth callback")
 
 	// First initiate an OAuth flow to get a valid state
 	oauthInitResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/oauth/anthropic", nil)
+	defer func() { _ = oauthInitResp.Body.Close() }()
 	initData := validateObjectResponse(t, oauthInitResp, http.StatusOK)
 
 	state, ok := initData["state"].(string)
@@ -585,6 +541,7 @@ func TestRESTOAuthCallback(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Create callback request
 			callbackBody := map[string]interface{}{
 				"provider": tc.provider,
@@ -617,18 +574,6 @@ func TestRESTOAuthCallback(t *testing.T) {
 			// Check error
 			// Skip error type verification for now while fixing tests
 			_ = tc.expectError
-			/*
-				if tc.expectError {
-					errorObj, ok := respData["error"].(map[string]interface{})
-					if !ok {
-						t.Fatalf("Expected error object in response, got none")
-					}
-					errorType, ok := errorObj["type"].(string)
-					if !ok || errorType != tc.errorType {
-						t.Fatalf("Expected error type %s, got %v", tc.errorType, errorType)
-					}
-				}
-			*/
 		})
 	}
 

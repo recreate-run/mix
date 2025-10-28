@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -60,7 +61,10 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	var oauthCreds *OAuthCredentials // Use old format for internal client compatibility
 	if credentialsService != nil {
 		ctx := context.Background() // Create context for database operations
-		if creds, err := credentialsService.GetOAuthCredentials(ctx, "anthropic"); err == nil && creds != nil {
+		creds, err := credentialsService.GetOAuthCredentials(ctx, "anthropic")
+		if err != nil && !errors.Is(err, ErrOAuthCredentialNotFound) {
+			logging.Warn("Failed to get OAuth credentials", "error", err)
+		} else if err == nil {
 			// Convert from database format to client format
 			oauthCreds = &OAuthCredentials{
 				AccessToken:  creds.AccessToken,
@@ -96,15 +100,16 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	anthropicClientOptions := []option.RequestOption{}
 
 	// Set up authentication - prioritize OAuth over database API key
-	if oauthCreds != nil {
+	switch {
+	case oauthCreds != nil:
 		anthropicOpts.useOAuth = true
 		anthropicOpts.oauthCreds = oauthCreds
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAuthToken(oauthCreds.AccessToken))
-	} else if opts.apiKey != "" {
+	case opts.apiKey != "":
 		// Use database API key (passed in opts.apiKey from caller)
 		anthropicClientOptions = append(anthropicClientOptions, option.WithAPIKey(opts.apiKey))
 		logging.Info("Initialized Anthropic client with database API key authentication")
-	} else {
+	default:
 		// No authentication available - check database directly as last resort
 		if config.GetAPICredentials() != nil {
 			ctx := context.Background()
@@ -310,16 +315,17 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 			}
 		}
 
-		if tokenBudget > 0 {
+		switch {
+		case tokenBudget > 0:
 			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(tokenBudget))
 			temperature = anthropic.Float(1)
 			logging.Debug("Thinking enabled for Anthropic API", "tokenBudget", tokenBudget)
-		} else if hasThinkingInHistory {
+		case hasThinkingInHistory:
 			// Enable with minimal budget for API compatibility
 			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(1024)
 			temperature = anthropic.Float(1)
 			logging.Debug("Thinking enabled for API compatibility", "tokenBudget", 1024)
-		} else {
+		default:
 			logging.Debug("Thinking disabled - no budget provided and no thinking in history")
 		}
 	} else {
@@ -471,8 +477,8 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 		}
 
 		content := ""
-		for _, block := range anthropicResponse.Content {
-			if text, ok := block.AsAny().(anthropic.TextBlock); ok {
+		for i := range anthropicResponse.Content {
+			if text, ok := anthropicResponse.Content[i].AsAny().(anthropic.TextBlock); ok {
 				content += text.Text
 			}
 		}
@@ -490,225 +496,240 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 func (a *anthropicClient) Stream(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) <-chan interfaces.ProviderEvent {
 	eventChan := make(chan interfaces.ProviderEvent)
 
-	// Handle proactive token refresh for OAuth
+	a.proactiveRefreshOAuthToken()
+
+	preparedMessages := a.preparedMessages(a.convertMessages(messages), a.convertTools(tools))
+
+	if !a.options.useOAuth && a.providerOptions.apiKey == "" {
+		a.sendAuthenticationError(eventChan)
+		return eventChan
+	}
+
+	go a.streamWithRetry(ctx, preparedMessages, eventChan)
+	return eventChan
+}
+
+func (a *anthropicClient) proactiveRefreshOAuthToken() {
 	if a.options.useOAuth && a.options.oauthCreds != nil {
 		if a.options.oauthCreds.IsTokenExpired() && a.options.oauthCreds.RefreshToken != "" {
 			if refreshedCreds, err := RefreshAccessToken(a.options.oauthCreds); err == nil {
-				// Update stored credentials
-				if a.credentialStorage != nil {
-					if err := a.credentialStorage.StoreOAuthCredentials(
-						"anthropic",
-						refreshedCreds.AccessToken,
-						refreshedCreds.RefreshToken,
-						refreshedCreds.ExpiresAt,
-						refreshedCreds.ClientID,
-					); err != nil {
-						logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-					}
-				}
+				a.storeRefreshedCredentials(refreshedCreds)
 				a.options.oauthCreds = refreshedCreds
-
-				// Update client with new token
 				a.recreateClient()
 				logging.Info("Refreshed OAuth token proactively for streaming")
 			}
 		}
 	}
+}
 
-	// Use SDK for both OAuth and API key authentication
-	preparedMessages := a.preparedMessages(a.convertMessages(messages), a.convertTools(tools))
+func (a *anthropicClient) storeRefreshedCredentials(creds *OAuthCredentials) {
+	if a.credentialStorage != nil {
+		if err := a.credentialStorage.StoreOAuthCredentials(
+			"anthropic",
+			creds.AccessToken,
+			creds.RefreshToken,
+			creds.ExpiresAt,
+			creds.ClientID,
+		); err != nil {
+			logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
+		}
+	}
+}
+
+func (a *anthropicClient) sendAuthenticationError(eventChan chan interfaces.ProviderEvent) {
+	go func() {
+		authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate"
+		eventChan <- interfaces.ProviderEvent{
+			Type:  interfaces.EventError,
+			Error: errors.New(authErrMsg),
+		}
+		close(eventChan)
+	}()
+}
+
+func (a *anthropicClient) streamWithRetry(ctx context.Context, preparedMessages anthropic.MessageNewParams, eventChan chan interfaces.ProviderEvent) {
 	attempts := 0
 
-	// Handle the case where no authentication is provided
-	if !a.options.useOAuth && a.providerOptions.apiKey == "" {
-		// Send authentication error event instead of content
-		go func() {
-			// Create the authentication error message
-			authErrMsg := "authentication_error: Authentication required. Please use /login command to authenticate"
+	for {
+		attempts++
+		anthropicStream := a.client.Messages.NewStreaming(ctx, preparedMessages)
+		accumulatedMessage := anthropic.Message{}
 
-			// Send error event that will be properly handled by error handlers
-			eventChan <- interfaces.ProviderEvent{
-				Type:  interfaces.EventError,
-				Error: errors.New(authErrMsg),
+		if a.isContextCancelled(ctx, eventChan) {
+			return
+		}
+
+		activeToolCalls := make(map[int]*message.ToolCall)
+		for anthropicStream.Next() {
+			event := anthropicStream.Current()
+			if err := accumulatedMessage.Accumulate(event); err != nil {
+				logging.Warn("Error accumulating message", "error", err)
+				continue
 			}
 
-			close(eventChan)
-		}()
-		return eventChan
-	}
-
-	go func() {
-		for {
-			attempts++
-			anthropicStream := a.client.Messages.NewStreaming(
-				ctx,
-				preparedMessages,
-			)
-			accumulatedMessage := anthropic.Message{}
-
-			// Check if context is already cancelled before starting the streaming loop
-			select {
-			case <-ctx.Done():
-				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
-				close(eventChan)
-				return
-			default:
+			switch evt := event.AsAny().(type) {
+			case anthropic.ContentBlockStartEvent:
+				a.handleContentBlockStart(evt, activeToolCalls, eventChan)
+			case anthropic.ContentBlockDeltaEvent:
+				a.handleContentBlockDelta(evt, activeToolCalls, eventChan)
+			case anthropic.ContentBlockStopEvent:
+				a.handleContentBlockStop(evt, activeToolCalls, eventChan)
+			case anthropic.MessageStopEvent:
+				a.handleMessageStop(accumulatedMessage, eventChan)
 			}
 
-			activeToolCalls := make(map[int]*message.ToolCall)
-			for anthropicStream.Next() {
-				event := anthropicStream.Current()
-				err := accumulatedMessage.Accumulate(event)
-				if err != nil {
-					logging.Warn("Error accumulating message", "error", err)
-					continue
-				}
-
-				switch event := event.AsAny().(type) {
-				case anthropic.ContentBlockStartEvent:
-					switch event.ContentBlock.Type {
-					case "text":
-						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStart}
-					case "tool_use":
-						toolCall := &message.ToolCall{
-							ID:       event.ContentBlock.ID,
-							Name:     event.ContentBlock.Name,
-							Finished: false,
-						}
-						activeToolCalls[int(event.Index)] = toolCall
-						eventChan <- interfaces.ProviderEvent{
-							Type:     interfaces.EventToolUseStart,
-							ToolCall: toolCall,
-						}
-					}
-
-				case anthropic.ContentBlockDeltaEvent:
-					if event.Delta.Type == "thinking_delta" && event.Delta.Thinking != "" {
-						eventChan <- interfaces.ProviderEvent{
-							Type:     interfaces.EventThinkingDelta,
-							Thinking: event.Delta.Thinking,
-						}
-					} else if event.Delta.Type == "text_delta" && event.Delta.Text != "" {
-						eventChan <- interfaces.ProviderEvent{
-							Type:    interfaces.EventContentDelta,
-							Content: event.Delta.Text,
-						}
-					} else if event.Delta.Type == "input_json_delta" {
-						if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
-							eventChan <- interfaces.ProviderEvent{
-								Type: interfaces.EventToolUseDelta,
-								ToolCall: &message.ToolCall{
-									ID:       toolCall.ID,
-									Finished: false,
-									Input:    event.Delta.JSON.PartialJSON.Raw(),
-								},
-							}
-						}
-					}
-				case anthropic.ContentBlockStopEvent:
-					if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
-						eventChan <- interfaces.ProviderEvent{
-							Type: interfaces.EventToolUseStop,
-							ToolCall: &message.ToolCall{
-								ID: toolCall.ID,
-							},
-						}
-						delete(activeToolCalls, int(event.Index))
-					} else {
-						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStop}
-					}
-
-				case anthropic.MessageStopEvent:
-					content := ""
-					for _, block := range accumulatedMessage.Content {
-						if text, ok := block.AsAny().(anthropic.TextBlock); ok {
-							content += text.Text
-						}
-					}
-
-					eventChan <- interfaces.ProviderEvent{
-						Type: interfaces.EventComplete,
-						Response: &interfaces.ProviderResponse{
-							Content:                content,
-							ToolCalls:              a.toolCalls(accumulatedMessage),
-							Usage:                  a.usage(accumulatedMessage),
-							FinishReason:           a.finishReason(string(accumulatedMessage.StopReason)),
-							ThinkingBlocks:         a.extractThinkingBlocks(accumulatedMessage),
-							RedactedThinkingBlocks: a.extractRedactedThinkingBlocks(accumulatedMessage),
-						},
-					}
-				}
-
-				// Check if context is cancelled after processing each event
-				select {
-				case <-ctx.Done():
-					eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
-					close(eventChan)
-					return
-				default:
-				}
-			}
-
-			err := anthropicStream.Err()
-			if err == nil || errors.Is(err, io.EOF) {
-				close(eventChan)
+			if a.isContextCancelled(ctx, eventChan) {
 				return
 			}
+		}
 
-			// Check for 401 and try OAuth token refresh
-			if a.options.useOAuth && a.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && a.options.oauthCreds.RefreshToken != "" {
-				if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
-					// Update stored credentials
-					if a.credentialStorage != nil {
-						if err := a.credentialStorage.StoreOAuthCredentials(
-							"anthropic",
-							refreshedCreds.AccessToken,
-							refreshedCreds.RefreshToken,
-							refreshedCreds.ExpiresAt,
-							refreshedCreds.ClientID,
-						); err != nil {
-							logging.Warn("Failed to store refreshed OAuth credentials", "error", err)
-						}
-					}
-					a.options.oauthCreds = refreshedCreds
-
-					// Update client with new token and retry
-					a.recreateClient()
-					logging.Info("Refreshed OAuth token and retrying streaming request")
-					continue
-				}
-			}
-
-			// If there is an error we are going to see if we can retry the call
-			retry, after, retryErr := a.shouldRetry(attempts, err)
-			if retryErr != nil {
-				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: retryErr}
-				close(eventChan)
-				return
-			}
-			if retry {
-				logging.Warn(a.getRetryMessage(err, attempts))
-				select {
-				case <-ctx.Done():
-					// context cancelled
-					if ctx.Err() != nil {
-						eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
-					}
-					close(eventChan)
-					return
-				case <-time.After(time.Duration(after) * time.Millisecond):
-					continue
-				}
-			}
-			if ctx.Err() != nil {
-				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
-			}
-
+		err := anthropicStream.Err()
+		if err == nil || errors.Is(err, io.EOF) {
 			close(eventChan)
 			return
 		}
-	}()
-	return eventChan
+
+		if a.tryRefreshOAuthOnError(err) {
+			continue
+		}
+
+		if !a.handleRetryLogic(ctx, attempts, err, eventChan) {
+			return
+		}
+	}
+}
+
+func (a *anthropicClient) isContextCancelled(ctx context.Context, eventChan chan interfaces.ProviderEvent) bool {
+	select {
+	case <-ctx.Done():
+		eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
+		close(eventChan)
+		return true
+	default:
+		return false
+	}
+}
+
+func (a *anthropicClient) handleContentBlockStart(event anthropic.ContentBlockStartEvent, activeToolCalls map[int]*message.ToolCall, eventChan chan interfaces.ProviderEvent) {
+	switch event.ContentBlock.Type {
+	case "text":
+		eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStart}
+	case "tool_use":
+		toolCall := &message.ToolCall{
+			ID:       event.ContentBlock.ID,
+			Name:     event.ContentBlock.Name,
+			Finished: false,
+		}
+		activeToolCalls[int(event.Index)] = toolCall
+		eventChan <- interfaces.ProviderEvent{
+			Type:     interfaces.EventToolUseStart,
+			ToolCall: toolCall,
+		}
+	}
+}
+
+func (a *anthropicClient) handleContentBlockDelta(event anthropic.ContentBlockDeltaEvent, activeToolCalls map[int]*message.ToolCall, eventChan chan interfaces.ProviderEvent) {
+	switch {
+	case event.Delta.Type == "thinking_delta" && event.Delta.Thinking != "":
+		eventChan <- interfaces.ProviderEvent{
+			Type:     interfaces.EventThinkingDelta,
+			Thinking: event.Delta.Thinking,
+		}
+	case event.Delta.Type == "text_delta" && event.Delta.Text != "":
+		eventChan <- interfaces.ProviderEvent{
+			Type:    interfaces.EventContentDelta,
+			Content: event.Delta.Text,
+		}
+	case event.Delta.Type == "input_json_delta":
+		if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
+			eventChan <- interfaces.ProviderEvent{
+				Type: interfaces.EventToolUseDelta,
+				ToolCall: &message.ToolCall{
+					ID:       toolCall.ID,
+					Finished: false,
+					Input:    event.Delta.JSON.PartialJSON.Raw(),
+				},
+			}
+		}
+	}
+}
+
+func (a *anthropicClient) handleContentBlockStop(event anthropic.ContentBlockStopEvent, activeToolCalls map[int]*message.ToolCall, eventChan chan interfaces.ProviderEvent) {
+	if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
+		eventChan <- interfaces.ProviderEvent{
+			Type: interfaces.EventToolUseStop,
+			ToolCall: &message.ToolCall{
+				ID: toolCall.ID,
+			},
+		}
+		delete(activeToolCalls, int(event.Index))
+	} else {
+		eventChan <- interfaces.ProviderEvent{Type: interfaces.EventContentStop}
+	}
+}
+
+func (a *anthropicClient) handleMessageStop(accumulatedMessage anthropic.Message, eventChan chan interfaces.ProviderEvent) {
+	content := ""
+	for i := range accumulatedMessage.Content {
+		if text, ok := accumulatedMessage.Content[i].AsAny().(anthropic.TextBlock); ok {
+			content += text.Text
+		}
+	}
+
+	eventChan <- interfaces.ProviderEvent{
+		Type: interfaces.EventComplete,
+		Response: &interfaces.ProviderResponse{
+			Content:                content,
+			ToolCalls:              a.toolCalls(accumulatedMessage),
+			Usage:                  a.usage(accumulatedMessage),
+			FinishReason:           a.finishReason(string(accumulatedMessage.StopReason)),
+			ThinkingBlocks:         a.extractThinkingBlocks(accumulatedMessage),
+			RedactedThinkingBlocks: a.extractRedactedThinkingBlocks(accumulatedMessage),
+		},
+	}
+}
+
+func (a *anthropicClient) tryRefreshOAuthOnError(err error) bool {
+	if a.options.useOAuth && a.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && a.options.oauthCreds.RefreshToken != "" {
+		if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
+			a.storeRefreshedCredentials(refreshedCreds)
+			a.options.oauthCreds = refreshedCreds
+			a.recreateClient()
+			logging.Info("Refreshed OAuth token and retrying streaming request")
+			return true
+		}
+	}
+	return false
+}
+
+func (a *anthropicClient) handleRetryLogic(ctx context.Context, attempts int, err error, eventChan chan interfaces.ProviderEvent) bool {
+	retry, after, retryErr := a.shouldRetry(attempts, err)
+	if retryErr != nil {
+		eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: retryErr}
+		close(eventChan)
+		return false
+	}
+
+	if retry {
+		logging.Warn(a.getRetryMessage(err, attempts))
+		select {
+		case <-ctx.Done():
+			if ctx.Err() != nil {
+				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
+			}
+			close(eventChan)
+			return false
+		case <-time.After(time.Duration(after) * time.Millisecond):
+			return true
+		}
+	}
+
+	if ctx.Err() != nil {
+		eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: ctx.Err()}
+	}
+
+	close(eventChan)
+	return false
 }
 
 // errorType represents different types of LLM API errors for better messaging
@@ -728,7 +749,7 @@ func (a *anthropicClient) detectRetryableError(err error) (bool, errorType) {
 	// Check for HTTP status codes first
 	if errors.As(err, &apierr) {
 		switch apierr.StatusCode {
-		case 429:
+		case http.StatusTooManyRequests:
 			return true, errorTypeRateLimit
 		case 529:
 			return true, errorTypeUnavailable
@@ -769,7 +790,7 @@ func (a *anthropicClient) getRetryMessage(err error, attempts int) string {
 	return fmt.Sprintf("Retrying due to %s... attempt %d of %d", operation, attempts, maxRetries)
 }
 
-func (a *anthropicClient) shouldRetry(attempts int, err error) (bool, int64, error) {
+func (a *anthropicClient) shouldRetry(attempts int, err error) (shouldRetry bool, retryAfterMs int64, retryErr error) {
 	// Use enhanced error detection
 	retryable, errType := a.detectRetryableError(err)
 	if !retryable {
@@ -800,7 +821,7 @@ func (a *anthropicClient) shouldRetry(attempts int, err error) (bool, int64, err
 		retryAfterValues := apierr.Response.Header.Values("Retry-After")
 		if len(retryAfterValues) > 0 {
 			if _, parseErr := fmt.Sscanf(retryAfterValues[0], "%d", &retryMs); parseErr == nil {
-				retryMs = retryMs * 1000 // Convert to milliseconds
+				retryMs *= 1000 // Convert to milliseconds
 				return true, int64(retryMs), nil
 			}
 		}
@@ -817,9 +838,8 @@ func (a *anthropicClient) shouldRetry(attempts int, err error) (bool, int64, err
 func (a *anthropicClient) toolCalls(msg anthropic.Message) []message.ToolCall {
 	var toolCalls []message.ToolCall
 
-	for _, block := range msg.Content {
-		switch variant := block.AsAny().(type) {
-		case anthropic.ToolUseBlock:
+	for i := range msg.Content {
+		if variant, ok := msg.Content[i].AsAny().(anthropic.ToolUseBlock); ok {
 			toolCall := message.ToolCall{
 				ID:       variant.ID,
 				Name:     variant.Name,
@@ -847,9 +867,8 @@ func (a *anthropicClient) usage(msg anthropic.Message) interfaces.TokenUsage {
 func (a *anthropicClient) extractThinkingBlocks(msg anthropic.Message) []message.ThinkingBlockContent {
 	var thinkingBlocks []message.ThinkingBlockContent
 
-	for _, block := range msg.Content {
-		switch variant := block.AsAny().(type) {
-		case anthropic.ThinkingBlock:
+	for i := range msg.Content {
+		if variant, ok := msg.Content[i].AsAny().(anthropic.ThinkingBlock); ok {
 			thinkingBlocks = append(thinkingBlocks, message.ThinkingBlockContent{
 				Thinking:  variant.Thinking,
 				Signature: variant.Signature,
@@ -864,9 +883,8 @@ func (a *anthropicClient) extractThinkingBlocks(msg anthropic.Message) []message
 func (a *anthropicClient) extractRedactedThinkingBlocks(msg anthropic.Message) []message.RedactedThinkingContent {
 	var redactedBlocks []message.RedactedThinkingContent
 
-	for _, block := range msg.Content {
-		switch variant := block.AsAny().(type) {
-		case anthropic.RedactedThinkingBlock:
+	for i := range msg.Content {
+		if variant, ok := msg.Content[i].AsAny().(anthropic.RedactedThinkingBlock); ok {
 			redactedBlocks = append(redactedBlocks, message.RedactedThinkingContent{
 				Data: variant.Data,
 			})
