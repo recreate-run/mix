@@ -137,13 +137,13 @@ func TestMediaOutputJSONSerialization(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test marshaling
 			data, err := json.Marshal(tt.output)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, data)
 
 			// Test unmarshaling
 			var unmarshaled MediaOutput
 			err = json.Unmarshal(data, &unmarshaled)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			// Compare relevant fields
 			assert.Equal(t, tt.output.Path, unmarshaled.Path)
@@ -221,13 +221,13 @@ func TestMediaShowcaseParamsJSONSerialization(t *testing.T) {
 
 	// Test marshaling
 	data, err := json.Marshal(params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, data)
 
 	// Test unmarshaling
 	var unmarshaled MediaShowcaseParams
 	err = json.Unmarshal(data, &unmarshaled)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, unmarshaled.Outputs, 2)
 
 	// Verify first output
@@ -336,7 +336,7 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 			}
 
 			response, err := tool.Run(ctx, call)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "text", string(response.Type))
 			assert.Equal(t, tt.expectedMsg, response.Content)
 			assert.False(t, response.IsError)
@@ -349,7 +349,33 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 	tool := &mediaShowcaseTool{}
 	ctx := context.Background()
 
-	tests := []struct {
+	tests := getMediaShowcaseErrorTestCases()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Helper()
+
+			call := ToolCall{
+				ID:    "test-call",
+				Name:  "ShowMedia",
+				Input: tt.input,
+			}
+
+			response, err := tool.Run(ctx, call)
+			require.NoError(t, err) // The tool should not return an error, but an error response
+			assert.Equal(t, "text", string(response.Type))
+			assert.True(t, response.IsError)
+			assert.Contains(t, response.Content, tt.expectedError)
+		})
+	}
+}
+
+func getMediaShowcaseErrorTestCases() []struct {
+	name          string
+	input         string
+	expectedError string
+} {
+	basicErrors := []struct {
 		name          string
 		input         string
 		expectedError string
@@ -416,6 +442,24 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 			}`,
 			expectedError: "path must be a valid HTTP/HTTPS URL for output 0",
 		},
+	}
+
+	gsapErrors := getGsapAnimationErrorTestCases()
+	timeErrors := getTimeValidationErrorTestCases()
+
+	return append(append(basicErrors, gsapErrors...), timeErrors...)
+}
+
+func getGsapAnimationErrorTestCases() []struct {
+	name          string
+	input         string
+	expectedError string
+} {
+	return []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
 		{
 			name: "gsap_animation missing config",
 			input: `{
@@ -489,6 +533,19 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 			}`,
 			expectedError: "gsap_animation config.url must be a valid HTTP/HTTPS URL for output 0",
 		},
+	}
+}
+
+func getTimeValidationErrorTestCases() []struct {
+	name          string
+	input         string
+	expectedError string
+} {
+	return []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
 		{
 			name: "negative startTime",
 			input: `{
@@ -525,22 +582,6 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 			}`,
 			expectedError: "duration must be > 0 for output 0",
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			call := ToolCall{
-				ID:    "test-call",
-				Name:  "ShowMedia",
-				Input: tt.input,
-			}
-
-			response, err := tool.Run(ctx, call)
-			assert.NoError(t, err) // The tool should not return an error, but an error response
-			assert.Equal(t, "text", string(response.Type))
-			assert.True(t, response.IsError)
-			assert.Contains(t, response.Content, tt.expectedError)
-		})
 	}
 }
 
@@ -662,7 +703,7 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 				}]
 			}`,
 			shouldError: true,
-			errorMsg:   "gsap_animation requires config.url field for output 0",
+			errorMsg:    "gsap_animation requires config.url field for output 0",
 		},
 	}
 
@@ -675,7 +716,7 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 			}
 
 			response, err := tool.Run(ctx, call)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			if tt.shouldError {
 				assert.True(t, response.IsError)
@@ -837,9 +878,9 @@ func TestMediaShowcaseToolWithContext(t *testing.T) {
 			response, err := tool.Run(tt.ctx, call)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.False(t, response.IsError)
 				assert.Contains(t, response.Content, "Successfully showcasing")
 			}
@@ -874,7 +915,7 @@ func TestErrorMessageFormat(t *testing.T) {
 	}
 
 	response, err := tool.Run(ctx, call)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "Output 1") // Should reference the second output (index 1)
 }

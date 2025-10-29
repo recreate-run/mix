@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,21 +21,21 @@ const (
 
 // SessionData represents session information for REST API
 type SessionData struct {
-	ID                    string                        `json:"id"`
-	ParentSessionID       string                        `json:"parentSessionId,omitempty"`
-	ParentToolCallID      string                        `json:"parentToolCallId,omitempty"`
-	Title                 string                        `json:"title"`
-	SessionType           string                        `json:"sessionType"`
-	SubagentType          string                        `json:"subagentType,omitempty"`
-	UserMessageCount      int64                         `json:"userMessageCount"`
-	AssistantMessageCount int64                         `json:"assistantMessageCount"`
-	ToolCallCount         int64                         `json:"toolCallCount"`
-	PromptTokens          int64                         `json:"promptTokens"`
-	CompletionTokens      int64                         `json:"completionTokens"`
-	Cost                  float64                       `json:"cost"`
-	CreatedAt             time.Time                     `json:"createdAt"`
-	FirstUserMessage      string                        `json:"firstUserMessage,omitempty"`
-	Callbacks             []interfaces.CallbackConfig   `json:"callbacks,omitempty"` // Session-level callbacks
+	ID                    string                      `json:"id"`
+	ParentSessionID       string                      `json:"parentSessionId,omitempty"`
+	ParentToolCallID      string                      `json:"parentToolCallId,omitempty"`
+	Title                 string                      `json:"title"`
+	SessionType           string                      `json:"sessionType"`
+	SubagentType          string                      `json:"subagentType,omitempty"`
+	UserMessageCount      int64                       `json:"userMessageCount"`
+	AssistantMessageCount int64                       `json:"assistantMessageCount"`
+	ToolCallCount         int64                       `json:"toolCallCount"`
+	PromptTokens          int64                       `json:"promptTokens"`
+	CompletionTokens      int64                       `json:"completionTokens"`
+	Cost                  float64                     `json:"cost"`
+	CreatedAt             time.Time                   `json:"createdAt"`
+	FirstUserMessage      string                      `json:"firstUserMessage,omitempty"`
+	Callbacks             []interfaces.CallbackConfig `json:"callbacks,omitempty"` // Session-level callbacks
 }
 
 // SessionHandler handles REST endpoints for session operations
@@ -69,8 +70,8 @@ func sessionToData(session session2.Session) (SessionData, error) {
 }
 
 // NewSessionHandler creates a new session handler
-func NewSessionHandler(app *app.App) *SessionHandler {
-	return &SessionHandler{app: app}
+func NewSessionHandler(a *app.App) *SessionHandler {
+	return &SessionHandler{app: a}
 }
 
 // HandleListSessions handles GET /api/sessions
@@ -80,7 +81,7 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -98,28 +99,28 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 
 	// Initialize as empty slice instead of nil to ensure JSON encodes as [] not null
 	result := make([]SessionData, 0)
-	for _, s := range sessions {
+	for i := range sessions {
 		// Only include main and forked sessions by default - hide subagent sessions
 		// unless explicitly requested via query parameter
-		if s.SessionType == "subagent" && !includeSubagents {
+		if sessions[i].SessionType == "subagent" && !includeSubagents {
 			continue
 		}
 
 		result = append(result, SessionData{
-			ID:                    s.ID,
-			ParentSessionID:       s.ParentSessionID.String,
-			ParentToolCallID:      s.ParentToolCallID.String,
-			Title:                 s.Title,
-			SessionType:           s.SessionType,                // String field from db.ListSessionsWithContentRow
-			SubagentType:          s.SubagentType.String,        // String field from db.ListSessionsWithContentRow
-			UserMessageCount:      s.UserMessageCount,
-			AssistantMessageCount: s.AssistantMessageCount,
-			ToolCallCount:         s.ToolCallCount,
-			PromptTokens:          s.PromptTokens,
-			CompletionTokens:      s.CompletionTokens,
-			Cost:                  s.Cost,
-			CreatedAt:             time.Unix(s.CreatedAt, 0),
-			FirstUserMessage:      s.FirstUserMessage,
+			ID:                    sessions[i].ID,
+			ParentSessionID:       sessions[i].ParentSessionID.String,
+			ParentToolCallID:      sessions[i].ParentToolCallID.String,
+			Title:                 sessions[i].Title,
+			SessionType:           sessions[i].SessionType,         // String field from db.ListSessionsWithContentRow
+			SubagentType:          sessions[i].SubagentType.String, // String field from db.ListSessionsWithContentRow
+			UserMessageCount:      sessions[i].UserMessageCount,
+			AssistantMessageCount: sessions[i].AssistantMessageCount,
+			ToolCallCount:         sessions[i].ToolCallCount,
+			PromptTokens:          sessions[i].PromptTokens,
+			CompletionTokens:      sessions[i].CompletionTokens,
+			Cost:                  sessions[i].Cost,
+			CreatedAt:             time.Unix(sessions[i].CreatedAt, 0),
+			FirstUserMessage:      sessions[i].FirstUserMessage,
 		})
 	}
 
@@ -133,7 +134,7 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -162,12 +163,12 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 
 // CreateSessionRequest represents the request body for creating a session
 type CreateSessionRequest struct {
-	Title              string                        `json:"title"`
-	CustomSystemPrompt string                        `json:"customSystemPrompt,omitempty"`
-	PromptMode         string                        `json:"promptMode,omitempty"`
-	SessionType        string                        `json:"sessionType,omitempty"`   // Only "main" or empty allowed
-	SubagentType       string                        `json:"subagentType,omitempty"`  // Must be empty for API-created sessions
-	Callbacks          []interfaces.CallbackConfig   `json:"callbacks,omitempty"`     // Session-level callbacks
+	Title              string                      `json:"title"`
+	CustomSystemPrompt string                      `json:"customSystemPrompt,omitempty"`
+	PromptMode         string                      `json:"promptMode,omitempty"`
+	SessionType        string                      `json:"sessionType,omitempty"`  // Only "main" or empty allowed
+	SubagentType       string                      `json:"subagentType,omitempty"` // Must be empty for API-created sessions
+	Callbacks          []interfaces.CallbackConfig `json:"callbacks,omitempty"`    // Session-level callbacks
 }
 
 // HandleCreateSession handles POST /api/sessions
@@ -177,7 +178,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -220,7 +221,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 				sendValidationError(w, "customSystemPrompt", fmt.Sprintf("Custom prompt size (%dKB) exceeds append mode limit of %dKB", promptSize/1024, MaxAppendPromptSize/1024))
 				return
 			}
-		// default mode ignores custom prompt, so no size check needed
+			// default mode ignores custom prompt, so no size check needed
 		}
 	}
 
@@ -277,8 +278,8 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 
 // ForkSessionRequest represents the request body for forking a session
 type ForkSessionRequest struct {
-	MessageIndex    int64  `json:"messageIndex"`
-	Title           string `json:"title,omitempty"`
+	MessageIndex int64  `json:"messageIndex"`
+	Title        string `json:"title,omitempty"`
 }
 
 // HandleForkSession handles POST /api/sessions/{id}/fork
@@ -288,7 +289,7 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -334,8 +335,8 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 		ID:                    newSession.ID,
 		ParentSessionID:       newSession.ParentSessionID,
 		Title:                 newSession.Title,
-		SessionType:           newSession.SessionType.String(),   // Convert typed field to string
-		SubagentType:          newSession.SubagentType.String(),  // Convert typed field to string
+		SessionType:           newSession.SessionType.String(),  // Convert typed field to string
+		SubagentType:          newSession.SubagentType.String(), // Convert typed field to string
 		UserMessageCount:      newSession.UserMessageCount,
 		AssistantMessageCount: newSession.AssistantMessageCount,
 		ToolCallCount:         newSession.ToolCallCount,
@@ -355,7 +356,7 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "DELETE" {
+	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -417,7 +418,7 @@ func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *
 		return
 	}
 
-	if r.Method != "PATCH" {
+	if r.Method != http.MethodPatch {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -471,6 +472,72 @@ type RewindSessionRequest struct {
 	CleanupMedia bool   `json:"cleanupMedia"` // Whether to clean up associated media files
 }
 
+// rewindPoint holds the result of finding a rewind point in the message list
+type rewindPoint struct {
+	timestamp       int64
+	messageIndex    int
+	messagesDeleted int
+}
+
+// findRewindPoint finds the message with the given ID and calculates rewind metadata
+func (h *SessionHandler) findRewindPoint(ctx context.Context, sessionID, messageID string) (*rewindPoint, error) {
+	allMessages, err := h.app.Messages.List(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("fetching messages: %w", err)
+	}
+
+	for i, msg := range allMessages {
+		if msg.ID == messageID {
+			return &rewindPoint{
+				timestamp:       msg.CreatedAt,
+				messageIndex:    i,
+				messagesDeleted: len(allMessages) - i - 1,
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("message not found: %s", messageID)
+}
+
+// performRewindCleanup deletes messages and optionally cleans up media files
+func (h *SessionHandler) performRewindCleanup(ctx context.Context, sessionID string, point *rewindPoint, cleanupMedia bool) error {
+	// Delete messages after the rewind point
+	if err := h.app.Messages.DeleteAfterIndex(ctx, sessionID, int64(point.messageIndex)); err != nil {
+		return fmt.Errorf("rewinding session: %w", err)
+	}
+
+	// Clean up media files created after rewind timestamp
+	if cleanupMedia {
+		sessionStorageDir := session2.GetSessionStoragePath(sessionID, h.app.StorageConfig)
+		err := session2.CleanupMediaByTimestamp(sessionStorageDir, point.timestamp)
+		if err != nil {
+			// Log error but don't fail the request - media cleanup is non-critical
+			fmt.Printf("Warning: Failed to cleanup media for session %s: %v\n", sessionID, err)
+		}
+	}
+
+	return nil
+}
+
+// buildSessionResponse creates a SessionData response from a session
+func buildSessionResponse(sess session2.Session) SessionData {
+	return SessionData{
+		ID:                    sess.ID,
+		ParentSessionID:       sess.ParentSessionID,
+		ParentToolCallID:      sess.ParentToolCallID,
+		Title:                 sess.Title,
+		SessionType:           sess.SessionType.String(),
+		SubagentType:          sess.SubagentType.String(),
+		UserMessageCount:      sess.UserMessageCount,
+		AssistantMessageCount: sess.AssistantMessageCount,
+		ToolCallCount:         sess.ToolCallCount,
+		PromptTokens:          sess.PromptTokens,
+		CompletionTokens:      sess.CompletionTokens,
+		Cost:                  sess.Cost,
+		CreatedAt:             time.Unix(sess.CreatedAt, 0),
+	}
+}
+
 // HandleRewindSession handles POST /api/sessions/{id}/rewind
 func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
@@ -478,7 +545,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -503,58 +570,31 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 
 	// Verify session exists
-	_, err := h.app.Sessions.Get(ctx, sessionID)
-	if err != nil {
+	if _, err := h.app.Sessions.Get(ctx, sessionID); err != nil {
 		sendNotFoundError(w, "Session", sessionID)
 		return
 	}
 
-	// Get all messages to find the rewind point
-	allMessages, err := h.app.Messages.List(ctx, sessionID)
+	// Find the rewind point
+	point, err := h.findRewindPoint(ctx, sessionID, req.MessageID)
 	if err != nil {
-		sendInternalError(w, "fetching messages", err)
-		return
-	}
-
-	// Find the message with the given ID and get its timestamp
-	var rewindTimestamp int64
-	var messageIndex = -1
-	for i, msg := range allMessages {
-		if msg.ID == req.MessageID {
-			rewindTimestamp = msg.CreatedAt
-			messageIndex = i
-			break
+		if strings.Contains(err.Error(), "message not found") {
+			sendNotFoundError(w, "Message", req.MessageID)
+			return
 		}
-	}
-
-	if messageIndex == -1 {
-		sendNotFoundError(w, "Message", req.MessageID)
+		sendInternalError(w, err.Error(), err)
 		return
 	}
 
-	// Calculate messages to be deleted for analytics
-	messagesDeleted := len(allMessages) - messageIndex - 1
-
-	// Delete messages after the rewind point
-	err = h.app.Messages.DeleteAfterIndex(ctx, sessionID, int64(messageIndex))
-	if err != nil {
-		sendInternalError(w, "rewinding session", err)
+	// Perform cleanup operations
+	if err := h.performRewindCleanup(ctx, sessionID, point, req.CleanupMedia); err != nil {
+		sendInternalError(w, err.Error(), err)
 		return
-	}
-
-	// Clean up media files created after rewind timestamp
-	if req.CleanupMedia {
-		sessionStorageDir := session2.GetSessionStoragePath(sessionID, h.app.StorageConfig)
-		err := session2.CleanupMediaByTimestamp(sessionStorageDir, rewindTimestamp)
-		if err != nil {
-			// Log error but don't fail the request - media cleanup is non-critical
-			fmt.Printf("Warning: Failed to cleanup media for session %s: %v\n", sessionID, err)
-		}
 	}
 
 	// Track session rewind
 	if h.app.Analytics != nil {
-		_ = h.app.Analytics.TrackSessionRewound(ctx, sessionID, req.MessageID, messagesDeleted, req.CleanupMedia)
+		_ = h.app.Analytics.TrackSessionRewound(ctx, sessionID, req.MessageID, point.messagesDeleted, req.CleanupMedia)
 	}
 
 	// Get updated session data
@@ -564,21 +604,5 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	result := SessionData{
-		ID:                    updatedSession.ID,
-		ParentSessionID:       updatedSession.ParentSessionID,
-		ParentToolCallID:      updatedSession.ParentToolCallID,
-		Title:                 updatedSession.Title,
-		SessionType:           updatedSession.SessionType.String(),   // Convert typed field to string
-		SubagentType:          updatedSession.SubagentType.String(),  // Convert typed field to string
-		UserMessageCount:      updatedSession.UserMessageCount,
-		AssistantMessageCount: updatedSession.AssistantMessageCount,
-		ToolCallCount:         updatedSession.ToolCallCount,
-		PromptTokens:          updatedSession.PromptTokens,
-		CompletionTokens:      updatedSession.CompletionTokens,
-		Cost:                  updatedSession.Cost,
-		CreatedAt:             time.Unix(updatedSession.CreatedAt, 0),
-	}
-
-	sendJSONResponse(w, http.StatusOK, result)
+	sendJSONResponse(w, http.StatusOK, buildSessionResponse(updatedSession))
 }

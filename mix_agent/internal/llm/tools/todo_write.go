@@ -107,7 +107,7 @@ func (t *todoWriteTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 	todosDir := filepath.Join(cfg.Data.Directory, "todos")
 	todosFile := filepath.Join(todosDir, "todos.json")
 
-	if err := os.MkdirAll(todosDir, 0755); err != nil {
+	if err := os.MkdirAll(todosDir, 0o750); err != nil {
 		return NewTextErrorResponse(fmt.Sprintf("Failed to create todos directory: %v", err)), nil
 	}
 
@@ -116,7 +116,7 @@ func (t *todoWriteTool) Run(ctx context.Context, call ToolCall) (ToolResponse, e
 		return NewTextErrorResponse(fmt.Sprintf("Failed to marshal todos: %v", err)), nil
 	}
 
-	if err := os.WriteFile(todosFile, data, 0644); err != nil {
+	if err := os.WriteFile(todosFile, data, 0o600); err != nil {
 		return NewTextErrorResponse(fmt.Sprintf("Failed to write todos file: %v", err)), nil
 	}
 

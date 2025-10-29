@@ -20,6 +20,7 @@ func TestRESTFileUploadAndList(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
 
@@ -31,6 +32,7 @@ func TestRESTFileUploadAndList(t *testing.T) {
 		"/api/sessions/"+sessionID+"/files/upload",
 		testFilename,
 		testContent)
+	defer func() { _ = uploadResp.Body.Close() }()
 
 	uploadData := validateObjectResponse(t, uploadResp, http.StatusCreated)
 
@@ -47,7 +49,8 @@ func TestRESTFileUploadAndList(t *testing.T) {
 
 	// List files in the session
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
-	filesList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	filesList := validateArrayResponse(t, listResp)
 
 	// Verify the uploaded file appears in the list
 	found := false
@@ -86,6 +89,7 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
 
@@ -97,6 +101,7 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 		"/api/sessions/"+sessionID+"/files/upload",
 		testFilename,
 		testContent)
+	defer func() { _ = uploadResp.Body.Close() }()
 
 	validateObjectResponse(t, uploadResp, http.StatusCreated)
 
@@ -132,6 +137,7 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 	// Test downloading non-existent file (should return 404)
 	nonExistentResp := makeJSONRequest(t, result.Server, "GET",
 		"/api/sessions/"+sessionID+"/files/non-existent.txt", nil)
+	defer func() { _ = nonExistentResp.Body.Close() }()
 
 	if nonExistentResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d for non-existent file, got %d", http.StatusNotFound, nonExistentResp.StatusCode)
@@ -153,6 +159,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
 
@@ -180,7 +187,8 @@ func TestRESTFilePathSecurity(t *testing.T) {
 
 	// Verify the file was created with sanitized name "passwd"
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
-	filesList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	filesList := validateArrayResponse(t, listResp)
 
 	found := false
 	for _, fileItem := range filesList {
@@ -262,11 +270,13 @@ func TestRESTFileSharedStorage(t *testing.T) {
 
 	// Create session 1
 	createResp1 := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session1Request)
+	defer func() { _ = createResp1.Body.Close() }()
 	session1Data := validateObjectResponse(t, createResp1, http.StatusCreated)
 	session1ID := session1Data["id"].(string)
 
 	// Create session 2
 	createResp2 := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session2Request)
+	defer func() { _ = createResp2.Body.Close() }()
 	session2Data := validateObjectResponse(t, createResp2, http.StatusCreated)
 	session2ID := session2Data["id"].(string)
 
@@ -278,6 +288,7 @@ func TestRESTFileSharedStorage(t *testing.T) {
 		"/api/sessions/"+session1ID+"/files/upload",
 		sharedFileName,
 		sharedContent)
+	defer func() { _ = uploadResp1.Body.Close() }()
 
 	validateObjectResponse(t, uploadResp1, http.StatusCreated)
 
@@ -319,10 +330,12 @@ func TestRESTFileSharedStorage(t *testing.T) {
 
 	// Test file listing - both sessions should see the same files from uploads directory
 	list1Resp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+session1ID+"/files", nil)
-	files1List := validateArrayResponse(t, list1Resp, http.StatusOK)
+	defer func() { _ = list1Resp.Body.Close() }()
+	files1List := validateArrayResponse(t, list1Resp)
 
 	list2Resp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+session2ID+"/files", nil)
-	files2List := validateArrayResponse(t, list2Resp, http.StatusOK)
+	defer func() { _ = list2Resp.Body.Close() }()
+	files2List := validateArrayResponse(t, list2Resp)
 
 	// Both sessions should see the same number of files (from shared uploads directory)
 	if len(files1List) != len(files2List) {
@@ -377,6 +390,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
 
@@ -388,12 +402,14 @@ func TestRESTFileDeletion(t *testing.T) {
 		"/api/sessions/"+sessionID+"/files/upload",
 		testFilename,
 		testContent)
+	defer func() { _ = uploadResp.Body.Close() }()
 
 	validateObjectResponse(t, uploadResp, http.StatusCreated)
 
 	// Verify file exists before deletion
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
-	filesList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	filesList := validateArrayResponse(t, listResp)
 
 	fileExists := false
 	for _, fileItem := range filesList {
@@ -410,6 +426,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	// Delete the file
 	deleteResp := makeJSONRequest(t, result.Server, "DELETE",
 		"/api/sessions/"+sessionID+"/files/"+testFilename, nil)
+	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusNoContent {
 		t.Fatalf("Expected status code %d for file deletion, got %d", http.StatusNoContent, deleteResp.StatusCode)
@@ -417,7 +434,8 @@ func TestRESTFileDeletion(t *testing.T) {
 
 	// Verify file is gone from file list
 	listAfterDeleteResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
-	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp, http.StatusOK)
+	defer func() { _ = listAfterDeleteResp.Body.Close() }()
+	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp)
 
 	for _, fileItem := range filesAfterDelete {
 		fileObj := fileItem.(map[string]interface{})
@@ -429,6 +447,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	// Verify file cannot be accessed directly (should return 404)
 	accessResp := makeJSONRequest(t, result.Server, "GET",
 		"/api/sessions/"+sessionID+"/files/"+testFilename, nil)
+	defer func() { _ = accessResp.Body.Close() }()
 
 	if accessResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d when accessing deleted file, got %d", http.StatusNotFound, accessResp.StatusCode)
@@ -437,6 +456,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	// Test deleting non-existent file (should return 404)
 	nonExistentDeleteResp := makeJSONRequest(t, result.Server, "DELETE",
 		"/api/sessions/"+sessionID+"/files/non-existent-file.txt", nil)
+	defer func() { _ = nonExistentDeleteResp.Body.Close() }()
 
 	if nonExistentDeleteResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d when deleting non-existent file, got %d", http.StatusNotFound, nonExistentDeleteResp.StatusCode)
@@ -445,6 +465,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	// Test deleting from non-existent session (should return 400)
 	invalidSessionDeleteResp := makeJSONRequest(t, result.Server, "DELETE",
 		"/api/sessions/invalid-session-id/files/"+testFilename, nil)
+	defer func() { _ = invalidSessionDeleteResp.Body.Close() }()
 
 	if invalidSessionDeleteResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d when deleting from invalid session, got %d", http.StatusBadRequest, invalidSessionDeleteResp.StatusCode)
@@ -466,6 +487,7 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
 
@@ -477,6 +499,7 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 		"/api/sessions/"+sessionID+"/files/upload",
 		textFilename,
 		textContent)
+	defer func() { _ = textUploadResp.Body.Close() }()
 
 	validateObjectResponse(t, textUploadResp, http.StatusCreated)
 
@@ -523,6 +546,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
 
@@ -540,6 +564,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 		"/api/sessions/"+sessionID+"/files/upload",
 		largeFilename,
 		largeContent)
+	defer func() { _ = largeUploadResp.Body.Close() }()
 
 	if largeUploadResp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status code %d for large file upload, got %d", http.StatusCreated, largeUploadResp.StatusCode)
@@ -555,7 +580,8 @@ func TestRESTLargeFileHandling(t *testing.T) {
 
 	// Verify the large file appears in file list
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
-	filesList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	filesList := validateArrayResponse(t, listResp)
 
 	found := false
 	for _, fileItem := range filesList {
@@ -586,6 +612,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	// Verify we can delete the large file
 	deleteResp := makeJSONRequest(t, result.Server, "DELETE",
 		"/api/sessions/"+sessionID+"/files/"+largeFilename, nil)
+	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusNoContent {
 		t.Fatalf("Expected status code %d for large file deletion, got %d", http.StatusNoContent, deleteResp.StatusCode)
@@ -593,7 +620,8 @@ func TestRESTLargeFileHandling(t *testing.T) {
 
 	// Verify file is gone after deletion
 	listAfterDeleteResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
-	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp, http.StatusOK)
+	defer func() { _ = listAfterDeleteResp.Body.Close() }()
+	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp)
 
 	for _, fileItem := range filesAfterDelete {
 		fileObj := fileItem.(map[string]interface{})
@@ -622,11 +650,13 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 
 	// Create session A
 	createARsep := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionARequest)
+	defer func() { _ = createARsep.Body.Close() }()
 	sessionAData := validateObjectResponse(t, createARsep, http.StatusCreated)
 	sessionAID := sessionAData["id"].(string)
 
 	// Create session B
 	createBResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionBRequest)
+	defer func() { _ = createBResp.Body.Close() }()
 	sessionBData := validateObjectResponse(t, createBResp, http.StatusCreated)
 	sessionBID := sessionBData["id"].(string)
 
@@ -695,6 +725,7 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 		"/api/sessions/"+sessionAID+"/files/upload",
 		sharedFilename,
 		sharedContent)
+	defer func() { _ = uploadResp.Body.Close() }()
 
 	validateObjectResponse(t, uploadResp, http.StatusCreated)
 

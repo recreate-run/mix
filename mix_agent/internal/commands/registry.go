@@ -22,9 +22,9 @@ func NewRegistry() *Registry {
 }
 
 // LoadCommands loads all commands (builtin and file-based)
-func (r *Registry) LoadCommands(app *app.App) error {
+func (r *Registry) LoadCommands(application *app.App) error {
 	// Load builtin commands
-	builtins := GetBuiltinCommands(r, app)
+	builtins := GetBuiltinCommands(r, application)
 	for name, cmd := range builtins {
 		r.commands[name] = cmd
 	}
@@ -89,7 +89,7 @@ func (r *Registry) ExecuteCommand(ctx context.Context, name, args string) (strin
 
 	result, err := cmd.Execute(ctx, args)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrCommandFailed, err)
+		return "", fmt.Errorf("%w: %w", ErrCommandFailed, err)
 	}
 
 	return result, nil

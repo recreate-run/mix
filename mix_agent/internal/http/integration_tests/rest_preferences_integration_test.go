@@ -14,6 +14,7 @@ func TestRESTGetPreferencesInitial(t *testing.T) {
 
 	// Get preferences - system automatically creates defaults
 	resp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
+	defer func() { _ = resp.Body.Close() }()
 	prefsData := validateObjectResponse(t, resp, http.StatusOK)
 
 	// Should have default preferences (system creates them automatically)
@@ -32,8 +33,8 @@ func TestRESTGetPreferencesInitial(t *testing.T) {
 	}
 
 	// Log the actual defaults for informational purposes
-	t.Logf("Default preferences: provider=%s, model=%s", 
-		preferences["preferred_provider"].(string), 
+	t.Logf("Default preferences: provider=%s, model=%s",
+		preferences["preferred_provider"].(string),
 		preferences["main_agent_model"].(string))
 
 	// Should always have available_providers
@@ -76,10 +77,11 @@ func TestRESTUpdatePreferences(t *testing.T) {
 
 	// First get available providers to use valid values
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
+	defer func() { _ = getResp.Body.Close() }()
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	// Find first provider and model to use in test
 	var testProvider string
 	var testModel string
@@ -99,7 +101,7 @@ func TestRESTUpdatePreferences(t *testing.T) {
 
 	// Update preferences with valid data
 	updateRequest := map[string]interface{}{
-		"preferred_provider":           testProvider,
+		"preferred_provider":          testProvider,
 		"main_agent_model":            testModel,
 		"main_agent_max_tokens":       4096,
 		"main_agent_reasoning_effort": "medium",
@@ -109,6 +111,7 @@ func TestRESTUpdatePreferences(t *testing.T) {
 	}
 
 	updateResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", updateRequest)
+	defer func() { _ = updateResp.Body.Close() }()
 	updatedPrefs := validateObjectResponse(t, updateResp, http.StatusOK)
 
 	// Validate response has all fields
@@ -149,10 +152,11 @@ func TestRESTGetPreferencesAfterUpdate(t *testing.T) {
 
 	// First set some preferences
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
+	defer func() { _ = getResp.Body.Close() }()
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	var testProvider string
 	var testModel string
 	for providerName, providerData := range availableProviders {
@@ -167,14 +171,17 @@ func TestRESTGetPreferencesAfterUpdate(t *testing.T) {
 
 	updateRequest := map[string]interface{}{
 		"preferred_provider":    testProvider,
-		"main_agent_model":     testModel,
+		"main_agent_model":      testModel,
 		"main_agent_max_tokens": 8192,
 	}
 
-	makeJSONRequest(t, result.Server, "POST", "/api/preferences", updateRequest)
+	updateResp2 := makeJSONRequest(t, result.Server, "POST", "/api/preferences", updateRequest)
+	defer func() { _ = updateResp2.Body.Close() }()
+	_ = validateObjectResponse(t, updateResp2, http.StatusOK)
 
 	// Now get preferences again
 	getAfterResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
+	defer func() { _ = getAfterResp.Body.Close() }()
 	afterPrefsData := validateObjectResponse(t, getAfterResp, http.StatusOK)
 
 	// Should now have preferences object
@@ -213,10 +220,11 @@ func TestRESTPartialUpdatePreferences(t *testing.T) {
 
 	// Get available providers for valid values
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
+	defer func() { _ = getResp.Body.Close() }()
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	var testProvider string
 	var testModel string
 	for providerName, providerData := range availableProviders {
@@ -231,7 +239,7 @@ func TestRESTPartialUpdatePreferences(t *testing.T) {
 
 	// Set initial preferences
 	initialRequest := map[string]interface{}{
-		"preferred_provider":           testProvider,
+		"preferred_provider":          testProvider,
 		"main_agent_model":            testModel,
 		"main_agent_max_tokens":       4096,
 		"main_agent_reasoning_effort": "medium",
@@ -239,16 +247,19 @@ func TestRESTPartialUpdatePreferences(t *testing.T) {
 		"sub_agent_max_tokens":        2048,
 	}
 
-	makeJSONRequest(t, result.Server, "POST", "/api/preferences", initialRequest)
+	initialResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", initialRequest)
+	defer func() { _ = initialResp.Body.Close() }()
+	_ = validateObjectResponse(t, initialResp, http.StatusOK)
 
 	// Update tokens and reasoning effort (need model too since service updates together)
 	partialRequest := map[string]interface{}{
-		"main_agent_model":             testModel,
-		"main_agent_max_tokens":        8192,
+		"main_agent_model":            testModel,
+		"main_agent_max_tokens":       8192,
 		"main_agent_reasoning_effort": "medium", // Need to preserve this since it's updated together
 	}
 
 	partialResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", partialRequest)
+	defer func() { _ = partialResp.Body.Close() }()
 	partialPrefs := validateObjectResponse(t, partialResp, http.StatusOK)
 
 	// Should have updated field
@@ -277,6 +288,7 @@ func TestRESTGetAvailableProviders(t *testing.T) {
 
 	// Get available providers
 	resp := makeJSONRequest(t, result.Server, "GET", "/api/preferences/providers", nil)
+	defer func() { _ = resp.Body.Close() }()
 	providersData := validateObjectResponse(t, resp, http.StatusOK)
 
 	// Should be a map of providers
@@ -329,10 +341,11 @@ func TestRESTResetPreferences(t *testing.T) {
 
 	// First set some custom preferences
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
+	defer func() { _ = getResp.Body.Close() }()
 	getPrefsData := validateObjectResponse(t, getResp, http.StatusOK)
-	
+
 	availableProviders := getPrefsData["available_providers"].(map[string]interface{})
-	
+
 	var testProvider string
 	var testModel string
 	for providerName, providerData := range availableProviders {
@@ -346,7 +359,7 @@ func TestRESTResetPreferences(t *testing.T) {
 	}
 
 	customRequest := map[string]interface{}{
-		"preferred_provider":           testProvider,
+		"preferred_provider":          testProvider,
 		"main_agent_model":            testModel,
 		"main_agent_max_tokens":       8192,
 		"main_agent_reasoning_effort": "high",
@@ -355,10 +368,13 @@ func TestRESTResetPreferences(t *testing.T) {
 		"sub_agent_reasoning_effort":  "medium",
 	}
 
-	makeJSONRequest(t, result.Server, "POST", "/api/preferences", customRequest)
+	customResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", customRequest)
+	defer func() { _ = customResp.Body.Close() }()
+	_ = validateObjectResponse(t, customResp, http.StatusOK)
 
 	// Reset preferences
 	resetResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences/reset", nil)
+	defer func() { _ = resetResp.Body.Close() }()
 	resetPrefs := validateObjectResponse(t, resetResp, http.StatusOK)
 
 	// Should have default values - verify structure exists
@@ -385,6 +401,7 @@ func TestRESTResetPreferences(t *testing.T) {
 
 	// Verify reset worked by getting preferences again
 	getAfterResetResp := makeJSONRequest(t, result.Server, "GET", "/api/preferences", nil)
+	defer func() { _ = getAfterResetResp.Body.Close() }()
 	afterResetData := validateObjectResponse(t, getAfterResetResp, http.StatusOK)
 
 	preferences, ok := afterResetData["preferences"].(map[string]interface{})
@@ -413,6 +430,7 @@ func TestRESTInvalidPreferencesUpdate(t *testing.T) {
 	}
 
 	invalidProviderResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", invalidProviderRequest)
+	defer func() { _ = invalidProviderResp.Body.Close() }()
 	if invalidProviderResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for invalid provider, got %d", http.StatusBadRequest, invalidProviderResp.StatusCode)
 	}
@@ -423,6 +441,7 @@ func TestRESTInvalidPreferencesUpdate(t *testing.T) {
 	}
 
 	invalidTokenResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", invalidTokenRequest)
+	defer func() { _ = invalidTokenResp.Body.Close() }()
 	if invalidTokenResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for negative token count, got %d", http.StatusBadRequest, invalidTokenResp.StatusCode)
 	}
@@ -433,6 +452,7 @@ func TestRESTInvalidPreferencesUpdate(t *testing.T) {
 	}
 
 	invalidReasoningResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", invalidReasoningRequest)
+	defer func() { _ = invalidReasoningResp.Body.Close() }()
 	if invalidReasoningResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for invalid reasoning effort, got %d", http.StatusBadRequest, invalidReasoningResp.StatusCode)
 	}
@@ -443,6 +463,7 @@ func TestRESTInvalidPreferencesUpdate(t *testing.T) {
 	}
 
 	zeroTokenResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", zeroTokenRequest)
+	defer func() { _ = zeroTokenResp.Body.Close() }()
 	if zeroTokenResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for zero token count, got %d", http.StatusBadRequest, zeroTokenResp.StatusCode)
 	}

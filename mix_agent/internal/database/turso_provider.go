@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
 	"github.com/pressly/goose/v3"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 
 	"mix/internal/db"
 	"mix/internal/logging"
@@ -40,13 +40,13 @@ func (p *TursoProvider) Connect(ctx context.Context) error {
 
 	// Connect to Turso using libsql driver
 	logging.Info("Connecting to Turso database", "url", p.config.URL)
-	db, err := sql.Open("libsql", connectionString)
+	sqlDB, err := sql.Open("libsql", connectionString)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Turso: %w", err)
 	}
 
 	// Store the connection
-	p.db = db
+	p.db = sqlDB
 
 	// Verify connection with timeout
 	pingCtx, cancel := context.WithTimeout(ctx, 30*time.Second)

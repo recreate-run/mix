@@ -19,8 +19,8 @@ import (
 	"mix/internal/config"
 	"mix/internal/db"
 	httphandlers "mix/internal/http"
-	"mix/internal/session"
 	_ "mix/internal/llm/models"
+	"mix/internal/session"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
@@ -36,7 +36,7 @@ type TestServerResult struct {
 }
 
 // initMCPTools mock implementation for testing
-func initMCPTools(ctx context.Context, app *app.App) {
+func initMCPTools(ctx context.Context, appInstance *app.App) {
 	// Mock implementation - in real app this initializes MCP tools
 	// For tests, we just need to ensure the app doesn't crash
 }
@@ -44,6 +44,7 @@ func initMCPTools(ctx context.Context, app *app.App) {
 // setupIntegrationTestServer sets up a complete test environment for integration testing
 // This function consolidates the common setup logic shared between REST and SSE tests
 func setupIntegrationTestServer(t *testing.T) *TestServerResult {
+	t.Helper()
 	// Auto-generate test name from test function name
 	testName := t.Name()
 
@@ -55,13 +56,13 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	_ = os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
-	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
+	if err := os.MkdirAll(testConfigDir, 0o750); err != nil {
 		t.Fatalf("Failed to create test config dir: %v", err)
 	}
-	if err := os.MkdirAll(testDataDir, 0755); err != nil {
+	if err := os.MkdirAll(testDataDir, 0o750); err != nil {
 		t.Fatalf("Failed to create test data dir: %v", err)
 	}
-	if err := os.MkdirAll(testDataDir+"/gsap_animations", 0755); err != nil {
+	if err := os.MkdirAll(testDataDir+"/gsap_animations", 0o750); err != nil {
 		t.Fatalf("Failed to create GSAP animations dir: %v", err)
 	}
 
@@ -190,6 +191,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 // makeJSONRequest makes an HTTP request with JSON payload and returns the response
 func makeJSONRequest(t *testing.T, server *httptest.Server, method, path string, payload interface{}) *http.Response {
+	t.Helper()
 	var body *bytes.Buffer
 	if payload != nil {
 		jsonData, err := json.Marshal(payload)
@@ -201,7 +203,8 @@ func makeJSONRequest(t *testing.T, server *httptest.Server, method, path string,
 		body = bytes.NewBuffer(nil)
 	}
 
-	req, err := http.NewRequest(method, server.URL+path, body)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, method, server.URL+path, body)
 	if err != nil {
 		t.Fatalf("Failed to create HTTP request: %v", err)
 	}
@@ -230,6 +233,7 @@ func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 
 // validateObjectResponse validates success response as object (flattened)
 func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
+	t.Helper()
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {
@@ -245,11 +249,12 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 }
 
 // validateArrayResponse validates success response as array (flattened)
-func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int) []interface{} {
+func validateArrayResponse(t *testing.T, resp *http.Response) []interface{} {
+	t.Helper()
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != expectedStatus {
-		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status code %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 
 	var responseData []interface{}
@@ -262,6 +267,7 @@ func validateArrayResponse(t *testing.T, resp *http.Response, expectedStatus int
 
 // validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
 func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) httphandlers.ErrorResponse {
+	t.Helper()
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {
@@ -282,6 +288,7 @@ func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int
 
 // makeMultipartFileRequest creates and sends a multipart file upload request
 func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filename, content string) *http.Response {
+	t.Helper()
 	// Create multipart form
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -305,7 +312,8 @@ func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filen
 	}
 
 	// Create request
-	req, err := http.NewRequest("POST", server.URL+path, &body)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL+path, &body)
 	if err != nil {
 		t.Fatalf("Failed to create multipart request: %v", err)
 	}
@@ -324,6 +332,7 @@ func makeMultipartFileRequest(t *testing.T, server *httptest.Server, path, filen
 
 // makeMultipartFileRequestFromBytes creates and sends a multipart file upload request with byte data
 func makeMultipartFileRequestFromBytes(t *testing.T, server *httptest.Server, path, filename string, content []byte) *http.Response {
+	t.Helper()
 	// Create multipart form
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -347,7 +356,8 @@ func makeMultipartFileRequestFromBytes(t *testing.T, server *httptest.Server, pa
 	}
 
 	// Create request
-	req, err := http.NewRequest("POST", server.URL+path, &body)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL+path, &body)
 	if err != nil {
 		t.Fatalf("Failed to create multipart request: %v", err)
 	}
@@ -372,11 +382,12 @@ type SSEEvent struct {
 
 // connectSSE establishes a connection to the SSE stream for a given session
 func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, context.CancelFunc) {
+	t.Helper()
 	url := fmt.Sprintf("%s/stream?sessionId=%s", serverURL, sessionID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		cancel()
 		t.Fatalf("Failed to create SSE request: %v", err)
@@ -402,6 +413,7 @@ func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, cont
 
 // waitForEvents waits for and parses events from an SSE stream connection
 func waitForEvents(t *testing.T, resp *http.Response, expectedMinEvents int, timeout time.Duration) []SSEEvent {
+	t.Helper()
 	var events []SSEEvent
 	eventChan := make(chan SSEEvent, 10)
 

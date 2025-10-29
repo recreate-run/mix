@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"mix/internal/credentials"
@@ -27,7 +28,6 @@ func NewTokenRefreshService(credentialsService *credentials.APICredentialsServic
 
 // Start begins the background token refresh service
 func (s *TokenRefreshService) Start(ctx context.Context) {
-
 	// Run initial refresh check immediately
 	s.RefreshExpiredTokens(ctx)
 
@@ -57,7 +57,6 @@ func (s *TokenRefreshService) Stop() {
 // Uses a 35-minute buffer to ensure tokens are refreshed before they're considered expired by IsTokenExpired()
 // With 30-minute background checks + 5-minute safety margin = zero downtime
 func (s *TokenRefreshService) RefreshExpiredTokens(ctx context.Context) {
-
 	// Get tokens expiring within 35 minutes (database query buffer matches IsTokenExpired buffer)
 	expiredCreds, err := s.credentialsService.GetExpiredOAuthCredentials(ctx)
 	if err != nil {
@@ -129,19 +128,18 @@ func (s *TokenRefreshService) GetStatus(ctx context.Context) (map[string]TokenSt
 	status := make(map[string]TokenStatus)
 	for _, providerName := range providers {
 		cred, err := s.credentialsService.GetOAuthCredentials(ctx, providerName)
+		if errors.Is(err, credentials.ErrOAuthCredentialNotFound) {
+			status[providerName] = TokenStatus{
+				Provider: providerName,
+				Status:   "not_found",
+			}
+			continue
+		}
 		if err != nil {
 			status[providerName] = TokenStatus{
 				Provider: providerName,
 				Status:   "error",
 				Error:    err.Error(),
-			}
-			continue
-		}
-
-		if cred == nil {
-			status[providerName] = TokenStatus{
-				Provider: providerName,
-				Status:   "not_found",
 			}
 			continue
 		}

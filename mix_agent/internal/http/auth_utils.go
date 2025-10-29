@@ -8,6 +8,10 @@ import (
 	"mix/internal/config"
 )
 
+const (
+	providerAnthropic = "anthropic"
+)
+
 // getAuthenticationErrorMessage returns a provider-specific authentication error message
 func getAuthenticationErrorMessage(ctx context.Context) string {
 	// Get user preferences to determine their preferred provider
@@ -35,7 +39,7 @@ func getAuthenticationErrorMessage(ctx context.Context) string {
 // getProviderDisplayName returns a user-friendly display name for providers
 func getProviderDisplayName(provider string) string {
 	switch strings.ToLower(provider) {
-	case "anthropic":
+	case providerAnthropic:
 		return "Anthropic (Claude)"
 	case "openai":
 		return "OpenAI (GPT)"
@@ -53,7 +57,7 @@ func getProviderDisplayName(provider string) string {
 		return "xAI (Grok)"
 	default:
 		// Capitalize first letter of provider name
-		if len(provider) == 0 {
+		if provider == "" {
 			return provider
 		}
 		return strings.ToUpper(provider[:1]) + provider[1:]

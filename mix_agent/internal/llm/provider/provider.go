@@ -33,64 +33,63 @@ type baseProvider[C interfaces.ProviderClient] struct {
 	client  C
 }
 
-func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption) (interfaces.Provider, error) {
-	clientOptions := providerClientOptions{}
-
-	// Apply passed options
-	for _, o := range opts {
-		o(&clientOptions)
+// retrieveAPIKey attempts to get the API key from database if not already set
+func retrieveAPIKey(options *providerClientOptions, providerName models.ModelProvider) {
+	if options.apiKey != "" {
+		return
 	}
 
-	// If no API key provided in options, try to get from database
-	if clientOptions.apiKey == "" {
-		// Only get database credentials if we haven't explicitly set apiKey
-		ctx := context.Background()
-		credentialsService := config.GetAPICredentials()
-		if credentialsService != nil {
-			// Try to get API key from database
-			apiKey, err := credentialsService.GetAPIKey(ctx, providerName)
-			if err == nil && apiKey != "" {
-				clientOptions.apiKey = apiKey
-				// Using database-stored API key for provider
-			} else {
-				// No database key and not explicitly set - for non-OAuth providers, this is a potential issue
-				if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
-					logging.Warn("No API key found in database for provider", "provider", providerName)
-				}
-			}
-		}
+	ctx := context.Background()
+	credentialsService := config.GetAPICredentials()
+	if credentialsService == nil {
+		return
 	}
 
-	// Create provider instance based on provider name
+	apiKey, err := credentialsService.GetAPIKey(ctx, providerName)
+	if err == nil && apiKey != "" {
+		options.apiKey = apiKey
+		return
+	}
+
+	// Warn for non-OAuth providers that need API keys
+	if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
+		logging.Warn("No API key found in database for provider", "provider", providerName)
+	}
+}
+
+// createProviderClient creates the appropriate provider client based on provider name
+func createProviderClient(providerName models.ModelProvider, clientOptions providerClientOptions) (interfaces.Provider, error) {
 	switch providerName {
 	case models.ProviderAnthropic:
 		return &baseProvider[AnthropicClient]{
 			options: clientOptions,
 			client:  newAnthropicClient(clientOptions),
 		}, nil
+
 	case models.ProviderOpenAI:
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
 		}, nil
+
 	case models.ProviderGemini:
 		return &baseProvider[GeminiClient]{
 			options: clientOptions,
 			client:  newGeminiClient(clientOptions),
 		}, nil
+
 	case models.ProviderBedrock:
 		return &baseProvider[BedrockClient]{
 			options: clientOptions,
 			client:  newBedrockClient(clientOptions),
 		}, nil
-	case models.ProviderGROQ:
-		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL("https://api.groq.com/openai/v1"),
-		)
-		return &baseProvider[OpenAIClient]{
+
+	case models.ProviderVertexAI:
+		return &baseProvider[VertexAIClient]{
 			options: clientOptions,
-			client:  newOpenAIClient(clientOptions),
+			client:  newVertexAIClient(clientOptions),
 		}, nil
+
 	case models.ProviderAzure:
 		client, err := newAzureClient(clientOptions)
 		if err != nil {
@@ -100,11 +99,16 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			options: clientOptions,
 			client:  client,
 		}, nil
-	case models.ProviderVertexAI:
-		return &baseProvider[VertexAIClient]{
+
+	case models.ProviderGROQ:
+		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
+			WithOpenAIBaseURL("https://api.groq.com/openai/v1"),
+		)
+		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
-			client:  newVertexAIClient(clientOptions),
+			client:  newOpenAIClient(clientOptions),
 		}, nil
+
 	case models.ProviderOpenRouter:
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
 			WithOpenAIBaseURL("https://openrouter.ai/api/v1"),
@@ -117,6 +121,7 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
 		}, nil
+
 	case models.ProviderXAI:
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
 			WithOpenAIBaseURL("https://api.x.ai/v1"),
@@ -125,11 +130,11 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
 		}, nil
+
 	case models.ProviderLocal:
-		// For local provider, we still need the endpoint from environment
 		localEndpoint := os.Getenv("LOCAL_ENDPOINT")
 		if localEndpoint == "" {
-			localEndpoint = "http://localhost:8000/v1" // Default local endpoint
+			localEndpoint = "http://localhost:8000/v1"
 		}
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
 			WithOpenAIBaseURL(localEndpoint),
@@ -138,10 +143,25 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
 		}, nil
+
 	case models.ProviderMock:
 		return nil, fmt.Errorf("mock provider not implemented")
+
+	default:
+		return nil, fmt.Errorf("provider not supported: %s", providerName)
 	}
-	return nil, fmt.Errorf("provider not supported: %s", providerName)
+}
+
+func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption) (interfaces.Provider, error) {
+	clientOptions := providerClientOptions{}
+
+	for _, o := range opts {
+		o(&clientOptions)
+	}
+
+	retrieveAPIKey(&clientOptions, providerName)
+
+	return createProviderClient(providerName, clientOptions)
 }
 
 func (p *baseProvider[C]) cleanMessages(messages []message.Message) (cleaned []message.Message) {

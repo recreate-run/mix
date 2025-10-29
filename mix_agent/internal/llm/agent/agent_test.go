@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"mix/internal/config"
@@ -17,10 +18,16 @@ import (
 	"mix/internal/session"
 )
 
+const (
+	testSessionID      = "test-session-123"
+	testMessageContent = "Hello, world!"
+)
+
 // Test helper functions using mocks from their respective packages
 
 // Test helper functions
 func CreateTestAgent(t *testing.T, mockSessions *session.MockService, mockMessages *message.MockService, mockProvider *interfaces.MockProvider) *agent {
+	t.Helper()
 	agentTools := []interfaces.BaseTool{}
 	storageConfig := session.Config{}
 
@@ -29,23 +36,23 @@ func CreateTestAgent(t *testing.T, mockSessions *session.MockService, mockMessag
 	accumulator := NewMessageAccumulator(mockMessages)
 
 	return &agent{
-		broker:            pubsub.NewBroker[AgentEvent](),
-		agentName:         config.AgentMain,
-		provider:          mockProvider,
-		messages:       mockMessages,
-		sessions:       mockSessions,
-		storageConfig:  storageConfig,
-		tools:          agentTools,
-		titleProvider:  mockProvider,
-		accumulator:    accumulator,
-		ctx:            ctx,
-		cancel:         cancel,
+		broker:        pubsub.NewBroker[AgentEvent](),
+		agentName:     config.AgentMain,
+		provider:      mockProvider,
+		messages:      mockMessages,
+		sessions:      mockSessions,
+		storageConfig: storageConfig,
+		tools:         agentTools,
+		titleProvider: mockProvider,
+		accumulator:   accumulator,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 }
 
 func CreateTestSession() session.Session {
 	return session.Session{
-		ID:                    "test-session-123",
+		ID:                    testSessionID,
 		Title:                 "Test Session",
 		UserMessageCount:      0,
 		AssistantMessageCount: 0,
@@ -58,10 +65,10 @@ func CreateTestSession() session.Session {
 func CreateTestMessage() message.Message {
 	return message.Message{
 		ID:        "test-message-123",
-		SessionID: "test-session-123",
+		SessionID: testSessionID,
 		Role:      message.User,
 		Parts: []message.ContentPart{
-			message.TextContent{Text: "Hello, world!"},
+			message.TextContent{Text: testMessageContent},
 		},
 		CreatedAt: time.Now().Unix(),
 	}
@@ -107,7 +114,7 @@ func TestCancel(t *testing.T) {
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
-	sessionID := "test-session-123"
+	sessionID := testSessionID
 
 	// Set up a context to cancel
 	_, cancel := context.WithCancel(context.Background())
@@ -129,8 +136,8 @@ func TestGenerateTitle(t *testing.T) {
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
-	sessionID := "test-session-123"
-	content := "Hello, world!"
+	sessionID := testSessionID
+	content := testMessageContent
 	testSession := CreateTestSession()
 
 	// Mock session retrieval
@@ -142,12 +149,12 @@ func TestGenerateTitle(t *testing.T) {
 	// Mock provider response for title generation
 	mockProvider.On("SendMessages", mock.Anything, mock.AnythingOfType("[]message.Message"), mock.AnythingOfType("[]interfaces.BaseTool")).
 		Return(&interfaces.ProviderResponse{
-			Content: "Test Title",
+			Content:      "Test Title",
 			FinishReason: message.FinishReasonEndTurn,
 		}, nil)
 
 	err := agent.generateTitle(context.Background(), sessionID, content)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockSessions.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
@@ -161,11 +168,11 @@ func TestGenerateTitleEmptyContent(t *testing.T) {
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
-	sessionID := "test-session-123"
+	sessionID := testSessionID
 	content := ""
 
 	err := agent.generateTitle(context.Background(), sessionID, content)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Should not call any mocks
 	mockSessions.AssertExpectations(t)
@@ -181,11 +188,11 @@ func TestGenerateTitleNoProvider(t *testing.T) {
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 	agent.titleProvider = nil // Remove title provider
 
-	sessionID := "test-session-123"
-	content := "Hello, world!"
+	sessionID := testSessionID
+	content := testMessageContent
 
 	err := agent.generateTitle(context.Background(), sessionID, content)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Should not call any mocks
 	mockSessions.AssertExpectations(t)
@@ -260,8 +267,8 @@ func TestCreateUserMessage(t *testing.T) {
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
-	sessionID := "test-session-123"
-	content := "Hello, world!"
+	sessionID := testSessionID
+	content := testMessageContent
 	attachmentParts := []message.ContentPart{}
 
 	testMessage := CreateTestMessage()
@@ -269,7 +276,7 @@ func TestCreateUserMessage(t *testing.T) {
 		Return(testMessage, nil)
 
 	userMsg, err := agent.createUserMessage(context.Background(), sessionID, content, attachmentParts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, testMessage, userMsg)
 
 	mockMessages.AssertExpectations(t)
@@ -283,8 +290,8 @@ func TestCreateUserMessagePlanMode(t *testing.T) {
 
 	agent := CreateTestAgent(t, mockSessions, mockMessages, mockProvider)
 
-	sessionID := "test-session-123"
-	content := "Hello, world!"
+	sessionID := testSessionID
+	content := testMessageContent
 	attachmentParts := []message.ContentPart{}
 
 	// Create context with plan mode
@@ -295,7 +302,7 @@ func TestCreateUserMessagePlanMode(t *testing.T) {
 		Return(testMessage, nil)
 
 	userMsg, err := agent.createUserMessage(ctx, sessionID, content, attachmentParts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, testMessage, userMsg)
 
 	mockMessages.AssertExpectations(t)

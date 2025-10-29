@@ -235,6 +235,11 @@ frontend-format:
 	@echo "Running biome formatter on frontend..."
 	cd mix_dev_tool && bunx biome format --write
 
+go-format:
+	@echo "Formatting Go code..."
+	cd mix_agent && gofmt -w .
+	@echo "✅ Code formatted successfully!"
+
 frontend-lint:
 	@echo "Running biome linter on frontend..."
 	cd mix_dev_tool && bunx biome check --write
@@ -246,6 +251,9 @@ frontend-knip:
 # Run linters for both Go backend and frontend
 lint: go-lint frontend-lint
 	@echo "✅ All linting completed successfully!"
+
+format: go-format frontend-format
+	@echo "✅ All formatting completed successfully!"
 
 # Run golangci-lint on Go backend code
 go-lint:

@@ -14,10 +14,10 @@ import (
 
 const (
 	// Event types
-	EventUserMessage    = "user_message"
-	EventAgentResponse  = "agent_response"
-	EventToolCall       = "tool_call"
-	EventProviderAuth   = "provider_auth"
+	EventUserMessage   = "user_message"
+	EventAgentResponse = "agent_response"
+	EventToolCall      = "tool_call"
+	EventProviderAuth  = "provider_auth"
 
 	// Session lifecycle events
 	EventSessionCreated = "session_created"
@@ -37,27 +37,27 @@ const (
 	EventPreferencesReset   = "preferences_reset"
 
 	// Properties
-	PropSessionID      = "session_id"
-	PropMessageID      = "message_id"
-	PropContent        = "content"
-	PropToolName       = "tool_name"
-	PropToolInput      = "tool_input"
-	PropToolID         = "tool_id"
-	PropModel          = "model"
-	PropSuccess        = "success"
-	PropError          = "error"
+	PropSessionID = "session_id"
+	PropMessageID = "message_id"
+	PropContent   = "content"
+	PropToolName  = "tool_name"
+	PropToolInput = "tool_input"
+	PropToolID    = "tool_id"
+	PropModel     = "model"
+	PropSuccess   = "success"
+	PropError     = "error"
 
 	// Provider-specific properties
-	PropProvider           = "provider"
-	PropProviderModel      = "provider_model"
-	PropThinkingEnabled    = "thinking_enabled"
-	PropThinkingLength     = "thinking_length"
-	PropResponseTime       = "response_time_ms"
-	PropTokenUsageInput    = "token_usage_input"
-	PropTokenUsageOutput   = "token_usage_output"
-	PropTokenUsageCached   = "token_usage_cached"
-	PropCost               = "cost"
-	PropAuthMethod         = "auth_method"
+	PropProvider         = "provider"
+	PropProviderModel    = "provider_model"
+	PropThinkingEnabled  = "thinking_enabled"
+	PropThinkingLength   = "thinking_length"
+	PropResponseTime     = "response_time_ms"
+	PropTokenUsageInput  = "token_usage_input"
+	PropTokenUsageOutput = "token_usage_output"
+	PropTokenUsageCached = "token_usage_cached"
+	PropCost             = "cost"
+	PropAuthMethod       = "auth_method"
 
 	// Session-specific properties
 	PropTitle              = "title"
@@ -79,45 +79,45 @@ const (
 	PropFileExisted       = "file_existed"
 
 	// Export-specific properties
-	PropExportFormat      = "export_format"
-	PropTotalTokens       = "total_tokens"
-	PropURL               = "url"
-	PropFPS               = "fps"
-	PropAspectRatio       = "aspect_ratio"
-	PropHeight            = "height"
-	PropDuration          = "duration"
-	PropUploadedToS3      = "uploaded_to_s3"
-	PropExportDurationMs  = "export_duration_ms"
+	PropExportFormat     = "export_format"
+	PropTotalTokens      = "total_tokens"
+	PropURL              = "url"
+	PropFPS              = "fps"
+	PropAspectRatio      = "aspect_ratio"
+	PropHeight           = "height"
+	PropDuration         = "duration"
+	PropUploadedToS3     = "uploaded_to_s3"
+	PropExportDurationMs = "export_duration_ms"
 
 	// Preferences-specific properties
-	PropFieldsChanged              = "fields_changed"
-	PropPreferredProvider          = "preferred_provider"
-	PropMainAgentModel             = "main_agent_model"
-	PropMainAgentMaxTokens         = "main_agent_max_tokens"
-	PropMainAgentReasoningEffort   = "main_agent_reasoning_effort"
-	PropSubAgentModel              = "sub_agent_model"
-	PropSubAgentMaxTokens          = "sub_agent_max_tokens"
-	PropSubAgentReasoningEffort    = "sub_agent_reasoning_effort"
-	PropPreviousProvider           = "previous_provider"
-	PropPreviousModel              = "previous_model"
+	PropFieldsChanged            = "fields_changed"
+	PropPreferredProvider        = "preferred_provider"
+	PropMainAgentModel           = "main_agent_model"
+	PropMainAgentMaxTokens       = "main_agent_max_tokens"
+	PropMainAgentReasoningEffort = "main_agent_reasoning_effort"
+	PropSubAgentModel            = "sub_agent_model"
+	PropSubAgentMaxTokens        = "sub_agent_max_tokens"
+	PropSubAgentReasoningEffort  = "sub_agent_reasoning_effort"
+	PropPreviousProvider         = "previous_provider"
+	PropPreviousModel            = "previous_model"
 )
 
 // Service defines the analytics tracking interface
 type Service interface {
 	// TrackUserMessage tracks a user's message/prompt
-	TrackUserMessage(ctx context.Context, sessionID, messageID, content string, model string) error
-	
+	TrackUserMessage(ctx context.Context, sessionID, messageID, content, model string) error
+
 	// TrackAgentResponse tracks an assistant's response
-	TrackAgentResponse(ctx context.Context, sessionID, messageID, content string, model string) error
-	
+	TrackAgentResponse(ctx context.Context, sessionID, messageID, content, model string) error
+
 	// TrackToolCall tracks a tool call
 	TrackToolCall(ctx context.Context, sessionID, messageID, toolName, toolInput, toolID string, success bool, errorMsg string) error
-	
+
 	// TrackAgentResponseWithProvider tracks an assistant's response with detailed provider information
-	TrackAgentResponseWithProvider(ctx context.Context, sessionID, messageID, content string, 
-		provider string, model string, thinkingEnabled bool, thinkingLength int, 
+	TrackAgentResponseWithProvider(ctx context.Context, sessionID, messageID, content string,
+		provider string, model string, thinkingEnabled bool, thinkingLength int,
 		responseTimeMs int64, tokenUsage map[string]int64, cost float64) error
-	
+
 	// TrackProviderAuth tracks authentication events for providers
 	TrackProviderAuth(ctx context.Context, provider string, success bool, authMethod string) error
 
@@ -131,7 +131,7 @@ type Service interface {
 	TrackSessionRewound(ctx context.Context, sessionID, messageID string, messagesDeleted int, cleanupMedia bool) error
 
 	// TrackFileUploaded tracks file upload events
-	TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized bool, isMedia bool) error
+	TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized, isMedia bool) error
 
 	// TrackFileDeleted tracks file deletion events
 	TrackFileDeleted(ctx context.Context, sessionID, fileName string, fileExisted bool) error
@@ -196,7 +196,7 @@ func NewAnalyticsService(apiKey string) Service {
 }
 
 // TrackUserMessage tracks a user message event
-func (s *analyticsService) TrackUserMessage(ctx context.Context, sessionID, messageID, content string, model string) error {
+func (s *analyticsService) TrackUserMessage(ctx context.Context, sessionID, messageID, content, model string) error {
 	if !s.enabled {
 		return nil
 	}
@@ -239,7 +239,7 @@ func (s *analyticsService) TrackUserMessage(ctx context.Context, sessionID, mess
 }
 
 // TrackAgentResponse tracks an assistant response event
-func (s *analyticsService) TrackAgentResponse(ctx context.Context, sessionID, messageID, content string, model string) error {
+func (s *analyticsService) TrackAgentResponse(ctx context.Context, sessionID, messageID, content, model string) error {
 	if !s.enabled {
 		return nil
 	}
@@ -317,29 +317,28 @@ func (s *analyticsService) TrackToolCall(ctx context.Context, sessionID, message
 }
 
 // TrackAgentResponseWithProvider tracks an assistant's response with detailed provider information
-func (s *analyticsService) TrackAgentResponseWithProvider(ctx context.Context, 
+func (s *analyticsService) TrackAgentResponseWithProvider(ctx context.Context,
 	sessionID, messageID, content string, provider string, model string,
 	thinkingEnabled bool, thinkingLength int, responseTimeMs int64,
 	tokenUsage map[string]int64, cost float64) error {
-	
 	if !s.enabled {
 		return nil
 	}
-	
+
 	// Don't track empty content
 	if content == "" {
 		return nil
 	}
-	
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	// Truncate long content
 	trackedContent := content
 	if len(trackedContent) > 10000 {
 		trackedContent = trackedContent[:10000] + "... [truncated]"
 	}
-	
+
 	props := posthog.NewProperties().
 		Set(PropSessionID, sessionID).
 		Set(PropMessageID, messageID).
@@ -352,7 +351,7 @@ func (s *analyticsService) TrackAgentResponseWithProvider(ctx context.Context,
 		Set(PropResponseTime, responseTimeMs).
 		Set("content_length", len(content)).
 		Set("is_truncated", len(trackedContent) < len(content))
-	
+
 	// Add token usage if available
 	if tokenUsage != nil {
 		if input, ok := tokenUsage["input"]; ok {
@@ -365,53 +364,52 @@ func (s *analyticsService) TrackAgentResponseWithProvider(ctx context.Context,
 			props = props.Set(PropTokenUsageCached, cached)
 		}
 	}
-	
+
 	// Add cost if available
 	if cost > 0 {
 		props = props.Set(PropCost, cost)
 	}
-	
+
 	err := s.client.Enqueue(posthog.Capture{
 		DistinctId: s.distinct,
 		Event:      EventAgentResponse,
 		Properties: props,
 	})
-	
+
 	if err != nil {
 		logging.Error("Failed to track agent response with provider details: %v", err)
 		return fmt.Errorf("failed to track agent response with provider details: %w", err)
 	}
-	
+
 	return nil
 }
 
 // TrackProviderAuth tracks authentication events for providers
-func (s *analyticsService) TrackProviderAuth(ctx context.Context, 
+func (s *analyticsService) TrackProviderAuth(ctx context.Context,
 	provider string, success bool, authMethod string) error {
-	
 	if !s.enabled {
 		return nil
 	}
-	
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	props := posthog.NewProperties().
 		Set(PropProvider, provider).
 		Set(PropSuccess, success).
 		Set(PropAuthMethod, authMethod)
-	
+
 	err := s.client.Enqueue(posthog.Capture{
 		DistinctId: s.distinct,
 		Event:      EventProviderAuth,
 		Properties: props,
 	})
-	
+
 	if err != nil {
 		logging.Error("Failed to track provider auth: %v", err)
 		return fmt.Errorf("failed to track provider auth: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -507,7 +505,7 @@ func (s *analyticsService) TrackSessionRewound(ctx context.Context, sessionID, m
 }
 
 // TrackFileUploaded tracks file upload events
-func (s *analyticsService) TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized bool, isMedia bool) error {
+func (s *analyticsService) TrackFileUploaded(ctx context.Context, sessionID string, fileSizeBytes int64, fileType string, fileNameSanitized, isMedia bool) error {
 	if !s.enabled {
 		return nil
 	}

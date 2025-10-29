@@ -14,12 +14,12 @@ type MockService struct {
 	mock.Mock
 }
 
-func (m *MockService) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error) {
+func (m *MockService) Create(ctx context.Context, title, customSystemPrompt, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID, parentToolCallID string) (Session, error) {
 	args := m.Called(ctx, title, customSystemPrompt, promptMode, sessionType, subagentType, parentSessionID, parentToolCallID)
 	return args.Get(0).(Session), args.Error(1)
 }
 
-func (m *MockService) Fork(ctx context.Context, sourceSessionID string, title string) (Session, error) {
+func (m *MockService) Fork(ctx context.Context, sourceSessionID, title string) (Session, error) {
 	args := m.Called(ctx, sourceSessionID, title)
 	return args.Get(0).(Session), args.Error(1)
 }

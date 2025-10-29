@@ -231,21 +231,21 @@ func (g *geminiClient) Send(ctx context.Context, messages []message.Message, too
 
 	history := geminiMessages[:len(geminiMessages)-1] // All but last message
 	lastMsg := geminiMessages[len(geminiMessages)-1]
-	config := &genai.GenerateContentConfig{
+	genCfg := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
 	}
-	
+
 	// Only add system instruction if we have a non-empty system message
 	if g.providerOptions.systemMessage != "" {
-		config.SystemInstruction = &genai.Content{
+		genCfg.SystemInstruction = &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
 			Role:  "user",
 		}
 	}
 	if len(tools) > 0 {
-		config.Tools = g.convertTools(tools)
+		genCfg.Tools = g.convertTools(tools)
 	}
-	chat, _ := g.client.Chats.Create(ctx, g.providerOptions.model.APIModel, config, history)
+	chat, _ := g.client.Chats.Create(ctx, g.providerOptions.model.APIModel, genCfg, history)
 
 	attempts := 0
 	for {
@@ -281,7 +281,7 @@ func (g *geminiClient) Send(ctx context.Context, messages []message.Message, too
 			for _, part := range resp.Candidates[0].Content.Parts {
 				switch {
 				case part.Text != "":
-					content = string(part.Text)
+					content = part.Text
 				case part.FunctionCall != nil:
 					id := "call_" + uuid.New().String()
 					args, _ := json.Marshal(part.FunctionCall.Args)
@@ -334,21 +334,21 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 
 	history := geminiMessages[:len(geminiMessages)-1] // All but last message
 	lastMsg := geminiMessages[len(geminiMessages)-1]
-	config := &genai.GenerateContentConfig{
+	genCfg := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
 	}
-	
+
 	// Only add system instruction if we have a non-empty system message
 	if g.providerOptions.systemMessage != "" {
-		config.SystemInstruction = &genai.Content{
+		genCfg.SystemInstruction = &genai.Content{
 			Parts: []*genai.Part{{Text: g.providerOptions.systemMessage}},
 			Role:  "user",
 		}
 	}
 	if len(tools) > 0 {
-		config.Tools = g.convertTools(tools)
+		genCfg.Tools = g.convertTools(tools)
 	}
-	chat, _ := g.client.Chats.Create(ctx, g.providerOptions.model.APIModel, config, history)
+	chat, _ := g.client.Chats.Create(ctx, g.providerOptions.model.APIModel, genCfg, history)
 
 	attempts := 0
 	eventChan := make(chan interfaces.ProviderEvent)
@@ -401,7 +401,7 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 					for _, part := range resp.Candidates[0].Content.Parts {
 						switch {
 						case part.Text != "":
-							delta := string(part.Text)
+							delta := part.Text
 							if delta != "" {
 								eventChan <- interfaces.ProviderEvent{
 									Type:    interfaces.EventContentDelta,
@@ -466,14 +466,13 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 				}
 				return
 			}
-
 		}
 	}()
 
 	return eventChan
 }
 
-func (g *geminiClient) shouldRetry(attempts int, err error) (bool, int64, error) {
+func (g *geminiClient) shouldRetry(attempts int, err error) (retry bool, retryAfterMs int64, retErr error) {
 	// Check if error is a rate limit error
 	if attempts > maxRetries {
 		return false, 0, fmt.Errorf("maximum retry attempts reached for rate limit: %d retries", maxRetries)
@@ -617,7 +616,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 
 	// Create log directory if it doesn't exist
 	logDir := "debug_logs"
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0o750); err != nil {
 		logging.Warn("Failed to create debug log directory", "error", err)
 		return
 	}
@@ -640,7 +639,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 	}
 
 	requestJSON, _ := json.MarshalIndent(requestData, "", "  ")
-	if err := os.WriteFile(requestFile, requestJSON, 0644); err != nil {
+	if err := os.WriteFile(requestFile, requestJSON, 0o600); err != nil {
 		logging.Warn("Failed to write debug request file", "error", err)
 	}
 
@@ -665,7 +664,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 	}
 
 	responseJSON, _ := json.MarshalIndent(responseData, "", "  ")
-	if err := os.WriteFile(responseFile, responseJSON, 0644); err != nil {
+	if err := os.WriteFile(responseFile, responseJSON, 0o600); err != nil {
 		logging.Warn("Failed to write debug response file", "error", err)
 	}
 
@@ -683,7 +682,7 @@ func (g *geminiClient) isSupportedInlineFormat(mimeType string) bool {
 		"image/heif",
 		"application/pdf",
 	}
-	
+
 	for _, supported := range supportedInlineFormats {
 		if mimeType == supported {
 			return true
@@ -706,7 +705,7 @@ func (g *geminiClient) isSupportedVideoFormat(mimeType string) bool {
 		"video/wmv",
 		"video/3gpp",
 	}
-	
+
 	for _, supported := range supportedVideoFormats {
 		if mimeType == supported {
 			return true

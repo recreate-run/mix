@@ -61,7 +61,7 @@ func (p *SupabaseProvider) Upload(ctx context.Context, key string, data io.Reade
 	// Supabase Storage API: POST /storage/v1/object/{bucket}/{path}
 	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", p.projectURL, p.bucket, key)
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -97,7 +97,7 @@ func (p *SupabaseProvider) Download(ctx context.Context, key string) (io.ReadClo
 	// Supabase Storage API: GET /storage/v1/object/{bucket}/{path}
 	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", p.projectURL, p.bucket, key)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -128,7 +128,7 @@ func (p *SupabaseProvider) Delete(ctx context.Context, key string) error {
 	// Supabase Storage API: DELETE /storage/v1/object/{bucket}/{path}
 	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", p.projectURL, p.bucket, key)
 
-	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -166,7 +166,7 @@ func (p *SupabaseProvider) List(ctx context.Context, prefix string) ([]*FileInfo
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -224,7 +224,7 @@ func (p *SupabaseProvider) Exists(ctx context.Context, key string) (bool, error)
 	// Try to get file info using HEAD request
 	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", p.projectURL, p.bucket, key)
 
-	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, http.NoBody)
 	if err != nil {
 		return false, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -269,7 +269,7 @@ func (p *SupabaseProvider) GetPresignedURL(ctx context.Context, key string, expi
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}

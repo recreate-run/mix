@@ -67,9 +67,9 @@ type OpenAIOrganization struct {
 
 // OpenAIAuthClaims represents the https://api.openai.com/auth namespace in JWT
 type OpenAIAuthClaims struct {
-	ChatGPTAccountID string                   `json:"chatgpt_account_id"`
-	OrganizationID   string                   `json:"organization_id,omitempty"`
-	Organizations    []OpenAIOrganization     `json:"organizations,omitempty"`
+	ChatGPTAccountID string               `json:"chatgpt_account_id"`
+	OrganizationID   string               `json:"organization_id,omitempty"`
+	Organizations    []OpenAIOrganization `json:"organizations,omitempty"`
 }
 
 // OpenAIIDTokenClaims represents the full ID token claims
@@ -111,8 +111,9 @@ func NewOpenAIOAuthFlow() (*OpenAIOAuthFlow, error) {
 	mux.HandleFunc("/success", flow.handleSuccess)
 
 	flow.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", openaiRequiredPort),
-		Handler: mux,
+		Addr:              fmt.Sprintf(":%d", openaiRequiredPort),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	return flow, nil
@@ -302,16 +303,10 @@ func (flow *OpenAIOAuthFlow) exchangeCodeForCredentials(code string) (*OpenAICre
 		return nil, "", fmt.Errorf("failed to parse ID token: %w", err)
 	}
 
-	// Parse access token claims
-	accessClaims, err := parseOpenAIJWTClaims[OpenAIAccessTokenClaims](tokenData.AccessToken)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to parse access token: %w", err)
-	}
-
 	// PROCEED WITH API KEY GENERATION - reference implementation works with organizations array
 
 	// Step 3: Fallback - try token exchange with current structure
-	apiKey, successURL, err := flow.obtainAPIKey(tokenClaims, accessClaims, tokenData)
+	apiKey, successURL, err := flow.obtainAPIKey(tokenClaims, tokenData)
 	if err != nil {
 		return nil, "", fmt.Errorf("API key exchange failed: %w", err)
 	}
@@ -341,7 +336,15 @@ func (flow *OpenAIOAuthFlow) exchangeAuthCode(code string) (*OpenAICredentials, 
 		"code_verifier": {flow.PKCE.CodeVerifier},
 	}
 
-	resp, err := http.PostForm(fmt.Sprintf("%s/oauth/token", openaiIssuer), data)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/oauth/token", openaiIssuer), strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("token exchange request failed: %w", err)
 	}
@@ -379,11 +382,11 @@ func (flow *OpenAIOAuthFlow) exchangeAuthCode(code string) (*OpenAICredentials, 
 }
 
 // obtainAPIKey exchanges OAuth tokens for OpenAI API key
-func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims *OpenAIIDTokenClaims, accessClaims *OpenAIAccessTokenClaims, tokenData *OpenAICredentials) (string, string, error) {
+func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims *OpenAIIDTokenClaims, tokenData *OpenAICredentials) (apiKey, orgID string, err error) {
 	authClaims := tokenClaims.Auth
 
 	// CRITICAL FIX: Extract organization from either direct field OR organizations array (reference implementation works with array)
-	orgID := authClaims.OrganizationID
+	orgID = authClaims.OrganizationID
 
 	// If no direct organization_id, extract from organizations array like reference implementation
 	if orgID == "" {
@@ -425,7 +428,8 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims *OpenAIIDTokenClaims, acce
 	}
 
 	// Use same approach as working Python implementation - NO EXTRA HEADERS
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/oauth/token", openaiIssuer), strings.NewReader(exchangeData.Encode()))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/oauth/token", openaiIssuer), strings.NewReader(exchangeData.Encode()))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -442,7 +446,6 @@ func (flow *OpenAIOAuthFlow) obtainAPIKey(tokenClaims *OpenAIIDTokenClaims, acce
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-
 		// Fallback to access token like the reference implementation does
 		successURL := fmt.Sprintf("http://localhost:%d/success", openaiRequiredPort)
 		return tokenData.AccessToken, successURL, nil
@@ -489,15 +492,16 @@ func parseOpenAIJWTClaims[T any](token string) (*T, error) {
 }
 
 // openBrowser opens a URL in the default browser
-func openBrowser(url string) error {
+func openBrowser(urlStr string) error {
+	ctx := context.Background()
 	var err error
 	switch runtime.GOOS {
 	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		err = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", urlStr).Start()
 	case "darwin":
-		err = exec.Command("open", url).Start()
+		err = exec.CommandContext(ctx, "open", urlStr).Start()
 	default: // "linux", "freebsd", "openbsd", "netbsd"
-		err = exec.Command("xdg-open", url).Start()
+		err = exec.CommandContext(ctx, "xdg-open", urlStr).Start()
 	}
 	return err
 }
@@ -519,11 +523,15 @@ func RefreshOpenAIAccessToken(credentials *OpenAICredentials) (*OpenAICredential
 		return nil, fmt.Errorf("failed to marshal refresh request data: %w", err)
 	}
 
-	resp, err := http.Post(
-		fmt.Sprintf("%s/oauth/token", openaiIssuer),
-		"application/json",
-		strings.NewReader(string(jsonData)),
-	)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/oauth/token", openaiIssuer), strings.NewReader(string(jsonData)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("token refresh failed: %w", err)
 	}

@@ -34,21 +34,21 @@ func TestLoadToolDescription(t *testing.T) {
 			expectedSubstr: "", // Just check it doesn't error
 		},
 		{
-			name:        "non-existent tool description",
-			toolName:    "non_existent_tool",
-			expectError: true,
+			name:           "non-existent tool description",
+			toolName:       "non_existent_tool",
+			expectError:    true,
 			expectedSubstr: "Error: failed to load embedded tool description 'non_existent_tool'",
 		},
 		{
-			name:        "empty tool name",
-			toolName:    "",
-			expectError: true,
+			name:           "empty tool name",
+			toolName:       "",
+			expectError:    true,
 			expectedSubstr: "Error: failed to load embedded tool description ''",
 		},
 		{
-			name:        "tool name with special characters",
-			toolName:    "tool/../../../etc/passwd",
-			expectError: true,
+			name:           "tool name with special characters",
+			toolName:       "tool/../../../etc/passwd",
+			expectError:    true,
 			expectedSubstr: "Error: failed to load embedded tool description 'tool/../../../etc/passwd'",
 		},
 	}

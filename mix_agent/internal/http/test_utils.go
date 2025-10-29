@@ -27,7 +27,7 @@ type TestServerResult struct {
 }
 
 // initMCPTools mock implementation for testing
-func initMCPTools(ctx context.Context, app *app.App) {
+func initMCPTools(ctx context.Context, a *app.App) {
 	// Mock implementation - in real app this initializes MCP tools
 	// For tests, we just need to ensure the app doesn't crash
 }
@@ -35,6 +35,7 @@ func initMCPTools(ctx context.Context, app *app.App) {
 // setupIntegrationTestServer sets up a complete test environment for integration testing
 // This function consolidates the common setup logic shared between REST and SSE tests
 func setupIntegrationTestServer(t *testing.T) *TestServerResult {
+	t.Helper()
 	// Auto-generate test name from test function name
 	testName := t.Name()
 
@@ -46,13 +47,13 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	_ = os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
-	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
+	if err := os.MkdirAll(testConfigDir, 0o750); err != nil {
 		t.Fatalf("Failed to create test config dir: %v", err)
 	}
-	if err := os.MkdirAll(testDataDir, 0755); err != nil {
+	if err := os.MkdirAll(testDataDir, 0o750); err != nil {
 		t.Fatalf("Failed to create test data dir: %v", err)
 	}
-	if err := os.MkdirAll(testDataDir+"/gsap_animations", 0755); err != nil {
+	if err := os.MkdirAll(testDataDir+"/gsap_animations", 0o750); err != nil {
 		t.Fatalf("Failed to create GSAP animations dir: %v", err)
 	}
 
@@ -165,6 +166,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 // validateObjectResponse validates success response as object (flattened)
 func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
+	t.Helper()
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {
@@ -181,6 +183,7 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 
 // validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
 func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) ErrorResponse {
+	t.Helper()
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != expectedStatus {

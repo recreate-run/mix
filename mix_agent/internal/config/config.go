@@ -113,7 +113,7 @@ var apiCredentialsService *credentials.APICredentialsService
 // Agent configurations are now loaded from database via UserPreferencesService.
 // If debug is true, debug mode is enabled and log level is set to debug.
 // If skipPermissions is true, all permission prompts will be bypassed.
-func Load(sessionStorageDir string, debug bool, skipPermissions bool) (*Config, error) {
+func Load(sessionStorageDir string, debug, skipPermissions bool) (*Config, error) {
 	if cfg != nil {
 		return cfg, nil
 	}
@@ -129,10 +129,10 @@ func Load(sessionStorageDir string, debug bool, skipPermissions bool) (*Config, 
 		Data: Data{
 			Directory: defaultDataDirectory,
 		},
-		Database:    loadDatabaseConfig(),
-		WorkingDir:  sessionStorageDir,
-		PromptsDir:  promptsDir,
-		MCPServers:  getDefaultMCPServers(),
+		Database:   loadDatabaseConfig(),
+		WorkingDir: sessionStorageDir,
+		PromptsDir: promptsDir,
+		MCPServers: getDefaultMCPServers(),
 		// Providers removed - managed by database API credentials service
 		Agents:          make(map[AgentName]Agent), // Keep for legacy compatibility but unused
 		SkipPermissions: skipPermissions,
@@ -248,7 +248,7 @@ func setupLogging(debug bool) {
 
 		// Create directories and files if they don't exist
 		if _, err := os.Stat(loggingFile); os.IsNotExist(err) {
-			if err := os.MkdirAll(cfg.Data.Directory, 0o755); err == nil {
+			if err := os.MkdirAll(cfg.Data.Directory, 0o750); err == nil {
 				if _, err := os.Create(loggingFile); err != nil {
 					panic(fmt.Sprintf("failed to create logging file: %v", err))
 				}
@@ -256,12 +256,12 @@ func setupLogging(debug bool) {
 		}
 
 		if _, err := os.Stat(messagesPath); os.IsNotExist(err) {
-			if err := os.MkdirAll(messagesPath, 0o756); err != nil {
+			if err := os.MkdirAll(messagesPath, 0o750); err != nil {
 				panic(fmt.Sprintf("failed to create messages directory: %v", err))
 			}
 		}
 
-		if sloggingFileWriter, err := os.OpenFile(loggingFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666); err == nil {
+		if sloggingFileWriter, err := os.OpenFile(loggingFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 			logger := slog.New(slog.NewTextHandler(sloggingFileWriter, &slog.HandlerOptions{
 				Level: defaultLevel,
 				ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -301,7 +301,7 @@ func ensureEmbeddedDataDirectory() error {
 	targetMixDir := filepath.Join(homeDir, ".mix")
 
 	// Create empty .mix directory if it doesn't exist
-	if err := os.MkdirAll(targetMixDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetMixDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create .mix directory: %w", err)
 	}
 
@@ -311,7 +311,8 @@ func ensureEmbeddedDataDirectory() error {
 func applyDefaultValues() {
 	// Set default MCP type if not specified
 	cfgMutex.Lock()
-	for k, v := range cfg.MCPServers {
+	for k := range cfg.MCPServers {
+		v := cfg.MCPServers[k]
 		if v.Type == "" {
 			v.Type = MCPStdio
 			cfg.MCPServers[k] = v
@@ -335,11 +336,11 @@ func ResetForTesting() {
 
 // InitUserPreferences initializes the user preferences service with database connection
 // This should be called after database connection is established
-func InitUserPreferences(database *sql.DB) error {
+func InitUserPreferences(dbConn *sql.DB) error {
 	cfgMutex.Lock()
 	defer cfgMutex.Unlock()
 
-	userPreferencesService = preferences.NewUserPreferencesService(database)
+	userPreferencesService = preferences.NewUserPreferencesService(dbConn)
 	return nil
 }
 
@@ -352,7 +353,7 @@ func GetUserPreferences() preferences.Service {
 
 // InitAPICredentials initializes the API credentials service with database connection
 // This should be called after database connection is established
-func InitAPICredentials(database *sql.DB) error {
+func InitAPICredentials(dbConn *sql.DB) error {
 	cfgMutex.Lock()
 	defer cfgMutex.Unlock()
 
@@ -362,7 +363,7 @@ func InitAPICredentials(database *sql.DB) error {
 		return fmt.Errorf("failed to generate encryption key: %w", err)
 	}
 
-	apiCredentialsService = credentials.NewAPICredentialsService(database, encryptionKey)
+	apiCredentialsService = credentials.NewAPICredentialsService(dbConn, encryptionKey)
 	return nil
 }
 
@@ -373,7 +374,7 @@ func GetAPICredentials() *credentials.APICredentialsService {
 	return apiCredentialsService
 }
 
-// GetAgentFromDatabase returns agent configuration from database 
+// GetAgentFromDatabase returns agent configuration from database
 func GetAgentFromDatabase(ctx context.Context, agentName AgentName) (Agent, error) {
 	if userPreferencesService == nil {
 		return Agent{}, fmt.Errorf("user preferences service not initialized")

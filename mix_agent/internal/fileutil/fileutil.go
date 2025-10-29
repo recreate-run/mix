@@ -1,6 +1,7 @@
 package fileutil
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -50,7 +51,8 @@ func GetRgCmd(globPattern string) *exec.Cmd {
 		}
 		rgArgs = append(rgArgs, "--glob", globPattern)
 	}
-	cmd := exec.Command(rgPath, rgArgs...)
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, rgPath, rgArgs...)
 	cmd.Dir = "."
 	return cmd
 }
@@ -65,7 +67,8 @@ func GetFzfCmd(query string) *exec.Cmd {
 		"--read0",
 		"--print0",
 	}
-	cmd := exec.Command(fzfPath, fzfArgs...)
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, fzfPath, fzfArgs...)
 	cmd.Dir = "."
 	return cmd
 }
@@ -114,21 +117,21 @@ func SkipHidden(path string) bool {
 	return false
 }
 
-func GlobWithDoublestar(pattern, searchPath string, limit int) ([]string, bool, error) {
+func GlobWithDoublestar(pattern, searchPath string, limit int) (results []string, truncated bool, err error) {
 	fsys := os.DirFS(searchPath)
 	relPattern := strings.TrimPrefix(pattern, "/")
 	var matches []FileInfo
 
-	err := doublestar.GlobWalk(fsys, relPattern, func(path string, d fs.DirEntry) error {
+	err = doublestar.GlobWalk(fsys, relPattern, func(path string, d fs.DirEntry) error {
 		if d.IsDir() {
 			return nil
 		}
 		if SkipHidden(path) {
 			return nil
 		}
-		info, err := d.Info()
-		if err != nil {
-			return nil
+		info, walkErr := d.Info()
+		if walkErr != nil {
+			return walkErr
 		}
 		absPath := path
 		if !strings.HasPrefix(absPath, searchPath) && searchPath != "." {
@@ -144,24 +147,25 @@ func GlobWithDoublestar(pattern, searchPath string, limit int) ([]string, bool, 
 		return nil
 	})
 	if err != nil {
-		return nil, false, fmt.Errorf("glob walk error: %w", err)
+		err = fmt.Errorf("glob walk error: %w", err)
+		return
 	}
 
 	sort.Slice(matches, func(i, j int) bool {
 		return matches[i].ModTime.After(matches[j].ModTime)
 	})
 
-	truncated := false
+	truncated = false
 	if limit > 0 && len(matches) > limit {
 		matches = matches[:limit]
 		truncated = true
 	}
 
-	results := make([]string, len(matches))
+	results = make([]string, len(matches))
 	for i, m := range matches {
 		results[i] = m.Path
 	}
-	return results, truncated, nil
+	return
 }
 
 // QuotePath properly quotes a file path for safe use in shell commands

@@ -62,31 +62,31 @@ type MessageData struct {
 
 // ExportToolCall represents comprehensive tool call information for transcript export
 type ExportToolCall struct {
-	ID         string      `json:"id"`
-	Name       string      `json:"name"`
-	Input      string      `json:"input"`
-	InputJSON  interface{} `json:"inputJson,omitempty"` // Parsed JSON for structured tools
-	Type       string      `json:"type"`
-	Finished   bool        `json:"finished"`
-	Result     string      `json:"result,omitempty"`
-	Metadata   string      `json:"metadata,omitempty"`
-	IsError    bool        `json:"isError,omitempty"`
+	ID        string      `json:"id"`
+	Name      string      `json:"name"`
+	Input     string      `json:"input"`
+	InputJSON interface{} `json:"inputJson,omitempty"` // Parsed JSON for structured tools
+	Type      string      `json:"type"`
+	Finished  bool        `json:"finished"`
+	Result    string      `json:"result,omitempty"`
+	Metadata  string      `json:"metadata,omitempty"`
+	IsError   bool        `json:"isError,omitempty"`
 }
 
 // ExportMessage represents comprehensive message information for transcript export
 type ExportMessage struct {
-	ID                    string              `json:"id"`
-	Role                  string              `json:"role"`
-	Content               string              `json:"content"`
-	ToolCalls             []ExportToolCall    `json:"toolCalls,omitempty"`
-	Reasoning             string              `json:"reasoning,omitempty"`
-	ReasoningDuration     int64               `json:"reasoningDuration,omitempty"`
-	ThinkingBlocks        []string            `json:"thinkingBlocks,omitempty"`
-	RedactedThinkingBlocks []string           `json:"redactedThinkingBlocks,omitempty"`
-	Model                 string              `json:"model,omitempty"`
-	FinishReason          string              `json:"finishReason,omitempty"`
-	CreatedAt             time.Time           `json:"createdAt"`
-	UpdatedAt             time.Time           `json:"updatedAt"`
+	ID                     string           `json:"id"`
+	Role                   string           `json:"role"`
+	Content                string           `json:"content"`
+	ToolCalls              []ExportToolCall `json:"toolCalls,omitempty"`
+	Reasoning              string           `json:"reasoning,omitempty"`
+	ReasoningDuration      int64            `json:"reasoningDuration,omitempty"`
+	ThinkingBlocks         []string         `json:"thinkingBlocks,omitempty"`
+	RedactedThinkingBlocks []string         `json:"redactedThinkingBlocks,omitempty"`
+	Model                  string           `json:"model,omitempty"`
+	FinishReason           string           `json:"finishReason,omitempty"`
+	CreatedAt              time.Time        `json:"createdAt"`
+	UpdatedAt              time.Time        `json:"updatedAt"`
 }
 
 // ExportSession represents comprehensive session information for transcript export
@@ -111,16 +111,16 @@ type MessageHandler struct {
 }
 
 // NewMessageHandler creates a new message handler
-func NewMessageHandler(app *app.App) *MessageHandler {
+func NewMessageHandler(a *app.App) *MessageHandler {
 	// Create command registry
 	registry := commands.NewRegistry()
-	if err := registry.LoadCommands(app); err != nil {
+	if err := registry.LoadCommands(a); err != nil {
 		logging.Error("Failed to load commands", "error", err)
 		// Continue with empty registry - API will return proper errors
 	}
-	
+
 	return &MessageHandler{
-		app:             app,
+		app:             a,
 		commandRegistry: registry,
 	}
 }
@@ -156,9 +156,9 @@ func thinkingLevelToBudget(level *string) *int {
 }
 
 // Helper function to get command names for logging
-func getCommandNames(commands map[string]commands.Command) []string {
-	names := make([]string, 0, len(commands))
-	for name := range commands {
+func getCommandNames(cmds map[string]commands.Command) []string {
+	names := make([]string, 0, len(cmds))
+	for name := range cmds {
 		names = append(names, name)
 	}
 	return names
@@ -176,11 +176,9 @@ func generateRequestID() string {
 
 // HandleSendMessage handles POST /api/sessions/{id}/messages
 func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Request) {
-	// Generate unique request ID for correlation
 	requestID := generateRequestID()
 	requestStartTime := time.Now()
 
-	// Defer logging for handler exit
 	defer func() {
 		duration := time.Since(requestStartTime)
 		logging.Debug("HTTP handler exiting",
@@ -194,29 +192,46 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	sessionID := r.PathValue("id")
-	if sessionID == "" {
-		sendValidationError(w, "id", "session ID is required")
+	sessionID, req, thinkingBudget, ok := h.validateSendMessageRequest(w, r)
+	if !ok {
 		return
 	}
 
-	var req SendMessageRequest
+	ctx := r.Context()
+	if !h.checkAuthentication(w, ctx, sessionID) {
+		return
+	}
+
+	if commands.IsSlashCommand(req.Text) {
+		h.handleSlashCommand(w, ctx, sessionID, req.Text)
+		return
+	}
+
+	h.startAgentProcessing(w, sessionID, requestID, req, thinkingBudget)
+}
+
+func (h *MessageHandler) validateSendMessageRequest(w http.ResponseWriter, r *http.Request) (sessionID string, req SendMessageRequest, thinkingBudget *int, ok bool) {
+	sessionID = r.PathValue("id")
+	if sessionID == "" {
+		sendValidationError(w, "id", "session ID is required")
+		return "", SendMessageRequest{}, nil, false
+	}
+
 	if err := parseJSONBody(r, &req); err != nil {
 		sendValidationError(w, "body", err.Error())
-		return
+		return "", SendMessageRequest{}, nil, false
 	}
 
 	if req.Text == "" {
 		sendValidationError(w, "content", "message content is required")
-		return
+		return "", SendMessageRequest{}, nil, false
 	}
 
-	// Validate thinking level if provided
 	if req.ThinkingLevel != nil {
 		level := *req.ThinkingLevel
 		validLevels := map[string]bool{
@@ -227,80 +242,65 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		}
 		if !validLevels[level] {
 			sendValidationError(w, "thinking_level", "must be one of: off, basic, medium, maximum")
-			return
+			return "", SendMessageRequest{}, nil, false
 		}
 	}
 
-	// Convert thinking level to budget
-	thinkingBudget := thinkingLevelToBudget(req.ThinkingLevel)
+	thinkingBudget = thinkingLevelToBudget(req.ThinkingLevel)
+	return sessionID, req, thinkingBudget, true
+}
 
-	ctx := r.Context()
-
-	// Check authentication status before processing the message
+func (h *MessageHandler) checkAuthentication(w http.ResponseWriter, ctx context.Context, sessionID string) bool {
 	authenticated, _, authErr := provider.IsAuthenticated(ctx, "")
 	if authErr != nil {
 		sendInternalError(w, "checking authentication", authErr)
-		return
+		return false
 	}
 
-	// If not authenticated, return proper 401 error and broadcast to SSE
 	if !authenticated {
 		helpfulMsg := getAuthenticationErrorMessage(ctx)
-
-		// Broadcast error event to SSE connections (if any are active)
 		registry.BroadcastEvent(sessionID, "error", ErrorEvent{Error: helpfulMsg})
-
-		// Return 401 Unauthorized with the helpful message
 		sendErrorResponse(w, ErrorTypeUnauthorized, helpfulMsg)
+		return false
+	}
+
+	return true
+}
+
+func (h *MessageHandler) handleSlashCommand(w http.ResponseWriter, ctx context.Context, sessionID, text string) {
+	parsed, parseErr := commands.ParseCommand(text)
+	if parseErr != nil {
+		sendValidationError(w, "content", "Invalid slash command: "+parseErr.Error())
 		return
 	}
 
-	// Check if this is a slash command and handle it immediately
-	if commands.IsSlashCommand(req.Text) {
-		parsed, parseErr := commands.ParseCommand(req.Text)
-		if parseErr != nil {
-			sendValidationError(w, "content", "Invalid slash command: "+parseErr.Error())
+	cmdCtx := context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
+	commandResult, execErr := h.commandRegistry.ExecuteCommand(cmdCtx, parsed.Name, parsed.Arguments)
+	if execErr != nil {
+		logging.Error("Command execution failed", "name", parsed.Name, "error", execErr)
+
+		if strings.Contains(execErr.Error(), "command not found") {
+			allCommands := h.commandRegistry.GetAllCommands()
+			commandNames := getCommandNames(allCommands)
+			sendErrorResponse(w, ErrorTypeNotFound, fmt.Sprintf("Command '%s' not found. Available commands: %v", parsed.Name, commandNames))
 			return
 		}
 
-
-		// Add session context for commands that need session information
-		cmdCtx := context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
-		
-		commandResult, execErr := h.commandRegistry.ExecuteCommand(cmdCtx, parsed.Name, parsed.Arguments)
-		if execErr != nil {
-			logging.Error("Command execution failed", "name", parsed.Name, "error", execErr)
-
-			// Check if it's a "command not found" error
-			if strings.Contains(execErr.Error(), "command not found") {
-				// List available commands for debugging
-				allCommands := h.commandRegistry.GetAllCommands()
-				commandNames := getCommandNames(allCommands)
-
-				sendErrorResponse(w, ErrorTypeNotFound, fmt.Sprintf("Command '%s' not found. Available commands: %v", parsed.Name, commandNames))
-				return
-			}
-
-			sendInternalError(w, "executing command", execErr)
-			return
-		}
-
-
-		// Return the command result immediately as a message
-		result := MessageData{
-			ID:                "cmd-" + parsed.Name,
-			Role:              "assistant",
-			UserInput:         req.Text,
-			AssistantResponse: commandResult,
-		}
-
-		sendJSONResponse(w, http.StatusOK, result)
+		sendInternalError(w, "executing command", execErr)
 		return
 	}
 
-	// Send message to agent
-	// Use context.Background() instead of r.Context() to prevent HTTP request timeouts/cancellations
-	// from killing long-running agent tasks. The agent can only be cancelled via the explicit cancel endpoint.
+	result := MessageData{
+		ID:                "cmd-" + parsed.Name,
+		Role:              "assistant",
+		UserInput:         text,
+		AssistantResponse: commandResult,
+	}
+
+	sendJSONResponse(w, http.StatusOK, result)
+}
+
+func (h *MessageHandler) startAgentProcessing(w http.ResponseWriter, sessionID, requestID string, req SendMessageRequest, thinkingBudget *int) {
 	agentCtx := context.Background()
 
 	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode, thinkingBudget)
@@ -313,52 +313,47 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Return 202 Accepted immediately - agent runs asynchronously
-	// All results stream via SSE connections
 	sendJSONResponse(w, http.StatusAccepted, map[string]string{
 		"status":    "processing",
 		"sessionId": sessionID,
 	})
 
-	// Process events in background goroutine
-	// This allows the HTTP connection to close immediately while agent continues processing
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logging.Error("Panic in background event processing",
-					"sessionID", sessionID,
-					"requestID", requestID,
-					"panic", r)
-			}
-		}()
+	go h.processAgentEvents(sessionID, requestID, events)
+}
 
-		// Forward all events to active SSE connections while processing
-		var lastEvent agent.AgentEvent
-		for event := range events {
-			// Broadcast event to all SSE connections for this session
-			BroadcastAgentEventToSSE(sessionID, event)
-
-			// Store last event for logging
-			lastEvent = event
-		}
-
-		// Check for processing errors and broadcast to SSE if needed
-		if lastEvent.Error != nil {
-			errorMessage := lastEvent.Error.Error()
-
-			// Special handling for auth errors - broadcast to SSE
-			if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
-				registry.BroadcastEvent(sessionID, "error", ErrorEvent{
-					Error: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
-				})
-			} else {
-				// Broadcast general errors to SSE
-				registry.BroadcastEvent(sessionID, "error", ErrorEvent{
-					Error: errorMessage,
-				})
-			}
+func (h *MessageHandler) processAgentEvents(sessionID, requestID string, events <-chan agent.AgentEvent) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error("Panic in background event processing",
+				"sessionID", sessionID,
+				"requestID", requestID,
+				"panic", r)
 		}
 	}()
+
+	var lastEvent agent.AgentEvent
+	for event := range events {
+		BroadcastAgentEventToSSE(sessionID, event)
+		lastEvent = event
+	}
+
+	if lastEvent.Error != nil {
+		h.broadcastErrorToSSE(sessionID, lastEvent.Error)
+	}
+}
+
+func (h *MessageHandler) broadcastErrorToSSE(sessionID string, err error) {
+	errorMessage := err.Error()
+
+	if strings.Contains(errorMessage, "401") || strings.Contains(errorMessage, "authentication") {
+		registry.BroadcastEvent(sessionID, "error", ErrorEvent{
+			Error: "⚠️ Authentication required. Please use the /login command to authenticate with Claude API key.",
+		})
+	} else {
+		registry.BroadcastEvent(sessionID, "error", ErrorEvent{
+			Error: errorMessage,
+		})
+	}
 }
 
 // HandleListSessionMessages handles GET /api/sessions/{id}/messages
@@ -368,7 +363,7 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -379,7 +374,6 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-
 	ctx := r.Context()
 	messages, err := h.app.Messages.List(ctx, sessionID)
 	if err != nil {
@@ -388,10 +382,7 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 		return
 	}
 
-
 	result := h.convertMessagesToData(messages)
-	
-	
 
 	sendJSONResponse(w, http.StatusOK, result)
 }
@@ -403,7 +394,7 @@ func (h *MessageHandler) HandleMessageHistory(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -444,7 +435,7 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -473,7 +464,7 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -487,7 +478,7 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 
 	// Get session metadata
-	session, err := h.app.Sessions.Get(ctx, sessionID)
+	sess, err := h.app.Sessions.Get(ctx, sessionID)
 	if err != nil {
 		sendNotFoundError(w, "Session", sessionID)
 		return
@@ -502,12 +493,12 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Convert to comprehensive export format
-	exportData := h.convertToExportSession(session, messages)
+	exportData := h.convertToExportSession(sess, messages)
 
 	// Track session export
 	if h.app.Analytics != nil {
-		totalTokens := session.PromptTokens + session.CompletionTokens
-		_ = h.app.Analytics.TrackSessionExported(ctx, sessionID, len(messages), session.Cost, totalTokens)
+		totalTokens := sess.PromptTokens + sess.CompletionTokens
+		_ = h.app.Analytics.TrackSessionExported(ctx, sessionID, len(messages), sess.Cost, totalTokens)
 	}
 
 	// Set content disposition header for file download
@@ -530,25 +521,26 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 		var reasoning string
 		var reasoningDuration int64
 		for _, part := range msg.Parts {
-			if reasoningContent, ok := part.(message.ReasoningContent); ok {
+			switch v := part.(type) {
+			case message.ReasoningContent:
 				if reasoning == "" { // Use first reasoning content found
-					reasoning = reasoningContent.Thinking
-					reasoningDuration = reasoningContent.Duration
+					reasoning = v.Thinking
+					reasoningDuration = v.Duration
 				}
-			} else if thinkingBlock, ok := part.(message.ThinkingBlock); ok {
+			case message.ThinkingBlock:
 				if reasoning == "" { // Use thinking block if no reasoning content found
-					reasoning = thinkingBlock.Thinking
+					reasoning = v.Thinking
 					reasoningDuration = 0 // ThinkingBlock doesn't have duration
 				}
 			}
 		}
-		
+
 		// Create a map of tool results by tool call ID for quick lookup
 		resultsByID := make(map[string]message.ToolResult)
 		for _, tr := range toolResults {
 			resultsByID[tr.ToolCallID] = tr
 		}
-		
+
 		toolCallsData := make([]ToolCallData, len(toolCalls))
 		for i, tc := range toolCalls {
 			toolCallData := ToolCallData{
@@ -558,31 +550,31 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 				Type:     tc.Type,
 				Finished: tc.Finished,
 			}
-			
+
 			// Add result if available
 			if toolResult, exists := resultsByID[tc.ID]; exists {
 				toolCallData.Result = toolResult.Content
 				toolCallData.IsError = toolResult.IsError
 			}
-			
+
 			toolCallsData[i] = toolCallData
 		}
 
 		// Get message content
 		content := msg.Content().String()
-		
+
 		messageData := MessageData{
 			ID:        msg.ID,
 			SessionID: msg.SessionID,
 			Role:      string(msg.Role),
 			UserInput: content, // All messages put their content in userInput, frontend uses role to determine how to display
 		}
-		
+
 		// For assistant messages, also set assistantResponse field
 		if msg.Role != message.User {
 			messageData.AssistantResponse = content
 		}
-		
+
 		// Only set tool calls if there are any
 		if len(toolCallsData) > 0 {
 			messageData.ToolCalls = toolCallsData
@@ -591,19 +583,19 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 		// Convert callback results
 		if len(callbackResults) > 0 {
 			callbackResultsData := make([]CallbackResultData, len(callbackResults))
-			for i, cr := range callbackResults {
+			for i := range callbackResults {
 				callbackResultsData[i] = CallbackResultData{
-					ToolCallID:     cr.ToolCallID,
-					ToolName:       cr.ToolName,
-					CallbackName:   cr.CallbackName,
-					CallbackType:   cr.CallbackType,
-					Stdout:         cr.Stdout,
-					Stderr:         cr.Stderr,
-					ExitCode:       cr.ExitCode,
-					SubAgentID:     cr.SubAgentID,
-					SubAgentResult: cr.SubAgentResult,
-					Success:        cr.Success,
-					Error:          cr.Error,
+					ToolCallID:     callbackResults[i].ToolCallID,
+					ToolName:       callbackResults[i].ToolName,
+					CallbackName:   callbackResults[i].CallbackName,
+					CallbackType:   callbackResults[i].CallbackType,
+					Stdout:         callbackResults[i].Stdout,
+					Stderr:         callbackResults[i].Stderr,
+					ExitCode:       callbackResults[i].ExitCode,
+					SubAgentID:     callbackResults[i].SubAgentID,
+					SubAgentResult: callbackResults[i].SubAgentResult,
+					Success:        callbackResults[i].Success,
+					Error:          callbackResults[i].Error,
 				}
 			}
 			messageData.CallbackResults = callbackResultsData
@@ -614,14 +606,14 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 			messageData.Reasoning = reasoning
 			messageData.ReasoningDuration = reasoningDuration
 		}
-		
+
 		result = append(result, messageData)
 	}
 	return result
 }
 
 // convertToExportSession converts session and messages to comprehensive export format
-func (h *MessageHandler) convertToExportSession(session session.Session, messages []message.Message) ExportSession {
+func (h *MessageHandler) convertToExportSession(sess session.Session, messages []message.Message) ExportSession {
 	exportMessages := make([]ExportMessage, 0, len(messages))
 
 	for _, msg := range messages {
@@ -709,16 +701,16 @@ func (h *MessageHandler) convertToExportSession(session session.Session, message
 	}
 
 	return ExportSession{
-		ID:                    session.ID,
-		Title:                 session.Title,
-		UserMessageCount:      session.UserMessageCount,
-		AssistantMessageCount: session.AssistantMessageCount,
-		ToolCallCount:         session.ToolCallCount,
-		PromptTokens:          session.PromptTokens,
-		CompletionTokens:      session.CompletionTokens,
-		Cost:                  session.Cost,
-		CreatedAt:             time.Unix(session.CreatedAt, 0),
-		UpdatedAt:             time.Unix(session.UpdatedAt, 0),
+		ID:                    sess.ID,
+		Title:                 sess.Title,
+		UserMessageCount:      sess.UserMessageCount,
+		AssistantMessageCount: sess.AssistantMessageCount,
+		ToolCallCount:         sess.ToolCallCount,
+		PromptTokens:          sess.PromptTokens,
+		CompletionTokens:      sess.CompletionTokens,
+		Cost:                  sess.Cost,
+		CreatedAt:             time.Unix(sess.CreatedAt, 0),
+		UpdatedAt:             time.Unix(sess.UpdatedAt, 0),
 		Messages:              exportMessages,
 	}
 }

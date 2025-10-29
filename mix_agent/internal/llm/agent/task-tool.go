@@ -71,19 +71,90 @@ func (b *taskTool) Info() tools.ToolInfo {
 	}
 }
 
+// validateTaskParams validates the task parameters
+func (b *taskTool) validateTaskParams(params TaskParams) error {
+	if params.Description == "" {
+		return fmt.Errorf("description is required")
+	}
+	if params.Prompt == "" {
+		return fmt.Errorf("prompt is required")
+	}
+	if params.SubagentType == "" {
+		return fmt.Errorf("subagent_type is required")
+	}
+	return nil
+}
+
+// createSubagentAndSession creates the subagent and its session
+func (b *taskTool) createSubagentAndSession(ctx context.Context, params TaskParams, sessionID, toolCallID string) (Service, *session.Session, error) {
+	agentTools := b.getToolsForSubagentType(params.SubagentType)
+	parentBroker := b.agent.GetBroker()
+
+	agent, err := NewAgentWithBroker("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), parentBroker, b.permissions)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating agent: %w", err)
+	}
+
+	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, toolCallID)
+	if err != nil {
+		agent.Shutdown()
+		return nil, nil, fmt.Errorf("error creating session for tool call %s: %w", toolCallID, err)
+	}
+
+	return agent, &subSession, nil
+}
+
+// waitForFinalResult waits for the subagent to complete and returns the final message
+func (b *taskTool) waitForFinalResult(done <-chan AgentEvent) (message.Message, error) {
+	var finalResult AgentEvent
+	for result := range done {
+		if result.Error != nil {
+			return message.Message{}, fmt.Errorf("error generating agent: %w", result.Error)
+		}
+
+		if result.Message.FinishReason() == message.FinishReasonEndTurn {
+			finalResult = result
+			break
+		}
+	}
+
+	if finalResult.Message.Role == "" {
+		return message.Message{}, fmt.Errorf("no final message received from sub-agent")
+	}
+
+	if finalResult.Message.Role != message.Assistant {
+		return message.Message{}, fmt.Errorf("expected assistant response, got %s", finalResult.Message.Role)
+	}
+
+	return finalResult.Message, nil
+}
+
+// rollupCostToParent increments the parent session cost with the subagent's cost
+func (b *taskTool) rollupCostToParent(ctx context.Context, sessionID, subSessionID string) error {
+	updatedSubSession, err := b.sessions.Get(ctx, subSessionID)
+	if err != nil {
+		return fmt.Errorf("error getting subagent session: %w", err)
+	}
+
+	if _, err := b.sessions.Get(ctx, sessionID); err != nil {
+		return fmt.Errorf("parent session %s not found during cost rollup: %w", sessionID, err)
+	}
+
+	if err := b.sessions.IncrementCost(ctx, sessionID, updatedSubSession.Cost); err != nil {
+		return fmt.Errorf("failed to increment parent session %s cost: %w", sessionID, err)
+	}
+
+	return nil
+}
+
 func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResponse, error) {
 	var params TaskParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
 		return tools.NewTextErrorResponse(fmt.Sprintf("error parsing parameters: %s", err)), nil
 	}
-	if params.Description == "" {
-		return tools.NewTextErrorResponse("description is required"), nil
-	}
-	if params.Prompt == "" {
-		return tools.NewTextErrorResponse("prompt is required"), nil
-	}
-	if params.SubagentType == "" {
-		return tools.NewTextErrorResponse("subagent_type is required"), nil
+
+	if err := b.validateTaskParams(params); err != nil {
+		return tools.NewTextErrorResponse(err.Error()), nil
 	}
 
 	sessionID, messageID := tools.GetContextValues(ctx)
@@ -91,88 +162,39 @@ func (b *taskTool) Run(ctx context.Context, call tools.ToolCall) (tools.ToolResp
 		return tools.ToolResponse{}, fmt.Errorf("session_id and message_id are required")
 	}
 
-	agentTools := b.getToolsForSubagentType(params.SubagentType)
-	// Use parent agent's broker so subagent events are published to the same broker
-	parentBroker := b.agent.GetBroker()
-	agent, err := NewAgentWithBroker("sub", b.sessions, b.messages, agentTools, session.DefaultConfig(), parentBroker, b.permissions)
+	agent, subSession, err := b.createSubagentAndSession(ctx, params, sessionID, call.ID)
 	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error creating agent: %s", err)
+		return tools.ToolResponse{}, err
 	}
 	defer agent.Shutdown()
 
-	// Create subagent session with parent tool call ID for persistent UI nesting
-	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, call.ID)
-	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error creating session for tool call %s: %w", call.ID, err)
-	}
-
-	// Wrap context with tool call ID for runtime event tracking
 	toolCtx := withToolContext(ctx, call.ID)
-
 	done, err := agent.Run(toolCtx, subSession.ID, params.Prompt)
 	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error generating agent: %s", err)
+		return tools.ToolResponse{}, fmt.Errorf("error running agent: %w", err)
 	}
 
-	// Wait for the final message with end_turn finish reason
-	var finalResult AgentEvent
-	for result := range done {
-		if result.Error != nil {
-			return tools.ToolResponse{}, fmt.Errorf("error generating agent: %s", result.Error)
-		}
-
-		// Check if this is the final message
-		if result.Message.FinishReason() == message.FinishReasonEndTurn {
-			finalResult = result
-			break
-		}
-
-		// Continue processing intermediate messages (like tool_use)
-	}
-
-	// Verify we got a final result
-	if finalResult.Message.Role == "" {
-		return tools.ToolResponse{}, fmt.Errorf("no final message received from sub-agent")
-	}
-
-	response := finalResult.Message
-	if response.Role != message.Assistant {
-		return tools.NewTextErrorResponse("no response"), nil
-	}
-
-	// Get content from the final response
-	content := response.Content().String()
-
-	// Log the final output returned by the sub-agent
-	updatedSubSession, err := b.sessions.Get(ctx, subSession.ID)
+	finalMessage, err := b.waitForFinalResult(done)
 	if err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("error getting subagent session: %s", err)
+		return tools.ToolResponse{}, err
 	}
 
-	// Verify parent session exists before incrementing cost
-	// This prevents silent failures if parent was deleted during subagent execution
-	if _, err := b.sessions.Get(ctx, sessionID); err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("parent session %s not found during cost rollup: %w", sessionID, err)
+	if err := b.rollupCostToParent(ctx, sessionID, subSession.ID); err != nil {
+		return tools.ToolResponse{}, err
 	}
 
-	// Atomically increment parent session cost to avoid race conditions
-	// when multiple subagents complete simultaneously
-	if err := b.sessions.IncrementCost(ctx, sessionID, updatedSubSession.Cost); err != nil {
-		return tools.ToolResponse{}, fmt.Errorf("failed to increment parent session %s cost: %w", sessionID, err)
-	}
-
-	return tools.NewTextResponse(content), nil
+	return tools.NewTextResponse(finalMessage.Content().String()), nil
 }
 
 func NewTaskTool(
-	Sessions session.Service,
-	Messages message.Service,
-	Permissions permission.Service,
+	sessions session.Service,
+	messages message.Service,
+	permissions permission.Service,
 ) tools.BaseTool {
 	return &taskTool{
-		sessions:    Sessions,
-		messages:    Messages,
-		permissions: Permissions,
+		sessions:    sessions,
+		messages:    messages,
+		permissions: permissions,
 	}
 }
 

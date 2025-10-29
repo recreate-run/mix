@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	eventTypeTool = "tool"
+)
+
 // TestSubagentEventRouting verifies that subagent events are routed to the parent session's SSE stream
 // This test validates the core routing implementation: events from subagent sessions should appear
 // on the main session's SSE connection with proper RouteTo field handling.
@@ -22,6 +26,7 @@ func TestSubagentEventRouting(t *testing.T) {
 		"title": "Subagent Routing Test Session",
 	}
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	mainSessionID := sessionData["id"].(string)
 
@@ -82,7 +87,7 @@ func TestSubagentEventRouting(t *testing.T) {
 
 	for _, event := range events {
 		// Check for Task tool execution
-		if event.Type == "tool_execution_start" || event.Type == "tool" {
+		if event.Type == "tool_execution_start" || event.Type == eventTypeTool {
 			if toolName, ok := event.Data["toolName"].(string); ok && strings.Contains(strings.ToLower(toolName), "task") {
 				foundTaskTool = true
 				t.Logf("✓ Found Task tool execution")
@@ -95,7 +100,7 @@ func TestSubagentEventRouting(t *testing.T) {
 
 		// Check for subagent tool activity (Glob, Grep, Read, etc.)
 		// These tools being used indicate the subagent is working and its events are being routed
-		if event.Type == "tool_execution_start" || event.Type == "tool" {
+		if event.Type == "tool_execution_start" || event.Type == eventTypeTool {
 			if toolName, ok := event.Data["toolName"].(string); ok {
 				// Subagent tools that would indicate routing is working
 				subagentTools := []string{"glob", "grep", "read", "write", "edit"}
@@ -168,6 +173,7 @@ func TestSubagentEventRoutingVerifyHierarchy(t *testing.T) {
 		"title": "Main Session for Hierarchy Test",
 	}
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	mainSessionID := sessionData["id"].(string)
 
@@ -178,9 +184,9 @@ func TestSubagentEventRoutingVerifyHierarchy(t *testing.T) {
 		"Test Subagent Session",
 		"",
 		"default",
-		"subagent",       // session type
-		"general-purpose", // subagent type
-		mainSessionID,    // parent session ID
+		"subagent",          // session type
+		"general-purpose",   // subagent type
+		mainSessionID,       // parent session ID
 		"test-tool-call-id", // parent tool call ID (test value)
 	)
 	if err != nil {

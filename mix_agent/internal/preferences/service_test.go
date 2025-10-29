@@ -17,6 +17,7 @@ import (
 
 // Test helper functions
 func CreateTestService(t *testing.T, mockQueries *db.MockQuerier) *UserPreferencesService {
+	t.Helper()
 	return NewUserPreferencesServiceWithQuerierAndPreload(mockQueries, false)
 }
 
@@ -44,7 +45,7 @@ func TestGetUserPreferencesFromCache(t *testing.T) {
 	service.preferencesCache.Store("default_user", &testPrefs)
 
 	prefs, err := service.GetUserPreferences(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &testPrefs, prefs)
 
 	// Should not call DB
@@ -60,7 +61,7 @@ func TestGetUserPreferencesFromDB(t *testing.T) {
 	mockQueries.On("GetUserPreferences", mock.Anything).Return(testPrefs, nil)
 
 	prefs, err := service.GetUserPreferences(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &testPrefs, prefs)
 
 	// Check cache is populated
@@ -79,7 +80,7 @@ func TestGetUserPreferencesNotFound(t *testing.T) {
 	mockQueries.On("GetUserPreferences", mock.Anything).Return(db.UserPreference{}, sql.ErrNoRows)
 
 	prefs, err := service.GetUserPreferences(context.Background())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, sql.ErrNoRows, err)
 	assert.Nil(t, prefs)
 
@@ -96,7 +97,7 @@ func TestCreateDefaultUserPreferences(t *testing.T) {
 		Return(expectedPrefs, nil)
 
 	prefs, err := service.CreateDefaultUserPreferences(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &expectedPrefs, prefs)
 
 	// Check cache is populated
@@ -116,7 +117,7 @@ func TestGetOrCreateUserPreferencesExisting(t *testing.T) {
 	service.preferencesCache.Store("default_user", &testPrefs)
 
 	prefs, err := service.GetOrCreateUserPreferences(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &testPrefs, prefs)
 
 	mockQueries.AssertExpectations(t)
@@ -134,7 +135,7 @@ func TestGetOrCreateUserPreferencesCreate(t *testing.T) {
 		Return(createdPrefs, nil)
 
 	prefs, err := service.GetOrCreateUserPreferences(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &createdPrefs, prefs)
 
 	mockQueries.AssertExpectations(t)
@@ -154,7 +155,7 @@ func TestUpdateMainAgentPreferences(t *testing.T) {
 		Return(updatedPrefs, nil)
 
 	err := service.UpdateMainAgentPreferences(context.Background(), "claude-4-opus", 8192, "high")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache is cleared
 	_, found := service.preferencesCache.Load("default_user")
@@ -177,7 +178,7 @@ func TestUpdateSubAgentPreferences(t *testing.T) {
 		Return(updatedPrefs, nil)
 
 	err := service.UpdateSubAgentPreferences(context.Background(), "claude-4-haiku", 1024, "low")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache is cleared
 	_, found := service.preferencesCache.Load("default_user")
@@ -200,7 +201,7 @@ func TestUpdatePreferredProvider(t *testing.T) {
 		Return(updatedPrefs, nil)
 
 	err := service.UpdatePreferredProvider(context.Background(), models.ProviderOpenAI)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache is cleared
 	_, found := service.preferencesCache.Load("default_user")
@@ -218,7 +219,7 @@ func TestGetAgentConfigMain(t *testing.T) {
 	service.preferencesCache.Store("default_user", &testPrefs)
 
 	agent, err := service.GetAgentConfig(context.Background(), AgentMain)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, models.ModelID("claude-4-sonnet"), agent.Model)
 	assert.Equal(t, int64(4096), agent.MaxTokens)
 	assert.Equal(t, "medium", agent.ReasoningEffort)
@@ -235,7 +236,7 @@ func TestGetAgentConfigSub(t *testing.T) {
 	service.preferencesCache.Store("default_user", &testPrefs)
 
 	agent, err := service.GetAgentConfig(context.Background(), AgentSub)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, models.ModelID("claude-4-sonnet"), agent.Model)
 	assert.Equal(t, int64(2048), agent.MaxTokens)
 	assert.Equal(t, "low", agent.ReasoningEffort)
@@ -252,7 +253,7 @@ func TestGetAgentConfigUnknown(t *testing.T) {
 	service.preferencesCache.Store("default_user", &testPrefs)
 
 	_, err := service.GetAgentConfig(context.Background(), "unknown")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown agent name")
 
 	mockQueries.AssertExpectations(t)
@@ -267,7 +268,7 @@ func TestGetPreferredProvider(t *testing.T) {
 	service.preferencesCache.Store("default_user", &testPrefs)
 
 	provider, err := service.GetPreferredProvider(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, models.ModelProvider("anthropic"), provider)
 
 	mockQueries.AssertExpectations(t)
@@ -283,7 +284,7 @@ func TestGetPreferredProviderEmpty(t *testing.T) {
 	service.preferencesCache.Store("default_user", &testPrefs)
 
 	provider, err := service.GetPreferredProvider(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, models.ProviderAnthropic, provider) // Default
 
 	mockQueries.AssertExpectations(t)

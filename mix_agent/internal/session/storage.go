@@ -33,13 +33,13 @@ func DefaultConfig() Config {
 
 // Initialize creates the storage root directory and uploads directory if they don't exist
 func Initialize(config Config) error {
-	if err := os.MkdirAll(config.BasePath, 0o755); err != nil {
+	if err := os.MkdirAll(config.BasePath, 0o750); err != nil {
 		return fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
 	// Create uploads directory
 	uploadsPath := GetUploadsStoragePath(config)
-	if err := os.MkdirAll(uploadsPath, 0o755); err != nil {
+	if err := os.MkdirAll(uploadsPath, 0o750); err != nil {
 		return fmt.Errorf("failed to create uploads directory: %w", err)
 	}
 
@@ -73,7 +73,7 @@ func CreateSessionDirectory(sessionID string, config Config) error {
 	sessionDir := GetSessionStoragePath(sessionID, config)
 
 	// Create the session directory
-	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
+	if err := os.MkdirAll(sessionDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create session directory: %w", err)
 	}
 	return nil
@@ -90,7 +90,7 @@ func GetSessionRoot(sessionID string, config Config) (*os.Root, error) {
 
 	// Ensure session directory exists - create it if it doesn't
 	if _, err := os.Stat(sessionDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(sessionDir, 0o755); err != nil {
+		if err := os.MkdirAll(sessionDir, 0o750); err != nil {
 			return nil, fmt.Errorf("failed to create session directory: %w", err)
 		}
 	}
@@ -111,7 +111,7 @@ func GetUploadsRoot(config Config) (*os.Root, error) {
 
 	// Ensure uploads directory exists - create it if it doesn't
 	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+		if err := os.MkdirAll(uploadsDir, 0o750); err != nil {
 			return nil, fmt.Errorf("failed to create uploads directory: %w", err)
 		}
 	}
@@ -126,7 +126,7 @@ func GetUploadsRoot(config Config) (*os.Root, error) {
 }
 
 // GetSessionFilePath returns the full path to a file within a session
-// DEPRECATED: Use GetSessionRoot and Root operations for better security
+// Deprecated: Use GetSessionRoot and Root operations for better security
 func GetSessionFilePath(sessionID, filename string, config Config) (string, error) {
 	if !ValidateSessionID(sessionID) {
 		return "", fmt.Errorf("invalid session ID format: %s", sessionID)

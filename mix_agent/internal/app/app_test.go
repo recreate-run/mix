@@ -86,7 +86,7 @@ func TestAppStructFieldTypes(t *testing.T) {
 	app := &App{}
 
 	// Verify field types are correct (compilation test)
-	assert.IsType(t, (session.Service)(nil), app.Sessions)
+	assert.IsType(t, session.Service(nil), app.Sessions)
 	assert.IsType(t, session.Config{}, app.StorageConfig)
 }
 
@@ -136,7 +136,7 @@ func TestTitleGeneration(t *testing.T) {
 
 			if tt.expectsTrunc {
 				assert.Contains(t, title, "...")
-				assert.True(t, len(title) < len("Non-interactive: "+tt.prompt))
+				assert.Less(t, len(title), len("Non-interactive: "+tt.prompt))
 			}
 		})
 	}

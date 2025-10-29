@@ -17,6 +17,7 @@ import (
 
 // Test helper functions
 func CreateTestService(t *testing.T, mockQueries *db.MockQuerier) *APICredentialsService {
+	t.Helper()
 	encryptionKey, err := GenerateEncryptionKey()
 	require.NoError(t, err)
 	return NewAPICredentialsServiceWithQuerierAndPreload(mockQueries, encryptionKey, false)
@@ -57,11 +58,11 @@ func TestEncryptDecrypt(t *testing.T) {
 
 	plaintext := "test-api-key-12345"
 	encrypted, err := service.encrypt(plaintext)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, encrypted)
 
 	decrypted, err := service.decrypt(encrypted)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, plaintext, decrypted)
 }
 
@@ -69,12 +70,12 @@ func TestEncryptDecryptEmpty(t *testing.T) {
 	service := CreateTestService(t, &db.MockQuerier{})
 
 	encrypted, err := service.encrypt("")
-	assert.NoError(t, err)
-	assert.Equal(t, "", encrypted)
+	require.NoError(t, err)
+	assert.Empty(t, encrypted)
 
 	decrypted, err := service.decrypt("")
-	assert.NoError(t, err)
-	assert.Equal(t, "", decrypted)
+	require.NoError(t, err)
+	assert.Empty(t, decrypted)
 }
 
 // Test API key management
@@ -86,7 +87,7 @@ func TestStoreAPIKey(t *testing.T) {
 		Return(db.ApiCredential{Provider: "anthropic"}, nil)
 
 	err := service.StoreAPIKey(context.Background(), models.ProviderAnthropic, CreateTestAPIKey(models.ProviderAnthropic))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache
 	cached, found := service.credentialsCache.Load(models.ProviderAnthropic)
@@ -104,7 +105,7 @@ func TestGetAPIKeyFromCache(t *testing.T) {
 	service.credentialsCache.Store(models.ProviderAnthropic, "cached-key")
 
 	key, err := service.GetAPIKey(context.Background(), models.ProviderAnthropic)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cached-key", key)
 
 	// Should not call DB
@@ -122,8 +123,8 @@ func TestGetAPIKeyFromDB(t *testing.T) {
 		}, nil)
 
 	key, err := service.GetAPIKey(context.Background(), models.ProviderAnthropic)
-	assert.NoError(t, err)
-	assert.Equal(t, "", key)
+	require.NoError(t, err)
+	assert.Empty(t, key)
 
 	mockQueries.AssertExpectations(t)
 }
@@ -136,8 +137,8 @@ func TestGetAPIKeyNotFound(t *testing.T) {
 		Return(db.ApiCredential{}, sql.ErrNoRows)
 
 	key, err := service.GetAPIKey(context.Background(), models.ProviderAnthropic)
-	assert.NoError(t, err)
-	assert.Equal(t, "", key)
+	require.NoError(t, err)
+	assert.Empty(t, key)
 
 	mockQueries.AssertExpectations(t)
 }
@@ -149,13 +150,13 @@ func TestHasAPIKey(t *testing.T) {
 	// Test cache hit
 	service.credentialsCache.Store(models.ProviderAnthropic, "some-key")
 	has, err := service.HasAPIKey(context.Background(), models.ProviderAnthropic)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 
 	// Test DB call
 	mockQueries.On("HasAPICredential", mock.Anything, "openai").Return(int64(1), nil)
 	has, err = service.HasAPIKey(context.Background(), models.ProviderOpenAI)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 
 	mockQueries.AssertExpectations(t)
@@ -171,7 +172,7 @@ func TestDeleteAPIKey(t *testing.T) {
 	mockQueries.On("DeleteAPICredential", mock.Anything, "anthropic").Return(nil)
 
 	err := service.DeleteAPIKey(context.Background(), models.ProviderAnthropic)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache is cleared
 	_, found := service.credentialsCache.Load(models.ProviderAnthropic)
@@ -192,7 +193,7 @@ func TestListCredentials(t *testing.T) {
 		}, nil)
 
 	providers, err := service.ListCredentials(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, providers, 2)
 	assert.Contains(t, providers, models.ModelProvider("anthropic"))
 	assert.Contains(t, providers, models.ModelProvider("openai"))
@@ -211,7 +212,7 @@ func TestDeleteAllCredentials(t *testing.T) {
 	mockQueries.On("DeleteAllAPICredentials", mock.Anything).Return(nil)
 
 	err := service.DeleteAllCredentials(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache is cleared
 	_, found1 := service.credentialsCache.Load(models.ProviderAnthropic)
@@ -231,9 +232,9 @@ func TestValidateAPIKey(t *testing.T) {
 	assert.NoError(t, service.ValidateAPIKey(models.ProviderOpenAI, CreateTestAPIKey(models.ProviderOpenAI)))
 
 	// Invalid keys
-	assert.Error(t, service.ValidateAPIKey(models.ProviderAnthropic, ""))
-	assert.Error(t, service.ValidateAPIKey(models.ProviderAnthropic, "short"))
-	assert.Error(t, service.ValidateAPIKey("unsupported", "any-key"))
+	require.Error(t, service.ValidateAPIKey(models.ProviderAnthropic, ""))
+	require.Error(t, service.ValidateAPIKey(models.ProviderAnthropic, "short"))
+	require.Error(t, service.ValidateAPIKey("unsupported", "any-key"))
 }
 
 // Test OAuth credentials
@@ -246,7 +247,7 @@ func TestStoreOAuthCredentials(t *testing.T) {
 
 	creds := CreateTestOAuthCreds("test_provider")
 	err := service.StoreOAuthCredentials(context.Background(), "test_provider", creds)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache
 	cached, found := service.oauthCache.Load("test_provider")
@@ -264,7 +265,7 @@ func TestGetOAuthCredentialsFromCache(t *testing.T) {
 	service.oauthCache.Store("test_provider", expectedCreds)
 
 	creds, err := service.GetOAuthCredentials(context.Background(), "test_provider")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedCreds, creds)
 
 	// Should not call DB
@@ -279,7 +280,7 @@ func TestGetOAuthCredentialsNotFound(t *testing.T) {
 		Return(db.OauthCredential{}, sql.ErrNoRows)
 
 	creds, err := service.GetOAuthCredentials(context.Background(), "missing_provider")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, creds)
 
 	mockQueries.AssertExpectations(t)
@@ -292,13 +293,13 @@ func TestHasOAuthCredentials(t *testing.T) {
 	// Test cache hit
 	service.oauthCache.Store("cached_provider", CreateTestOAuthCreds("cached_provider"))
 	has, err := service.HasOAuthCredentials(context.Background(), "cached_provider")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 
 	// Test DB call
 	mockQueries.On("HasOAuthCredential", mock.Anything, "db_provider").Return(int64(1), nil)
 	has, err = service.HasOAuthCredentials(context.Background(), "db_provider")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 
 	mockQueries.AssertExpectations(t)
@@ -314,7 +315,7 @@ func TestDeleteOAuthCredentials(t *testing.T) {
 	mockQueries.On("DeleteOAuthCredential", mock.Anything, "test_provider").Return(nil)
 
 	err := service.DeleteOAuthCredentials(context.Background(), "test_provider")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache is cleared
 	_, found := service.oauthCache.Load("test_provider")
@@ -335,7 +336,7 @@ func TestListOAuthCredentials(t *testing.T) {
 		}, nil)
 
 	providers, err := service.ListOAuthCredentials(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, providers, 2)
 	assert.Contains(t, providers, "provider1")
 	assert.Contains(t, providers, "provider2")
@@ -354,7 +355,7 @@ func TestDeleteAllOAuthCredentials(t *testing.T) {
 	mockQueries.On("DeleteAllOAuthCredentials", mock.Anything).Return(nil)
 
 	err := service.DeleteAllOAuthCredentials(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check cache is cleared
 	_, found1 := service.oauthCache.Load("provider1")
@@ -373,8 +374,8 @@ func TestGetExpiredOAuthCredentials(t *testing.T) {
 		Return([]db.OauthCredential{}, nil) // Return empty list
 
 	creds, err := service.GetExpiredOAuthCredentials(context.Background())
-	assert.NoError(t, err)
-	assert.Len(t, creds, 0)
+	require.NoError(t, err)
+	assert.Empty(t, creds)
 
 	mockQueries.AssertExpectations(t)
 }
@@ -472,12 +473,12 @@ func TestPreloadOAuthCredentials(t *testing.T) {
 // Test encryption key generation
 func TestGenerateEncryptionKey(t *testing.T) {
 	key, err := GenerateEncryptionKey()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, key, 32) // AES-256 requires 32-byte key
 
 	// Test deterministic
 	key2, err := GenerateEncryptionKey()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, key, key2)
 }
 
@@ -485,7 +486,7 @@ func TestGenerateEncryptionKey(t *testing.T) {
 func TestEncryptWithNilKey(t *testing.T) {
 	service := NewAPICredentialsServiceWithQuerierAndPreload(&db.MockQuerier{}, nil, false)
 	_, err := service.encrypt("test")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDecryptInvalidData(t *testing.T) {
@@ -493,9 +494,9 @@ func TestDecryptInvalidData(t *testing.T) {
 
 	// Invalid base64
 	_, err := service.decrypt("invalid-base64!@#")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Too short ciphertext
 	_, err = service.decrypt("YWJjZA==") // "abcd" in base64
-	assert.Error(t, err)
+	require.Error(t, err)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"mix/internal/db"
 	"mix/internal/llm/models"
@@ -18,6 +19,7 @@ import (
 
 // Test helper functions
 func createTestService(t *testing.T) (*service, *db.MockQuerier) {
+	t.Helper()
 	mockQuerier := &db.MockQuerier{}
 	broker := pubsub.NewBroker[Message]()
 	svc := &service{
@@ -77,7 +79,7 @@ func TestCreate(t *testing.T) {
 
 	message, err := svc.Create(context.Background(), sessionID, params)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, dbMessage.SessionID, message.SessionID)
 	assert.Equal(t, User, message.Role)
 
@@ -105,7 +107,7 @@ func TestCreateAssistant(t *testing.T) {
 
 	message, err := svc.Create(context.Background(), sessionID, params)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Assistant, message.Role)
 
 	mockQuerier.AssertExpectations(t)
@@ -123,7 +125,7 @@ func TestUpdate(t *testing.T) {
 
 	err := svc.Update(context.Background(), message)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockQuerier.AssertExpectations(t)
 }
@@ -141,7 +143,7 @@ func TestGet(t *testing.T) {
 
 	message, err := svc.Get(context.Background(), messageID)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, messageID, message.ID)
 
 	mockQuerier.AssertExpectations(t)
@@ -159,7 +161,7 @@ func TestList(t *testing.T) {
 
 	messages, err := svc.List(context.Background(), sessionID)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, messages, 2)
 
 	mockQuerier.AssertExpectations(t)
@@ -180,7 +182,7 @@ func TestDelete(t *testing.T) {
 
 	err := svc.Delete(context.Background(), messageID)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockQuerier.AssertExpectations(t)
 }
@@ -198,7 +200,7 @@ func TestListUserMessageHistory(t *testing.T) {
 
 	messages, err := svc.ListUserMessageHistory(context.Background(), limit, offset)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, messages, 1)
 
 	mockQuerier.AssertExpectations(t)
@@ -221,7 +223,7 @@ func TestCopyMessagesToSession(t *testing.T) {
 
 	err := svc.CopyMessagesToSession(context.Background(), sourceSessionID, targetSessionID, messageIndex)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockQuerier.AssertExpectations(t)
 }
@@ -236,12 +238,12 @@ func TestMarshallParts(t *testing.T) {
 
 	data, err := marshallParts(parts)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, data)
 
 	// Verify it's valid JSON and can be unmarshalled back
 	unmarshalled, err := unmarshallParts(data)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, unmarshalled, 3)
 }
 
@@ -253,11 +255,11 @@ func TestUnmarshallParts(t *testing.T) {
 	}
 
 	data, err := marshallParts(originalParts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	parts, err := unmarshallParts(data)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, parts, 2)
 
 	textContent, ok := parts[0].(TextContent)
@@ -275,7 +277,7 @@ func TestUnmarshallPartsUnknownType(t *testing.T) {
 
 	_, err := unmarshallParts([]byte(invalidData))
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown part type")
 }
 

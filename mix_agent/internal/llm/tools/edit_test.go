@@ -115,6 +115,7 @@ func setupEditTestContext() context.Context {
 }
 
 func createTempFile(t *testing.T, content string) string {
+	t.Helper()
 	tempFile, err := os.CreateTemp("", "edit_test_*.txt")
 	require.NoError(t, err)
 
@@ -141,12 +142,12 @@ func TestEditParams_JSONSerialization(t *testing.T) {
 
 	// Test marshalling
 	data, err := json.Marshal(params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test unmarshalling
 	var unmarshalled EditParams
 	err = json.Unmarshal(data, &unmarshalled)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, params, unmarshalled)
 }
 
@@ -158,12 +159,12 @@ func TestEditPermissionsParams_JSONSerialization(t *testing.T) {
 
 	// Test marshalling
 	data, err := json.Marshal(params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test unmarshalling
 	var unmarshalled EditPermissionsParams
 	err = json.Unmarshal(data, &unmarshalled)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, params, unmarshalled)
 }
 
@@ -176,12 +177,12 @@ func TestEditResponseMetadata_JSONSerialization(t *testing.T) {
 
 	// Test marshalling
 	data, err := json.Marshal(metadata)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test unmarshalling
 	var unmarshalled EditResponseMetadata
 	err = json.Unmarshal(data, &unmarshalled)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, metadata, unmarshalled)
 }
 
@@ -242,7 +243,7 @@ func TestEditTool_Run_InvalidJSON(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Equal(t, "invalid parameters", response.Content)
 }
@@ -267,7 +268,7 @@ func TestEditTool_Run_MissingFilePath(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Equal(t, "file_path is required", response.Content)
 }
@@ -296,7 +297,7 @@ func TestEditTool_Run_RelativePathConversion(t *testing.T) {
 
 	_, err := tool.Run(ctx, call)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "session storage directory")
 }
 
@@ -327,22 +328,22 @@ func TestEditTool_CreateNewFile_Success(t *testing.T) {
 
 	response, err := tool.createNewFile(ctx, filePath, content)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "File created:")
 	assert.Contains(t, response.Content, filePath)
 
 	// Verify file was actually created
 	createdContent, err := os.ReadFile(filePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, content, string(createdContent))
 
 	// Verify metadata
 	assert.NotEmpty(t, response.Metadata)
 	var metadata EditResponseMetadata
 	err = json.Unmarshal([]byte(response.Metadata), &metadata)
-	assert.NoError(t, err)
-	assert.Greater(t, metadata.Additions, 0)
+	require.NoError(t, err)
+	assert.Positive(t, metadata.Additions)
 	assert.Equal(t, 0, metadata.Removals)
 	assert.NotEmpty(t, metadata.Diff)
 
@@ -365,7 +366,7 @@ func TestEditTool_CreateNewFile_FileExists(t *testing.T) {
 
 	response, err := tool.createNewFile(ctx, existingFile, "new content")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "file already exists")
 }
@@ -384,7 +385,7 @@ func TestEditTool_CreateNewFile_DirectoryExists(t *testing.T) {
 
 	response, err := tool.createNewFile(ctx, tempDir, "content")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "path is a directory")
 }
@@ -405,8 +406,8 @@ func TestEditTool_CreateNewFile_PermissionDenied(t *testing.T) {
 
 	_, err := tool.createNewFile(ctx, filePath, "content")
 
-	assert.Error(t, err)
-	assert.Equal(t, permission.ErrorPermissionDenied, err)
+	require.Error(t, err)
+	assert.Equal(t, permission.ErrPermissionDenied, err)
 
 	mockPermissions.AssertExpectations(t)
 }
@@ -425,7 +426,7 @@ func TestEditTool_CreateNewFile_MissingSessionInfo(t *testing.T) {
 
 	_, err := tool.createNewFile(ctx, filePath, "content")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "session ID and message ID are required")
 }
 
@@ -464,13 +465,13 @@ func TestEditTool_ReplaceContent_Success(t *testing.T) {
 
 	response, err := tool.replaceContent(ctx, tempFile, oldString, newString, false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "Content replaced in file:")
 
 	// Verify file content was changed
 	newContent, err := os.ReadFile(tempFile)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expectedContent := strings.Replace(originalContent, oldString, newString, 1)
 	assert.Equal(t, expectedContent, string(newContent))
 
@@ -478,7 +479,7 @@ func TestEditTool_ReplaceContent_Success(t *testing.T) {
 	assert.NotEmpty(t, response.Metadata)
 	var metadata EditResponseMetadata
 	err = json.Unmarshal([]byte(response.Metadata), &metadata)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, metadata.Diff)
 
 	mockPermissions.AssertExpectations(t)
@@ -497,7 +498,7 @@ func TestEditTool_ReplaceContent_FileNotFound(t *testing.T) {
 
 	response, err := tool.replaceContent(ctx, nonExistentFile, "old", "new", false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "file not found")
 }
@@ -515,7 +516,7 @@ func TestEditTool_ReplaceContent_FileNotRead(t *testing.T) {
 
 	response, err := tool.replaceContent(ctx, tempFile, "old", "new", false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "This tool will error if you attempt an edit without reading the file")
 }
@@ -535,7 +536,7 @@ func TestEditTool_ReplaceContent_OldStringNotFound(t *testing.T) {
 
 	response, err := tool.replaceContent(ctx, tempFile, "nonexistent", "new", false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "old_string not found in file")
 }
@@ -555,7 +556,7 @@ func TestEditTool_ReplaceContent_MultipleOccurrences(t *testing.T) {
 
 	response, err := tool.replaceContent(ctx, tempFile, "Hello", "Hi", false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "old_string is not unique")
 }
@@ -576,7 +577,7 @@ func TestEditTool_ReplaceContent_NoChange(t *testing.T) {
 
 	response, err := tool.replaceContent(ctx, tempFile, "World", "World", false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "new content is the same as old content")
 }
@@ -597,12 +598,12 @@ func TestEditTool_ReplaceContent_FileModifiedSinceRead(t *testing.T) {
 
 	// Wait a moment and modify the file
 	time.Sleep(10 * time.Millisecond)
-	err := os.WriteFile(tempFile, []byte("modified content"), 0644)
+	err := os.WriteFile(tempFile, []byte("modified content"), 0o600)
 	require.NoError(t, err)
 
 	response, err := tool.replaceContent(ctx, tempFile, "original", "new", false)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "file")
 	assert.Contains(t, response.Content, "has been modified since it was last read")
@@ -635,13 +636,13 @@ func TestEditTool_DeleteContent_Success(t *testing.T) {
 
 	response, err := tool.deleteContent(ctx, tempFile, deleteString)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "Content deleted from file:")
 
 	// Verify content was deleted
 	newContent, err := os.ReadFile(tempFile)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expectedContent := strings.Replace(originalContent, deleteString, "", 1)
 	assert.Equal(t, expectedContent, string(newContent))
 
@@ -681,14 +682,14 @@ func TestEditTool_Run_CreateNewFileIntegration(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "<result>")
 	assert.Contains(t, response.Content, "File created:")
 
 	// Verify file exists
 	_, err = os.Stat(filePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockPermissions.AssertExpectations(t)
 	mockFiles.AssertExpectations(t)
@@ -728,7 +729,7 @@ func TestEditTool_Run_DeleteContentIntegration(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "<result>")
 	assert.Contains(t, response.Content, "Content deleted from file:")
@@ -771,7 +772,7 @@ func TestEditTool_Run_ReplaceContentIntegration(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "<result>")
 	assert.Contains(t, response.Content, "Content replaced in file:")
@@ -814,7 +815,7 @@ func TestEditTool_EdgeCases(t *testing.T) {
 
 		// This should trigger new file creation logic but file exists
 		response, err := tool.Run(ctx, call)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, response.IsError)
 		assert.Contains(t, response.Content, "file already exists")
 	})
@@ -852,7 +853,7 @@ func TestEditTool_EdgeCases(t *testing.T) {
 			history.File{}, nil)
 
 		response, err := tool.Run(ctx, call)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, response.IsError)
 
 		mockPermissions.AssertExpectations(t)
@@ -885,7 +886,7 @@ func TestEditTool_ContextHandling(t *testing.T) {
 		}
 
 		_, err := tool.Run(ctx, call)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "session storage directory")
 	})
 }
@@ -909,7 +910,7 @@ func TestEditTool_HistoryServiceErrors(t *testing.T) {
 
 	_, err := tool.createNewFile(ctx, filePath, "content")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error creating file history")
 
 	mockPermissions.AssertExpectations(t)

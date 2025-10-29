@@ -1,3 +1,4 @@
+//go:build standalone
 // +build standalone
 
 package tools
@@ -84,9 +85,9 @@ func TestGlobToolStandalone(t *testing.T) {
 		defer os.RemoveAll(tempDir)
 
 		// Create test files
-		err = os.WriteFile(filepath.Join(tempDir, "test.go"), []byte("test"), 0644)
+		err = os.WriteFile(filepath.Join(tempDir, "test.go"), []byte("test"), 0o600)
 		require.NoError(t, err)
-		err = os.WriteFile(filepath.Join(tempDir, "test.txt"), []byte("test"), 0644)
+		err = os.WriteFile(filepath.Join(tempDir, "test.txt"), []byte("test"), 0o600)
 		require.NoError(t, err)
 
 		ctx := context.WithValue(context.Background(), SessionStorageContextKey, tempDir)
@@ -110,7 +111,7 @@ func TestGlobFilesStandalone(t *testing.T) {
 	// Create test files
 	testFiles := []string{"test1.go", "test2.go", "test.txt"}
 	for _, file := range testFiles {
-		err = os.WriteFile(filepath.Join(tempDir, file), []byte("content"), 0644)
+		err = os.WriteFile(filepath.Join(tempDir, file), []byte("content"), 0o600)
 		require.NoError(t, err)
 	}
 

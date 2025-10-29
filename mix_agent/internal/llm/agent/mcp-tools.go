@@ -147,8 +147,8 @@ func (m *MCPClientManager) CloseClient(serverName string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if client, exists := m.clients[serverName]; exists {
-		if err := client.Close(); err != nil {
+	if mcpClient, exists := m.clients[serverName]; exists {
+		if err := mcpClient.Close(); err != nil {
 			logging.Debug("error closing mcp client", "server", serverName, "error", err)
 		}
 		delete(m.clients, serverName)
@@ -175,7 +175,7 @@ func (b *mcpTool) Info() tools.ToolInfo {
 	}
 }
 
-func runTool(ctx context.Context, c *client.Client, toolName string, input string) (tools.ToolResponse, error) {
+func runTool(ctx context.Context, c *client.Client, toolName, input string) (tools.ToolResponse, error) {
 	// Client is already initialized by the manager, just call the tool
 	toolRequest := mcp.CallToolRequest{}
 	toolRequest.Params.Name = toolName
@@ -219,8 +219,8 @@ func (b *mcpTool) Run(ctx context.Context, params tools.ToolCall) (tools.ToolRes
 	permissionDescription := fmt.Sprintf("execute %s with the following parameters: %s", b.Info().Name, params.Input)
 	p := b.permissions.Request(
 		permission.CreatePermissionRequest{
-			SessionID:   sessionID,
-			Path:        func() string {
+			SessionID: sessionID,
+			Path: func() string {
 				if dir, err := tools.GetSessionStorageDirectory(ctx); err == nil {
 					return dir
 				}
@@ -256,7 +256,7 @@ func NewMcpTool(name string, tool mcp.Tool, permissions permission.Service, mcpC
 }
 
 // shouldIncludeTool determines if a tool should be included based on allow/deny lists
-func shouldIncludeTool(toolName string, allowedTools []string, deniedTools []string) bool {
+func shouldIncludeTool(toolName string, allowedTools, deniedTools []string) bool {
 	// If allowedTools is specified and not empty, only include tools in the allowlist
 	if len(allowedTools) > 0 {
 		for _, allowed := range allowedTools {
@@ -294,19 +294,20 @@ func getTools(ctx context.Context, name string, m config.MCPServer, permissions 
 	toolsRequest := mcp.ListToolsRequest{}
 	listCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	tools, err := c.ListTools(listCtx, toolsRequest)
+	toolsList, err := c.ListTools(listCtx, toolsRequest)
 	if err != nil {
 		logging.Error("error listing tools", "server", name, "error", err)
 		return mcpTools
 	}
 
 	// Create tool instances with the manager, applying filtering if configured
-	for _, t := range tools.Tools {
+	for i := range toolsList.Tools {
+		t := &toolsList.Tools[i]
 		toolName := t.Name
 
 		// Apply tool filtering based on configuration
 		if shouldIncludeTool(toolName, m.AllowedTools, m.DeniedTools) {
-			mcpTools = append(mcpTools, NewMcpTool(name, t, permissions, m, manager))
+			mcpTools = append(mcpTools, NewMcpTool(name, *t, permissions, m, manager))
 		}
 	}
 
@@ -316,7 +317,9 @@ func getTools(ctx context.Context, name string, m config.MCPServer, permissions 
 func GetMcpTools(ctx context.Context, permissions permission.Service, manager *MCPClientManager) []tools.BaseTool {
 	var allTools []tools.BaseTool
 
-	for name, m := range config.Get().MCPServers {
+	mcpServers := config.Get().MCPServers
+	for name := range mcpServers {
+		m := mcpServers[name]
 		allTools = append(allTools, getTools(ctx, name, m, permissions, manager)...)
 	}
 

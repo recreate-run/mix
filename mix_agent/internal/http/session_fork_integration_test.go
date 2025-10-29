@@ -20,7 +20,8 @@ import (
 )
 
 // setupTestServerForFork sets up test environment specifically for fork testing
-func setupTestServerForFork(t *testing.T) (*app.App, string) {
+func setupTestServerForFork(t *testing.T) (testApp *app.App, sessionID string) {
+	t.Helper()
 	// Set up test configuration properly
 	testConfigDir := "/tmp/test-mix-fork-" + t.Name()
 	testDataDir := "/tmp/test-mix-data-fork-" + t.Name()
@@ -29,10 +30,10 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 	_ = os.Setenv("_DATA_DIR", testDataDir)
 
 	// Create test directories
-	if err := os.MkdirAll(testConfigDir, 0755); err != nil {
+	if err := os.MkdirAll(testConfigDir, 0o750); err != nil {
 		t.Fatalf("Failed to create test config dir: %v", err)
 	}
-	if err := os.MkdirAll(testDataDir, 0755); err != nil {
+	if err := os.MkdirAll(testDataDir, 0o750); err != nil {
 		t.Fatalf("Failed to create test data dir: %v", err)
 	}
 
@@ -49,7 +50,7 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 	}
 
 	// Create test app
-	testApp, err := app.New(ctx, conn)
+	testApp, err = app.New(ctx, conn)
 	if err != nil {
 		t.Fatalf("Failed to create test app: %v", err)
 	}
@@ -67,13 +68,14 @@ func setupTestServerForFork(t *testing.T) (*app.App, string) {
 }
 
 // createTestMessages creates sample messages for fork testing
-func createTestMessages(t *testing.T, app *app.App, sessionID string, messageCount int) []message.Message {
+func createTestMessages(t *testing.T, a *app.App, sessionID string, messageCount int) []message.Message {
+	t.Helper()
 	ctx := context.Background()
 	var messages []message.Message
 
 	for i := 0; i < messageCount; i++ {
 		// Create user message
-		userMsg, err := app.Messages.Create(ctx, sessionID, message.CreateMessageParams{
+		userMsg, err := a.Messages.Create(ctx, sessionID, message.CreateMessageParams{
 			Role: message.User,
 			Parts: []message.ContentPart{
 				message.TextContent{Text: "User message " + string(rune('A'+i))},
@@ -86,7 +88,7 @@ func createTestMessages(t *testing.T, app *app.App, sessionID string, messageCou
 		messages = append(messages, userMsg)
 
 		// Create assistant response
-		assistantMsg, err := app.Messages.Create(ctx, sessionID, message.CreateMessageParams{
+		assistantMsg, err := a.Messages.Create(ctx, sessionID, message.CreateMessageParams{
 			Role: message.Assistant,
 			Parts: []message.ContentPart{
 				message.TextContent{Text: "Assistant response " + string(rune('A'+i))},
@@ -103,11 +105,12 @@ func createTestMessages(t *testing.T, app *app.App, sessionID string, messageCou
 }
 
 // validateForkResult validates the fork operation results
-func validateForkResult(t *testing.T, app *app.App, sourceSessionID, forkedSessionID string, expectedMessageCount int) {
+func validateForkResult(t *testing.T, a *app.App, sourceSessionID, forkedSessionID string, expectedMessageCount int) {
+	t.Helper()
 	ctx := context.Background()
 
 	// Validate forked session exists and has correct parent
-	forkedSession, err := app.Sessions.Get(ctx, forkedSessionID)
+	forkedSession, err := a.Sessions.Get(ctx, forkedSessionID)
 	if err != nil {
 		t.Fatalf("Failed to get forked session: %v", err)
 	}
@@ -117,7 +120,7 @@ func validateForkResult(t *testing.T, app *app.App, sourceSessionID, forkedSessi
 	}
 
 	// Validate source session still exists
-	_, err = app.Sessions.Get(ctx, sourceSessionID)
+	_, err = a.Sessions.Get(ctx, sourceSessionID)
 	if err != nil {
 		t.Fatalf("Failed to get source session: %v", err)
 	}
@@ -125,7 +128,7 @@ func validateForkResult(t *testing.T, app *app.App, sourceSessionID, forkedSessi
 	// Note: Working directory validation removed - sessions now use centralized storage
 
 	// Validate message copying
-	forkedMessages, err := app.Messages.List(ctx, forkedSessionID)
+	forkedMessages, err := a.Messages.List(ctx, forkedSessionID)
 	if err != nil {
 		t.Fatalf("Failed to list forked session messages: %v", err)
 	}
@@ -135,7 +138,7 @@ func validateForkResult(t *testing.T, app *app.App, sourceSessionID, forkedSessi
 	}
 
 	// Validate messages have different IDs but same content
-	sourceMessages, err := app.Messages.List(ctx, sourceSessionID)
+	sourceMessages, err := a.Messages.List(ctx, sourceSessionID)
 	if err != nil {
 		t.Fatalf("Failed to list source session messages: %v", err)
 	}
@@ -168,14 +171,14 @@ func validateForkResult(t *testing.T, app *app.App, sourceSessionID, forkedSessi
 }
 
 func TestSessionFork(t *testing.T) {
-	app, sourceSessionID := setupTestServerForFork(t)
+	testApp, sourceSessionID := setupTestServerForFork(t)
 
 	// Create test messages (3 pairs = 6 total messages)
-	messages := createTestMessages(t, app, sourceSessionID, 3)
+	messages := createTestMessages(t, testApp, sourceSessionID, 3)
 	t.Logf("Created %d test messages in source session", len(messages))
 
 	// Create REST handler and test server
-	sessionHandler := NewSessionHandler(app)
+	sessionHandler := NewSessionHandler(testApp)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 	server := httptest.NewServer(mux)
@@ -183,8 +186,8 @@ func TestSessionFork(t *testing.T) {
 
 	// Test forking at message index 4 (should copy first 4 messages)
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(4),
-		Title:          "Forked Test Session",
+		MessageIndex: int64(4),
+		Title:        "Forked Test Session",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -194,7 +197,13 @@ func TestSessionFork(t *testing.T) {
 
 	// Make REST API call to fork session
 	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to create fork request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
@@ -216,7 +225,7 @@ func TestSessionFork(t *testing.T) {
 	t.Logf("Fork successful: created session %s with title '%s'", forkedSessionID, title)
 
 	// Validate fork result
-	validateForkResult(t, app, sourceSessionID, forkedSessionID, 4)
+	validateForkResult(t, testApp, sourceSessionID, forkedSessionID, 4)
 
 	// Validate response data
 	if title != "Forked Test Session" {
@@ -227,13 +236,13 @@ func TestSessionFork(t *testing.T) {
 }
 
 func TestSessionForkWithDefaultTitle(t *testing.T) {
-	app, sourceSessionID := setupTestServerForFork(t)
+	testApp, sourceSessionID := setupTestServerForFork(t)
 
 	// Create test messages
-	createTestMessages(t, app, sourceSessionID, 2)
+	createTestMessages(t, testApp, sourceSessionID, 2)
 
 	// Create REST handler and test server
-	sessionHandler := NewSessionHandler(app)
+	sessionHandler := NewSessionHandler(testApp)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 	server := httptest.NewServer(mux)
@@ -241,7 +250,7 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 
 	// Test forking without custom title
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(2),
+		MessageIndex: int64(2),
 		// No title - should use default
 	}
 
@@ -252,7 +261,13 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 
 	// Make REST API call to fork session
 	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to create fork request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
@@ -276,14 +291,14 @@ func TestSessionForkWithDefaultTitle(t *testing.T) {
 		t.Fatalf("Expected session ID in response data")
 	}
 
-	validateForkResult(t, app, sourceSessionID, forkedSessionID, 2)
+	validateForkResult(t, testApp, sourceSessionID, forkedSessionID, 2)
 }
 
 func TestSessionForkErrorHandling(t *testing.T) {
-	app, _ := setupTestServerForFork(t)
+	testApp, _ := setupTestServerForFork(t)
 
 	// Create REST handler and test server
-	sessionHandler := NewSessionHandler(app)
+	sessionHandler := NewSessionHandler(testApp)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 	server := httptest.NewServer(mux)
@@ -309,7 +324,7 @@ func TestSessionForkErrorHandling(t *testing.T) {
 		{
 			name: "invalid source session ID",
 			request: ForkSessionRequest{
-				MessageIndex:    int64(2),
+				MessageIndex: int64(2),
 			},
 			expectError: true,
 			statusCode:  500,
@@ -318,7 +333,7 @@ func TestSessionForkErrorHandling(t *testing.T) {
 		{
 			name: "negative message index",
 			request: ForkSessionRequest{
-				MessageIndex:    int64(-1),
+				MessageIndex: int64(-1),
 			},
 			expectError: true,
 			statusCode:  400,
@@ -335,7 +350,14 @@ func TestSessionForkErrorHandling(t *testing.T) {
 
 			// Make REST API call
 			url := server.URL + "/api/sessions/dummy/fork"
-			resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+			ctx := context.Background()
+			var req *http.Request
+			req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
+			if err != nil {
+				t.Fatalf("Failed to create fork request: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				t.Fatalf("Failed to make fork request: %v", err)
 			}
@@ -353,24 +375,22 @@ func TestSessionForkErrorHandling(t *testing.T) {
 				if errorResponse.Error.Type != tc.errorType {
 					t.Errorf("Expected error type '%s', got '%s'", tc.errorType, errorResponse.Error.Type)
 				}
-			} else {
+			} else if resp.StatusCode >= 400 {
 				// Should be successful
-				if resp.StatusCode >= 400 {
-					t.Errorf("Expected successful response, got status %d", resp.StatusCode)
-				}
+				t.Errorf("Expected successful response, got status %d", resp.StatusCode)
 			}
 		})
 	}
 }
 
 func TestSessionForkMessageBoundary(t *testing.T) {
-	app, sourceSessionID := setupTestServerForFork(t)
+	testApp, sourceSessionID := setupTestServerForFork(t)
 	ctx := context.Background()
 
 	// Create exactly 5 messages
-	createTestMessages(t, app, sourceSessionID, 2) // Creates 4 messages
+	createTestMessages(t, testApp, sourceSessionID, 2) // Creates 4 messages
 	// Add one more user message to make it 5 total
-	_, err := app.Messages.Create(ctx, sourceSessionID, message.CreateMessageParams{
+	_, err := testApp.Messages.Create(ctx, sourceSessionID, message.CreateMessageParams{
 		Role: message.User,
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "Final user message"},
@@ -382,7 +402,7 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 	}
 
 	// Create REST handler and test server
-	sessionHandler := NewSessionHandler(app)
+	sessionHandler := NewSessionHandler(testApp)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 	server := httptest.NewServer(mux)
@@ -390,8 +410,8 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 
 	// Test forking at exact message boundary
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(5), // Should copy all 5 messages
-		Title:          "Boundary Fork Test",
+		MessageIndex: int64(5), // Should copy all 5 messages
+		Title:        "Boundary Fork Test",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -401,7 +421,14 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 
 	// Make REST API call
 	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	ctx = context.Background()
+	var req *http.Request
+	req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to create fork request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
@@ -416,17 +443,17 @@ func TestSessionForkMessageBoundary(t *testing.T) {
 	}
 
 	// Should copy exactly 5 messages
-	validateForkResult(t, app, sourceSessionID, forkedSessionID, 5)
+	validateForkResult(t, testApp, sourceSessionID, forkedSessionID, 5)
 }
 
 func TestSessionForkWithZeroMessages(t *testing.T) {
-	app, sourceSessionID := setupTestServerForFork(t)
+	testApp, sourceSessionID := setupTestServerForFork(t)
 
 	// Create test messages
-	createTestMessages(t, app, sourceSessionID, 2) // Creates 4 messages
+	createTestMessages(t, testApp, sourceSessionID, 2) // Creates 4 messages
 
 	// Create REST handler and test server
-	sessionHandler := NewSessionHandler(app)
+	sessionHandler := NewSessionHandler(testApp)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 	server := httptest.NewServer(mux)
@@ -434,8 +461,8 @@ func TestSessionForkWithZeroMessages(t *testing.T) {
 
 	// Test forking at message index 0 (should copy 0 messages, empty session)
 	forkParams := ForkSessionRequest{
-		MessageIndex:    int64(0),
-		Title:          "Empty Fork Test",
+		MessageIndex: int64(0),
+		Title:        "Empty Fork Test",
 	}
 
 	paramsJSON, err := json.Marshal(forkParams)
@@ -445,7 +472,14 @@ func TestSessionForkWithZeroMessages(t *testing.T) {
 
 	// Make REST API call
 	url := server.URL + "/api/sessions/" + sourceSessionID + "/fork"
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(paramsJSON))
+	ctx := context.Background()
+	var req *http.Request
+	req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
+	if err != nil {
+		t.Fatalf("Failed to create fork request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to make fork request: %v", err)
 	}
@@ -460,5 +494,5 @@ func TestSessionForkWithZeroMessages(t *testing.T) {
 	}
 
 	// Should copy exactly 0 messages (empty session)
-	validateForkResult(t, app, sourceSessionID, forkedSessionID, 0)
+	validateForkResult(t, testApp, sourceSessionID, forkedSessionID, 0)
 }

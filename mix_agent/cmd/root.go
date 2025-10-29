@@ -74,7 +74,7 @@ and content creation workflows.`,
 			var err error
 			cwd, err = os.Getwd()
 			if err != nil {
-				return fmt.Errorf("failed to get current working directory: %v", err)
+				return fmt.Errorf("failed to get current working directory: %w", err)
 			}
 		}
 
@@ -82,7 +82,7 @@ and content creation workflows.`,
 		if cmd.Flag("cwd").Changed {
 			err := os.Chdir(cwd)
 			if err != nil {
-				return fmt.Errorf("failed to change directory: %v", err)
+				return fmt.Errorf("failed to change directory: %w", err)
 			}
 		}
 
@@ -110,29 +110,29 @@ and content creation workflows.`,
 		}
 		defer func() { _ = dbManager.Close() }()
 
-		app, err := app.New(ctx, dbManager.GetDB())
+		appInstance, err := app.New(ctx, dbManager.GetDB())
 		if err != nil {
 			logging.Error("Failed to create app: %v", err)
 			return err
 		}
-		defer app.Shutdown()
+		defer appInstance.Shutdown()
 
 		// Initialize MCP tools early for both modes
-		initMCPTools(ctx, app)
+		initMCPTools(ctx, appInstance)
 
 		// HTTP server mode (blocks, no other modes)
 		if httpPort > 0 {
-			return httphandlers.StartServer(ctx, app, httpHost, httpPort)
+			return httphandlers.StartServer(ctx, appInstance, httpHost, httpPort)
 		}
 
 		// Query mode (structured data output)
 		if query != "" {
-			return runQuery(ctx, app, query, outputFormat)
+			return runQuery(ctx, appInstance, query, outputFormat)
 		}
 
 		// CLI-only mode (when prompt provided)
 		if prompt != "" {
-			return app.RunNonInteractive(ctx, prompt, outputFormat, quiet)
+			return appInstance.RunNonInteractive(ctx, prompt, outputFormat, quiet)
 		}
 
 		// Default: Show help when no mode is specified
@@ -141,7 +141,7 @@ and content creation workflows.`,
 	},
 }
 
-func initMCPTools(ctx context.Context, app *app.App) {
+func initMCPTools(ctx context.Context, appInstance *app.App) {
 	go func() {
 		defer logging.RecoverPanic("MCP-goroutine", nil)
 
@@ -153,16 +153,16 @@ func initMCPTools(ctx context.Context, app *app.App) {
 		// Create temporary manager for initial MCP setup
 		tempManager := agent.NewMCPClientManager()
 		defer tempManager.Close()
-		agent.GetMcpTools(ctxWithTimeout, app.Permissions, tempManager)
+		agent.GetMcpTools(ctxWithTimeout, appInstance.Permissions, tempManager)
 	}()
 }
 
-func runQuery(ctx context.Context, app *app.App, queryType, outputFormat string) error {
-	handler := httphandlers.NewCLIQueryHandler(app)
+func runQuery(ctx context.Context, appInstance *app.App, queryType, outputFormat string) error {
+	handler := httphandlers.NewCLIQueryHandler(appInstance)
 
 	// JSON-RPC mode is no longer supported - removed for simplicity
 	if queryType == "json" {
-		return fmt.Errorf("JSON-RPC mode is no longer supported. Use specific query types: %v", 
+		return fmt.Errorf("JSON-RPC mode is no longer supported. Use specific query types: %v",
 			handler.GetSupportedQueryTypes())
 	}
 

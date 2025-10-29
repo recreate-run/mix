@@ -36,6 +36,8 @@ make frontend-typecheck     # Always use this for frontend typechecking
 2. NEVER mock LLM API calls
 3. DO NOT preserve backward compatibility unless the user specifically requests it
 4. Do not handle errors (eg. API failures) gracefully, raise exceptions immediately.
+5. ALWAYS extract repeated strings (3+ occurrences) into named constants; use stdlib constants (`http.Method*`, `http.Status*`) instead of string literals
+6. ALWAYS add `t.Helper()` as the first line in any test helper function that takes `*testing.T` as a parameter
 
 ## Go Error Handling
 
@@ -55,3 +57,7 @@ Use `_` to explicitly ignore:
 - `server.Shutdown()` - graceful shutdown
 - `json.Encode()` after headers sent
 - Analytics/telemetry tracking
+
+- ALWAYS use context-aware functions (`http.NewRequestWithContext`, `exec.CommandContext`, `db.QueryRowContext`) - NEVER use non-context versions
+- NEVER return `(nil, nil)` - use sentinel errors like `var ErrNotFound = errors.New("not found")` for "not found" cases
+- ALWAYS use `%w` in `fmt.Errorf("msg: %w", err)`, `errors.Is(err, target)` for comparisons, and `errors.As(err, &target)` for type assertions - NEVER use `%v`, `==`, or direct type assertions on errors

@@ -80,7 +80,7 @@ func shouldPublish(ctx context.Context) bool {
 type Session struct {
 	ID                    string
 	ParentSessionID       string
-	ParentToolCallID      string       // Which tool call spawned this subagent session (for UI nesting)
+	ParentToolCallID      string // Which tool call spawned this subagent session (for UI nesting)
 	Title                 string
 	UserMessageCount      int64
 	AssistantMessageCount int64
@@ -116,7 +116,7 @@ type service struct {
 	storageConfig Config
 }
 
-func (s *service) Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error) {
+func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID, parentToolCallID string) (Session, error) {
 	// Default to 'main' session type if not specified
 	if sessionType == "" {
 		sessionType = SessionTypeMain
@@ -150,11 +150,9 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 		if sessionType == SessionTypeForked {
 			return Session{}, fmt.Errorf("forked sessions must be created using Fork() method, not Create()")
 		}
-	} else {
+	} else if sessionType != SessionTypeMain {
 		// Sessions without parent must be main sessions
-		if sessionType != SessionTypeMain {
-			return Session{}, fmt.Errorf("%s sessions must have a parent session", sessionType)
-		}
+		return Session{}, fmt.Errorf("%s sessions must have a parent session", sessionType)
 	}
 
 	sessionID := uuid.New().String()
@@ -187,13 +185,10 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 		return Session{}, fmt.Errorf("session database creation failed after storage directory was created: %w", err)
 	}
 
-	session, err := s.fromCreatedSessionRow(dbSession)
-	if err != nil {
-		return Session{}, fmt.Errorf("session data conversion failed: %w", err)
-	}
+	session := s.fromCreatedSessionRow(dbSession)
 
 	if shouldPublish(ctx) {
-		err = s.Publish(ctx, pubsub.CreatedEvent, session)
+		err := s.Publish(ctx, pubsub.CreatedEvent, session)
 		if err != nil {
 			return Session{}, fmt.Errorf("session event publication failed: %w", err)
 		}
@@ -201,7 +196,7 @@ func (s *service) Create(ctx context.Context, title string, customSystemPrompt s
 	return session, nil
 }
 
-func (s *service) Fork(ctx context.Context, sourceSessionID string, title string) (Session, error) {
+func (s *service) Fork(ctx context.Context, sourceSessionID, title string) (Session, error) {
 	// Verify source session exists
 	sourceSession, err := s.Get(ctx, sourceSessionID)
 	if err != nil {
@@ -234,13 +229,10 @@ func (s *service) Fork(ctx context.Context, sourceSessionID string, title string
 	if err != nil {
 		return Session{}, err
 	}
-	session, err := s.fromCreatedSessionRow(dbSession)
-	if err != nil {
-		return Session{}, err
-	}
+	session := s.fromCreatedSessionRow(dbSession)
 
 	if shouldPublish(ctx) {
-		err = s.Publish(ctx, pubsub.CreatedEvent, session)
+		err := s.Publish(ctx, pubsub.CreatedEvent, session)
 		if err != nil {
 			return Session{}, err
 		}
@@ -297,12 +289,8 @@ func (s *service) List(ctx context.Context) ([]Session, error) {
 		return nil, err
 	}
 	sessions := make([]Session, len(dbSessions))
-	for i, dbSession := range dbSessions {
-		session, err := s.fromListSessionsMetadataRow(dbSession)
-		if err != nil {
-			return nil, err
-		}
-		sessions[i] = session
+	for i := range dbSessions {
+		sessions[i] = s.fromListSessionsMetadataRow(dbSessions[i])
 	}
 	return sessions, nil
 }
@@ -355,7 +343,6 @@ func (s *service) IncrementCost(ctx context.Context, sessionID string, costDelta
 
 // Conversion methods for different query return types
 
-
 func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, error) {
 	return Session{
 		ID:                    item.ID,
@@ -378,7 +365,7 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 	}, nil
 }
 
-func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (Session, error) {
+func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) Session {
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
@@ -397,10 +384,10 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) (
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
-	}, nil
+	}
 }
 
-func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, error) {
+func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) Session {
 	return Session{
 		ID:                    item.ID,
 		ParentSessionID:       item.ParentSessionID.String,
@@ -419,7 +406,7 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) (Session, erro
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
-	}, nil
+	}
 }
 
 func NewService(q db.Querier, storageConfig Config) Service {
@@ -451,8 +438,8 @@ func (s *Session) SetCallbacks(callbacks []interfaces.CallbackConfig) error {
 	}
 
 	// Validate each callback
-	for i, cb := range callbacks {
-		if err := cb.Validate(); err != nil {
+	for i := range callbacks {
+		if err := callbacks[i].Validate(); err != nil {
 			return fmt.Errorf("callbacks[%d]: %w", i, err)
 		}
 	}

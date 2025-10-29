@@ -143,17 +143,17 @@ type ToolResult struct {
 func (ToolResult) isPart() {}
 
 type CallbackResult struct {
-	ToolCallID         string `json:"tool_call_id"`     // Links back to the tool call that triggered this callback
-	ToolName           string `json:"tool_name"`        // Name of the tool that triggered callback
-	CallbackName       string `json:"callback_name,omitempty"` // Human-readable name of the callback
-	CallbackType       string `json:"callback_type"`    // "bash_script", "sub_agent", or "send_message"
-	Stdout             string `json:"stdout,omitempty"` // For bash callbacks: stdout output
-	Stderr             string `json:"stderr,omitempty"` // For bash callbacks: stderr output
-	ExitCode           int    `json:"exit_code"`        // For bash callbacks: exit code
-	SubAgentID         string `json:"subagent_id,omitempty"` // For subagent callbacks: ID of spawned session
-	SubAgentResult     string `json:"subagent_result,omitempty"` // For subagent/send_message callbacks: result summary
-	Success            bool   `json:"success"`          // Whether callback succeeded
-	Error              string `json:"error,omitempty"`  // Error message if failed
+	ToolCallID         string `json:"tool_call_id"`                   // Links back to the tool call that triggered this callback
+	ToolName           string `json:"tool_name"`                      // Name of the tool that triggered callback
+	CallbackName       string `json:"callback_name,omitempty"`        // Human-readable name of the callback
+	CallbackType       string `json:"callback_type"`                  // "bash_script", "sub_agent", or "send_message"
+	Stdout             string `json:"stdout,omitempty"`               // For bash callbacks: stdout output
+	Stderr             string `json:"stderr,omitempty"`               // For bash callbacks: stderr output
+	ExitCode           int    `json:"exit_code"`                      // For bash callbacks: exit code
+	SubAgentID         string `json:"subagent_id,omitempty"`          // For subagent callbacks: ID of spawned session
+	SubAgentResult     string `json:"subagent_result,omitempty"`      // For subagent/send_message callbacks: result summary
+	Success            bool   `json:"success"`                        // Whether callback succeeded
+	Error              string `json:"error,omitempty"`                // Error message if failed
 	ExcludeFromContext bool   `json:"exclude_from_context,omitempty"` // Whether to exclude this callback result from agent context
 }
 
@@ -340,26 +340,26 @@ func (m *Message) RateLimitInfo() *RateLimitInfo {
 	if m.FinishReason() != "error" {
 		return nil
 	}
-	
+
 	errMsg := m.Content().Text
 	if !strings.Contains(errMsg, "rate_limit_error") && !strings.Contains(errMsg, "rate limit") {
 		return nil
 	}
-	
+
 	// Default values
 	retryInfo := &RateLimitInfo{
-		RetryAfter: 60,   // Default retry after 60 seconds
-		Attempt: 1,       // Default current attempt
-		MaxAttempts: 8,   // Default max attempts
+		RetryAfter:  60, // Default retry after 60 seconds
+		Attempt:     1,  // Default current attempt
+		MaxAttempts: 8,  // Default max attempts
 	}
-	
+
 	// Try to extract retry attempt information from the message
 	if strings.Contains(errMsg, "Retrying due to rate limit") {
 		// Try to parse attempt numbers like "attempt 1 of 8"
 		// If parsing fails, we just use the default values
 		_, _ = fmt.Sscanf(errMsg, "Retrying due to rate limit... attempt %d of %d", &retryInfo.Attempt, &retryInfo.MaxAttempts)
 	}
-	
+
 	return retryInfo
 }
 
@@ -422,7 +422,7 @@ func (m *Message) FinishToolCall(toolCallID string) {
 	}
 }
 
-func (m *Message) AppendToolCallInput(toolCallID string, inputDelta string) error {
+func (m *Message) AppendToolCallInput(toolCallID, inputDelta string) error {
 	for i, part := range m.Parts {
 		if c, ok := part.(ToolCall); ok {
 			if c.ID == toolCallID {

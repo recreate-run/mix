@@ -121,20 +121,20 @@ export function PlaygroundWelcome({
 					</div>
 				)}
 
-				<div className="fade-in slide-in-from-bottom-4 relative z-10 w-full max-w-2xl animate-in space-y-12 px-4 duration-700">
+				<div className="fade-in slide-in-from-bottom-4 relative z-10 w-full max-w-2xl animate-in space-y-8 px-4 duration-700 md:space-y-12">
 					{/* Logo/Title */}
 					<div className="text-center">
-						<h1 className="title-shadow mb-4 flex flex-col items-center justify-center gap-3 text-6xl leading-tight tracking-tight">
-							<div className="flex items-center gap-4">
+						<h1 className="title-shadow mb-3 flex flex-col items-center justify-center gap-2 text-4xl leading-tight tracking-tight md:mb-4 md:gap-3 md:text-5xl lg:text-6xl">
+							<div className="flex items-center gap-2 md:gap-4">
 								<img
 									src="/256x256.png"
 									alt="Mix Logo"
-									className="size-16 drop-shadow-xl transition-transform duration-300 hover:rotate-6"
+									className="size-12 drop-shadow-xl transition-transform duration-300 hover:rotate-6 md:size-16"
 								/>
 								<span className="gradient-text">Mix Playground</span>
 							</div>
 						</h1>
-						<p className="subtitle-text text-muted-foreground text-xl">
+						<p className="subtitle-text text-muted-foreground text-base md:text-lg lg:text-xl">
 							try the open-source agents SDK for web-apps
 						</p>
 					</div>
@@ -203,7 +203,7 @@ export function PlaygroundWelcome({
 									</div>
 
 									{/* Current Model Display */}
-									<div className="absolute right-14 bottom-1 text-muted-foreground text-xs">
+									<div className="absolute right-14 bottom-1 hidden text-muted-foreground text-xs md:block">
 										{formatCurrentModel(preferences)}
 									</div>
 								</AIInputTools>

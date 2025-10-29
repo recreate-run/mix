@@ -1,8 +1,10 @@
 package http
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"mix/internal/app"
@@ -10,6 +12,7 @@ import (
 	"mix/internal/db"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
+	"mix/internal/preferences"
 )
 
 // UserPreferencesResponse represents the API response for user preferences
@@ -42,9 +45,9 @@ type PreferencesHandler struct {
 }
 
 // NewPreferencesHandler creates a new preferences handler
-func NewPreferencesHandler(app *app.App) *PreferencesHandler {
+func NewPreferencesHandler(a *app.App) *PreferencesHandler {
 	return &PreferencesHandler{
-		app: app,
+		app: a,
 	}
 }
 
@@ -64,7 +67,7 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 	prefs, err := userPrefs.GetUserPreferences(ctx)
 	if err != nil {
 		// If preferences don't exist, return an empty response with available providers
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
 				"preferences":         nil,
 				"available_providers": models.GetProviders(),
@@ -102,8 +105,6 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 
 // HandleUpdatePreferences handles POST /api/preferences
 func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *http.Request) {
-	// Get main agent service to clear cached providers after update
-	coderAgent := h.app.CoderAgent
 	userPrefs := config.GetUserPreferences()
 	if userPrefs == nil {
 		WriteErrorResponse(w, http.StatusInternalServerError, "user preferences service not available", "PREFERENCES_SERVICE_UNAVAILABLE")
@@ -118,166 +119,10 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 
 	ctx := r.Context()
 
-	// Try to get existing preferences
-	currentPrefs, err := userPrefs.GetUserPreferences(ctx)
-	if err != nil {
-		// If preferences don't exist, create default ones
-		if err == sql.ErrNoRows {
-			currentPrefs, err = userPrefs.CreateDefaultUserPreferences(ctx)
-			if err != nil {
-				logging.Error("Failed to create default user preferences", "error", err)
-				WriteErrorResponse(w, http.StatusInternalServerError, "failed to create default preferences", "DATABASE_ERROR")
-				return
-			}
-		} else {
-			// For any other error, log it and return an error response
-			logging.Error("Failed to get current user preferences", "error", err)
-			WriteErrorResponse(w, http.StatusInternalServerError, "failed to get current preferences", "DATABASE_ERROR")
-			return
-		}
+	if err := h.validateAndUpdatePreferences(ctx, w, userPrefs, &request); err != nil {
+		return
 	}
 
-	// Build update parameters using current values as defaults
-	updateParams := db.UpdateUserPreferencesParams{
-		PreferredProvider:        currentPrefs.PreferredProvider,
-		MainAgentModel:           currentPrefs.MainAgentModel,
-		MainAgentMaxTokens:       currentPrefs.MainAgentMaxTokens,
-		MainAgentReasoningEffort: currentPrefs.MainAgentReasoningEffort,
-		SubAgentModel:            currentPrefs.SubAgentModel,
-		SubAgentMaxTokens:        currentPrefs.SubAgentMaxTokens,
-		SubAgentReasoningEffort:  currentPrefs.SubAgentReasoningEffort,
-	}
-
-	// Update only provided fields
-	if request.PreferredProvider != nil {
-		// Validate provider
-		if *request.PreferredProvider != "" {
-			if _, exists := models.GetProviders()[models.ModelProvider(*request.PreferredProvider)]; !exists {
-				WriteErrorResponse(w, http.StatusBadRequest, "invalid provider", "INVALID_PROVIDER")
-				return
-			}
-		}
-		updateParams.PreferredProvider = sql.NullString{String: *request.PreferredProvider, Valid: *request.PreferredProvider != ""}
-	}
-
-	if request.MainAgentModel != nil {
-		// Validate model
-		if *request.MainAgentModel != "" {
-			if _, exists := models.SupportedModels[models.ModelID(*request.MainAgentModel)]; !exists {
-				WriteErrorResponse(w, http.StatusBadRequest, "invalid main agent model", "INVALID_MODEL")
-				return
-			}
-		}
-		updateParams.MainAgentModel = sql.NullString{String: *request.MainAgentModel, Valid: *request.MainAgentModel != ""}
-	}
-
-	if request.MainAgentMaxTokens != nil {
-		if *request.MainAgentMaxTokens <= 0 {
-			WriteErrorResponse(w, http.StatusBadRequest, "main agent max tokens must be positive", "INVALID_TOKEN_COUNT")
-			return
-		}
-		updateParams.MainAgentMaxTokens = sql.NullInt64{Int64: *request.MainAgentMaxTokens, Valid: true}
-	}
-
-	if request.MainAgentReasoningEffort != nil {
-		// Validate reasoning effort - allow empty string or valid values
-		if *request.MainAgentReasoningEffort != "" {
-			validEfforts := map[string]bool{
-				"low":    true,
-				"medium": true,
-				"high":   true,
-			}
-			if !validEfforts[*request.MainAgentReasoningEffort] {
-				WriteErrorResponse(w, http.StatusBadRequest, "invalid main agent reasoning effort: must be 'low', 'medium', 'high', or empty", "INVALID_REASONING_EFFORT")
-				return
-			}
-		}
-		updateParams.MainAgentReasoningEffort = sql.NullString{String: *request.MainAgentReasoningEffort, Valid: *request.MainAgentReasoningEffort != ""}
-	}
-
-	if request.SubAgentModel != nil {
-		// Validate model
-		if *request.SubAgentModel != "" {
-			if _, exists := models.SupportedModels[models.ModelID(*request.SubAgentModel)]; !exists {
-				WriteErrorResponse(w, http.StatusBadRequest, "invalid sub agent model", "INVALID_MODEL")
-				return
-			}
-		}
-		updateParams.SubAgentModel = sql.NullString{String: *request.SubAgentModel, Valid: *request.SubAgentModel != ""}
-	}
-
-	if request.SubAgentMaxTokens != nil {
-		if *request.SubAgentMaxTokens <= 0 {
-			WriteErrorResponse(w, http.StatusBadRequest, "sub agent max tokens must be positive", "INVALID_TOKEN_COUNT")
-			return
-		}
-		updateParams.SubAgentMaxTokens = sql.NullInt64{Int64: *request.SubAgentMaxTokens, Valid: true}
-	}
-
-	if request.SubAgentReasoningEffort != nil {
-		// Validate reasoning effort - allow empty string or valid values
-		if *request.SubAgentReasoningEffort != "" {
-			validEfforts := map[string]bool{
-				"low":    true,
-				"medium": true,
-				"high":   true,
-			}
-			if !validEfforts[*request.SubAgentReasoningEffort] {
-				WriteErrorResponse(w, http.StatusBadRequest, "invalid sub agent reasoning effort: must be 'low', 'medium', 'high', or empty", "INVALID_REASONING_EFFORT")
-				return
-			}
-		}
-		updateParams.SubAgentReasoningEffort = sql.NullString{String: *request.SubAgentReasoningEffort, Valid: *request.SubAgentReasoningEffort != ""}
-	}
-
-	// For now, use simplified update approach via user preferences service
-	// Handle model updates through the service
-	if request.MainAgentModel != nil {
-		modelID := models.ModelID(*request.MainAgentModel)
-		maxTokens := int64(4096) // default
-		if request.MainAgentMaxTokens != nil {
-			maxTokens = *request.MainAgentMaxTokens
-		}
-		reasoningEffort := ""
-		if request.MainAgentReasoningEffort != nil {
-			reasoningEffort = *request.MainAgentReasoningEffort
-		}
-		err = userPrefs.UpdateMainAgentPreferences(ctx, modelID, maxTokens, reasoningEffort)
-		if err != nil {
-			logging.Error("Failed to update main agent preferences", "error", err)
-			WriteErrorResponse(w, http.StatusInternalServerError, "failed to update main agent preferences", "DATABASE_ERROR")
-			return
-		}
-	}
-
-	if request.SubAgentModel != nil {
-		modelID := models.ModelID(*request.SubAgentModel)
-		maxTokens := int64(2048) // default
-		if request.SubAgentMaxTokens != nil {
-			maxTokens = *request.SubAgentMaxTokens
-		}
-		reasoningEffort := ""
-		if request.SubAgentReasoningEffort != nil {
-			reasoningEffort = *request.SubAgentReasoningEffort
-		}
-		err = userPrefs.UpdateSubAgentPreferences(ctx, modelID, maxTokens, reasoningEffort)
-		if err != nil {
-			logging.Error("Failed to update sub agent preferences", "error", err)
-			WriteErrorResponse(w, http.StatusInternalServerError, "failed to update sub agent preferences", "DATABASE_ERROR")
-			return
-		}
-	}
-
-	if request.PreferredProvider != nil {
-		err = userPrefs.UpdatePreferredProvider(ctx, models.ModelProvider(*request.PreferredProvider))
-		if err != nil {
-			logging.Error("Failed to update preferred provider", "error", err)
-			WriteErrorResponse(w, http.StatusInternalServerError, "failed to update preferred provider", "DATABASE_ERROR")
-			return
-		}
-	}
-
-	// Get updated preferences to return
 	updatedPrefs, err := userPrefs.GetOrCreateUserPreferences(ctx)
 	if err != nil {
 		logging.Error("Failed to update user preferences", "error", err)
@@ -285,64 +130,10 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Track preferences update
-	if h.app.Analytics != nil {
-		fieldsChanged := []string{}
-		updates := make(map[string]interface{})
+	h.trackPreferencesUpdate(ctx, &request)
+	h.clearSessionProviderCache()
 
-		if request.PreferredProvider != nil {
-			fieldsChanged = append(fieldsChanged, "preferred_provider")
-			updates["preferred_provider"] = *request.PreferredProvider
-		}
-		if request.MainAgentModel != nil {
-			fieldsChanged = append(fieldsChanged, "main_agent_model")
-			updates["main_agent_model"] = *request.MainAgentModel
-		}
-		if request.MainAgentMaxTokens != nil {
-			fieldsChanged = append(fieldsChanged, "main_agent_max_tokens")
-			updates["main_agent_max_tokens"] = *request.MainAgentMaxTokens
-		}
-		if request.MainAgentReasoningEffort != nil {
-			fieldsChanged = append(fieldsChanged, "main_agent_reasoning_effort")
-			updates["main_agent_reasoning_effort"] = *request.MainAgentReasoningEffort
-		}
-		if request.SubAgentModel != nil {
-			fieldsChanged = append(fieldsChanged, "sub_agent_model")
-			updates["sub_agent_model"] = *request.SubAgentModel
-		}
-		if request.SubAgentMaxTokens != nil {
-			fieldsChanged = append(fieldsChanged, "sub_agent_max_tokens")
-			updates["sub_agent_max_tokens"] = *request.SubAgentMaxTokens
-		}
-		if request.SubAgentReasoningEffort != nil {
-			fieldsChanged = append(fieldsChanged, "sub_agent_reasoning_effort")
-			updates["sub_agent_reasoning_effort"] = *request.SubAgentReasoningEffort
-		}
-
-		if len(fieldsChanged) > 0 {
-			_ = h.app.Analytics.TrackPreferencesUpdated(ctx, fieldsChanged, updates)
-		}
-	}
-
-	// Clear all cached session providers to ensure new sessions use updated preferences
-	if coderAgent != nil {
-		coderAgent.ClearAllSessionProviders()
-	} else {
-		logging.Warn("Could not clear session provider cache: coderAgent is nil")
-	}
-
-	response := UserPreferencesResponse{
-		PreferredProvider:        models.ModelProvider(getStringValue(updatedPrefs.PreferredProvider)),
-		MainAgentModel:           models.ModelID(getStringValue(updatedPrefs.MainAgentModel)),
-		MainAgentMaxTokens:       getInt64Value(updatedPrefs.MainAgentMaxTokens),
-		MainAgentReasoningEffort: models.ReasoningEffort(getStringValue(updatedPrefs.MainAgentReasoningEffort)),
-		SubAgentModel:            models.ModelID(getStringValue(updatedPrefs.SubAgentModel)),
-		SubAgentMaxTokens:        getInt64Value(updatedPrefs.SubAgentMaxTokens),
-		SubAgentReasoningEffort:  models.ReasoningEffort(getStringValue(updatedPrefs.SubAgentReasoningEffort)),
-		CreatedAt:                updatedPrefs.CreatedAt,
-		UpdatedAt:                updatedPrefs.UpdatedAt,
-	}
-
+	response := buildPreferencesResponse(*updatedPrefs)
 	WriteJSONResponse(w, http.StatusOK, response)
 }
 
@@ -460,12 +251,12 @@ type AuthStatus struct {
 }
 
 type ProviderStatus struct {
-	Authenticated bool               `json:"authenticated"`
-	AuthMethod    models.AuthMethod  `json:"auth_method"`
-	DisplayName   string             `json:"display_name"`
+	Authenticated bool              `json:"authenticated"`
+	AuthMethod    models.AuthMethod `json:"auth_method"`
+	DisplayName   string            `json:"display_name"`
 }
 
-// DEPRECATED: getAuthMethod is replaced by functionality in AuthHandler
+// Deprecated: getAuthMethod is replaced by functionality in AuthHandler.
 // This method is kept for reference and will be removed in a future update.
 func getAuthMethod(hasAPIKey, hasOAuth bool) string {
 	if hasOAuth {
@@ -475,4 +266,178 @@ func getAuthMethod(hasAPIKey, hasOAuth bool) string {
 		return "api_key"
 	}
 	return "none"
+}
+
+func (h *PreferencesHandler) validateAndUpdatePreferences(ctx context.Context, w http.ResponseWriter, userPrefs preferences.Service, request *UpdatePreferencesRequest) error {
+	if err := h.validateRequest(w, request); err != nil {
+		return err
+	}
+	return h.applyPreferenceUpdates(ctx, w, userPrefs, request)
+}
+
+func (h *PreferencesHandler) validateRequest(w http.ResponseWriter, request *UpdatePreferencesRequest) error {
+	if request.PreferredProvider != nil && *request.PreferredProvider != "" {
+		if _, exists := models.GetProviders()[models.ModelProvider(*request.PreferredProvider)]; !exists {
+			WriteErrorResponse(w, http.StatusBadRequest, "invalid provider", "INVALID_PROVIDER")
+			return errors.New("invalid provider")
+		}
+	}
+
+	if err := validateModel(w, request.MainAgentModel, "main agent"); err != nil {
+		return err
+	}
+	if err := validateModel(w, request.SubAgentModel, "sub agent"); err != nil {
+		return err
+	}
+	if err := validateMaxTokens(w, request.MainAgentMaxTokens, "main agent"); err != nil {
+		return err
+	}
+	if err := validateMaxTokens(w, request.SubAgentMaxTokens, "sub agent"); err != nil {
+		return err
+	}
+	if err := validateReasoningEffort(w, request.MainAgentReasoningEffort, "main agent"); err != nil {
+		return err
+	}
+	return validateReasoningEffort(w, request.SubAgentReasoningEffort, "sub agent")
+}
+
+func validateModel(w http.ResponseWriter, model *string, agentType string) error {
+	if model != nil && *model != "" {
+		if _, exists := models.SupportedModels[models.ModelID(*model)]; !exists {
+			WriteErrorResponse(w, http.StatusBadRequest, "invalid "+agentType+" model", "INVALID_MODEL")
+			return errors.New("invalid model")
+		}
+	}
+	return nil
+}
+
+func validateMaxTokens(w http.ResponseWriter, maxTokens *int64, agentType string) error {
+	if maxTokens != nil && *maxTokens <= 0 {
+		WriteErrorResponse(w, http.StatusBadRequest, agentType+" max tokens must be positive", "INVALID_TOKEN_COUNT")
+		return errors.New("invalid token count")
+	}
+	return nil
+}
+
+func validateReasoningEffort(w http.ResponseWriter, effort *string, agentType string) error {
+	if effort != nil && *effort != "" {
+		validEfforts := map[string]bool{"low": true, "medium": true, "high": true}
+		if !validEfforts[*effort] {
+			WriteErrorResponse(w, http.StatusBadRequest, "invalid "+agentType+" reasoning effort: must be 'low', 'medium', 'high', or empty", "INVALID_REASONING_EFFORT")
+			return errors.New("invalid reasoning effort")
+		}
+	}
+	return nil
+}
+
+func (h *PreferencesHandler) applyPreferenceUpdates(ctx context.Context, w http.ResponseWriter, userPrefs preferences.Service, request *UpdatePreferencesRequest) error {
+	var err error
+
+	if request.MainAgentModel != nil {
+		err = h.updateAgentPreferences(ctx, userPrefs, request.MainAgentModel, request.MainAgentMaxTokens, request.MainAgentReasoningEffort, true)
+		if err != nil {
+			logging.Error("Failed to update main agent preferences", "error", err)
+			WriteErrorResponse(w, http.StatusInternalServerError, "failed to update main agent preferences", "DATABASE_ERROR")
+			return err
+		}
+	}
+
+	if request.SubAgentModel != nil {
+		err = h.updateAgentPreferences(ctx, userPrefs, request.SubAgentModel, request.SubAgentMaxTokens, request.SubAgentReasoningEffort, false)
+		if err != nil {
+			logging.Error("Failed to update sub agent preferences", "error", err)
+			WriteErrorResponse(w, http.StatusInternalServerError, "failed to update sub agent preferences", "DATABASE_ERROR")
+			return err
+		}
+	}
+
+	if request.PreferredProvider != nil {
+		err = userPrefs.UpdatePreferredProvider(ctx, models.ModelProvider(*request.PreferredProvider))
+		if err != nil {
+			logging.Error("Failed to update preferred provider", "error", err)
+			WriteErrorResponse(w, http.StatusInternalServerError, "failed to update preferred provider", "DATABASE_ERROR")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *PreferencesHandler) updateAgentPreferences(ctx context.Context, userPrefs preferences.Service, model *string, maxTokens *int64, reasoningEffort *string, isMainAgent bool) error {
+	modelID := models.ModelID(*model)
+	defaultTokens := int64(2048)
+	if isMainAgent {
+		defaultTokens = 4096
+	}
+
+	tokens := defaultTokens
+	if maxTokens != nil {
+		tokens = *maxTokens
+	}
+
+	effort := ""
+	if reasoningEffort != nil {
+		effort = *reasoningEffort
+	}
+
+	if isMainAgent {
+		return userPrefs.UpdateMainAgentPreferences(ctx, modelID, tokens, effort)
+	}
+	return userPrefs.UpdateSubAgentPreferences(ctx, modelID, tokens, effort)
+}
+
+func (h *PreferencesHandler) trackPreferencesUpdate(ctx context.Context, request *UpdatePreferencesRequest) {
+	if h.app.Analytics == nil {
+		return
+	}
+
+	fieldsChanged := []string{}
+	updates := make(map[string]interface{})
+
+	addFieldUpdate := func(field *string, name string, value interface{}) {
+		if field != nil {
+			fieldsChanged = append(fieldsChanged, name)
+			updates[name] = value
+		}
+	}
+
+	addFieldUpdate(request.PreferredProvider, "preferred_provider", request.PreferredProvider)
+	addFieldUpdate(request.MainAgentModel, "main_agent_model", request.MainAgentModel)
+	if request.MainAgentMaxTokens != nil {
+		fieldsChanged = append(fieldsChanged, "main_agent_max_tokens")
+		updates["main_agent_max_tokens"] = *request.MainAgentMaxTokens
+	}
+	addFieldUpdate(request.MainAgentReasoningEffort, "main_agent_reasoning_effort", request.MainAgentReasoningEffort)
+	addFieldUpdate(request.SubAgentModel, "sub_agent_model", request.SubAgentModel)
+	if request.SubAgentMaxTokens != nil {
+		fieldsChanged = append(fieldsChanged, "sub_agent_max_tokens")
+		updates["sub_agent_max_tokens"] = *request.SubAgentMaxTokens
+	}
+	addFieldUpdate(request.SubAgentReasoningEffort, "sub_agent_reasoning_effort", request.SubAgentReasoningEffort)
+
+	if len(fieldsChanged) > 0 {
+		_ = h.app.Analytics.TrackPreferencesUpdated(ctx, fieldsChanged, updates)
+	}
+}
+
+func (h *PreferencesHandler) clearSessionProviderCache() {
+	if h.app.CoderAgent != nil {
+		h.app.CoderAgent.ClearAllSessionProviders()
+	} else {
+		logging.Warn("Could not clear session provider cache: coderAgent is nil")
+	}
+}
+
+func buildPreferencesResponse(prefs db.UserPreference) UserPreferencesResponse {
+	return UserPreferencesResponse{
+		PreferredProvider:        models.ModelProvider(getStringValue(prefs.PreferredProvider)),
+		MainAgentModel:           models.ModelID(getStringValue(prefs.MainAgentModel)),
+		MainAgentMaxTokens:       getInt64Value(prefs.MainAgentMaxTokens),
+		MainAgentReasoningEffort: models.ReasoningEffort(getStringValue(prefs.MainAgentReasoningEffort)),
+		SubAgentModel:            models.ModelID(getStringValue(prefs.SubAgentModel)),
+		SubAgentMaxTokens:        getInt64Value(prefs.SubAgentMaxTokens),
+		SubAgentReasoningEffort:  models.ReasoningEffort(getStringValue(prefs.SubAgentReasoningEffort)),
+		CreatedAt:                prefs.CreatedAt,
+		UpdatedAt:                prefs.UpdatedAt,
+	}
 }

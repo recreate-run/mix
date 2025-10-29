@@ -15,8 +15,8 @@ const (
 	OpenRouterO3           ModelID = "openrouter.o3"
 	OpenRouterO3Mini       ModelID = "openrouter.o3-mini"
 	OpenRouterO4Mini       ModelID = "openrouter.o4-mini"
-	//OpenRouterGemini25Flash  ModelID = "openrouter.gemini-2.5-flash"
-	//OpenRouterGemini25       ModelID = "openrouter.gemini-2.5"
+	// OpenRouterGemini25Flash  ModelID = "openrouter.gemini-2.5-flash"
+	// OpenRouterGemini25       ModelID = "openrouter.gemini-2.5"
 	OpenRouterClaude35Sonnet ModelID = "openrouter.claude-3.5-sonnet"
 	OpenRouterClaude3Haiku   ModelID = "openrouter.claude-3-haiku"
 	OpenRouterClaude37Sonnet ModelID = "openrouter.claude-3.7-sonnet"
@@ -180,7 +180,7 @@ var OpenRouterModels = map[ModelID]Model{
 	// 	DefaultMaxTokens:   OpenAIModels[O4Mini].DefaultMaxTokens,
 	// 	CanReason:          OpenAIModels[O4Mini].CanReason,
 	// },
-	//OpenRouterGemini25Flash: {
+	// OpenRouterGemini25Flash: {
 	//	ID:                 OpenRouterGemini25Flash,
 	//	Name:               "OpenRouter – Gemini 2.5 Flash",
 	//	Provider:           ProviderOpenRouter,
@@ -189,10 +189,10 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MInCached:  GeminiModels[Gemini25Flash].CostPer1MInCached,
 	//	CostPer1MOut:       GeminiModels[Gemini25Flash].CostPer1MOut,
 	//	CostPer1MOutCached: GeminiModels[Gemini25Flash].CostPer1MOutCached,
-	//	ContextWindow:      GeminiModels[Gemini25Flash].ContextWindow,
-	//	DefaultMaxTokens:   GeminiModels[Gemini25Flash].DefaultMaxTokens,
-	//},
-	//OpenRouterGemini25: {
+	// 	ContextWindow:      GeminiModels[Gemini25Flash].ContextWindow,
+	// 	DefaultMaxTokens:   GeminiModels[Gemini25Flash].DefaultMaxTokens,
+	// },
+	// OpenRouterGemini25: {
 	//	ID:                 OpenRouterGemini25,
 	//	Name:               "OpenRouter – Gemini 2.5 Pro",
 	//	Provider:           ProviderOpenRouter,
@@ -203,8 +203,8 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached: GeminiModels[Gemini25].CostPer1MOutCached,
 	//	ContextWindow:      GeminiModels[Gemini25].ContextWindow,
 	//	DefaultMaxTokens:   GeminiModels[Gemini25].DefaultMaxTokens,
-	//},
-	//OpenRouterClaude35Sonnet: {
+	// },
+	// OpenRouterClaude35Sonnet: {
 	//	ID:                 OpenRouterClaude35Sonnet,
 	//	Name:               "OpenRouter – Claude 3.5 Sonnet",
 	//	Provider:           ProviderOpenRouter,
@@ -215,8 +215,8 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached: AnthropicModels[Claude35Sonnet].CostPer1MOutCached,
 	//	ContextWindow:      AnthropicModels[Claude35Sonnet].ContextWindow,
 	//	DefaultMaxTokens:   AnthropicModels[Claude35Sonnet].DefaultMaxTokens,
-	//},
-	//OpenRouterClaude3Haiku: {
+	// },
+	// OpenRouterClaude3Haiku: {
 	//	ID:                 OpenRouterClaude3Haiku,
 	//	Name:               "OpenRouter – Claude 3 Haiku",
 	//	Provider:           ProviderOpenRouter,
@@ -227,8 +227,8 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached: AnthropicModels[Claude3Haiku].CostPer1MOutCached,
 	//	ContextWindow:      AnthropicModels[Claude3Haiku].ContextWindow,
 	//	DefaultMaxTokens:   AnthropicModels[Claude3Haiku].DefaultMaxTokens,
-	//},
-	//OpenRouterClaude37Sonnet: {
+	// },
+	// OpenRouterClaude37Sonnet: {
 	//	ID:                 OpenRouterClaude37Sonnet,
 	//	Name:               "OpenRouter – Claude 3.7 Sonnet",
 	//	Provider:           ProviderOpenRouter,
@@ -240,8 +240,8 @@ var OpenRouterModels = map[ModelID]Model{
 	//	ContextWindow:      AnthropicModels[Claude37Sonnet].ContextWindow,
 	//	DefaultMaxTokens:   AnthropicModels[Claude37Sonnet].DefaultMaxTokens,
 	//	CanReason:          AnthropicModels[Claude37Sonnet].CanReason,
-	//},
-	//OpenRouterClaude35Haiku: {
+	// },
+	// OpenRouterClaude35Haiku: {
 	//	ID:                 OpenRouterClaude35Haiku,
 	//	Name:               "OpenRouter – Claude 3.5 Haiku",
 	//	Provider:           ProviderOpenRouter,
@@ -252,8 +252,8 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached: AnthropicModels[Claude35Haiku].CostPer1MOutCached,
 	//	ContextWindow:      AnthropicModels[Claude35Haiku].ContextWindow,
 	//	DefaultMaxTokens:   AnthropicModels[Claude35Haiku].DefaultMaxTokens,
-	//},
-	//OpenRouterClaude3Opus: {
+	// },
+	// OpenRouterClaude3Opus: {
 	//	ID:                 OpenRouterClaude3Opus,
 	//	Name:               "OpenRouter – Claude 3 Opus",
 	//	Provider:           ProviderOpenRouter,
@@ -264,9 +264,9 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached: AnthropicModels[Claude3Opus].CostPer1MOutCached,
 	//	ContextWindow:      AnthropicModels[Claude3Opus].ContextWindow,
 	//	DefaultMaxTokens:   AnthropicModels[Claude3Opus].DefaultMaxTokens,
-	//},
+	// },
 
-	//OpenRouterDeepSeekR1Free: {
+	// OpenRouterDeepSeekR1Free: {
 	//	ID:                 OpenRouterDeepSeekR1Free,
 	//	Name:               "OpenRouter – DeepSeek R1 Free",
 	//	Provider:           ProviderOpenRouter,
@@ -275,9 +275,9 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MInCached:  0,
 	//	CostPer1MOut:       0,
 	//	CostPer1MOutCached: 0,
-	//	ContextWindow:      163_840,
-	//	DefaultMaxTokens:   10000,
-	//},
+	// 	ContextWindow:      163_840,
+	// 	DefaultMaxTokens:   10000,
+	// },
 	OpenRouterDeepSeekV31: {
 		ID:                  OpenRouterDeepSeekV31,
 		Name:                "OpenRouter – DeepSeek V3.1",
@@ -320,7 +320,7 @@ var OpenRouterModels = map[ModelID]Model{
 		CanReason:           true,
 		SupportsAttachments: false,
 	},
-	//OpenRouterSonomaDusk: {
+	// OpenRouterSonomaDusk: {
 	//	ID:                  OpenRouterSonomaDusk,
 	//	Name:                "OpenRouter – Sonoma Dusk Alpha",
 	//	Provider:            ProviderOpenRouter,
@@ -331,10 +331,10 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached:  0,
 	//	ContextWindow:       2_000_000,
 	//	DefaultMaxTokens:    1000,
-	//	CanReason:           false,
-	//	SupportsAttachments: true,
-	//},
-	//OpenRouterSonomaSky: {
+	// 	CanReason:           false,
+	// 	SupportsAttachments: true,
+	// },
+	// OpenRouterSonomaSky: {
 	//	ID:                  OpenRouterSonomaSky,
 	//	Name:                "OpenRouter – Sonoma Sky Alpha",
 	//	Provider:            ProviderOpenRouter,
@@ -345,7 +345,7 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached:  0,
 	//	ContextWindow:       2_000_000,
 	//	DefaultMaxTokens:    1000,
-	//	CanReason:           false,
-	//	SupportsAttachments: true,
-	//},
+	// 	CanReason:           false,
+	// 	SupportsAttachments: true,
+	// },
 }

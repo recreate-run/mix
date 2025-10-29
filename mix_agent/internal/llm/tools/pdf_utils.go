@@ -93,7 +93,7 @@ func ParsePageSelection(pages string) ([]int, error) {
 // - If pages is empty and PDF has > 10 pages: automatically extracts first 10 pages and returns wasTruncated=true
 // - If pages is empty and PDF has <= 10 pages: returns original PDF with wasTruncated=false
 // - If pages is specified: extracts those pages with wasTruncated=false
-func ExtractPDFPages(pdfData []byte, pages string) ([]byte, bool, error) {
+func ExtractPDFPages(pdfData []byte, pages string) (extractedData []byte, wasTruncated bool, err error) {
 	// Create a reader from the PDF bytes
 	reader := bytes.NewReader(pdfData)
 
@@ -108,7 +108,6 @@ func ExtractPDFPages(pdfData []byte, pages string) ([]byte, bool, error) {
 
 	// Determine which pages to extract
 	var pageNumbers []int
-	var wasTruncated bool
 
 	if pages == "" {
 		// No pages specified - check if auto-truncation is needed
@@ -141,7 +140,7 @@ func ExtractPDFPages(pdfData []byte, pages string) ([]byte, bool, error) {
 
 	// Extract each requested page individually
 	logging.Debug("Extracting PDF pages", "pages", pageNumbers, "wasTruncated", wasTruncated)
-	var pageReaders []io.ReadSeeker
+	pageReaders := make([]io.ReadSeeker, 0, len(pageNumbers))
 	for _, pageNum := range pageNumbers {
 		// Extract the page as an io.Reader
 		pageReader, err := api.ExtractPage(ctx, pageNum)

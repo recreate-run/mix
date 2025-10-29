@@ -27,6 +27,9 @@ import (
 	"mix/internal/logging"
 )
 
+// ErrOAuthCredentialNotFound is returned when OAuth credentials are not found for a provider
+var ErrOAuthCredentialNotFound = errors.New("OAuth credential not found")
+
 // OpenAICredentials holds OpenAI OAuth token information
 type OpenAICredentials struct {
 	IDToken      string `json:"id_token"`
@@ -119,7 +122,7 @@ func NewCredentialStorage() (*CredentialStorage, error) {
 	}
 
 	configDir := filepath.Join(homeDir, ".mix", "credentials")
-	if err := os.MkdirAll(configDir, 0700); err != nil {
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -144,7 +147,7 @@ func (cs *CredentialStorage) generateEncryptionKey() ([]byte, error) {
 	}
 
 	// Save key with restricted permissions
-	if err := os.WriteFile(cs.keyFile, key, 0600); err != nil {
+	if err := os.WriteFile(cs.keyFile, key, 0o600); err != nil {
 		return nil, fmt.Errorf("failed to save key: %w", err)
 	}
 
@@ -210,7 +213,7 @@ func (cs *CredentialStorage) decrypt(data []byte) ([]byte, error) {
 }
 
 // StoreOAuthCredentials stores OAuth credentials securely (for Anthropic)
-func (cs *CredentialStorage) StoreOAuthCredentials(provider string, accessToken, refreshToken string, expiresAt int64, clientID string) error {
+func (cs *CredentialStorage) StoreOAuthCredentials(provider, accessToken, refreshToken string, expiresAt int64, clientID string) error {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
@@ -247,7 +250,7 @@ func (cs *CredentialStorage) GetOAuthCredentials(provider string) (*OAuthCredent
 
 	cred, exists := store.AnthropicCredentials[provider]
 	if !exists {
-		return nil, nil
+		return nil, ErrOAuthCredentialNotFound
 	}
 
 	return &cred, nil
@@ -342,15 +345,16 @@ func (flow *OAuthFlow) GetAuthorizationURL() string {
 // OpenBrowser opens the authorization URL in the default browser
 func (flow *OAuthFlow) OpenBrowser() error {
 	authURL := flow.GetAuthorizationURL()
+	ctx := context.Background()
 
 	var err error
 	switch runtime.GOOS {
 	case "linux":
-		err = exec.Command("xdg-open", authURL).Start()
+		err = exec.CommandContext(ctx, "xdg-open", authURL).Start()
 	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", authURL).Start()
+		err = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", authURL).Start()
 	case "darwin":
-		err = exec.Command("open", authURL).Start()
+		err = exec.CommandContext(ctx, "open", authURL).Start()
 	default:
 		err = fmt.Errorf("unsupported platform")
 	}
@@ -369,15 +373,16 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 	// Method 1: Simple split on #
 	splits := strings.Split(authCode, "#")
 
-	if len(splits) == 2 {
+	switch {
+	case len(splits) == 2:
 		// Standard format: code#state
 		codePart = strings.TrimSpace(splits[0])
 		statePart = strings.TrimSpace(splits[1])
-	} else if len(splits) > 2 {
+	case len(splits) > 2:
 		// Multiple # characters - take first part as code, rest as state
 		codePart = strings.TrimSpace(splits[0])
 		statePart = strings.TrimSpace(strings.Join(splits[1:], "#"))
-	} else {
+	default:
 		// Try to parse as URL parameters (backup)
 		if strings.Contains(authCode, "code=") && strings.Contains(authCode, "state=") {
 			// Extract code parameter
@@ -426,7 +431,8 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 		return nil, fmt.Errorf("failed to marshal request data: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(string(jsonData)))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -567,10 +573,13 @@ func (cs *CredentialStorage) loadCredentialStore() (*CredentialStore, error) {
 	data, err := os.ReadFile(cs.credFile)
 	if err != nil {
 		// Return empty store if file doesn't exist
-		return &CredentialStore{
-			AnthropicCredentials: make(map[string]OAuthCredentials),
-			OpenAICredentials:    make(map[string]OpenAICredentials),
-		}, nil
+		if os.IsNotExist(err) {
+			return &CredentialStore{
+				AnthropicCredentials: make(map[string]OAuthCredentials),
+				OpenAICredentials:    make(map[string]OpenAICredentials),
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to read credentials file: %w", err)
 	}
 
 	decrypted, err := cs.decrypt(data)
@@ -616,7 +625,7 @@ func (cs *CredentialStorage) saveCredentialStore(store *CredentialStore) error {
 		return fmt.Errorf("failed to encrypt credentials: %w", err)
 	}
 
-	if err := os.WriteFile(cs.credFile, encrypted, 0600); err != nil {
+	if err := os.WriteFile(cs.credFile, encrypted, 0o600); err != nil {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
 
@@ -654,7 +663,7 @@ func (cs *CredentialStorage) GetOpenAICredentials(provider string) (*OpenAICrede
 
 	cred, exists := store.OpenAICredentials[provider]
 	if !exists {
-		return nil, nil
+		return nil, ErrOAuthCredentialNotFound
 	}
 
 	return &cred, nil
@@ -667,7 +676,7 @@ func (cs *CredentialStorage) GetOpenAICredentials(provider string) (*OpenAICrede
 // - error: any error encountered during credential checking
 //
 // If provider is empty, it will try to use the user's preferred provider from database.
-func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, string, error) {
+func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuthenticated bool, authMethod string, err error) {
 	// Get API credentials service from config
 	credentialsService := config.GetAPICredentials()
 	if credentialsService == nil {
@@ -713,14 +722,18 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (bool, 
 		case models.ProviderAnthropic:
 			// Check for valid Anthropic OAuth credentials in database
 			creds, err := credentialsService.GetOAuthCredentials(ctx, "anthropic")
-			if err == nil && creds != nil && !creds.IsTokenExpired() {
+			if err != nil && !errors.Is(err, ErrOAuthCredentialNotFound) {
+				logging.Warn("Failed to get OAuth credential", "error", err)
+			} else if err == nil && !creds.IsTokenExpired() {
 				return true, "oauth", nil
 			}
 
 		case models.ProviderOpenAI:
 			// Check for valid OpenAI OAuth credentials in database
 			creds, err := credentialsService.GetOAuthCredentials(ctx, "openai")
-			if err == nil && creds != nil && !creds.IsTokenExpired() {
+			if err != nil && !errors.Is(err, ErrOAuthCredentialNotFound) {
+				logging.Warn("Failed to get OAuth credential", "error", err)
+			} else if err == nil && !creds.IsTokenExpired() {
 				return true, "oauth", nil
 			}
 		}
@@ -747,7 +760,8 @@ func RefreshAccessToken(credentials *OAuthCredentials) (*OAuthCredentials, error
 		return nil, fmt.Errorf("failed to marshal refresh request data: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(string(jsonData)))
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create refresh request: %w", err)
 	}

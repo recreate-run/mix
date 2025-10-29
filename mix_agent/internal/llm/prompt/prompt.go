@@ -12,7 +12,7 @@ import (
 	"mix/internal/llm/models"
 )
 
-func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string, customPrompt string, mode string) (string, error) {
+func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, provider models.ModelProvider, sessionVars map[string]string, customPrompt, mode string) (string, error) {
 	var basePrompt string
 	var err error
 
@@ -69,7 +69,7 @@ func GetAgentPromptWithVars(ctx context.Context, agentName config.AgentName, pro
 
 // extractEnvSection separates the <env> section from the base prompt content
 // Returns (baseContent, envSection) where envSection includes the <env> tags
-func extractEnvSection(prompt string) (string, string) {
+func extractEnvSection(prompt string) (baseContent, envSection string) {
 	envRegex := regexp.MustCompile(`(?s)<env>.*?</env>`)
 	envMatch := envRegex.FindString(prompt)
 
@@ -79,7 +79,7 @@ func extractEnvSection(prompt string) (string, string) {
 	}
 
 	// Remove env section from base content
-	baseContent := envRegex.ReplaceAllString(prompt, "")
+	baseContent = envRegex.ReplaceAllString(prompt, "")
 	baseContent = strings.TrimSpace(baseContent)
 
 	return baseContent, envMatch

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,9 +39,9 @@ func pythonExecutionDescription() string {
 	return LoadToolDescription("python_execution")
 }
 
-func NewPythonExecutionTool(permission permission.Service) BaseTool {
+func NewPythonExecutionTool(permissionSvc permission.Service) BaseTool {
 	return &pythonExecutionTool{
-		permissions: permission,
+		permissions: permissionSvc,
 	}
 }
 
@@ -61,7 +62,7 @@ func (p *pythonExecutionTool) Info() ToolInfo {
 func (p *pythonExecutionTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
 	var params PythonExecutionParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
-		return NewTextErrorResponse("invalid parameters"), nil
+		return NewTextErrorResponse("invalid parameters"), fmt.Errorf("failed to unmarshal python execution parameters: %w", err)
 	}
 
 	if params.Code == "" {
@@ -85,12 +86,12 @@ func (p *pythonExecutionTool) Run(ctx context.Context, call ToolCall) (ToolRespo
 
 	result, err := p.executePythonCode(ctx, params.Code)
 	if err != nil {
-		return NewTextErrorResponse(fmt.Sprintf("execution failed: %v", err)), nil
+		return NewTextErrorResponse(fmt.Sprintf("execution failed: %v", err)), fmt.Errorf("python code execution failed: %w", err)
 	}
 
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
-		return NewTextErrorResponse("failed to format result"), nil
+		return NewTextErrorResponse("failed to format result"), fmt.Errorf("failed to marshal python execution result: %w", err)
 	}
 
 	return NewTextResponse(string(resultJSON)), nil
@@ -130,10 +131,11 @@ func (p *pythonExecutionTool) executePythonCode(ctx context.Context, code string
 	cmd.Stderr = &stderr
 
 	err = cmd.Run()
-	
+
 	returnCode := 0
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
 			returnCode = exitError.ExitCode()
 		} else {
 			returnCode = 1

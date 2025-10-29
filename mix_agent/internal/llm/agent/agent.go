@@ -268,7 +268,7 @@ func (a *agent) Cancel(sessionID string) {
 	a.CancelWithReason(sessionID, "unknown")
 }
 
-func (a *agent) CancelWithReason(sessionID string, reason string) {
+func (a *agent) CancelWithReason(sessionID, reason string) {
 	// Cancel regular requests
 	cancelFunc, exists := a.activeContexts.LoadAndDelete(sessionID)
 	if !exists {
@@ -313,21 +313,21 @@ func (a *agent) countActiveSessions() int {
 	return count
 }
 
-func (a *agent) generateTitle(ctx context.Context, sessionID string, content string) error {
+func (a *agent) generateTitle(ctx context.Context, sessionID, content string) error {
 	if content == "" {
 		return nil
 	}
 	if a.titleProvider == nil {
 		return nil
 	}
-	session, err := a.sessions.Get(ctx, sessionID)
+	sess, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {
 		return err
 	}
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 
 	// Add session storage directory to context
-	ctx = tools.SetSessionStorageContext(ctx, session.ID, a.storageConfig)
+	ctx = tools.SetSessionStorageContext(ctx, sess.ID, a.storageConfig)
 
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	response, err := a.titleProvider.SendMessages(
@@ -349,8 +349,8 @@ func (a *agent) generateTitle(ctx context.Context, sessionID string, content str
 		return nil
 	}
 
-	session.Title = title
-	_, err = a.sessions.Save(ctx, session)
+	sess.Title = title
+	_, err = a.sessions.Save(ctx, sess)
 	return err
 }
 
@@ -361,11 +361,11 @@ func (a *agent) err(err error) AgentEvent {
 	}
 }
 
-func (a *agent) Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error) {
+func (a *agent) Run(ctx context.Context, sessionID, content string, attachments ...message.Attachment) (<-chan AgentEvent, error) {
 	return a.RunWithPlanMode(ctx, sessionID, content, false, nil, attachments...)
 }
 
-func (a *agent) RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, thinkingBudget *int, attachments ...message.Attachment) (<-chan AgentEvent, error) {
+func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, planMode bool, thinkingBudget *int, attachments ...message.Attachment) (<-chan AgentEvent, error) {
 	if !a.provider.Model().SupportsAttachments && attachments != nil {
 		attachments = nil
 	}
@@ -511,7 +511,8 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	})
 
 	// Append the new user message to the conversation history.
-	msgHistory := append(msgs, userMsg)
+	msgs = append(msgs, userMsg)
+	msgHistory := msgs
 
 	conversationTurn := 1
 	for {
@@ -534,13 +535,11 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			// Stream processing failed for session
 			if errors.Is(err, context.DeadlineExceeded) {
 				logging.Error("Agent timeout exceeded", "sessionID", sessionID, "conversationTurn", conversationTurn)
-				agentMessage.AddFinish(message.FinishReasonCanceled)
-				_ = a.messages.Update(context.Background(), agentMessage)
+				a.finishMessage(&agentMessage)
 				return a.err(ErrRequestCancelledTimeout)
 			}
 			if errors.Is(err, context.Canceled) {
-				agentMessage.AddFinish(message.FinishReasonCanceled)
-				_ = a.messages.Update(context.Background(), agentMessage)
+				a.finishMessage(&agentMessage)
 				return a.err(ErrRequestCancelled)
 			}
 			return a.err(fmt.Errorf("failed to process events: %w", err))
@@ -639,8 +638,8 @@ func shouldExcludeMessage(msg message.Message) bool {
 
 	// Check if any callback result part has ExcludeFromContext set to true
 	callbackResults := msg.CallbackResults()
-	for _, result := range callbackResults {
-		if result.ExcludeFromContext {
+	for i := range callbackResults {
+		if callbackResults[i].ExcludeFromContext {
 			return true
 		}
 	}
@@ -648,7 +647,7 @@ func shouldExcludeMessage(msg message.Message) bool {
 	return false
 }
 
-func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
+func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (assistantMsg message.Message, toolResultMsg *message.Message, err error) {
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 
 	// Check authentication before processing
@@ -661,15 +660,15 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	}
 
 	// Get session and add working directory to context
-	session, err := a.sessions.Get(ctx, sessionID)
+	sess, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {
 		return message.Message{}, nil, fmt.Errorf("failed to load session %s: %w", sessionID, err)
 	}
 	// Add session storage directory to context
-	ctx = tools.SetSessionStorageContext(ctx, session.ID, a.storageConfig)
+	ctx = tools.SetSessionStorageContext(ctx, sess.ID, a.storageConfig)
 
 	// Get cached session-specific provider
-	sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &session)
+	sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &sess)
 	if err != nil {
 		return message.Message{}, nil, fmt.Errorf("failed to get session provider: %w", err)
 	}
@@ -682,7 +681,7 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 	eventChan := sessionProvider.StreamResponse(ctx, msgHistory, availableTools)
 
-	assistantMsg, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
+	assistantMsg, err = a.messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role:  message.Assistant,
 		Parts: []message.ContentPart{},
 		Model: sessionProvider.Model().ID,
@@ -710,11 +709,11 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	// Process each event in the stream.
 	for event := range eventChan {
 		if processErr := a.processEvent(ctx, sessionID, &assistantMsg, event); processErr != nil {
-			a.finishMessage(ctx, &assistantMsg, message.FinishReasonCanceled)
+			a.finishMessage(&assistantMsg)
 			return assistantMsg, nil, processErr
 		}
 		if ctx.Err() != nil {
-			a.finishMessage(context.Background(), &assistantMsg, message.FinishReasonCanceled)
+			a.finishMessage(&assistantMsg)
 			return assistantMsg, nil, ctx.Err()
 		}
 	}
@@ -799,12 +798,12 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 				defer callbackWg.Done()
 
 				// Execute callbacks sequentially in order
-				for _, cfg := range callbacks {
-					result, err := a.callbackExecutor.Execute(context.Background(), cfg, cbCtx)
+				for i := range callbacks {
+					result, err := a.callbackExecutor.Execute(context.Background(), callbacks[i], cbCtx)
 					if err != nil {
-						logging.Error("Callback execution failed", "tool", toolName, "callback", cfg.Name, "error", err)
+						logging.Error("Callback execution failed", "tool", toolName, "callback", callbacks[i].Name, "error", err)
 					} else if !result.Success {
-						logging.Warn("Callback completed with errors", "tool", toolName, "callback", cfg.Name, "error", result.Error)
+						logging.Warn("Callback completed with errors", "tool", toolName, "callback", callbacks[i].Name, "error", result.Error)
 					}
 				}
 			}(sessionCallbacks, callbackCtx, toolCall.Name)
@@ -829,14 +828,14 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	return assistantMsg, &msg, nil
 }
 
-func (a *agent) finishMessage(ctx context.Context, msg *message.Message, finishReson message.FinishReason) {
-	msg.AddFinish(finishReson)
+func (a *agent) finishMessage(msg *message.Message) {
+	msg.AddFinish(message.FinishReasonCanceled)
 
 	// Store in accumulator
 	a.accumulator.Store(msg)
 
 	// Finalize with the given finish reason - this ensures immediate flush
-	_ = a.accumulator.FinalizeMessage(msg.ID, finishReson)
+	_ = a.accumulator.FinalizeMessage(msg.ID, message.FinishReasonCanceled)
 }
 
 func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event interfaces.ProviderEvent) error {
@@ -1037,12 +1036,12 @@ func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (mode
 		return models.Model{}, fmt.Errorf("failed to update agent preferences in database: %w", err)
 	}
 
-	provider, err := createAgentProvider(agentName)
+	modelProvider, err := createAgentProvider(agentName)
 	if err != nil {
 		return models.Model{}, fmt.Errorf("failed to create provider for model %s: %w", modelID, err)
 	}
 
-	a.provider = provider
+	a.provider = modelProvider
 
 	// Update title provider if this is the main agent
 	// Since title provider always uses AgentMain config, we need to update it
@@ -1147,12 +1146,10 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 		if err == nil && dbKey != "" {
 			apiKey = dbKey
 			// Using database-stored API key
-		} else {
+		} else if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
 			// No key in database, we won't use environment or config fallbacks
 			// For OAuth providers, we'll let the client check for OAuth tokens
-			if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
-				logging.Warn("No API key found in database for provider", "provider", model.Provider)
-			}
+			logging.Warn("No API key found in database for provider", "provider", model.Provider)
 		}
 	}
 
@@ -1190,7 +1187,7 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 		opts...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not create provider: %v", err)
+		return nil, fmt.Errorf("could not create provider: %w", err)
 	}
 
 	return agentProvider, nil
@@ -1224,12 +1221,10 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		if err == nil && dbKey != "" {
 			apiKey = dbKey
 			// Using database-stored API key for session provider
-		} else {
+		} else if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
 			// No key in database, we won't use environment or config fallbacks
 			// For OAuth providers, we'll let the client check for OAuth tokens
-			if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
-				logging.Warn("No API key found in database for provider in session provider", "provider", model.Provider)
-			}
+			logging.Warn("No API key found in database for provider in session provider", "provider", model.Provider)
 		}
 	}
 
@@ -1296,13 +1291,13 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		opts...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not create session provider: %v", err)
+		return nil, fmt.Errorf("could not create session provider: %w", err)
 	}
 
 	return sessionProvider, nil
 }
 
-func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, session *session.Session) (interfaces.Provider, error) {
+func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string, sess *session.Session) (interfaces.Provider, error) {
 	// Extract thinking budget from context if present
 	var thinkingBudget *int
 	if budgetValue := ctx.Value(interfaces.ThinkingBudgetContextKey); budgetValue != nil {
@@ -1312,7 +1307,7 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 	// If explicit thinking budget is provided, skip caching and create a new provider
 	// This ensures request-specific thinking budgets are used correctly
 	if thinkingBudget != nil {
-		sessionProvider, err := createSessionProvider(ctx, a.agentName, session, a.storageConfig, thinkingBudget)
+		sessionProvider, err := createSessionProvider(ctx, a.agentName, sess, a.storageConfig, thinkingBudget)
 		if err != nil {
 			logging.Error("Failed to create session provider with thinking budget", "sessionID", sessionID, "budget", *thinkingBudget, "error", err)
 			return nil, fmt.Errorf("failed to create session provider: %w", err)
@@ -1372,7 +1367,7 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 
 	// Create new session provider (no explicit thinking budget, will be cached)
 	// Creating new session provider
-	sessionProvider, err := createSessionProvider(ctx, a.agentName, session, a.storageConfig, nil)
+	sessionProvider, err := createSessionProvider(ctx, a.agentName, sess, a.storageConfig, nil)
 	if err != nil {
 		logging.Error("Failed to create session provider", "sessionID", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to create session provider: %w", err)
@@ -1426,10 +1421,10 @@ func (a *agent) ClearAllSessionProviders() {
 		if sessionID, ok := key.(string); ok {
 			keysToDelete = append(keysToDelete, sessionID)
 			// Log cached provider details for debugging
-			if provider, ok := value.(interfaces.Provider); ok {
+			if cachedProvider, ok := value.(interfaces.Provider); ok {
 				logging.Debug("Found cached provider", "sessionID", sessionID,
-					"provider", provider.Model().Provider,
-					"model", provider.Model().ID)
+					"provider", cachedProvider.Model().Provider,
+					"model", cachedProvider.Model().ID)
 			}
 		}
 		return true // Continue iterating
@@ -1500,7 +1495,7 @@ type subAgentAdapter struct {
 }
 
 // Run executes the subagent
-func (s *subAgentAdapter) Run(ctx context.Context, sessionID string, content string) (<-chan callbacks.AgentEvent, error) {
+func (s *subAgentAdapter) Run(ctx context.Context, sessionID, content string) (<-chan callbacks.AgentEvent, error) {
 	done, err := s.service.Run(ctx, sessionID, content)
 	if err != nil {
 		return nil, err

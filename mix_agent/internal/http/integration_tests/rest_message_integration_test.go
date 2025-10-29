@@ -21,6 +21,7 @@ func TestRESTMessageSending(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
@@ -32,6 +33,7 @@ func TestRESTMessageSending(t *testing.T) {
 
 	// Make the request
 	msgResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
+	defer func() { _ = msgResp.Body.Close() }()
 
 	// In an unauthenticated test environment, we should get a 200 OK with an auth prompt
 	if msgResp.StatusCode != http.StatusOK {
@@ -82,6 +84,7 @@ func TestRESTMessageListing(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
@@ -101,7 +104,8 @@ func TestRESTMessageListing(t *testing.T) {
 
 	// List messages for the session
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/messages", nil)
-	messagesList := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	messagesList := validateArrayResponse(t, listResp)
 
 	if len(messagesList) == 0 {
 		t.Fatalf("Expected at least one message in list, got 0")
@@ -146,6 +150,7 @@ func TestRESTMessageHistory(t *testing.T) {
 	}
 
 	session1Resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session1Request)
+	defer func() { _ = session1Resp.Body.Close() }()
 	session1Data := validateObjectResponse(t, session1Resp, http.StatusCreated)
 	session1ID := session1Data["id"].(string)
 
@@ -154,6 +159,7 @@ func TestRESTMessageHistory(t *testing.T) {
 	}
 
 	session2Resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session2Request)
+	defer func() { _ = session2Resp.Body.Close() }()
 	session2Data := validateObjectResponse(t, session2Resp, http.StatusCreated)
 	session2ID := session2Data["id"].(string)
 
@@ -183,7 +189,8 @@ func TestRESTMessageHistory(t *testing.T) {
 
 	// Test message history with default pagination
 	historyResp := makeJSONRequest(t, result.Server, "GET", "/api/messages/history", nil)
-	messagesList := validateArrayResponse(t, historyResp, http.StatusOK)
+	defer func() { _ = historyResp.Body.Close() }()
+	messagesList := validateArrayResponse(t, historyResp)
 
 	if len(messagesList) == 0 {
 		t.Fatalf("Expected at least some messages in history, got 0")
@@ -225,7 +232,8 @@ func TestRESTMessageHistory(t *testing.T) {
 
 	// Test pagination with limit
 	paginatedResp := makeJSONRequest(t, result.Server, "GET", "/api/messages/history?limit=1&offset=0", nil)
-	paginatedList := validateArrayResponse(t, paginatedResp, http.StatusOK)
+	defer func() { _ = paginatedResp.Body.Close() }()
+	paginatedList := validateArrayResponse(t, paginatedResp)
 
 	if len(paginatedList) > 1 {
 		t.Fatalf("Expected at most 1 message with limit=1, got %d", len(paginatedList))

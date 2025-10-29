@@ -7,7 +7,7 @@ import (
 
 // ExtractThinkingInfo analyzes a message content to identify thinking patterns
 // and returns information about the thinking content
-func ExtractThinkingInfo(content string) (bool, int, string) {
+func ExtractThinkingInfo(content string) (hasThinking bool, thinkingTokens int, thinkingContent string) {
 	// If content is empty, no thinking
 	if content == "" {
 		return false, 0, ""
@@ -28,7 +28,7 @@ func ExtractThinkingInfo(content string) (bool, int, string) {
 	}
 
 	// Check for thinking markers in the content
-	hasThinking := false
+	hasThinking = false
 	for _, marker := range thinkingMarkers {
 		if strings.Contains(content, marker) {
 			hasThinking = true
@@ -42,7 +42,7 @@ func ExtractThinkingInfo(content string) (bool, int, string) {
 	}
 
 	// Extract thinking content
-	thinkingContent := extractThinkingSection(content)
+	thinkingContent = extractThinkingSection(content)
 	thinkingLength := len(thinkingContent)
 
 	return true, thinkingLength, thinkingContent
@@ -93,12 +93,12 @@ func hasThinkingMarker(content string) bool {
 	markers := []string{
 		"think", "reason", "analysis", "step", "examine", "consider",
 	}
-	
+
 	for _, marker := range markers {
 		if strings.Contains(strings.ToLower(content), marker) {
 			return true
 		}
 	}
-	
+
 	return false
 }

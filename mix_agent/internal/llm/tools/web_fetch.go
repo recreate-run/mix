@@ -92,46 +92,27 @@ func (w *webFetchTool) Info() ToolInfo {
 	}
 }
 
-func (w *webFetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
-	var params WebFetchParams
-	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
-		return NewTextErrorResponse("invalid parameters: " + err.Error()), nil
-	}
-
+// validateWebFetchParams validates the input parameters
+func (w *webFetchTool) validateWebFetchParams(params WebFetchParams) error {
 	if params.URL == "" {
-		return NewTextErrorResponse("url parameter is required"), nil
+		return fmt.Errorf("url parameter is required")
 	}
-
 	if params.Prompt == "" {
-		return NewTextErrorResponse("prompt parameter is required"), nil
+		return fmt.Errorf("prompt parameter is required")
 	}
+	return nil
+}
 
-	// Parse and normalize URL
-	normalizedURL, err := w.normalizeURL(params.URL)
-	if err != nil {
-		return NewTextErrorResponse("invalid URL: " + err.Error()), nil
-	}
-
-	// Check cache with normalized URL
-	cacheKey := w.getCacheKey(normalizedURL)
-	if cached, ok := w.cache.Get(cacheKey); ok {
-		if time.Since(cached.timestamp) < CacheTTL {
-			// Cache hit - return cached content with original fetch timing
-			return w.processContent(ctx, cached.content, params.Prompt, normalizedURL, normalizedURL, cached.contentType, cached.fetchTime)
-		}
-		// Cache expired
-		w.cache.Remove(cacheKey)
-	}
-
-	// Request permission
+// requestFetchPermission requests permission to fetch the URL
+func (w *webFetchTool) requestFetchPermission(ctx context.Context, normalizedURL, prompt string) error {
 	sessionID, messageID := GetContextValues(ctx)
 	if sessionID == "" || messageID == "" {
-		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for web fetch")
+		return fmt.Errorf("session ID and message ID are required for web fetch")
 	}
 
 	sessionStorageDir, err := GetSessionStorageDirectory(ctx)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to get session storage directory: %w", err)
+		return fmt.Errorf("failed to get session storage directory: %w", err)
 	}
 
 	p := w.permissions.Request(
@@ -143,21 +124,23 @@ func (w *webFetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 			Description: fmt.Sprintf("Fetch and analyze content from: %s", normalizedURL),
 			Params: WebFetchPermissionsParams{
 				URL:    normalizedURL,
-				Prompt: params.Prompt,
+				Prompt: prompt,
 			},
 		},
 	)
 
 	if !p {
-		return ToolResponse{}, permission.ErrorPermissionDenied
+		return permission.ErrPermissionDenied
 	}
 
-	startTime := time.Now()
+	return nil
+}
 
-	// Fetch the URL
-	req, err := http.NewRequestWithContext(ctx, "GET", normalizedURL, nil)
+// fetchURL performs the HTTP request and returns the response
+func (w *webFetchTool) fetchURL(ctx context.Context, normalizedURL string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, normalizedURL, http.NoBody)
 	if err != nil {
-		return ToolResponse{}, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("User-Agent", "Mix/1.0")
@@ -166,20 +149,69 @@ func (w *webFetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 
 	resp, err := w.client.Do(req)
 	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	return resp, nil
+}
+
+// processHTMLContent converts HTML to markdown or returns plain text
+func (w *webFetchTool) processHTMLContent(body []byte, contentType string) (string, error) {
+	if strings.Contains(contentType, "text/html") {
+		converter := md.NewConverter("", true, nil)
+		markdown, err := converter.ConvertString(string(body))
+		if err != nil {
+			return "", fmt.Errorf("failed to convert HTML to markdown: %w", err)
+		}
+		return markdown, nil
+	}
+	return string(body), nil
+}
+
+func (w *webFetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
+	var params WebFetchParams
+	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
+		return NewTextErrorResponse("invalid parameters: " + err.Error()), nil
+	}
+
+	if err := w.validateWebFetchParams(params); err != nil {
+		return NewTextErrorResponse(err.Error()), nil
+	}
+
+	normalizedURL, err := w.normalizeURL(params.URL)
+	if err != nil {
+		return NewTextErrorResponse("invalid URL: " + err.Error()), nil
+	}
+
+	// Check cache
+	cacheKey := w.getCacheKey(normalizedURL)
+	if cached, ok := w.cache.Get(cacheKey); ok {
+		if time.Since(cached.timestamp) < CacheTTL {
+			return w.processContent(cached.content, params.Prompt, normalizedURL, normalizedURL, cached.contentType, cached.fetchTime), nil
+		}
+		w.cache.Remove(cacheKey)
+	}
+
+	if err := w.requestFetchPermission(ctx, normalizedURL, params.Prompt); err != nil {
+		return ToolResponse{}, err
+	}
+
+	startTime := time.Now()
+	resp, err := w.fetchURL(ctx, normalizedURL)
+	if err != nil {
 		return NewTextErrorResponse("Failed to fetch URL: " + err.Error()), nil
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
-		return NewTextErrorResponse(fmt.Sprintf("HTTP error: %d %s", resp.StatusCode, resp.Status)), nil
-	}
-
 	// Check for cross-domain redirect
 	finalURL := resp.Request.URL.String()
 	parsedNormalized, _ := url.Parse(normalizedURL)
-	finalHost := resp.Request.URL.Host
-
-	if parsedNormalized.Host != finalHost {
+	if parsedNormalized.Host != resp.Request.URL.Host {
 		return NewTextResponse(fmt.Sprintf(
 			"The URL redirected to a different host.\n\nOriginal: %s\nRedirect: %s\n\nPlease make a new WebFetch request with the redirect URL to fetch the content.",
 			normalizedURL,
@@ -187,28 +219,17 @@ func (w *webFetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 		)), nil
 	}
 
-	// Read content with size limit
 	body, err := io.ReadAll(io.LimitReader(resp.Body, MaxContentSize))
 	if err != nil {
 		return NewTextErrorResponse("Failed to read response body: " + err.Error()), nil
 	}
 
 	contentType := resp.Header.Get("Content-Type")
-
-	// Convert HTML to Markdown if needed (create converter per request)
-	var content string
-	if strings.Contains(contentType, "text/html") {
-		converter := md.NewConverter("", true, nil)
-		markdown, err := converter.ConvertString(string(body))
-		if err != nil {
-			return NewTextErrorResponse("Failed to convert HTML to markdown: " + err.Error()), nil
-		}
-		content = markdown
-	} else {
-		content = string(body)
+	content, err := w.processHTMLContent(body, contentType)
+	if err != nil {
+		return NewTextErrorResponse(err.Error()), nil
 	}
 
-	// Store in cache with all metadata
 	w.cache.Add(cacheKey, cacheEntry{
 		content:     content,
 		timestamp:   time.Now(),
@@ -216,11 +237,10 @@ func (w *webFetchTool) Run(ctx context.Context, call ToolCall) (ToolResponse, er
 		fetchTime:   startTime,
 	})
 
-	// Process content
-	return w.processContent(ctx, content, params.Prompt, normalizedURL, finalURL, contentType, startTime)
+	return w.processContent(content, params.Prompt, normalizedURL, finalURL, contentType, startTime), nil
 }
 
-func (w *webFetchTool) processContent(ctx context.Context, content, prompt, originalURL, finalURL, contentType string, startTime time.Time) (ToolResponse, error) {
+func (w *webFetchTool) processContent(content, prompt, originalURL, finalURL, contentType string, startTime time.Time) ToolResponse {
 	// Format the output with the prompt context
 	// The main agent's LLM will naturally process this content in context
 	output := fmt.Sprintf("Content from %s (responding to: %s):\n\n%s", originalURL, prompt, content)
@@ -233,7 +253,7 @@ func (w *webFetchTool) processContent(ctx context.Context, content, prompt, orig
 		EndTime:     time.Now().UnixMilli(),
 	}
 
-	return WithResponseMetadata(NewTextResponse(output), metadata), nil
+	return WithResponseMetadata(NewTextResponse(output), metadata)
 }
 
 func (w *webFetchTool) normalizeURL(urlStr string) (string, error) {

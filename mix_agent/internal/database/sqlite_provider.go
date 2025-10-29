@@ -49,13 +49,13 @@ func (p *SQLiteProvider) Connect(ctx context.Context) error {
 	dbPath := filepath.Join(p.config.DataDir, filename)
 
 	// Open the SQLite database
-	db, err := sql.Open("sqlite3", dbPath)
+	sqlDB, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 
 	// Store the connection
-	p.db = db
+	p.db = sqlDB
 
 	// Verify connection with timeout
 	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)

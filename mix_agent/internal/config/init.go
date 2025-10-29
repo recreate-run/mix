@@ -72,13 +72,13 @@ func EnsurePromptsDirectory() error {
 	promptsDir := cfg.PromptsDir
 
 	// Create prompts directory if it doesn't exist
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+	if err := os.MkdirAll(promptsDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create prompts directory %s: %w", promptsDir, err)
 	}
-	
+
 	// Create tools subdirectory
 	toolsDir := filepath.Join(promptsDir, "tools")
-	if err := os.MkdirAll(toolsDir, 0755); err != nil {
+	if err := os.MkdirAll(toolsDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create tools directory %s: %w", toolsDir, err)
 	}
 

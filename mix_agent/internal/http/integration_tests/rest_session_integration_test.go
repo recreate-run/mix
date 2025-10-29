@@ -21,6 +21,7 @@ func TestRESTSessionCreation(t *testing.T) {
 	}
 
 	resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = resp.Body.Close() }()
 	sessionData := validateObjectResponse(t, resp, http.StatusCreated)
 
 	sessionID, ok := sessionData["id"].(string)
@@ -51,13 +52,15 @@ func TestRESTSessionListing(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	createdSessionID := createdSessionData["id"].(string)
 
 	// Now list sessions
 	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions", nil)
-	sessionsArray := validateArrayResponse(t, listResp, http.StatusOK)
+	defer func() { _ = listResp.Body.Close() }()
+	sessionsArray := validateArrayResponse(t, listResp)
 
 	// Find our created session in the list
 	found := false
@@ -95,12 +98,14 @@ func TestRESTSessionRetrieval(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
 
 	// Retrieve the specific session
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID, nil)
+	defer func() { _ = getResp.Body.Close() }()
 	retrievedSession := validateObjectResponse(t, getResp, http.StatusOK)
 
 	retrievedID, ok := retrievedSession["id"].(string)
@@ -129,18 +134,21 @@ func TestRESTSessionDeletion(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
 
 	// Delete the session
 	deleteResp := makeJSONRequest(t, result.Server, "DELETE", "/api/sessions/"+sessionID, nil)
+	defer func() { _ = deleteResp.Body.Close() }()
 	if deleteResp.StatusCode != http.StatusNoContent {
 		t.Fatalf("Expected status code %d for deletion, got %d", http.StatusNoContent, deleteResp.StatusCode)
 	}
 
 	// Verify the session is gone - should return 404
 	getResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID, nil)
+	defer func() { _ = getResp.Body.Close() }()
 	if getResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d when retrieving deleted session, got %d", http.StatusNotFound, getResp.StatusCode)
 	}
@@ -148,6 +156,7 @@ func TestRESTSessionDeletion(t *testing.T) {
 	// Test deleting non-existent session - should return 404 (not found)
 	nonExistentID := "non-existent-session-id"
 	deleteNonExistentResp := makeJSONRequest(t, result.Server, "DELETE", "/api/sessions/"+nonExistentID, nil)
+	defer func() { _ = deleteNonExistentResp.Body.Close() }()
 	if deleteNonExistentResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d when deleting non-existent session, got %d", http.StatusNotFound, deleteNonExistentResp.StatusCode)
 	}
@@ -168,6 +177,7 @@ func TestRESTSessionForking(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sourceSessionID := createdSessionData["id"].(string)
@@ -192,6 +202,7 @@ func TestRESTSessionForking(t *testing.T) {
 	}
 
 	forkResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sourceSessionID+"/fork", forkRequest)
+	defer func() { _ = forkResp.Body.Close() }()
 	forkedSessionData := validateObjectResponse(t, forkResp, http.StatusCreated)
 
 	forkedSessionID, ok := forkedSessionData["id"].(string)
@@ -210,9 +221,11 @@ func TestRESTSessionForking(t *testing.T) {
 
 	// Verify both sessions exist independently
 	sourceGetResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sourceSessionID, nil)
+	defer func() { _ = sourceGetResp.Body.Close() }()
 	validateObjectResponse(t, sourceGetResp, http.StatusOK)
 
 	forkedGetResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+forkedSessionID, nil)
+	defer func() { _ = forkedGetResp.Body.Close() }()
 	validateObjectResponse(t, forkedGetResp, http.StatusOK)
 
 	t.Logf("✅ Session forking test passed - Source: %s, Forked: %s", sourceSessionID, forkedSessionID)
@@ -231,12 +244,14 @@ func TestRESTAgentCancellation(t *testing.T) {
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
 
 	// Cancel agent processing for the session
 	cancelResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/cancel", nil)
+	defer func() { _ = cancelResp.Body.Close() }()
 	cancellationData := validateObjectResponse(t, cancelResp, http.StatusOK)
 
 	status, ok := cancellationData["status"].(string)

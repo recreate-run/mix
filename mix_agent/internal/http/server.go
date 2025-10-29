@@ -17,19 +17,19 @@ import (
 )
 
 // StartServer starts the HTTP REST API server with all configured routes
-func StartServer(ctx context.Context, app *app.App, host string, port int) error {
+func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	// Create REST handlers
-	sessionHandler := NewSessionHandler(app)
-	messageHandler := NewMessageHandler(app)
-	systemHandler := NewSystemHandler(app)
-	preferencesHandler := NewPreferencesHandler(app)
-	authHandler := NewAuthHandler(app)
-	toolsHandler := NewToolsHandler(app)
-	systemInfoHandler := NewSystemInfoHandler(app)
+	sessionHandler := NewSessionHandler(a)
+	messageHandler := NewMessageHandler(a)
+	systemHandler := NewSystemHandler(a)
+	preferencesHandler := NewPreferencesHandler(a)
+	authHandler := NewAuthHandler(a)
+	toolsHandler := NewToolsHandler(a)
+	systemInfoHandler := NewSystemInfoHandler(a)
 
 	// Create session-aware asset handler
-	fileHandler := NewFileHandler(app)
-	sessionAssetHandler := NewSessionAssetHandler(app, app.StorageConfig)
+	fileHandler := NewFileHandler(a)
+	sessionAssetHandler := NewSessionAssetHandler(a, a.StorageConfig)
 
 	// Initialize and start the OAuth token refresh service
 	credentialsService := config.GetAPICredentials()
@@ -59,7 +59,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 			w.Header().Set("Access-Control-Max-Age", "86400")
 
 			// Handle preflight requests
-			if r.Method == "OPTIONS" {
+			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -93,7 +93,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 
 	// Add SSE streaming endpoint
 	mux.HandleFunc("/stream", func(w http.ResponseWriter, r *http.Request) {
-		HandleSSEStream(ctx, app, w, r)
+		HandleSSEStream(ctx, a, w, r)
 	})
 
 	// Add URL video export endpoint (new Playwright-based export)
@@ -176,7 +176,7 @@ func StartServer(ctx context.Context, app *app.App, host string, port int) error
 
 	// Start server and block (this will block until server shuts down)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("HTTP server failed: %v", err)
+		return fmt.Errorf("HTTP server failed: %w", err)
 	}
 
 	return nil

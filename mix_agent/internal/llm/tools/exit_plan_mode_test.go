@@ -48,8 +48,8 @@ func TestExitPlanModeTool_Run_Success(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name         string
-		plan         string
+		name           string
+		plan           string
 		expectedSubstr []string
 	}{
 		{
@@ -94,7 +94,7 @@ func TestExitPlanModeTool_Run_Success(t *testing.T) {
 
 			response, err := tool.Run(ctx, params)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.False(t, response.IsError)
 			assert.Equal(t, "text", string(response.Type))
 
@@ -124,7 +124,7 @@ func TestExitPlanModeTool_Run_EmptyPlan(t *testing.T) {
 
 	response, err := tool.Run(ctx, params)
 
-	assert.NoError(t, err) // Error is nil but response indicates error
+	require.NoError(t, err) // Error is nil but response indicates error
 	assert.True(t, response.IsError)
 	assert.Equal(t, "text", string(response.Type))
 	assert.Equal(t, "Plan is required", response.Content)
@@ -144,7 +144,7 @@ func TestExitPlanModeTool_Run_WhitespaceOnlyPlan(t *testing.T) {
 
 	response, err := tool.Run(ctx, params)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError) // Should succeed with whitespace plan
 	assert.Equal(t, "text", string(response.Type))
 	assert.Contains(t, response.Content, "# Plan Ready for Approval")
@@ -189,7 +189,7 @@ func TestExitPlanModeTool_Run_InvalidJSON(t *testing.T) {
 
 			response, err := tool.Run(ctx, params)
 
-			assert.Error(t, err) // JSON parsing should fail
+			require.Error(t, err) // JSON parsing should fail
 			assert.True(t, response.IsError)
 			assert.Equal(t, "text", string(response.Type))
 			assert.Equal(t, "Failed to parse parameters", response.Content)
@@ -226,7 +226,7 @@ func TestExitPlanModeTool_Run_MissingPlanField(t *testing.T) {
 
 			response, err := tool.Run(ctx, params)
 
-			assert.NoError(t, err) // JSON parsing succeeds but plan is empty
+			require.NoError(t, err) // JSON parsing succeeds but plan is empty
 			assert.True(t, response.IsError)
 			assert.Equal(t, "text", string(response.Type))
 			assert.Equal(t, "Plan is required", response.Content)
@@ -258,20 +258,20 @@ func TestExitPlanModeTool_ResponseFormat(t *testing.T) {
 
 	response, err := tool.Run(ctx, params)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, response.IsError)
 
 	// Verify the exact format structure
 	lines := strings.Split(response.Content, "\n")
-	assert.True(t, len(lines) >= 5) // Title, empty, content, empty, separator, empty, ready message
+	assert.GreaterOrEqual(t, len(lines), 5) // Title, empty, content, empty, separator, empty, ready message
 
 	// Check specific positions
 	assert.Equal(t, "# Plan Ready for Approval", lines[0])
-	assert.Equal(t, "", lines[1]) // Empty line after title
-	assert.Equal(t, planContent, lines[2]) // Plan content
-	assert.Equal(t, "", lines[3]) // Empty line before separator
-	assert.Equal(t, "---", lines[4]) // Separator
-	assert.Equal(t, "", lines[5]) // Empty line after separator
+	assert.Empty(t, lines[1])                                     // Empty line after title
+	assert.Equal(t, planContent, lines[2])                            // Plan content
+	assert.Empty(t, lines[3])                                     // Empty line before separator
+	assert.Equal(t, "---", lines[4])                                  // Separator
+	assert.Empty(t, lines[5])                                     // Empty line after separator
 	assert.Equal(t, "✅ Ready to proceed when you confirm.", lines[6]) // Ready message
 }
 
@@ -295,6 +295,6 @@ func TestExitPlanModeTool_ImplementsBaseTool(t *testing.T) {
 	}
 
 	response, err := tool.Run(ctx, params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, response.Content)
 }

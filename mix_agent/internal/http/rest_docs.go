@@ -12,15 +12,15 @@ func HandleDocumentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveOpenAPISpec(w, r)
+	serveOpenAPISpec(w)
 }
 
 // serveOpenAPISpec serves the OpenAPI 3.1 specification as JSON
-func serveOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+func serveOpenAPISpec(w http.ResponseWriter) {
 	spec := getOpenAPISpec()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	
+
 	_ = json.NewEncoder(w).Encode(spec)
 }
 
@@ -50,6 +50,7 @@ type OpenAPIComponents struct {
 }
 
 // getOpenAPISpec returns the complete OpenAPI 3.1 specification with proper field ordering
+//nolint:funlen // OpenAPI spec is necessarily long
 func getOpenAPISpec() OpenAPISpec {
 	return OpenAPISpec{
 		OpenAPI: "3.1.0",
@@ -68,7 +69,7 @@ func getOpenAPISpec() OpenAPISpec {
 			"strategy": "backoff",
 			"backoff": map[string]interface{}{
 				"initialInterval": 500,    // 500ms
-				"maxInterval":     60000,  // 60 seconds  
+				"maxInterval":     60000,  // 60 seconds
 				"maxElapsedTime":  600000, // 10 minutes (shorter for dev environment)
 				"exponent":        1.5,    // exponential backoff
 			},
@@ -83,7 +84,7 @@ func getOpenAPISpec() OpenAPISpec {
 			// Session Management Endpoints
 			"/api/sessions": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "listSessions",
+					"operationId": "listSessions",
 					"summary":     "List all sessions",
 					"description": "Retrieve a list of all available sessions with their metadata",
 					"tags":        []string{"Sessions"},
@@ -103,12 +104,12 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 				"post": map[string]interface{}{
-					"operationId":  "createSession",
+					"operationId": "createSession",
 					"summary":     "Create a new session",
 					"description": "Create a new session with required title and optional custom system prompt. Session automatically gets isolated storage directory. Supports session-level callbacks for automated actions after tool execution.",
 					"tags":        []string{"Sessions"},
 					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
+						"type":     "object",
 						"required": []string{"title"},
 						"properties": map[string]interface{}{
 							"title": map[string]interface{}{
@@ -228,7 +229,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getSession",
+					"operationId": "getSession",
 					"summary":     "Get a specific session",
 					"description": "Retrieve detailed information about a specific session",
 					"tags":        []string{"Sessions"},
@@ -241,7 +242,7 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 				"delete": map[string]interface{}{
-					"operationId":  "deleteSession",
+					"operationId": "deleteSession",
 					"summary":     "Delete a session",
 					"description": "Permanently delete a session and all its data",
 					"tags":        []string{"Sessions"},
@@ -258,7 +259,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/fork": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "forkSession",
+					"operationId": "forkSession",
 					"summary":     "Fork a session",
 					"description": "Create a new session based on an existing session, copying messages up to a specified index",
 					"tags":        []string{"Sessions"},
@@ -266,7 +267,7 @@ func getOpenAPISpec() OpenAPISpec {
 						createPathParameter("id", "Source session ID to fork from"),
 					},
 					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
+						"type":     "object",
 						"required": []string{"messageIndex"},
 						"properties": map[string]interface{}{
 							"messageIndex": map[string]interface{}{
@@ -289,7 +290,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/callbacks": map[string]interface{}{
 				"patch": map[string]interface{}{
-					"operationId":  "updateSessionCallbacks",
+					"operationId": "updateSessionCallbacks",
 					"summary":     "Update session callbacks",
 					"description": "Update the callback configurations for a session. Callbacks execute automatically after tool completion. Pass an empty array to clear all callbacks.",
 					"tags":        []string{"Sessions"},
@@ -297,7 +298,7 @@ func getOpenAPISpec() OpenAPISpec {
 						createPathParameter("id", "Session ID to update"),
 					},
 					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
+						"type":     "object",
 						"required": []string{"callbacks"},
 						"properties": map[string]interface{}{
 							"callbacks": map[string]interface{}{
@@ -318,7 +319,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/rewind": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "rewindSession",
+					"operationId": "rewindSession",
 					"summary":     "Rewind a session",
 					"description": "Delete messages after a specified message in the current session, optionally cleaning up media files created after that point",
 					"tags":        []string{"Sessions"},
@@ -326,7 +327,7 @@ func getOpenAPISpec() OpenAPISpec {
 						createPathParameter("id", "Session ID to rewind"),
 					},
 					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
+						"type":     "object",
 						"required": []string{"messageId"},
 						"properties": map[string]interface{}{
 							"messageId": map[string]interface{}{
@@ -349,7 +350,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/export": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "exportSession",
+					"operationId": "exportSession",
 					"summary":     "Export session transcript",
 					"description": "Export complete session transcript with all messages, tool calls, reasoning, and metadata as JSON",
 					"tags":        []string{"Sessions"},
@@ -384,7 +385,7 @@ func getOpenAPISpec() OpenAPISpec {
 			// Message Operations
 			"/api/sessions/{id}/messages": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "sendMessage",
+					"operationId": "sendMessage",
 					"summary":     "Send a message to session (async)",
 					"description": "Send a user message to a specific session for AI processing. Returns immediately with 202 Accepted. All results stream via Server-Sent Events (SSE) connection.",
 					"tags":        []string{"Messages"},
@@ -392,7 +393,7 @@ func getOpenAPISpec() OpenAPISpec {
 						createPathParameter("id", "Session ID"),
 					},
 					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
+						"type":     "object",
 						"required": []string{"text"},
 						"properties": map[string]interface{}{
 							"text": map[string]interface{}{
@@ -441,7 +442,7 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 				"get": map[string]interface{}{
-					"operationId":  "getSessionMessages",
+					"operationId": "getSessionMessages",
 					"summary":     "List session messages",
 					"description": "Retrieve all messages from a specific session",
 					"tags":        []string{"Messages"},
@@ -456,7 +457,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/cancel": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "cancelSessionProcessing",
+					"operationId": "cancelSessionProcessing",
 					"summary":     "Cancel agent processing",
 					"description": "Cancel any ongoing agent processing in the specified session",
 					"tags":        []string{"Messages"},
@@ -479,7 +480,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/messages/history": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getMessageHistory",
+					"operationId": "getMessageHistory",
 					"summary":     "Get global message history",
 					"description": "Retrieve message history across all sessions with optional pagination",
 					"tags":        []string{"Messages"},
@@ -516,7 +517,7 @@ func getOpenAPISpec() OpenAPISpec {
 			// System Operations
 			"/api/mcp": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "listMcpServers",
+					"operationId": "listMcpServers",
 					"summary":     "List MCP servers",
 					"description": "Retrieve list of available Model Context Protocol (MCP) servers",
 					"tags":        []string{"System"},
@@ -565,7 +566,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/commands": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "listCommands",
+					"operationId": "listCommands",
 					"summary":     "List available commands",
 					"description": "Retrieve list of all available commands",
 					"tags":        []string{"System"},
@@ -590,7 +591,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/commands/{name}": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getCommand",
+					"operationId": "getCommand",
 					"summary":     "Get specific command",
 					"description": "Retrieve details about a specific command",
 					"tags":        []string{"System"},
@@ -621,7 +622,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/system/info": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getSystemInfo",
+					"operationId": "getSystemInfo",
 					"summary":     "Get system information",
 					"description": "Retrieve system information including storage configuration",
 					"tags":        []string{"System"},
@@ -642,7 +643,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/permissions/{id}/grant": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "grantPermission",
+					"operationId": "grantPermission",
 					"summary":     "Grant permission",
 					"description": "Grant a specific permission",
 					"tags":        []string{"Permissions"},
@@ -667,7 +668,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/permissions/{id}/deny": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "denyPermission",
+					"operationId": "denyPermission",
 					"summary":     "Deny permission",
 					"description": "Deny a specific permission",
 					"tags":        []string{"Permissions"},
@@ -692,12 +693,12 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/auth/api-key": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "storeApiKey",
+					"operationId": "storeApiKey",
 					"summary":     "Store API key",
 					"description": "Store API key for direct authentication with a specific provider",
 					"tags":        []string{"Authentication"},
 					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
+						"type":     "object",
 						"required": []string{"provider", "api_key"},
 						"properties": map[string]interface{}{
 							"provider": map[string]interface{}{
@@ -736,7 +737,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/auth/status": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getAuthStatus",
+					"operationId": "getAuthStatus",
 					"summary":     "Get authentication status",
 					"description": "Get authentication status for all supported providers",
 					"tags":        []string{"Authentication"},
@@ -774,7 +775,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/auth/validate": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "validatePreferredProvider",
+					"operationId": "validatePreferredProvider",
 					"summary":     "Validate preferred provider",
 					"description": "Check if the user's preferred provider is authenticated",
 					"tags":        []string{"Authentication"},
@@ -807,7 +808,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/auth/oauth/{provider}": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "startOAuthFlow",
+					"operationId": "startOAuthFlow",
 					"summary":     "Start OAuth authentication",
 					"description": "Initiate OAuth authentication flow for a specific provider",
 					"tags":        []string{"Authentication"},
@@ -839,12 +840,12 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/auth/oauth-callback": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "handleOAuthCallback",
+					"operationId": "handleOAuthCallback",
 					"summary":     "Handle OAuth callback",
 					"description": "Process OAuth callback and exchange code for access token",
 					"tags":        []string{"Authentication"},
 					"requestBody": createRequestBody(map[string]interface{}{
-						"type": "object",
+						"type":     "object",
 						"required": []string{"provider", "code", "state"},
 						"properties": map[string]interface{}{
 							"provider": map[string]interface{}{
@@ -890,7 +891,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/auth/{provider}": map[string]interface{}{
 				"delete": map[string]interface{}{
-					"operationId":  "deleteCredentials",
+					"operationId": "deleteCredentials",
 					"summary":     "Delete provider credentials",
 					"description": "Delete stored API key and/or OAuth credentials for a provider",
 					"tags":        []string{"Authentication"},
@@ -922,7 +923,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/internal/auth/refresh-tokens": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "refreshOAuthTokens",
+					"operationId": "refreshOAuthTokens",
 					"summary":     "Manually refresh OAuth tokens",
 					"description": "Manually trigger OAuth token refresh for all expired tokens. Normally tokens are refreshed automatically by the background service every 30 minutes.",
 					"tags":        []string{"Authentication", "Internal"},
@@ -948,7 +949,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/health/auth": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getOAuthHealth",
+					"operationId": "getOAuthHealth",
 					"summary":     "Get OAuth authentication health",
 					"description": "Get health status of all OAuth credentials. Background service refreshes tokens 35 minutes before expiry. API calls mark tokens expired 5 minutes before expiry. Health statuses: 'healthy' (tokens valid, >5min remaining), 'degraded' (some tokens within 5min of expiry but refreshable), 'unhealthy' (tokens expired without refresh capability)",
 					"tags":        []string{"Health", "Authentication"},
@@ -1014,7 +1015,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/preferences": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getPreferences",
+					"operationId": "getPreferences",
 					"summary":     "Get user preferences",
 					"description": "Retrieve current user preferences including model and provider settings",
 					"tags":        []string{"Preferences"},
@@ -1023,9 +1024,9 @@ func getOpenAPISpec() OpenAPISpec {
 							"type": "object",
 							"properties": map[string]interface{}{
 								"preferences": map[string]interface{}{
-									"type": "object",
+									"type":        "object",
 									"description": "User preferences (null if no preferences exist)",
-									"nullable": true,
+									"nullable":    true,
 									"properties": map[string]interface{}{
 										"preferred_provider": map[string]interface{}{
 											"type":        "string",
@@ -1066,7 +1067,7 @@ func getOpenAPISpec() OpenAPISpec {
 									},
 								},
 								"available_providers": map[string]interface{}{
-									"type": "object",
+									"type":        "object",
 									"description": "Map of available AI providers and their models",
 									"additionalProperties": map[string]interface{}{
 										"type": "object",
@@ -1090,7 +1091,7 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 				"post": map[string]interface{}{
-					"operationId":  "updatePreferences",
+					"operationId": "updatePreferences",
 					"summary":     "Update user preferences",
 					"description": "Update user preferences including model and provider settings",
 					"tags":        []string{"Preferences"},
@@ -1176,7 +1177,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/preferences/providers": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getAvailableProviders",
+					"operationId": "getAvailableProviders",
 					"summary":     "Get available providers",
 					"description": "Retrieve list of available AI providers and their supported models",
 					"tags":        []string{"Preferences"},
@@ -1205,7 +1206,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/preferences/reset": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "resetPreferences",
+					"operationId": "resetPreferences",
 					"summary":     "Reset preferences",
 					"description": "Reset user preferences to default values",
 					"tags":        []string{"Preferences"},
@@ -1258,7 +1259,7 @@ func getOpenAPISpec() OpenAPISpec {
 			// Session File Management Endpoints
 			"/api/sessions/{id}/files/upload": map[string]interface{}{
 				"post": map[string]interface{}{
-					"operationId":  "uploadSessionFile",
+					"operationId": "uploadSessionFile",
 					"summary":     "Upload file to session",
 					"description": "Upload a file to session-specific storage directory",
 					"tags":        []string{"Files"},
@@ -1293,7 +1294,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/files": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "listSessionFiles",
+					"operationId": "listSessionFiles",
 					"summary":     "List session files",
 					"description": "List all files in session storage directory",
 					"tags":        []string{"Files"},
@@ -1308,7 +1309,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/sessions/{id}/files/{filename}": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getSessionFile",
+					"operationId": "getSessionFile",
 					"summary":     "Get session file",
 					"description": "Download or serve a specific file from session storage. Supports thumbnail generation with ?thumb parameter.",
 					"tags":        []string{"Files"},
@@ -1353,7 +1354,7 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 				"delete": map[string]interface{}{
-					"operationId":  "deleteSessionFile",
+					"operationId": "deleteSessionFile",
 					"summary":     "Delete session file",
 					"description": "Delete a specific file from session storage. Only files are supported - directories cannot be deleted.",
 					"tags":        []string{"Files"},
@@ -1373,7 +1374,7 @@ func getOpenAPISpec() OpenAPISpec {
 			// Tools & Agents API Endpoints
 			"/api/tools/status": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getToolsStatus",
+					"operationId": "getToolsStatus",
 					"summary":     "Get tools status",
 					"description": "Get status and authentication information for all available tools and categories",
 					"tags":        []string{"Tools"},
@@ -1431,7 +1432,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/stream": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "streamEvents",
+					"operationId": "streamEvents",
 					"summary":     "Server-Sent Events stream for real-time updates",
 					"description": "Establishes a persistent SSE connection for receiving real-time updates during message processing. Connection remains open for multiple messages and includes proper reconnection support with Last-Event-ID header.",
 					"tags":        []string{"Streaming"},
@@ -1496,7 +1497,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/health": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "healthCheck",
+					"operationId": "healthCheck",
 					"summary":     "Health check",
 					"description": "Check server health and status",
 					"tags":        []string{"System"},
@@ -1525,7 +1526,7 @@ func getOpenAPISpec() OpenAPISpec {
 			// Tools Management Endpoints
 			"/api/tools": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "listLLMTools",
+					"operationId": "listLLMTools",
 					"summary":     "List LLM tools",
 					"description": "Returns the list of all LLM tools that Claude can invoke. The list is dynamically extracted from the actual tools registered in CoderAgentTools() (agent/tools.go), ensuring it always reflects the current tool availability. Typical tools include: Bash, Edit, Read, Write, Grep, Glob, WebFetch, WebSearch, ReadMedia, TodoWrite, ExitPlanMode, and Task. This endpoint is useful for creating tool callbacks or understanding available agent capabilities.",
 					"tags":        []string{"Tools"},
@@ -1575,7 +1576,7 @@ func getOpenAPISpec() OpenAPISpec {
 			},
 			"/api/tools/credentials-status": map[string]interface{}{
 				"get": map[string]interface{}{
-					"operationId":  "getToolCredentialsStatus",
+					"operationId": "getToolCredentialsStatus",
 					"summary":     "Get tool credentials status",
 					"description": "Returns authentication/credential status for external tool integrations (Brave Search, Gemini Vision, etc.). This endpoint checks if API keys are configured for tools that require external service credentials.",
 					"tags":        []string{"Tools"},
@@ -1588,7 +1589,7 @@ func getOpenAPISpec() OpenAPISpec {
 										"type": "object",
 										"properties": map[string]interface{}{
 											"categories": map[string]interface{}{
-												"type": "object",
+												"type":        "object",
 												"description": "Tool categories grouped by type",
 												"additionalProperties": map[string]interface{}{
 													"type": "object",
@@ -1609,7 +1610,7 @@ func getOpenAPISpec() OpenAPISpec {
 															"example":     "🔍",
 														},
 														"tools": map[string]interface{}{
-															"type": "array",
+															"type":        "array",
 															"description": "Tools in this category",
 															"items": map[string]interface{}{
 																"type": "object",
@@ -1684,9 +1685,9 @@ func getOpenAPISpec() OpenAPISpec {
 					"description": "Tool name - either a core tool or MCP tool following {serverName}_{toolName} pattern",
 				},
 				"Callback": map[string]interface{}{
-					"type": "object",
+					"type":        "object",
 					"description": "Session-level callback configuration that executes after tool completion",
-					"required": []string{"toolName", "type"},
+					"required":    []string{"toolName", "type"},
 					"properties": map[string]interface{}{
 						"name": map[string]interface{}{
 							"type":        "string",
@@ -1845,7 +1846,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"required": []string{"id", "title", "sessionType", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
 				},
 				"MessageData": map[string]interface{}{
-					"type": "object",
+					"type":        "object",
 					"description": "Message data structure for user input",
 					"properties": map[string]interface{}{
 						"text": map[string]interface{}{
@@ -1861,7 +1862,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"required": []string{"text"},
 				},
 				"BackendMessage": map[string]interface{}{
-					"type": "object",
+					"type":        "object",
 					"description": "Backend message structure representing a complete message exchange",
 					"properties": map[string]interface{}{
 						"id": map[string]interface{}{
@@ -1891,13 +1892,13 @@ func getOpenAPISpec() OpenAPISpec {
 							},
 							"description": "Tool calls made during message processing",
 						},
-					"callbackResults": map[string]interface{}{
-						"type": "array",
-						"items": map[string]interface{}{
-							"$ref": "#/components/schemas/CallbackResultData",
+						"callbackResults": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"$ref": "#/components/schemas/CallbackResultData",
+							},
+							"description": "Callback execution results (optional)",
 						},
-						"description": "Callback execution results (optional)",
-					},
 						"reasoning": map[string]interface{}{
 							"type":        "string",
 							"description": "Reasoning process (optional)",
@@ -1910,7 +1911,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"required": []string{"id", "sessionId", "role", "userInput"},
 				},
 				"ExportSession": map[string]interface{}{
-					"type": "object",
+					"type":        "object",
 					"description": "Comprehensive session export with all messages, tool calls, and metadata",
 					"properties": map[string]interface{}{
 						"id": map[string]interface{}{
@@ -1967,7 +1968,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"required": []string{"id", "title", "messages"},
 				},
 				"ExportMessage": map[string]interface{}{
-					"type": "object",
+					"type":        "object",
 					"description": "Complete message information for export",
 					"properties": map[string]interface{}{
 						"id": map[string]interface{}{
@@ -2019,7 +2020,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"required": []string{"id", "role", "content", "createdAt", "updatedAt"},
 				},
 				"ExportToolCall": map[string]interface{}{
-					"type": "object",
+					"type":        "object",
 					"description": "Complete tool call information for export",
 					"properties": map[string]interface{}{
 						"id": map[string]interface{}{
@@ -2096,7 +2097,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"required": []string{"id", "name", "input", "type", "finished"},
 				},
 				"CallbackResultData": map[string]interface{}{
-					"type": "object",
+					"type":        "object",
 					"description": "Callback execution result information",
 					"properties": map[string]interface{}{
 						"tool_call_id": map[string]interface{}{
@@ -2202,25 +2203,25 @@ func getOpenAPISpec() OpenAPISpec {
 					"required": []string{"id", "event"},
 				},
 				"SSEEventStream": map[string]interface{}{
-					"type":         "object",
-					"description":  "Server-Sent Event stream with discriminated event types",
+					"type":        "object",
+					"description": "Server-Sent Event stream with discriminated event types",
 					"discriminator": map[string]interface{}{
 						"propertyName": "event",
 						"mapping": map[string]interface{}{
-							"connected":              "#/components/schemas/SSEConnectedEvent",
-							"heartbeat":              "#/components/schemas/SSEHeartbeatEvent",
-							"error":                  "#/components/schemas/SSEErrorEvent",
-							"complete":               "#/components/schemas/SSECompleteEvent",
-							"thinking":               "#/components/schemas/SSEThinkingEvent",
-							"content":                "#/components/schemas/SSEContentEvent",
-							"tool":                   "#/components/schemas/SSEToolEvent",
-							"tool_parameter_delta":   "#/components/schemas/SSEToolParameterDeltaEvent",
-							"tool_execution_start":   "#/components/schemas/SSEToolExecutionStartEvent",
+							"connected":               "#/components/schemas/SSEConnectedEvent",
+							"heartbeat":               "#/components/schemas/SSEHeartbeatEvent",
+							"error":                   "#/components/schemas/SSEErrorEvent",
+							"complete":                "#/components/schemas/SSECompleteEvent",
+							"thinking":                "#/components/schemas/SSEThinkingEvent",
+							"content":                 "#/components/schemas/SSEContentEvent",
+							"tool":                    "#/components/schemas/SSEToolEvent",
+							"tool_parameter_delta":    "#/components/schemas/SSEToolParameterDeltaEvent",
+							"tool_execution_start":    "#/components/schemas/SSEToolExecutionStartEvent",
 							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
-							"permission":             "#/components/schemas/SSEPermissionEvent",
-							"user_message_created":   "#/components/schemas/SSEUserMessageCreatedEvent",
-							"session_created":        "#/components/schemas/SSESessionCreatedEvent",
-							"session_deleted":        "#/components/schemas/SSESessionDeletedEvent",
+							"permission":              "#/components/schemas/SSEPermissionEvent",
+							"user_message_created":    "#/components/schemas/SSEUserMessageCreatedEvent",
+							"session_created":         "#/components/schemas/SSESessionCreatedEvent",
+							"session_deleted":         "#/components/schemas/SSESessionDeletedEvent",
 						},
 					},
 					"oneOf": []map[string]interface{}{

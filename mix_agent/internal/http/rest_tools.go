@@ -20,9 +20,9 @@ type ToolsHandler struct {
 }
 
 // NewToolsHandler creates a new tools handler
-func NewToolsHandler(app *app.App) *ToolsHandler {
+func NewToolsHandler(a *app.App) *ToolsHandler {
 	return &ToolsHandler{
-		app: app,
+		app: a,
 	}
 }
 
@@ -55,9 +55,9 @@ type ToolsStatusResponseArrayFormat struct {
 
 // ToolCategoryStatusArrayFormat represents the status of tools in a category with tools as array
 type ToolCategoryStatusArrayFormat struct {
-	DisplayName string          `json:"display_name"`
-	Description string          `json:"description"`
-	Icon        string          `json:"icon"`
+	DisplayName string           `json:"display_name"`
+	Description string           `json:"description"`
+	Icon        string           `json:"icon"`
 	Tools       []ToolAuthStatus `json:"tools"`
 }
 
@@ -76,7 +76,7 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -107,7 +107,7 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 	registry := tools.GetRegistry()
 	toolType := tools.ToolType(request.ToolType)
 	provider := tools.ToolProvider(request.Provider)
-	
+
 	tool, exists := registry.GetTool(toolType, provider)
 	if !exists {
 		WriteErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Tool %s/%s not supported", toolType, provider), "INVALID_TOOL")
@@ -138,10 +138,10 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 
 	// Return success response
 	response := map[string]interface{}{
-		"status":      "success",
-		"tool_type":   request.ToolType,
-		"provider":    request.Provider,
-		"message":     fmt.Sprintf("%s API key stored successfully", tool.DisplayName),
+		"status":    "success",
+		"tool_type": request.ToolType,
+		"provider":  request.Provider,
+		"message":   fmt.Sprintf("%s API key stored successfully", tool.DisplayName),
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -154,7 +154,7 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 		return
 	}
 
-	if r.Method != "DELETE" {
+	if r.Method != http.MethodDelete {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -199,8 +199,8 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 
 	// Return success response
 	response := map[string]interface{}{
-		"status":   "success",
-		"message":  "Tool credential deleted successfully",
+		"status":  "success",
+		"message": "Tool credential deleted successfully",
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -214,7 +214,7 @@ func (h *ToolsHandler) HandleToolCredentialsStatus(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -248,7 +248,7 @@ func (h *ToolsHandler) HandleListLLMTools(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
 		return
 	}
@@ -326,10 +326,10 @@ func (h *ToolsHandler) checkAllToolsStatus(ctx context.Context) ToolsStatusRespo
 		// Check each tool in the category
 		for _, tool := range category.Tools {
 			toolStatus := ToolAuthStatus{
-				DisplayName:  tool.DisplayName,
-				Description:  tool.Description,
-				APIKeyFormat: tool.APIKeyFormat,
-				RequiresKey:  tool.RequiresKey,
+				DisplayName:   tool.DisplayName,
+				Description:   tool.Description,
+				APIKeyFormat:  tool.APIKeyFormat,
+				RequiresKey:   tool.RequiresKey,
 				Authenticated: false,
 			}
 

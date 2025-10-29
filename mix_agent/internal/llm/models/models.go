@@ -195,16 +195,13 @@ var SupportedModels = map[ModelID]Model{
 	//	CostPer1MInCached:  3.75,
 	//	CostPer1MOutCached: 0.30,
 	//	CostPer1MOut:       15.0,
-	//},
+	// },
 }
 
 func init() {
 	maps.Copy(SupportedModels, AnthropicModels)
 	maps.Copy(SupportedModels, OpenAIModels)
-	// maps.Copy(SupportedModels, GeminiModels)
-	//maps.Copy(SupportedModels, GroqModels)
-	//maps.Copy(SupportedModels, AzureModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
-	//maps.Copy(SupportedModels, XAIModels)
-	//maps.Copy(SupportedModels, VertexAIGeminiModels)
+	// Additional models can be added here when needed:
+	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
 }

@@ -159,7 +159,7 @@ sequenceDiagram
         Agent->>PubSub: AgentEventTypeResponse (completed)
         PubSub->>Client: SSE: tool (success)
     else Permission Denied
-        Tool->>Agent: permission.ErrorPermissionDenied
+        Tool->>Agent: permission.ErrPermissionDenied
         Agent->>Agent: Create error response
         Agent->>PubSub: AgentEventTypeResponse (denied)
         PubSub->>Client: SSE: tool (permission denied)
