@@ -1,0 +1,752 @@
+---
+title: "Go SDK"
+description: "Type-safe Go client for building AI agents with Mix. Full context support and streaming capabilities."
+---
+
+## Installation
+
+```bash
+go get github.com/recreate-run/mix-go-sdk
+```
+
+For more examples, see the [Mix Go cookbook](https://github.com/recreate-run/mix-cookbooks)
+
+## Quickstart
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	mix "github.com/recreate-run/mix-go-sdk"
+	"github.com/recreate-run/mix-go-sdk/models/operations"
+)
+
+func main() {
+	ctx := context.Background()
+
+	// Initialize Mix client
+	client := mix.New(
+		mix.WithServerURL("http://localhost:8088"),
+	)
+
+	// Store API key
+	_, err := client.Authentication.StoreAPIKey(ctx, operations.StoreAPIKeyRequest{
+		APIKey:   "your-api-key",
+		Provider: operations.ProviderOpenrouter,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create a session
+	sessionRes, err := client.Sessions.CreateSession(ctx, &operations.CreateSessionRequest{
+		Title: mix.String("My First Session"),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sessionID := sessionRes.SessionData.ID
+
+	// Start streaming for real-time updates
+	streamRes, err := client.Streaming.StreamEvents(ctx, sessionID, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamRes.SSEEventStream.Close()
+
+	// Send a message (in a goroutine to not block stream)
+	go func() {
+		_, err := client.Messages.SendMessage(ctx, sessionID, operations.SendMessageRequestBody{
+			Text: "Hello from Go SDK",
+		})
+		if err != nil {
+			log.Printf("Error sending message: %v", err)
+		}
+	}()
+
+	// Process streaming events
+	for streamRes.SSEEventStream.Next() {
+		event := streamRes.SSEEventStream.Value()
+
+		switch e := event.(type) {
+		case *operations.SSEContentEvent:
+			fmt.Print(e.Data.Content)
+		case *operations.SSECompleteEvent:
+			fmt.Println("\nDone!")
+			return
+		case *operations.SSEErrorEvent:
+			log.Printf("Error: %s\n", e.Data.Error)
+			return
+		}
+	}
+}
+```
+
+## Client Initialization
+
+### Mix Client
+
+Main SDK client with the following namespaces:
+
+| Namespace | Description | Key Methods |
+|-----------|-------------|-------------|
+| `Authentication` | Manage provider credentials | `StoreAPIKey()`, `StartOAuthFlow()`, `GetAuthStatus()` |
+| `Sessions` | Session management | `CreateSession()`, `ListSessions()`, `ForkSession()`, `ExportSession()` |
+| `Messages` | Message operations | `SendMessage()`, `GetSessionMessages()`, `CancelSessionProcessing()` |
+| `Streaming` | Real-time SSE events | `StreamEvents()` |
+| `Files` | File management | `UploadSessionFile()`, `ListSessionFiles()`, `GetSessionFile()`, `DeleteSessionFile()` |
+| `Permissions` | Permission grants | `GrantPermission()`, `DenyPermission()` |
+| `Preferences` | User preferences | `GetPreferences()`, `UpdatePreferences()`, `GetAvailableProviders()` |
+| `Tools` | Tool status | `GetToolsStatus()`, `ListLLMTools()` |
+| `System` | System operations | `HealthCheck()`, `ListMcpServers()`, `GetSystemInfo()` |
+
+**Constructor:**
+
+```go
+client := mix.New(
+	mix.WithServerURL("http://localhost:8088"),  // Default server URL
+	mix.WithClient(httpClient),                   // Custom HTTP client
+	mix.WithRetryConfig(retryConfig),            // Retry configuration
+)
+```
+
+## Types
+
+### Configuration Types
+
+```go
+type Provider string
+
+const (
+	ProviderAnthropic  Provider = "anthropic"
+	ProviderOpenai     Provider = "openai"
+	ProviderOpenrouter Provider = "openrouter"
+	ProviderGemini     Provider = "gemini"
+	ProviderBrave      Provider = "brave"
+)
+
+type UpdatePreferencesRequest struct {
+	PreferredProvider *Provider `json:"preferred_provider,omitempty"`
+	MainAgentModel    *string   `json:"main_agent_model,omitempty"`
+	SubAgentModel     *string   `json:"sub_agent_model,omitempty"`
+}
+```
+
+### Session Types
+
+```go
+type CreateSessionRequest struct {
+	Title                *string `json:"title,omitempty"`
+	CustomSystemPrompt   *string `json:"custom_system_prompt,omitempty"`
+}
+
+type SessionData struct {
+	ID                      string `json:"id"`
+	Title                   string `json:"title"`
+	CreatedAt               string `json:"created_at"`
+	AssistantMessageCount   int    `json:"assistant_message_count"`
+	UserMessageCount        int    `json:"user_message_count"`
+	ToolCallCount           int    `json:"tool_call_count"`
+	PromptTokens            int    `json:"prompt_tokens"`
+	CompletionTokens        int    `json:"completion_tokens"`
+	Cost                    float64 `json:"cost"`
+	FirstUserMessage        *string `json:"first_user_message,omitempty"`
+}
+```
+
+### Message Types
+
+```go
+type SendMessageRequestBody struct {
+	Text string `json:"text"`
+}
+
+type BackendMessage struct {
+	ID                 string          `json:"id"`
+	SessionID          string          `json:"session_id"`
+	Role               string          `json:"role"`
+	UserInput          string          `json:"user_input"`
+	AssistantResponse  *string         `json:"assistant_response,omitempty"`
+	Reasoning          *string         `json:"reasoning,omitempty"`
+	ReasoningDuration  *int            `json:"reasoning_duration,omitempty"`
+	ToolCalls          []ToolCallData  `json:"tool_calls"`
+}
+
+type ToolCallData struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Input    string  `json:"input"`
+	Result   *string `json:"result,omitempty"`
+	Finished bool    `json:"finished"`
+	IsError  *bool   `json:"is_error,omitempty"`
+	Type     string  `json:"type"`
+}
+```
+
+### File Types
+
+```go
+type FileInfo struct {
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	Modified int64  `json:"modified"`
+	IsDir    bool   `json:"is_dir"`
+	URL      string `json:"url"`
+}
+
+type ExportSession struct {
+	Session  SessionData      `json:"session"`
+	Messages []ExportMessage  `json:"messages"`
+	Files    []FileInfo       `json:"files,omitempty"`
+}
+```
+
+### Server-Sent Events (SSE) Types
+
+**SSEEventStream Structure:**
+
+```go
+type SSEEventStream interface {
+	Next() bool
+	Value() interface{}
+	Close() error
+}
+```
+
+**Event Types:**
+
+The SDK provides strongly-typed event structures for all SSE events:
+
+| Event Type | Description | Key Fields |
+|------------|-------------|------------|
+| `SSEConnectedEvent` | Connection established | `Event: "connected"` |
+| `SSEContentEvent` | AI response chunks | `Data.Content`, `Data.Type` |
+| `SSEThinkingEvent` | AI reasoning | `Data.Content` |
+| `SSEToolEvent` | Tool usage | `Data.Name`, tool metadata |
+| `SSEToolExecutionStartEvent` | Tool started | `Data.ToolName` |
+| `SSEToolExecutionCompleteEvent` | Tool completed | `Data.ToolName`, `Data.Result` |
+| `SSEPermissionEvent` | Permission request | `Data.ID`, `Data.Action` |
+| `SSECompleteEvent` | Processing done | `Data.Done`, `Data.Content` |
+| `SSEHeartbeatEvent` | Keep-alive heartbeat | - |
+| `SSEErrorEvent` | Error occurred | `Data.Error` |
+| `SSEUserMessageCreatedEvent` | User message created | `Data.MessageID` |
+| `SSESessionCreatedEvent` | Session created | `Data.SessionID` |
+| `SSESessionDeletedEvent` | Session deleted | `Data.SessionID` |
+| `SSEToolParameterDeltaEvent` | Tool parameter streaming | `Data.Delta` |
+
+### Error Types
+
+```go
+// APIError represents generic API errors
+type APIError struct {
+	StatusCode   int
+	RawResponse  *http.Response
+	Body         string
+}
+
+// ErrorResponse represents structured error responses
+type ErrorResponse struct {
+	Error RESTError `json:"error"`
+}
+
+type RESTError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Type    RESTErrorType `json:"type"`
+}
+
+type RESTErrorType string
+
+const (
+	RESTErrorTypeAPIError          RESTErrorType = "api_error"
+	RESTErrorTypeInvalidRequest    RESTErrorType = "invalid_request_error"
+	RESTErrorTypeAuthenticationErr RESTErrorType = "authentication_error"
+	RESTErrorTypeNotFoundError     RESTErrorType = "not_found_error"
+	RESTErrorTypeRateLimitError    RESTErrorType = "rate_limit_error"
+	RESTErrorTypeServerError       RESTErrorType = "server_error"
+)
+```
+
+### Retry Configuration
+
+```go
+import "github.com/recreate-run/mix-go-sdk/retry"
+
+type Config struct {
+	Strategy              string
+	Backoff               *BackoffStrategy
+	RetryConnectionErrors bool
+}
+
+type BackoffStrategy struct {
+	InitialInterval int  // milliseconds
+	MaxInterval     int  // milliseconds
+	Exponent        float64
+	MaxElapsedTime  int  // milliseconds
+}
+```
+
+## Advanced Features
+
+### Continuous Conversations
+
+Multi-turn conversations maintain context within a session:
+
+```go
+ctx := context.Background()
+client := mix.New()
+
+// Create session
+session, _ := client.Sessions.CreateSession(ctx, &operations.CreateSessionRequest{
+	Title: mix.String("Multi-turn Chat"),
+})
+
+sessionID := session.SessionData.ID
+
+// Turn 1
+client.Messages.SendMessage(ctx, sessionID, operations.SendMessageRequestBody{
+	Text: "What is Go?",
+})
+
+// Turn 2 - maintains context from Turn 1
+client.Messages.SendMessage(ctx, sessionID, operations.SendMessageRequestBody{
+	Text: "Show me an example",
+})
+```
+
+### Session Forking
+
+Create a new session branching from an existing conversation at any message:
+
+```go
+// Fork at message index 5
+forkedSession, err := client.Sessions.ForkSession(ctx, sessionID, operations.ForkSessionRequestBody{
+	MessageIndex: 5,
+	Title:        mix.String("Forked Session"),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Forked session contains messages 0-5 from original
+// Can now explore alternative conversation paths
+```
+
+### Session Rewinding
+
+Delete messages after a specific point in the conversation:
+
+```go
+_, err := client.Sessions.RewindSession(ctx, sessionID, operations.RewindSessionRequestBody{
+	MessageID:   "msg_123",
+	CleanupMedia: mix.Bool(true), // Delete orphaned media files
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### File Management with Thumbnails
+
+Upload files and generate thumbnails for images/videos:
+
+```go
+// Upload file
+file, err := os.Open("photo.jpg")
+if err != nil {
+	log.Fatal(err)
+}
+defer file.Close()
+
+uploadRes, err := client.Files.UploadSessionFile(ctx, sessionID, operations.UploadSessionFileRequestBody{
+	File: operations.File{
+		FileName: "photo.jpg",
+		Content:  file,
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Get thumbnail (images/videos only)
+thumbRes, err := client.Files.GetSessionFile(ctx, sessionID, uploadRes.FileInfo.Name, &operations.GetSessionFileRequest{
+	Thumb: mix.String("100"), // 100x100 box
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Dual-Agent Configuration
+
+Configure separate models for main agent and sub-agents:
+
+```go
+_, err := client.Preferences.UpdatePreferences(ctx, operations.UpdatePreferencesRequest{
+	PreferredProvider: operations.ProviderAnthropic.ToPointer(),
+	MainAgentModel:    mix.String("claude-sonnet-4-5"),
+	SubAgentModel:     mix.String("claude-3-5-haiku-20241022"), // Faster for subtasks
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Streaming Events
+
+```go
+ctx := context.Background()
+client := mix.New()
+
+streamRes, err := client.Streaming.StreamEvents(ctx, sessionID, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer streamRes.SSEEventStream.Close()
+
+for streamRes.SSEEventStream.Next() {
+	event := streamRes.SSEEventStream.Value()
+
+	switch e := event.(type) {
+	case *operations.SSEContentEvent:
+		fmt.Print(e.Data.Content)
+	case *operations.SSEToolExecutionStartEvent:
+		fmt.Printf("\n🔧 %s\n", e.Data.ToolName)
+	case *operations.SSECompleteEvent:
+		fmt.Println("\n✓ Done")
+		return
+	}
+}
+```
+
+### Error Handling
+
+```go
+import (
+	"errors"
+	"github.com/recreate-run/mix-go-sdk/models/apierrors"
+)
+
+res, err := client.Sessions.CreateSession(ctx, &operations.CreateSessionRequest{
+	Title: mix.String("Test"),
+})
+
+if err != nil {
+	var apiErr *apierrors.APIError
+	if errors.As(err, &apiErr) {
+		log.Printf("HTTP %d: %s", apiErr.StatusCode, apiErr.Body)
+	}
+
+	var errResp *apierrors.ErrorResponse
+	if errors.As(err, &errResp) {
+		log.Printf("Error type: %s, message: %s",
+			errResp.Error.Type,
+			errResp.Error.Message)
+	}
+
+	log.Fatal(err)
+}
+```
+
+### Retry Configuration
+
+**Per-Operation:**
+```go
+import "github.com/recreate-run/mix-go-sdk/retry"
+
+res, err := client.Sessions.ListSessions(ctx, operations.WithRetries(
+	retry.Config{
+		Strategy: "backoff",
+		Backoff: &retry.BackoffStrategy{
+			InitialInterval: 1000,
+			MaxInterval:     50000,
+			Exponent:        1.5,
+			MaxElapsedTime:  100000,
+		},
+		RetryConnectionErrors: false,
+	},
+))
+```
+
+**SDK-Wide:**
+```go
+import "github.com/recreate-run/mix-go-sdk/retry"
+
+client := mix.New(
+	mix.WithRetryConfig(
+		retry.Config{
+			Strategy: "backoff",
+			Backoff: &retry.BackoffStrategy{
+				InitialInterval: 1000,
+				MaxInterval:     50000,
+				Exponent:        1.5,
+				MaxElapsedTime:  100000,
+			},
+			RetryConnectionErrors: false,
+		},
+	),
+)
+```
+
+### Custom HTTP Client
+
+```go
+import (
+	"net/http"
+	"time"
+)
+
+httpClient := &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:    10,
+		IdleConnTimeout: 90 * time.Second,
+	},
+}
+
+client := mix.New(mix.WithClient(httpClient))
+```
+
+## Example Usage
+
+### Complete Session Flow
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	mix "github.com/recreate-run/mix-go-sdk"
+	"github.com/recreate-run/mix-go-sdk/models/operations"
+)
+
+func main() {
+	ctx := context.Background()
+	client := mix.New(mix.WithServerURL("http://localhost:8088"))
+
+	// Create session
+	session, err := client.Sessions.CreateSession(ctx, &operations.CreateSessionRequest{
+		Title: mix.String("Data Analysis"),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sessionID := session.SessionData.ID
+
+	// Stream events
+	streamRes, err := client.Streaming.StreamEvents(ctx, sessionID, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamRes.SSEEventStream.Close()
+
+	// Send message
+	go func() {
+		_, err := client.Messages.SendMessage(ctx, sessionID, operations.SendMessageRequestBody{
+			Text: "Analyze this dataset",
+		})
+		if err != nil {
+			log.Printf("Error: %v", err)
+		}
+	}()
+
+	// Process events
+	for streamRes.SSEEventStream.Next() {
+		event := streamRes.SSEEventStream.Value()
+
+		if contentEvent, ok := event.(*operations.SSEContentEvent); ok {
+			fmt.Print(contentEvent.Data.Content)
+		}
+	}
+}
+```
+
+### File Upload & Analysis
+
+```go
+import (
+	"os"
+)
+
+// Upload file
+file, err := os.Open("data.csv")
+if err != nil {
+	log.Fatal(err)
+}
+defer file.Close()
+
+uploadRes, err := client.Files.UploadSessionFile(ctx, sessionID, operations.UploadSessionFileRequestBody{
+	File: operations.File{
+		FileName:    "data.csv",
+		Content:     file,
+		ContentType: "text/csv",
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Analyze with message
+_, err = client.Messages.SendMessage(ctx, sessionID, operations.SendMessageRequestBody{
+	Text: "Analyze the uploaded CSV file",
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Authentication Flow
+
+```go
+// API Key
+_, err := client.Authentication.StoreAPIKey(ctx, operations.StoreAPIKeyRequest{
+	APIKey:   os.Getenv("OPENAI_API_KEY"),
+	Provider: operations.ProviderOpenai,
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// OAuth
+oauthRes, err := client.Authentication.StartOAuthFlow(ctx, operations.ProviderAnthropic)
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Printf("Visit: %s\n", oauthRes.Object.URL)
+
+// After callback
+_, err = client.Authentication.HandleOAuthCallback(ctx, operations.HandleOAuthCallbackRequest{
+	Code:     callbackCode,
+	State:    callbackState,
+	Provider: operations.ProviderAnthropic,
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Check status
+status, err := client.Authentication.GetAuthStatus(ctx)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Session Management
+
+```go
+// List sessions
+sessions, err := client.Sessions.ListSessions(ctx)
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, session := range sessions.Sessions {
+	fmt.Printf("Session: %s\n", session.Title)
+}
+
+// Fork at message index
+forked, err := client.Sessions.ForkSession(ctx, sessionID, operations.ForkSessionRequestBody{
+	MessageIndex: 5,
+	Title:        mix.String("Forked Session"),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Rewind session
+_, err = client.Sessions.RewindSession(ctx, sessionID, operations.RewindSessionRequestBody{
+	MessageID:    "msg_123",
+	CleanupMedia: mix.Bool(true),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Export session
+export, err := client.Sessions.ExportSession(ctx, sessionID)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Session: %s\n", export.ExportSession.Session.Title)
+for _, msg := range export.ExportSession.Messages {
+	fmt.Printf("Role: %s, Content: %s\n", msg.Role, msg.UserInput)
+}
+```
+
+### Concurrent Processing
+
+Go's concurrency primitives make it easy to handle multiple sessions:
+
+```go
+import "sync"
+
+func processMultipleSessions(client *mix.Mix, queries []string) {
+	var wg sync.WaitGroup
+
+	for _, query := range queries {
+		wg.Add(1)
+		go func(q string) {
+			defer wg.Done()
+
+			ctx := context.Background()
+
+			// Create session
+			session, err := client.Sessions.CreateSession(ctx, &operations.CreateSessionRequest{
+				Title: mix.String(q),
+			})
+			if err != nil {
+				log.Printf("Error creating session: %v", err)
+				return
+			}
+
+			// Send message
+			_, err = client.Messages.SendMessage(ctx, session.SessionData.ID, operations.SendMessageRequestBody{
+				Text: q,
+			})
+			if err != nil {
+				log.Printf("Error sending message: %v", err)
+			}
+		}(query)
+	}
+
+	wg.Wait()
+}
+```
+
+### Context-Based Cancellation
+
+```go
+import "time"
+
+// Create context with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+streamRes, err := client.Streaming.StreamEvents(ctx, sessionID, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer streamRes.SSEEventStream.Close()
+
+// Process events with timeout
+for streamRes.SSEEventStream.Next() {
+	select {
+	case <-ctx.Done():
+		fmt.Println("Timeout reached")
+		return
+	default:
+		event := streamRes.SSEEventStream.Value()
+		// Process event
+	}
+}
+```
