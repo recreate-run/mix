@@ -642,12 +642,29 @@ func (a *anthropicClient) handleContentBlockDelta(event anthropic.ContentBlockDe
 		}
 	case event.Delta.Type == "input_json_delta":
 		if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
+			deltaInput := event.Delta.JSON.PartialJSON.Raw()
+
+			// PartialJSON.Raw() returns a JSON-encoded string (e.g., "\"hello\"" for the string "hello")
+			// We need to unmarshal it to get the actual string content before concatenation
+			var unquotedDelta string
+			if err := json.Unmarshal([]byte(deltaInput), &unquotedDelta); err != nil {
+				// If unmarshal fails, log the details and send the raw delta (fallback to old behavior)
+				logging.Error("Failed to unmarshal tool parameter delta, using raw value as fallback",
+					"toolCallID", toolCall.ID,
+					"deltaRaw", deltaInput,
+					"deltaBytes", []byte(deltaInput),
+					"error", err.Error())
+
+				// Fallback: send the raw value (old behavior) to avoid breaking the stream
+				unquotedDelta = deltaInput
+			}
+
 			eventChan <- interfaces.ProviderEvent{
 				Type: interfaces.EventToolUseDelta,
 				ToolCall: &message.ToolCall{
 					ID:       toolCall.ID,
 					Finished: false,
-					Input:    event.Delta.JSON.PartialJSON.Raw(),
+					Input:    unquotedDelta,  // Send the unquoted string (or raw if unmarshal failed)
 				},
 			}
 		}
@@ -656,6 +673,12 @@ func (a *anthropicClient) handleContentBlockDelta(event anthropic.ContentBlockDe
 
 func (a *anthropicClient) handleContentBlockStop(event anthropic.ContentBlockStopEvent, activeToolCalls map[int]*message.ToolCall, eventChan chan interfaces.ProviderEvent) {
 	if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
+		// Log when tool use stops to detect premature termination
+		logging.Error("DEBUG: ContentBlockStop received for tool",
+			"toolCallID", toolCall.ID,
+			"toolName", toolCall.Name,
+			"index", event.Index)
+
 		eventChan <- interfaces.ProviderEvent{
 			Type: interfaces.EventToolUseStop,
 			ToolCall: &message.ToolCall{

@@ -958,7 +958,9 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		logging.Error(event.Error.Error())
 		return event.Error
 	case interfaces.EventComplete:
-		assistantMsg.SetToolCalls(event.Response.ToolCalls)
+		// Note: We rely on manual accumulation during streaming (AddToolCall/AppendToolCallInput/FinishToolCall)
+		// rather than SDK's accumulated tool calls, since we unmarshal delta strings before concatenation.
+		// The SDK's toolCalls work too, but manual accumulation is more reliable for our use case.
 		assistantMsg.AddFinish(event.Response.FinishReason)
 
 		// Store thinking blocks from the response

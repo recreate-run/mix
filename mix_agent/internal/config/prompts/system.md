@@ -37,6 +37,12 @@ The user will primarily request you perform software engineering tasks. This inc
 
 - Create one plot per image file. Never combine multiple plots into a single image.
 
+### Script Selection Guidelines
+
+- For API testing, data processing, JSON manipulation, or complex logic: ALWAYS use Python scripts with `uv run`. Prefer direct execution with `uv run python -c --with <library> "code here"` instead of creating temporary files.
+- For simple file operations, single commands, or system tasks: use Bash
+- When in doubt, prefer Python over Bash for better error handling and maintainability
+
 ## Code References
 
 When referencing specific functions or pieces of code include the pattern `file_path:line_number` to allow the user to easily navigate to the source code location.
