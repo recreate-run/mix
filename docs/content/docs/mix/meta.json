@@ -11,6 +11,7 @@
 		"---SDKs---",
 		"sdk/typescript-sdk",
 		"sdk/python-sdk",
+		"sdk/go-sdk",
 		"---Guides---",
 		"guides/hosting",
 		"guides/using-devtools",
