@@ -42,17 +42,24 @@ type CompleteEvent struct {
 	ParentToolCallID  string `json:"parentToolCallId,omitempty"`
 }
 
-type ToolEvent struct {
+type ToolUseStartEvent struct {
 	Type               string `json:"type"`
 	Name               string `json:"name"`
-	Input              string `json:"input"`
 	ID                 string `json:"id"`
-	Status             string `json:"status"`
 	ParentToolCallID   string `json:"parentToolCallId,omitempty"`
 	AssistantMessageID string `json:"assistantMessageId,omitempty"`
 }
 
-type ToolParameterDeltaEvent struct {
+type ToolUseParameterStreamingCompleteEvent struct {
+	Type               string `json:"type"`
+	Name               string `json:"name"`
+	Input              string `json:"input"`
+	ID                 string `json:"id"`
+	ParentToolCallID   string `json:"parentToolCallId,omitempty"`
+	AssistantMessageID string `json:"assistantMessageId,omitempty"`
+}
+
+type ToolUseParameterDeltaEvent struct {
 	Type               string `json:"type"`
 	ToolCallID         string `json:"toolCallId"`
 	Input              string `json:"input"` // Partial JSON parameter delta

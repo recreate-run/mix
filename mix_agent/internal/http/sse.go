@@ -15,9 +15,6 @@ import (
 	"mix/internal/session"
 )
 
-const (
-	eventTypeTool = "tool"
-)
 
 // Connection represents a single SSE connection
 type Connection struct {
@@ -336,8 +333,8 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 
 	case agent.AgentEventTypeToolParameterDelta:
 		// Stream tool parameter deltas for real-time parameter visibility
-		if err := sseWriter.WriteEvent("tool_parameter_delta", ToolParameterDeltaEvent{
-			Type:       "tool_parameter_delta",
+		if err := sseWriter.WriteEvent("tool_use_parameter_delta", ToolUseParameterDeltaEvent{
+			Type:       "tool_use_parameter_delta",
 			ToolCallID: event.ToolCallID,
 			Input:      event.Content, // Delta is stored in Content field
 		}); err != nil {
@@ -345,20 +342,33 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 		}
 
 	case agent.AgentEventTypeResponse:
-
-		// Stream tool calls - detect new tool calls by checking completion status
-		toolCalls := event.Message.ToolCalls()
-		for _, toolCall := range toolCalls {
-			// Determine tool status - tools start with complete parameters
-			status := "running"
+		// Only broadcast tool events if we have a snapshot
+		// The snapshot captures the tool call state at the moment the event was created,
+		// preventing race conditions and duplicate broadcasts
+		if event.ToolCallSnapshot != nil {
+			toolCall := *event.ToolCallSnapshot
 			if toolCall.Finished {
-				status = "completed"
-			}
-
-			if err := sseWriter.WriteEvent(eventTypeTool, ToolEvent{Type: eventTypeTool, Name: toolCall.Name, Input: toolCall.Input, ID: toolCall.ID, Status: status}); err != nil {
-				return err
+				// Tool parameters complete - send tool_use_parameter_streaming_complete event
+				if err := sseWriter.WriteEvent("tool_use_parameter_streaming_complete", ToolUseParameterStreamingCompleteEvent{
+					Type:  "tool_use_parameter_streaming_complete",
+					Name:  toolCall.Name,
+					Input: toolCall.Input,
+					ID:    toolCall.ID,
+				}); err != nil {
+					return err
+				}
+			} else {
+				// Tool declared - send tool_use_start event
+				if err := sseWriter.WriteEvent("tool_use_start", ToolUseStartEvent{
+					Type: "tool_use_start",
+					Name: toolCall.Name,
+					ID:   toolCall.ID,
+				}); err != nil {
+					return err
+				}
 			}
 		}
+		// Note: If snapshot is nil, this is a completion event (Done: true) with no tool-specific data
 
 		// Send completion event only for final events, include final content
 		if event.Done {
@@ -431,7 +441,7 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 
 	case agent.AgentEventTypeToolExecutionStart:
 		// Extract tool name from progress message
-		toolName := eventTypeTool // Default fallback
+		toolName := "" // Default fallback
 		if strings.Contains(event.Progress, "Executing ") && strings.Contains(event.Progress, " tool") {
 			// Extract tool name from "Executing {toolName} tool"
 			start := strings.Index(event.Progress, "Executing ") + len("Executing ")
@@ -452,7 +462,7 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 
 	case agent.AgentEventTypeToolExecutionComplete:
 		// Extract tool name and success status from progress message
-		toolName := eventTypeTool // Default fallback
+		toolName := "" // Default fallback
 		success := true    // Default to success
 
 		if strings.Contains(event.Progress, "Completed ") && strings.Contains(event.Progress, " tool") {

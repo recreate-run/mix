@@ -18,7 +18,6 @@ const getFileExtension = (media: MediaOutput): string => {
 		audio: ".mp3",
 		pdf: ".pdf",
 		csv: ".csv",
-		gsap_animation: ".json",
 	};
 
 	return extensionMap[media.type] || "";
@@ -41,29 +40,7 @@ export const useMediaDownload = (
 		setIsDownloading(true);
 
 		try {
-			// For GSAP animations, download the config as JSON
-			if (media.type === "gsap_animation" && media.config) {
-				const configJson = JSON.stringify(media.config, null, 2);
-				const blob = new Blob([configJson], { type: "application/json" });
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				const filename = `${media.title || "animation"}.json`;
-				a.download = filename;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-
-				toast.success("Download complete", {
-					description: filename,
-				});
-
-				setIsDownloading(false);
-				return;
-			}
-
-			// For all other media types, fetch as blob and trigger download
+			// For all media types, fetch as blob and trigger download
 			const mediaUrl = getMediaSrc(media.path, sessionId);
 			const response = await fetch(mediaUrl);
 

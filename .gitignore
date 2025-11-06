@@ -84,7 +84,6 @@ fumadocs-dev/
 /storage/
 mix_agent/storage/
 **/integration_tests/storage/
-packages/gsap_animations/storage/
 
 # Keep the storage package code
 !mix_agent/internal/storage/

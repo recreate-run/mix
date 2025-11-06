@@ -139,7 +139,6 @@ const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 const renderTimelineEntries = (
 	timeline: TimelineEntry[],
 	isNested = false,
-	mediaOutputs?: MediaOutput[],
 	sessionId?: string,
 	getMediaSrc?: (path: string, sessionId: string) => string,
 ) => {
@@ -247,16 +246,19 @@ const renderTimelineEntries = (
 		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
 
 		// Special rendering for ShowMedia tool
-		if (toolCall.name === CoreToolName.ShowMedia && mediaOutputs && sessionId && getMediaSrc) {
-			return (
-				<div key={`media-showcase-${group.entry.id}`} className="mb-4">
-					<MediaShowcase
-						getMediaSrc={getMediaSrc}
-						mediaOutputs={mediaOutputs}
-						sessionId={sessionId}
-					/>
-				</div>
-			);
+		if (toolCall.name === CoreToolName.ShowMedia && sessionId && getMediaSrc) {
+			const outputs = toolCall.parameters?.outputs as MediaOutput[] | undefined;
+			if (outputs && outputs.length > 0) {
+				return (
+					<div key={`media-showcase-${group.entry.id}`} className="mb-4">
+						<MediaShowcase
+							getMediaSrc={getMediaSrc}
+							mediaOutputs={outputs}
+							sessionId={sessionId}
+						/>
+					</div>
+				);
+			}
 		}
 
 		return (
@@ -273,7 +275,7 @@ const renderTimelineEntries = (
 					{/* Nested subagent events */}
 					{hasNestedEvents && group.nestedEntries && (
 						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-							{renderTimelineEntries(group.nestedEntries, true, mediaOutputs, sessionId, getMediaSrc)}
+							{renderTimelineEntries(group.nestedEntries, true, sessionId, getMediaSrc)}
 						</div>
 					)}
 				</AIToolStep>
@@ -461,7 +463,6 @@ export function ConversationDisplay({
 										renderTimelineEntries(
 											message.timeline,
 											false,
-											message.mediaOutputs,
 											sessionId,
 											getMediaSrc,
 										)
@@ -592,8 +593,6 @@ export function ConversationDisplay({
 								renderTimelineEntries(
 									sseStream.timeline,
 									false,
-									sseStream.toolCalls?.find((tc) => tc.name === CoreToolName.ShowMedia)
-										?.parameters?.outputs as MediaOutput[] | undefined,
 									sessionId,
 									getMediaSrc,
 								)}

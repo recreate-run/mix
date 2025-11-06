@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	mediaTypeGSAPAnimation = "gsap_animation"
+	mediaTypeMarkdown = "markdown"
+	mediaTypeCode     = "code"
 )
 
 type mediaShowcaseTool struct{}
@@ -44,12 +45,12 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 					"properties": map[string]any{
 						"path": map[string]any{
 							"type":        "string",
-							"description": "Absolute path to the media file (required for image/video/audio, optional for gsap_animation)",
+							"description": "Absolute path to the media file (required for image/video/audio/pdf/csv) or content string (for markdown/code)",
 						},
 						"type": map[string]any{
 							"type":        "string",
 							"description": "Media type",
-							"enum":        []string{"image", "video", "audio", "gsap_animation", "pdf", "csv"},
+							"enum":        []string{"image", "video", "audio", "pdf", "csv", "markdown", "code"},
 						},
 						"title": map[string]any{
 							"type":        "string",
@@ -61,7 +62,7 @@ func (t *mediaShowcaseTool) Info() ToolInfo {
 						},
 						"config": map[string]any{
 							"type":        "object",
-							"description": "Configuration data for gsap_animation type (JSON object with animation settings)",
+							"description": "Configuration data for code type (JSON object with language field for syntax highlighting)",
 						},
 						"startTime": map[string]any{
 							"type":        "integer",
@@ -101,54 +102,33 @@ func (t *mediaShowcaseTool) Run(ctx context.Context, call ToolCall) (ToolRespons
 			return NewTextErrorResponse(fmt.Sprintf("Output %d missing title", i)), nil
 		}
 
-		// Path is only required for physical file types (not gsap_animation)
-		if output.Type != mediaTypeGSAPAnimation && output.Path == "" {
-			return NewTextErrorResponse(fmt.Sprintf("Output %d missing path", i)), nil
+		// Path is required for all types
+		// For markdown and code, path contains the content
+		// For other types, path contains the URL
+		if output.Path == "" {
+			return NewTextErrorResponse(fmt.Sprintf("Output %d missing path/content", i)), nil
 		}
 
 		// Validate media type
 		validTypes := map[string]bool{
-			"image":          true,
-			"video":          true,
-			"audio":          true,
-			"gsap_animation": true,
-			"pdf":            true,
-			"csv":            true,
+			"image":    true,
+			"video":    true,
+			"audio":    true,
+			"pdf":      true,
+			"csv":      true,
+			"markdown": true,
+			"code":     true,
 		}
 		if !validTypes[output.Type] {
 			return NewTextErrorResponse(fmt.Sprintf("Invalid media type '%s' for output %d", output.Type, i)), nil
 		}
 
-		// Require HTTP/HTTPS URLs for all types except gsap_animation
-		if output.Type != mediaTypeGSAPAnimation && !isURL(output.Path) {
+		// Require HTTP/HTTPS URLs for file types (not markdown or code)
+		// markdown and code types use path field to store content directly
+		if output.Type != mediaTypeMarkdown &&
+			output.Type != mediaTypeCode &&
+			!isURL(output.Path) {
 			return NewTextErrorResponse(fmt.Sprintf("For the show_media tool ,path must be a valid HTTP/HTTPS URL for output %d: %s", i, output.Path)), nil
-		}
-
-		// For gsap_animation, validate that config is provided
-		if output.Type == mediaTypeGSAPAnimation {
-			if output.Config == nil {
-				return NewTextErrorResponse(fmt.Sprintf("gsap_animation type requires config parameter for output %d", i)), nil
-			}
-
-			configMap, ok := output.Config.(map[string]interface{})
-			if !ok {
-				return NewTextErrorResponse(fmt.Sprintf("gsap_animation config must be a JSON object for output %d", i)), nil
-			}
-
-			url, exists := configMap["url"]
-			if !exists || url == nil {
-				return NewTextErrorResponse(fmt.Sprintf("gsap_animation requires config.url field for output %d", i)), nil
-			}
-
-			urlStr, ok := url.(string)
-			if !ok || urlStr == "" {
-				return NewTextErrorResponse(fmt.Sprintf("gsap_animation config.url must be a non-empty string for output %d", i)), nil
-			}
-
-			// Basic URL validation
-			if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
-				return NewTextErrorResponse(fmt.Sprintf("gsap_animation config.url must be a valid HTTP/HTTPS URL for output %d", i)), nil
-			}
 		}
 
 		// Validate timing fields if provided

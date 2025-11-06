@@ -79,7 +79,6 @@ ENV_WARNINGS=0
 
 echo "Checking frontend environment variables..."
 check_variable "VITE_BACKEND_URL" "warning" "Backend URL for frontend API requests" "http://localhost:8088"
-check_variable "VITE_GSAP_URL" "warning" "GSAP server URL for animation previews" "http://localhost:8089"
 
 echo -e "\nSummary:"
 echo -e "--------"

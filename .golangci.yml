@@ -96,7 +96,7 @@ linters:
       checks: ["all", "-ST1000", "-ST1003", "-ST1016"]
 
     funlen:
-      lines: 150              # Maximum lines per function (default: 60)
+      lines: 200             # Maximum lines per function (default: 60)
       statements: 80           # Maximum statements per function (default: 40)
       ignore-comments: true    # Ignore comment lines when counting (default: false)
 

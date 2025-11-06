@@ -1,8 +1,17 @@
 import { useState } from "react";
 import type { MediaOutput } from "@/types/media";
 import { isYouTubeUrl } from "@/utils/videoUrlDetection";
+import { AIResponse } from "@/components/ui/kibo-ui/ai/response";
+import {
+	type BundledLanguage,
+	CodeBlock,
+	CodeBlockBody,
+	CodeBlockContent,
+	CodeBlockCopyButton,
+	CodeBlockHeader,
+	CodeBlockItem,
+} from "@/components/ui/kibo-ui/code-block";
 import { CsvViewer } from "./CsvViewer";
-import { GsapAnimationPreview } from "./gsap/GsapAnimationPreview";
 import { LazyVideoPlayer } from "./LazyVideoPlayer";
 import { MediaDownloadButton } from "./media-download-button";
 import { PlaylistSidebar } from "./playlist-sidebar";
@@ -128,8 +137,42 @@ const MainMediaPlayer = ({
 				</div>
 			)}
 
-			{media.type === "gsap_animation" && media.config && (
-				<GsapAnimationPreview config={media.config} />
+			{media.type === "markdown" && (
+				<div className="rounded-md border border-border bg-muted/30 p-6">
+					<AIResponse>{media.path}</AIResponse>
+				</div>
+			)}
+
+			{media.type === "code" && (
+				<CodeBlock
+					className="my-2"
+					data={[
+						{
+							language: (media.config?.language as string) || "text",
+							filename: "",
+							code: media.path,
+						},
+					]}
+					defaultValue={(media.config?.language as string) || "text"}
+				>
+					<CodeBlockHeader className="h-8 justify-end border-none">
+						<CodeBlockCopyButton
+							onCopy={() => {}}
+							onError={() => {
+								throw new Error("Failed to copy code to clipboard");
+							}}
+						/>
+					</CodeBlockHeader>
+					<CodeBlockBody>
+						{(item) => (
+							<CodeBlockItem key={item.language} value={item.language}>
+								<CodeBlockContent language={item.language as BundledLanguage}>
+									{item.code}
+								</CodeBlockContent>
+							</CodeBlockItem>
+						)}
+					</CodeBlockBody>
+				</CodeBlock>
 			)}
 
 			{media.type === "pdf" && (

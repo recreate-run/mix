@@ -119,6 +119,11 @@ type AgentEvent struct {
 
 	// When executing tools
 	ToolCallID string
+
+	// Snapshot of tool call state at event creation time
+	// This prevents race conditions where the tool call is mutated after the event is published
+	// but before it's broadcast to SSE clients
+	ToolCallSnapshot *message.ToolCall
 }
 
 type Service interface {
@@ -723,8 +728,28 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		return assistantMsg, nil, nil
 	}
 
-	// Execute all tool calls with dependency awareness
-	toolResults, toolErr := a.executeToolsWithDependencies(ctx, sessionID, toolCalls, assistantMsg)
+	// Filter to only execute finished tool calls
+	// Tool calls that haven't received ContentBlockStop from the API should not be executed
+	// as they have incomplete parameters and were never fully sent in the API stream
+	var finishedToolCalls []message.ToolCall
+	for _, tc := range toolCalls {
+		if tc.Finished {
+			finishedToolCalls = append(finishedToolCalls, tc)
+		} else {
+			logging.Warn("Skipping unfinished tool call - never received ContentBlockStop",
+				"toolCallID", tc.ID,
+				"toolName", tc.Name,
+				"sessionID", sessionID)
+		}
+	}
+
+	if len(finishedToolCalls) == 0 {
+		// No finished tools to execute
+		return assistantMsg, nil, nil
+	}
+
+	// Execute all finished tool calls with dependency awareness
+	toolResults, toolErr := a.executeToolsWithDependencies(ctx, sessionID, finishedToolCalls, assistantMsg)
 
 	// Always create tool result message, even if some tools failed
 	// This prevents orphaned tool_use messages that cause API rejection
@@ -815,16 +840,6 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		logging.Debug("All callbacks completed", "sessionID", sessionID)
 	}
 
-	// Publish completion event
-	err = a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
-		Type:      AgentEventTypeResponse,
-		Message:   assistantMsg,
-		SessionID: sessionID,
-	})
-	if err != nil {
-		logging.Error("Failed to publish agent event", "error", err)
-	}
-
 	return assistantMsg, &msg, nil
 }
 
@@ -898,11 +913,23 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			return err
 		}
 
+		// Capture snapshot of tool call state at this moment to prevent race conditions
+		// This ensures the SSE broadcast sees Finished: false even if the tool completes
+		// before the event is broadcast
+		toolCallSnapshot := message.ToolCall{
+			ID:       event.ToolCall.ID,
+			Name:     event.ToolCall.Name,
+			Input:    event.ToolCall.Input,
+			Type:     event.ToolCall.Type,
+			Finished: false, // Explicitly capture that tool is starting
+		}
+
 		// Publish tool start event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
-			Type:      AgentEventTypeResponse,
-			Message:   *assistantMsg,
-			SessionID: sessionID,
+			Type:             AgentEventTypeResponse,
+			Message:          *assistantMsg,
+			SessionID:        sessionID,
+			ToolCallSnapshot: &toolCallSnapshot,
 		})
 		return err
 	case interfaces.EventToolUseDelta:
@@ -936,11 +963,29 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			return err
 		}
 
+		// Find the completed tool call to capture its final state
+		var toolCallSnapshot *message.ToolCall
+		for _, tc := range assistantMsg.ToolCalls() {
+			if tc.ID == event.ToolCall.ID {
+				// Capture snapshot of completed tool call with full input and Finished: true
+				snapshot := message.ToolCall{
+					ID:       tc.ID,
+					Name:     tc.Name,
+					Input:    tc.Input, // Full accumulated input
+					Type:     tc.Type,
+					Finished: true, // Explicitly capture that tool is finished
+				}
+				toolCallSnapshot = &snapshot
+				break
+			}
+		}
+
 		// Publish tool completion event for real-time streaming
 		err := a.Publish(ctx, pubsub.CreatedEvent, AgentEvent{
-			Type:      AgentEventTypeResponse,
-			Message:   *assistantMsg,
-			SessionID: sessionID,
+			Type:             AgentEventTypeResponse,
+			Message:          *assistantMsg,
+			SessionID:        sessionID,
+			ToolCallSnapshot: toolCallSnapshot,
 		})
 		return err
 	case interfaces.EventError:

@@ -208,7 +208,7 @@ install_rust
 install_bun
 install_uv
 install_ripgrep
-install_ytdlp
+# install_ytdlp
 
 # # Install tools
 # echo -e "${BOLD}Installing tools...${NC}"

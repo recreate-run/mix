@@ -1,8 +1,8 @@
-Display media files prominently in the conversation with large previews.
+Display media files, markdown content, and code blocks prominently in the conversation with large previews.
 
 ## When to Use This Tool
 
-Use for displaying/viewing media files:
+Use for displaying/viewing media files and formatted content:
 
 1. Visual Display Requests:
    - "Show me the image", "Display this video", "Let me see the file"
@@ -16,7 +16,12 @@ Use for displaying/viewing media files:
    - Displaying PDF documents, reports, and documentation
    - Showcasing CSV data files and spreadsheets
 
-3. After Media Processing Tasks - Display media outputs from:
+3. Formatted Content Display:
+   - Display markdown-formatted documentation, guides, or explanations
+   - Show syntax-highlighted code blocks with copy functionality
+   - Present structured information with proper formatting
+
+4. After Media Processing Tasks - Display media outputs from:
    - Video editing (trimming, effects, filters, color correction, edited clips)
    - Image processing (enhancement, filters, transformations, processed images)
    - Audio processing (mixing, effects, mastering, processed audio)
@@ -26,12 +31,7 @@ Use for displaying/viewing media files:
    - Multi-media projects and complete deliverables
    - Exporting videos
 
-4. Video Highlights - Display video segments with timestamps instead of creating separate files
-
-5. MANDATORY animation workflow: When creating animations:
-   - Show animation preview first
-   - STOP and wait for explicit user approval/feedback
-   - Never automatically proceed to directly export/render the output video, even if the users says "create a video" etc.
+5. Video Highlights - Display video segments with timestamps instead of creating separate files
 
 ## When NOT to Use This Tool
 
@@ -157,20 +157,28 @@ Assistant: I'll display that CSV file for you to review.
 </example>
 
 <example>
-User: Create a GSAP animation with bouncing text saying "AMAZING!"
-Assistant: [After configuring the GSAP animation]
-
-I've created a dynamic GSAP animation for you.
+User: Show me a markdown-formatted guide for using this API
+Assistant: I'll create and display a formatted API guide for you.
 
 *Uses show_media tool with:*
 
-- Type: gsap_animation
-- Title: AMAZING Text Animation
-- Description: TikTok-style bouncing text with bold styling
-- Config: {
-    "url": <iframe_url>,
-    "animationType": <animation_name>
-  }
+- Type: markdown
+- Title: API Usage Guide
+- Description: Comprehensive guide for API integration
+- Path: (markdown content string with headings, code examples, lists, etc.)
+</example>
+
+<example>
+User: Display the authentication function I just wrote
+Assistant: Here's the authentication function with syntax highlighting.
+
+*Uses show_media tool with:*
+
+- Type: code
+- Title: Authentication Function
+- Description: User authentication with JWT tokens
+- Path: (code content string)
+- Config: { "language": "typescript" }
 </example>
 
 <example>
@@ -188,11 +196,11 @@ Assistant: I've identified key segments from your demo video.
 
 outputs (required): Array of media outputs to showcase
 
-- path: HTTP/HTTPS URL (required except for gsap_animation). For video/audio segments, this is the source media URL
-- type: "image", "video", "audio", "gsap_animation", "pdf", or "csv"
+- path: HTTP/HTTPS URL (for image/video/audio/pdf/csv) OR content string (for markdown/code)
+- type: "image", "video", "audio", "pdf", "csv", "markdown", or "code"
 - title: Display title
 - description: Project context (optional)
-- config: Animation configuration JSON (required for gsap_animation)
+- config: Configuration object (optional for code type: { "language": "typescript" })
 - startTime: Start time in seconds for video/audio segments (optional)
 - duration: Duration in seconds for video/audio segments (optional)
 
@@ -210,13 +218,15 @@ outputs (required): Array of media outputs to showcase
 
 ## Usage Notes
 
-- Always use HTTP/HTTPS URLs - Local or absolute file paths are not supported
+- **Media files**: Always use HTTP/HTTPS URLs - Local or absolute file paths are not supported
 - Use session asset server format: `$<server_url>/api/sessions/{session-id}/files/{filename}` to show local files in session storage
-- URLs supported - HTTP/HTTPS URLs work for image, video, and audio types
-- Include meaningful titles - Help users understand what they're viewing  
+- URLs supported - HTTP/HTTPS URLs work for image, video, audio, pdf, and csv types
+- **Markdown/Code**: Pass content directly in the path field as a string
+- **Code syntax highlighting**: Specify language in config (e.g., `{"language": "typescript"}`)
+- Include meaningful titles - Help users understand what they're viewing
 - Add descriptions for context - Especially useful for complex or reference materials
-- Multiple outputs supported - Display multiple related media files at once
-- Use this tool to show previews and references
+- Multiple outputs supported - Display multiple related media/content items at once
+- Use this tool to show previews, references, and formatted content
 - Always convert Excel files (.xlsx, .xls) to CSV format before displaying with this tool
 
-This tool transforms file paths into beautiful media displays in the conversation interface.
+This tool transforms media URLs and formatted content into beautiful displays in the conversation interface.

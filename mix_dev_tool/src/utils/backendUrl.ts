@@ -1,5 +1,5 @@
 /**
- * Utility to get the backend URL and GSAP URL
+ * Utility to get the backend URL
  */
 
 export const getBackendUrl = (): string => {
@@ -10,14 +10,4 @@ export const getBackendUrl = (): string => {
 		);
 	}
 	return backendUrl;
-};
-
-export const getGsapUrl = (): string => {
-	const gsapUrl = import.meta.env.VITE_GSAP_URL;
-	if (!gsapUrl) {
-		throw new Error(
-			"VITE_GSAP_URL environment variable is not set. Please configure it in your .env file.",
-		);
-	}
-	return gsapUrl;
 };

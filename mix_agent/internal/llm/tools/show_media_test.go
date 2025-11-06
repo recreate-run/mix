@@ -81,7 +81,7 @@ func TestMediaShowcaseToolInfo(t *testing.T) {
 	assert.True(t, exists)
 	enumSlice, ok := enumValues.([]string)
 	assert.True(t, ok)
-	expectedTypes := []string{"image", "video", "audio", "gsap_animation", "pdf", "csv"}
+	expectedTypes := []string{"image", "video", "audio", "pdf", "csv"}
 	assert.ElementsMatch(t, expectedTypes, enumSlice)
 
 	// Test required fields
@@ -116,19 +116,6 @@ func TestMediaOutputJSONSerialization(t *testing.T) {
 				Description: "A test video",
 				StartTime:   intPtr(30),
 				Duration:    intPtr(60),
-			},
-		},
-		{
-			name: "gsap_animation with config",
-			output: MediaOutput{
-				Type:        "gsap_animation",
-				Title:       "Test Animation",
-				Description: "A test animation",
-				Config: map[string]interface{}{
-					"url":      "https://example.com/animation.html",
-					"duration": 5,
-					"autoplay": true,
-				},
 			},
 		},
 	}
@@ -286,21 +273,6 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 			expectedMsg: "Successfully showcasing 2 media output(s): Test Image, Test Video",
 		},
 		{
-			name: "gsap_animation with config",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation Demo",
-					"description": "A GSAP animation",
-					"config": {
-						"url": "https://example.com/animation.html",
-						"duration": 5
-					}
-				}]
-			}`,
-			expectedMsg: "Successfully showcasing 1 media output(s): Animation Demo",
-		},
-		{
 			name: "youtube video",
 			input: `{
 				"outputs": [{
@@ -444,96 +416,9 @@ func getMediaShowcaseErrorTestCases() []struct {
 		},
 	}
 
-	gsapErrors := getGsapAnimationErrorTestCases()
 	timeErrors := getTimeValidationErrorTestCases()
 
-	return append(append(basicErrors, gsapErrors...), timeErrors...)
-}
-
-func getGsapAnimationErrorTestCases() []struct {
-	name          string
-	input         string
-	expectedError string
-} {
-	return []struct {
-		name          string
-		input         string
-		expectedError string
-	}{
-		{
-			name: "gsap_animation missing config",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation"
-				}]
-			}`,
-			expectedError: "gsap_animation type requires config parameter for output 0",
-		},
-		{
-			name: "gsap_animation invalid config type",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation",
-					"config": "not an object"
-				}]
-			}`,
-			expectedError: "gsap_animation config must be a JSON object for output 0",
-		},
-		{
-			name: "gsap_animation missing config.url",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation",
-					"config": {
-						"duration": 5
-					}
-				}]
-			}`,
-			expectedError: "gsap_animation requires config.url field for output 0",
-		},
-		{
-			name: "gsap_animation invalid config.url type",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation",
-					"config": {
-						"url": 123
-					}
-				}]
-			}`,
-			expectedError: "gsap_animation config.url must be a non-empty string for output 0",
-		},
-		{
-			name: "gsap_animation empty config.url",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation",
-					"config": {
-						"url": ""
-					}
-				}]
-			}`,
-			expectedError: "gsap_animation config.url must be a non-empty string for output 0",
-		},
-		{
-			name: "gsap_animation invalid URL",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation",
-					"config": {
-						"url": "ftp://invalid.com"
-					}
-				}]
-			}`,
-			expectedError: "gsap_animation config.url must be a valid HTTP/HTTPS URL for output 0",
-		},
-	}
+	return append(basicErrors, timeErrors...)
 }
 
 func getTimeValidationErrorTestCases() []struct {
@@ -634,27 +519,6 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "gsap_animation with complex config",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Complex Animation",
-					"config": {
-						"url": "https://example.com/complex.html",
-						"duration": 10,
-						"easing": "power2.out",
-						"autoplay": true,
-						"loop": false,
-						"params": {
-							"color": "#ff0000",
-							"scale": 1.5
-						}
-					}
-				}]
-			}`,
-			shouldError: false,
-		},
-		{
 			name: "multiple outputs with mixed types",
 			input: `{
 				"outputs": [
@@ -662,13 +526,6 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 						"path": "https://example.com/image.jpg",
 						"type": "image",
 						"title": "Image 1"
-					},
-					{
-						"type": "gsap_animation",
-						"title": "Animation 1",
-						"config": {
-							"url": "https://example.com/anim.html"
-						}
 					},
 					{
 						"path": "https://youtube.com/watch?v=123",
@@ -690,20 +547,6 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 				}]
 			}`,
 			shouldError: false,
-		},
-		{
-			name: "null config.url",
-			input: `{
-				"outputs": [{
-					"type": "gsap_animation",
-					"title": "Animation",
-					"config": {
-						"url": null
-					}
-				}]
-			}`,
-			shouldError: true,
-			errorMsg:    "gsap_animation requires config.url field for output 0",
 		},
 	}
 

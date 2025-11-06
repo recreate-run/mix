@@ -673,12 +673,6 @@ func (a *anthropicClient) handleContentBlockDelta(event anthropic.ContentBlockDe
 
 func (a *anthropicClient) handleContentBlockStop(event anthropic.ContentBlockStopEvent, activeToolCalls map[int]*message.ToolCall, eventChan chan interfaces.ProviderEvent) {
 	if toolCall, exists := activeToolCalls[int(event.Index)]; exists {
-		// Log when tool use stops to detect premature termination
-		logging.Error("DEBUG: ContentBlockStop received for tool",
-			"toolCallID", toolCall.ID,
-			"toolName", toolCall.Name,
-			"index", event.Index)
-
 		eventChan <- interfaces.ProviderEvent{
 			Type: interfaces.EventToolUseStop,
 			ToolCall: &message.ToolCall{

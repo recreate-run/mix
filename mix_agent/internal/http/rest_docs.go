@@ -2192,7 +2192,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"event": map[string]interface{}{
 							"type":        "string",
 							"description": "Event type identifier",
-							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool", "tool_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "user_message_created", "session_created", "session_deleted"},
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool_use_start", "tool_use_parameter_streaming_complete", "tool_use_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "user_message_created", "session_created", "session_deleted"},
 						},
 						"retry": map[string]interface{}{
 							"type":        "integer",
@@ -2208,20 +2208,21 @@ func getOpenAPISpec() OpenAPISpec {
 					"discriminator": map[string]interface{}{
 						"propertyName": "event",
 						"mapping": map[string]interface{}{
-							"connected":               "#/components/schemas/SSEConnectedEvent",
-							"heartbeat":               "#/components/schemas/SSEHeartbeatEvent",
-							"error":                   "#/components/schemas/SSEErrorEvent",
-							"complete":                "#/components/schemas/SSECompleteEvent",
-							"thinking":                "#/components/schemas/SSEThinkingEvent",
-							"content":                 "#/components/schemas/SSEContentEvent",
-							"tool":                    "#/components/schemas/SSEToolEvent",
-							"tool_parameter_delta":    "#/components/schemas/SSEToolParameterDeltaEvent",
-							"tool_execution_start":    "#/components/schemas/SSEToolExecutionStartEvent",
-							"tool_execution_complete": "#/components/schemas/SSEToolExecutionCompleteEvent",
-							"permission":              "#/components/schemas/SSEPermissionEvent",
-							"user_message_created":    "#/components/schemas/SSEUserMessageCreatedEvent",
-							"session_created":         "#/components/schemas/SSESessionCreatedEvent",
-							"session_deleted":         "#/components/schemas/SSESessionDeletedEvent",
+							"connected":                                "#/components/schemas/SSEConnectedEvent",
+							"heartbeat":                                "#/components/schemas/SSEHeartbeatEvent",
+							"error":                                    "#/components/schemas/SSEErrorEvent",
+							"complete":                                 "#/components/schemas/SSECompleteEvent",
+							"thinking":                                 "#/components/schemas/SSEThinkingEvent",
+							"content":                                  "#/components/schemas/SSEContentEvent",
+							"tool_use_start":                           "#/components/schemas/SSEToolUseStartEvent",
+							"tool_use_parameter_streaming_complete":    "#/components/schemas/SSEToolUseParameterStreamingCompleteEvent",
+							"tool_use_parameter_delta":                 "#/components/schemas/SSEToolUseParameterDeltaEvent",
+							"tool_execution_start":                     "#/components/schemas/SSEToolExecutionStartEvent",
+							"tool_execution_complete":                  "#/components/schemas/SSEToolExecutionCompleteEvent",
+							"permission":                               "#/components/schemas/SSEPermissionEvent",
+							"user_message_created":                     "#/components/schemas/SSEUserMessageCreatedEvent",
+							"session_created":                          "#/components/schemas/SSESessionCreatedEvent",
+							"session_deleted":                          "#/components/schemas/SSESessionDeletedEvent",
 						},
 					},
 					"oneOf": []map[string]interface{}{
@@ -2231,8 +2232,9 @@ func getOpenAPISpec() OpenAPISpec {
 						{"$ref": "#/components/schemas/SSECompleteEvent"},
 						{"$ref": "#/components/schemas/SSEThinkingEvent"},
 						{"$ref": "#/components/schemas/SSEContentEvent"},
-						{"$ref": "#/components/schemas/SSEToolEvent"},
-						{"$ref": "#/components/schemas/SSEToolParameterDeltaEvent"},
+						{"$ref": "#/components/schemas/SSEToolUseStartEvent"},
+						{"$ref": "#/components/schemas/SSEToolUseParameterStreamingCompleteEvent"},
+						{"$ref": "#/components/schemas/SSEToolUseParameterDeltaEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionStartEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
 						{"$ref": "#/components/schemas/SSEPermissionEvent"},
@@ -2436,7 +2438,7 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 				},
-				"SSEToolEvent": map[string]interface{}{
+				"SSEToolUseStartEvent": map[string]interface{}{
 					"allOf": []map[string]interface{}{
 						{"$ref": "#/components/schemas/SSEBaseEvent"},
 						{
@@ -2447,23 +2449,15 @@ func getOpenAPISpec() OpenAPISpec {
 									"properties": map[string]interface{}{
 										"type": map[string]interface{}{
 											"type":        "string",
-											"description": "Tool event type",
+											"description": "Tool use start event type",
 										},
 										"name": map[string]interface{}{
 											"$ref":        "#/components/schemas/ToolName",
-											"description": "Tool name being executed",
-										},
-										"input": map[string]interface{}{
-											"type":        "string",
-											"description": "Tool input parameters",
+											"description": "Tool name declared for execution",
 										},
 										"id": map[string]interface{}{
 											"type":        "string",
-											"description": "Tool execution identifier",
-										},
-										"status": map[string]interface{}{
-											"type":        "string",
-											"description": "Tool execution status",
+											"description": "Tool call identifier",
 										},
 										"parentToolCallId": map[string]interface{}{
 											"type":        "string",
@@ -2474,14 +2468,14 @@ func getOpenAPISpec() OpenAPISpec {
 											"description": "ID of the assistant message this tool belongs to",
 										},
 									},
-									"required": []string{"type", "name", "input", "id", "status"},
+									"required": []string{"type", "name", "id"},
 								},
 							},
 							"required": []string{"data"},
 						},
 					},
 				},
-				"SSEToolParameterDeltaEvent": map[string]interface{}{
+				"SSEToolUseParameterStreamingCompleteEvent": map[string]interface{}{
 					"allOf": []map[string]interface{}{
 						{"$ref": "#/components/schemas/SSEBaseEvent"},
 						{
@@ -2492,7 +2486,48 @@ func getOpenAPISpec() OpenAPISpec {
 									"properties": map[string]interface{}{
 										"type": map[string]interface{}{
 											"type":        "string",
-											"description": "Tool parameter delta event type",
+											"description": "Tool use parameter streaming complete event type",
+										},
+										"name": map[string]interface{}{
+											"$ref":        "#/components/schemas/ToolName",
+											"description": "Tool name being executed",
+										},
+										"input": map[string]interface{}{
+											"type":        "string",
+											"description": "Complete JSON-encoded tool input parameters",
+										},
+										"id": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool call identifier",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
+										"assistantMessageId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the assistant message this tool belongs to",
+										},
+									},
+									"required": []string{"type", "name", "input", "id"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSEToolUseParameterDeltaEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Tool use parameter delta event type",
 										},
 										"toolCallId": map[string]interface{}{
 											"type":        "string",
