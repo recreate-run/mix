@@ -602,9 +602,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 											toolCallsMap.current.values(),
 										);
 
-										// Extract media outputs from ShowMedia tool call (if present)
+										// Extract media outputs from Show tool call (if present)
 										const mediaOutputs = toolCallsArray.find(
-											(tc) => tc.name === CoreToolName.ShowMedia,
+											(tc) => tc.name === CoreToolName.Show,
 										)?.parameters?.outputs as MediaOutput[] | undefined;
 
 										const assistantMessage: UIMessage = {

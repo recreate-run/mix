@@ -6,7 +6,7 @@ import { isYouTubeUrl } from "@/utils/videoUrlDetection";
 // Helper to get file extension from media type and path
 const getFileExtension = (media: MediaOutput): string => {
 	// Try to extract extension from path first
-	const pathMatch = media.path.match(/\.([^./?#]+)(?:[?#]|$)/);
+	const pathMatch = media.path?.match(/\.([^./?#]+)(?:[?#]|$)/);
 	if (pathMatch) {
 		return `.${pathMatch[1]}`;
 	}
@@ -32,8 +32,15 @@ export const useMediaDownload = (
 
 	const downloadMedia = useCallback(async () => {
 		// For YouTube videos, open in new tab instead of downloading
-		if (media.type === "video" && isYouTubeUrl(media.path)) {
+		if (media.type === "video" && media.path && isYouTubeUrl(media.path)) {
 			window.open(media.path, "_blank");
+			return;
+		}
+
+		if (!media.path) {
+			toast.error("Download failed", {
+				description: "No media path available",
+			});
 			return;
 		}
 
@@ -76,8 +83,10 @@ export const useMediaDownload = (
 				description: "Opening in new tab instead",
 			});
 			// Fallback: try opening in new tab
-			const mediaUrl = getMediaSrc(media.path, sessionId);
-			window.open(mediaUrl, "_blank");
+			if (media.path) {
+				const mediaUrl = getMediaSrc(media.path, sessionId);
+				window.open(mediaUrl, "_blank");
+			}
 		} finally {
 			setIsDownloading(false);
 		}

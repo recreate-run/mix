@@ -332,7 +332,7 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 						<SelectItem value={CoreToolName.ReadMedia}>ReadMedia</SelectItem>
 						<SelectItem value={CoreToolName.Glob}>Glob</SelectItem>
 						<SelectItem value={CoreToolName.Grep}>Grep</SelectItem>
-						<SelectItem value={CoreToolName.ShowMedia}>ShowMedia</SelectItem>
+						<SelectItem value={CoreToolName.Show}>Show</SelectItem>
 						<SelectItem value={CoreToolName.Task}>Task</SelectItem>
 						<SelectItem value={CoreToolName.Search}>Search</SelectItem>
 						<SelectItem value={CoreToolName.TodoWrite}>TodoWrite</SelectItem>

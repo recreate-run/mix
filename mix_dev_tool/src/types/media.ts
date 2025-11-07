@@ -1,11 +1,19 @@
 export type MediaOutput = {
-	path: string;
-	type: "image" | "video" | "audio" | "pdf" | "csv" | "markdown" | "code";
+	path?: string;
+	data?: string; // Inline content for markdown/json/status types
+	type:
+		| "image"
+		| "video"
+		| "audio"
+		| "pdf"
+		| "csv"
+		| "markdown"
+		| "json"
+		| "status";
 	title: string;
-	description?: string;
 	startTime?: number;
 	duration?: number;
-	config?: { language?: string };
+	config?: Record<string, unknown>;
 	sourceVideo?: string;
 };
 

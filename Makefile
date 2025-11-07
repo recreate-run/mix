@@ -112,8 +112,8 @@ install-deps: install
 	@echo "Installing project dependencies..."
 	@echo "Installing Air (Go hot reload)..."
 	@command -v air >/dev/null 2>&1 || go install github.com/air-verse/air@latest
-	@echo "Installing Go dependencies..."
-	cd mix_agent && go mod download
+# 	@echo "Installing Go dependencies..."
+# 	cd mix_agent && go mod download
 	@echo "Installing capture script dependencies..."
 	# cd mix_agent && bun install
 	@echo "Installing Tauri app dependencies..."

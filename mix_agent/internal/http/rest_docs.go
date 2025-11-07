@@ -1668,7 +1668,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"enum": []string{
 						"Bash", "ReadText", "Glob", "ReadMedia", "Grep", "Write", "Edit",
 						"python_execution", "Search", "TodoWrite", "ExitPlanMode",
-						"ShowMedia", "Task",
+						"Show", "Task",
 					},
 					"description": "Core built-in tool names",
 				},
@@ -1696,7 +1696,7 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 						"toolName": map[string]interface{}{
 							"type":        "string",
-							"description": "Tool to attach callback to (e.g., 'show_media', 'bash', '*' for all tools)",
+							"description": "Tool to attach callback to (e.g., 'show', 'bash', '*' for all tools)",
 							"example":     "*",
 						},
 						"type": map[string]interface{}{

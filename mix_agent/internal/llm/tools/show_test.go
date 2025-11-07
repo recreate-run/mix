@@ -9,20 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test NewMediaShowcaseTool constructor
-func TestNewMediaShowcaseTool(t *testing.T) {
-	tool := NewMediaShowcaseTool()
+// Test NewShowTool constructor
+func TestNewShowTool(t *testing.T) {
+	tool := NewShowTool()
 	assert.NotNil(t, tool)
 
 	// Verify it returns the correct type
-	mediaShowcaseTool, ok := tool.(*mediaShowcaseTool)
+	showTool, ok := tool.(*showTool)
 	assert.True(t, ok)
-	assert.NotNil(t, mediaShowcaseTool)
+	assert.NotNil(t, showTool)
 }
 
-// Test that mediaShowcaseTool implements BaseTool interface
-func TestMediaShowcaseToolImplementsBaseTool(t *testing.T) {
-	tool := NewMediaShowcaseTool()
+// Test that showTool implements BaseTool interface
+func TestShowToolImplementsBaseTool(t *testing.T) {
+	tool := NewShowTool()
 
 	// Should implement BaseTool interface methods
 	assert.NotPanics(t, func() {
@@ -35,12 +35,12 @@ func TestMediaShowcaseToolImplementsBaseTool(t *testing.T) {
 }
 
 // Test Info method
-func TestMediaShowcaseToolInfo(t *testing.T) {
-	tool := NewMediaShowcaseTool()
+func TestShowToolInfo(t *testing.T) {
+	tool := NewShowTool()
 	info := tool.Info()
 
 	// Test basic properties
-	assert.Equal(t, "ShowMedia", info.Name)
+	assert.Equal(t, "Show", info.Name)
 	assert.NotEmpty(t, info.Description)
 	assert.NotNil(t, info.Parameters)
 	assert.Equal(t, []string{"outputs"}, info.Required)
@@ -69,7 +69,7 @@ func TestMediaShowcaseToolInfo(t *testing.T) {
 	assert.True(t, ok)
 
 	// Test required properties exist
-	requiredProperties := []string{"path", "type", "title", "description", "config", "startTime", "duration"}
+	requiredProperties := []string{"path", "data", "type", "title", "startTime", "duration"}
 	for _, prop := range requiredProperties {
 		_, exists := propertiesMap[prop]
 		assert.True(t, exists, "Property %s should exist", prop)
@@ -81,7 +81,7 @@ func TestMediaShowcaseToolInfo(t *testing.T) {
 	assert.True(t, exists)
 	enumSlice, ok := enumValues.([]string)
 	assert.True(t, ok)
-	expectedTypes := []string{"image", "video", "audio", "pdf", "csv"}
+	expectedTypes := []string{"image", "video", "audio", "pdf", "csv", "markdown", "json", "status"}
 	assert.ElementsMatch(t, expectedTypes, enumSlice)
 
 	// Test required fields
@@ -92,7 +92,7 @@ func TestMediaShowcaseToolInfo(t *testing.T) {
 	assert.ElementsMatch(t, []string{"type", "title"}, requiredSlice)
 }
 
-// Test MediaShowcaseParams and MediaOutput JSON serialization
+// Test ShowParams and MediaOutput JSON serialization
 func TestMediaOutputJSONSerialization(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -101,21 +101,19 @@ func TestMediaOutputJSONSerialization(t *testing.T) {
 		{
 			name: "basic image output",
 			output: MediaOutput{
-				Path:        "https://example.com/image.jpg",
-				Type:        "image",
-				Title:       "Test Image",
-				Description: "A test image",
+				Path:  "https://example.com/image.jpg",
+				Type:  "image",
+				Title: "Test Image",
 			},
 		},
 		{
 			name: "video output with timing",
 			output: MediaOutput{
-				Path:        "https://example.com/video.mp4",
-				Type:        "video",
-				Title:       "Test Video",
-				Description: "A test video",
-				StartTime:   intPtr(30),
-				Duration:    intPtr(60),
+				Path:      "https://example.com/video.mp4",
+				Type:      "video",
+				Title:     "Test Video",
+				StartTime: intPtr(30),
+				Duration:  intPtr(60),
 			},
 		},
 	}
@@ -136,7 +134,6 @@ func TestMediaOutputJSONSerialization(t *testing.T) {
 			assert.Equal(t, tt.output.Path, unmarshaled.Path)
 			assert.Equal(t, tt.output.Type, unmarshaled.Type)
 			assert.Equal(t, tt.output.Title, unmarshaled.Title)
-			assert.Equal(t, tt.output.Description, unmarshaled.Description)
 
 			// Handle pointer fields
 			if tt.output.StartTime != nil {
@@ -152,49 +149,18 @@ func TestMediaOutputJSONSerialization(t *testing.T) {
 			} else {
 				assert.Nil(t, unmarshaled.Duration)
 			}
-
-			// Handle config field - JSON unmarshaling converts numbers to float64
-			if tt.output.Config != nil {
-				assert.NotNil(t, unmarshaled.Config)
-				// For config comparison, we need to handle the JSON number conversion
-				if configMap, ok := tt.output.Config.(map[string]interface{}); ok {
-					unmarshaledConfig, ok := unmarshaled.Config.(map[string]interface{})
-					assert.True(t, ok)
-
-					// Compare URL field specifically
-					if url, exists := configMap["url"]; exists {
-						unmarshaledURL, urlExists := unmarshaledConfig["url"]
-						assert.True(t, urlExists)
-						assert.Equal(t, url, unmarshaledURL)
-					}
-
-					// For other fields, just verify they exist and are the right type
-					for key, value := range configMap {
-						unmarshaledValue, exists := unmarshaledConfig[key]
-						assert.True(t, exists, "Key %s should exist", key)
-						if key != "duration" { // Skip numeric comparison due to JSON conversion
-							assert.Equal(t, value, unmarshaledValue)
-						}
-					}
-				} else {
-					assert.Equal(t, tt.output.Config, unmarshaled.Config)
-				}
-			} else {
-				assert.Nil(t, unmarshaled.Config)
-			}
 		})
 	}
 }
 
-// Test MediaShowcaseParams JSON serialization
-func TestMediaShowcaseParamsJSONSerialization(t *testing.T) {
-	params := MediaShowcaseParams{
+// Test ShowParams JSON serialization
+func TestShowParamsJSONSerialization(t *testing.T) {
+	params := ShowParams{
 		Outputs: []MediaOutput{
 			{
-				Path:        "https://example.com/image.jpg",
-				Type:        "image",
-				Title:       "Test Image",
-				Description: "A test image",
+				Path:  "https://example.com/image.jpg",
+				Type:  "image",
+				Title: "Test Image",
 			},
 			{
 				Path:      "https://example.com/video.mp4",
@@ -212,7 +178,7 @@ func TestMediaShowcaseParamsJSONSerialization(t *testing.T) {
 	assert.NotEmpty(t, data)
 
 	// Test unmarshaling
-	var unmarshaled MediaShowcaseParams
+	var unmarshaled ShowParams
 	err = json.Unmarshal(data, &unmarshaled)
 	require.NoError(t, err)
 	assert.Len(t, unmarshaled.Outputs, 2)
@@ -231,8 +197,8 @@ func TestMediaShowcaseParamsJSONSerialization(t *testing.T) {
 }
 
 // Test Run method with valid inputs
-func TestMediaShowcaseToolRunValid(t *testing.T) {
-	tool := &mediaShowcaseTool{}
+func TestShowToolRunValid(t *testing.T) {
+	tool := &showTool{}
 	ctx := context.Background()
 
 	tests := []struct {
@@ -246,11 +212,10 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 				"outputs": [{
 					"path": "https://example.com/image.jpg",
 					"type": "image",
-					"title": "Test Image",
-					"description": "A test image"
+					"title": "Test Image"
 				}]
 			}`,
-			expectedMsg: "Successfully showcasing 1 media output(s): Test Image",
+			expectedMsg: "Successfully displaying 1 item(s): Test Image",
 		},
 		{
 			name: "multiple outputs",
@@ -270,7 +235,7 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 					}
 				]
 			}`,
-			expectedMsg: "Successfully showcasing 2 media output(s): Test Image, Test Video",
+			expectedMsg: "Successfully displaying 2 item(s): Test Image, Test Video",
 		},
 		{
 			name: "youtube video",
@@ -278,11 +243,10 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 				"outputs": [{
 					"path": "https://youtube.com/watch?v=abc123",
 					"type": "video",
-					"title": "YouTube Video",
-					"description": "A YouTube video"
+					"title": "YouTube Video"
 				}]
 			}`,
-			expectedMsg: "Successfully showcasing 1 media output(s): YouTube Video",
+			expectedMsg: "Successfully displaying 1 item(s): YouTube Video",
 		},
 		{
 			name: "audio with timing",
@@ -295,7 +259,7 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 					"duration": 180
 				}]
 			}`,
-			expectedMsg: "Successfully showcasing 1 media output(s): Audio Track",
+			expectedMsg: "Successfully displaying 1 item(s): Audio Track",
 		},
 	}
 
@@ -303,7 +267,7 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "ShowMedia",
+				Name:  "Show",
 				Input: tt.input,
 			}
 
@@ -317,11 +281,11 @@ func TestMediaShowcaseToolRunValid(t *testing.T) {
 }
 
 // Test Run method with invalid inputs and error cases
-func TestMediaShowcaseToolRunErrors(t *testing.T) {
-	tool := &mediaShowcaseTool{}
+func TestShowToolRunErrors(t *testing.T) {
+	tool := &showTool{}
 	ctx := context.Background()
 
-	tests := getMediaShowcaseErrorTestCases()
+	tests := getShowErrorTestCases()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -329,7 +293,7 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "ShowMedia",
+				Name:  "Show",
 				Input: tt.input,
 			}
 
@@ -342,7 +306,7 @@ func TestMediaShowcaseToolRunErrors(t *testing.T) {
 	}
 }
 
-func getMediaShowcaseErrorTestCases() []struct {
+func getShowErrorTestCases() []struct {
 	name          string
 	input         string
 	expectedError string
@@ -401,7 +365,7 @@ func getMediaShowcaseErrorTestCases() []struct {
 					"title": "Test File"
 				}]
 			}`,
-			expectedError: "Invalid media type 'invalid_type' for output 0",
+			expectedError: "Invalid content type 'invalid_type' for output 0",
 		},
 		{
 			name: "non-URL path",
@@ -412,7 +376,7 @@ func getMediaShowcaseErrorTestCases() []struct {
 					"title": "Test Image"
 				}]
 			}`,
-			expectedError: "path must be a valid HTTP/HTTPS URL for output 0",
+			expectedError: "For the show tool, path must be a valid HTTP/HTTPS URL for output 0",
 		},
 	}
 
@@ -471,8 +435,8 @@ func getTimeValidationErrorTestCases() []struct {
 }
 
 // Test edge cases and boundary conditions
-func TestMediaShowcaseToolEdgeCases(t *testing.T) {
-	tool := &mediaShowcaseTool{}
+func TestShowToolEdgeCases(t *testing.T) {
+	tool := &showTool{}
 	ctx := context.Background()
 
 	tests := []struct {
@@ -537,13 +501,12 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "empty description (optional field)",
+			name: "empty path for markdown (valid - uses data field)",
 			input: `{
 				"outputs": [{
-					"path": "https://example.com/image.jpg",
-					"type": "image",
-					"title": "Test Image",
-					"description": ""
+					"type": "markdown",
+					"title": "Test Markdown",
+					"data": "# Hello World"
 				}]
 			}`,
 			shouldError: false,
@@ -554,7 +517,7 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "ShowMedia",
+				Name:  "Show",
 				Input: tt.input,
 			}
 
@@ -566,7 +529,7 @@ func TestMediaShowcaseToolEdgeCases(t *testing.T) {
 				assert.Contains(t, response.Content, tt.errorMsg)
 			} else {
 				assert.False(t, response.IsError)
-				assert.Contains(t, response.Content, "Successfully showcasing")
+				assert.Contains(t, response.Content, "Successfully displaying")
 			}
 		})
 	}
@@ -655,8 +618,8 @@ func TestIsURL(t *testing.T) {
 }
 
 // Test tool behavior with different contexts
-func TestMediaShowcaseToolWithContext(t *testing.T) {
-	tool := &mediaShowcaseTool{}
+func TestShowToolWithContext(t *testing.T) {
+	tool := &showTool{}
 
 	tests := []struct {
 		name    string
@@ -714,7 +677,7 @@ func TestMediaShowcaseToolWithContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call := ToolCall{
 				ID:    "test-call",
-				Name:  "ShowMedia",
+				Name:  "Show",
 				Input: tt.input,
 			}
 
@@ -725,7 +688,7 @@ func TestMediaShowcaseToolWithContext(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				assert.False(t, response.IsError)
-				assert.Contains(t, response.Content, "Successfully showcasing")
+				assert.Contains(t, response.Content, "Successfully displaying")
 			}
 		})
 	}
@@ -733,7 +696,7 @@ func TestMediaShowcaseToolWithContext(t *testing.T) {
 
 // Test error message format consistency
 func TestErrorMessageFormat(t *testing.T) {
-	tool := &mediaShowcaseTool{}
+	tool := &showTool{}
 	ctx := context.Background()
 
 	// Test that error messages for different outputs use consistent indexing
@@ -753,7 +716,7 @@ func TestErrorMessageFormat(t *testing.T) {
 
 	call := ToolCall{
 		ID:    "test-call",
-		Name:  "ShowMedia",
+		Name:  "Show",
 		Input: input,
 	}
 
@@ -769,8 +732,8 @@ func intPtr(i int) *int {
 }
 
 // Benchmark tests for performance
-func BenchmarkMediaShowcaseToolRun(b *testing.B) {
-	tool := &mediaShowcaseTool{}
+func BenchmarkShowToolRun(b *testing.B) {
+	tool := &showTool{}
 	ctx := context.Background()
 
 	input := `{
@@ -784,7 +747,7 @@ func BenchmarkMediaShowcaseToolRun(b *testing.B) {
 
 	call := ToolCall{
 		ID:    "test-call",
-		Name:  "ShowMedia",
+		Name:  "Show",
 		Input: input,
 	}
 
