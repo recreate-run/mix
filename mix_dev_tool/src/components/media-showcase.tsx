@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { MediaOutput } from "@/types/media";
 import { isYouTubeUrl } from "@/utils/videoUrlDetection";
+import { AIResponse } from "@/components/ui/kibo-ui/ai/response";
 import { CsvViewer } from "./CsvViewer";
-import { GsapAnimationPreview } from "./gsap/GsapAnimationPreview";
 import { LazyVideoPlayer } from "./LazyVideoPlayer";
 import { MediaDownloadButton } from "./media-download-button";
 import { PlaylistSidebar } from "./playlist-sidebar";
@@ -22,11 +22,6 @@ const MainMediaPlayer = ({
 			<div className="flex items-start justify-between gap-2">
 				<div className="flex-1">
 					<h3 className="font-semibold">{media.title}</h3>
-					{media.description && (
-						<p className="mt-1 text-muted-foreground text-sm">
-							{media.description}
-						</p>
-					)}
 				</div>
 				<MediaDownloadButton
 					getMediaSrc={getMediaSrc}
@@ -44,12 +39,12 @@ const MainMediaPlayer = ({
 						const fallback = e.currentTarget.nextElementSibling as HTMLElement;
 						if (fallback) fallback.style.display = "block";
 					}}
-					src={getMediaSrc(media.path, sessionId)}
+					src={getMediaSrc(media.path!, sessionId)}
 				/>
 			)}
 
 			{media.type === "video" &&
-				(isYouTubeUrl(media.path) ? (
+				(isYouTubeUrl(media.path!) ? (
 					<div className="overflow-hidden rounded-md">
 						<iframe
 							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -64,7 +59,7 @@ const MainMediaPlayer = ({
 							}}
 							referrerPolicy="strict-origin-when-cross-origin"
 							src={(() => {
-								const baseUrl = getMediaSrc(media.path, sessionId);
+								const baseUrl = getMediaSrc(media.path!, sessionId);
 								if (
 									media.startTime !== undefined ||
 									media.duration !== undefined
@@ -115,7 +110,7 @@ const MainMediaPlayer = ({
 							if (fallback) fallback.style.display = "block";
 						}}
 						preload="metadata"
-						src={getMediaSrc(media.path, sessionId)}
+						src={getMediaSrc(media.path!, sessionId)}
 					>
 						Your browser does not support the audio tag.
 					</audio>
@@ -128,8 +123,10 @@ const MainMediaPlayer = ({
 				</div>
 			)}
 
-			{media.type === "gsap_animation" && media.config && (
-				<GsapAnimationPreview config={media.config} />
+			{media.type === "markdown" && (
+				<div className="rounded-md border border-border bg-muted/30 p-6">
+					<AIResponse>{media.data}</AIResponse>
+				</div>
 			)}
 
 			{media.type === "pdf" && (
@@ -143,7 +140,7 @@ const MainMediaPlayer = ({
 								.nextElementSibling as HTMLElement;
 							if (fallback) fallback.style.display = "block";
 						}}
-						src={getMediaSrc(media.path, sessionId)}
+						src={getMediaSrc(media.path!, sessionId)}
 						title={media.title}
 					/>
 					<div
@@ -158,7 +155,7 @@ const MainMediaPlayer = ({
 			{media.type === "csv" && (
 				<CsvViewer
 					title={media.title}
-					url={getMediaSrc(media.path, sessionId)}
+					url={getMediaSrc(media.path!, sessionId)}
 				/>
 			)}
 		</div>

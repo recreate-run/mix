@@ -4,5 +4,4 @@ toolchain go1.24.1
 
 use (
 	./mix_agent
-	./packages/gsap_animations
 )

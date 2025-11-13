@@ -53,9 +53,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	if err := os.MkdirAll(testDataDir, 0o750); err != nil {
 		t.Fatalf("Failed to create test data dir: %v", err)
 	}
-	if err := os.MkdirAll(testDataDir+"/gsap_animations", 0o750); err != nil {
-		t.Fatalf("Failed to create GSAP animations dir: %v", err)
-	}
 
 	// Initialize configuration (database-only, no config file needed)
 	if _, err := config.Load(testConfigDir, false, false); err != nil {

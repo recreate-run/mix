@@ -35,6 +35,7 @@ import { ResponseRenderer } from "./response-renderer";
 import { StatusUI } from "./status-ui";
 import { TodoList } from "./todo-list";
 import { CallbackResultDisplay } from "./callback-result-display";
+import { JSONDisplay } from "./json-display";
 
 type StreamingState = {
 	processing: boolean;
@@ -128,10 +129,10 @@ const hasExitPlanModeTool = (toolCalls: ToolCall[]) => {
 	return toolCalls?.some((tc) => tc.name === CoreToolName.ExitPlanMode);
 };
 
-// Helper function to filter out special tools (TodoWrite, ExitPlanMode, ShowMedia) from toolCalls
+// Helper function to filter out special tools (TodoWrite, ExitPlanMode, Show) from toolCalls
 const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 	return toolCalls.filter(
-		(tc) => tc.name !== CoreToolName.TodoWrite && tc.name !== CoreToolName.ExitPlanMode && tc.name !== CoreToolName.ShowMedia,
+		(tc) => tc.name !== CoreToolName.TodoWrite && tc.name !== CoreToolName.ExitPlanMode && tc.name !== CoreToolName.Show,
 	);
 };
 
@@ -139,7 +140,6 @@ const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 const renderTimelineEntries = (
 	timeline: TimelineEntry[],
 	isNested = false,
-	mediaOutputs?: MediaOutput[],
 	sessionId?: string,
 	getMediaSrc?: (path: string, sessionId: string) => string,
 ) => {
@@ -246,17 +246,46 @@ const renderTimelineEntries = (
 		const toolCall = group.entry.content as ToolCall;
 		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
 
-		// Special rendering for ShowMedia tool
-		if (toolCall.name === CoreToolName.ShowMedia && mediaOutputs && sessionId && getMediaSrc) {
-			return (
-				<div key={`media-showcase-${group.entry.id}`} className="mb-4">
-					<MediaShowcase
-						getMediaSrc={getMediaSrc}
-						mediaOutputs={mediaOutputs}
-						sessionId={sessionId}
-					/>
-				</div>
-			);
+		// Special rendering for Show tool
+		if (toolCall.name === CoreToolName.Show && sessionId && getMediaSrc) {
+			const outputs = toolCall.parameters?.outputs as MediaOutput[] | undefined;
+			if (outputs && outputs.length > 0) {
+				// Separate special outputs from media outputs
+				const statusOutputs = outputs.filter((o) => o.type === "status");
+				const jsonOutputs = outputs.filter((o) => o.type === "json");
+				const mediaOutputs = outputs.filter((o) => o.type !== "status" && o.type !== "json");
+
+				return (
+					<div key={`show-${group.entry.id}`} className="mb-4">
+						{/* Render status outputs as simple text */}
+						{statusOutputs.map((output, idx) => (
+							<div
+								key={`status-${group.entry.id}-${idx}`}
+								className="mb-4 rounded-lg border bg-muted/50 p-4"
+							>
+								<div className="font-semibold mb-2">{output.title}</div>
+								<div className="text-sm">{output.data}</div>
+							</div>
+						))}
+						{/* Render JSON outputs with JSONDisplay */}
+						{jsonOutputs.map((output, idx) => (
+							<JSONDisplay
+								key={`json-${group.entry.id}-${idx}`}
+								data={output.data || "{}"}
+								title={output.title}
+							/>
+						))}
+						{/* Render media outputs with MediaShowcase */}
+						{mediaOutputs.length > 0 && (
+							<MediaShowcase
+								getMediaSrc={getMediaSrc}
+								mediaOutputs={mediaOutputs}
+								sessionId={sessionId}
+							/>
+						)}
+					</div>
+				);
+			}
 		}
 
 		return (
@@ -273,7 +302,7 @@ const renderTimelineEntries = (
 					{/* Nested subagent events */}
 					{hasNestedEvents && group.nestedEntries && (
 						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-							{renderTimelineEntries(group.nestedEntries, true, mediaOutputs, sessionId, getMediaSrc)}
+							{renderTimelineEntries(group.nestedEntries, true, sessionId, getMediaSrc)}
 						</div>
 					)}
 				</AIToolStep>
@@ -461,7 +490,6 @@ export function ConversationDisplay({
 										renderTimelineEntries(
 											message.timeline,
 											false,
-											message.mediaOutputs,
 											sessionId,
 											getMediaSrc,
 										)
@@ -592,8 +620,6 @@ export function ConversationDisplay({
 								renderTimelineEntries(
 									sseStream.timeline,
 									false,
-									sseStream.toolCalls?.find((tc) => tc.name === CoreToolName.ShowMedia)
-										?.parameters?.outputs as MediaOutput[] | undefined,
 									sessionId,
 									getMediaSrc,
 								)}

@@ -1,4 +1,4 @@
-.PHONY: build dev frontend-only docs clean install install-air install-deps help update-blender-init release-macos go-lint go-test generate-mix_sdk gsap-server
+.PHONY: build dev frontend-only docs clean install install-air install-deps help update-blender-init release-macos go-lint go-test generate-mix_sdk
 
 # Variables
 BINARY_NAME=mix
@@ -22,7 +22,7 @@ OPENAPI_ENDPOINT=http://localhost:8088/doc
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  dev         - Install dependencies and run all development servers (backend, web frontend, GSAP)"
+	@echo "  dev         - Install dependencies and run all development servers (backend, web frontend)"
 	@echo "  dev-kill    - Stop all development servers started by 'make dev'"
 	@echo "  frontend-only - Run only the web frontend development server (no backend)"
 	@echo "  docs        - Run documentation development server"
@@ -65,7 +65,7 @@ help:
 
 
 # Run development server with hot reloading (installs deps first)
-# This starts backend (Go), web frontend (browser), and GSAP server together
+# This starts backend (Go), web frontend (browser), server together
 dev: install-deps
 	@ENV=development ./scripts/shoreman.sh
 
@@ -112,14 +112,12 @@ install-deps: install
 	@echo "Installing project dependencies..."
 	@echo "Installing Air (Go hot reload)..."
 	@command -v air >/dev/null 2>&1 || go install github.com/air-verse/air@latest
-	@echo "Installing Go dependencies..."
-	cd mix_agent && go mod download
+# 	@echo "Installing Go dependencies..."
+# 	cd mix_agent && go mod download
 	@echo "Installing capture script dependencies..."
 	# cd mix_agent && bun install
 	@echo "Installing Tauri app dependencies..."
 	cd mix_dev_tool && bun i
-	@echo "Installing GSAP animations dependencies..."
-	cd packages/gsap_animations && bun install
 	@echo "✅ All dependencies installed!"
 
 # Internal target for optimized builds
@@ -298,8 +296,4 @@ clean:
 	@rm -rf mix_dev_tool/node_modules || true
 	@rm -rf mix_dev_tool/src-tauri/target || true
 	@rm -rf mix_dev_tool/dist || true
-	@echo "Cleaning GSAP animations (packages/gsap_animations)..."
-	@rm -rf packages/gsap_animations/build || true
-	@rm -rf packages/gsap_animations/tmp || true
-	@rm -rf packages/gsap_animations/node_modules || true
 	@echo "✅ All build artifacts cleaned!"

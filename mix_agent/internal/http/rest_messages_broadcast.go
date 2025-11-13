@@ -40,8 +40,8 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 
 	case agent.AgentEventTypeToolParameterDelta:
 		// Stream tool parameter deltas for real-time parameter visibility
-		registry.BroadcastEvent(targetSessionID, "tool_parameter_delta", ToolParameterDeltaEvent{
-			Type:               "tool_parameter_delta",
+		registry.BroadcastEvent(targetSessionID, "tool_use_parameter_delta", ToolUseParameterDeltaEvent{
+			Type:               "tool_use_parameter_delta",
 			ToolCallID:         event.ToolCallID,
 			Input:              event.Content, // Delta is stored in Content field
 			ParentToolCallID:   parentToolCallID,
@@ -49,25 +49,33 @@ func BroadcastAgentEventToSSE(sessionID string, event agent.AgentEvent) {
 		})
 
 	case agent.AgentEventTypeResponse:
-		// Stream tool calls - detect new tool calls by checking completion status
-		toolCalls := event.Message.ToolCalls()
-		for _, toolCall := range toolCalls {
-			// Determine tool status - tools start with complete parameters
-			status := "running"
+		// Only broadcast tool events if we have a snapshot
+		// The snapshot captures the tool call state at the moment the event was created,
+		// preventing race conditions and duplicate broadcasts
+		if event.ToolCallSnapshot != nil {
+			toolCall := *event.ToolCallSnapshot
 			if toolCall.Finished {
-				status = "completed"
+				// Tool parameters complete - send tool_use_parameter_streaming_complete event
+				registry.BroadcastEvent(targetSessionID, "tool_use_parameter_streaming_complete", ToolUseParameterStreamingCompleteEvent{
+					Type:               "tool_use_parameter_streaming_complete",
+					Name:               toolCall.Name,
+					Input:              toolCall.Input,
+					ID:                 toolCall.ID,
+					ParentToolCallID:   parentToolCallID,
+					AssistantMessageID: event.Message.ID,
+				})
+			} else {
+				// Tool declared - send tool_use_start event
+				registry.BroadcastEvent(targetSessionID, "tool_use_start", ToolUseStartEvent{
+					Type:               "tool_use_start",
+					Name:               toolCall.Name,
+					ID:                 toolCall.ID,
+					ParentToolCallID:   parentToolCallID,
+					AssistantMessageID: event.Message.ID,
+				})
 			}
-
-			registry.BroadcastEvent(targetSessionID, "tool", ToolEvent{
-				Type:               "tool",
-				Name:               toolCall.Name,
-				Input:              toolCall.Input,
-				ID:                 toolCall.ID,
-				Status:             status,
-				ParentToolCallID:   parentToolCallID,
-				AssistantMessageID: event.Message.ID,
-			})
 		}
+		// Note: If snapshot is nil, this is a completion event (Done: true) with no tool-specific data
 
 		// Send completion event only for final events, include final content
 		if event.Done {

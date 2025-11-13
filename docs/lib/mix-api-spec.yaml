@@ -3088,7 +3088,7 @@ components:
         - "Search"
         - "TodoWrite"
         - "ExitPlanMode"
-        - "ShowMedia"
+        - "Show"
         - "Task"
       type: "string"
     "ErrorResponse":

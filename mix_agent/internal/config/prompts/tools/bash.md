@@ -25,7 +25,7 @@ Usage notes:
 - The command argument is required.
 - You can specify an optional timeout in milliseconds (up to 600000ms / 10 minutes). If not specified, commands will timeout after 120000ms (2 minutes).
 - Always remove trailing `/` from URLs in curl commands
-- For ALL Python execution, ALWAYS use `uv run` - NEVER use `python` or `python3` directly. Prefer direct execution with `uv run python -c --with <library> "code here"` instead of creating temporary files.
+- For ALL Python execution, ALWAYS use `uv run` - NEVER use `python` or `python3` directly.
 - It is very helpful if you write a clear, concise description of what this command does in 5-10 words.
 - If the output exceeds 30000 characters, output will be truncated before being
 returned to you.

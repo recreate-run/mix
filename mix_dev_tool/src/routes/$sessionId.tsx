@@ -3,7 +3,6 @@ import "@/styles/App.css";
 import { useEffect } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ChatApp } from "@/components/chat-app";
-import { RightSidebar } from "@/components/right-sidebar";
 import {
 	SidebarInset,
 	SidebarProvider,
@@ -87,7 +86,7 @@ function SessionApp() {
 		>
 			<AppSidebar sessionId={sessionId} variant="inset" />
 			<SessionContent sessionId={sessionId} />
-			<RightSidebar side="right" sessionId={sessionId} />
+			{/* <RightSidebar side="right" sessionId={sessionId} /> */}
 		</SidebarProvider>
 	);
 }

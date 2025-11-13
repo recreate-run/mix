@@ -6,7 +6,7 @@ import { isYouTubeUrl } from "@/utils/videoUrlDetection";
 // Helper to get file extension from media type and path
 const getFileExtension = (media: MediaOutput): string => {
 	// Try to extract extension from path first
-	const pathMatch = media.path.match(/\.([^./?#]+)(?:[?#]|$)/);
+	const pathMatch = media.path?.match(/\.([^./?#]+)(?:[?#]|$)/);
 	if (pathMatch) {
 		return `.${pathMatch[1]}`;
 	}
@@ -18,7 +18,6 @@ const getFileExtension = (media: MediaOutput): string => {
 		audio: ".mp3",
 		pdf: ".pdf",
 		csv: ".csv",
-		gsap_animation: ".json",
 	};
 
 	return extensionMap[media.type] || "";
@@ -33,37 +32,22 @@ export const useMediaDownload = (
 
 	const downloadMedia = useCallback(async () => {
 		// For YouTube videos, open in new tab instead of downloading
-		if (media.type === "video" && isYouTubeUrl(media.path)) {
+		if (media.type === "video" && media.path && isYouTubeUrl(media.path)) {
 			window.open(media.path, "_blank");
+			return;
+		}
+
+		if (!media.path) {
+			toast.error("Download failed", {
+				description: "No media path available",
+			});
 			return;
 		}
 
 		setIsDownloading(true);
 
 		try {
-			// For GSAP animations, download the config as JSON
-			if (media.type === "gsap_animation" && media.config) {
-				const configJson = JSON.stringify(media.config, null, 2);
-				const blob = new Blob([configJson], { type: "application/json" });
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				const filename = `${media.title || "animation"}.json`;
-				a.download = filename;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-
-				toast.success("Download complete", {
-					description: filename,
-				});
-
-				setIsDownloading(false);
-				return;
-			}
-
-			// For all other media types, fetch as blob and trigger download
+			// For all media types, fetch as blob and trigger download
 			const mediaUrl = getMediaSrc(media.path, sessionId);
 			const response = await fetch(mediaUrl);
 
@@ -99,8 +83,10 @@ export const useMediaDownload = (
 				description: "Opening in new tab instead",
 			});
 			// Fallback: try opening in new tab
-			const mediaUrl = getMediaSrc(media.path, sessionId);
-			window.open(mediaUrl, "_blank");
+			if (media.path) {
+				const mediaUrl = getMediaSrc(media.path, sessionId);
+				window.open(mediaUrl, "_blank");
+			}
 		} finally {
 			setIsDownloading(false);
 		}

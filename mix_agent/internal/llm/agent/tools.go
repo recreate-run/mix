@@ -31,7 +31,7 @@ func CoderAgentTools(
 		tools.NewReadMediaTool(),
 		tools.NewTodoWriteTool(),
 		tools.NewExitPlanModeTool(),
-		tools.NewMediaShowcaseTool(),
+		tools.NewShowTool(),
 		NewTaskTool(sessions, messages, permissions),
 	}
 }

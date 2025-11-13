@@ -12,10 +12,11 @@ import type {
 	SSEPermissionEvent,
 	SSESessionCreatedEvent,
 	SSEThinkingEvent,
-	SSEToolEvent,
 	SSEToolExecutionCompleteEvent,
 	SSEToolExecutionStartEvent,
-	SSEToolParameterDeltaEvent,
+	SSEToolUseParameterDeltaEvent,
+	SSEToolUseParameterStreamingCompleteEvent,
+	SSEToolUseStartEvent,
 	SSEUserMessageCreatedEvent,
 } from "mix-typescript-sdk/models/sseeventstream";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -248,9 +249,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							break;
 						}
 
-						case "tool_parameter_delta": {
+						case "tool_use_parameter_delta": {
 							// Handle real-time tool parameter streaming
-							const deltaEvent = event as SSEToolParameterDeltaEvent;
+							const deltaEvent = event as SSEToolUseParameterDeltaEvent;
 							const toolCallId = deltaEvent.data.toolCallId;
 							const inputDelta = deltaEvent.data.input;
 							const assistantMessageId = deltaEvent.data.assistantMessageId;
@@ -258,14 +259,14 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							// Validate required fields
 							if (!toolCallId || typeof toolCallId !== "string") {
 								console.error(
-									"tool_parameter_delta: missing or invalid toolCallId",
+									"tool_use_parameter_delta: missing or invalid toolCallId",
 									deltaEvent,
 								);
 								break;
 							}
 							if (inputDelta === undefined || inputDelta === null) {
 								console.error(
-									"tool_parameter_delta: missing input delta for tool",
+									"tool_use_parameter_delta: missing input delta for tool",
 									toolCallId,
 								);
 								break;
@@ -275,7 +276,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							const existingToolCall = toolCallsMap.current.get(toolCallId);
 							if (!existingToolCall) {
 								console.error(
-									`tool_parameter_delta: received delta for non-existent tool ${toolCallId}`,
+									`tool_use_parameter_delta: received delta for non-existent tool ${toolCallId}`,
 								);
 								break;
 							}
@@ -286,7 +287,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								existingToolCall.status === "error"
 							) {
 								console.warn(
-									`tool_parameter_delta: ignoring delta for already ${existingToolCall.status} tool ${toolCallId}`,
+									`tool_use_parameter_delta: ignoring delta for already ${existingToolCall.status} tool ${toolCallId}`,
 								);
 								break;
 							}
@@ -306,7 +307,8 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 								break;
 							}
 
-							// JSON is parseable! Update the tool call
+							// JSON is parseable! Update the tool call for live preview
+							// Keep accumulating - don't clear until tool_use_parameter_streaming_complete
 							if (parsedParams) {
 								const updatedToolCall = {
 									...existingToolCall,
@@ -329,74 +331,126 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 									assistantMessageId:
 										assistantMessageId || prev.assistantMessageId,
 								}));
-
-								// Clear accumulated deltas after successful parse to prevent stale accumulation
-								toolParameterDeltas.current.delete(toolCallId);
 							}
 							break;
 						}
 
-						case "tool": {
-							const toolEvent = event as SSEToolEvent;
+						case "tool_use_start": {
+							const toolEvent = event as SSEToolUseStartEvent;
 							const parentToolCallId = toolEvent.data.parentToolCallId;
 							const assistantMessageId = toolEvent.data.assistantMessageId;
+							const toolCallId =
+								toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`;
+
+							// Don't overwrite existing tool - might have accumulated parameters already
+							if (toolCallsMap.current.has(toolCallId)) {
+								console.warn(
+									`tool_use_start: tool ${toolCallId} already exists, skipping duplicate start event`,
+								);
+								break;
+							}
 
 							const toolCall: ToolCall = {
-								id: toolEvent.data.id || `${toolEvent.data.name}-${Date.now()}`,
+								id: toolCallId,
 								name: toolEvent.data.name || "unknown",
 								description: toolEvent.data.name || "Tool execution",
-								status:
-									(toolEvent.data.status as
-										| "pending"
-										| "running"
-										| "completed"
-										| "error") || "pending",
-								parameters: toolEvent.data.input
-									? typeof toolEvent.data.input === "string"
-										? (() => {
-												try {
-													return JSON.parse(toolEvent.data.input);
-												} catch {
-													return { input: toolEvent.data.input };
-												}
-											})()
-										: toolEvent.data.input
-									: {},
+								status: "pending",
+								parameters: {}, // Parameters will come via parameter_delta events
 								result: undefined,
 								error: undefined,
 							};
 
-							if (
-								toolEvent.data.status === "running" &&
-								!toolStartTimes.current.has(toolCall.id)
-							) {
-								toolStartTimes.current.set(toolCall.id, Date.now());
+							toolCallsMap.current.set(toolCall.id, toolCall);
+
+							// Add to timeline
+							const toolEntry: TimelineEntry = {
+								type: "tool",
+								timestamp: Date.now(),
+								content: toolCall,
+								id: toolCall.id,
+								parentToolCallId,
+							};
+							timelineRef.current = [...timelineRef.current, toolEntry];
+
+							setState((prev) => ({
+								...prev,
+								toolCalls: Array.from(toolCallsMap.current.values()),
+								timeline: [...timelineRef.current],
+								processing: true,
+								assistantMessageId:
+									assistantMessageId || prev.assistantMessageId,
+							}));
+							break;
+						}
+
+						case "tool_use_parameter_streaming_complete": {
+							const toolEvent =
+								event as SSEToolUseParameterStreamingCompleteEvent;
+							const parentToolCallId = toolEvent.data.parentToolCallId;
+							const assistantMessageId = toolEvent.data.assistantMessageId;
+							const toolCallId = toolEvent.data.id;
+
+							// Clear accumulated deltas now that parameters are complete
+							if (toolCallId) {
+								toolParameterDeltas.current.delete(toolCallId);
 							}
 
-							if (
-								(toolEvent.data.status === "completed" ||
-									toolEvent.data.status === "error") &&
-								toolStartTimes.current.has(toolCall.id)
-							) {
-								toolStartTimes.current.delete(toolCall.id);
-							}
+							// Get existing tool call or create new one
+							const existingToolCall = toolCallsMap.current.get(
+								toolCallId || "",
+							);
+
+							const toolCall: ToolCall = existingToolCall
+								? {
+										...existingToolCall,
+										parameters: toolEvent.data.input
+											? typeof toolEvent.data.input === "string"
+												? (() => {
+														try {
+															return JSON.parse(toolEvent.data.input);
+														} catch {
+															return { input: toolEvent.data.input };
+														}
+													})()
+												: toolEvent.data.input
+											: existingToolCall.parameters,
+									}
+								: {
+										id: toolCallId || `${toolEvent.data.name}-${Date.now()}`,
+										name: toolEvent.data.name || "unknown",
+										description: toolEvent.data.name || "Tool execution",
+										status: "pending",
+										parameters: toolEvent.data.input
+											? typeof toolEvent.data.input === "string"
+												? (() => {
+														try {
+															return JSON.parse(toolEvent.data.input);
+														} catch {
+															return { input: toolEvent.data.input };
+														}
+													})()
+												: toolEvent.data.input
+											: {},
+										result: undefined,
+										error: undefined,
+									};
 
 							toolCallsMap.current.set(toolCall.id, toolCall);
 
-							// Add to timeline when tool is first seen
+							// Update timeline entry
 							if (
 								timelineRef.current.some(
 									(entry) =>
 										entry.type === "tool" && entry.content.id === toolCall.id,
 								)
 							) {
-								// Update existing tool entry
 								timelineRef.current = timelineRef.current.map((entry) =>
 									entry.type === "tool" && entry.content.id === toolCall.id
 										? { ...entry, content: toolCall }
 										: entry,
 								);
 							} else {
+								// Create new entry if it doesn't exist
 								const toolEntry: TimelineEntry = {
 									type: "tool",
 									timestamp: Date.now(),
@@ -548,9 +602,9 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 											toolCallsMap.current.values(),
 										);
 
-										// Extract media outputs from ShowMedia tool call (if present)
+										// Extract media outputs from Show tool call (if present)
 										const mediaOutputs = toolCallsArray.find(
-											(tc) => tc.name === CoreToolName.ShowMedia,
+											(tc) => tc.name === CoreToolName.Show,
 										)?.parameters?.outputs as MediaOutput[] | undefined;
 
 										const assistantMessage: UIMessage = {

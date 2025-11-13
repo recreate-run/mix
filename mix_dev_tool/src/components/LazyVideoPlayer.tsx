@@ -37,7 +37,7 @@ export const LazyVideoPlayer = ({ media, sessionId }: LazyVideoPlayerProps) => {
 			{isVisible ? (
 				<VideoPlayer
 					duration={media.duration}
-					path={media.path}
+					path={media.path!}
 					sessionId={sessionId}
 					startTime={media.startTime}
 					title=""

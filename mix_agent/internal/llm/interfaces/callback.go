@@ -22,7 +22,7 @@ type CallbackConfig struct {
 	// Human-readable name for this callback (optional, defaults to "Callback #XXXX")
 	Name string `json:"name,omitempty"`
 
-	// Tool to attach callback to (e.g., "ShowMedia", "Bash", "*" for all tools)
+	// Tool to attach callback to (e.g., "Show", "Bash", "*" for all tools)
 	ToolName string `json:"toolName"`
 
 	// Type of callback (bash_script or sub_agent)
