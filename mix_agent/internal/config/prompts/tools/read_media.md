@@ -2,6 +2,7 @@ Analyzes multimedia files using AI. If the user provides a path to a file assume
 
 Usage notes:
 
+- NEVER combine transcription and content analysis in the same prompt. Request either a transcript OR analysis separately - make separate tool calls if both are needed.
 - All file paths must be absolute paths or URL's for security. Relative paths are not allowed
 - To analyze image files:
     1. For basic descriptions (e.g., "Caption this image" or "Describe what you see in this image")
