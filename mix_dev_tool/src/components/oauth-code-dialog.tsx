@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ export function OAuthCodeDialog({
 	oauthState,
 	onSuccess,
 }: OAuthCodeDialogProps) {
+	const inputId = useId();
 	const [code, setCode] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const queryClient = useQueryClient();
@@ -85,11 +86,11 @@ export function OAuthCodeDialog({
 
 				<div className="grid gap-4 py-4">
 					<div className="grid gap-2">
-						<Label htmlFor="auth-code">Authorization Code</Label>
+						<Label htmlFor={inputId}>Authorization Code</Label>
 						<Input
 							className="font-mono text-sm"
 							disabled={isSubmitting}
-							id="auth-code"
+							id={inputId}
 							onChange={(e) => setCode(e.target.value)}
 							onKeyDown={handleKeyDown}
 							placeholder="Enter the authorization code from your browser"

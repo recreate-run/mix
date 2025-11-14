@@ -1,11 +1,34 @@
-import { AlertCircle, Loader2, MessageSquare, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import {
+	AlertCircle,
+	ExternalLink,
+	Loader2,
+	MessageSquare,
+} from "lucide-react";
 import type { CallbackResultData } from "mix-typescript-sdk/models";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface CallbackResultDisplayProps {
 	result: CallbackResultData;
 	className?: string;
+}
+
+type State = "success" | "error" | "running";
+
+const iconStyles = {
+	success: "text-green-600 dark:text-green-400",
+	error: "text-red-600 dark:text-red-400",
+	running: "text-blue-600 dark:text-blue-400",
+};
+
+function StateIcon({ state }: { state: State }) {
+	if (state === "success") {
+		return null;
+	}
+	if (state === "error") {
+		return <AlertCircle className={cn("size-5", iconStyles.error)} />;
+	}
+	return <Loader2 className={cn("size-5 animate-spin", iconStyles.running)} />;
 }
 
 export function CallbackResultDisplay({
@@ -13,7 +36,7 @@ export function CallbackResultDisplay({
 	className,
 }: CallbackResultDisplayProps) {
 	// Determine state for unified styling
-	const getState = () => {
+	const getState = (): State => {
 		if (result.callbackType === "sub_agent") {
 			const isComplete =
 				result.subagentResult !== undefined || result.error !== undefined;
@@ -31,30 +54,11 @@ export function CallbackResultDisplay({
 		running: "border-blue-500",
 	};
 
-	const iconStyles = {
-		success: "text-green-600 dark:text-green-400",
-		error: "text-red-600 dark:text-red-400",
-		running: "text-blue-600 dark:text-blue-400",
-	};
-
-	// Unified icon component
-	const StateIcon = () => {
-		if (state === "success") {
-			return;
-		}
-		if (state === "error") {
-			return <AlertCircle className={cn("size-5", iconStyles.error)} />;
-		}
-		return (
-			<Loader2 className={cn("size-5 animate-spin", iconStyles.running)} />
-		);
-	};
-
 	// Render bash script callback
 	if (result.callbackType === "bash_script") {
 		return (
 			<div className={cn("rounded-lg p-4 flex gap-3", className)}>
-				<StateIcon />
+				<StateIcon state={state} />
 				<div className="flex-1 min-w-0 space-y-2">
 					<div className="flex items-baseline gap-2 flex-wrap">
 						<span className="font-semibold">{result.callbackName}</span>
@@ -100,7 +104,7 @@ export function CallbackResultDisplay({
 	if (result.callbackType === "send_message") {
 		return (
 			<div className={cn("rounded-lg p-4 flex gap-3", className)}>
-				<StateIcon />
+				<StateIcon state={state} />
 				<div className="flex-1 min-w-0 space-y-2">
 					<div className="flex items-baseline gap-2 flex-wrap">
 						<MessageSquare className="size-4 text-blue-600 dark:text-blue-400" />
@@ -142,7 +146,7 @@ export function CallbackResultDisplay({
 					className,
 				)}
 			>
-				<StateIcon />
+				<StateIcon state={state} />
 				<div className="flex-1 min-w-0 space-y-2">
 					<div className="flex items-baseline gap-2 flex-wrap">
 						<span className="font-semibold">{result.callbackName}</span>

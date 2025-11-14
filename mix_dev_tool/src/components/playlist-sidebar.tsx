@@ -79,10 +79,10 @@ export const PlaylistSidebar = ({
 	};
 
 	const renderThumbnail = (media: MediaOutput) => {
-		if (media.type === "image") {
-			const imageUrl = getMediaSrc(media.path!, sessionId);
+		if (media.type === "image" && media.path) {
+			const imageUrl = getMediaSrc(media.path, sessionId);
 			// Only add thumbnail parameter for local files, use URL directly for remote images
-			const thumbnailUrl = isURL(media.path!)
+			const thumbnailUrl = isURL(media.path)
 				? imageUrl
 				: `${imageUrl}?thumb=100`;
 
@@ -105,9 +105,9 @@ export const PlaylistSidebar = ({
 			);
 		}
 
-		if (media.type === "video") {
+		if (media.type === "video" && media.path) {
 			// Check if it's a YouTube URL first
-			const youtubeThumbnail = getYouTubeThumbnail(media.path!);
+			const youtubeThumbnail = getYouTubeThumbnail(media.path);
 			if (youtubeThumbnail) {
 				return (
 					<div className="relative h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-stone-800">
@@ -133,12 +133,12 @@ export const PlaylistSidebar = ({
 
 			// Regular video handling
 			// Use sourceVideo for highlights, fallback to path for regular videos
-			const videoPath = media.sourceVideo || media.path!;
+			const videoPath = media.sourceVideo || media.path;
 			const videoUrl = getMediaSrc(videoPath, sessionId);
 
 			// Add thumbnail and time parameters for local files (including localhost asset server URLs)
 			let thumbnailUrl = videoUrl;
-			if (!isURL(videoPath!) || isLocalAssetServerURL(videoPath!)) {
+			if (!isURL(videoPath) || isLocalAssetServerURL(videoPath)) {
 				thumbnailUrl = `${videoUrl}?thumb=100`;
 				if (
 					media.startTime !== undefined &&

@@ -1,15 +1,31 @@
 // Component to render JSON as flat key-value list
-export const JSONDisplay = ({ data, title }: { data: string; title: string }) => {
+export const JSONDisplay = ({
+	data,
+	title,
+}: {
+	data: string;
+	title: string;
+}) => {
 	try {
 		const parsed = JSON.parse(data);
-		const flattenObject = (obj: any, prefix = ""): Record<string, any> => {
-			const flattened: Record<string, any> = {};
-			for (const key in obj) {
+		const flattenObject = (
+			obj: unknown,
+			prefix = "",
+		): Record<string, unknown> => {
+			const flattened: Record<string, unknown> = {};
+			if (!obj || typeof obj !== "object") return flattened;
+			const record = obj as Record<string, unknown>;
+			for (const key in record) {
 				const fullKey = prefix ? `${prefix}.${key}` : key;
-				if (obj[key] !== null && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
-					Object.assign(flattened, flattenObject(obj[key], fullKey));
+				const value = record[key];
+				if (
+					value !== null &&
+					typeof value === "object" &&
+					!Array.isArray(value)
+				) {
+					Object.assign(flattened, flattenObject(value, fullKey));
 				} else {
-					flattened[fullKey] = obj[key];
+					flattened[fullKey] = value;
 				}
 			}
 			return flattened;
@@ -30,11 +46,13 @@ export const JSONDisplay = ({ data, title }: { data: string; title: string }) =>
 				</div>
 			</div>
 		);
-	} catch (error) {
+	} catch {
 		return (
 			<div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm">
 				<div className="font-semibold text-destructive">Invalid JSON</div>
-				<div className="mt-2 text-muted-foreground">Failed to parse JSON data</div>
+				<div className="mt-2 text-muted-foreground">
+					Failed to parse JSON data
+				</div>
 			</div>
 		);
 	}

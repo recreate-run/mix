@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { AIResponse } from "@/components/ui/kibo-ui/ai/response";
 import type { MediaOutput } from "@/types/media";
 import { isYouTubeUrl } from "@/utils/videoUrlDetection";
-import { AIResponse } from "@/components/ui/kibo-ui/ai/response";
 import { CsvViewer } from "./CsvViewer";
 import { LazyVideoPlayer } from "./LazyVideoPlayer";
 import { MediaDownloadButton } from "./media-download-button";
@@ -30,7 +30,7 @@ const MainMediaPlayer = ({
 				/>
 			</div>
 
-			{media.type === "image" && (
+			{media.type === "image" && media.path && (
 				<img
 					alt={media.title}
 					className="aspect-auto max-h-120 object-contain"
@@ -39,12 +39,13 @@ const MainMediaPlayer = ({
 						const fallback = e.currentTarget.nextElementSibling as HTMLElement;
 						if (fallback) fallback.style.display = "block";
 					}}
-					src={getMediaSrc(media.path!, sessionId)}
+					src={getMediaSrc(media.path, sessionId)}
 				/>
 			)}
 
 			{media.type === "video" &&
-				(isYouTubeUrl(media.path!) ? (
+				media.path &&
+				(isYouTubeUrl(media.path) ? (
 					<div className="overflow-hidden rounded-md">
 						<iframe
 							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -59,7 +60,7 @@ const MainMediaPlayer = ({
 							}}
 							referrerPolicy="strict-origin-when-cross-origin"
 							src={(() => {
-								const baseUrl = getMediaSrc(media.path!, sessionId);
+								const baseUrl = getMediaSrc(media.path, sessionId);
 								if (
 									media.startTime !== undefined ||
 									media.duration !== undefined
@@ -98,8 +99,9 @@ const MainMediaPlayer = ({
 					<LazyVideoPlayer media={media} sessionId={sessionId} />
 				))}
 
-			{media.type === "audio" && (
+			{media.type === "audio" && media.path && (
 				<div className="rounded-md bg-stone-700/30 p-4">
+					{/* biome-ignore lint/a11y/useMediaCaption: Audio files are user-generated and don't have captions */}
 					<audio
 						className="w-full"
 						controls
@@ -110,7 +112,7 @@ const MainMediaPlayer = ({
 							if (fallback) fallback.style.display = "block";
 						}}
 						preload="metadata"
-						src={getMediaSrc(media.path!, sessionId)}
+						src={getMediaSrc(media.path, sessionId)}
 					>
 						Your browser does not support the audio tag.
 					</audio>
@@ -129,7 +131,7 @@ const MainMediaPlayer = ({
 				</div>
 			)}
 
-			{media.type === "pdf" && (
+			{media.type === "pdf" && media.path && (
 				<div className="overflow-hidden rounded-md">
 					<iframe
 						className="aspect-[4/5] w-full bg-white"
@@ -140,7 +142,7 @@ const MainMediaPlayer = ({
 								.nextElementSibling as HTMLElement;
 							if (fallback) fallback.style.display = "block";
 						}}
-						src={getMediaSrc(media.path!, sessionId)}
+						src={getMediaSrc(media.path, sessionId)}
 						title={media.title}
 					/>
 					<div
@@ -152,10 +154,10 @@ const MainMediaPlayer = ({
 				</div>
 			)}
 
-			{media.type === "csv" && (
+			{media.type === "csv" && media.path && (
 				<CsvViewer
 					title={media.title}
-					url={getMediaSrc(media.path!, sessionId)}
+					url={getMediaSrc(media.path, sessionId)}
 				/>
 			)}
 		</div>

@@ -32,12 +32,16 @@ export const LazyVideoPlayer = ({ media, sessionId }: LazyVideoPlayerProps) => {
 		return () => observer.disconnect();
 	}, []);
 
+	if (!media.path) {
+		return null;
+	}
+
 	return (
 		<div className="min-h-[200px]" ref={containerRef}>
 			{isVisible ? (
 				<VideoPlayer
 					duration={media.duration}
-					path={media.path!}
+					path={media.path}
 					sessionId={sessionId}
 					startTime={media.startTime}
 					title=""

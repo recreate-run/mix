@@ -160,10 +160,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 								oauthState: result.loginData.oauthState,
 							});
 						} catch (windowError) {
-							console.error(
-								"Failed to open OAuth browser:",
-								windowError,
-							);
+							console.error("Failed to open OAuth browser:", windowError);
 							toast.error(
 								"Failed to open OAuth browser. Please copy this URL manually: " +
 									authUrl,

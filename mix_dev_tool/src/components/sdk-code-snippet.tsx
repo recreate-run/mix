@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogFooter,
 } from "@/components/ui/dialog";
 import {
 	CodeBlock,
@@ -104,7 +104,10 @@ export function SdkCodeSnippet({
 								</CodeBlockSelectTrigger>
 								<CodeBlockSelectContent>
 									{(item) => (
-										<CodeBlockSelectItem key={item.language} value={item.language}>
+										<CodeBlockSelectItem
+											key={item.language}
+											value={item.language}
+										>
 											{item.language === "typescript" ? "TypeScript" : "Python"}
 										</CodeBlockSelectItem>
 									)}

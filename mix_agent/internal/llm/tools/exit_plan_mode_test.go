@@ -267,11 +267,11 @@ func TestExitPlanModeTool_ResponseFormat(t *testing.T) {
 
 	// Check specific positions
 	assert.Equal(t, "# Plan Ready for Approval", lines[0])
-	assert.Empty(t, lines[1])                                     // Empty line after title
+	assert.Empty(t, lines[1])                                         // Empty line after title
 	assert.Equal(t, planContent, lines[2])                            // Plan content
-	assert.Empty(t, lines[3])                                     // Empty line before separator
+	assert.Empty(t, lines[3])                                         // Empty line before separator
 	assert.Equal(t, "---", lines[4])                                  // Separator
-	assert.Empty(t, lines[5])                                     // Empty line after separator
+	assert.Empty(t, lines[5])                                         // Empty line after separator
 	assert.Equal(t, "✅ Ready to proceed when you confirm.", lines[6]) // Ready message
 }
 

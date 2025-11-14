@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	statusConnected    = "connected"
-	cmdTypeFile        = "file"
-	cmdTypeBuiltin     = "builtin"
+	statusConnected = "connected"
+	cmdTypeFile     = "file"
+	cmdTypeBuiltin  = "builtin"
 )
 
 // ToolData represents tool information for REST API

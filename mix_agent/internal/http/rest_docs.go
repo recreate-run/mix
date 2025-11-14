@@ -50,6 +50,7 @@ type OpenAPIComponents struct {
 }
 
 // getOpenAPISpec returns the complete OpenAPI 3.1 specification with proper field ordering
+//
 //nolint:funlen // OpenAPI spec is necessarily long
 func getOpenAPISpec() OpenAPISpec {
 	return OpenAPISpec{
@@ -2208,21 +2209,21 @@ func getOpenAPISpec() OpenAPISpec {
 					"discriminator": map[string]interface{}{
 						"propertyName": "event",
 						"mapping": map[string]interface{}{
-							"connected":                                "#/components/schemas/SSEConnectedEvent",
-							"heartbeat":                                "#/components/schemas/SSEHeartbeatEvent",
-							"error":                                    "#/components/schemas/SSEErrorEvent",
-							"complete":                                 "#/components/schemas/SSECompleteEvent",
-							"thinking":                                 "#/components/schemas/SSEThinkingEvent",
-							"content":                                  "#/components/schemas/SSEContentEvent",
-							"tool_use_start":                           "#/components/schemas/SSEToolUseStartEvent",
-							"tool_use_parameter_streaming_complete":    "#/components/schemas/SSEToolUseParameterStreamingCompleteEvent",
-							"tool_use_parameter_delta":                 "#/components/schemas/SSEToolUseParameterDeltaEvent",
-							"tool_execution_start":                     "#/components/schemas/SSEToolExecutionStartEvent",
-							"tool_execution_complete":                  "#/components/schemas/SSEToolExecutionCompleteEvent",
-							"permission":                               "#/components/schemas/SSEPermissionEvent",
-							"user_message_created":                     "#/components/schemas/SSEUserMessageCreatedEvent",
-							"session_created":                          "#/components/schemas/SSESessionCreatedEvent",
-							"session_deleted":                          "#/components/schemas/SSESessionDeletedEvent",
+							"connected":                             "#/components/schemas/SSEConnectedEvent",
+							"heartbeat":                             "#/components/schemas/SSEHeartbeatEvent",
+							"error":                                 "#/components/schemas/SSEErrorEvent",
+							"complete":                              "#/components/schemas/SSECompleteEvent",
+							"thinking":                              "#/components/schemas/SSEThinkingEvent",
+							"content":                               "#/components/schemas/SSEContentEvent",
+							"tool_use_start":                        "#/components/schemas/SSEToolUseStartEvent",
+							"tool_use_parameter_streaming_complete": "#/components/schemas/SSEToolUseParameterStreamingCompleteEvent",
+							"tool_use_parameter_delta":              "#/components/schemas/SSEToolUseParameterDeltaEvent",
+							"tool_execution_start":                  "#/components/schemas/SSEToolExecutionStartEvent",
+							"tool_execution_complete":               "#/components/schemas/SSEToolExecutionCompleteEvent",
+							"permission":                            "#/components/schemas/SSEPermissionEvent",
+							"user_message_created":                  "#/components/schemas/SSEUserMessageCreatedEvent",
+							"session_created":                       "#/components/schemas/SSESessionCreatedEvent",
+							"session_deleted":                       "#/components/schemas/SSESessionDeletedEvent",
 						},
 					},
 					"oneOf": []map[string]interface{}{

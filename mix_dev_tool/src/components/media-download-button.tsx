@@ -26,7 +26,7 @@ export const MediaDownloadButton = ({
 			onClick={downloadMedia}
 			size="sm"
 			title={
-				media.type === "video" && isYouTubeUrl(media.path!)
+				media.type === "video" && media.path && isYouTubeUrl(media.path)
 					? "Open in YouTube"
 					: "Download media"
 			}

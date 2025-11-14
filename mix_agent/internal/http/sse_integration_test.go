@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	sseEventPrefix    = "event: "
-	sseDataPrefix     = "data: "
+	sseEventPrefix     = "event: "
+	sseDataPrefix      = "data: "
 	eventTypeConnected = "connected"
 )
 

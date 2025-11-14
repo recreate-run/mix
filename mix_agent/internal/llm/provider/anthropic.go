@@ -664,7 +664,7 @@ func (a *anthropicClient) handleContentBlockDelta(event anthropic.ContentBlockDe
 				ToolCall: &message.ToolCall{
 					ID:       toolCall.ID,
 					Finished: false,
-					Input:    unquotedDelta,  // Send the unquoted string (or raw if unmarshal failed)
+					Input:    unquotedDelta, // Send the unquoted string (or raw if unmarshal failed)
 				},
 			}
 		}

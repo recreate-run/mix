@@ -278,18 +278,21 @@ export const VideoPlayer = ({
 		[throttledSeek],
 	);
 
-	const handleProgressMouseUp = (e: MouseEvent) => {
-		if (!isDraggingRef.current) return;
+	const handleProgressMouseUp = useCallback(
+		(e: MouseEvent) => {
+			if (!isDraggingRef.current) return;
 
-		setIsDragging(false);
-		isDraggingRef.current = false;
+			setIsDragging(false);
+			isDraggingRef.current = false;
 
-		// Sync final position
-		syncTimelinePosition();
+			// Sync final position
+			syncTimelinePosition();
 
-		// Prevent the click event from firing after drag
-		e.stopPropagation();
-	};
+			// Prevent the click event from firing after drag
+			e.stopPropagation();
+		},
+		[syncTimelinePosition],
+	);
 
 	// Add document-level mouse event listeners for dragging
 	useEffect(() => {
@@ -337,11 +340,14 @@ export const VideoPlayer = ({
 				</div>
 			)}
 
-			<div
+			{/* biome-ignore lint/a11y/useSemanticElements: Section needs role for interactive keyboard handler */}
+			<section
 				className={`relative rounded-md ${isVertical ? "max-w-[360px]" : "max-w-4xl"} focus:outline-none`}
 				onKeyDown={handleKeyDown}
+				role="region"
 			>
 				{isLoading && <Skeleton className="aspect-auto" />}
+				{/* biome-ignore lint/a11y/useMediaCaption: Video files are user-generated and don't have captions */}
 				<video
 					className="aspect-auto w-full rounded-md bg-black"
 					onError={() => {
@@ -469,8 +475,16 @@ export const VideoPlayer = ({
 									isDragging ? "cursor-grabbing" : "cursor-grab"
 								}`}
 								onClick={handleProgressClick}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										handleProgressClick(
+											e as unknown as React.MouseEvent<HTMLDivElement>,
+										);
+									}
+								}}
 								onMouseDown={handleProgressMouseDown}
 								ref={progressBarRef}
+								role="progressbar"
 							>
 								<div
 									className="h-full rounded-full bg-white"
@@ -514,8 +528,16 @@ export const VideoPlayer = ({
 										isDragging ? "cursor-grabbing" : "cursor-grab"
 									}`}
 									onClick={handleProgressClick}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											handleProgressClick(
+												e as unknown as React.MouseEvent<HTMLDivElement>,
+											);
+										}
+									}}
 									onMouseDown={handleProgressMouseDown}
 									ref={progressBarRef}
+									role="progressbar"
 								>
 									<div
 										className="h-full rounded-full bg-white"
@@ -576,7 +598,7 @@ export const VideoPlayer = ({
 						</div>
 					</div>
 				)}
-			</div>
+			</section>
 		</div>
 	);
 };
