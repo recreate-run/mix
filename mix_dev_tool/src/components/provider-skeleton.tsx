@@ -21,6 +21,7 @@ export function ProvidersLoadingSkeleton() {
 	return (
 		<div className="space-y-3">
 			{Array.from({ length: 4 }).map((_, i) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton items that never reorder
 				<ProviderSkeleton key={`skeleton-${i}`} />
 			))}
 		</div>

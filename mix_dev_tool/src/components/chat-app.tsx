@@ -1,10 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { FileDown, RotateCcw } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { FileDown, RotateCcw } from "lucide-react";
+import { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
 import { type FormEventHandler, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
 import { Button } from "@/components/ui/button";
+import {
+	AIInput,
+	AIInputModelSelectTrigger,
+	AIInputSubmit,
+	AIInputTextarea,
+	AIInputToolbar,
+	AIInputTools,
+} from "@/components/ui/kibo-ui/ai/input";
 import {
 	Select,
 	SelectContent,
@@ -12,14 +20,6 @@ import {
 	// SelectTrigger, // Commented out - only used in commented Plan Mode code
 	SelectValue,
 } from "@/components/ui/select";
-import { AIInputModelSelectTrigger } from "@/components/ui/kibo-ui/ai/input";
-import {
-	AIInput,
-	AIInputSubmit,
-	AIInputTextarea,
-	AIInputToolbar,
-	AIInputTools,
-} from "@/components/ui/kibo-ui/ai/input";
 import { useFileReference } from "@/hooks/useFileReference";
 import { useMessageHistoryNavigation } from "@/hooks/useMessageHistoryNavigation";
 // import { useAppList } from '@/hooks/useOpenApps';
@@ -261,7 +261,11 @@ export function ChatApp({
 			// Message has been saved to DB and is in stored messages - clear only pending message without affecting streaming
 			sseStream.clearPendingUserMessage();
 		}
-	}, [messages, sseStream.pendingUserMessage]);
+	}, [
+		messages,
+		sseStream.pendingUserMessage,
+		sseStream.clearPendingUserMessage,
+	]);
 
 	const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
 		userMessageRefs.current[index] = el;

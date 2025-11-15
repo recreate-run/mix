@@ -21,7 +21,7 @@ type ShowParams struct {
 
 type MediaOutput struct {
 	Path      string `json:"path,omitempty"`
-	Data      string `json:"data,omitempty"`      // Inline content for markdown/json/status types
+	Data      string `json:"data,omitempty"` // Inline content for markdown/json/status types
 	Type      string `json:"type"`
 	Title     string `json:"title"`
 	StartTime *int   `json:"startTime,omitempty"` // Optional: start time in seconds for video/audio segments

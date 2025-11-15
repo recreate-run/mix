@@ -15,7 +15,6 @@ import (
 	"mix/internal/session"
 )
 
-
 // Connection represents a single SSE connection
 type Connection struct {
 	SessionID       string
@@ -462,8 +461,8 @@ func WriteAgentEventAsSSE(sseWriter *SSEWriter, event agent.AgentEvent) error {
 
 	case agent.AgentEventTypeToolExecutionComplete:
 		// Extract tool name and success status from progress message
-		toolName := "" // Default fallback
-		success := true    // Default to success
+		toolName := ""  // Default fallback
+		success := true // Default to success
 
 		if strings.Contains(event.Progress, "Completed ") && strings.Contains(event.Progress, " tool") {
 			// Extract tool name from "Completed {toolName} tool in {duration}"

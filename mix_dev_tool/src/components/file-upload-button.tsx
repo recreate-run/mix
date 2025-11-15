@@ -127,7 +127,7 @@ export function FileUploadButton({
 
 		// Process each dropped item (files and folders)
 		for (const item of items) {
-			if (item.kind === 'file') {
+			if (item.kind === "file") {
 				const entry = item.webkitGetAsEntry();
 				if (entry) {
 					await processEntry(entry);
@@ -181,7 +181,8 @@ export function FileUploadButton({
 	// If drop zone is enabled, wrap the button with drag and drop handlers
 	if (enableDropZone) {
 		return (
-			<div
+			// biome-ignore lint/a11y/useSemanticElements: Section needs role for interactive drag/drop handlers
+			<section
 				className={cn(
 					"relative transition-all",
 					isDraggingOver && "opacity-80",
@@ -190,6 +191,7 @@ export function FileUploadButton({
 				onDragLeave={handleDragLeave}
 				onDragOver={handleDragOver}
 				onDrop={handleDrop}
+				role="region"
 			>
 				{buttonElement}
 				{isDraggingOver && (
@@ -197,7 +199,7 @@ export function FileUploadButton({
 						<span className="text-xs text-primary">Drop files here</span>
 					</div>
 				)}
-			</div>
+			</section>
 		);
 	}
 

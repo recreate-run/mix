@@ -1,5 +1,7 @@
+import { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
 import { useState } from "react";
-import { useSessionMessages } from "@/hooks/useSessionMessages";
+import { FileUploadButton } from "@/components/file-upload-button";
+import { Badge } from "@/components/ui/badge";
 import {
 	AIInput,
 	AIInputModelSelectTrigger,
@@ -8,20 +10,18 @@ import {
 	AIInputToolbar,
 	AIInputTools,
 } from "@/components/ui/kibo-ui/ai/input";
-import { FileUploadButton } from "@/components/file-upload-button";
-import { formatCurrentModel, usePreferences } from "@/hooks/usePreferences";
-import { useBoundStore } from "@/stores";
-import { buildSessionFileUrl } from "@/utils/attachmentUtils";
-import { AttachmentPreview } from "./attachment-preview";
-import { Badge } from "@/components/ui/badge";
-import { EXAMPLE_PROMPTS } from "@/lib/data";
-import { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectValue,
 } from "@/components/ui/select";
+import { formatCurrentModel, usePreferences } from "@/hooks/usePreferences";
+import { useSessionMessages } from "@/hooks/useSessionMessages";
+import { EXAMPLE_PROMPTS } from "@/lib/data";
+import { useBoundStore } from "@/stores";
+import { buildSessionFileUrl } from "@/utils/attachmentUtils";
+import { AttachmentPreview } from "./attachment-preview";
 
 interface PlaygroundWelcomeProps {
 	sessionId: string;
@@ -214,9 +214,9 @@ export function PlaygroundWelcome({
 
 					{/* Example Prompts */}
 					<div className="flex flex-wrap justify-center gap-3">
-						{EXAMPLE_PROMPTS.map((example, index) => (
+						{EXAMPLE_PROMPTS.map((example) => (
 							<Badge
-								key={index}
+								key={example.name}
 								variant="outline"
 								className="example-prompt-badge cursor-pointer px-4 py-2 font-medium text-sm"
 								onClick={() => handleSuggestionClick(example.prompt)}

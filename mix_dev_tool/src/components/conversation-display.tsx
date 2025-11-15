@@ -1,6 +1,6 @@
 import { Check, Copy, Undo2 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { CoreToolName } from "mix-typescript-sdk/models";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	AIMessage,
@@ -24,7 +24,9 @@ import type { MediaOutput } from "@/types/media";
 import type { TimelineEntry, UIMessage } from "@/types/message";
 import { convertToAssetServerUrl } from "@/utils/assetServer";
 import { getYouTubeEmbedUrl, isYouTubeUrl } from "@/utils/videoUrlDetection";
+import { CallbackResultDisplay } from "./callback-result-display";
 import { ConversationLoader } from "./conversation-loader";
+import { JSONDisplay } from "./json-display";
 import { MediaShowcase } from "./media-showcase";
 import { MessageAttachmentDisplay } from "./message-attachment-display";
 import { ModelDisplay } from "./model-display";
@@ -34,8 +36,6 @@ import { RateLimitDisplay } from "./rate-limit-display";
 import { ResponseRenderer } from "./response-renderer";
 import { StatusUI } from "./status-ui";
 import { TodoList } from "./todo-list";
-import { CallbackResultDisplay } from "./callback-result-display";
-import { JSONDisplay } from "./json-display";
 
 type StreamingState = {
 	processing: boolean;
@@ -92,7 +92,9 @@ interface ConversationDisplayProps {
 
 // Helper function to extract todos from TodoWrite tool calls
 const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
-	const todoWriteCalls = toolCalls.filter((tc) => tc.name === CoreToolName.TodoWrite);
+	const todoWriteCalls = toolCalls.filter(
+		(tc) => tc.name === CoreToolName.TodoWrite,
+	);
 	if (todoWriteCalls.length === 0) return [];
 
 	// Find the latest TodoWrite call with complete parameters to avoid flicker
@@ -113,7 +115,9 @@ const extractTodosFromToolCalls = (toolCalls: ToolCall[]) => {
 
 // Helper function to extract plan content from ExitPlanMode tool calls
 const extractPlanFromToolCalls = (toolCalls: ToolCall[]) => {
-	const planTool = toolCalls.find((tc) => tc.name === CoreToolName.ExitPlanMode);
+	const planTool = toolCalls.find(
+		(tc) => tc.name === CoreToolName.ExitPlanMode,
+	);
 	if (!planTool) return "";
 
 	try {
@@ -132,7 +136,10 @@ const hasExitPlanModeTool = (toolCalls: ToolCall[]) => {
 // Helper function to filter out special tools (TodoWrite, ExitPlanMode, Show) from toolCalls
 const filterNonSpecialTools = (toolCalls: ToolCall[]) => {
 	return toolCalls.filter(
-		(tc) => tc.name !== CoreToolName.TodoWrite && tc.name !== CoreToolName.ExitPlanMode && tc.name !== CoreToolName.Show,
+		(tc) =>
+			tc.name !== CoreToolName.TodoWrite &&
+			tc.name !== CoreToolName.ExitPlanMode &&
+			tc.name !== CoreToolName.Show,
 	);
 };
 
@@ -153,11 +160,11 @@ const renderTimelineEntries = (
 		const topLevelEntries: TimelineEntry[] = [];
 
 		for (const entry of timeline) {
-			if ((entry as any).parentToolCallId) {
+			if (entry.parentToolCallId) {
 				// This is a subagent event - group under parent tool
-				const nested = nestedMap.get((entry as any).parentToolCallId) || [];
+				const nested = nestedMap.get(entry.parentToolCallId) || [];
 				nested.push(entry);
-				nestedMap.set((entry as any).parentToolCallId, nested);
+				nestedMap.set(entry.parentToolCallId, nested);
 			} else {
 				// Top-level entry
 				topLevelEntries.push(entry);
@@ -234,17 +241,21 @@ const renderTimelineEntries = (
 			);
 		}
 		if (group.type === "callback_result") {
-			return (
-				<CallbackResultDisplay
-					key={`callback-${group.entry.id}`}
-					result={group.entry.content as any}
-				/>
-			);
+			if (group.entry.type === "callback_result") {
+				return (
+					<CallbackResultDisplay
+						key={`callback-${group.entry.id}`}
+						result={group.entry.content}
+					/>
+				);
+			}
+			return null;
 		}
 
 		// Tool with potential nested subagent events
 		const toolCall = group.entry.content as ToolCall;
-		const hasNestedEvents = group.nestedEntries && group.nestedEntries.length > 0;
+		const hasNestedEvents =
+			group.nestedEntries && group.nestedEntries.length > 0;
 
 		// Special rendering for Show tool
 		if (toolCall.name === CoreToolName.Show && sessionId && getMediaSrc) {
@@ -253,7 +264,9 @@ const renderTimelineEntries = (
 				// Separate special outputs from media outputs
 				const statusOutputs = outputs.filter((o) => o.type === "status");
 				const jsonOutputs = outputs.filter((o) => o.type === "json");
-				const mediaOutputs = outputs.filter((o) => o.type !== "status" && o.type !== "json");
+				const mediaOutputs = outputs.filter(
+					(o) => o.type !== "status" && o.type !== "json",
+				);
 
 				return (
 					<div key={`show-${group.entry.id}`} className="mb-4">
@@ -302,7 +315,12 @@ const renderTimelineEntries = (
 					{/* Nested subagent events */}
 					{hasNestedEvents && group.nestedEntries && (
 						<div className="mt-4 ml-4 border-l-2 border-muted pl-4">
-							{renderTimelineEntries(group.nestedEntries, true, sessionId, getMediaSrc)}
+							{renderTimelineEntries(
+								group.nestedEntries,
+								true,
+								sessionId,
+								getMediaSrc,
+							)}
 						</div>
 					)}
 				</AIToolStep>
@@ -406,7 +424,9 @@ export function ConversationDisplay({
 			messages.length > 0 &&
 			sseStream.preStreamingMessageIds &&
 			sseStream.preStreamingMessageIds.size >= 0 &&
-			(sseStream.timeline?.length || sseStream.toolCalls?.length || sseStream.finalContent) &&
+			(sseStream.timeline?.length ||
+				sseStream.toolCalls?.length ||
+				sseStream.finalContent) &&
 			sseStream.processing; // ← Changed: Only filter during active streaming, not after completion
 
 		if (shouldFilter) {
@@ -485,31 +505,31 @@ export function ConversationDisplay({
 							<AIMessageContent>
 								{message.from === "assistant" ? (
 									<>
-									{/* Render timeline-based interleaved thinking and tools (media rendered inline) */}
-									{message.timeline && message.timeline.length > 0 ? (
-										renderTimelineEntries(
-											message.timeline,
-											false,
-											sessionId,
-											getMediaSrc,
-										)
-									) : message.status ? (
-										<AIMessageContent.Content>
-											<StatusUI statusState={message.status} />
-										</AIMessageContent.Content>
-									) : message.provider ? (
-										<AIMessageContent.Content>
-											<ProviderDisplay data={message.provider} />
-										</AIMessageContent.Content>
-									) : message.model ? (
-										<AIMessageContent.Content>
-											<ModelDisplay data={message.model} />
-										</AIMessageContent.Content>
-									) : (
-										<AIMessageContent.Content>
-											<ResponseRenderer content={message.content} />
-										</AIMessageContent.Content>
-									)}
+										{/* Render timeline-based interleaved thinking and tools (media rendered inline) */}
+										{message.timeline && message.timeline.length > 0 ? (
+											renderTimelineEntries(
+												message.timeline,
+												false,
+												sessionId,
+												getMediaSrc,
+											)
+										) : message.status ? (
+											<AIMessageContent.Content>
+												<StatusUI statusState={message.status} />
+											</AIMessageContent.Content>
+										) : message.provider ? (
+											<AIMessageContent.Content>
+												<ProviderDisplay data={message.provider} />
+											</AIMessageContent.Content>
+										) : message.model ? (
+											<AIMessageContent.Content>
+												<ModelDisplay data={message.model} />
+											</AIMessageContent.Content>
+										) : (
+											<AIMessageContent.Content>
+												<ResponseRenderer content={message.content} />
+											</AIMessageContent.Content>
+										)}
 										{message.content && (
 											<AIMessageContent.Toolbar>
 												<MessageCopyButton content={message.content} />
@@ -681,7 +701,7 @@ export function ConversationDisplay({
 											Execution paused
 										</div>
 									) : sseStream.processing && !sseStream.completed ? (
-									<ConversationLoader />
+										<ConversationLoader />
 									) : null}
 								</>
 							) : sseStream.cancelled ? (

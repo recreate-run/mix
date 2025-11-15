@@ -1,5 +1,26 @@
+import { Loader2, Plus, Settings, Trash2 } from "lucide-react";
+import { CoreToolName } from "mix-typescript-sdk/models";
+import type { Callback } from "mix-typescript-sdk/models/callback.js";
+import { CallbackType } from "mix-typescript-sdk/models/callback.js";
 import * as React from "react";
-import { Plus, Trash2, Loader2, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
 	Sidebar,
 	SidebarContent,
@@ -8,34 +29,13 @@ import {
 	SidebarGroupLabel,
 	SidebarRail,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 import {
 	useSessionCallbacks,
 	useUpdateCallbacks,
 } from "@/hooks/useSessionCallbacks";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
-import type { Callback } from "mix-typescript-sdk/models/callback.js";
-import { CallbackType } from "mix-typescript-sdk/models/callback.js";
-import { CoreToolName } from "mix-typescript-sdk/models";
 import { SdkCodeSnippet } from "./sdk-code-snippet";
 
 interface RightSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -132,7 +132,7 @@ export function RightSidebar({ sessionId, ...props }: RightSidebarProps) {
 								<div className="space-y-2">
 									{callbacks.map((callback, index) => (
 										<CallbackCard
-											key={index}
+											key={`${callback.name}-${callback.toolName}-${index}`}
 											callback={callback}
 											onDelete={() => handleDeleteCallback(index)}
 										/>
@@ -219,11 +219,9 @@ function CallbackCard({ callback, onDelete }: CallbackCardProps) {
 						)}
 					</>
 				) : isSendMessage ? (
-					<>
-						<p className="text-xs bg-muted p-2 rounded">
-							{callback.messageContent || "No message"}
-						</p>
-					</>
+					<p className="text-xs bg-muted p-2 rounded">
+						{callback.messageContent || "No message"}
+					</p>
 				) : (
 					<>
 						<p className="text-xs bg-muted p-2 rounded">
@@ -254,6 +252,17 @@ interface CallbackFormProps {
 }
 
 function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
+	const nameId = React.useId();
+	const toolNameId = React.useId();
+	const typeId = React.useId();
+	const bashCommandId = React.useId();
+	const bashTimeoutId = React.useId();
+	const messageContentId = React.useId();
+	const subAgentPromptId = React.useId();
+	const subAgentTypeId = React.useId();
+	const includeFullHistoryId = React.useId();
+	const excludeFromContextId = React.useId();
+
 	const [name, setName] = React.useState("");
 	const [toolName, setToolName] = React.useState("*");
 	const [type, setType] = React.useState<CallbackType>(CallbackType.BashScript);
@@ -303,11 +312,11 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<div className="space-y-2">
-				<Label htmlFor="name" className="text-xs">
+				<Label htmlFor={nameId} className="text-xs">
 					Callback Name
 				</Label>
 				<Input
-					id="name"
+					id={nameId}
 					value={name}
 					onChange={(e) => setName(e.target.value)}
 					placeholder="Callback #1234 (auto-generated)"
@@ -316,11 +325,11 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 			</div>
 
 			<div className="space-y-2">
-				<Label htmlFor="toolName" className="text-xs">
+				<Label htmlFor={toolNameId} className="text-xs">
 					Tool Name
 				</Label>
 				<Select value={toolName} onValueChange={setToolName}>
-					<SelectTrigger id="toolName" className="h-8 text-xs">
+					<SelectTrigger id={toolNameId} className="h-8 text-xs">
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>
@@ -336,17 +345,19 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 						<SelectItem value={CoreToolName.Task}>Task</SelectItem>
 						<SelectItem value={CoreToolName.Search}>Search</SelectItem>
 						<SelectItem value={CoreToolName.TodoWrite}>TodoWrite</SelectItem>
-						<SelectItem value={CoreToolName.ExitPlanMode}>ExitPlanMode</SelectItem>
+						<SelectItem value={CoreToolName.ExitPlanMode}>
+							ExitPlanMode
+						</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
 
 			<div className="space-y-2">
-				<Label htmlFor="type" className="text-xs">
+				<Label htmlFor={typeId} className="text-xs">
 					Callback Type
 				</Label>
 				<Select value={type} onValueChange={(v) => setType(v as CallbackType)}>
-					<SelectTrigger id="type" className="h-8 text-xs">
+					<SelectTrigger id={typeId} className="h-8 text-xs">
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>
@@ -360,74 +371,70 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 			</div>
 
 			{isBashScript ? (
-				<>
-					<div className="space-y-2">
-						<div className="flex items-center justify-between">
-							<Label htmlFor="bashCommand" className="text-xs">
-								Bash Command
-							</Label>
-							<Popover>
-								<PopoverTrigger asChild>
-									<Button variant="ghost" size="icon" className="h-6 w-6">
-										<Settings className="h-3 w-3" />
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-64" align="end">
-									<div className="space-y-4">
-										<div className="space-y-2">
-											<Label
-												htmlFor="bashTimeout"
-												className="text-xs font-medium"
-											>
-												Timeout (ms)
-											</Label>
-											<Input
-												id="bashTimeout"
-												type="number"
-												value={bashTimeout}
-												onChange={(e) => setBashTimeout(e.target.value)}
-												className="h-8 text-xs"
-											/>
-										</div>
-									</div>
-								</PopoverContent>
-							</Popover>
-						</div>
-						<Textarea
-							id="bashCommand"
-							value={bashCommand}
-							onChange={(e) => setBashCommand(e.target.value)}
-							placeholder="echo $CALLBACK_TOOL_RESULT"
-							className="text-xs font-mono min-h-20"
-							required
-						/>
-					</div>
-				</>
-			) : isSendMessage ? (
-				<>
-					<div className="space-y-2">
-						<Label htmlFor="messageContent" className="text-xs">
-							Message Content
+				<div className="space-y-2">
+					<div className="flex items-center justify-between">
+						<Label htmlFor={bashCommandId} className="text-xs">
+							Bash Command
 						</Label>
-						<Textarea
-							id="messageContent"
-							value={messageContent}
-							onChange={(e) => setMessageContent(e.target.value)}
-							placeholder="Please review the changes and provide feedback"
-							className="text-xs min-h-20"
-							required
-						/>
-						<p className="text-[10px] text-muted-foreground">
-							This message will be injected into the conversation after the tool
-							completes
-						</p>
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button variant="ghost" size="icon" className="h-6 w-6">
+									<Settings className="h-3 w-3" />
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-64" align="end">
+								<div className="space-y-4">
+									<div className="space-y-2">
+										<Label
+											htmlFor={bashTimeoutId}
+											className="text-xs font-medium"
+										>
+											Timeout (ms)
+										</Label>
+										<Input
+											id={bashTimeoutId}
+											type="number"
+											value={bashTimeout}
+											onChange={(e) => setBashTimeout(e.target.value)}
+											className="h-8 text-xs"
+										/>
+									</div>
+								</div>
+							</PopoverContent>
+						</Popover>
 					</div>
-				</>
+					<Textarea
+						id={bashCommandId}
+						value={bashCommand}
+						onChange={(e) => setBashCommand(e.target.value)}
+						placeholder="echo $CALLBACK_TOOL_RESULT"
+						className="text-xs font-mono min-h-20"
+						required
+					/>
+				</div>
+			) : isSendMessage ? (
+				<div className="space-y-2">
+					<Label htmlFor={messageContentId} className="text-xs">
+						Message Content
+					</Label>
+					<Textarea
+						id={messageContentId}
+						value={messageContent}
+						onChange={(e) => setMessageContent(e.target.value)}
+						placeholder="Please review the changes and provide feedback"
+						className="text-xs min-h-20"
+						required
+					/>
+					<p className="text-[10px] text-muted-foreground">
+						This message will be injected into the conversation after the tool
+						completes
+					</p>
+				</div>
 			) : (
 				<>
 					<div className="space-y-2">
 						<div className="flex items-center justify-between">
-							<Label htmlFor="subAgentPrompt" className="text-xs">
+							<Label htmlFor={subAgentPromptId} className="text-xs">
 								Sub-agent Prompt
 							</Label>
 							<Popover>
@@ -441,11 +448,14 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 										<div className="space-y-1">
 											<div className="flex items-center space-x-2">
 												<Switch
-													id="includeFullHistory"
+													id={includeFullHistoryId}
 													checked={includeFullHistory}
 													onCheckedChange={setIncludeFullHistory}
 												/>
-												<Label htmlFor="includeFullHistory" className="text-xs">
+												<Label
+													htmlFor={includeFullHistoryId}
+													className="text-xs"
+												>
 													Include full history
 												</Label>
 											</div>
@@ -458,7 +468,7 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 							</Popover>
 						</div>
 						<Textarea
-							id="subAgentPrompt"
+							id={subAgentPromptId}
 							value={subAgentPrompt}
 							onChange={(e) => setSubAgentPrompt(e.target.value)}
 							placeholder="Analyze the tool output and suggest improvements"
@@ -468,11 +478,11 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="subAgentType" className="text-xs">
+						<Label htmlFor={subAgentTypeId} className="text-xs">
 							Sub-agent Type
 						</Label>
 						<Input
-							id="subAgentType"
+							id={subAgentTypeId}
 							value={subAgentType}
 							onChange={(e) => setSubAgentType(e.target.value)}
 							className="h-8 text-xs"
@@ -486,11 +496,11 @@ function CallbackForm({ onSubmit, onCancel }: CallbackFormProps) {
 				<div className="space-y-2">
 					<div className="flex items-center space-x-2">
 						<Switch
-							id="excludeFromContext"
+							id={excludeFromContextId}
 							checked={excludeFromContext}
 							onCheckedChange={setExcludeFromContext}
 						/>
-						<Label htmlFor="excludeFromContext" className="text-xs">
+						<Label htmlFor={excludeFromContextId} className="text-xs">
 							Exclude from agent context
 						</Label>
 					</div>

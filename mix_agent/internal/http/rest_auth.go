@@ -336,11 +336,11 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 
 // supportedProviders defines the limited set of providers we support
 var supportedProviders = map[string]struct{}{
-	providerAnthropic:  {},
-	"openai":     {},
-	"openrouter": {},
-	"gemini":     {},
-	"brave":      {},
+	providerAnthropic: {},
+	"openai":          {},
+	"openrouter":      {},
+	"gemini":          {},
+	"brave":           {},
 }
 
 // HandleOAuthCallback handles POST /api/auth/oauth/callback

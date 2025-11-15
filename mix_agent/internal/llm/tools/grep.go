@@ -40,11 +40,11 @@ type grepTool struct {
 }
 
 const (
-	GrepToolName                  = "Grep"
-	outputModeFilesWithMatches    = "files_with_matches"
-	outputModeContent             = "content"
-	outputModeCount               = "count"
-	truncatedResultsMessage       = "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
+	GrepToolName               = "Grep"
+	outputModeFilesWithMatches = "files_with_matches"
+	outputModeContent          = "content"
+	outputModeCount            = "count"
+	truncatedResultsMessage    = "\n\n(Results truncated to head_limit. Refine your search for complete results.)"
 )
 
 func NewGrepTool(permissions permission.Service) BaseTool {
