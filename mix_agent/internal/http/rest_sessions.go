@@ -194,6 +194,9 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Truncate title to enforce maximum length
+	title := session2.TruncateTitle(req.Title)
+
 	// Set default prompt mode if not specified
 	promptMode := req.PromptMode
 	if promptMode == "" {
@@ -239,7 +242,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	ctx := r.Context()
-	session, err := h.app.Sessions.Create(ctx, req.Title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "", "")
+	session, err := h.app.Sessions.Create(ctx, title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "", "")
 	if err != nil {
 		sendInternalError(w, "creating session", err)
 		return
@@ -316,6 +319,9 @@ func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Reques
 	if title == "" {
 		title = "Forked Session"
 	}
+
+	// Truncate title to enforce maximum length
+	title = session2.TruncateTitle(title)
 
 	ctx := r.Context()
 	newSession, err := h.app.Sessions.Fork(ctx, sourceSessionID, title)
