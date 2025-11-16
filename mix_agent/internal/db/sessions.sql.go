@@ -255,6 +255,7 @@ LEFT JOIN (
     FROM messages GROUP BY session_id
 ) counts ON s.id = counts.session_id
 ORDER BY s.created_at DESC
+LIMIT 20
 `
 
 type ListSessionsMetadataRow struct {
@@ -355,6 +356,7 @@ LEFT JOIN (
     FROM messages GROUP BY session_id
 ) counts ON s.id = counts.session_id
 ORDER BY s.created_at DESC
+LIMIT 20
 `
 
 type ListSessionsWithContentRow struct {
