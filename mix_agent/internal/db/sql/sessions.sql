@@ -101,7 +101,8 @@ LEFT JOIN (
            COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
     FROM messages GROUP BY session_id
 ) counts ON s.id = counts.session_id
-ORDER BY s.created_at DESC;
+ORDER BY s.created_at DESC
+LIMIT 20;
 
 -- name: ListSessionsWithContent :many
 SELECT
@@ -139,7 +140,8 @@ LEFT JOIN (
            COUNT(CASE WHEN role = 'tool' THEN 1 END) as tool_call_count
     FROM messages GROUP BY session_id
 ) counts ON s.id = counts.session_id
-ORDER BY s.created_at DESC;
+ORDER BY s.created_at DESC
+LIMIT 20;
 
 -- name: UpdateSession :one
 UPDATE sessions

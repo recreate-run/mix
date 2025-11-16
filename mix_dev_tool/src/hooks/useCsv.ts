@@ -83,8 +83,8 @@ export function useCsvData(url: string) {
 	return useQuery({
 		queryKey: CACHE_KEYS.csvData(url),
 		queryFn: () => fetchCsvData(url),
-		refetchOnWindowFocus: false,
-		refetchOnMount: false,
+		// refetchOnWindowFocus: false,
+		// refetchOnMount: false,
 		enabled: !!url,
 	});
 }
