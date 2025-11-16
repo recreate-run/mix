@@ -27,6 +27,6 @@ export function useMCPList() {
 	return useQuery({
 		queryKey: ["mcp", "list"],
 		queryFn: loadMCPList,
-		refetchOnWindowFocus: false,
+		// refetchOnWindowFocus: false,
 	});
 }
