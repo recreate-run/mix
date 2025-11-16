@@ -354,7 +354,8 @@ func (a *agent) generateTitle(ctx context.Context, sessionID, content string) er
 		return nil
 	}
 
-	sess.Title = title
+	// Enforce maximum title length to prevent UI layout issues
+	sess.Title = session.TruncateTitle(title)
 	_, err = a.sessions.Save(ctx, sess)
 	return err
 }

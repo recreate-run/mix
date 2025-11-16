@@ -51,6 +51,19 @@ func (s SubagentType) String() string {
 	return string(s)
 }
 
+// TruncateTitle ensures a title doesn't exceed the maximum length
+// This prevents UI layout issues and keeps titles concise
+// Uses rune-aware slicing to properly handle multi-byte Unicode characters (e.g., emojis)
+const MaxTitleLength = 80
+
+func TruncateTitle(title string) string {
+	runes := []rune(title)
+	if len(runes) <= MaxTitleLength {
+		return title
+	}
+	return string(runes[:MaxTitleLength-3]) + "..."
+}
+
 // IsValidSubagentType checks if the given string is a valid SubagentType
 func IsValidSubagentType(s string) bool {
 	switch SubagentType(s) {

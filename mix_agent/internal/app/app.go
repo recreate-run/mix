@@ -135,16 +135,8 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string
 		fmt.Println("Processing...")
 	}
 
-	const maxPromptLengthForTitle = 100
 	titlePrefix := "Non-interactive: "
-	var titleSuffix string
-
-	if len(prompt) > maxPromptLengthForTitle {
-		titleSuffix = prompt[:maxPromptLengthForTitle] + "..."
-	} else {
-		titleSuffix = prompt
-	}
-	title := titlePrefix + titleSuffix
+	title := session.TruncateTitle(titlePrefix + prompt)
 
 	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "")
 	if err != nil {
