@@ -40,9 +40,9 @@ export function useSessionMessages(sessionId: string | null) {
 			return result;
 		},
 		enabled: !!sessionId,
-		staleTime: 0, // Always treat data as stale, refetch on mount
-		refetchOnMount: true, // Always refetch when component mounts
-		refetchOnWindowFocus: false, // Disable auto-refetch on window focus to prevent duplicates during streaming
+		// staleTime: 0, // Always treat data as stale, refetch on mount
+		// refetchOnMount: true, // Always refetch when component mounts
+		// refetchOnWindowFocus: false, // Disable auto-refetch on window focus to prevent duplicates during streaming
 	});
 
 	return query;
