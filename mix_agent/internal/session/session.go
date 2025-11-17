@@ -54,7 +54,7 @@ func (s SubagentType) String() string {
 // TruncateTitle ensures a title doesn't exceed the maximum length
 // This prevents UI layout issues and keeps titles concise
 // Uses rune-aware slicing to properly handle multi-byte Unicode characters (e.g., emojis)
-const MaxTitleLength = 80
+const MaxTitleLength = 20
 
 func TruncateTitle(title string) string {
 	runes := []rune(title)
@@ -187,7 +187,7 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 		ParentToolCallID:   sql.NullString{String: parentToolCallID, Valid: parentToolCallID != ""},
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{String: customSystemPrompt, Valid: customSystemPrompt != ""},
-		PromptMode:         sql.NullString{String: promptMode, Valid: promptMode != ""},
+		PromptMode:         promptMode,
 		Callbacks:          sql.NullString{Valid: false}, // Session callbacks initially empty, updated via Save() when configured
 		SessionType:        sessionTypeStr,
 		SubagentType:       sql.NullString{String: subagentTypeStr, Valid: subagentTypeStr != ""},
@@ -234,7 +234,7 @@ func (s *service) Fork(ctx context.Context, sourceSessionID, title string) (Sess
 		ParentToolCallID:   sql.NullString{Valid: false}, // Forked sessions don't have parent tool calls
 		Title:              title,
 		CustomSystemPrompt: sql.NullString{Valid: false}, // Forked sessions use default prompt
-		PromptMode:         sql.NullString{String: "default", Valid: true},
+		PromptMode:         "default",
 		Callbacks:          sql.NullString{Valid: false}, // Forked sessions start without callbacks
 		SessionType:        SessionTypeForked.String(),   // Type-safe constant
 		SubagentType:       sql.NullString{Valid: false}, // Not a subagent
@@ -320,7 +320,7 @@ func (s *service) Save(ctx context.Context, session Session) (Session, error) {
 		ID:                 session.ID,
 		Title:              session.Title,
 		CustomSystemPrompt: sql.NullString{String: session.CustomSystemPrompt, Valid: session.CustomSystemPrompt != ""},
-		PromptMode:         sql.NullString{String: session.PromptMode, Valid: session.PromptMode != ""},
+		PromptMode:         session.PromptMode,
 		Callbacks:          sql.NullString{String: session.Callbacks, Valid: session.Callbacks != ""},
 		PromptTokens:       session.PromptTokens,
 		CompletionTokens:   session.CompletionTokens,
@@ -368,7 +368,7 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
-		PromptMode:            item.PromptMode.String,
+		PromptMode:            item.PromptMode,
 		Callbacks:             item.Callbacks.String,
 		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
@@ -390,7 +390,7 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) S
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
-		PromptMode:            item.PromptMode.String,
+		PromptMode:            item.PromptMode,
 		Callbacks:             item.Callbacks.String,
 		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
@@ -412,7 +412,7 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) Session {
 		PromptTokens:          item.PromptTokens,
 		CompletionTokens:      item.CompletionTokens,
 		CustomSystemPrompt:    item.CustomSystemPrompt.String,
-		PromptMode:            item.PromptMode.String,
+		PromptMode:            item.PromptMode,
 		Callbacks:             item.Callbacks.String,
 		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
