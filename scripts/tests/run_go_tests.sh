@@ -39,6 +39,7 @@ cd "$(dirname "$0")/../../mix_agent"
 
 # Set environment variables for tests
 export TEST_MODE=true
+export VITE_BACKEND_URL=http://localhost:8088
 
 # Determine test command based on options
 if [ "$UNIT_ONLY" = true ]; then

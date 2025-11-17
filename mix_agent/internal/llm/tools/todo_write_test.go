@@ -13,6 +13,12 @@ import (
 	"mix/internal/config"
 )
 
+// TestMain sets up environment for all tests in this package
+func TestMain(m *testing.M) {
+	_ = os.Setenv("VITE_BACKEND_URL", "http://localhost:8088")
+	os.Exit(m.Run())
+}
+
 // Test constants
 func TestTodoConstants(t *testing.T) {
 	// Test TodoStatus constants
@@ -388,6 +394,17 @@ func TestTodoWriteParamsJSONSerialization(t *testing.T) {
 
 // Test edge cases and special scenarios
 func TestTodoWriteTool_EdgeCases(t *testing.T) {
+	// Create temporary directory for test
+	tempDir, err := os.MkdirTemp("", "todo_test_*")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
+
+	// Load config with temp directory
+	_, err = config.Load(tempDir, false, false)
+	require.NoError(t, err)
+
 	tool := NewTodoWriteTool()
 	ctx := context.Background()
 

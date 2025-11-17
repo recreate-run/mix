@@ -12,7 +12,9 @@ import shutil
 IGNORE_FILES = ["kill_bash.md"]
 
 # Tools to exclude from documentation (backend-only tools)
-EXCLUDED_TOOLS = ["bash_output.md", "python_execution.md"]
+EXCLUDED_TOOLS = [
+    "bash_output.md",
+]
 
 # Jinja2 template for MDX files
 MDX_TEMPLATE = Template("""---
