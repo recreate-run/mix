@@ -120,7 +120,6 @@ SELECT
     s.cost,
     s.created_at,
     s.updated_at,
-    '' as first_user_message,
     0 as user_message_count,
     0 as assistant_message_count,
     0 as tool_call_count

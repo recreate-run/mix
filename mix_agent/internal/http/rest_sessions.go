@@ -120,7 +120,7 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 			CompletionTokens:      sessions[i].CompletionTokens,
 			Cost:                  sessions[i].Cost,
 			CreatedAt:             time.Unix(sessions[i].CreatedAt, 0),
-			FirstUserMessage:      sessions[i].FirstUserMessage,
+			// FirstUserMessage is intentionally left empty (default empty string)
 		})
 	}
 
