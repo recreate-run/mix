@@ -17,7 +17,6 @@ import (
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -1288,12 +1287,9 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		sessionVars["workdir"] = session.GetSessionStoragePath(sess.ID, storageConfig)
 	}
 
-	// Add server URL for file access - uses PUBLIC_URL env var or defaults to localhost
-	serverURL := os.Getenv("PUBLIC_URL")
-	if serverURL == "" {
-		serverURL = "http://localhost:8088"
-	}
-	sessionVars["server_url"] = serverURL
+	// Add server URL for file access from config
+	cfg := config.Get()
+	sessionVars["server_url"] = cfg.BaseURL
 
 	// Get system prompt with session variables and custom prompt support
 	customPrompt := ""

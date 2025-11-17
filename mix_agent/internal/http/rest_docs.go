@@ -28,7 +28,6 @@ func serveOpenAPISpec(w http.ResponseWriter) {
 type OpenAPISpec struct {
 	OpenAPI           string                 `json:"openapi"`
 	Info              OpenAPIInfo            `json:"info"`
-	Servers           []OpenAPIServer        `json:"servers"`
 	XSpeakeasyRetries map[string]interface{} `json:"x-speakeasy-retries"`
 	Paths             map[string]interface{} `json:"paths"`
 	Components        OpenAPIComponents      `json:"components"`
@@ -38,11 +37,6 @@ type OpenAPIInfo struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Version     string `json:"version"`
-}
-
-type OpenAPIServer struct {
-	URL         string `json:"url"`
-	Description string `json:"description"`
 }
 
 type OpenAPIComponents struct {
@@ -59,12 +53,6 @@ func getOpenAPISpec() OpenAPISpec {
 			Title:       "Mix REST API",
 			Description: "REST API for the Mix application - session management, messaging, and system operations",
 			Version:     "1.0.0",
-		},
-		Servers: []OpenAPIServer{
-			{
-				URL:         "http://localhost:8088",
-				Description: "Development server",
-			},
 		},
 		XSpeakeasyRetries: map[string]interface{}{
 			"strategy": "backoff",

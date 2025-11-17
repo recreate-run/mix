@@ -33,7 +33,6 @@ import { CACHE_KEYS } from "@/lib/cache-keys";
 import { useBoundStore } from "@/stores";
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
-import { buildSessionFileUrl } from "@/utils/attachmentUtils";
 import { getDisplayTitle } from "@/utils/sessionUtils";
 import {
 	handleSlashCommandNavigation,
@@ -192,7 +191,7 @@ export function ChatApp({
 	const fileRef = useFileReference(text, setText, session?.id);
 
 	// Handle file upload success
-	const handleFileUploadSuccess = (fileName: string) => {
+	const handleFileUploadSuccess = (fileName: string, fileUrl: string) => {
 		if (!session?.id) return;
 
 		// Add file reference to text input (same behavior as "@" menu)
@@ -202,9 +201,8 @@ export function ChatApp({
 			: `${displayReference} `;
 		setText(newText);
 
-		// Add reference mapping with full URL to ensure consistency with media array
-		const fullUrl = buildSessionFileUrl(session.id, fileName);
-		useBoundStore.getState().addReference(displayReference, fullUrl);
+		// Add reference mapping with full URL from backend
+		useBoundStore.getState().addReference(displayReference, fileUrl);
 
 		// Show success notification
 		toast.success(`File uploaded successfully: ${fileName}`);

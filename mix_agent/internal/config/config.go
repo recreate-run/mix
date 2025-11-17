@@ -86,6 +86,7 @@ type Config struct {
 	Shell            ShellConfig         `json:"shell,omitempty"`
 	SkipPermissions  bool                `json:"skipPermissions,omitempty"`
 	AnalyticsEnabled bool                `json:"analyticsEnabled,omitempty"`
+	BaseURL          string              `json:"baseUrl,omitempty"` // Base URL for constructing file URLs
 }
 
 // Application constants
@@ -125,6 +126,15 @@ func Load(sessionStorageDir string, debug, skipPermissions bool) (*Config, error
 	}
 	promptsDir := filepath.Join(homeDir.HomeDir, ".mix", "prompts")
 
+	// Get BaseURL from environment - PUBLIC_URL takes precedence, falls back to VITE_BACKEND_URL
+	baseURL := os.Getenv("PUBLIC_URL")
+	if baseURL == "" {
+		baseURL = os.Getenv("VITE_BACKEND_URL")
+	}
+	if baseURL == "" {
+		return nil, fmt.Errorf("BASE_URL configuration required: set either PUBLIC_URL or VITE_BACKEND_URL environment variable")
+	}
+
 	cfg = &Config{
 		Data: Data{
 			Directory: defaultDataDirectory,
@@ -142,6 +152,7 @@ func Load(sessionStorageDir string, debug, skipPermissions bool) (*Config, error
 			Args: []string{"-l"},
 		},
 		AnalyticsEnabled: getAnalyticsEnabled(),
+		BaseURL:          baseURL,
 	}
 
 	// Providers now managed entirely through database API credentials service

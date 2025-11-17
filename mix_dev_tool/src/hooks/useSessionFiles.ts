@@ -9,6 +9,7 @@ interface FileInfo {
 	size: number;
 	modified: number;
 	isDir: boolean;
+	url: string; // Full absolute URL from backend
 }
 
 // Transform SDK FileInfo to Attachment format
@@ -24,7 +25,7 @@ const transformFileInfoToAttachment = (fileInfo: FileInfo): Attachment => {
 		id: `session-file:${fileInfo.name}`,
 		name: fileInfo.name,
 		type,
-		path: fileInfo.name, // Session files use name as path
+		path: fileInfo.url, // Use full URL from backend
 		extension,
 		isDirectory: fileInfo.isDir,
 	};
