@@ -113,7 +113,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("POST /api/sessions", sessionHandler.HandleCreateSession)
 	mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.HandleGetSession)
 	mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.HandleDeleteSession)
-	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 
 	// Message endpoints
 	mux.HandleFunc("POST /api/sessions/{id}/messages", messageHandler.HandleSendMessage)

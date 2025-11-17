@@ -100,7 +100,7 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	// Initialize as empty slice instead of nil to ensure JSON encodes as [] not null
 	result := make([]SessionData, 0)
 	for i := range sessions {
-		// Only include main and forked sessions by default - hide subagent sessions
+		// Only include main sessions by default - hide subagent sessions
 		// unless explicitly requested via query parameter
 		if sessions[i].SessionType == "subagent" && !includeSubagents {
 			continue
@@ -229,9 +229,9 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Validate session type - API can only create main sessions
-	// Subagent and forked sessions are created programmatically through dedicated flows
+	// Subagent sessions are created programmatically through dedicated flows
 	if req.SessionType != "" && req.SessionType != "main" {
-		sendValidationError(w, "sessionType", "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.")
+		sendValidationError(w, "sessionType", "API can only create main sessions. Subagent sessions are created automatically.")
 		return
 	}
 
@@ -274,82 +274,6 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		sendInternalError(w, "converting session data", err)
 		return
-	}
-
-	sendJSONResponse(w, http.StatusCreated, result)
-}
-
-// ForkSessionRequest represents the request body for forking a session
-type ForkSessionRequest struct {
-	MessageIndex int64  `json:"messageIndex"`
-	Title        string `json:"title,omitempty"`
-}
-
-// HandleForkSession handles POST /api/sessions/{id}/fork
-func (h *SessionHandler) HandleForkSession(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
-	if handleCORSPreflight(w, r) {
-		return
-	}
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	sourceSessionID := r.PathValue("id")
-	if sourceSessionID == "" {
-		sendValidationError(w, "id", "source session ID is required")
-		return
-	}
-
-	var req ForkSessionRequest
-	if err := parseJSONBody(r, &req); err != nil {
-		sendValidationError(w, "body", err.Error())
-		return
-	}
-
-	if req.MessageIndex < 0 {
-		sendValidationError(w, "messageIndex", "message index must be >= 0")
-		return
-	}
-
-	// Use a default title if not provided
-	title := req.Title
-	if title == "" {
-		title = "Forked Session"
-	}
-
-	// Truncate title to enforce maximum length
-	title = session2.TruncateTitle(title)
-
-	ctx := r.Context()
-	newSession, err := h.app.Sessions.Fork(ctx, sourceSessionID, title)
-	if err != nil {
-		sendInternalError(w, "forking session", err)
-		return
-	}
-
-	// Copy messages to the new session
-	err = h.app.Messages.CopyMessagesToSession(ctx, sourceSessionID, newSession.ID, req.MessageIndex)
-	if err != nil {
-		sendInternalError(w, "copying messages", err)
-		return
-	}
-
-	result := SessionData{
-		ID:                    newSession.ID,
-		ParentSessionID:       newSession.ParentSessionID,
-		Title:                 newSession.Title,
-		SessionType:           newSession.SessionType.String(),  // Convert typed field to string
-		SubagentType:          newSession.SubagentType.String(), // Convert typed field to string
-		UserMessageCount:      newSession.UserMessageCount,
-		AssistantMessageCount: newSession.AssistantMessageCount,
-		ToolCallCount:         newSession.ToolCallCount,
-		PromptTokens:          newSession.PromptTokens,
-		CompletionTokens:      newSession.CompletionTokens,
-		Cost:                  newSession.Cost,
-		CreatedAt:             time.Unix(newSession.CreatedAt, 0),
 	}
 
 	sendJSONResponse(w, http.StatusCreated, result)
@@ -480,7 +404,7 @@ type RewindSessionRequest struct {
 
 // rewindPoint holds the result of finding a rewind point in the message list
 type rewindPoint struct {
-	timestamp       int64
+	timestamp       int64 // timestamp of the first message to delete (or rewind message if no messages after)
 	messageIndex    int
 	messagesDeleted int
 }
@@ -494,8 +418,15 @@ func (h *SessionHandler) findRewindPoint(ctx context.Context, sessionID, message
 
 	for i, msg := range allMessages {
 		if msg.ID == messageID {
+			// Use the timestamp of the NEXT message (first to delete) if it exists
+			// Otherwise use the rewind message timestamp (no cleanup needed)
+			cleanupTimestamp := msg.CreatedAt
+			if i+1 < len(allMessages) {
+				cleanupTimestamp = allMessages[i+1].CreatedAt
+			}
+
 			return &rewindPoint{
-				timestamp:       msg.CreatedAt,
+				timestamp:       cleanupTimestamp,
 				messageIndex:    i,
 				messagesDeleted: len(allMessages) - i - 1,
 			}, nil

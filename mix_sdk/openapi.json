@@ -5,12 +5,6 @@
     "description": "REST API for the Mix application - session management, messaging, and system operations",
     "version": "1.0.0"
   },
-  "servers": [
-    {
-      "url": "http://localhost:8088",
-      "description": "Development server"
-    }
-  ],
   "x-speakeasy-retries": {
     "backoff": {
       "exponent": 1.5,
@@ -1283,7 +1277,7 @@
                   },
                   "sessionType": {
                     "default": "main",
-                    "description": "Session type. API can only create 'main' sessions. Forked sessions are created via /fork endpoint. Subagent sessions are created automatically by the task delegation system.",
+                    "description": "Session type. API can only create 'main' sessions. Subagent sessions are created automatically by the task delegation system.",
                     "enum": [
                       "main"
                     ],
@@ -1339,7 +1333,7 @@
                     "value": {
                       "error": {
                         "code": 400,
-                        "message": "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.",
+                        "message": "API can only create main sessions. Subagent sessions are created automatically.",
                         "type": "validation_error"
                       }
                     }
@@ -1924,83 +1918,6 @@
         "summary": "Get session file",
         "tags": [
           "Files"
-        ]
-      }
-    },
-    "/api/sessions/{id}/fork": {
-      "post": {
-        "description": "Create a new session based on an existing session, copying messages up to a specified index",
-        "operationId": "forkSession",
-        "parameters": [
-          {
-            "description": "Source session ID to fork from",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "messageIndex": {
-                    "description": "Index of the last message to include in the fork (0-based)",
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  "title": {
-                    "description": "Optional title for the forked session (defaults to 'Forked Session')",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "messageIndex"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionData"
-                }
-              }
-            },
-            "description": "Forked session"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Invalid request - messageIndex must be >= 0"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Source session not found"
-          }
-        },
-        "summary": "Fork a session",
-        "tags": [
-          "Sessions"
         ]
       }
     },
@@ -2978,7 +2895,6 @@
           "Grep",
           "Write",
           "Edit",
-          "python_execution",
           "Search",
           "TodoWrite",
           "ExitPlanMode",
@@ -4058,7 +3974,7 @@
             "type": "string"
           },
           "parentSessionId": {
-            "description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+            "description": "Parent session ID for subagent sessions (null for main sessions)",
             "type": "string"
           },
           "parentToolCallId": {
@@ -4070,10 +3986,9 @@
             "type": "integer"
           },
           "sessionType": {
-            "description": "Session type:\n- 'main': Root-level user interactions\n- 'forked': User-created conversation branches\n- 'subagent': Delegated task workers",
+            "description": "Session type:\n- 'main': Root-level user interactions\n- 'subagent': Delegated task workers",
             "enum": [
               "main",
-              "forked",
               "subagent"
             ],
             "type": "string"

@@ -7,8 +7,9 @@ import (
 )
 
 // CleanupMediaByTimestamp removes ALL media files in the session storage directory
-// that were created AFTER the rewind timestamp. This is simple and reliable - we don't
-// need to parse message content, just compare file timestamps.
+// that were created AT or AFTER the rewind timestamp. We use >= because when multiple
+// messages are created in the same second, they share the same timestamp, and we want
+// to delete files from messages after the rewind point even if they have the same timestamp.
 // Errors are logged but don't fail the operation.
 func CleanupMediaByTimestamp(sessionStorageDir string, rewindTimestamp int64) error {
 	// Read all files in the session storage directory
@@ -41,8 +42,9 @@ func CleanupMediaByTimestamp(sessionStorageDir string, rewindTimestamp int64) er
 		// Get file modification time as Unix timestamp
 		fileTimestamp := fileInfo.ModTime().Unix()
 
-		// Only delete if file was created AFTER the rewind timestamp
-		if fileTimestamp > rewindTimestamp {
+		// Delete if file was created AT or AFTER the rewind timestamp
+		// Using >= handles the case where messages and files are created in the same second
+		if fileTimestamp >= rewindTimestamp {
 			if err := os.Remove(fullPath); err != nil {
 				if !os.IsNotExist(err) {
 					cleanupErrors = append(cleanupErrors, fmt.Sprintf("failed to delete %s: %v", fullPath, err))

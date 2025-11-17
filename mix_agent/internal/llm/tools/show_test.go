@@ -723,7 +723,7 @@ func TestErrorMessageFormat(t *testing.T) {
 	response, err := tool.Run(ctx, call)
 	require.NoError(t, err)
 	assert.True(t, response.IsError)
-	assert.Contains(t, response.Content, "Output 1") // Should reference the second output (index 1)
+	assert.Contains(t, response.Content, "output 1") // Should reference the second output (index 1)
 }
 
 // Helper function to create int pointers

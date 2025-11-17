@@ -211,7 +211,7 @@ func TestEditTool_Info(t *testing.T) {
 	info := tool.Info()
 
 	assert.Equal(t, EditToolName, info.Name)
-	assert.Equal(t, "edit", info.Name)
+	assert.Equal(t, "Edit", info.Name)
 	assert.NotEmpty(t, info.Description)
 	assert.Len(t, info.Required, 3)
 	assert.Contains(t, info.Required, "file_path")
@@ -237,13 +237,13 @@ func TestEditTool_Run_InvalidJSON(t *testing.T) {
 	ctx := setupEditTestContext()
 	call := ToolCall{
 		ID:    "test-call",
-		Name:  "edit",
+		Name:  "Edit",
 		Input: `{"invalid": json}`,
 	}
 
 	response, err := tool.Run(ctx, call)
 
-	require.NoError(t, err)
+	require.Error(t, err)
 	assert.True(t, response.IsError)
 	assert.Equal(t, "invalid parameters", response.Content)
 }
@@ -558,7 +558,7 @@ func TestEditTool_ReplaceContent_MultipleOccurrences(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, response.IsError)
-	assert.Contains(t, response.Content, "old_string is not unique")
+	assert.Contains(t, response.Content, "`old_string` is not unique")
 }
 
 func TestEditTool_ReplaceContent_NoChange(t *testing.T) {
@@ -783,7 +783,7 @@ func TestEditTool_Run_ReplaceContentIntegration(t *testing.T) {
 
 // Test constants
 func TestEditToolName(t *testing.T) {
-	assert.Equal(t, "edit", EditToolName)
+	assert.Equal(t, "Edit", EditToolName)
 }
 
 // Test edge cases and error scenarios

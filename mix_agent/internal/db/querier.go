@@ -53,7 +53,6 @@ type Querier interface {
 	ListFilesBySession(ctx context.Context, sessionID string) ([]File, error)
 	ListLatestSessionFiles(ctx context.Context, sessionID string) ([]File, error)
 	ListMessagesBySession(ctx context.Context, sessionID string) ([]Message, error)
-	ListMessagesForFork(ctx context.Context, arg ListMessagesForForkParams) ([]Message, error)
 	// List all OAuth credentials for the user
 	ListOAuthCredentials(ctx context.Context) ([]OauthCredential, error)
 	ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetadataRow, error)

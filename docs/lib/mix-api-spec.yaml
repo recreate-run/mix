@@ -3084,7 +3084,6 @@ components:
         - "Grep"
         - "Write"
         - "Edit"
-        - "python_execution"
         - "Search"
         - "TodoWrite"
         - "ExitPlanMode"

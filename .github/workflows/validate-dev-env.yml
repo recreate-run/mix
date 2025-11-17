@@ -133,6 +133,10 @@ jobs:
               });
             }
 
+      - name: Set Backend Environment Variables
+        run: |
+          echo "VITE_BACKEND_URL=http://localhost:8088" >> $GITHUB_ENV
+
       - name: Start Backend (Background)
         run: |
           cd mix_agent
