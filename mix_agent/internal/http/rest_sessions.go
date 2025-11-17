@@ -404,7 +404,7 @@ type RewindSessionRequest struct {
 
 // rewindPoint holds the result of finding a rewind point in the message list
 type rewindPoint struct {
-	timestamp       int64
+	timestamp       int64 // timestamp of the first message to delete (or rewind message if no messages after)
 	messageIndex    int
 	messagesDeleted int
 }
@@ -418,8 +418,15 @@ func (h *SessionHandler) findRewindPoint(ctx context.Context, sessionID, message
 
 	for i, msg := range allMessages {
 		if msg.ID == messageID {
+			// Use the timestamp of the NEXT message (first to delete) if it exists
+			// Otherwise use the rewind message timestamp (no cleanup needed)
+			cleanupTimestamp := msg.CreatedAt
+			if i+1 < len(allMessages) {
+				cleanupTimestamp = allMessages[i+1].CreatedAt
+			}
+
 			return &rewindPoint{
-				timestamp:       msg.CreatedAt,
+				timestamp:       cleanupTimestamp,
 				messageIndex:    i,
 				messagesDeleted: len(allMessages) - i - 1,
 			}, nil

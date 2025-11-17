@@ -29,6 +29,7 @@ func setupTestServerForRewind(t *testing.T) (testApp *app.App, sessionID string)
 
 	_ = os.Setenv("_CONFIG_DIR", testConfigDir)
 	_ = os.Setenv("_DATA_DIR", testDataDir)
+	_ = os.Setenv("VITE_BACKEND_URL", "http://localhost:8088")
 
 	// Create test directories
 	if err := os.MkdirAll(testConfigDir, 0o750); err != nil {
@@ -50,10 +51,15 @@ func setupTestServerForRewind(t *testing.T) (testApp *app.App, sessionID string)
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}
 
-	// Create test app
+	// Create test app with custom storage config
 	testApp, err = app.New(ctx, conn)
 	if err != nil {
 		t.Fatalf("Failed to create test app: %v", err)
+	}
+
+	// Override the storage config to use the test data directory
+	testApp.StorageConfig = session.Config{
+		BasePath: filepath.Join(testDataDir, "storage"),
 	}
 
 	// Initialize MCP tools like the real app does

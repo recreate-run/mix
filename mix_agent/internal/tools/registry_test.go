@@ -240,7 +240,7 @@ func TestValidateAPIKey(t *testing.T) {
 			provider:    MultimodalGemini,
 			apiKey:      "INVALID123",
 			expectError: true,
-			errorMsg:    "Gemini API key must start with 'AI'",
+			errorMsg:    "gemini API key must start with 'AI'",
 		},
 		{
 			name:        "tool not found",
