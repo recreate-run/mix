@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"mix/internal/logging"
 )
 
 const (
@@ -39,7 +41,8 @@ func (t *showTool) Info() ToolInfo {
 		Parameters: map[string]any{
 			"outputs": map[string]any{
 				"type":        "array",
-				"description": "Array of content to display",
+				"description": "REQUIRED: Must be an array of media output objects. Each object represents one piece of content to display. Example: [{\"type\": \"image\", \"title\": \"Screenshot\", \"path\": \"https://example.com/image.png\"}]",
+				"minItems":    1,
 				"items": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -80,9 +83,26 @@ func (t *showTool) Info() ToolInfo {
 }
 
 func (t *showTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error) {
+	logging.Debug("Show tool received input", "input", call.Input)
+
 	var params ShowParams
 	if err := json.Unmarshal([]byte(call.Input), &params); err != nil {
-		return NewTextErrorResponse(fmt.Sprintf("Invalid parameters: %v", err)), nil
+		// Log the malformed input for debugging
+		logging.Error("Show tool failed to parse parameters",
+			"error", err,
+			"raw_input", call.Input)
+
+		// Check if outputs is not an array to provide better error message
+		var raw map[string]any
+		if parseErr := json.Unmarshal([]byte(call.Input), &raw); parseErr == nil {
+			if outputs, exists := raw["outputs"]; exists {
+				logging.Error("Show tool outputs type mismatch",
+					"outputs_type", fmt.Sprintf("%T", outputs),
+					"outputs_value", outputs)
+			}
+		}
+
+		return NewTextErrorResponse(fmt.Sprintf("Invalid parameters: %v. The 'outputs' parameter must be an array of objects, e.g., [{\"type\": \"image\", \"title\": \"My Image\", \"path\": \"https://...\"}]", err)), nil
 	}
 
 	if len(params.Outputs) == 0 {
