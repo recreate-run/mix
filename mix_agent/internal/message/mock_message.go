@@ -43,11 +43,6 @@ func (m *MockService) ListUserMessageHistory(ctx context.Context, limit, offset 
 	return args.Get(0).([]Message), args.Error(1)
 }
 
-func (m *MockService) CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error {
-	args := m.Called(ctx, sourceSessionID, targetSessionID, messageIndex)
-	return args.Error(0)
-}
-
 func (m *MockService) DeleteAfterIndex(ctx context.Context, sessionID string, messageIndex int64) error {
 	args := m.Called(ctx, sessionID, messageIndex)
 	return args.Error(0)

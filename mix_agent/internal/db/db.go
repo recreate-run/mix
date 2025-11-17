@@ -111,9 +111,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listMessagesBySessionStmt, err = db.PrepareContext(ctx, listMessagesBySession); err != nil {
 		return nil, fmt.Errorf("error preparing query ListMessagesBySession: %w", err)
 	}
-	if q.listMessagesForForkStmt, err = db.PrepareContext(ctx, listMessagesForFork); err != nil {
-		return nil, fmt.Errorf("error preparing query ListMessagesForFork: %w", err)
-	}
 	if q.listOAuthCredentialsStmt, err = db.PrepareContext(ctx, listOAuthCredentials); err != nil {
 		return nil, fmt.Errorf("error preparing query ListOAuthCredentials: %w", err)
 	}
@@ -312,11 +309,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listMessagesBySessionStmt: %w", cerr)
 		}
 	}
-	if q.listMessagesForForkStmt != nil {
-		if cerr := q.listMessagesForForkStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing listMessagesForForkStmt: %w", cerr)
-		}
-	}
 	if q.listOAuthCredentialsStmt != nil {
 		if cerr := q.listOAuthCredentialsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listOAuthCredentialsStmt: %w", cerr)
@@ -465,7 +457,6 @@ type Queries struct {
 	listFilesBySessionStmt             *sql.Stmt
 	listLatestSessionFilesStmt         *sql.Stmt
 	listMessagesBySessionStmt          *sql.Stmt
-	listMessagesForForkStmt            *sql.Stmt
 	listOAuthCredentialsStmt           *sql.Stmt
 	listSessionsMetadataStmt           *sql.Stmt
 	listSessionsWithContentStmt        *sql.Stmt
@@ -517,7 +508,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listFilesBySessionStmt:             q.listFilesBySessionStmt,
 		listLatestSessionFilesStmt:         q.listLatestSessionFilesStmt,
 		listMessagesBySessionStmt:          q.listMessagesBySessionStmt,
-		listMessagesForForkStmt:            q.listMessagesForForkStmt,
 		listOAuthCredentialsStmt:           q.listOAuthCredentialsStmt,
 		listSessionsMetadataStmt:           q.listSessionsMetadataStmt,
 		listSessionsWithContentStmt:        q.listSessionsWithContentStmt,

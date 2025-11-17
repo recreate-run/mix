@@ -20,7 +20,6 @@ type SessionType string
 const (
 	SessionTypeMain     SessionType = "main"     // Regular user session
 	SessionTypeSubagent SessionType = "subagent" // Task tool worker session
-	SessionTypeForked   SessionType = "forked"   // User-forked session
 )
 
 // String returns the string representation of SessionType
@@ -31,7 +30,7 @@ func (s SessionType) String() string {
 // IsValidSessionType checks if the given string is a valid SessionType
 func IsValidSessionType(s string) bool {
 	switch SessionType(s) {
-	case SessionTypeMain, SessionTypeSubagent, SessionTypeForked:
+	case SessionTypeMain, SessionTypeSubagent:
 		return true
 	default:
 		return false
@@ -114,7 +113,6 @@ type Session struct {
 type Service interface {
 	pubsub.Suscriber[Session]
 	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error)
-	Fork(ctx context.Context, sourceSessionID string, title string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
 	ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error)
@@ -158,11 +156,6 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 				return Session{}, fmt.Errorf("subagent sessions can only be created from main sessions, got parent type: %s", parentSession.SessionType)
 			}
 		}
-
-		// Forked sessions should use Fork() method, not Create()
-		if sessionType == SessionTypeForked {
-			return Session{}, fmt.Errorf("forked sessions must be created using Fork() method, not Create()")
-		}
 	} else if sessionType != SessionTypeMain {
 		// Sessions without parent must be main sessions
 		return Session{}, fmt.Errorf("%s sessions must have a parent session", sessionType)
@@ -204,50 +197,6 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 		err := s.Publish(ctx, pubsub.CreatedEvent, session)
 		if err != nil {
 			return Session{}, fmt.Errorf("session event publication failed: %w", err)
-		}
-	}
-	return session, nil
-}
-
-func (s *service) Fork(ctx context.Context, sourceSessionID, title string) (Session, error) {
-	// Verify source session exists
-	sourceSession, err := s.Get(ctx, sourceSessionID)
-	if err != nil {
-		return Session{}, err
-	}
-
-	// Validate fork hierarchy constraints - cannot fork from subagent sessions
-	if sourceSession.SessionType == SessionTypeSubagent {
-		return Session{}, fmt.Errorf("cannot fork from subagent sessions - subagents are delegated work contexts not meant for user interaction")
-	}
-
-	sessionID := uuid.New().String()
-
-	// FAIL IMMEDIATELY if we cannot create storage directory for forked session
-	if err := CreateSessionDirectory(sessionID, s.storageConfig); err != nil {
-		return Session{}, fmt.Errorf("CRITICAL: forked session storage directory creation failed, aborting fork: %w", err)
-	}
-
-	dbSession, err := s.q.CreateSession(ctx, db.CreateSessionParams{
-		ID:                 sessionID,
-		ParentSessionID:    sql.NullString{String: sourceSessionID, Valid: true},
-		ParentToolCallID:   sql.NullString{Valid: false}, // Forked sessions don't have parent tool calls
-		Title:              title,
-		CustomSystemPrompt: sql.NullString{Valid: false}, // Forked sessions use default prompt
-		PromptMode:         "default",
-		Callbacks:          sql.NullString{Valid: false}, // Forked sessions start without callbacks
-		SessionType:        SessionTypeForked.String(),   // Type-safe constant
-		SubagentType:       sql.NullString{Valid: false}, // Not a subagent
-	})
-	if err != nil {
-		return Session{}, err
-	}
-	session := s.fromCreatedSessionRow(dbSession)
-
-	if shouldPublish(ctx) {
-		err := s.Publish(ctx, pubsub.CreatedEvent, session)
-		if err != nil {
-			return Session{}, err
 		}
 	}
 	return session, nil

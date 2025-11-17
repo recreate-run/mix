@@ -28,7 +28,6 @@ type Service interface {
 	List(ctx context.Context, sessionID string) ([]Message, error)
 	Delete(ctx context.Context, id string) error
 	ListUserMessageHistory(ctx context.Context, limit, offset int64) ([]Message, error)
-	CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error
 	DeleteAfterIndex(ctx context.Context, sessionID string, messageIndex int64) error
 }
 
@@ -156,75 +155,6 @@ func (s *service) ListUserMessageHistory(ctx context.Context, limit, offset int6
 		}
 	}
 	return messages, nil
-}
-
-func (s *service) CopyMessagesToSession(ctx context.Context, sourceSessionID, targetSessionID string, messageIndex int64) error {
-	// Get messages to copy using the new ListMessagesForFork query
-	dbMessages, err := s.q.ListMessagesForFork(ctx, db.ListMessagesForForkParams{
-		SessionID: sourceSessionID,
-		Limit:     messageIndex,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Copy each message to the target session
-	var lastMessage *Message
-	for _, dbMessage := range dbMessages {
-		// Create new message with same content but new ID and target session
-		_, err := s.q.CreateMessage(ctx, db.CreateMessageParams{
-			ID:        uuid.New().String(),
-			SessionID: targetSessionID,
-			Role:      dbMessage.Role,
-			Parts:     dbMessage.Parts,
-			Model:     dbMessage.Model,
-		})
-		if err != nil {
-			return err
-		}
-
-		// Track the last message to check for incomplete tool sequences
-		if lastMessage == nil || len(dbMessages) > 0 {
-			msg, convertErr := s.fromDBItem(dbMessage)
-			if convertErr == nil {
-				lastMessage = &msg
-			}
-		}
-	}
-
-	// Check if the last copied message has tool calls without results
-	if lastMessage != nil {
-		toolCalls := lastMessage.ToolCalls()
-		if len(toolCalls) > 0 {
-			// Get the next message to see if it contains tool results
-			nextMessages, err := s.q.ListMessagesForFork(ctx, db.ListMessagesForForkParams{
-				SessionID: sourceSessionID,
-				Limit:     messageIndex + 1,
-			})
-			if err == nil && len(nextMessages) > len(dbMessages) {
-				nextDbMessage := nextMessages[len(nextMessages)-1]
-				nextMessage, convertErr := s.fromDBItem(nextDbMessage)
-				if convertErr == nil {
-					toolResults := nextMessage.ToolResults()
-					if len(toolResults) > 0 {
-						// Copy the next message to complete the tool sequence
-						_, err := s.q.CreateMessage(ctx, db.CreateMessageParams{
-							ID:        uuid.New().String(),
-							SessionID: targetSessionID,
-							Role:      nextDbMessage.Role,
-							Parts:     nextDbMessage.Parts,
-							Model:     nextDbMessage.Model,
-						})
-						if err != nil {
-							return err
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 func (s *service) fromDBItem(item db.Message) (Message, error) {

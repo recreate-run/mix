@@ -119,35 +119,6 @@ func TestCreate(t *testing.T) {
 	mockQuerier.AssertExpectations(t)
 }
 
-// Test Fork method
-func TestFork(t *testing.T) {
-	svc, mockQuerier := createTestService(t)
-
-	sourceSessionID := uuid.New().String()
-	title := "Forked Session"
-
-	sourceSession := createTestGetSessionByIDRow()
-	sourceSession.ID = sourceSessionID
-
-	createRow := createTestCreateSessionRow()
-	createRow.ParentSessionID = sql.NullString{String: sourceSessionID, Valid: true}
-	createRow.Title = title
-
-	mockQuerier.On("GetSessionByID", mock.Anything, sourceSessionID).
-		Return(sourceSession, nil)
-	mockQuerier.On("CreateSession", mock.Anything, mock.AnythingOfType("db.CreateSessionParams")).
-		Return(createRow, nil)
-
-	session, err := svc.Fork(context.Background(), sourceSessionID, title)
-
-	require.NoError(t, err)
-	assert.Equal(t, createRow.ID, session.ID)
-	assert.Equal(t, title, session.Title)
-	assert.Equal(t, sourceSessionID, session.ParentSessionID)
-
-	mockQuerier.AssertExpectations(t)
-}
-
 // Test Get method
 func TestGet(t *testing.T) {
 	svc, mockQuerier := createTestService(t)
