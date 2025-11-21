@@ -95,7 +95,13 @@ func (b *taskTool) createSubagentAndSession(ctx context.Context, params TaskPara
 		return nil, nil, fmt.Errorf("error creating agent: %w", err)
 	}
 
-	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, toolCallID)
+	// Truncate title to 20 characters to satisfy database CHECK constraint
+	title := "Subagent: " + params.Description
+	if len(title) > 20 {
+		title = title[:20]
+	}
+
+	subSession, err := b.sessions.Create(ctx, title, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, toolCallID)
 	if err != nil {
 		agent.Shutdown()
 		return nil, nil, fmt.Errorf("error creating session for tool call %s: %w", toolCallID, err)
