@@ -140,7 +140,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Railway Production
-        run: railway up --service=${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        run: railway up --detach
 
   # Test cross-platform builds (for PRs and non-tag pushes)
   test-build:
