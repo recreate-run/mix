@@ -140,6 +140,13 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	// Set to 15 minutes to allow long-running tool executions (e.g., Bash commands, MCP tools, sub-agents)
 	anthropicClientOptions = append(anthropicClientOptions, option.WithRequestTimeout(15*time.Minute))
 
+	// Check if this is Azure Foundry provider - use custom base URL
+	if opts.model.Provider == models.ProviderAzureFoundry {
+		anthropicClientOptions = append(anthropicClientOptions,
+			option.WithBaseURL("https://sures-mc0zaw1h-eastus2.services.ai.azure.com/anthropic"),
+		)
+	}
+
 	anthropicClient := &anthropicClient{
 		providerOptions:   opts,
 		options:           anthropicOpts,
@@ -358,6 +365,21 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		}
 	}
 
+	// Build system message block - only add cache control if text is non-empty and caching enabled
+	var systemBlocks []anthropic.TextBlockParam
+	if systemMessage != "" {
+		systemBlock := anthropic.TextBlockParam{
+			Text: systemMessage,
+		}
+		// Only add cache control if text is non-empty and caching is enabled
+		if !a.options.disableCache {
+			systemBlock.CacheControl = anthropic.CacheControlEphemeralParam{
+				Type: "ephemeral",
+			}
+		}
+		systemBlocks = []anthropic.TextBlockParam{systemBlock}
+	}
+
 	return anthropic.MessageNewParams{
 		Model:       anthropic.Model(a.providerOptions.model.APIModel),
 		MaxTokens:   a.providerOptions.maxTokens,
@@ -365,14 +387,7 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		Messages:    messages,
 		Tools:       tools,
 		Thinking:    thinkingParam,
-		System: []anthropic.TextBlockParam{
-			{
-				Text: systemMessage,
-				CacheControl: anthropic.CacheControlEphemeralParam{
-					Type: "ephemeral",
-				},
-			},
-		},
+		System:      systemBlocks,
 	}
 }
 

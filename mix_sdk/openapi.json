@@ -35,9 +35,10 @@
                     "type": "string"
                   },
                   "provider": {
-                    "description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
+                    "description": "Provider name (anthropic, azure-foundry, openai, openrouter, gemini, brave)",
                     "enum": [
                       "anthropic",
+                      "azure-foundry",
                       "openai",
                       "openrouter",
                       "gemini",
@@ -901,7 +902,7 @@
                           "type": "string"
                         },
                         "preferred_provider": {
-                          "description": "Preferred AI provider (anthropic, openai, openrouter)",
+                          "description": "Preferred AI provider (anthropic, azure-foundry, openai, openrouter)",
                           "type": "string"
                         },
                         "sub_agent_max_tokens": {
@@ -970,7 +971,7 @@
                     "type": "string"
                   },
                   "preferred_provider": {
-                    "description": "Preferred AI provider (anthropic, openai, openrouter)",
+                    "description": "Preferred AI provider (anthropic, azure-foundry, openai, openrouter)",
                     "type": "string"
                   },
                   "sub_agent_max_tokens": {

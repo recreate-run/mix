@@ -661,8 +661,8 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"provider": map[string]interface{}{
 								"type":        "string",
-								"description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
-								"enum":        []string{"anthropic", "openai", "openrouter", "gemini", "brave"},
+								"description": "Provider name (anthropic, azure-foundry, openai, openrouter, gemini, brave)",
+								"enum":        []string{"anthropic", "azure-foundry", "openai", "openrouter", "gemini", "brave"},
 							},
 							"api_key": map[string]interface{}{
 								"type":        "string",
@@ -988,7 +988,7 @@ func getOpenAPISpec() OpenAPISpec {
 									"properties": map[string]interface{}{
 										"preferred_provider": map[string]interface{}{
 											"type":        "string",
-											"description": "Preferred AI provider (anthropic, openai, openrouter)",
+											"description": "Preferred AI provider (anthropic, azure-foundry, openai, openrouter)",
 										},
 										"main_agent_model": map[string]interface{}{
 											"type":        "string",
@@ -1058,7 +1058,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"preferred_provider": map[string]interface{}{
 								"type":        "string",
-								"description": "Preferred AI provider (anthropic, openai, openrouter)",
+								"description": "Preferred AI provider (anthropic, azure-foundry, openai, openrouter)",
 							},
 							"main_agent_model": map[string]interface{}{
 								"type":        "string",

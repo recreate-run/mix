@@ -1,7 +1,8 @@
 package models
 
 const (
-	ProviderAnthropic ModelProvider = "anthropic"
+	ProviderAnthropic     ModelProvider = "anthropic"
+	ProviderAzureFoundry  ModelProvider = "azure-foundry"
 
 	// Models
 	Claude35Sonnet ModelID = "claude-3.5-sonnet"
@@ -96,5 +97,94 @@ var AnthropicModels = map[ModelID]Model{
 		ContextWindow:       200000,
 		DefaultMaxTokens:    4096,
 		SupportsAttachments: true,
+	},
+}
+
+// AzureFoundryModels reuses Anthropic models with Azure Foundry provider
+// Azure Foundry uses simpler model names without version dates
+var AzureFoundryModels = map[ModelID]Model{
+	Claude45Sonnet: {
+		ID:                  Claude45Sonnet,
+		Name:                "Azure Foundry – Claude 4.5 Sonnet",
+		Provider:            ProviderAzureFoundry,
+		APIModel:            "claude-sonnet-4-5",
+		CostPer1MIn:         AnthropicModels[Claude45Sonnet].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude45Sonnet].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude45Sonnet].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude45Sonnet].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude45Sonnet].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude45Sonnet].DefaultMaxTokens,
+		CanReason:           AnthropicModels[Claude45Sonnet].CanReason,
+		SupportsAttachments: AnthropicModels[Claude45Sonnet].SupportsAttachments,
+	},
+	Claude4Sonnet: {
+		ID:                  Claude4Sonnet,
+		Name:                "Azure Foundry – Claude 4 Sonnet",
+		Provider:            ProviderAzureFoundry,
+		APIModel:            "claude-sonnet-4",
+		CostPer1MIn:         AnthropicModels[Claude4Sonnet].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude4Sonnet].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude4Sonnet].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude4Sonnet].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude4Sonnet].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude4Sonnet].DefaultMaxTokens,
+		CanReason:           AnthropicModels[Claude4Sonnet].CanReason,
+		SupportsAttachments: AnthropicModels[Claude4Sonnet].SupportsAttachments,
+	},
+	Claude37Sonnet: {
+		ID:                  Claude37Sonnet,
+		Name:                "Azure Foundry – Claude 3.7 Sonnet",
+		Provider:            ProviderAzureFoundry,
+		APIModel:            "claude-3-7-sonnet",
+		CostPer1MIn:         AnthropicModels[Claude37Sonnet].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude37Sonnet].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude37Sonnet].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude37Sonnet].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude37Sonnet].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude37Sonnet].DefaultMaxTokens,
+		CanReason:           AnthropicModels[Claude37Sonnet].CanReason,
+		SupportsAttachments: AnthropicModels[Claude37Sonnet].SupportsAttachments,
+	},
+	Claude4Opus: {
+		ID:                  Claude4Opus,
+		Name:                "Azure Foundry – Claude 4 Opus",
+		Provider:            ProviderAzureFoundry,
+		APIModel:            "claude-opus-4",
+		CostPer1MIn:         AnthropicModels[Claude4Opus].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude4Opus].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude4Opus].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude4Opus].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude4Opus].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude4Opus].DefaultMaxTokens,
+		CanReason:           AnthropicModels[Claude4Opus].CanReason,
+		SupportsAttachments: AnthropicModels[Claude4Opus].SupportsAttachments,
+	},
+	Claude35Haiku: {
+		ID:                  Claude35Haiku,
+		Name:                "Azure Foundry – Claude 3.5 Haiku",
+		Provider:            ProviderAzureFoundry,
+		APIModel:            "claude-3-5-haiku",
+		CostPer1MIn:         AnthropicModels[Claude35Haiku].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude35Haiku].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude35Haiku].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude35Haiku].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude35Haiku].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude35Haiku].DefaultMaxTokens,
+		CanReason:           AnthropicModels[Claude35Haiku].CanReason,
+		SupportsAttachments: AnthropicModels[Claude35Haiku].SupportsAttachments,
+	},
+	Claude3Opus: {
+		ID:                  Claude3Opus,
+		Name:                "Azure Foundry – Claude 3 Opus",
+		Provider:            ProviderAzureFoundry,
+		APIModel:            "claude-3-opus",
+		CostPer1MIn:         AnthropicModels[Claude3Opus].CostPer1MIn,
+		CostPer1MInCached:   AnthropicModels[Claude3Opus].CostPer1MInCached,
+		CostPer1MOut:        AnthropicModels[Claude3Opus].CostPer1MOut,
+		CostPer1MOutCached:  AnthropicModels[Claude3Opus].CostPer1MOutCached,
+		ContextWindow:       AnthropicModels[Claude3Opus].ContextWindow,
+		DefaultMaxTokens:    AnthropicModels[Claude3Opus].DefaultMaxTokens,
+		CanReason:           AnthropicModels[Claude3Opus].CanReason,
+		SupportsAttachments: AnthropicModels[Claude3Opus].SupportsAttachments,
 	},
 }

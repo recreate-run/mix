@@ -52,7 +52,9 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 	}
 
 	// Warn for non-OAuth providers that need API keys
-	if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
+	if providerName != models.ProviderAnthropic &&
+		providerName != models.ProviderOpenAI &&
+		providerName != models.ProviderAzureFoundry {
 		logging.Warn("No API key found in database for provider", "provider", providerName)
 	}
 }
@@ -61,6 +63,12 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 func createProviderClient(providerName models.ModelProvider, clientOptions providerClientOptions) (interfaces.Provider, error) {
 	switch providerName {
 	case models.ProviderAnthropic:
+		return &baseProvider[AnthropicClient]{
+			options: clientOptions,
+			client:  newAnthropicClient(clientOptions),
+		}, nil
+
+	case models.ProviderAzureFoundry:
 		return &baseProvider[AnthropicClient]{
 			options: clientOptions,
 			client:  newAnthropicClient(clientOptions),

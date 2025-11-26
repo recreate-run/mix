@@ -53,14 +53,15 @@ const (
 
 // Providers in order of popularity
 var ProviderPopularity = map[ModelProvider]int{
-	ProviderAnthropic:  2,
-	ProviderOpenAI:     3,
-	ProviderGemini:     4,
-	ProviderGROQ:       5,
-	ProviderOpenRouter: 6,
-	ProviderBedrock:    7,
-	ProviderAzure:      8,
-	ProviderVertexAI:   9,
+	ProviderAnthropic:    2,
+	ProviderAzureFoundry: 2, // Same priority as Anthropic
+	ProviderOpenAI:       3,
+	ProviderGemini:       4,
+	ProviderGROQ:         5,
+	ProviderOpenRouter:   6,
+	ProviderBedrock:      7,
+	ProviderAzure:        8,
+	ProviderVertexAI:     9,
 }
 
 // ProviderInfo represents information about a provider
@@ -78,6 +79,8 @@ func getProviderDisplayName(provider ModelProvider) string {
 		return "OpenRouter"
 	case ProviderAnthropic:
 		return "Anthropic"
+	case ProviderAzureFoundry:
+		return "Azure Foundry"
 	case ProviderGemini:
 		return "Google Gemini"
 	default:
@@ -91,7 +94,8 @@ func GetSupportedProviders() []ModelProvider {
 	return []ModelProvider{
 		ProviderOpenAI,
 		ProviderOpenRouter,
-		ProviderAnthropic, // Claude
+		ProviderAnthropic,     // Claude
+		ProviderAzureFoundry,
 		// ProviderGemini,
 	}
 }
@@ -120,6 +124,13 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 			OpenRouterZAIGLM46,
 		}
 	case ProviderAnthropic:
+		return []ModelID{
+			Claude45Sonnet,
+			Claude4Sonnet,
+			Claude37Sonnet,
+			Claude4Opus,
+		}
+	case ProviderAzureFoundry:
 		return []ModelID{
 			Claude45Sonnet,
 			Claude4Sonnet,
@@ -202,6 +213,7 @@ func init() {
 	maps.Copy(SupportedModels, AnthropicModels)
 	maps.Copy(SupportedModels, OpenAIModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
+	maps.Copy(SupportedModels, AzureFoundryModels)
 	// Additional models can be added here when needed:
 	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
 }
