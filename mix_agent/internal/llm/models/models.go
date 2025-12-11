@@ -209,11 +209,18 @@ var SupportedModels = map[ModelID]Model{
 	// },
 }
 
+// init registers all models into the global SupportedModels map.
+// IMPORTANT: Order matters when models share the same ModelID.
+// The last map copied wins for duplicate ModelIDs.
+//
+// Current behavior: Anthropic direct API is the default for Claude models.
+// Azure Foundry models are copied first so Anthropic overwrites them.
+// Users can still select Azure Foundry explicitly via provider preferences.
 func init() {
-	maps.Copy(SupportedModels, AnthropicModels)
+	maps.Copy(SupportedModels, AzureFoundryModels)
 	maps.Copy(SupportedModels, OpenAIModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
-	maps.Copy(SupportedModels, AzureFoundryModels)
+	maps.Copy(SupportedModels, AnthropicModels)
 	// Additional models can be added here when needed:
 	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
 }
