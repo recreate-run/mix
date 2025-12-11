@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -309,6 +310,13 @@ func (h *MessageHandler) startAgentProcessing(w http.ResponseWriter, sessionID, 
 			"sessionID", sessionID,
 			"requestID", requestID,
 			"error", err)
+
+		// Check if the error is due to session not found
+		if errors.Is(err, session.ErrSessionNotFound) {
+			sendNotFoundError(w, "Session", sessionID)
+			return
+		}
+
 		sendInternalError(w, "sending message to agent", err)
 		return
 	}

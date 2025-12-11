@@ -217,3 +217,54 @@ func init() {
 	// Additional models can be added here when needed:
 	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
 }
+
+// GetModelByIDAndProvider retrieves a model variant by ID and preferred provider.
+// If the model doesn't exist for the preferred provider, it falls back to the default provider.
+//
+// This handles the case where the same ModelID (e.g., Claude4Sonnet) has multiple provider variants
+// (e.g., anthropic and azure-foundry), and we want to select based on user preference.
+func GetModelByIDAndProvider(modelID ModelID, preferredProvider ModelProvider) (Model, bool) {
+	// Try to find the model with the preferred provider
+	var modelVariants []Model
+
+	// Collect all variants of this model from different provider maps
+	if m, ok := AnthropicModels[modelID]; ok && (preferredProvider == "" || m.Provider == preferredProvider) {
+		if preferredProvider == m.Provider {
+			return m, true
+		}
+		modelVariants = append(modelVariants, m)
+	}
+
+	if m, ok := AzureFoundryModels[modelID]; ok && (preferredProvider == "" || m.Provider == preferredProvider) {
+		if preferredProvider == m.Provider {
+			return m, true
+		}
+		modelVariants = append(modelVariants, m)
+	}
+
+	if m, ok := OpenAIModels[modelID]; ok && (preferredProvider == "" || m.Provider == preferredProvider) {
+		if preferredProvider == m.Provider {
+			return m, true
+		}
+		modelVariants = append(modelVariants, m)
+	}
+
+	if m, ok := OpenRouterModels[modelID]; ok && (preferredProvider == "" || m.Provider == preferredProvider) {
+		if preferredProvider == m.Provider {
+			return m, true
+		}
+		modelVariants = append(modelVariants, m)
+	}
+
+	// If no match with preferred provider, return first available variant
+	if len(modelVariants) > 0 {
+		return modelVariants[0], true
+	}
+
+	// Fallback to SupportedModels (last resort, will use whatever was last copied in init)
+	if m, ok := SupportedModels[modelID]; ok {
+		return m, true
+	}
+
+	return Model{}, false
+}

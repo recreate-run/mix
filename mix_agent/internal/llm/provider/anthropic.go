@@ -140,11 +140,17 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 	// Set to 15 minutes to allow long-running tool executions (e.g., Bash commands, MCP tools, sub-agents)
 	anthropicClientOptions = append(anthropicClientOptions, option.WithRequestTimeout(15*time.Minute))
 
-	// Check if this is Azure Foundry provider - use custom base URL
+	// Check if this is Azure Foundry provider - use custom base URL and headers
 	if opts.model.Provider == models.ProviderAzureFoundry {
 		anthropicClientOptions = append(anthropicClientOptions,
 			option.WithBaseURL("https://sures-mc0zaw1h-eastus2.services.ai.azure.com/anthropic"),
 		)
+		// Azure Foundry requires lowercase 'x-api-key' header - override SDK's 'X-Api-Key'
+		if opts.apiKey != "" {
+			anthropicClientOptions = append(anthropicClientOptions,
+				option.WithHeader("x-api-key", opts.apiKey),
+			)
+		}
 	}
 
 	anthropicClient := &anthropicClient{

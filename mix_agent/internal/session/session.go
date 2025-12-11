@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"mix/internal/db"
@@ -13,6 +14,9 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// ErrSessionNotFound is returned when a session is not found in the database
+var ErrSessionNotFound = errors.New("session not found")
 
 // SessionType represents the type/category of a session
 type SessionType string
@@ -240,6 +244,9 @@ func (s *service) Delete(ctx context.Context, id string) error {
 func (s *service) Get(ctx context.Context, id string) (Session, error) {
 	dbSession, err := s.q.GetSessionByID(ctx, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Session{}, ErrSessionNotFound
+		}
 		return Session{}, err
 	}
 	return s.fromGetSessionByIDRow(dbSession)

@@ -1172,17 +1172,22 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 		}
 	}
 
-	// Check user's preferred provider if available
+	// Check user's preferred provider to select the correct model variant
+	var preferredProvider models.ModelProvider
 	userPrefs := config.GetUserPreferences()
 	if userPrefs != nil {
-		// Note: We validate the user's preferred provider exists, but currently
-		// we always use the model's default provider regardless of user preference
-		_, _ = userPrefs.GetPreferredProvider(ctx)
+		if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
+			preferredProvider = pref
+			logging.Debug("Using preferred provider for model selection", "provider", preferredProvider, "model", agentConfig.Model)
+		}
 	}
-	model, ok := models.SupportedModels[agentConfig.Model]
+
+	// Get model with preferred provider (falls back to default provider if not available)
+	model, ok := models.GetModelByIDAndProvider(agentConfig.Model, preferredProvider)
 	if !ok {
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
 	}
+	logging.Debug("Selected model variant", "model", agentConfig.Model, "provider", model.Provider)
 
 	// Get API key - ONLY from database, no fallbacks to config or env
 	var apiKey string
