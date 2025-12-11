@@ -1,6 +1,9 @@
 package models
 
-import "maps"
+import (
+	"log"
+	"maps"
+)
 
 type (
 	ModelID         string
@@ -223,4 +226,9 @@ func init() {
 	maps.Copy(SupportedModels, AnthropicModels)
 	// Additional models can be added here when needed:
 	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
+
+	// Log the provider for claude-sonnet-4-5 to verify correct registration
+	if model, ok := SupportedModels[Claude45Sonnet]; ok {
+		log.Printf("[MODEL REGISTRY] claude-sonnet-4-5 registered with provider: %s (should be 'anthropic')", model.Provider)
+	}
 }
