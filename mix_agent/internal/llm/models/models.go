@@ -1,6 +1,9 @@
 package models
 
-import "maps"
+import (
+	"log"
+	"maps"
+)
 
 type (
 	ModelID         string
@@ -53,14 +56,15 @@ const (
 
 // Providers in order of popularity
 var ProviderPopularity = map[ModelProvider]int{
-	ProviderAnthropic:  2,
-	ProviderOpenAI:     3,
-	ProviderGemini:     4,
-	ProviderGROQ:       5,
-	ProviderOpenRouter: 6,
-	ProviderBedrock:    7,
-	ProviderAzure:      8,
-	ProviderVertexAI:   9,
+	ProviderAnthropic:    2,
+	ProviderAzureFoundry: 2, // Same priority as Anthropic
+	ProviderOpenAI:       3,
+	ProviderGemini:       4,
+	ProviderGROQ:         5,
+	ProviderOpenRouter:   6,
+	ProviderBedrock:      7,
+	ProviderAzure:        8,
+	ProviderVertexAI:     9,
 }
 
 // ProviderInfo represents information about a provider
@@ -78,6 +82,8 @@ func getProviderDisplayName(provider ModelProvider) string {
 		return "OpenRouter"
 	case ProviderAnthropic:
 		return "Anthropic"
+	case ProviderAzureFoundry:
+		return "Azure Foundry"
 	case ProviderGemini:
 		return "Google Gemini"
 	default:
@@ -91,7 +97,8 @@ func GetSupportedProviders() []ModelProvider {
 	return []ModelProvider{
 		ProviderOpenAI,
 		ProviderOpenRouter,
-		ProviderAnthropic, // Claude
+		ProviderAnthropic,     // Claude
+		ProviderAzureFoundry,
 		// ProviderGemini,
 	}
 }
@@ -120,6 +127,13 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 			OpenRouterZAIGLM46,
 		}
 	case ProviderAnthropic:
+		return []ModelID{
+			Claude45Sonnet,
+			Claude4Sonnet,
+			Claude37Sonnet,
+			Claude4Opus,
+		}
+	case ProviderAzureFoundry:
 		return []ModelID{
 			Claude45Sonnet,
 			Claude4Sonnet,
@@ -198,10 +212,23 @@ var SupportedModels = map[ModelID]Model{
 	// },
 }
 
+// init registers all models into the global SupportedModels map.
+// IMPORTANT: Order matters when models share the same ModelID.
+// The last map copied wins for duplicate ModelIDs.
+//
+// Current behavior: Anthropic direct API is the default for Claude models.
+// Azure Foundry models are copied first so Anthropic overwrites them.
+// Users can still select Azure Foundry explicitly via provider preferences.
 func init() {
-	maps.Copy(SupportedModels, AnthropicModels)
+	maps.Copy(SupportedModels, AzureFoundryModels)
 	maps.Copy(SupportedModels, OpenAIModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
+	maps.Copy(SupportedModels, AnthropicModels)
 	// Additional models can be added here when needed:
 	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
+
+	// Log the provider for claude-sonnet-4-5 to verify correct registration
+	if model, ok := SupportedModels[Claude45Sonnet]; ok {
+		log.Printf("[MODEL REGISTRY] claude-sonnet-4-5 registered with provider: %s (should be 'anthropic')", model.Provider)
+	}
 }
