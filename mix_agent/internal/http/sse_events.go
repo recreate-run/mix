@@ -6,6 +6,8 @@ import (
 	"math"
 	"net/http"
 	"sync/atomic"
+
+	"mix/internal/constants"
 )
 
 const (
@@ -201,15 +203,11 @@ func (s *SSEWriter) calculateExponentialBackoff(attempt int) int {
 		attempt = 1
 	}
 
-	// Exponential backoff: 500ms * (1.5 ^ attempt) with max 60 seconds
-	baseInterval := 500 // 500ms base
-	exponent := 1.5
-	maxInterval := 60000 // 60 seconds max
+	// Exponential backoff: RetryInitialInterval * (RetryBackoffExponent ^ attempt) with max RetryMaxInterval
+	backoffMs := int(float64(constants.RetryInitialInterval) * math.Pow(constants.RetryBackoffExponent, float64(attempt)))
 
-	backoffMs := int(float64(baseInterval) * math.Pow(exponent, float64(attempt)))
-
-	if backoffMs > maxInterval {
-		return maxInterval
+	if backoffMs > constants.RetryMaxInterval {
+		return constants.RetryMaxInterval
 	}
 
 	return backoffMs

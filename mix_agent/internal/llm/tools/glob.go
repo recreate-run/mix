@@ -111,7 +111,7 @@ func globFiles(pattern, searchPath string, limit int) (files []string, truncated
 		if err == nil {
 			return matches, truncated, nil
 		}
-		logging.Warn(fmt.Sprintf("Ripgrep execution failed: %v. Falling back to doublestar.", err))
+		logging.Warn("Ripgrep execution failed. Falling back to doublestar", "error", err)
 	}
 
 	return fileutil.GlobWithDoublestar(pattern, searchPath, limit)

@@ -18,7 +18,7 @@ import (
 // executeToolsWithDependencies executes all tool calls with dependency awareness
 func (a *agent) executeToolsWithDependencies(ctx context.Context, sessionID string, toolCalls []message.ToolCall, assistantMsg message.Message) ([]message.ContentPart, error) {
 	if len(toolCalls) == 0 {
-		return nil, nil
+		return []message.ContentPart{}, nil
 	}
 
 	// For now, implement a simple approach that executes all tools in parallel

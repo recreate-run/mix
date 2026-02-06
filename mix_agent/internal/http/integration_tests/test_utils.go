@@ -11,10 +11,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
@@ -25,6 +27,42 @@ import (
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
 )
+
+// loadEnvFile loads environment variables from .env file for testing
+func loadEnvFile(t *testing.T) {
+	t.Helper()
+
+	// Test working directory is /mix_agent/internal/http/integration_tests, so .env is four levels up
+	envPath := filepath.Join("..", "..", "..", "..", ".env")
+
+	// Load .env file - ignore error if file doesn't exist
+	_ = godotenv.Load(envPath)
+}
+
+// requireLLMCredentials skips tests that require LLM API access if credentials aren't configured
+func requireLLMCredentials(t *testing.T) {
+	t.Helper()
+
+	// Check environment variable first (fast path)
+	if os.Getenv("ANTHROPIC_API_KEY") != "" {
+		return
+	}
+
+	// Check database credentials (requires initialized config)
+	credService := config.GetAPICredentials()
+	if credService != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		hasKey, err := credService.HasAPIKey(ctx, "anthropic")
+		if err == nil && hasKey {
+			t.Log("✓ Using Anthropic API key from database")
+			return
+		}
+	}
+
+	t.Skip("Skipping test: no Anthropic API key found in environment or database")
+}
 
 // TestServerResult contains the initialized test server components
 type TestServerResult struct {
@@ -45,6 +83,10 @@ func initMCPTools(ctx context.Context, appInstance *app.App) {
 // This function consolidates the common setup logic shared between REST and SSE tests
 func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	t.Helper()
+
+	// Load environment variables from .env file
+	loadEnvFile(t)
+
 	// Auto-generate test name from test function name
 	testName := t.Name()
 
@@ -88,8 +130,8 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	// This is needed because credentials are preloaded in a background goroutine
 	time.Sleep(100 * time.Millisecond)
 
-	// Create test session
-	testSession, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default", session.SessionTypeMain, "", "", "")
+	// Create test session (max 20 chars per DB constraint)
+	testSession, err := testApp.Sessions.Create(ctx, "Test Session", "", "default", session.SessionTypeMain, "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
@@ -484,4 +526,48 @@ func waitForEvents(t *testing.T, resp *http.Response, expectedMinEvents int, tim
 			return events
 		}
 	}
+}
+
+// Exported wrappers for E2E tests to use
+
+// RequireLLMCredentials skips tests that require LLM API access if credentials aren't configured
+func RequireLLMCredentials(t *testing.T) {
+	t.Helper()
+	requireLLMCredentials(t)
+}
+
+// SetupIntegrationTestServer sets up a complete test environment for integration and E2E testing
+func SetupIntegrationTestServer(t *testing.T) *TestServerResult {
+	t.Helper()
+	return setupIntegrationTestServer(t)
+}
+
+// MakeJSONRequest makes an HTTP request with JSON payload and returns the response
+func MakeJSONRequest(t *testing.T, server *httptest.Server, method, path string, payload interface{}) *http.Response {
+	t.Helper()
+	return makeJSONRequest(t, server, method, path, payload)
+}
+
+// ValidateObjectResponse validates success response as object (flattened)
+func ValidateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
+	t.Helper()
+	return validateObjectResponse(t, resp, expectedStatus)
+}
+
+// ValidateArrayResponse validates success response as array (flattened)
+func ValidateArrayResponse(t *testing.T, resp *http.Response) []interface{} {
+	t.Helper()
+	return validateArrayResponse(t, resp)
+}
+
+// ConnectSSE establishes a connection to the SSE stream for a given session
+func ConnectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, context.CancelFunc) {
+	t.Helper()
+	return connectSSE(t, serverURL, sessionID)
+}
+
+// WaitForEvents waits for and parses events from an SSE stream connection
+func WaitForEvents(t *testing.T, resp *http.Response, expectedMinEvents int, timeout time.Duration) []SSEEvent {
+	t.Helper()
+	return waitForEvents(t, resp, expectedMinEvents, timeout)
 }

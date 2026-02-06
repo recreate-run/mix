@@ -1,8 +1,11 @@
 package agent
 
 import (
+	"os"
+
 	"mix/internal/history"
 	"mix/internal/llm/tools"
+	"mix/internal/llm/tools/browser"
 	"mix/internal/message"
 	"mix/internal/permission"
 	"mix/internal/session"
@@ -18,6 +21,13 @@ func CoderAgentTools(
 	// Don't block on MCP tools during initialization - they will be loaded in the background
 	// and available when first needed (lazy loading happens in GetClient)
 	bashTool := tools.NewBashTool(permissions)
+
+	// Get browser service URL from environment - required
+	browserServiceURL := os.Getenv("BROWSER_SERVICE_URL")
+	if browserServiceURL == "" {
+		panic("BROWSER_SERVICE_URL environment variable is required but not set")
+	}
+
 	return []tools.BaseTool{
 		bashTool,
 		tools.NewEditTool(permissions, historySvc),
@@ -32,6 +42,7 @@ func CoderAgentTools(
 		tools.NewTodoWriteTool(),
 		tools.NewExitPlanModeTool(),
 		// tools.NewShowTool(),
+		browser.NewBrowserTool(permissions, browserServiceURL, session.DefaultConfig()),
 		NewTaskTool(sessions, messages, permissions),
 	}
 }

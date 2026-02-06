@@ -53,6 +53,43 @@ type ProviderAuthStatus struct {
 	DisplayName   string            `json:"display_name"`
 }
 
+// GenericSuccessResponse represents a generic success response with message
+type GenericSuccessResponse struct {
+	Status   string `json:"status"`
+	Provider string `json:"provider,omitempty"`
+	Message  string `json:"message"`
+}
+
+// OAuthAuthURLResponse represents the OAuth authorization URL response
+type OAuthAuthURLResponse struct {
+	AuthURL string `json:"auth_url"`
+	State   string `json:"state"`
+	Message string `json:"message"`
+}
+
+// ValidateAuthResponse represents the response for auth validation
+type ValidateAuthResponse struct {
+	Valid      bool              `json:"valid"`
+	Provider   string            `json:"provider"`
+	AuthMethod models.AuthMethod `json:"auth_method"`
+	Message    string            `json:"message"`
+}
+
+// OAuthCallbackResponse represents the OAuth callback success response
+type OAuthCallbackResponse struct {
+	Status    string `json:"status"`
+	Provider  string `json:"provider"`
+	Message   string `json:"message"`
+	ExpiresIn int64  `json:"expires_in"`
+}
+
+// HealthCheckResponse represents the health check response
+type HealthCheckResponse struct {
+	Status    string                  `json:"status"`
+	Providers map[string]auth.TokenStatus `json:"providers"`
+	Timestamp string                  `json:"timestamp"`
+}
+
 // HandleStoreAPIKey handles POST /api/auth/api-key
 func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
@@ -124,10 +161,10 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 		_ = h.app.Analytics.TrackProviderAuth(ctx, string(provider), true, "api_key")
 	}
 
-	response := map[string]interface{}{
-		"status":   "success",
-		"provider": request.Provider,
-		"message":  "API key stored successfully",
+	response := GenericSuccessResponse{
+		Status:   "success",
+		Provider: request.Provider,
+		Message:  "API key stored successfully",
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -191,10 +228,10 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	response := map[string]interface{}{
-		"status":   "success",
-		"provider": provider,
-		"message":  "Credentials deleted successfully",
+	response := GenericSuccessResponse{
+		Status:   "success",
+		Provider: provider,
+		Message:  "Credentials deleted successfully",
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -259,10 +296,10 @@ func (h *AuthHandler) HandleStartOAuth(w http.ResponseWriter, r *http.Request) {
 	// Return the authorization URL for the client to redirect to
 	authURL := oauthFlow.GetAuthorizationURL()
 
-	response := map[string]interface{}{
-		"auth_url": authURL,
-		"state":    oauthFlow.State,
-		"message":  "Open the auth_url in your browser to complete OAuth authentication",
+	response := OAuthAuthURLResponse{
+		AuthURL: authURL,
+		State:   oauthFlow.State,
+		Message: "Open the auth_url in your browser to complete OAuth authentication",
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -319,16 +356,16 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 		}
 	}
 
-	response := map[string]interface{}{
-		"valid":       isAuthenticated,
-		"provider":    string(preferredProvider),
-		"auth_method": models.AuthMethod(authMethod),
-		"message": func() string {
-			if isAuthenticated {
-				return fmt.Sprintf("Ready to use %s", preferredProvider)
-			}
-			return fmt.Sprintf("Please authenticate with %s first", preferredProvider)
-		}(),
+	message := fmt.Sprintf("Please authenticate with %s first", preferredProvider)
+	if isAuthenticated {
+		message = fmt.Sprintf("Ready to use %s", preferredProvider)
+	}
+
+	response := ValidateAuthResponse{
+		Valid:      isAuthenticated,
+		Provider:   string(preferredProvider),
+		AuthMethod: models.AuthMethod(authMethod),
+		Message:    message,
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -465,11 +502,11 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	}
 
 	// Return success response
-	response := map[string]interface{}{
-		"status":     "success",
-		"provider":   req.Provider,
-		"message":    "OAuth authentication successful",
-		"expires_in": oauthTokens.ExpiresAt - time.Now().Unix(),
+	response := OAuthCallbackResponse{
+		Status:    "success",
+		Provider:  req.Provider,
+		Message:   "OAuth authentication successful",
+		ExpiresIn: oauthTokens.ExpiresAt - time.Now().Unix(),
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -593,9 +630,9 @@ func (h *AuthHandler) HandleRefreshTokens(w http.ResponseWriter, r *http.Request
 	// Trigger manual refresh
 	h.tokenRefreshService.RefreshExpiredTokens(ctx)
 
-	response := map[string]interface{}{
-		"status":  "success",
-		"message": "Token refresh triggered successfully",
+	response := GenericSuccessResponse{
+		Status:  "success",
+		Message: "Token refresh triggered successfully",
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -647,10 +684,10 @@ func (h *AuthHandler) HandleOAuthHealth(w http.ResponseWriter, r *http.Request) 
 		overallHealth = "degraded"
 	}
 
-	response := map[string]interface{}{
-		"status":    overallHealth,
-		"providers": status,
-		"timestamp": time.Now().Format(time.RFC3339),
+	response := HealthCheckResponse{
+		Status:    overallHealth,
+		Providers: status,
+		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)

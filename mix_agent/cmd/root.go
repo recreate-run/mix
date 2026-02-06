@@ -112,7 +112,7 @@ and content creation workflows.`,
 
 		appInstance, err := app.New(ctx, dbManager.GetDB())
 		if err != nil {
-			logging.Error("Failed to create app: %v", err)
+			logging.Error("Failed to create app", "error", err)
 			return err
 		}
 		defer appInstance.Shutdown()

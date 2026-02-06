@@ -39,7 +39,14 @@ task frontend-typecheck     # Always use this for frontend typechecking
 5. ALWAYS extract repeated strings (3+ occurrences) into named constants; use stdlib constants (`http.Method*`, `http.Status*`) instead of string literals
 6. ALWAYS add `t.Helper()` as the first line in any test helper function that takes `*testing.T` as a parameter
 
-## Go Error Handling
+## Go specific rules
+
+- Context Everywhere: All async operations take `context.Context` as first parameter for cancellation and timeouts.
+- Error Handling: Always handle errors explicitly. Use `fmt.Errorf("...: %w", err)` for error wrapping.
+- Typed Structures: Never use `map[string]interface{}` for structured data with known fields. Define typed structs in appropriate packages (protocol, browser, internal).
+- Structured Errors: Use custom error types from `internal/errors` package. Never return errors as maps or parse error strings.
+- Named Constants: Define constants in `internal/constants` for magic strings (timeouts, buffer sizes) and magic numbers. Never hardcode these values.
+
 
 Fail fast for business logic. Ignore non-critical operations.
 

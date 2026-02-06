@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -14,9 +15,24 @@ import (
 	"mix/internal/preferences"
 )
 
+// loadEnvFile loads environment variables from .env file for testing
+func loadEnvFile(t *testing.T) {
+	t.Helper()
+
+	// Test working directory is /mix_agent/internal/config, so .env is three levels up
+	envPath := filepath.Join("..", "..", "..", ".env")
+
+	// Load .env file - ignore error if file doesn't exist
+	_ = godotenv.Load(envPath)
+}
+
 // Test helper functions
 func setupTempConfig(t *testing.T) (tempDir string, cleanup func()) {
 	t.Helper()
+
+	// Load environment variables from .env file
+	loadEnvFile(t)
+
 	// Create temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "config_test_*")
 	require.NoError(t, err)

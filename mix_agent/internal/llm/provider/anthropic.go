@@ -91,7 +91,7 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 					}
 					oauthCreds = refreshedCreds
 				} else {
-					logging.Warn("Failed to refresh OAuth token: %v", err)
+					logging.Warn("Failed to refresh OAuth token", "error", err)
 				}
 			}
 		}
@@ -358,22 +358,28 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		}
 	}
 
-	return anthropic.MessageNewParams{
+	params := anthropic.MessageNewParams{
 		Model:       anthropic.Model(a.providerOptions.model.APIModel),
 		MaxTokens:   a.providerOptions.maxTokens,
 		Temperature: temperature,
 		Messages:    messages,
 		Tools:       tools,
 		Thinking:    thinkingParam,
-		System: []anthropic.TextBlockParam{
+	}
+
+	// Only add system message if non-empty (cache_control cannot be set on empty text blocks)
+	if systemMessage != "" {
+		params.System = []anthropic.TextBlockParam{
 			{
 				Text: systemMessage,
 				CacheControl: anthropic.CacheControlEphemeralParam{
 					Type: "ephemeral",
 				},
 			},
-		},
+		}
 	}
+
+	return params
 }
 
 func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, tools []interfaces.BaseTool) (resposne *interfaces.ProviderResponse, err error) {

@@ -1,6 +1,6 @@
 module mix
 
-go 1.24.0
+go 1.25.5
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
@@ -16,12 +16,13 @@ require (
 	github.com/pdfcpu/pdfcpu v0.11.0
 	github.com/posthog/posthog-go v1.6.3
 	github.com/pressly/goose/v3 v3.24.2
+	github.com/sarathmenon/browser-service v0.1.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.0
 	github.com/sqlc-dev/sqlc v1.29.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d
-	golang.org/x/image v0.30.0
+	golang.org/x/image v0.35.0
 	mvdan.cc/sh/v3 v3.12.0
 )
 
@@ -48,6 +49,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.4 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
@@ -136,12 +138,14 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 	google.golang.org/genai v1.29.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250908214217-97024824d090 // indirect
 	google.golang.org/grpc v1.75.1 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+replace github.com/sarathmenon/browser-service => ../../browser-use-trial/browser-service

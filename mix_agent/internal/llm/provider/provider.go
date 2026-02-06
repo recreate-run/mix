@@ -14,6 +14,10 @@ import (
 
 const maxRetries = 8
 
+// testProviderFactory allows tests to override provider creation
+// This is set by tests to inject fake providers
+var testProviderFactory func(models.ModelProvider) (interfaces.Provider, error)
+
 type providerClientOptions struct {
 	apiKey        string
 	model         models.Model
@@ -36,6 +40,7 @@ type baseProvider[C interfaces.ProviderClient] struct {
 // retrieveAPIKey attempts to get the API key from database if not already set
 func retrieveAPIKey(options *providerClientOptions, providerName models.ModelProvider) {
 	if options.apiKey != "" {
+		logging.Info("API key source", "provider", providerName, "source", "direct")
 		return
 	}
 
@@ -47,6 +52,7 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 
 	apiKey, err := credentialsService.GetAPIKey(ctx, providerName)
 	if err == nil && apiKey != "" {
+		logging.Info("API key source", "provider", providerName, "source", "database")
 		options.apiKey = apiKey
 		return
 	}
@@ -63,9 +69,10 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 	case models.ProviderXAI:
 		envVar = "XAI_API_KEY"
 	}
-	
+
 	if envVar != "" {
 		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
+			logging.Info("API key source", "provider", providerName, "source", "environment", "var", envVar)
 			options.apiKey = envAPIKey
 			return
 		}
@@ -73,12 +80,17 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 
 	// Warn for non-OAuth providers that need API keys
 	if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
-		logging.Warn("No API key found in database for provider", "provider", providerName)
+		logging.Warn("No API key found", "provider", providerName)
 	}
 }
 
 // createProviderClient creates the appropriate provider client based on provider name
 func createProviderClient(providerName models.ModelProvider, clientOptions providerClientOptions) (interfaces.Provider, error) {
+	// Check for test provider factory override (for integration tests)
+	if testProviderFactory != nil {
+		return testProviderFactory(providerName)
+	}
+
 	switch providerName {
 	case models.ProviderAnthropic:
 		return &baseProvider[AnthropicClient]{
@@ -165,7 +177,8 @@ func createProviderClient(providerName models.ModelProvider, clientOptions provi
 		}, nil
 
 	case models.ProviderMock:
-		return nil, fmt.Errorf("mock provider not implemented")
+		// Return a default fake provider (tests should use testProviderFactory for custom behavior)
+		return NewFakeProvider(clientOptions.model, nil), nil
 
 	default:
 		return nil, fmt.Errorf("provider not supported: %s", providerName)
@@ -255,4 +268,18 @@ func WithBedrockOptions(bedrockOptions ...BedrockOption) ProviderClientOption {
 	return func(options *providerClientOptions) {
 		options.bedrockOptions = bedrockOptions
 	}
+}
+
+// Test helper functions
+
+// SetTestProviderFactory sets a custom provider factory for testing
+// This allows tests to inject fake providers instead of real ones
+func SetTestProviderFactory(factory func(models.ModelProvider) (interfaces.Provider, error)) {
+	testProviderFactory = factory
+}
+
+// ClearTestProviderFactory removes the test provider factory override
+// Should be called in test cleanup to avoid affecting other tests
+func ClearTestProviderFactory() {
+	testProviderFactory = nil
 }

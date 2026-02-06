@@ -126,13 +126,10 @@ func Load(sessionStorageDir string, debug, skipPermissions bool) (*Config, error
 	}
 	promptsDir := filepath.Join(homeDir.HomeDir, ".mix", "prompts")
 
-	// Get BaseURL from environment - PUBLIC_URL takes precedence, falls back to VITE_BACKEND_URL
-	baseURL := os.Getenv("PUBLIC_URL")
+	// Get BaseURL from environment
+	baseURL := os.Getenv("VITE_BACKEND_URL")
 	if baseURL == "" {
-		baseURL = os.Getenv("VITE_BACKEND_URL")
-	}
-	if baseURL == "" {
-		return nil, fmt.Errorf("BASE_URL configuration required: set either PUBLIC_URL or VITE_BACKEND_URL environment variable")
+		return nil, fmt.Errorf("BASE_URL configuration required: set VITE_BACKEND_URL environment variable")
 	}
 
 	cfg = &Config{

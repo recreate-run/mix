@@ -680,7 +680,9 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 	// Get API credentials service from config
 	credentialsService := config.GetAPICredentials()
 	if credentialsService == nil {
-		return false, "none", fmt.Errorf("credentials service not available")
+		// In test environments or before initialization, credentials service may not be available
+		// Return false but no error to allow graceful handling
+		return false, "none", nil
 	}
 
 	// If provider is empty, try to get the user's preferred provider

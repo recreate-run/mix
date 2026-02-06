@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -158,7 +157,7 @@ func (ma *MessageAccumulator) FlushMessage(messageID string) error {
 
 	// Update in database
 	if err := ma.messageUpdater.Update(context.Background(), *accumulated.Message); err != nil {
-		logging.Error(fmt.Sprintf("MessageAccumulator: Failed to flush message %s: %v", accumulated.Message.ID, err))
+		logging.Error("MessageAccumulator: Failed to flush message", "messageID", accumulated.Message.ID, "error", err)
 		return err
 	}
 
@@ -186,7 +185,7 @@ func (ma *MessageAccumulator) FinalizeMessage(messageID string, finishReason mes
 
 	// Always flush finalized messages immediately
 	if err := ma.messageUpdater.Update(context.Background(), *accumulated.Message); err != nil {
-		logging.Error(fmt.Sprintf("MessageAccumulator: Failed to finalize message %s: %v", messageID, err))
+		logging.Error("MessageAccumulator: Failed to finalize message", "messageID", messageID, "error", err)
 		return err
 	}
 
@@ -218,7 +217,7 @@ func (ma *MessageAccumulator) flushAllMessages() {
 		accumulated.mu.Lock()
 		if accumulated.IsDirty {
 			if err := ma.messageUpdater.Update(context.Background(), *accumulated.Message); err != nil {
-				logging.Error(fmt.Sprintf("MessageAccumulator: Failed to flush message %s during shutdown: %v", id, err))
+				logging.Error("MessageAccumulator: Failed to flush message during shutdown", "messageID", id, "error", err)
 			} else {
 				accumulated.IsDirty = false
 				flushedCount++

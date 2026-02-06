@@ -8,68 +8,8 @@ import (
 	"mix/internal/message"
 )
 
-// Test 5: Message Sending - POST /api/sessions/{id}/messages
-func TestRESTMessageSending(t *testing.T) {
-	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
-
-	t.Log("Testing POST /api/sessions/{id}/messages - Send message")
-
-	// Create a session first
-	sessionRequest := map[string]interface{}{
-		"title": "Message Test Session",
-	}
-
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	defer func() { _ = createResp.Body.Close() }()
-	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
-
-	sessionID := createdSessionData["id"].(string)
-
-	// Send a message to the session
-	messageRequest := map[string]interface{}{
-		"text": "Hello, this is a test message for integration testing",
-	}
-
-	// Make the request
-	msgResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
-	defer func() { _ = msgResp.Body.Close() }()
-
-	// In an unauthenticated test environment, we should get a 200 OK with an auth prompt
-	if msgResp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status code %d, got %d", http.StatusOK, msgResp.StatusCode)
-	}
-
-	// Parse and verify response structure
-	messageData := validateObjectResponse(t, msgResp, http.StatusOK)
-
-	t.Logf("Message response data: %+v", messageData)
-
-	// The response should have an ID and role
-	messageID, ok := messageData["id"].(string)
-	if !ok || messageID == "" {
-		t.Fatalf("Expected message ID in response, got %v", messageData)
-	}
-
-	// Role should be present
-	role, ok := messageData["role"].(string)
-	if !ok {
-		t.Fatalf("Expected role field in message response")
-	}
-
-	// For unauthenticated environments, the role is "assistant" for the auth prompt
-	if role != "assistant" {
-		t.Logf("Note: Expected role 'assistant' for auth prompt, got '%s'. This is acceptable if the test environment is configured differently.", role)
-	}
-
-	// Some response should be present
-	_, ok = messageData["assistantResponse"].(string)
-	if !ok {
-		t.Fatalf("Expected assistantResponse field in message response")
-	}
-
-	t.Logf("✅ Message sending test passed - Message ID: %s", messageID)
-}
+// NOTE: TestRESTMessageSending moved to e2e/messaging/message_e2e_test.go
+// It requires real LLM API and is a true E2E test
 
 // Test 6: Message Listing - GET /api/sessions/{id}/messages
 func TestRESTMessageListing(t *testing.T) {

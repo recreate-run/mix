@@ -201,6 +201,7 @@ func init() {
 	maps.Copy(SupportedModels, OpenAIModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
 	maps.Copy(SupportedModels, GeminiModels)
+	maps.Copy(SupportedModels, MockModels)
 	// Additional models can be added here when needed:
 	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
 }

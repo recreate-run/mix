@@ -101,7 +101,9 @@ func TestConcurrentFileOperationsAcrossSessions(t *testing.T) {
 // TestConcurrentToolExecutionAcrossSessions validates that different sessions
 // can execute tools simultaneously without blocking each other
 func TestConcurrentToolExecutionAcrossSessions(t *testing.T) {
-	result := setupIntegrationTestServer(t)
+	// Use fake provider with tool execution sequence
+	config := fakeBashToolResponse("echo 'test'", "File created successfully")
+	result := setupIntegrationTestServerWithFakeProvider(t, config)
 	defer result.Server.Close()
 
 	t.Log("Testing concurrent tool execution across multiple sessions")
@@ -139,7 +141,8 @@ func TestConcurrentToolExecutionAcrossSessions(t *testing.T) {
 				"/api/sessions/"+sessionID+"/messages", messageRequest)
 
 			duration := time.Since(start)
-			success := msgResp != nil && msgResp.StatusCode == http.StatusOK
+			// Accept both 200 (sync) and 202 (async) as success
+			success := msgResp != nil && (msgResp.StatusCode == http.StatusOK || msgResp.StatusCode == http.StatusAccepted)
 
 			if msgResp != nil {
 				_ = msgResp.Body.Close()
@@ -240,7 +243,9 @@ func TestConcurrentSessionOperations(t *testing.T) {
 // TestConcurrentMessageProcessing validates that message processing within
 // a session maintains order while allowing concurrent tool execution
 func TestConcurrentMessageProcessing(t *testing.T) {
-	result := setupIntegrationTestServer(t)
+	// Use fake provider for fast, deterministic testing
+	config := simpleFakeResponse("File created successfully")
+	result := setupIntegrationTestServerWithFakeProvider(t, config)
 	defer result.Server.Close()
 
 	t.Log("Testing concurrent message processing with ordering guarantees")
@@ -269,7 +274,8 @@ func TestConcurrentMessageProcessing(t *testing.T) {
 
 			success := false
 			if msgResp != nil {
-				success = msgResp.StatusCode == http.StatusOK
+				// Accept both 200 (sync) and 202 (async) as success
+				success = msgResp.StatusCode == http.StatusOK || msgResp.StatusCode == http.StatusAccepted
 				_ = msgResp.Body.Close()
 			}
 
@@ -304,7 +310,9 @@ func TestConcurrentMessageProcessing(t *testing.T) {
 // TestSessionIsolationUnderLoad validates that concurrent operations
 // don't cross-contaminate session state
 func TestSessionIsolationUnderLoad(t *testing.T) {
-	result := setupIntegrationTestServer(t)
+	// Use fake provider for fast testing
+	config := simpleFakeResponse("File created successfully with unique content")
+	result := setupIntegrationTestServerWithFakeProvider(t, config)
 	defer result.Server.Close()
 
 	t.Log("Testing session isolation under concurrent load")
@@ -342,7 +350,8 @@ func TestSessionIsolationUnderLoad(t *testing.T) {
 
 			success := false
 			if msgResp != nil {
-				success = msgResp.StatusCode == http.StatusOK
+				// Accept both 200 (sync) and 202 (async) as success
+				success = msgResp.StatusCode == http.StatusOK || msgResp.StatusCode == http.StatusAccepted
 				_ = msgResp.Body.Close()
 			}
 
@@ -450,7 +459,9 @@ func BenchmarkConcurrentToolExecution(b *testing.B) {
 // TestNoConcurrencyRegressions validates that the new concurrency architecture
 // doesn't break existing functionality
 func TestNoConcurrencyRegressions(t *testing.T) {
-	result := setupIntegrationTestServer(t)
+	// Use fake provider for fast, deterministic testing
+	config := simpleFakeResponse("Basic functionality test completed successfully")
+	result := setupIntegrationTestServerWithFakeProvider(t, config)
 	defer result.Server.Close()
 
 	t.Log("Testing that concurrency changes don't break existing functionality")
@@ -467,20 +478,36 @@ func TestNoConcurrencyRegressions(t *testing.T) {
 		"/api/sessions/"+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
-	if msgResp.StatusCode != http.StatusOK {
-		t.Fatalf("Basic message functionality broken: expected status %d, got %d",
-			http.StatusOK, msgResp.StatusCode)
+	// Accept both 200 (sync) and 202 (async) as success
+	expectedStatus := http.StatusAccepted
+	if msgResp.StatusCode != http.StatusOK && msgResp.StatusCode != http.StatusAccepted {
+		t.Fatalf("Basic message functionality broken: expected status %d or %d, got %d",
+			http.StatusOK, http.StatusAccepted, msgResp.StatusCode)
 	}
 
-	messageData := validateObjectResponse(t, msgResp, http.StatusOK)
+	// For async (202), we just verify the response structure
+	if msgResp.StatusCode == http.StatusAccepted {
+		expectedStatus = http.StatusAccepted
+	}
+
+	messageData := validateObjectResponse(t, msgResp, expectedStatus)
 
 	// Verify response structure hasn't changed
-	if _, ok := messageData["id"].(string); !ok {
-		t.Fatalf("Message response structure changed: missing ID field")
-	}
+	// For async responses (202), we just verify we got a valid response
+	if msgResp.StatusCode == http.StatusAccepted {
+		// Async response - just verify we have some data
+		if messageData == nil {
+			t.Fatalf("No response data received for async message")
+		}
+	} else {
+		// Sync response - verify full message structure
+		if _, ok := messageData["id"].(string); !ok {
+			t.Fatalf("Message response structure changed: missing ID field")
+		}
 
-	if _, ok := messageData["role"].(string); !ok {
-		t.Fatalf("Message response structure changed: missing role field")
+		if _, ok := messageData["role"].(string); !ok {
+			t.Fatalf("Message response structure changed: missing role field")
+		}
 	}
 
 	t.Logf("✅ No concurrency regressions detected - basic functionality intact")

@@ -3,6 +3,8 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+
+	"mix/internal/constants"
 )
 
 // HandleDocumentation serves OpenAPI 3.1 specification as JSON
@@ -57,10 +59,10 @@ func getOpenAPISpec() OpenAPISpec {
 		XSpeakeasyRetries: map[string]interface{}{
 			"strategy": "backoff",
 			"backoff": map[string]interface{}{
-				"initialInterval": 500,    // 500ms
-				"maxInterval":     60000,  // 60 seconds
-				"maxElapsedTime":  600000, // 10 minutes (shorter for dev environment)
-				"exponent":        1.5,    // exponential backoff
+				"initialInterval": constants.RetryInitialInterval,
+				"maxInterval":     constants.RetryMaxInterval,
+				"maxElapsedTime":  constants.RetryMaxElapsedTime,
+				"exponent":        constants.RetryBackoffExponent,
 			},
 			"statusCodes": []string{
 				"5XX", // All server errors
