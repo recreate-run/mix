@@ -99,4 +99,4 @@ debug_logs/
 
 # reference prompts
 mix_agent/internal/config/prompts/tools/cc_promptsset-railway-vars.sh
-set-railway-vars.sh
+set-railway-vars.shmix_agent/mix_cli

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { formatCurrentModel, usePreferences } from "@/hooks/usePreferences";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
-import { EXAMPLE_PROMPTS } from "@/lib/data";
+import { DEFAULT_THINKING_LEVEL, EXAMPLE_PROMPTS } from "@/lib/data";
 import { useBoundStore } from "@/stores";
 import { AttachmentPreview } from "./attachment-preview";
 
@@ -36,7 +36,7 @@ export function PlaygroundWelcome({
 	const [inputValue, setInputValue] = useState("");
 	const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 	const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
-		ThinkingLevel.Off,
+		DEFAULT_THINKING_LEVEL,
 	);
 	const sessionMessages = useSessionMessages(sessionId);
 	const messages = sessionMessages.data || [];

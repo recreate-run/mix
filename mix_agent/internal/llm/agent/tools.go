@@ -28,10 +28,10 @@ func CoderAgentTools(
 		tools.NewWebSearchTool(permissions),
 		tools.NewWriteTool(permissions, historySvc),
 		// tools.NewPythonExecutionTool(permissions),
-		tools.NewReadMediaTool(),
+		// tools.NewReadMediaTool(),
 		tools.NewTodoWriteTool(),
 		tools.NewExitPlanModeTool(),
-		tools.NewShowTool(),
+		// tools.NewShowTool(),
 		NewTaskTool(sessions, messages, permissions),
 	}
 }

@@ -1,0 +1,354 @@
+version: '3'
+
+vars:
+  BINARY_NAME: mix
+  BUILD_DIR: mix_agent/build
+  MAIN_PATH: ./mix_agent/main.go
+  SDK_OUTPUT_DIR: ../mix-typescript-mix_sdk
+  OPENAPI_ENDPOINT: http://localhost:8088/doc
+  VERSION:
+    sh: git tag --sort=committerdate | grep -E '[0-9]' | tail -1 2>/dev/null || echo "dev"
+  BUILD_TIME:
+    sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+  BUILD_FLAGS: -a
+  LDFLAGS: -s -w -X mix/internal/version.Version={{.VERSION}} -X main.buildTime={{.BUILD_TIME}}
+  CGO_ENV: CGO_ENABLED=0
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  # Development tasks
+  dev:
+    desc: Install dependencies and run all development servers (backend, web frontend)
+    deps: [install-deps]
+    cmds:
+      - ENV=development ./scripts/shoreman.sh
+
+  dev-kill:
+    desc: Stop all development servers started by 'task dev'
+    cmds:
+      - |
+        echo "Stopping all development servers..."
+        if [ -f .shoreman.pid ]; then
+          pid=$(cat .shoreman.pid)
+          if kill -0 $pid 2>/dev/null; then
+            echo "Sending SIGTERM to shoreman (PID $pid)..."
+            kill $pid && echo "✅ Development servers stopped"
+          else
+            echo "PID file exists but process not running, cleaning up..."
+            rm -f .shoreman.pid
+          fi
+        else
+          echo "No PID file found. Attempting to kill processes manually..."
+          pkill -f "air" || true
+          pkill -f "bun run tauri dev" || true
+          pkill -f "mix --http-port" || true
+          echo "✅ Killed stray processes (if any)"
+        fi
+
+  frontend-only:
+    desc: Run only the web frontend development server (no backend)
+    deps: [install-deps]
+    cmds:
+      - |
+        echo "Starting frontend-only development server..."
+        echo "Frontend will be available at http://localhost:1420"
+        if [ -f .env ]; then
+          export $(grep -v '^#' .env | grep '^VITE_' | xargs) && cd mix_dev_tool && bun run dev
+        else
+          echo "Warning: .env file not found, using defaults" && cd mix_dev_tool && bun run dev
+        fi
+
+  docs:
+    desc: Run documentation development server
+    cmds:
+      - cd docs && bun run dev
+
+  tail-log:
+    desc: Show the last 100 lines of the development log
+    cmds:
+      - tail -100 ./dev.log | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'
+
+  # Installation tasks
+  install:
+    desc: Install system dependencies (one-time setup)
+    cmds:
+      - ./scripts/install_deps.sh
+
+  install-deps:
+    desc: Install project dependencies
+    deps: [install]
+    cmds:
+      - echo "Installing project dependencies..."
+      - echo "Installing Air (Go hot reload)..."
+      - command -v air >/dev/null 2>&1 || go install github.com/air-verse/air@latest
+      - echo "Installing capture script dependencies..."
+      - echo "Installing Tauri app dependencies..."
+      - cd mix_dev_tool && bun i
+      - echo "✅ All dependencies installed!"
+
+  # Build tasks
+  build:
+    desc: Build production binary for current platform
+    cmds:
+      - echo "Building optimized binary for current platform..."
+      - task: _build-optimized
+        vars:
+          OUTPUT_PATH: "{{.BUILD_DIR}}/release/{{.BINARY_NAME}}"
+      - echo "Binary built at {{.BUILD_DIR}}/release/{{.BINARY_NAME}}"
+
+  build-all:
+    desc: Build binaries for all platforms and architectures
+    deps: [build-macos, build-linux, build-windows]
+    cmds:
+      - echo "✅ All platform binaries built successfully!"
+
+  build-macos:
+    desc: Build for all macOS architectures (Intel + Apple Silicon)
+    deps: [build-darwin-amd64, build-darwin-arm64]
+    cmds:
+      - echo "✅ All macOS binaries built successfully!"
+
+  build-linux:
+    desc: Build for all Linux architectures (x64 + ARM64)
+    deps: [build-linux-amd64, build-linux-arm64]
+    cmds:
+      - echo "✅ All Linux binaries built successfully!"
+
+  build-windows:
+    desc: Build for Windows (x64)
+    deps: [build-windows-amd64]
+    cmds:
+      - echo "✅ All Windows binaries built successfully!"
+
+  build-darwin-amd64:
+    desc: Build for macOS (Intel)
+    cmds:
+      - echo "Building for macOS (Intel)..."
+      - task: _build-optimized
+        vars:
+          OUTPUT_PATH: "{{.BUILD_DIR}}/release/{{.BINARY_NAME}}-mac-intel"
+          GOOS: darwin
+          GOARCH: amd64
+
+  build-darwin-arm64:
+    desc: Build for macOS (Apple Silicon)
+    cmds:
+      - echo "Building for macOS (Apple Silicon)..."
+      - task: _build-optimized
+        vars:
+          OUTPUT_PATH: "{{.BUILD_DIR}}/release/{{.BINARY_NAME}}-mac-apple-silicon"
+          GOOS: darwin
+          GOARCH: arm64
+
+  build-linux-amd64:
+    desc: Build for Linux (x64)
+    cmds:
+      - echo "Building for Linux (x64)..."
+      - task: _build-optimized
+        vars:
+          OUTPUT_PATH: "{{.BUILD_DIR}}/release/{{.BINARY_NAME}}-linux-x64"
+          GOOS: linux
+          GOARCH: amd64
+
+  build-linux-arm64:
+    desc: Build for Linux (ARM64)
+    cmds:
+      - echo "Building for Linux (ARM64)..."
+      - task: _build-optimized
+        vars:
+          OUTPUT_PATH: "{{.BUILD_DIR}}/release/{{.BINARY_NAME}}-linux-arm64"
+          GOOS: linux
+          GOARCH: arm64
+
+  build-windows-amd64:
+    desc: Build for Windows (x64)
+    cmds:
+      - echo "Building for Windows (x64)..."
+      - task: _build-optimized
+        vars:
+          OUTPUT_PATH: "{{.BUILD_DIR}}/release/{{.BINARY_NAME}}-windows-x64.exe"
+          GOOS: windows
+          GOARCH: amd64
+
+  build-mac-intel:
+    desc: Alias for build-darwin-amd64
+    cmds:
+      - task: build-darwin-amd64
+
+  build-mac-arm:
+    desc: Alias for build-darwin-arm64
+    cmds:
+      - task: build-darwin-arm64
+
+  _build-optimized:
+    desc: Internal task for optimized builds
+    internal: true
+    cmds:
+      - echo "Building optimized binary..."
+      - echo "Version{{.VERSION}}"
+      - echo "Build time{{.BUILD_TIME}}"
+      - mkdir -p $(dirname {{.OUTPUT_PATH}})
+      - |
+        cd mix_agent && \
+        {{.CGO_ENV}} {{if .GOOS}}GOOS={{.GOOS}}{{end}} {{if .GOARCH}}GOARCH={{.GOARCH}}{{end}} go build \
+          {{.BUILD_FLAGS}} \
+          -ldflags="{{.LDFLAGS}}" \
+          -o ../{{.OUTPUT_PATH}} \
+          main.go
+
+  # Release tasks
+  release:
+    desc: Create release with GoReleaser
+    cmds:
+      - echo "Creating release with GoReleaser..."
+      - |
+        if ! command -v goreleaser >/dev/null 2>&1; then
+          echo "GoReleaser not found. Install with: brew install goreleaser"
+          exit 1
+        fi
+      - goreleaser release --clean
+
+  release-test:
+    desc: Test release build (dry run)
+    cmds:
+      - echo "Testing release build with GoReleaser..."
+      - |
+        if ! command -v goreleaser >/dev/null 2>&1; then
+          echo "GoReleaser not found. Install with: brew install goreleaser"
+          exit 1
+        fi
+      - goreleaser build --snapshot --clean
+
+  release-snapshot:
+    desc: Create snapshot release for testing
+    cmds:
+      - echo "Creating snapshot release..."
+      - |
+        if ! command -v goreleaser >/dev/null 2>&1; then
+          echo "GoReleaser not found. Install with: brew install goreleaser"
+          exit 1
+        fi
+      - goreleaser release --snapshot --clean
+
+  # Testing and validation tasks
+  test-env:
+    desc: Validate environment variables and configuration
+    cmds:
+      - ./scripts/tests/validate_env.sh
+
+  test-connection:
+    desc: Test connection between frontend and backend (requires running servers)
+    cmds:
+      - ./scripts/tests/test_connection.sh
+
+  test-dev-env:
+    desc: Validate development environment
+    cmds:
+      - ./scripts/tests/validate_dev_env.sh
+
+  test-installation:
+    desc: Test if all dependencies are installed
+    cmds:
+      - ./scripts/test_installation.sh
+
+  test-all:
+    desc: Run all environment validation tests (no running servers required)
+    deps: [test-env, test-dev-env, test-installation]
+    cmds:
+      - echo "✅ All validation tests completed."
+
+  go-test:
+    desc: Run Go tests with coverage
+    cmds:
+      - echo "Running Go tests..."
+      - ./scripts/tests/run_go_tests.sh
+
+  # Linting and formatting tasks
+  frontend-typecheck:
+    desc: Run TypeScript typecheck on frontend code
+    cmds:
+      - echo "Running frontend TypeScript typecheck..."
+      - cd mix_dev_tool && bun run typecheck
+
+  frontend-format:
+    desc: Run biome formatter on frontend
+    cmds:
+      - echo "Running biome formatter on frontend..."
+      - cd mix_dev_tool && bunx biome format --write
+
+  go-format:
+    desc: Format Go code
+    cmds:
+      - echo "Formatting Go code..."
+      - cd mix_agent && gofmt -w .
+      - echo "✅ Code formatted successfully!"
+
+  frontend-lint:
+    desc: Run biome linter on frontend
+    cmds:
+      - echo "Running biome linter on frontend..."
+      - cd mix_dev_tool && bunx biome check --write
+
+  frontend-knip:
+    desc: Run knip linter on frontend
+    cmds:
+      - echo "Running knip linter on frontend..."
+      - cd mix_dev_tool && bun knip
+
+  lint:
+    desc: Run linters for both Go backend and frontend
+    deps: [go-lint, frontend-lint]
+    cmds:
+      - echo "✅ All linting completed successfully!"
+
+  format:
+    desc: Format both Go and frontend code
+    deps: [go-format, frontend-format]
+    cmds:
+      - echo "✅ All formatting completed successfully!"
+
+  go-lint:
+    desc: Run golangci-lint on Go backend code
+    cmds:
+      - echo "Running golangci-lint on Go backend code..."
+      - cd mix_agent && golangci-lint run ./...
+
+  # Code generation tasks
+  sqlc-generate:
+    desc: Regenerate database query code with sqlc
+    cmds:
+      - echo "Installing sqlc (v1.29.0)..."
+      - cd mix_agent && go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.29.0
+      - echo "Regenerating database query code..."
+      - cd mix_agent && sqlc generate
+      - echo "✅ Database query code regenerated successfully!"
+
+  generate-openapi:
+    desc: Generate JSON OpenAPI spec
+    cmds:
+      - echo "Generating TypeScript SDK from OpenAPI spec..."
+      - echo "Using configuration from mix_sdk/gen.yaml"
+      - echo "Downloading OpenAPI spec from {{.OPENAPI_ENDPOINT}}..."
+      - curl -s {{.OPENAPI_ENDPOINT}} > mix_sdk/openapi-spec.json
+      - echo "Saving pretty-printed OpenAPI document to mix_sdk/openapi.json..."
+      - curl -s {{.OPENAPI_ENDPOINT}} | jq '.' > mix_sdk/openapi.json
+
+  # Cleanup task
+  clean:
+    desc: Clean all build artifacts and dependencies
+    cmds:
+      - echo "🧹 Cleaning build artifacts and dependencies..."
+      - echo "Cleaning Go backend (mix_agent)..."
+      - rm -rf mix_agent/build || true
+      - rm -f mix_agent/mix || true
+      - cd mix_agent && go clean || true
+      - echo "Cleaning Tauri frontend (mix_dev_tool)..."
+      - rm -rf mix_dev_tool/node_modules || true
+      - rm -rf mix_dev_tool/src-tauri/target || true
+      - rm -rf mix_dev_tool/dist || true
+      - echo "✅ All build artifacts cleaned!"

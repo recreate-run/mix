@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mix/internal/config"
+	"os"
 	"mix/internal/llm/callbacks"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
@@ -1158,6 +1159,44 @@ func isToolAllowedInPlanMode(tool tools.BaseTool) bool {
 	return allowedTools[toolName]
 }
 
+// getAPIKeyWithFallback attempts to get API key from database first, then falls back to environment variables
+func getAPIKeyWithFallback(ctx context.Context, providerName models.ModelProvider) string {
+	// Try database first
+	credentialsService := config.GetAPICredentials()
+	if credentialsService != nil {
+		dbKey, err := credentialsService.GetAPIKey(ctx, providerName)
+		if err == nil && dbKey != "" {
+			return dbKey
+		}
+	}
+	
+	// Try environment variable fallback for providers that support it
+	var envVar string
+	switch providerName {
+	case models.ProviderGemini:
+		envVar = "GEMINI_API_KEY"
+	case models.ProviderOpenRouter:
+		envVar = "OPENROUTER_API_KEY"
+	case models.ProviderGROQ:
+		envVar = "GROQ_API_KEY"
+	case models.ProviderXAI:
+		envVar = "XAI_API_KEY"
+	}
+	
+	logging.Debug("Checking environment variable for API key", "provider", providerName, "envVar", envVar)
+	if envVar != "" {
+		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
+			return envAPIKey
+		}
+	}
+	
+	// Warn for non-OAuth providers that need API keys
+	if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
+		logging.Warn("No API key found in database or environment for provider", "provider", providerName)
+	}
+	
+	return ""
+}
 func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error) {
 	// Try to get agent config from database first
 	ctx := context.Background()
@@ -1183,22 +1222,8 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 	if !ok {
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
 	}
-
-	// Get API key - ONLY from database, no fallbacks to config or env
-	var apiKey string
-
-	credentialsService := config.GetAPICredentials()
-	if credentialsService != nil {
-		dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
-		if err == nil && dbKey != "" {
-			apiKey = dbKey
-			// Using database-stored API key
-		} else if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
-			// No key in database, we won't use environment or config fallbacks
-			// For OAuth providers, we'll let the client check for OAuth tokens
-			logging.Warn("No API key found in database for provider", "provider", model.Provider)
-		}
-	}
+	// Get API key - try database first, then environment variables
+	apiKey := getAPIKeyWithFallback(ctx, model.Provider)
 
 	// Set up provider options
 	maxTokens := model.DefaultMaxTokens
@@ -1258,22 +1283,8 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
 	}
 
-	// Get API key - ONLY from database, no fallbacks to config or env
-	var apiKey string
-
-	// Get from database only
-	credentialsService := config.GetAPICredentials()
-	if credentialsService != nil {
-		dbKey, err := credentialsService.GetAPIKey(ctx, model.Provider)
-		if err == nil && dbKey != "" {
-			apiKey = dbKey
-			// Using database-stored API key for session provider
-		} else if model.Provider != models.ProviderAnthropic && model.Provider != models.ProviderOpenAI {
-			// No key in database, we won't use environment or config fallbacks
-			// For OAuth providers, we'll let the client check for OAuth tokens
-			logging.Warn("No API key found in database for provider in session provider", "provider", model.Provider)
-		}
-	}
+	// Get API key - try database first, then environment variables
+	apiKey := getAPIKeyWithFallback(ctx, model.Provider)
 
 	maxTokens := model.DefaultMaxTokens
 	if agentConfig.MaxTokens > 0 {

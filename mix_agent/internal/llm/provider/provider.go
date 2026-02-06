@@ -51,6 +51,26 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 		return
 	}
 
+	// Try environment variable fallback for providers that support it
+	var envVar string
+	switch providerName {
+	case models.ProviderGemini:
+		envVar = "GEMINI_API_KEY"
+	case models.ProviderOpenRouter:
+		envVar = "OPENROUTER_API_KEY"
+	case models.ProviderGROQ:
+		envVar = "GROQ_API_KEY"
+	case models.ProviderXAI:
+		envVar = "XAI_API_KEY"
+	}
+	
+	if envVar != "" {
+		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
+			options.apiKey = envAPIKey
+			return
+		}
+	}
+
 	// Warn for non-OAuth providers that need API keys
 	if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
 		logging.Warn("No API key found in database for provider", "provider", providerName)

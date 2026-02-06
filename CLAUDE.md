@@ -3,17 +3,17 @@
 ## Development Commands
 
 <bash_commands>
-make dev          # start both frontend and backend (autoreloads and auto compiles)
-make tail-log     # Reads the current log file (last 100 lines of code)
-make clean
-make help
-make frontend-typecheck     # Always use this for frontend typechecking
+task dev          # start both frontend and backend (autoreloads and auto compiles)
+task tail-log     # Reads the current log file (last 100 lines of code)
+task clean
+task              # Show all available tasks (default)
+task frontend-typecheck     # Always use this for frontend typechecking
 
 </bash_commands>
 
-- Do NOT build the program yourself to check for errors—ever. All output is written to `dev.log`. Run `make tail-log` to view it.
+- Do NOT build the program yourself to check for errors—ever. All output is written to `dev.log`. Run `task tail-log` to view it.
 - Do NOT stop the dev server. It stays running, auto-compiles, and auto-reloads via the Go `air` package, logging to `dev.log`.
-- Run `make` from the project's top-level directory. If it fails, you probably weren't there.
+- Run `task` from the project's top-level directory. If it fails, you probably weren't there.
 - You MUST check the tail-log after finishing each task
 - ALWAYS update mix_agent/internal/http/rest_docs.go when modifying any backend API endpoints, request/response schemas, or validation rules
 - When adding new API fields/types, update the OpenAPI spec in rest_docs.go, then wait for the user to regenerate the SDK (version bump in package.json) - NEVER create local TypeScript type augmentations
@@ -28,7 +28,7 @@ make frontend-typecheck     # Always use this for frontend typechecking
 
 - ALWAYS use TanStack Query for data fetching
 - ALWAYS use uv for Python package management and virtual environments
-- Database query generation: Uses sqlc v1.29.0 (pinned in go.mod). Run `make sqlc-generate` after modifying SQL queries in `mix_agent/internal/db/sql/`
+- Database query generation: Uses sqlc v1.29.0 (pinned in go.mod). Run `task sqlc-generate` after modifying SQL queries in `mix_agent/internal/db/sql/`
 
 ## Code style
 

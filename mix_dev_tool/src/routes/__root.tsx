@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
 	createRootRoute,
 	Link,
@@ -38,7 +37,7 @@ function RootComponent() {
 					<Outlet />
 				</TooltipProvider>
 				<Toaster position="top-right" />
-				<ReactQueryDevtools initialIsOpen={false} />
+				{/* <ReactQueryDevtools initialIsOpen={false} /> */}
 			</ThemeProvider>
 		</QueryClientProvider>
 	);

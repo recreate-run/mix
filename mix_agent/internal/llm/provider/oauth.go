@@ -714,6 +714,25 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 	} else if hasAPIKey {
 		return true, "api_key", nil
 	}
+	
+	// Check for API key in environment variables for supported providers
+	var envVar string
+	switch provider {
+	case models.ProviderGemini:
+		envVar = "GEMINI_API_KEY"
+	case models.ProviderOpenRouter:
+		envVar = "OPENROUTER_API_KEY"
+	case models.ProviderGROQ:
+		envVar = "GROQ_API_KEY"
+	case models.ProviderXAI:
+		envVar = "XAI_API_KEY"
+	}
+	
+	if envVar != "" {
+		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
+			return true, "env_var", nil
+		}
+	}
 
 	// Check for OAuth credentials for supported providers
 	if provider == models.ProviderAnthropic || provider == models.ProviderOpenAI {

@@ -128,10 +128,8 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 		}
 	case ProviderGemini:
 		return []ModelID{
-			Gemini25,
-			Gemini15Pro,
-			Gemini20Flash,
-			Gemini25Flash,
+			Gemini3Flash,
+			Gemini3Pro,
 		}
 	default:
 		return []ModelID{}
@@ -202,6 +200,7 @@ func init() {
 	maps.Copy(SupportedModels, AnthropicModels)
 	maps.Copy(SupportedModels, OpenAIModels)
 	maps.Copy(SupportedModels, OpenRouterModels)
+	maps.Copy(SupportedModels, GeminiModels)
 	// Additional models can be added here when needed:
 	// GeminiModels, GroqModels, AzureModels, XAIModels, VertexAIGeminiModels
 }

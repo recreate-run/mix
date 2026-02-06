@@ -30,6 +30,7 @@ import { useActiveSession, useCreateSession } from "@/hooks/useSession";
 import { useSessionExport } from "@/hooks/useSessionExport";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
 import { CACHE_KEYS } from "@/lib/cache-keys";
+import { DEFAULT_THINKING_LEVEL } from "@/lib/data";
 import { useBoundStore } from "@/stores";
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
@@ -83,7 +84,7 @@ export function ChatApp({
 
 	// Thinking level configuration
 	const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
-		ThinkingLevel.Off,
+		DEFAULT_THINKING_LEVEL,
 	);
 
 	// Component lifecycle refs
