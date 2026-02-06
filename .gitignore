@@ -99,4 +99,8 @@ debug_logs/
 
 # reference prompts
 mix_agent/internal/config/prompts/tools/cc_promptsset-railway-vars.sh
-set-railway-vars.shmix_agent/mix_cli
+set-railway-vars.sh
+mix_agent/mix_cli
+
+# Large media files (use external hosting or Git LFS instead)
+docs/public/gifs/launch_mix.gif
