@@ -7,9 +7,9 @@
 
 ## Executive Summary
 
-Mix agent provides **13 active tools** vs Composer's **17 tools**. Core file operations and browser automation achieve near-parity with Composer. Mix lacks only advanced actions (hover, drag-and-drop, wait). Mix compensates with specialized code search tools (Glob/Grep) and web content analysis (WebFetch). **Recent additions**: file uploads, DOM search, text extraction, right-click, double-click, form input, history navigation, multi-tab support, and user notifications bring Mix to ~95% browser parity.
+Mix agent provides **13 active tools** vs Composer's **17 tools**. Core file operations and browser automation achieve near-parity with Composer. Mix lacks only advanced actions (hover, drag-and-drop, wait). Mix compensates with specialized code search tools (Glob/Grep) and web content analysis (WebFetch). **Recent additions**: file uploads, DOM search, text extraction, right-click, double-click, form input, history navigation, multi-tab support, user notifications, and accessibility trees bring Mix to ~97% browser parity.
 
-**Architecture Difference:** Composer uses accessibility trees and text extraction (content-focused), Mix uses visual screenshots with numbered overlays (UI-focused).
+**Architecture Difference:** Mix supports both accessibility trees (`read_page`) and visual screenshots with numbered overlays, combining Composer's content-focused approach with UI-focused inspection.
 
 ---
 
@@ -18,7 +18,7 @@ Mix agent provides **13 active tools** vs Composer's **17 tools**. Core file ope
 | Composer Tool | Mix Equivalent | Match Quality | Key Gaps |
 |---------------|----------------|---------------|----------|
 | **navigate** | Browser (`open`, `go_back`, `go_forward`) | ✅ Complete | History navigation supported, no `file://` URLs |
-| **read_page** | Browser (`screenshot`) | ⚠️ Different | Returns images vs accessibility tree |
+| **read_page** | Browser (`read_page`) | ✅ Complete | Accessibility tree with viewport filtering, interactive-only mode |
 | **file_upload** | Browser (`upload`) | ✅ Complete | Uploads files with path resolution |
 | **action** | Browser (individual) | ⚠️ Limited | No drag, hover, or action sequences |
 | **find** | Browser (`find`) | ✅ Complete | Keyword-based DOM search across entire page |
@@ -145,8 +145,8 @@ Mix agent provides **13 active tools** vs Composer's **17 tools**. Core file ope
 
 ## Conclusion
 
-Mix has a comprehensive toolset with 13 active tools and strong code search capabilities. **Priority 1, 2, and 3 features are complete:** DOM search, text extraction, file upload, right-click, double-click, form input, history navigation, multi-tab support, and user notifications deliver production-ready browser automation for complex workflows.
+Mix has a comprehensive toolset with 13 active tools and strong code search capabilities. **Priority 1, 2, and 3 features are complete:** DOM search, text extraction, file upload, right-click, double-click, form input, history navigation, multi-tab support, user notifications, and accessibility trees deliver production-ready browser automation for complex workflows.
 
-**Current Browser Automation Score:** Mix covers ~95% of Composer's browser capabilities.
+**Current Browser Automation Score:** Mix covers ~97% of Composer's browser capabilities.
 
 **Remaining gaps:** Hover, drag-and-drop, wait action. Priority 4 features would bring Mix to near-complete parity.

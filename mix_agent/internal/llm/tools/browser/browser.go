@@ -52,7 +52,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen, ActionScreenshot, ActionClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose},
+				"enum":        []string{ActionOpen, ActionScreenshot, ActionReadPage, ActionClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose},
 			},
 			"url": map[string]any{
 				"type":        "string",
@@ -61,6 +61,10 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"withOverlay": map[string]any{
 				"type":        "boolean",
 				"description": "Whether to add element overlay to screenshot (default: true)",
+			},
+			"interactiveOnly": map[string]any{
+				"type":        "boolean",
+				"description": "Filter to interactive elements only (for read_page action, default: false)",
 			},
 			"index": map[string]any{
 				"type":        "integer",
@@ -133,6 +137,8 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return b.handleOpen(ctx, params, sessionID), nil
 	case ActionScreenshot:
 		return b.handleScreenshot(ctx, params, sessionID, sessionStorageDir), nil
+	case ActionReadPage:
+		return b.handleReadPage(ctx, params, sessionID), nil
 	case ActionClick:
 		return b.handleClick(ctx, params, sessionID), nil
 	case ActionType:
@@ -703,6 +709,62 @@ func (b *browserTool) handleTabClose(ctx context.Context, params BrowserParams, 
 	}
 
 	return interfaces.NewTextResponse(fmt.Sprintf("Closed tab: %s", params.TabID))
+}
+
+// handleReadPage returns accessibility tree for visible viewport elements
+func (b *browserTool) handleReadPage(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
+	client, err := b.connectionManager.GetOrCreate(ctx, sessionID)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser: %v", err))
+	}
+
+	// Default to false if not specified
+	interactiveOnly := false
+	if params.InteractiveOnly != nil {
+		interactiveOnly = *params.InteractiveOnly
+	}
+
+	// Call browser service
+	var result *browserprotocol.ReadPageResult
+	if params.TabID != "" {
+		result, err = client.ReadPage(ctx, interactiveOnly, params.TabID)
+	} else {
+		result, err = client.ReadPage(ctx, interactiveOnly)
+	}
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Read page failed: %v", err))
+	}
+
+	// Format response
+	response := formatReadPageResponse(result.Elements, result.Viewport, interactiveOnly)
+	return interfaces.NewTextResponse(response)
+}
+
+// formatReadPageResponse formats the read_page response for the LLM
+func formatReadPageResponse(elements []browserprotocol.Element, viewport browserprotocol.BoundingBox, interactiveOnly bool) string {
+	var sb strings.Builder
+
+	filter := "all"
+	if interactiveOnly {
+		filter = "interactive"
+	}
+
+	sb.WriteString(fmt.Sprintf("Accessibility tree (%s elements in viewport)\n", filter))
+	sb.WriteString(fmt.Sprintf("Viewport: %.0fx%.0f at scroll position (%.0f, %.0f)\n\n",
+		viewport.Width, viewport.Height, viewport.X, viewport.Y))
+	sb.WriteString(fmt.Sprintf("Found %d element(s):\n\n", len(elements)))
+
+	for _, elem := range elements {
+		sb.WriteString(fmt.Sprintf("[%d] %s", elem.Index, elem.Role))
+		if elem.Name != "" {
+			sb.WriteString(fmt.Sprintf(": %s", elem.Name))
+		}
+		sb.WriteString("\n")
+		sb.WriteString(fmt.Sprintf("    Position: (%.0f, %.0f) Size: %.0fx%.0f\n\n",
+			elem.Bounds.X, elem.Bounds.Y, elem.Bounds.Width, elem.Bounds.Height))
+	}
+
+	return sb.String()
 }
 
 // getContextInfo extracts context information needed for tool execution

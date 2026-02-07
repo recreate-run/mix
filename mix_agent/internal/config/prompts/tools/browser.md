@@ -30,6 +30,50 @@ Capture a screenshot of the current page, optionally with numbered element overl
 {"action": "screenshot", "withOverlay": true}
 ```
 
+### read_page
+
+Get an accessibility tree representation of currently visible page elements in the viewport.
+
+**Parameters:**
+- `interactiveOnly` (boolean, optional): Filter to show only interactive elements like buttons, links, inputs (default: false)
+- `tabId` (string, optional): Specific tab ID (defaults to active tab)
+
+**Returns:**
+Accessibility tree with element references and coordinates. **Only shows content in the visible viewport** - content above/below the current scroll position is NOT included.
+
+**Example:**
+```json
+{"action": "read_page", "interactiveOnly": true}
+```
+
+**Use Cases:**
+- Get structured element data without screenshot image
+- Find all interactive elements in current viewport
+- Analyze page structure programmatically
+- Lower bandwidth alternative to screenshot for element discovery
+- Quick inspection of visible page content
+
+**Key Differences from screenshot:**
+- Returns JSON accessibility tree (not image)
+- No visual representation or numbered overlays
+- Only visible viewport elements (respects scroll position)
+- Can filter to interactive-only elements
+- More efficient for programmatic element analysis
+- Lower bandwidth usage
+
+**Important Notes:**
+- This returns ONLY visible viewport elements
+- Content above/below the current scroll position is excluded
+- Use `scroll` action to reveal different page sections, then call `read_page` again
+- Element indices are sequential (0, 1, 2...) for visible elements only
+- Use these indices with `click`, `type`, etc. just like with screenshot
+
+**Comparison with Other Actions:**
+- Use `read_page` for programmatic element discovery
+- Use `screenshot` for visual inspection and debugging
+- Use `get_text` for extracting text content only
+- Use `find` for searching specific elements across entire page (not just viewport)
+
 ### click
 Click an interactive element by its index (from screenshot).
 
