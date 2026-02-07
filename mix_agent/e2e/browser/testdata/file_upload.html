@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Test Page</title>
+</head>
+<body>
+    <h1>File Upload Test</h1>
+
+    <form id="uploadForm">
+        <label for="fileInput">Choose a file to upload:</label>
+        <input type="file" id="fileInput" name="file" accept="*/*">
+        <button type="submit">Upload</button>
+    </form>
+
+    <div id="result" style="margin-top: 20px;">
+        <p>No file uploaded yet.</p>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('result');
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                resultDiv.innerHTML = `<p>File uploaded: ${file.name} (${file.size} bytes)</p>`;
+            } else {
+                resultDiv.innerHTML = '<p>No file selected.</p>';
+            }
+        });
+    </script>
+</body>
+</html>

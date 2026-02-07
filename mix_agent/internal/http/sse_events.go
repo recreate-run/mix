@@ -131,6 +131,19 @@ type UserMessageCreatedEvent struct {
 	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
+type NotificationEvent struct {
+	Type         string   `json:"type"`
+	ID           string   `json:"id"`
+	SessionID    string   `json:"sessionId"`
+	NotifType    string   `json:"notificationType"`
+	Title        string   `json:"title"`
+	Message      string   `json:"message"`
+	ResponseType string   `json:"responseType"`
+	Choices      []string `json:"choices,omitempty"`
+	Timeout      int      `json:"timeout"`
+	CreatedAt    int64    `json:"createdAt"` // Unix timestamp in milliseconds
+}
+
 // SSEWriter handles session-scoped SSE writing with automatic compliance
 type SSEWriter struct {
 	w         http.ResponseWriter

@@ -7,12 +7,14 @@ import (
 	"mix/internal/llm/tools"
 	"mix/internal/llm/tools/browser"
 	"mix/internal/message"
+	"mix/internal/notification"
 	"mix/internal/permission"
 	"mix/internal/session"
 )
 
 func CoderAgentTools(
 	permissions permission.Service,
+	notifications notification.Service,
 	sessions session.Service,
 	messages message.Service,
 	historySvc history.Service,
@@ -42,6 +44,7 @@ func CoderAgentTools(
 		tools.NewTodoWriteTool(),
 		tools.NewExitPlanModeTool(),
 		// tools.NewShowTool(),
+		tools.NewNotifyTool(notifications),
 		browser.NewBrowserTool(permissions, browserServiceURL, session.DefaultConfig()),
 		NewTaskTool(sessions, messages, permissions),
 	}

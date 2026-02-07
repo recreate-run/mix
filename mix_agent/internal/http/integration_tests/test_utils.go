@@ -32,11 +32,33 @@ import (
 func loadEnvFile(t *testing.T) {
 	t.Helper()
 
-	// Test working directory is /mix_agent/internal/http/integration_tests, so .env is four levels up
-	envPath := filepath.Join("..", "..", "..", "..", ".env")
+	// Dynamically find project root by walking up to find go.mod, then go up one more level
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Logf("Failed to get working directory: %v", err)
+		return
+	}
 
-	// Load .env file - ignore error if file doesn't exist
-	_ = godotenv.Load(envPath)
+	// Walk up directory tree to find go.mod (marks mix_agent/ directory)
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			// Found go.mod, go up one level to project root (mix/)
+			projectRoot := filepath.Dir(dir)
+			envPath := filepath.Join(projectRoot, ".env")
+			_ = godotenv.Load(envPath)
+			return
+		}
+
+		// Move up one directory
+		parentDir := filepath.Dir(dir)
+		if parentDir == dir {
+			// Reached filesystem root without finding go.mod
+			t.Logf("Could not find project root (go.mod not found)")
+			return
+		}
+		dir = parentDir
+	}
 }
 
 // requireLLMCredentials skips tests that require LLM API access if credentials aren't configured

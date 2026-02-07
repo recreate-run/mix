@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 	"mix/internal/app"
@@ -91,6 +92,10 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 
 	// Initialize MCP tools
 	initMCPTools(ctx, testApp)
+
+	// Ensure credentials service is fully initialized
+	// This is needed because credentials are preloaded in a background goroutine
+	time.Sleep(100 * time.Millisecond)
 
 	// Create test session (title must be ≤20 chars due to DB constraint)
 	session, err := testApp.Sessions.Create(ctx, "Test Session", "", "default", session2.SessionTypeMain, "", "", "")
@@ -196,11 +201,3 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 	return responseData
 }
 
-// createJSONMessage creates a proper JSON message structure for testing
-func createJSONMessage(text string) string {
-	msgContent := map[string]interface{}{
-		"text": text,
-	}
-	jsonData, _ := json.Marshal(msgContent)
-	return string(jsonData)
-}

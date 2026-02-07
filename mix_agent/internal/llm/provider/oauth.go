@@ -709,6 +709,11 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 		}
 	}
 
+	// Mock provider doesn't require authentication
+	if provider == models.ProviderMock {
+		return true, "mock", nil
+	}
+
 	// First check for API key in database
 	hasAPIKey, err := credentialsService.HasAPIKey(ctx, provider)
 	if err != nil {

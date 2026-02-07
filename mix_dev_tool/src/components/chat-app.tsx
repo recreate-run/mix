@@ -45,6 +45,7 @@ import { CommandFileReference } from "./command-file-reference";
 import { CommandSlash } from "./command-slash";
 import { ConversationDisplay } from "./conversation-display";
 import { FileUploadButton } from "./file-upload-button";
+import { NotificationDialog } from "./notification-dialog";
 import { PermissionDialog } from "./permission-dialog";
 import { SdkCodeSnippet } from "./sdk-code-snippet";
 
@@ -823,6 +824,14 @@ export function ChatApp({
 					onDeny={sseStream.denyPermission}
 					onGrant={sseStream.grantPermission}
 					permissionRequest={sseStream.permissionRequests[0]}
+				/>
+			)}
+
+			{/* Notification Dialog - Show the first pending notification */}
+			{sseStream.notifications.length > 0 && (
+				<NotificationDialog
+					notification={sseStream.notifications[0]}
+					onRespond={sseStream.respondToNotification}
 				/>
 			)}
 		</div>

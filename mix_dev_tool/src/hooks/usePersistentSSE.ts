@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { CoreToolName } from "mix-typescript-sdk/models";
+import type { Type as NotificationResponseType } from "mix-typescript-sdk/models/operations/respondtonotification";
 import type {
 	SendMessageRequestBody,
 	ThinkingLevel,
@@ -38,6 +39,36 @@ export type SSEPermissionRequest = {
 	params: Record<string, unknown>;
 };
 
+export type SSENotificationRequest = {
+	id: string;
+	sessionId: string;
+	type: "info" | "warning" | "error" | "question";
+	title: string;
+	message: string;
+	responseType: "acknowledge" | "text" | "choice";
+	choices?: string[];
+	timeout: number;
+	createdAt: number;
+};
+
+// Local type definition until SDK is updated with SSENotificationEvent
+interface SSENotificationEventData {
+	id: string;
+	sessionId: string;
+	notificationType: "info" | "warning" | "error" | "question";
+	title: string;
+	message: string;
+	responseType: "acknowledge" | "text" | "choice";
+	choices?: string[];
+	timeout: number;
+	createdAt: number;
+}
+
+interface SSENotificationEvent {
+	type: "notification";
+	data: SSENotificationEventData;
+}
+
 type PersistentSSEState = {
 	connected: boolean;
 	connecting: boolean;
@@ -59,6 +90,7 @@ type PersistentSSEState = {
 		maxAttempts: number;
 	};
 	permissionRequests: SSEPermissionRequest[];
+	notifications: SSENotificationRequest[];
 	newlyCreatedSessionId: string | null;
 	pendingUserMessage: {
 		text: string;
@@ -88,6 +120,10 @@ type PersistentSSEHook = PersistentSSEState & {
 	clearPendingUserMessage: () => void;
 	grantPermission: (id: string) => Promise<void>;
 	denyPermission: (id: string) => Promise<void>;
+	respondToNotification: (
+		id: string,
+		response: { type: NotificationResponseType; value?: string },
+	) => Promise<void>;
 };
 
 export function usePersistentSSE(sessionId: string): PersistentSSEHook {
@@ -108,6 +144,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		timeline: [],
 		rateLimit: undefined,
 		permissionRequests: [],
+		notifications: [],
 		newlyCreatedSessionId: null,
 		pendingUserMessage: null,
 		assistantMessageId: null,
@@ -675,6 +712,28 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 							break;
 						}
 
+						// @ts-expect-error - notification event not yet in SDK, will be added in next SDK regeneration
+						case "notification": {
+							const notificationEvent = event as SSENotificationEvent;
+							const notification: SSENotificationRequest = {
+								id: notificationEvent.data.id,
+								sessionId: notificationEvent.data.sessionId,
+								type: notificationEvent.data.notificationType,
+								title: notificationEvent.data.title,
+								message: notificationEvent.data.message,
+								responseType: notificationEvent.data.responseType,
+								choices: notificationEvent.data.choices,
+								timeout: notificationEvent.data.timeout,
+								createdAt: notificationEvent.data.createdAt,
+							};
+
+							setState((prev) => ({
+								...prev,
+								notifications: [...prev.notifications, notification],
+							}));
+							break;
+						}
+
 						case "user_message_created": {
 							const userMsgEvent = event as SSEUserMessageCreatedEvent;
 
@@ -784,6 +843,7 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 			reasoningDuration: null,
 			timeline: [],
 			permissionRequests: [],
+			notifications: [],
 			newlyCreatedSessionId: null,
 			pendingUserMessage: null,
 			assistantMessageId: null,
@@ -1010,6 +1070,30 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		}
 	}, []);
 
+	const respondToNotification = useCallback(
+		async (
+			id: string,
+			response: { type: NotificationResponseType; value?: string },
+		) => {
+			try {
+				await mix.notifications.respondToNotification({
+					id,
+					requestBody: response,
+				});
+
+				// Remove the notification from state
+				setState((prev) => ({
+					...prev,
+					notifications: prev.notifications.filter((notif) => notif.id !== id),
+				}));
+			} catch (error) {
+				console.error("Failed to respond to notification:", error);
+				throw error;
+			}
+		},
+		[],
+	);
+
 	// Clean submitMessage implementation - fixes race condition
 	const submitMessage = useCallback(
 		async (params: {
@@ -1080,5 +1164,6 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 		clearPendingUserMessage,
 		grantPermission,
 		denyPermission,
+		respondToNotification,
 	};
 }

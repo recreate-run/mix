@@ -15,6 +15,7 @@ import (
 	"mix/internal/logging"
 	"mix/internal/message"
 	storage "mix/internal/mix_storage"
+	"mix/internal/notification"
 	"mix/internal/permission"
 	"mix/internal/session"
 )
@@ -24,6 +25,7 @@ type App struct {
 	Messages        message.Service
 	History         history.Service
 	Permissions     permission.Service
+	Notifications   notification.Service
 	Analytics       analytics.Service
 	StorageConfig   session.Config
 	StorageProvider storage.Provider
@@ -97,6 +99,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		Messages:        messages,
 		History:         files,
 		Permissions:     permission.NewPermissionService(sessions, storageConfig),
+		Notifications:   notification.NewService(sessions),
 		Analytics:       analyticsService,
 		StorageConfig:   storageConfig,
 		StorageProvider: storageProvider,
@@ -112,6 +115,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		app.Messages,
 		agent.CoderAgentTools(
 			app.Permissions,
+			app.Notifications,
 			app.Sessions,
 			app.Messages,
 			app.History,

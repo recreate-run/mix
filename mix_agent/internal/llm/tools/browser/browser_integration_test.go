@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,6 +43,10 @@ type mockBrowserServer struct {
 	wsURL        string
 	connections  map[*websocket.Conn]bool
 	requestCount int
+	tabCounter   int
+	tabs         map[string]map[string]any
+	activeTabID  string
+	mu           sync.Mutex
 }
 
 // startMockBrowserServer starts a mock browser service server
@@ -49,7 +55,18 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 
 	mbs := &mockBrowserServer{
 		connections: make(map[*websocket.Conn]bool),
+		tabs:        make(map[string]map[string]any),
+		tabCounter:  0,
 	}
+
+	// Create initial default tab
+	mbs.tabs["tab-1"] = map[string]any{
+		"id":       "tab-1",
+		"url":      "about:blank",
+		"title":    "New Tab",
+		"isActive": true,
+	}
+	mbs.activeTabID = "tab-1"
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -58,9 +75,13 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 			return
 		}
 
+		mbs.mu.Lock()
 		mbs.connections[conn] = true
+		mbs.mu.Unlock()
 		defer func() {
+			mbs.mu.Lock()
 			delete(mbs.connections, conn)
+			mbs.mu.Unlock()
 			_ = conn.Close()
 		}()
 
@@ -71,7 +92,9 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 				return
 			}
 
+			mbs.mu.Lock()
 			mbs.requestCount++
+			mbs.mu.Unlock()
 
 			// Parse request
 			var req browserprotocol.Request
@@ -134,6 +157,155 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 					"success": true,
 				}
 
+			case "Page.uploadFile":
+				response.Result = map[string]any{
+					"filesUploaded": 1,
+					"fileNames":     []string{"test.txt"},
+				}
+
+			case "Page.getText":
+				response.Result = map[string]any{
+					"text":      "This is extracted text from the page with meaningful content.",
+					"length":    60,
+					"source":    "article",
+					"truncated": false,
+				}
+
+			case "Page.find":
+				response.Result = map[string]any{
+					"elements": []map[string]any{
+						{
+							"index": 1,
+							"role":  "button",
+							"name":  "Search Button",
+							"bounds": map[string]any{
+								"x":      50.0,
+								"y":      100.0,
+								"width":  100.0,
+								"height": 40.0,
+							},
+						},
+						{
+							"index": 2,
+							"role":  "textbox",
+							"name":  "search input",
+							"bounds": map[string]any{
+								"x":      50.0,
+								"y":      150.0,
+								"width":  200.0,
+								"height": 30.0,
+							},
+						},
+					},
+					"total":     2,
+					"truncated": false,
+				}
+
+			case "Tab.create":
+				mbs.mu.Lock()
+				mbs.tabCounter++
+				newTabID := fmt.Sprintf("tab-%d", mbs.tabCounter+1)
+				mbs.tabs[newTabID] = map[string]any{
+					"id":       newTabID,
+					"url":      "about:blank",
+					"title":    "New Tab",
+					"isActive": false,
+				}
+				mbs.mu.Unlock()
+
+				response.Result = map[string]any{
+					"tab": map[string]any{
+						"id":       newTabID,
+						"url":      "about:blank",
+						"title":    "New Tab",
+						"isActive": false,
+					},
+				}
+
+			case "Tab.list":
+				mbs.mu.Lock()
+				tabs := make([]map[string]any, 0, len(mbs.tabs))
+				for _, tab := range mbs.tabs {
+					tabs = append(tabs, tab)
+				}
+				mbs.mu.Unlock()
+
+				response.Result = map[string]any{
+					"tabs":        tabs,
+					"activeTabId": mbs.activeTabID,
+				}
+
+			case "Tab.switch":
+				var params struct {
+					TabID string `json:"tabId"`
+				}
+				if paramData, err := json.Marshal(req.Params); err == nil {
+					_ = json.Unmarshal(paramData, &params)
+				}
+
+				mbs.mu.Lock()
+				if _, exists := mbs.tabs[params.TabID]; exists {
+					// Update active status
+					for id := range mbs.tabs {
+						tab := mbs.tabs[id]
+						tab["isActive"] = (id == params.TabID)
+						mbs.tabs[id] = tab
+					}
+					mbs.activeTabID = params.TabID
+					mbs.mu.Unlock()
+
+					response.Result = map[string]any{
+						"success": true,
+					}
+				} else {
+					mbs.mu.Unlock()
+					response.Error = &browserprotocol.Error{
+						Code:    -1,
+						Message: "tab not found",
+					}
+				}
+
+			case "Tab.close":
+				var params struct {
+					TabID string `json:"tabId"`
+				}
+				if paramData, err := json.Marshal(req.Params); err == nil {
+					_ = json.Unmarshal(paramData, &params)
+				}
+
+				mbs.mu.Lock()
+				if len(mbs.tabs) == 1 {
+					mbs.mu.Unlock()
+					response.Error = &browserprotocol.Error{
+						Code:    -1,
+						Message: "cannot close last tab",
+					}
+				} else if _, exists := mbs.tabs[params.TabID]; exists {
+					delete(mbs.tabs, params.TabID)
+
+					// If we closed the active tab, switch to first remaining tab
+					if mbs.activeTabID == params.TabID {
+						for id := range mbs.tabs {
+							mbs.activeTabID = id
+							tab := mbs.tabs[id]
+							tab["isActive"] = true
+							mbs.tabs[id] = tab
+							break
+						}
+					}
+					mbs.mu.Unlock()
+
+					response.Result = map[string]any{
+						"success": true,
+					}
+				} else {
+					mbs.mu.Unlock()
+					response.Error = &browserprotocol.Error{
+						Code:    -1,
+						Message: "tab not found",
+					}
+				}
+
 			default:
 				response.Error = &browserprotocol.Error{
 					Code:    -1,
@@ -158,7 +330,14 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 }
 
 func (mbs *mockBrowserServer) Close() {
+	mbs.mu.Lock()
+	conns := make([]*websocket.Conn, 0, len(mbs.connections))
 	for conn := range mbs.connections {
+		conns = append(conns, conn)
+	}
+	mbs.mu.Unlock()
+
+	for _, conn := range conns {
 		_ = conn.Close()
 	}
 	mbs.server.Close()
@@ -638,4 +817,299 @@ func TestBrowserToolIntegrationScreenshotURL(t *testing.T) {
 
 	// Verify URL format
 	assert.Contains(t, response.Content, "https://custom.example.com/api/sessions/test-session-123/files/screenshot_")
+}
+
+// Test file upload feature
+func TestBrowserToolIntegrationFileUpload(t *testing.T) {
+	skipIfIntegrationTestsDisabled(t)
+
+	mockServer := startMockBrowserServer(t)
+	defer mockServer.Close()
+
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+
+	tempDir := t.TempDir()
+	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
+
+	mockPermissionService.On("Request", mock.Anything).Return(true)
+
+	// Create a test file in the session directory
+	testFilePath := filepath.Join(tempDir, "test.txt")
+	err := os.WriteFile(testFilePath, []byte("test content"), 0o644)
+	require.NoError(t, err)
+
+	// Open page first
+	openCall := interfaces.ToolCall{
+		ID:    "call-open",
+		Name:  BrowserToolName,
+		Input: `{"action": "open", "url": "https://example.com"}`,
+	}
+	_, err = tool.Run(ctx, openCall)
+	require.NoError(t, err)
+
+	// Test upload with absolute path
+	t.Run("absolute path", func(t *testing.T) {
+		uploadCall := interfaces.ToolCall{
+			ID:    "call-upload-abs",
+			Name:  BrowserToolName,
+			Input: fmt.Sprintf(`{"action": "upload", "index": 1, "filePath": %q}`, testFilePath),
+		}
+
+		response, err := tool.Run(ctx, uploadCall)
+		require.NoError(t, err)
+		assert.False(t, response.IsError)
+		assert.Contains(t, response.Content, "Successfully uploaded")
+		assert.Contains(t, response.Content, "test.txt")
+	})
+
+	// Test upload with relative path
+	t.Run("relative path", func(t *testing.T) {
+		uploadCall := interfaces.ToolCall{
+			ID:    "call-upload-rel",
+			Name:  BrowserToolName,
+			Input: `{"action": "upload", "index": 1, "filePath": "test.txt"}`,
+		}
+
+		response, err := tool.Run(ctx, uploadCall)
+		require.NoError(t, err)
+		assert.False(t, response.IsError)
+		assert.Contains(t, response.Content, "Successfully uploaded")
+	})
+
+	// Test upload with non-existent file
+	t.Run("non-existent file", func(t *testing.T) {
+		uploadCall := interfaces.ToolCall{
+			ID:    "call-upload-404",
+			Name:  BrowserToolName,
+			Input: `{"action": "upload", "index": 1, "filePath": "nonexistent.txt"}`,
+		}
+
+		response, err := tool.Run(ctx, uploadCall)
+		require.NoError(t, err)
+		assert.True(t, response.IsError)
+		assert.Contains(t, response.Content, "File not found")
+	})
+
+	// Test upload with missing filePath parameter
+	t.Run("missing filePath", func(t *testing.T) {
+		uploadCall := interfaces.ToolCall{
+			ID:    "call-upload-missing",
+			Name:  BrowserToolName,
+			Input: `{"action": "upload", "index": 1}`,
+		}
+
+		response, err := tool.Run(ctx, uploadCall)
+		require.NoError(t, err)
+		assert.True(t, response.IsError)
+		assert.Contains(t, response.Content, "missing filePath parameter")
+	})
+}
+
+// Test text extraction feature with different strategies
+func TestBrowserToolIntegrationTextExtraction(t *testing.T) {
+	skipIfIntegrationTestsDisabled(t)
+
+	mockServer := startMockBrowserServer(t)
+	defer mockServer.Close()
+
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+
+	tempDir := t.TempDir()
+	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
+
+	mockPermissionService.On("Request", mock.Anything).Return(true)
+
+	// Open page first
+	openCall := interfaces.ToolCall{
+		ID:    "call-open",
+		Name:  BrowserToolName,
+		Input: `{"action": "open", "url": "https://example.com"}`,
+	}
+	_, err := tool.Run(ctx, openCall)
+	require.NoError(t, err)
+
+	// Test different extraction strategies
+	strategies := []string{"auto", "article", "main", "body"}
+
+	for _, strategy := range strategies {
+		t.Run(strategy, func(t *testing.T) {
+			getTextCall := interfaces.ToolCall{
+				ID:    fmt.Sprintf("call-gettext-%s", strategy),
+				Name:  BrowserToolName,
+				Input: fmt.Sprintf(`{"action": "get_text", "strategy": %q}`, strategy),
+			}
+
+			response, err := tool.Run(ctx, getTextCall)
+			require.NoError(t, err)
+			assert.False(t, response.IsError)
+			assert.Contains(t, response.Content, "Extracted")
+			assert.Contains(t, response.Content, "characters from page")
+			assert.Contains(t, response.Content, "=== Page Text ===")
+			assert.Contains(t, response.Content, "This is extracted text")
+		})
+	}
+
+	// Test default strategy (should default to auto)
+	t.Run("default strategy", func(t *testing.T) {
+		getTextCall := interfaces.ToolCall{
+			ID:    "call-gettext-default",
+			Name:  BrowserToolName,
+			Input: `{"action": "get_text"}`,
+		}
+
+		response, err := tool.Run(ctx, getTextCall)
+		require.NoError(t, err)
+		assert.False(t, response.IsError)
+		assert.Contains(t, response.Content, "Extracted")
+	})
+}
+
+// Test DOM search feature
+func TestBrowserToolIntegrationDOMSearch(t *testing.T) {
+	skipIfIntegrationTestsDisabled(t)
+
+	mockServer := startMockBrowserServer(t)
+	defer mockServer.Close()
+
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+
+	tempDir := t.TempDir()
+	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
+
+	mockPermissionService.On("Request", mock.Anything).Return(true)
+
+	// Open page first
+	openCall := interfaces.ToolCall{
+		ID:    "call-open",
+		Name:  BrowserToolName,
+		Input: `{"action": "open", "url": "https://example.com"}`,
+	}
+	_, err := tool.Run(ctx, openCall)
+	require.NoError(t, err)
+
+	// Test successful search
+	t.Run("successful search", func(t *testing.T) {
+		findCall := interfaces.ToolCall{
+			ID:    "call-find-success",
+			Name:  BrowserToolName,
+			Input: `{"action": "find", "query": "search"}`,
+		}
+
+		response, err := tool.Run(ctx, findCall)
+		require.NoError(t, err)
+		assert.False(t, response.IsError)
+		assert.Contains(t, response.Content, "Found 2 element(s)")
+		assert.Contains(t, response.Content, "matching query: search")
+		assert.Contains(t, response.Content, "[1] button: Search Button")
+		assert.Contains(t, response.Content, "[2] textbox: search input")
+	})
+
+	// Test search with missing query parameter
+	t.Run("missing query", func(t *testing.T) {
+		findCall := interfaces.ToolCall{
+			ID:    "call-find-missing",
+			Name:  BrowserToolName,
+			Input: `{"action": "find"}`,
+		}
+
+		response, err := tool.Run(ctx, findCall)
+		require.NoError(t, err)
+		assert.True(t, response.IsError)
+		assert.Contains(t, response.Content, "missing query parameter")
+	})
+}
+
+// Test that find returns appropriate message when no elements found
+func TestBrowserToolIntegrationDOMSearchNoResults(t *testing.T) {
+	skipIfIntegrationTestsDisabled(t)
+
+	// Create a custom mock server that returns empty results
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			var req browserprotocol.Request
+			if err := json.Unmarshal(message, &req); err != nil {
+				continue
+			}
+
+			var response browserprotocol.Response
+			response.ID = req.ID
+
+			// Return empty results for find
+			switch req.Method {
+			case "Page.find":
+				response.Result = map[string]any{
+					"elements":  []map[string]any{},
+					"total":     0,
+					"truncated": false,
+				}
+			case "Page.navigate":
+				response.Result = map[string]any{
+					"frameId": "frame-123",
+				}
+			}
+
+			respData, _ := json.Marshal(response)
+			if err := conn.WriteMessage(websocket.TextMessage, respData); err != nil {
+				return
+			}
+		}
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, wsURL, sessionConfig)
+
+	tempDir := t.TempDir()
+	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
+
+	mockPermissionService.On("Request", mock.Anything).Return(true)
+
+	// Open page first
+	openCall := interfaces.ToolCall{
+		ID:    "call-open",
+		Name:  BrowserToolName,
+		Input: `{"action": "open", "url": "https://example.com"}`,
+	}
+	_, err := tool.Run(ctx, openCall)
+	require.NoError(t, err)
+
+	// Search for non-existent elements
+	findCall := interfaces.ToolCall{
+		ID:    "call-find-empty",
+		Name:  BrowserToolName,
+		Input: `{"action": "find", "query": "nonexistent"}`,
+	}
+
+	response, err := tool.Run(ctx, findCall)
+	require.NoError(t, err)
+	assert.False(t, response.IsError)
+	assert.Contains(t, response.Content, "No elements found matching query: nonexistent")
 }

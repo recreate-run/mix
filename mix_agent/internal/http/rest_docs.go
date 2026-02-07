@@ -651,6 +651,40 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 				},
 			},
+			"/api/notifications/{id}/respond": map[string]interface{}{
+				"post": map[string]interface{}{
+					"operationId": "respondToNotification",
+					"summary":     "Respond to notification",
+					"description": "Send user's response to a notification request",
+					"tags":        []string{"Notifications"},
+					"parameters": []map[string]interface{}{
+						createPathParameter("id", "Notification ID"),
+					},
+					"requestBody": createRequestBody(map[string]interface{}{
+						"type":     "object",
+						"required": []string{"type"},
+						"properties": map[string]interface{}{
+							"type": map[string]interface{}{
+								"type":        "string",
+								"description": "Response type",
+								"enum":        []string{"acknowledge", "text", "choice"},
+							},
+							"value": map[string]interface{}{
+								"type":        "string",
+								"description": "User's text input or selected choice (optional for acknowledge type)",
+							},
+						},
+					}),
+					"responses": map[string]interface{}{
+						"204": map[string]interface{}{
+							"description": "Notification response accepted",
+						},
+						"401": createErrorResponse("Unauthorized - authentication required"),
+						"404": createErrorResponse("Notification not found or already responded"),
+						"500": createErrorResponse("Internal server error"),
+					},
+				},
+			},
 			"/api/auth/api-key": map[string]interface{}{
 				"post": map[string]interface{}{
 					"operationId": "storeApiKey",
@@ -2179,6 +2213,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"tool_execution_start":                  "#/components/schemas/SSEToolExecutionStartEvent",
 							"tool_execution_complete":               "#/components/schemas/SSEToolExecutionCompleteEvent",
 							"permission":                            "#/components/schemas/SSEPermissionEvent",
+							"notification":                          "#/components/schemas/SSENotificationEvent",
 							"user_message_created":                  "#/components/schemas/SSEUserMessageCreatedEvent",
 							"session_created":                       "#/components/schemas/SSESessionCreatedEvent",
 							"session_deleted":                       "#/components/schemas/SSESessionDeletedEvent",
@@ -2197,6 +2232,7 @@ func getOpenAPISpec() OpenAPISpec {
 						{"$ref": "#/components/schemas/SSEToolExecutionStartEvent"},
 						{"$ref": "#/components/schemas/SSEToolExecutionCompleteEvent"},
 						{"$ref": "#/components/schemas/SSEPermissionEvent"},
+						{"$ref": "#/components/schemas/SSENotificationEvent"},
 						{"$ref": "#/components/schemas/SSEUserMessageCreatedEvent"},
 						{"$ref": "#/components/schemas/SSESessionCreatedEvent"},
 						{"$ref": "#/components/schemas/SSESessionDeletedEvent"},
@@ -2637,6 +2673,70 @@ func getOpenAPISpec() OpenAPISpec {
 										},
 									},
 									"required": []string{"type", "id", "sessionId", "toolName", "description", "action"},
+								},
+							},
+							"required": []string{"data"},
+						},
+					},
+				},
+				"SSENotificationEvent": map[string]interface{}{
+					"allOf": []map[string]interface{}{
+						{"$ref": "#/components/schemas/SSEBaseEvent"},
+						{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"type":        "string",
+											"description": "Notification event type",
+										},
+										"id": map[string]interface{}{
+											"type":        "string",
+											"description": "Notification identifier",
+										},
+										"sessionId": map[string]interface{}{
+											"type":        "string",
+											"description": "Session identifier for the notification",
+										},
+										"notificationType": map[string]interface{}{
+											"type":        "string",
+											"enum":        []string{"info", "warning", "error", "question"},
+											"description": "Type of notification",
+										},
+										"title": map[string]interface{}{
+											"type":        "string",
+											"description": "Notification title",
+										},
+										"message": map[string]interface{}{
+											"type":        "string",
+											"description": "Notification message content",
+										},
+										"responseType": map[string]interface{}{
+											"type":        "string",
+											"enum":        []string{"acknowledge", "text", "choice"},
+											"description": "Expected response type from user",
+										},
+										"choices": map[string]interface{}{
+											"type":        "array",
+											"items":       map[string]interface{}{"type": "string"},
+											"description": "Available choices (required when responseType is 'choice')",
+										},
+										"timeout": map[string]interface{}{
+											"type":        "integer",
+											"description": "Timeout in seconds for user response",
+										},
+										"createdAt": map[string]interface{}{
+											"type":        "integer",
+											"description": "Unix timestamp when notification was created",
+										},
+										"parentToolCallId": map[string]interface{}{
+											"type":        "string",
+											"description": "ID of the parent tool call that spawned this subagent (for nested events)",
+										},
+									},
+									"required": []string{"type", "id", "sessionId", "notificationType", "title", "message", "responseType", "timeout", "createdAt"},
 								},
 							},
 							"required": []string{"data"},

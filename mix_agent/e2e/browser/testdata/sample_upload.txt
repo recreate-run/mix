@@ -1,0 +1,3 @@
+This is a sample file for testing browser file upload functionality.
+It contains some text that can be verified after upload.
+Test timestamp: 2026-02-06

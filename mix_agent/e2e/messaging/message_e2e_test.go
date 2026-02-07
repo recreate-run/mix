@@ -1,3 +1,6 @@
+//go:build e2e
+// +build e2e
+
 package messaging_test
 
 import (
@@ -38,38 +41,31 @@ func TestRESTMessageSending(t *testing.T) {
 	msgResp := integration_tests.MakeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
-	// In an unauthenticated test environment, we should get a 200 OK with an auth prompt
-	if msgResp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status code %d, got %d", http.StatusOK, msgResp.StatusCode)
+	// In an unauthenticated test environment, we expect a 401 Unauthorized
+	if msgResp.StatusCode == http.StatusUnauthorized {
+		t.Skip("Skipping test - authentication error (no API credentials). This is expected in test environments.")
+	}
+
+	// With valid credentials, we should get a 202 Accepted
+	if msgResp.StatusCode != http.StatusAccepted {
+		t.Fatalf("Expected status code %d, got %d", http.StatusAccepted, msgResp.StatusCode)
 	}
 
 	// Parse and verify response structure
-	messageData := integration_tests.ValidateObjectResponse(t, msgResp, http.StatusOK)
+	responseData := integration_tests.ValidateObjectResponse(t, msgResp, http.StatusAccepted)
 
-	t.Logf("Message response data: %+v", messageData)
+	t.Logf("Message response data: %+v", responseData)
 
-	// The response should have an ID and role
-	messageID, ok := messageData["id"].(string)
-	if !ok || messageID == "" {
-		t.Fatalf("Expected message ID in response, got %v", messageData)
+	// The response should have status and sessionId
+	status, ok := responseData["status"].(string)
+	if !ok || status != "processing" {
+		t.Fatalf("Expected status 'processing' in response, got %v", responseData["status"])
 	}
 
-	// Role should be present
-	role, ok := messageData["role"].(string)
-	if !ok {
-		t.Fatalf("Expected role field in message response")
+	responseSessionID, ok := responseData["sessionId"].(string)
+	if !ok || responseSessionID != sessionID {
+		t.Fatalf("Expected sessionId '%s' in response, got %v", sessionID, responseData["sessionId"])
 	}
 
-	// For unauthenticated environments, the role is "assistant" for the auth prompt
-	if role != "assistant" {
-		t.Logf("Note: Expected role 'assistant' for auth prompt, got '%s'. This is acceptable if the test environment is configured differently.", role)
-	}
-
-	// Some response should be present
-	_, ok = messageData["assistantResponse"].(string)
-	if !ok {
-		t.Fatalf("Expected assistantResponse field in message response")
-	}
-
-	t.Logf("✅ Message sending test passed - Message ID: %s", messageID)
+	t.Logf("✅ Message sending test passed - Message accepted for processing in session: %s", sessionID)
 }

@@ -712,6 +712,90 @@
         ]
       }
     },
+    "/api/notifications/{id}/respond": {
+      "post": {
+        "description": "Send user's response to a notification request",
+        "operationId": "respondToNotification",
+        "parameters": [
+          {
+            "description": "Notification ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "type": {
+                    "description": "Response type",
+                    "enum": [
+                      "acknowledge",
+                      "text",
+                      "choice"
+                    ],
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "User's text input or selected choice (optional for acknowledge type)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Notification response accepted"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - authentication required"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Notification not found or already responded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Respond to notification",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
     "/api/permissions/{id}/deny": {
       "post": {
         "description": "Deny a specific permission",
@@ -3388,6 +3472,7 @@
             "content": "#/components/schemas/SSEContentEvent",
             "error": "#/components/schemas/SSEErrorEvent",
             "heartbeat": "#/components/schemas/SSEHeartbeatEvent",
+            "notification": "#/components/schemas/SSENotificationEvent",
             "permission": "#/components/schemas/SSEPermissionEvent",
             "session_created": "#/components/schemas/SSESessionCreatedEvent",
             "session_deleted": "#/components/schemas/SSESessionDeletedEvent",
@@ -3439,6 +3524,9 @@
             "$ref": "#/components/schemas/SSEPermissionEvent"
           },
           {
+            "$ref": "#/components/schemas/SSENotificationEvent"
+          },
+          {
             "$ref": "#/components/schemas/SSEUserMessageCreatedEvent"
           },
           {
@@ -3467,6 +3555,95 @@
                 },
                 "required": [
                   "type"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SSENotificationEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SSEBaseEvent"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "choices": {
+                    "description": "Available choices (required when responseType is 'choice')",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "createdAt": {
+                    "description": "Unix timestamp when notification was created",
+                    "type": "integer"
+                  },
+                  "id": {
+                    "description": "Notification identifier",
+                    "type": "string"
+                  },
+                  "message": {
+                    "description": "Notification message content",
+                    "type": "string"
+                  },
+                  "notificationType": {
+                    "description": "Type of notification",
+                    "enum": [
+                      "info",
+                      "warning",
+                      "error",
+                      "question"
+                    ],
+                    "type": "string"
+                  },
+                  "parentToolCallId": {
+                    "description": "ID of the parent tool call that spawned this subagent (for nested events)",
+                    "type": "string"
+                  },
+                  "responseType": {
+                    "description": "Expected response type from user",
+                    "enum": [
+                      "acknowledge",
+                      "text",
+                      "choice"
+                    ],
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "description": "Session identifier for the notification",
+                    "type": "string"
+                  },
+                  "timeout": {
+                    "description": "Timeout in seconds for user response",
+                    "type": "integer"
+                  },
+                  "title": {
+                    "description": "Notification title",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "Notification event type",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "id",
+                  "sessionId",
+                  "notificationType",
+                  "title",
+                  "message",
+                  "responseType",
+                  "timeout",
+                  "createdAt"
                 ],
                 "type": "object"
               }
