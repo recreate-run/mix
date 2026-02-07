@@ -33,8 +33,8 @@ func CoderAgentTools(
 	return []tools.BaseTool{
 		bashTool,
 		tools.NewEditTool(permissions, historySvc),
-		tools.NewGlobTool(),
-		tools.NewGrepTool(permissions),
+		// tools.NewGlobTool(),
+		// tools.NewGrepTool(permissions),
 		tools.NewReadTextTool(),
 		tools.NewWebFetchTool(permissions),
 		tools.NewWebSearchTool(permissions),

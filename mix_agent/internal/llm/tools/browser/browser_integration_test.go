@@ -39,14 +39,15 @@ var upgrader = websocket.Upgrader{
 
 // mockBrowserServer creates a mock browser service server for testing
 type mockBrowserServer struct {
-	server       *httptest.Server
-	wsURL        string
-	connections  map[*websocket.Conn]bool
-	requestCount int
-	tabCounter   int
-	tabs         map[string]map[string]any
-	activeTabID  string
-	mu           sync.Mutex
+	server               *httptest.Server
+	wsURL                string
+	connections          map[*websocket.Conn]bool
+	requestCount         int
+	tabCounter           int
+	tabs                 map[string]map[string]any
+	activeTabID          string
+	lastClickedBackendID int64
+	mu                   sync.Mutex
 }
 
 // startMockBrowserServer starts a mock browser service server
@@ -113,43 +114,72 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 				}
 
 			case "Page.screenshot":
-				// Return a minimal base64-encoded PNG with raw accessibility tree
+				// Create 50 elements: 20 in viewport, 30 out of viewport
+				rawNodes := make([]map[string]any, 50)
+				roles := []string{"button", "link", "textbox", "checkbox"}
+				backendIDBase := 1000
+
+				// Elements 0-19: In viewport (y: 0-800)
+				for i := 0; i < 20; i++ {
+					role := roles[i%len(roles)]
+					rawNodes[i] = map[string]any{
+						"role":      role,
+						"name":      fmt.Sprintf("%s %d", role, i),
+						"backendId": int64(backendIDBase + (i * 5)),
+						"bounds": map[string]any{
+							"x":      float64(50 + (i%10)*90),
+							"y":      float64(50 + (i/10)*400),
+							"width":  80.0,
+							"height": 30.0,
+							},
+						}
+				}
+
+				// Elements 20-49: Out of viewport (y: 1200+)
+				for i := 20; i < 50; i++ {
+					role := roles[i%len(roles)]
+					rawNodes[i] = map[string]any{
+						"role":      role,
+						"name":      fmt.Sprintf("%s %d", role, i),
+						"backendId": int64(backendIDBase + (i * 5)),
+						"bounds": map[string]any{
+							"x":      float64(50 + (i%10)*90),
+							"y":      float64(1200 + ((i-20)/10)*100),
+							"width":  80.0,
+							"height": 30.0,
+							},
+						}
+				}
+
 				response.Result = map[string]any{
-					"data":   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-					"format": "png",
-					"rawNodes": []map[string]any{
-						{
-							"role":      "button",
-							"name":      "Click me",
-							"backendId": 123,
-							"bounds": map[string]any{
-								"x":      100.0,
-								"y":      200.0,
-								"width":  80.0,
-								"height": 40.0,
-							},
-						},
-						{
-							"role":      "link",
-							"name":      "Home",
-							"backendId": 124,
-							"bounds": map[string]any{
-								"x":      200.0,
-								"y":      300.0,
-								"width":  60.0,
-								"height": 30.0,
-							},
-						},
-					},
+					"data":        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+					"format":      "png",
+					"rawNodes":    rawNodes,
 					"rawViewport": map[string]any{
 						"x":      0.0,
 						"y":      0.0,
 						"width":  1920.0,
 						"height": 1080.0,
-					},
+						},
+					}
+			case "Page.click":
+				response.Result = map[string]any{
+					"success": true,
 				}
 
-			case "Page.click":
+			case "Page.clickByBackendID", "Page.rightClickByBackendID", "Page.doubleClickByBackendID", "Page.tripleClickByBackendID":
+				// Track which BackendID was clicked
+				var clickParams struct {
+					BackendID int64 `json:"backendId"`
+				}
+				if paramData, err := json.Marshal(req.Params); err == nil {
+					_ = json.Unmarshal(paramData, &clickParams)
+				}
+
+				mbs.mu.Lock()
+				mbs.lastClickedBackendID = clickParams.BackendID
+				mbs.mu.Unlock()
+
 				response.Result = map[string]any{
 					"success": true,
 				}
@@ -358,6 +388,13 @@ func (mbs *mockBrowserServer) Close() {
 		_ = conn.Close()
 	}
 	mbs.server.Close()
+}
+
+// GetLastClickedBackendID returns the last clicked backend ID
+func (mbs *mockBrowserServer) GetLastClickedBackendID() int64 {
+	mbs.mu.Lock()
+	defer mbs.mu.Unlock()
+	return mbs.lastClickedBackendID
 }
 
 // Test full browser workflow: open -> screenshot -> click -> type -> scroll -> close
@@ -1129,4 +1166,142 @@ func TestBrowserToolIntegrationDOMSearchNoResults(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, response.IsError)
 	assert.Contains(t, response.Content, "No elements found matching query: nonexistent")
+}
+
+// TestElementCacheAccuracy verifies that the element cache correctly maps visual indices to BackendIDs
+func TestElementCacheAccuracy(t *testing.T) {
+	t.Helper()
+	skipIfIntegrationTestsDisabled(t)
+
+	mockServer := startMockBrowserServer(t)
+	defer mockServer.Close()
+
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+
+	tempDir := t.TempDir()
+	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
+
+	mockPermissionService.On("Request", mock.Anything).Return(true)
+
+	// Open page first
+	openCall := interfaces.ToolCall{
+		ID:    "call-open",
+		Name:  BrowserToolName,
+		Input: `{"action": "open", "url": "https://example.com"}`,
+	}
+	_, err := tool.Run(ctx, openCall)
+	require.NoError(t, err)
+
+	// Take screenshot to populate cache
+	screenshotCall := interfaces.ToolCall{
+		ID:    "call-screenshot",
+		Name:  BrowserToolName,
+		Input: `{"action": "screenshot"}`,
+	}
+	_, err = tool.Run(ctx, screenshotCall)
+	require.NoError(t, err)
+
+	// Access the tool's internal cache (using type assertion)
+	browserTool, ok := tool.(*browserTool)
+	require.True(t, ok, "Failed to cast tool to *browserTool")
+
+	// Get the active tab ID
+	activeTabID, err := browserTool.getActiveTabID(ctx, "test-session")
+	require.NoError(t, err)
+
+	// Extract element cache for current tab
+	cacheKey := "test-session_" + activeTabID
+	browserTool.cacheMu.RLock()
+	cache, exists := browserTool.elementCache[cacheKey]
+	browserTool.cacheMu.RUnlock()
+
+	require.True(t, exists, "Cache should exist after screenshot")
+	require.NotEmpty(t, cache, "Cache should not be empty")
+
+	// Assert: Cache contains only visible elements (20, not 50)
+	assert.Len(t, cache, 20, "Cache should contain exactly 20 visible elements")
+
+	// Assert: Visual index 0 maps to BackendID of first visible element (1000)
+	backendID0, found := cache[0]
+	require.True(t, found, "Visual index 0 should be in cache")
+	assert.Equal(t, int64(1000), backendID0, "Visual index 0 should map to BackendID 1000")
+
+	// Assert: Visual index 19 maps to BackendID of 20th visible element (1095)
+	backendID19, found := cache[19]
+	require.True(t, found, "Visual index 19 should be in cache")
+	assert.Equal(t, int64(1095), backendID19, "Visual index 19 should map to BackendID 1095")
+
+	// Assert: Out-of-viewport elements (BackendIDs 1100+) are NOT in cache
+	for _, backendID := range cache {
+		assert.Less(t, backendID, int64(1100), "Out-of-viewport elements should not be in cache")
+	}
+
+	// Verify sequential visual indices 0-19 are all present
+	for i := 0; i < 20; i++ {
+		_, found := cache[i]
+		require.True(t, found, "Visual index should be in cache")
+	}
+}
+
+// TestClickWithViewportFiltering explicitly tests clicking filtered elements
+func TestClickWithViewportFiltering(t *testing.T) {
+	t.Helper()
+	skipIfIntegrationTestsDisabled(t)
+
+	mockServer := startMockBrowserServer(t)
+	defer mockServer.Close()
+
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+
+	tempDir := t.TempDir()
+	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
+
+	mockPermissionService.On("Request", mock.Anything).Return(true)
+
+	// Open page
+	openCall := interfaces.ToolCall{
+		ID:    "call-open",
+		Name:  BrowserToolName,
+		Input: `{"action": "open", "url": "https://example.com"}`,
+	}
+	_, err := tool.Run(ctx, openCall)
+	require.NoError(t, err)
+
+	// Take screenshot (filters to 20 visible elements out of 50 total)
+	screenshotCall := interfaces.ToolCall{
+		ID:    "call-screenshot",
+		Name:  BrowserToolName,
+		Input: `{"action": "screenshot"}`,
+	}
+	_, err = tool.Run(ctx, screenshotCall)
+	require.NoError(t, err)
+
+	// Click visual index 15 (the 16th visible element)
+	clickCall := interfaces.ToolCall{
+		ID:    "call-click",
+		Name:  BrowserToolName,
+		Input: `{"action": "click", "index": 15}`,
+	}
+	response, err := tool.Run(ctx, clickCall)
+	require.NoError(t, err)
+	assert.False(t, response.IsError)
+
+	// Get clicked BackendID from mock
+	clickedBackendID := mockServer.GetLastClickedBackendID()
+
+	// Expected: BackendID of 16th visible element
+	// The 16th visible element is at array position 15 (0-indexed)
+	// BackendID = 1000 + (15 * 5) = 1075
+	expectedBackendID := int64(1075)
+
+	// Assert correct BackendID was sent
+	assert.Equal(t, expectedBackendID, clickedBackendID,
+		"Visual index 15 should click the element that appears 16th in viewport (BackendID 1075)")
+
+	// Verify that the click was for an in-viewport element
+	assert.Less(t, clickedBackendID, int64(1100), "Clicked element should be in viewport")
 }

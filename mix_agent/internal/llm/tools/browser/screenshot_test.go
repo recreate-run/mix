@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	browserprotocol "github.com/sarathmenon/browser-service/pkg/protocol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -116,81 +115,16 @@ func TestSaveScreenshotFilenameFormat(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// Test formatScreenshotResponse with elements
-func TestFormatScreenshotResponseWithElements(t *testing.T) {
-	elements := []browserprotocol.Element{
-		{
-			Index: 1,
-			Role:  "button",
-			Name:  "Submit",
-			Bounds: browserprotocol.BoundingBox{
-				X:      100,
-				Y:      200,
-				Width:  80,
-				Height: 40,
-			},
-		},
-		{
-			Index: 2,
-			Role:  "input",
-			Name:  "Email",
-			Bounds: browserprotocol.BoundingBox{
-				X:      100,
-				Y:      150,
-				Width:  200,
-				Height: 30,
-			},
-		},
-	}
-
+// Test formatScreenshotResponse basic functionality
+func TestFormatScreenshotResponse(t *testing.T) {
 	response := formatScreenshotResponse(
 		"screenshot_20240101_120000.png",
 		"session-123",
 		"http://localhost:3020",
-		elements,
-		true,
 	)
 
-	assert.Contains(t, response, "Screenshot captured with 2 interactive elements")
-	assert.Contains(t, response, "Element details:")
-	assert.Contains(t, response, "[1] button: Submit")
-	assert.Contains(t, response, "[2] input: Email")
+	assert.Contains(t, response, "Screenshot captured successfully")
 	assert.Contains(t, response, "Display URL: http://localhost:3020/api/sessions/session-123/files/screenshot_20240101_120000.png")
-}
-
-// Test formatScreenshotResponse without overlay
-func TestFormatScreenshotResponseWithoutOverlay(t *testing.T) {
-	elements := []browserprotocol.Element{
-		{Index: 1, Role: "button", Name: "Submit"},
-	}
-
-	response := formatScreenshotResponse(
-		"screenshot_20240101_120000.png",
-		"session-123",
-		"http://localhost:3020",
-		elements,
-		false,
-	)
-
-	assert.Contains(t, response, "Screenshot captured successfully")
-	assert.NotContains(t, response, "Element details")
-	assert.NotContains(t, response, "[1] button")
-	assert.Contains(t, response, "Display URL:")
-}
-
-// Test formatScreenshotResponse with empty elements
-func TestFormatScreenshotResponseEmptyElements(t *testing.T) {
-	response := formatScreenshotResponse(
-		"screenshot_20240101_120000.png",
-		"session-123",
-		"http://localhost:3020",
-		[]browserprotocol.Element{},
-		true,
-	)
-
-	assert.Contains(t, response, "Screenshot captured successfully")
-	assert.NotContains(t, response, "Element details")
-	assert.Contains(t, response, "Display URL:")
 }
 
 // Test formatScreenshotResponse URL construction
@@ -231,53 +165,11 @@ func TestFormatScreenshotResponseURLConstruction(t *testing.T) {
 				tt.filename,
 				tt.sessionID,
 				tt.baseURL,
-				[]browserprotocol.Element{},
-				false,
 			)
 
 			assert.Contains(t, response, tt.expectedURL)
 		})
 	}
-}
-
-// Test formatScreenshotResponse with multiple elements formatting
-func TestFormatScreenshotResponseMultipleElements(t *testing.T) {
-	elements := []browserprotocol.Element{
-		{
-			Index:  0,
-			Role:   "link",
-			Name:   "Home",
-			Bounds: browserprotocol.BoundingBox{X: 10, Y: 20},
-		},
-		{
-			Index:  1,
-			Role:   "button",
-			Name:   "Login",
-			Bounds: browserprotocol.BoundingBox{X: 100, Y: 20},
-		},
-		{
-			Index:  2,
-			Role:   "input",
-			Name:   "Search",
-			Bounds: browserprotocol.BoundingBox{X: 200, Y: 20},
-		},
-	}
-
-	response := formatScreenshotResponse(
-		"screenshot.png",
-		"session-123",
-		"http://localhost:3020",
-		elements,
-		true,
-	)
-
-	// Verify count
-	assert.Contains(t, response, "3 interactive elements")
-
-	// Verify each element is listed
-	assert.Contains(t, response, "[0] link: Home (x:10 y:20)")
-	assert.Contains(t, response, "[1] button: Login (x:100 y:20)")
-	assert.Contains(t, response, "[2] input: Search (x:200 y:20)")
 }
 
 // Test saveScreenshot file permissions
@@ -319,27 +211,3 @@ func TestSaveScreenshotEmptyData(t *testing.T) {
 	assert.Equal(t, int64(0), info.Size())
 }
 
-// Test formatScreenshotResponse element coordinate formatting
-func TestFormatScreenshotResponseCoordinates(t *testing.T) {
-	elements := []browserprotocol.Element{
-		{
-			Index:  0,
-			Role:   "button",
-			Name:   "Test",
-			Bounds: browserprotocol.BoundingBox{X: 123.456, Y: 789.012},
-		},
-	}
-
-	response := formatScreenshotResponse(
-		"screenshot.png",
-		"session-123",
-		"http://localhost:3020",
-		elements,
-		true,
-	)
-
-	// Verify coordinates are formatted as integers
-	assert.Contains(t, response, "(x:123 y:789)")
-	assert.NotContains(t, response, "123.456")
-	assert.NotContains(t, response, "789.012")
-}

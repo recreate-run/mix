@@ -25,10 +25,11 @@ func FilterInteractiveElements(nodes []RawAccessibilityNode, viewport ViewportBo
 
 		// Add with sequential index
 		elements = append(elements, Element{
-			Index:  index,
-			Role:   node.Role,
-			Name:   node.Name,
-			Bounds: node.Bounds,
+			Index:     index,
+			Role:      node.Role,
+			Name:      node.Name,
+			Bounds:    node.Bounds,
+			BackendID: node.BackendID,
 		})
 		index++
 	}

@@ -21,14 +21,12 @@ Examples:```json
 ```
 
 ### screenshot
-Capture a screenshot of the current page, optionally with numbered element overlays for interaction.
+Capture a screenshot of the current page for visual inspection.
 
-Parameters:- `withOverlay` (boolean, optional): Add numbered overlays to interactive elements (default: true)
-
-Returns: Screenshot URL and list of interactive elements with indices.
+Returns: Screenshot URL for viewing the page as rendered.
 
 Example:```json
-{"action": "screenshot", "withOverlay": true}
+{"action": "screenshot"}
 ```
 
 ### read_page
@@ -69,9 +67,9 @@ Comparison with Other Actions:- Use `read_page` for programmatic element discove
 - Use `find` for searching specific elements across entire page (not just viewport)
 
 ### click
-Click an interactive element by its index (from screenshot).
+Click an interactive element by its index.
 
-Parameters:- `index` (integer, required): Element index from the most recent screenshot
+Parameters:- `index` (integer, required): Element index from `read_page` or `find` action
 
 Example:```json
 {"action": "click", "index": 0}
@@ -80,7 +78,7 @@ Example:```json
 ### type
 Type text into an input element.
 
-Parameters:- `index` (integer, required): Element index from the most recent screenshot
+Parameters:- `index` (integer, required): Element index from `read_page` or `find` action
 - `text` (string, required): Text to type into the element
 
 Example:```json
@@ -92,7 +90,7 @@ Note: For React/Vue apps where keyboard events don't trigger state updates, use 
 ### right_click
 Right-click an interactive element by its index.
 
-Parameters:- `index` (integer, required): Element index from the most recent screenshot
+Parameters:- `index` (integer, required): Element index from `read_page` or `find` action
 
 Example:```json
 {"action": "right_click", "index": 3}
@@ -107,7 +105,7 @@ Important: This performs the right-click action only. Context menu items are not
 ### double_click
 Double-click an interactive element by its index.
 
-Parameters:- `index` (integer, required): Element index from the most recent screenshot
+Parameters:- `index` (integer, required): Element index from `read_page` or `find` action
 
 Example:```json
 {"action": "double_click", "index": 5}
@@ -120,7 +118,7 @@ Use Cases:- Selecting text by double-clicking
 ### triple_click
 Triple-click an interactive element by its index.
 
-Parameters:- `index` (integer, required): Element index from the most recent screenshot
+Parameters:- `index` (integer, required): Element index from `read_page` or `find` action
 
 Example:```json
 {"action": "triple_click", "index": 7}
@@ -167,7 +165,7 @@ Important:- You must use EITHER index mode (fromIndex + toIndex) OR coordinate m
 ### form_input
 Set form input value directly via JavaScript (for React/Vue apps).
 
-Parameters:- `index` (integer, required): Element index from the most recent screenshot (must be textbox, searchbox, or combobox)
+Parameters:- `index` (integer, required): Element index from `read_page` or `find` action (must be textbox, searchbox, or combobox)
 - `value` (string, required): Value to set in the input field
 
 Example:```json
@@ -241,7 +239,7 @@ Example:```json
 ### upload
 Upload files to a file input element.
 
-Parameters:- `index` (integer, required): Element index from the most recent screenshot (must be a file input)
+Parameters:- `index` (integer, required): Element index from `read_page` or `find` action (must be a file input)
 - `filePath` (string, required): Path to the file to upload (can be absolute or session-relative)
 
 Path Resolution:- Absolute paths are used as-is (e.g., "/tmp/document.pdf")
@@ -362,7 +360,7 @@ Important:- Cannot close the last remaining tab (will return an error)
 All browser actions (open, screenshot, click, type, etc.) accept an optional `tabId` parameter to operate on a specific tab. If `tabId` is not provided, the action operates on the currently active tab.
 
 Example - Screenshot specific tab:```json
-{"action": "screenshot", "tabId": "tab-2", "withOverlay": true}
+{"action": "screenshot", "tabId": "tab-2"}
 ```
 
 Example - Navigate in specific tab:```json
@@ -377,24 +375,24 @@ Example - Click in active tab (no tabId needed):```json
 
 ### Navigate and Explore
 1. Open a URL with `open` action
-2. Take a screenshot with `screenshot` to see interactive elements
-3. Click links or interact with elements using their indices
+2. Use `read_page` to discover interactive elements and get their indices
+3. Click links or interact with elements using indices from `read_page`
 
 ### Form Filling
 1. Navigate to a page with a form
-2. Take a screenshot to identify input fields
+2. Use `read_page` to identify input fields and their indices
 3. Use `click` to focus fields and `type` to enter text
 4. Click the submit button
 
 ### Form Filling in React/Vue Apps
 1. Navigate to a SPA with a form
-2. Take a screenshot to identify input fields
+2. Use `read_page` to identify input fields and their indices
 3. Use `form_input` to directly set values (bypasses keyboard event handling)
 4. Submit the form with `click`
 
 ### Form Filling with File Upload
 1. Navigate to a page with a file upload form
-2. Use `screenshot` to identify the file input element
+2. Use `read_page` to identify the file input element and its index
 3. Use `upload` action with the file input's index and file path
 4. Fill other form fields with `type` as needed
 5. Submit the form with `click`
@@ -419,14 +417,14 @@ Example - Click in active tab (no tabId needed):```json
 
 ### Multi-Page Exploration
 1. Navigate to a starting page
-2. Take screenshots and explore links
+2. Use `read_page` to discover links and elements
 3. Use `go_back` to return to previous pages
 4. Use `go_forward` to revisit pages after going back
-5. Take new screenshots after each navigation to see current page elements
+5. Call `read_page` again after navigation to see current page elements
 
 ### Context Menu Interactions
 1. Navigate to a page with right-click functionality
-2. Take a screenshot to identify target elements
+2. Use `read_page` to identify target elements
 3. Use `right_click` on the desired element
 4. Note: Context menu items cannot be inspected via CDP
 
@@ -434,9 +432,9 @@ Example - Click in active tab (no tabId needed):```json
 Scenario: Comparing prices across e-commerce sites1. Open first store: `{"action": "open", "url": "https://store1.com/product"}`
 2. Create second tab: `{"action": "tab_create"}` → Returns `tab-2`
 3. Navigate second tab: `{"action": "open", "url": "https://store2.com/product", "tabId": "tab-2"}`
-4. Screenshot first tab: `{"action": "tab_switch", "tabId": "tab-1"}` then `{"action": "screenshot"}`
-5. Screenshot second tab: `{"action": "tab_switch", "tabId": "tab-2"}` then `{"action": "screenshot"}`
-6. Compare prices and features from both screenshots
+4. Use `read_page` in first tab: `{"action": "tab_switch", "tabId": "tab-1"}` then `{"action": "read_page"}`
+5. Use `read_page` in second tab: `{"action": "tab_switch", "tabId": "tab-2"}` then `{"action": "read_page"}`
+6. Compare prices and features from both tabs
 
 Scenario: Multi-account testing1. Open login page in tab-1: `{"action": "open", "url": "https://app.example.com/login"}`
 2. Login with first account in tab-1
@@ -453,7 +451,8 @@ Scenario: Background loading1. Navigate to article: `{"action": "open", "url": "
 ## Important Notes
 
 - Session Isolation: Each session gets its own browser context
-- Element Indices: Element indices from screenshots are stable until the page changes
+- Element Indices: Element indices from `read_page` and `find` actions are stable until the page changes
+- Screenshots: Use `screenshot` for visual inspection; use `read_page` or `find` to get element indices for interaction
 - Auto-Reconnection: Connection failures are handled transparently with automatic reconnection
 - Screenshot Storage: Screenshots are saved to session storage and accessible via returned URLs
 - Permissions: Only the `open` action requires explicit user permission; other actions are allowed once a URL is opened

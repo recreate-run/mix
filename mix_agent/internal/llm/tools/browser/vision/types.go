@@ -26,8 +26,9 @@ type ViewportBounds struct {
 
 // Element represents a processed interactive element with index
 type Element struct {
-	Index  int         `json:"index"`
-	Role   string      `json:"role"`
-	Name   string      `json:"name"`
-	Bounds BoundingBox `json:"bounds"`
+	Index     int         `json:"index"`
+	Role      string      `json:"role"`
+	Name      string      `json:"name"`
+	Bounds    BoundingBox `json:"bounds"`
+	BackendID int64       `json:"backendId,omitempty"`
 }

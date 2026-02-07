@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
-
-	browserprotocol "github.com/sarathmenon/browser-service/pkg/protocol"
 )
 
 const (
@@ -43,23 +40,8 @@ func saveScreenshot(base64Data, sessionStorageDir string) (string, error) {
 }
 
 // formatScreenshotResponse formats the screenshot response for the LLM
-func formatScreenshotResponse(filename, sessionID, baseURL string, elements []browserprotocol.Element, withOverlay bool) string {
-	var sb strings.Builder
-
-	if withOverlay && len(elements) > 0 {
-		sb.WriteString(fmt.Sprintf("Screenshot captured with %d interactive elements. Use element indices for click/type actions.\n\n", len(elements)))
-		sb.WriteString("Element details:\n")
-		for _, elem := range elements {
-			sb.WriteString(fmt.Sprintf("  [%d] %s: %s (x:%.0f y:%.0f)\n",
-				elem.Index, elem.Role, elem.Name, elem.Bounds.X, elem.Bounds.Y))
-		}
-	} else {
-		sb.WriteString("Screenshot captured successfully.\n")
-	}
-
+func formatScreenshotResponse(filename, sessionID, baseURL string) string {
 	// Construct file URL
 	fileURL := fmt.Sprintf("%s/api/sessions/%s/files/%s", baseURL, sessionID, filename)
-	sb.WriteString(fmt.Sprintf("\nDisplay URL: %s", fileURL))
-
-	return sb.String()
+	return fmt.Sprintf("Screenshot captured successfully.\n\nDisplay URL: %s", fileURL)
 }

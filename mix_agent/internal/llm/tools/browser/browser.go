@@ -2,13 +2,13 @@ package browser
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	browserprotocol "github.com/sarathmenon/browser-service/pkg/protocol"
@@ -38,6 +38,10 @@ type browserTool struct {
 	connectionManager *ConnectionManager
 	sessionConfig     session.Config
 	baseURL           string
+	elementCache      map[string]map[int]int64 // sessionID_tabID → visualIndex → backendID
+	cacheMu           sync.RWMutex             // Protect element cache
+	activeTabIDs      map[string]string        // sessionID → activeTabID
+	activeTabMu       sync.RWMutex             // Protect active tab tracking
 }
 
 // NewBrowserTool creates a new browser tool instance
@@ -47,6 +51,8 @@ func NewBrowserTool(permissions permission.Service, browserServiceURL string, se
 		connectionManager: NewConnectionManager(browserServiceURL),
 		sessionConfig:     sessionConfig,
 		baseURL:           getBaseURL(),
+		elementCache:      make(map[string]map[int]int64),
+		activeTabIDs:      make(map[string]string),
 	}
 }
 
@@ -64,10 +70,6 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"url": map[string]any{
 				"type":        "string",
 				"description": "URL to navigate to (for open action or optional for tab_create). Supports http://, https://, and file:// schemes. For file:// URLs, path must be within session storage directory.",
-			},
-			"withOverlay": map[string]any{
-				"type":        "boolean",
-				"description": "Whether to add element overlay to screenshot (default: true)",
 			},
 			"interactiveOnly": map[string]any{
 				"type":        "boolean",
@@ -279,6 +281,19 @@ func (b *browserTool) handleOpen(ctx context.Context, params BrowserParams, sess
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Navigation failed: %v", err))
 	}
 
+	// Clear element cache on navigation
+	tabID := params.TabID
+	if tabID == "" {
+		// Get active tab ID for cache clearing
+		activeTabID, err := b.getActiveTabID(ctx, sessionID)
+		if err == nil {
+			tabID = activeTabID
+		}
+	}
+	if tabID != "" {
+		b.clearCacheForTab(sessionID, tabID)
+	}
+
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated to %s (Frame ID: %s)", params.URL, result.FrameID))
 }
 
@@ -290,13 +305,7 @@ func (b *browserTool) handleScreenshot(ctx context.Context, params BrowserParams
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
 	}
 
-	// Default withOverlay to true if not specified
-	withOverlay := true
-	if params.WithOverlay != nil {
-		withOverlay = *params.WithOverlay
-	}
-
-	// Request screenshot with raw accessibility tree
+	// Request raw screenshot with accessibility data
 	screenshotParams := browserprotocol.ScreenshotParams{
 		Format:   "png",
 		FullPage: false,
@@ -311,64 +320,179 @@ func (b *browserTool) handleScreenshot(ctx context.Context, params BrowserParams
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Screenshot failed: %v", err))
 	}
 
-	// Decode PNG
-	pngBytes, err := base64.StdEncoding.DecodeString(result.Data)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to decode screenshot: %v", err))
-	}
-
-	// Process screenshot with vision system if overlay requested
-	var finalData string
-	var elements []browserprotocol.Element
-
-	if withOverlay && result.RawNodes != nil && result.RawViewport != nil {
-		// Convert raw nodes to vision types
-		rawNodes := make([]vision.RawAccessibilityNode, len(result.RawNodes))
-		for i, node := range result.RawNodes {
-			rawNodes[i] = vision.RawAccessibilityNode{
-				Role:      node.Role,
-				Name:      node.Name,
-				Bounds:    vision.BoundingBox(node.Bounds),
-				BackendID: node.BackendID,
-			}
-		}
-		viewport := vision.ViewportBounds(*result.RawViewport)
-
-		// Filter and process elements
-		visionElements := vision.FilterInteractiveElements(rawNodes, viewport)
-
-		// Draw overlay
-		overlayedPNG, err := vision.OverlayBoundingBoxes(pngBytes, visionElements)
-		if err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to overlay elements: %v", err))
-		}
-
-		// Convert vision.Element back to protocol.Element for response
-		elements = make([]browserprotocol.Element, len(visionElements))
-		for i, elem := range visionElements {
-			elements[i] = browserprotocol.Element{
-				Index:  elem.Index,
-				Role:   elem.Role,
-				Name:   elem.Name,
-				Bounds: browserprotocol.BoundingBox(elem.Bounds),
-			}
-		}
-
-		finalData = base64.StdEncoding.EncodeToString(overlayedPNG)
-	} else {
-		finalData = result.Data
-	}
-
-	// Save screenshot to session storage
-	filename, err := saveScreenshot(finalData, sessionStorageDir)
+	// Save screenshot directly to session storage
+	filename, err := saveScreenshot(result.Data, sessionStorageDir)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to save screenshot: %v", err))
 	}
 
-	// Format response with element list
-	response := formatScreenshotResponse(filename, sessionID, b.baseURL, elements, withOverlay)
+	// Check if page is blank (Fix 2: Validate Screenshot Results)
+	if result.RawNodes == nil || result.RawViewport == nil {
+		// Clear cache for blank/unloaded pages
+		tabID := params.TabID
+		if tabID == "" {
+			activeTabID, err := b.getActiveTabID(ctx, sessionID)
+			if err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get active tab: %v", err))
+			}
+			tabID = activeTabID
+		}
+		b.clearCacheForTab(sessionID, tabID)
+
+		// Format response with warning
+		response := formatScreenshotResponse(filename, sessionID, b.baseURL)
+		response += "\n\n⚠️  Warning: Page appears blank or not fully loaded. Element cache cleared."
+		return interfaces.NewTextResponse(response)
+	}
+
+	// Cache BackendID mappings if raw data is available
+	b.cacheElementMapping(ctx, sessionID, params.TabID, result.RawNodes, *result.RawViewport)
+
+	// Format response
+	response := formatScreenshotResponse(filename, sessionID, b.baseURL)
 
 	return interfaces.NewTextResponse(response)
+}
+
+// cacheElementMapping filters raw accessibility nodes and caches BackendID mappings
+func (b *browserTool) cacheElementMapping(ctx context.Context, sessionID, tabID string, rawNodes []browserprotocol.RawAccessibilityNode, viewport browserprotocol.ViewportBounds) {
+	// Fix 1: Always use explicit tabID
+	explicitTabID := tabID
+	if explicitTabID == "" {
+		// Fetch active tab ID from browser-service
+		activeTabID, err := b.getActiveTabID(ctx, sessionID)
+		if err != nil {
+			// Cannot cache without explicit tab ID
+			return
+		}
+		explicitTabID = activeTabID
+	}
+
+	// Convert protocol types to vision types
+	visionNodes := make([]vision.RawAccessibilityNode, len(rawNodes))
+	for i, node := range rawNodes {
+		visionNodes[i] = vision.RawAccessibilityNode{
+			Role:      node.Role,
+			Name:      node.Name,
+			Bounds:    vision.BoundingBox(node.Bounds),
+			BackendID: node.BackendID,
+		}
+	}
+
+	visionViewport := vision.ViewportBounds(viewport)
+
+	// Filter to interactive elements in viewport
+	filteredElements := vision.FilterInteractiveElements(visionNodes, visionViewport)
+
+	// Create cache key using explicit tabID
+	cacheKey := sessionID + "_" + explicitTabID
+
+	// Build mapping: visualIndex → backendID
+	mapping := make(map[int]int64)
+	for _, elem := range filteredElements {
+		mapping[elem.Index] = elem.BackendID
+	}
+
+	// Store in cache
+	b.cacheMu.Lock()
+	b.elementCache[cacheKey] = mapping
+	b.cacheMu.Unlock()
+}
+
+// getBackendIDFromCache looks up the BackendID for a given visual index
+func (b *browserTool) getBackendIDFromCache(ctx context.Context, sessionID, tabID string, visualIndex int) (int64, error) {
+	// Fix 1: Always use explicit tabID
+	explicitTabID := tabID
+	if explicitTabID == "" {
+		// Fetch active tab ID from browser-service
+		activeTabID, err := b.getActiveTabID(ctx, sessionID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get active tab: %w", err)
+		}
+		explicitTabID = activeTabID
+	}
+
+	// Create cache key using explicit tabID
+	cacheKey := sessionID + "_" + explicitTabID
+
+	// Fix 4: Validate cache exists before lookup
+	b.cacheMu.RLock()
+	mapping, exists := b.elementCache[cacheKey]
+	b.cacheMu.RUnlock()
+
+	if !exists {
+		return 0, fmt.Errorf("no element cache found for this tab")
+	}
+
+	if len(mapping) == 0 {
+		return 0, fmt.Errorf("element cache is empty for this tab")
+	}
+
+	backendID, found := mapping[visualIndex]
+	if !found {
+		return 0, fmt.Errorf("index %d not found in cache", visualIndex)
+	}
+
+	return backendID, nil
+}
+
+// clearCacheForTab clears the element cache for a specific tab
+func (b *browserTool) clearCacheForTab(sessionID, tabID string) {
+	// Always use explicit tabID for cache key
+	if tabID == "" {
+		// If no tabID provided, cannot clear cache reliably
+		return
+	}
+
+	cacheKey := sessionID + "_" + tabID
+
+	b.cacheMu.Lock()
+	delete(b.elementCache, cacheKey)
+	b.cacheMu.Unlock()
+}
+
+// getActiveTabID retrieves the active tab ID from browser-service
+func (b *browserTool) getActiveTabID(ctx context.Context, sessionID string) (string, error) {
+	// Check cached active tab ID first
+	b.activeTabMu.RLock()
+	cachedTabID, exists := b.activeTabIDs[sessionID]
+	b.activeTabMu.RUnlock()
+
+	if exists && cachedTabID != "" {
+		return cachedTabID, nil
+	}
+
+	// Fetch from browser-service
+	client, err := b.connectionManager.GetOrCreate(ctx, sessionID)
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to browser service: %w", err)
+	}
+
+	result, err := client.ListTabs(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to list tabs: %w", err)
+	}
+
+	// Cache the active tab ID
+	b.activeTabMu.Lock()
+	b.activeTabIDs[sessionID] = result.ActiveTabID
+	b.activeTabMu.Unlock()
+
+	return result.ActiveTabID, nil
+}
+
+// updateActiveTabID updates the cached active tab ID for a session
+func (b *browserTool) updateActiveTabID(sessionID, tabID string) {
+	b.activeTabMu.Lock()
+	b.activeTabIDs[sessionID] = tabID
+	b.activeTabMu.Unlock()
+}
+
+// clearActiveTabID clears the cached active tab ID for a session
+func (b *browserTool) clearActiveTabID(sessionID string) {
+	b.activeTabMu.Lock()
+	delete(b.activeTabIDs, sessionID)
+	b.activeTabMu.Unlock()
 }
 
 // handleClick clicks an element
@@ -379,11 +503,17 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
 	}
 
-	// Click element
+	// Fix 4: Look up BackendID from cache with validation
+	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	}
+
+	// Click by BackendID
 	if params.TabID != "" {
-		err = client.Click(ctx, params.Index, params.TabID)
+		err = client.ClickByBackendID(ctx, backendID, params.TabID)
 	} else {
-		err = client.Click(ctx, params.Index)
+		err = client.ClickByBackendID(ctx, backendID)
 	}
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
@@ -400,11 +530,17 @@ func (b *browserTool) handleRightClick(ctx context.Context, params BrowserParams
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
 	}
 
-	// Right-click element
+	// Fix 4: Look up BackendID from cache with validation
+	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	}
+
+	// Right-click by BackendID
 	if params.TabID != "" {
-		err = client.RightClick(ctx, params.Index, params.TabID)
+		err = client.RightClickByBackendID(ctx, backendID, params.TabID)
 	} else {
-		err = client.RightClick(ctx, params.Index)
+		err = client.RightClickByBackendID(ctx, backendID)
 	}
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
@@ -421,11 +557,17 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
 	}
 
-	// Double-click element
+	// Fix 4: Look up BackendID from cache with validation
+	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	}
+
+	// Double-click by BackendID
 	if params.TabID != "" {
-		err = client.DoubleClick(ctx, params.Index, params.TabID)
+		err = client.DoubleClickByBackendID(ctx, backendID, params.TabID)
 	} else {
-		err = client.DoubleClick(ctx, params.Index)
+		err = client.DoubleClickByBackendID(ctx, backendID)
 	}
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
@@ -442,11 +584,17 @@ func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
 	}
 
-	// Triple-click element
+	// Fix 4: Look up BackendID from cache with validation
+	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	}
+
+	// Triple-click by BackendID
 	if params.TabID != "" {
-		err = client.TripleClick(ctx, params.Index, params.TabID)
+		err = client.TripleClickByBackendID(ctx, backendID, params.TabID)
 	} else {
-		err = client.TripleClick(ctx, params.Index)
+		err = client.TripleClickByBackendID(ctx, backendID)
 	}
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
@@ -810,8 +958,8 @@ func (b *browserTool) handleFind(ctx context.Context, params BrowserParams, sess
 	}
 
 	// Show elements
-	for _, elem := range result.Elements {
-		response.WriteString(fmt.Sprintf("[%d] %s: %s (x:%.0f, y:%.0f)\n", elem.Index, elem.Role, elem.Name, elem.Bounds.X, elem.Bounds.Y))
+	for i, elem := range result.Elements {
+		response.WriteString(fmt.Sprintf("[%d] %s: %s (x:%.0f, y:%.0f)\n", i, elem.Role, elem.Name, elem.Bounds.X, elem.Bounds.Y))
 	}
 
 	return interfaces.NewTextResponse(response.String())
@@ -823,6 +971,18 @@ func (b *browserTool) handleClose(_ context.Context, sessionID string) interface
 	if err := b.connectionManager.Close(sessionID); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to close browser: %v", err))
 	}
+
+	// Clear all caches for this session
+	b.cacheMu.Lock()
+	for key := range b.elementCache {
+		if strings.HasPrefix(key, sessionID+"_") {
+			delete(b.elementCache, key)
+		}
+	}
+	b.cacheMu.Unlock()
+
+	// Clear active tab tracking
+	b.clearActiveTabID(sessionID)
 
 	return interfaces.NewTextResponse("Browser closed successfully")
 }
@@ -851,6 +1011,10 @@ func (b *browserTool) handleTabCreate(ctx context.Context, params BrowserParams,
 		if err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to create tab: %v", err))
 		}
+
+		// Fix 5: Update active tab tracking (new tabs become active)
+		b.updateActiveTabID(sessionID, tab.ID)
+
 		return interfaces.NewTextResponse(fmt.Sprintf("Created new tab: %s and navigated to %s (Title: %s)", tab.ID, tab.URL, tab.Title))
 	}
 
@@ -859,6 +1023,9 @@ func (b *browserTool) handleTabCreate(ctx context.Context, params BrowserParams,
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to create tab: %v", err))
 	}
+
+	// Fix 5: Update active tab tracking (new tabs become active)
+	b.updateActiveTabID(sessionID, tab.ID)
 
 	return interfaces.NewTextResponse(fmt.Sprintf("Created new tab: %s (URL: %s, Title: %s)", tab.ID, tab.URL, tab.Title))
 }
@@ -908,12 +1075,22 @@ func (b *browserTool) handleTabSwitch(ctx context.Context, params BrowserParams,
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
 	}
 
+	// Fix 3: Get old active tab ID before switching
+	oldActiveTabID, err := b.getActiveTabID(ctx, sessionID)
+	if err == nil && oldActiveTabID != "" {
+		// Clear cache for the old active tab
+		b.clearCacheForTab(sessionID, oldActiveTabID)
+	}
+
 	// Switch tab
 	if err := client.SwitchTab(ctx, params.TabID); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to switch tab: %v", err))
 	}
 
-	return interfaces.NewTextResponse(fmt.Sprintf("Switched to tab: %s", params.TabID))
+	// Fix 3: Update active tab tracking
+	b.updateActiveTabID(sessionID, params.TabID)
+
+	return interfaces.NewTextResponse(fmt.Sprintf("Switched to tab: %s. Cache cleared for previous tab. Take a screenshot to interact with this tab.", params.TabID))
 }
 
 // handleTabClose closes a tab
@@ -932,6 +1109,18 @@ func (b *browserTool) handleTabClose(ctx context.Context, params BrowserParams, 
 	// Close tab
 	if err := client.CloseTab(ctx, params.TabID); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to close tab: %v", err))
+	}
+
+	// Clear element cache for closed tab
+	b.clearCacheForTab(sessionID, params.TabID)
+
+	// Fix 5: Clear active tab tracking if this was the active tab
+	b.activeTabMu.RLock()
+	activeTabID := b.activeTabIDs[sessionID]
+	b.activeTabMu.RUnlock()
+
+	if activeTabID == params.TabID {
+		b.clearActiveTabID(sessionID)
 	}
 
 	return interfaces.NewTextResponse(fmt.Sprintf("Closed tab: %s", params.TabID))
@@ -967,7 +1156,7 @@ func (b *browserTool) handleReadPage(ctx context.Context, params BrowserParams, 
 }
 
 // formatReadPageResponse formats the read_page response for the LLM
-func formatReadPageResponse(elements []browserprotocol.Element, viewport browserprotocol.BoundingBox, interactiveOnly bool) string {
+func formatReadPageResponse(elements []browserprotocol.RawAccessibilityNode, viewport browserprotocol.BoundingBox, interactiveOnly bool) string {
 	var sb strings.Builder
 
 	filter := "all"
@@ -980,8 +1169,8 @@ func formatReadPageResponse(elements []browserprotocol.Element, viewport browser
 		viewport.Width, viewport.Height, viewport.X, viewport.Y))
 	sb.WriteString(fmt.Sprintf("Found %d element(s):\n\n", len(elements)))
 
-	for _, elem := range elements {
-		sb.WriteString(fmt.Sprintf("[%d] %s", elem.Index, elem.Role))
+	for i, elem := range elements {
+		sb.WriteString(fmt.Sprintf("[%d] %s", i, elem.Role))
 		if elem.Name != "" {
 			sb.WriteString(fmt.Sprintf(": %s", elem.Name))
 		}

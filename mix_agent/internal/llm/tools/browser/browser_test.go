@@ -95,12 +95,11 @@ func TestBrowserParamsJSONSerialization(t *testing.T) {
 			expected: `{"action":"open","url":"https://example.com"}`,
 		},
 		{
-			name: "screenshot with overlay",
+			name: "screenshot action",
 			params: BrowserParams{
-				Action:      ActionScreenshot,
-				WithOverlay: boolPtr(true),
+				Action: ActionScreenshot,
 			},
-			expected: `{"action":"screenshot","withOverlay":true}`,
+			expected: `{"action":"screenshot"}`,
 		},
 		{
 			name: "click action",
@@ -178,7 +177,6 @@ func TestBrowserToolInfo(t *testing.T) {
 	// Test parameters structure
 	assert.Contains(t, info.Parameters, "action")
 	assert.Contains(t, info.Parameters, "url")
-	assert.Contains(t, info.Parameters, "withOverlay")
 	assert.Contains(t, info.Parameters, "index")
 	assert.Contains(t, info.Parameters, "text")
 	assert.Contains(t, info.Parameters, "direction")
@@ -619,9 +617,4 @@ func TestDefaultScrollAmount(t *testing.T) {
 		amount = 100
 	}
 	assert.Equal(t, 100, amount)
-}
-
-// Helper function
-func boolPtr(b bool) *bool {
-	return &b
 }
