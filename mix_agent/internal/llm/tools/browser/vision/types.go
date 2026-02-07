@@ -2,10 +2,12 @@ package vision
 
 // RawAccessibilityNode represents a CDP accessibility tree node
 type RawAccessibilityNode struct {
-	Role      string       `json:"role"`
-	Name      string       `json:"name,omitempty"`
-	Bounds    BoundingBox  `json:"bounds"`
-	BackendID int64        `json:"backendId,omitempty"`
+	Role       string            `json:"role"`
+	Name       string            `json:"name,omitempty"`
+	Bounds     BoundingBox       `json:"bounds"`
+	BackendID  int64             `json:"backendId,omitempty"`
+	FrameID    string            `json:"frameId,omitempty"`
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // BoundingBox represents element position and size

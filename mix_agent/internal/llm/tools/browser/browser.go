@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1155,6 +1156,66 @@ func (b *browserTool) handleReadPage(ctx context.Context, params BrowserParams, 
 	return interfaces.NewTextResponse(response)
 }
 
+// buildFrameNumberMap creates consistent frame number mapping
+// Maps CDP FrameID strings to integers (f0, f1, f2, ...)
+func buildFrameNumberMap(elements []browserprotocol.RawAccessibilityNode) map[string]int {
+	frameMap := make(map[string]int)
+	frameCounter := 0
+
+	for _, elem := range elements {
+		if elem.FrameID == "" {
+			continue
+		}
+		if _, exists := frameMap[elem.FrameID]; !exists {
+			frameMap[elem.FrameID] = frameCounter
+			frameCounter++
+		}
+	}
+
+	return frameMap
+}
+
+// formatAttributes converts attribute map to inline string
+// Priority order: href, id, type, placeholder, name, aria-label
+// Then remaining attributes alphabetically
+func formatAttributes(attrs map[string]string) string {
+	if len(attrs) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(attrs))
+
+	// Priority attributes in specific order
+	priority := []string{"href", "id", "type", "placeholder", "name", "aria-label"}
+	for _, key := range priority {
+		if val, exists := attrs[key]; exists {
+			parts = append(parts, fmt.Sprintf(`%s=%q`, key, val))
+		}
+	}
+
+	// Remaining attributes (alphabetically sorted)
+	var otherKeys []string
+	for key := range attrs {
+		isPriority := false
+		for _, pk := range priority {
+			if key == pk {
+				isPriority = true
+				break
+			}
+		}
+		if !isPriority {
+			otherKeys = append(otherKeys, key)
+		}
+	}
+	sort.Strings(otherKeys)
+
+	for _, key := range otherKeys {
+		parts = append(parts, fmt.Sprintf(`%s=%q`, key, attrs[key]))
+	}
+
+	return " " + strings.Join(parts, " ")
+}
+
 // formatReadPageResponse formats the read_page response for the LLM
 func formatReadPageResponse(elements []browserprotocol.RawAccessibilityNode, viewport browserprotocol.BoundingBox, interactiveOnly bool) string {
 	var sb strings.Builder
@@ -1169,14 +1230,38 @@ func formatReadPageResponse(elements []browserprotocol.RawAccessibilityNode, vie
 		viewport.Width, viewport.Height, viewport.X, viewport.Y))
 	sb.WriteString(fmt.Sprintf("Found %d element(s):\n\n", len(elements)))
 
-	for i, elem := range elements {
-		sb.WriteString(fmt.Sprintf("[%d] %s", i, elem.Role))
+	// Build frame number map for consistent reference IDs
+	frameMap := buildFrameNumberMap(elements)
+
+	for _, elem := range elements {
+		// Format: - role "name" [ref=fX_ref_Y] (x=X,y=Y) attrs...
+
+		// 1. Role
+		sb.WriteString(fmt.Sprintf("- %s", elem.Role))
+
+		// 2. Name (quoted, if present)
 		if elem.Name != "" {
-			sb.WriteString(fmt.Sprintf(": %s", elem.Name))
+			sb.WriteString(fmt.Sprintf(" %q", elem.Name))
 		}
+
+		// 3. Reference ID [ref=f{frameNum}_ref_{backendID}]
+		frameNum := 0
+		if elem.FrameID != "" {
+			if num, exists := frameMap[elem.FrameID]; exists {
+				frameNum = num
+			}
+		}
+		sb.WriteString(fmt.Sprintf(" [ref=f%d_ref_%d]", frameNum, elem.BackendID))
+
+		// 4. Coordinates (x=X,y=Y)
+		sb.WriteString(fmt.Sprintf(" (x=%.0f,y=%.0f)", elem.Bounds.X, elem.Bounds.Y))
+
+		// 5. Attributes (inline, space-separated)
+		if len(elem.Attributes) > 0 {
+			sb.WriteString(formatAttributes(elem.Attributes))
+		}
+
 		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf("    Position: (%.0f, %.0f) Size: %.0fx%.0f\n\n",
-			elem.Bounds.X, elem.Bounds.Y, elem.Bounds.Width, elem.Bounds.Height))
 	}
 
 	return sb.String()

@@ -248,6 +248,47 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 					"truncated": false,
 				}
 
+			case "Page.readPage":
+				// Generate mock elements with attributes
+				rawNodes := []map[string]any{
+					{
+						"role":      "link",
+						"name":      "Example Link",
+						"backendId": int64(1005),
+						"frameId":   "frame-123",
+						"bounds":    map[string]any{"x": 50.0, "y": 100.0, "width": 120.0, "height": 30.0},
+						"attributes": map[string]string{
+							"href": "https://example.com",
+							"id":   "example-link",
+						},
+					},
+					{
+						"role":      "textbox",
+						"name":      "Search",
+						"backendId": int64(1010),
+						"frameId":   "frame-123",
+						"bounds":    map[string]any{"x": 50.0, "y": 150.0, "width": 200.0, "height": 30.0},
+						"attributes": map[string]string{
+							"id":          "search",
+							"type":        "search",
+							"placeholder": "Enter search term",
+						},
+					},
+					{
+						"role":      "button",
+						"name":      "Submit",
+						"backendId": int64(1015),
+						"frameId":   "frame-123",
+						"bounds":    map[string]any{"x": 260.0, "y": 150.0, "width": 80.0, "height": 30.0},
+						// No attributes
+					},
+				}
+
+				response.Result = map[string]any{
+					"elements": rawNodes,
+					"viewport": map[string]any{"x": 0.0, "y": 0.0, "width": 1280.0, "height": 720.0},
+				}
+
 			case "Tab.create":
 				mbs.mu.Lock()
 				mbs.tabCounter++
@@ -1304,4 +1345,50 @@ func TestClickWithViewportFiltering(t *testing.T) {
 
 	// Verify that the click was for an in-viewport element
 	assert.Less(t, clickedBackendID, int64(1100), "Clicked element should be in viewport")
+}
+
+func TestReadPageAttributeFormatting(t *testing.T) {
+	t.Helper()
+	skipIfIntegrationTestsDisabled(t)
+
+	mockServer := startMockBrowserServer(t)
+	defer mockServer.Close()
+
+	tool := NewBrowserTool(&MockPermissionService{}, mockServer.wsURL, session.DefaultConfig())
+	ctx := createBrowserTestContext("test-session", "test-message", t.TempDir())
+
+	// Navigate first
+	navCall := interfaces.ToolCall{
+		ID:    "call-nav",
+		Name:  BrowserToolName,
+		Input: `{"action": "open", "url": "https://example.com"}`,
+	}
+	_, err := tool.Run(ctx, navCall)
+	require.NoError(t, err)
+
+	// Test read_page
+	call := interfaces.ToolCall{
+		ID:    "call-readpage",
+		Name:  BrowserToolName,
+		Input: `{"action": "read_page", "interactiveOnly": true}`,
+	}
+
+	response, err := tool.Run(ctx, call)
+	require.NoError(t, err)
+	assert.False(t, response.IsError)
+
+	// Verify new format
+	assert.Contains(t, response.Content, `- link "Example Link" [ref=f0_ref_1005]`)
+	assert.Contains(t, response.Content, `(x=50,y=100)`)
+	assert.Contains(t, response.Content, `href="https://example.com"`)
+	assert.Contains(t, response.Content, `id="example-link"`)
+	assert.Contains(t, response.Content, `- textbox "Search" [ref=f0_ref_1010]`)
+	assert.Contains(t, response.Content, `type="search"`)
+	assert.Contains(t, response.Content, `placeholder="Enter search term"`)
+	assert.Contains(t, response.Content, `- button "Submit" [ref=f0_ref_1015]`)
+
+	// Verify old format is gone
+	assert.NotContains(t, response.Content, "[0]")
+	assert.NotContains(t, response.Content, "Position:")
+	assert.NotContains(t, response.Content, "Size:")
 }
