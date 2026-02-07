@@ -2,6 +2,7 @@ package browser
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools"
+	"mix/internal/llm/tools/browser/vision"
 	"mix/internal/permission"
 	"mix/internal/session"
 )
@@ -294,11 +296,11 @@ func (b *browserTool) handleScreenshot(ctx context.Context, params BrowserParams
 		withOverlay = *params.WithOverlay
 	}
 
-	// Capture screenshot
+	// Request screenshot with raw accessibility tree
 	screenshotParams := browserprotocol.ScreenshotParams{
-		Format:      "png",
-		FullPage:    false,
-		WithOverlay: withOverlay,
+		Format:   "png",
+		FullPage: false,
+		Raw:      true, // Request raw accessibility tree
 	}
 	if params.TabID != "" {
 		screenshotParams.TabID = &params.TabID
@@ -309,14 +311,62 @@ func (b *browserTool) handleScreenshot(ctx context.Context, params BrowserParams
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Screenshot failed: %v", err))
 	}
 
+	// Decode PNG
+	pngBytes, err := base64.StdEncoding.DecodeString(result.Data)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to decode screenshot: %v", err))
+	}
+
+	// Process screenshot with vision system if overlay requested
+	var finalData string
+	var elements []browserprotocol.Element
+
+	if withOverlay && result.RawNodes != nil && result.RawViewport != nil {
+		// Convert raw nodes to vision types
+		rawNodes := make([]vision.RawAccessibilityNode, len(result.RawNodes))
+		for i, node := range result.RawNodes {
+			rawNodes[i] = vision.RawAccessibilityNode{
+				Role:      node.Role,
+				Name:      node.Name,
+				Bounds:    vision.BoundingBox(node.Bounds),
+				BackendID: node.BackendID,
+			}
+		}
+		viewport := vision.ViewportBounds(*result.RawViewport)
+
+		// Filter and process elements
+		visionElements := vision.FilterInteractiveElements(rawNodes, viewport)
+
+		// Draw overlay
+		overlayedPNG, err := vision.OverlayBoundingBoxes(pngBytes, visionElements)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to overlay elements: %v", err))
+		}
+
+		// Convert vision.Element back to protocol.Element for response
+		elements = make([]browserprotocol.Element, len(visionElements))
+		for i, elem := range visionElements {
+			elements[i] = browserprotocol.Element{
+				Index:  elem.Index,
+				Role:   elem.Role,
+				Name:   elem.Name,
+				Bounds: browserprotocol.BoundingBox(elem.Bounds),
+			}
+		}
+
+		finalData = base64.StdEncoding.EncodeToString(overlayedPNG)
+	} else {
+		finalData = result.Data
+	}
+
 	// Save screenshot to session storage
-	filename, err := saveScreenshot(result.Data, sessionStorageDir)
+	filename, err := saveScreenshot(finalData, sessionStorageDir)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to save screenshot: %v", err))
 	}
 
 	// Format response with element list
-	response := formatScreenshotResponse(filename, sessionID, b.baseURL, result.Elements, withOverlay)
+	response := formatScreenshotResponse(filename, sessionID, b.baseURL, elements, withOverlay)
 
 	return interfaces.NewTextResponse(response)
 }

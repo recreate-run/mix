@@ -113,15 +113,15 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 				}
 
 			case "Page.screenshot":
-				// Return a minimal base64-encoded PNG
+				// Return a minimal base64-encoded PNG with raw accessibility tree
 				response.Result = map[string]any{
 					"data":   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
 					"format": "png",
-					"elements": []map[string]any{
+					"rawNodes": []map[string]any{
 						{
-							"index": 1,
-							"role":  "button",
-							"name":  "Test Button",
+							"role":      "button",
+							"name":      "Click me",
+							"backendId": 123,
 							"bounds": map[string]any{
 								"x":      100.0,
 								"y":      200.0,
@@ -129,6 +129,23 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 								"height": 40.0,
 							},
 						},
+						{
+							"role":      "link",
+							"name":      "Home",
+							"backendId": 124,
+							"bounds": map[string]any{
+								"x":      200.0,
+								"y":      300.0,
+								"width":  60.0,
+								"height": 30.0,
+							},
+						},
+					},
+					"rawViewport": map[string]any{
+						"x":      0.0,
+						"y":      0.0,
+						"width":  1920.0,
+						"height": 1080.0,
 					},
 				}
 

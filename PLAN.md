@@ -101,36 +101,34 @@ browser-service/
 
 ## Phase 2: Vision System & Element Interaction
 
-**Goal:** Screenshot overlays with numbered bounding boxes, element interaction by index.
+**Goal:** Raw accessibility data from browser, overlay processing in Mix agent.
 
 ### Deliverables
 
-1. **Accessibility tree extraction** via CDP `Accessibility.getFullAXTree`
-2. **Interactive element filtering** (buttons, links, inputs, etc.)
-3. **Bounding box overlay** on screenshots using `image/draw`
-4. **Element indexing** - numbered labels `[0]`, `[1]`, etc.
-5. **New commands:** `getElements`, `click`, `type`, `scroll`
+1. **Raw screenshot mode** - browser returns PNG + accessibility tree + viewport
+2. **Vision package in Mix** - filter interactive elements, render overlays locally
+3. **Element indexing** - numbered labels `[0]`, `[1]`, etc.
+4. **Interactive commands:** `click`, `type`, `scroll`
+5. **Single call architecture** - one WebSocket request returns all data
 
 ### New Commands
 
-**Get Elements:**
+**Screenshot with Raw Data:**
 ```json
 {
-  "method": "Page.getElements"
+  "method": "Page.screenshot",
+  "params": {"raw": true}
 }
 ```
 
 **Response:**
 ```json
 {
-  "elements": [
-    {
-      "index": 0,
-      "role": "button",
-      "name": "Submit",
-      "bounds": {"x": 100, "y": 200, "width": 80, "height": 40}
-    }
-  ]
+  "data": "base64...",
+  "rawNodes": [
+    {"role": "button", "name": "Submit", "bounds": {...}, "backendId": 123}
+  ],
+  "rawViewport": {"x": 0, "y": 0, "width": 1920, "height": 1080}
 }
 ```
 
@@ -158,34 +156,44 @@ browser-service/
 }
 ```
 
-### Annotated Screenshot Pipeline
+### Screenshot Pipeline (Raw Mode)
 
+**Browser-Service:**
 ```
-1. Capture raw screenshot
-2. Query accessibility tree
-3. Filter interactive nodes (role: button, link, textbox, etc.)
-4. Calculate screen coordinates from AX bounds
-5. Draw numbered boxes using Go image library
-6. Return annotated PNG + element list
+1. Capture raw screenshot via CDP
+2. Query accessibility tree (CDP Accessibility.getFullAXTree)
+3. Return: PNG + raw nodes + viewport (single response)
+```
+
+**Mix Agent (vision package):**
+```
+4. Filter interactive nodes (buttons, links, inputs)
+5. Draw numbered boxes using image/draw
+6. Save annotated screenshot + element list
 ```
 
 ### Tests (Must Pass)
 
+**Browser-Service:**
 ```
-✓ TestAccessibilityTree         - Extract AX tree from test page
-✓ TestElementFiltering          - Filter returns only interactive elements
-✓ TestBoundingBoxOverlay        - Screenshot has visible numbered boxes
-✓ TestClickByIndex              - Click element [0], verify action occurred
-✓ TestTypeByIndex               - Type into input [1], verify value
-✓ TestScrollPage                - Scroll down, verify viewport changed
-✓ TestElementIndexConsistency   - Same page returns same indices
+✓ TestScreenshotWithRawMode     - Returns PNG + rawNodes + rawViewport
+✓ TestClickByIndex              - Click element by index works
+✓ TestTypeByIndex               - Type into input by index
+```
+
+**Mix Vision Package:**
+```
+✓ TestFilterInteractiveElements - Filters only interactive roles
+✓ TestOverlayBoundingBoxes      - Draws numbered boxes on PNG
+✓ TestElementIndexConsistency   - Sequential indexing (0, 1, 2...)
 ```
 
 ### Success Criteria
 
-- Screenshot shows `[0] Button`, `[1] Input` boxes
-- LLM can say "click element 0" and it works
-- Element list JSON matches visual overlay
+- Browser returns raw data in single call (not two calls)
+- Mix vision package renders `[0] Button`, `[1] Input` overlays
+- Clean separation: browser = data provider, Mix = business logic
+- All 165 tests passing (browser-service + Mix)
 
 ---
 
@@ -393,22 +401,25 @@ browser-service/                    # New repo
 │   │   └── protocol.go            # Message types
 │   ├── browser/
 │   │   ├── manager.go             # Lifecycle management
-│   │   ├── vision.go              # AX tree + overlays
+│   │   ├── context.go             # Raw AX tree extraction
 │   │   └── cookies.go             # Chrome import (macOS)
 │   └── antidetect/
 │       ├── useragent.go
 │       └── stealth.go
-├── pkg/client/                     # Go client library
-│   └── client.go
-├── test/
-│   ├── e2e_test.go
-│   └── testdata/
-├── docs/
-│   └── IMPLEMENTATION_PLAN.md     # This file
+├── pkg/
+│   ├── client/client.go           # Go client library
+│   └── protocol/messages.go       # Raw mode protocol types
+├── test/e2e_test.go
 ├── go.mod
-├── go.sum
-├── Makefile
-└── README.md
+└── Makefile
+
+mix_agent/internal/llm/tools/browser/
+├── browser.go                      # WebSocket client, tool interface
+├── vision/
+│   ├── element_filter.go          # Interactive element filtering
+│   ├── overlay.go                 # Bounding box rendering
+│   └── types.go                   # Element, ViewportBounds types
+└── browser_integration_test.go
 ```
 
 ---
@@ -421,7 +432,6 @@ browser-service/                    # New repo
 require (
     github.com/go-rod/rod v0.114.0
     github.com/gorilla/websocket v1.5.0
-    golang.org/x/image v0.15.0
     github.com/mattn/go-sqlite3 v1.14.18
     github.com/stretchr/testify v1.8.4
 )
@@ -432,6 +442,7 @@ require (
 ```go
 require (
     github.com/gorilla/websocket v1.5.0
+    golang.org/x/image v0.15.0  // For vision package overlay rendering
 )
 ```
 
@@ -447,7 +458,13 @@ go test ./... -run "TestWebSocket|TestBrowser|TestNavigate|TestScreenshot|TestCo
 
 ### Phase 2
 ```bash
-go test ./... -run "TestAccessibility|TestElement|TestBoundingBox|TestClick|TestType|TestScroll"
+# Browser-service (raw mode)
+cd browser-service
+go test ./... -run "TestScreenshotWithRawMode|TestClick|TestType"
+
+# Mix vision package
+cd mix_agent
+go test ./internal/llm/tools/browser/vision/... -v
 ```
 
 ### Phase 3 (in mix agent)
