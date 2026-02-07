@@ -23,6 +23,11 @@ const (
 
 	// DefaultRequestTimeout is the default timeout for browser operations
 	DefaultRequestTimeout = 30 * time.Second
+
+	// URL schemes
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
+	schemeFile  = "file"
 )
 
 // browserTool implements the Browser tool for LLM-driven browser automation
@@ -52,11 +57,11 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen, ActionScreenshot, ActionReadPage, ActionClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose},
+				"enum":        []string{ActionOpen, ActionScreenshot, ActionReadPage, ActionClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait},
 			},
 			"url": map[string]any{
 				"type":        "string",
-				"description": "URL to navigate to (for open action)",
+				"description": "URL to navigate to (for open action or optional for tab_create). Supports http://, https://, and file:// schemes. For file:// URLs, path must be within session storage directory.",
 			},
 			"withOverlay": map[string]any{
 				"type":        "boolean",
@@ -103,6 +108,34 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"tabId": map[string]any{
 				"type":        "string",
 				"description": "Tab ID to operate on (optional - defaults to active tab). Required for tab_switch and tab_close actions.",
+			},
+			"duration": map[string]any{
+				"type":        "integer",
+				"description": "Wait duration in milliseconds (for wait action) or drag duration in milliseconds (for drag action, default: 500)",
+			},
+			"fromIndex": map[string]any{
+				"type":        "integer",
+				"description": "Element index to drag from (for drag action in index mode)",
+			},
+			"toIndex": map[string]any{
+				"type":        "integer",
+				"description": "Element index to drag to (for drag action in index mode)",
+			},
+			"fromX": map[string]any{
+				"type":        "number",
+				"description": "X coordinate to drag from (for drag action in coordinate mode)",
+			},
+			"fromY": map[string]any{
+				"type":        "number",
+				"description": "Y coordinate to drag from (for drag action in coordinate mode)",
+			},
+			"toX": map[string]any{
+				"type":        "number",
+				"description": "X coordinate to drag to (for drag action in coordinate mode)",
+			},
+			"toY": map[string]any{
+				"type":        "number",
+				"description": "Y coordinate to drag to (for drag action in coordinate mode)",
 			},
 		},
 		Required: []string{"action"},
@@ -157,14 +190,20 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return b.handleRightClick(ctx, params, sessionID), nil
 	case ActionDoubleClick:
 		return b.handleDoubleClick(ctx, params, sessionID), nil
+	case ActionTripleClick:
+		return b.handleTripleClick(ctx, params, sessionID), nil
+	case ActionDrag:
+		return b.handleDrag(ctx, params, sessionID), nil
 	case ActionFormInput:
 		return b.handleFormInput(ctx, params, sessionID), nil
 	case ActionGoBack:
 		return b.handleGoBack(ctx, params, sessionID), nil
 	case ActionGoForward:
 		return b.handleGoForward(ctx, params, sessionID), nil
+	case ActionWait:
+		return b.handleWait(ctx, params, sessionID), nil
 	case ActionTabCreate:
-		return b.handleTabCreate(ctx, sessionID), nil
+		return b.handleTabCreate(ctx, params, sessionID), nil
 	case ActionTabList:
 		return b.handleTabList(ctx, sessionID), nil
 	case ActionTabSwitch:
@@ -188,8 +227,34 @@ func (b *browserTool) handleOpen(ctx context.Context, params BrowserParams, sess
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("invalid URL %s: %v", params.URL, err))
 	}
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("invalid URL scheme: %s (must be http or https)", params.URL))
+	if parsedURL.Scheme != schemeHTTP && parsedURL.Scheme != schemeHTTPS && parsedURL.Scheme != schemeFile {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("invalid URL scheme: %s (must be http, https, or file)", params.URL))
+	}
+
+	// Security validation for file:// URLs
+	if parsedURL.Scheme == schemeFile {
+		filePath := parsedURL.Path
+		absFilePath, err := filepath.Abs(filePath)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("invalid file path: %v", err))
+		}
+
+		// Get the session storage directory
+		sessionStorageDir := session.GetSessionStoragePath(sessionID, b.sessionConfig)
+		absSessionDir, err := filepath.Abs(sessionStorageDir)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("failed to resolve session directory: %v", err))
+		}
+
+		// Security: Only allow files within session directory
+		if !strings.HasPrefix(absFilePath, absSessionDir+string(filepath.Separator)) {
+			return interfaces.NewTextErrorResponse("file:// URLs must reference files within session storage directory")
+		}
+
+		// Verify file exists
+		if _, err := os.Stat(absFilePath); os.IsNotExist(err) {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("file not found: %s", absFilePath))
+		}
 	}
 
 	// Permission check temporarily disabled for testing
@@ -319,6 +384,74 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully double-clicked element %d", params.Index))
 }
 
+// handleTripleClick triple-clicks an element
+func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
+	// Get browser connection
+	client, err := b.connectionManager.GetOrCreate(ctx, sessionID)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
+	}
+
+	// Triple-click element
+	if params.TabID != "" {
+		err = client.TripleClick(ctx, params.Index, params.TabID)
+	} else {
+		err = client.TripleClick(ctx, params.Index)
+	}
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+	}
+
+	return interfaces.NewTextResponse(fmt.Sprintf("Successfully triple-clicked element %d", params.Index))
+}
+
+// handleDrag performs a drag operation
+func (b *browserTool) handleDrag(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
+	// Get browser connection
+	client, err := b.connectionManager.GetOrCreate(ctx, sessionID)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
+	}
+
+	// Validate parameters - must have either index mode or coordinate mode
+	hasIndexMode := params.FromIndex != nil && params.ToIndex != nil
+	hasCoordMode := params.FromX != nil && params.FromY != nil && params.ToX != nil && params.ToY != nil
+
+	if !hasIndexMode && !hasCoordMode {
+		return interfaces.NewTextErrorResponse("drag action requires either (fromIndex and toIndex) or (fromX, fromY, toX, toY)")
+	}
+
+	if hasIndexMode && hasCoordMode {
+		return interfaces.NewTextErrorResponse("drag action cannot mix index mode and coordinate mode")
+	}
+
+	// Set duration pointer
+	var duration *int
+	if params.Duration > 0 {
+		duration = &params.Duration
+	}
+
+	// Perform drag
+	if params.TabID != "" {
+		err = client.Drag(ctx, params.FromIndex, params.ToIndex, params.FromX, params.FromY, params.ToX, params.ToY, duration, params.TabID)
+	} else {
+		err = client.Drag(ctx, params.FromIndex, params.ToIndex, params.FromX, params.FromY, params.ToX, params.ToY, duration)
+	}
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Drag failed: %v", err))
+	}
+
+	// Format response message
+	var responseMsg string
+	if hasIndexMode {
+		responseMsg = fmt.Sprintf("Successfully dragged element %d to element %d", *params.FromIndex, *params.ToIndex)
+	} else {
+		responseMsg = fmt.Sprintf("Successfully dragged from (%.0f, %.0f) to (%.0f, %.0f)", *params.FromX, *params.FromY, *params.ToX, *params.ToY)
+	}
+
+	return interfaces.NewTextResponse(responseMsg)
+}
+
 // handleFormInput sets form input value directly
 func (b *browserTool) handleFormInput(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
 	// Validate value parameter
@@ -387,6 +520,30 @@ func (b *browserTool) handleGoForward(ctx context.Context, params BrowserParams,
 	}
 
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated forward to: %s", resultURL))
+}
+
+// handleWait pauses execution for specified milliseconds
+func (b *browserTool) handleWait(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
+	if params.Duration <= 0 {
+		return interfaces.NewTextErrorResponse("missing or invalid duration parameter for wait action")
+	}
+
+	client, err := b.connectionManager.GetOrCreate(ctx, sessionID)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser: %v", err))
+	}
+
+	if params.TabID != "" {
+		err = client.Wait(ctx, params.Duration, params.TabID)
+	} else {
+		err = client.Wait(ctx, params.Duration)
+	}
+
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Wait failed: %v", err))
+	}
+
+	return interfaces.NewTextResponse(fmt.Sprintf("Waited %d milliseconds", params.Duration))
 }
 
 // handleType types text into an element
@@ -620,16 +777,35 @@ func (b *browserTool) handleClose(_ context.Context, sessionID string) interface
 	return interfaces.NewTextResponse("Browser closed successfully")
 }
 
-// handleTabCreate creates a new tab
-func (b *browserTool) handleTabCreate(ctx context.Context, sessionID string) interfaces.ToolResponse {
+// handleTabCreate creates a new tab, optionally navigating to a URL
+func (b *browserTool) handleTabCreate(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
 	// Get or create browser connection
 	client, err := b.connectionManager.GetOrCreate(ctx, sessionID)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to connect to browser service: %v", err))
 	}
 
-	// Create new tab
-	tab, err := client.CreateTab(ctx)
+	var tab *browserprotocol.TabInfo
+	if params.URL != "" {
+		// Validate URL (reuse validation from handleOpen)
+		parsedURL, err := url.Parse(params.URL)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("invalid URL %s: %v", params.URL, err))
+		}
+		if parsedURL.Scheme != schemeHTTP && parsedURL.Scheme != schemeHTTPS && parsedURL.Scheme != schemeFile {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("invalid URL scheme: %s (must be http, https, or file)", params.URL))
+		}
+
+		// Create tab with URL
+		tab, err = client.CreateTab(ctx, params.URL)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to create tab: %v", err))
+		}
+		return interfaces.NewTextResponse(fmt.Sprintf("Created new tab: %s and navigated to %s (Title: %s)", tab.ID, tab.URL, tab.Title))
+	}
+
+	// Create tab without URL
+	tab, err = client.CreateTab(ctx)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to create tab: %v", err))
 	}

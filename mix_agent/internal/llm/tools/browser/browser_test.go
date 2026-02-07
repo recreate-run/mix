@@ -3,6 +3,9 @@ package browser
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -385,6 +388,77 @@ func TestBrowserToolOpenValidation(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, response.IsError)
 			assert.Contains(t, response.Content, tt.errorMsg)
+		})
+	}
+}
+
+// Test file:// URL support
+func TestBrowserToolFileURLSupport(t *testing.T) {
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+
+	// Create a temporary session directory and test file
+	sessionID := "test-session-123"
+	sessionDir := session.GetSessionStoragePath(sessionID, sessionConfig)
+	err := os.MkdirAll(sessionDir, 0o750)
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(sessionDir)
+	}()
+
+	// Create a test HTML file in session directory
+	testFilePath := filepath.Join(sessionDir, "test.html")
+	err = os.WriteFile(testFilePath, []byte("<html><body>Test</body></html>"), 0o644)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		filePath    string
+		shouldError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid file in session directory",
+			filePath:    testFilePath,
+			shouldError: false,
+		},
+		{
+			name:        "file outside session directory",
+			filePath:    "/etc/passwd",
+			shouldError: true,
+			errorMsg:    "must reference files within session storage directory",
+		},
+		{
+			name:        "non-existent file in session directory",
+			filePath:    filepath.Join(sessionDir, "nonexistent.html"),
+			shouldError: true,
+			errorMsg:    "file not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := createBrowserTestContext(sessionID, "message-456", "/tmp/test")
+			fileURL := fmt.Sprintf("file://%s", tt.filePath)
+			call := interfaces.ToolCall{
+				ID:    "call-1",
+				Name:  BrowserToolName,
+				Input: fmt.Sprintf(`{"action": "open", "url": %q}`, fileURL),
+			}
+
+			response, err := tool.Run(ctx, call)
+			require.NoError(t, err)
+
+			if tt.shouldError {
+				assert.True(t, response.IsError)
+				assert.Contains(t, response.Content, tt.errorMsg)
+			} else if response.IsError {
+				// Will fail to connect to browser service, but should pass validation
+				// Error will be about browser service connection, not URL validation
+				assert.NotContains(t, response.Content, "invalid URL scheme")
+				assert.NotContains(t, response.Content, "must reference files within")
+			}
 		})
 	}
 }
