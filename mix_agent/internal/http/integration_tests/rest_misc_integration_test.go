@@ -230,68 +230,6 @@ func TestRESTStreamEndpoint(t *testing.T) {
 }
 
 // Test 15: Stream Sub-path Endpoint - GET /stream/{path...}
-func TestRESTStreamSubPathEndpoint(t *testing.T) {
-	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
-
-	t.Log("Testing GET /stream/{path...} - Stream sub-path endpoint")
-
-	// Create a session first to get a valid sessionId
-	sessionRequest := map[string]interface{}{
-		"title": "Stream Sub-path Test Session",
-	}
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	defer func() { _ = createResp.Body.Close() }()
-	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
-	sessionID := sessionData["id"].(string)
-
-	// Test stream sub-path with a sample path and required sessionId parameter
-	testPath := "events/session-updates"
-	streamURL := result.Server.URL + "/stream/" + testPath + "?sessionId=" + sessionID
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, streamURL, http.NoBody)
-	if err != nil {
-		t.Fatalf("Failed to create stream sub-path request: %v", err)
-	}
-
-	// Accept Server-Sent Events
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Cache-Control", "no-cache")
-
-	client := &http.Client{
-		Timeout: 5000000000, // 5 seconds timeout for stream connection
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to make stream sub-path request: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	// Validate SSE response
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status code %d for stream sub-path endpoint, got %d", http.StatusOK, resp.StatusCode)
-	}
-
-	contentType := resp.Header.Get("Content-Type")
-	if contentType != "text/event-stream" {
-		t.Fatalf("Expected Content-Type 'text/event-stream', got '%s'", contentType)
-	}
-
-	// Read a small portion to verify stream is working
-	buffer := make([]byte, 100)
-	n, err := resp.Body.Read(buffer)
-	if err != nil && n == 0 {
-		t.Fatalf("Failed to read from stream sub-path: %v", err)
-	}
-
-	streamContent := string(buffer[:n])
-	if streamContent == "" {
-		t.Fatalf("Expected some stream content from sub-path, got empty response")
-	}
-
-	t.Logf("✅ Stream sub-path endpoint test passed - Path: %s, Read %d bytes", testPath, n)
-}
-
 // Test 16: Permission Grant - POST /api/permissions/{id}/grant
 func TestRESTPermissionGrant(t *testing.T) {
 	result := setupIntegrationTestServer(t)
@@ -390,7 +328,7 @@ func TestRESTAPIIntegration(t *testing.T) {
 	t.Run("SessionListing", TestRESTSessionListing)
 	t.Run("SessionRetrieval", TestRESTSessionRetrieval)
 	t.Run("SessionDeletion", TestRESTSessionDeletion)
-	t.Run("MessageSending", TestRESTMessageSending)
+	// NOTE: TestRESTMessageSending moved to e2e/messaging/message_e2e_test.go
 	t.Run("MessageListing", TestRESTMessageListing)
 	t.Run("MessageHistory", TestRESTMessageHistory)
 	t.Run("AgentCancellation", TestRESTAgentCancellation)
@@ -399,7 +337,6 @@ func TestRESTAPIIntegration(t *testing.T) {
 	t.Run("MCPServersListing", TestRESTMCPServersListing)
 	t.Run("HealthCheck", TestRESTHealthCheck)
 	t.Run("StreamEndpoint", TestRESTStreamEndpoint)
-	t.Run("StreamSubPathEndpoint", TestRESTStreamSubPathEndpoint)
 	t.Run("PermissionGrant", TestRESTPermissionGrant)
 	t.Run("PermissionDeny", TestRESTPermissionDeny)
 	t.Run("PermissionInvalidID", TestRESTPermissionInvalidID)

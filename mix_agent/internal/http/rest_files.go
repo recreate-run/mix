@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -8,6 +9,7 @@ import (
 	"unicode"
 
 	"mix/internal/app"
+	storage "mix/internal/mix_storage"
 	"mix/internal/session"
 )
 
@@ -263,16 +265,19 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	// Delete file from storage provider
 	storageKey := fmt.Sprintf("uploads/%s", filename)
 	err = h.app.StorageProvider.Delete(ctx, storageKey)
-	fileExisted := err == nil
 
 	if err != nil {
+		if errors.Is(err, storage.ErrFileNotFound) {
+			sendNotFoundError(w, "File", filename)
+			return
+		}
 		sendInternalError(w, "deleting file", err)
 		return
 	}
 
 	// Track file deletion
 	if h.app.Analytics != nil {
-		_ = h.app.Analytics.TrackFileDeleted(ctx, sessionID, filename, fileExisted)
+		_ = h.app.Analytics.TrackFileDeleted(ctx, sessionID, filename, true)
 	}
 
 	// Return 204 No Content for successful deletion

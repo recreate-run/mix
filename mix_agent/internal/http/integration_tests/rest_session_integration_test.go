@@ -14,7 +14,7 @@ func TestRESTSessionCreation(t *testing.T) {
 
 	// Create session request
 	sessionRequest := map[string]interface{}{
-		"title": "Integration Test Session",
+		"title": "Integration Test",
 	}
 
 	resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
@@ -27,8 +27,8 @@ func TestRESTSessionCreation(t *testing.T) {
 	}
 
 	title, ok := sessionData["title"].(string)
-	if !ok || title != "Integration Test Session" {
-		t.Fatalf("Expected title 'Integration Test Session', got %v", title)
+	if !ok || title != "Integration Test" {
+		t.Fatalf("Expected title 'Integration Test', got %v", title)
 	}
 
 	// Note: Working directory removed from session data - using centralized storage
@@ -91,7 +91,7 @@ func TestRESTSessionRetrieval(t *testing.T) {
 
 	// Create a session first
 	sessionRequest := map[string]interface{}{
-		"title": "Retrieval Test Session",
+		"title": "Retrieval Test",
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
@@ -111,8 +111,8 @@ func TestRESTSessionRetrieval(t *testing.T) {
 	}
 
 	retrievedTitle, ok := retrievedSession["title"].(string)
-	if !ok || retrievedTitle != "Retrieval Test Session" {
-		t.Fatalf("Expected title 'Retrieval Test Session', got %v", retrievedTitle)
+	if !ok || retrievedTitle != "Retrieval Test" {
+		t.Fatalf("Expected title 'Retrieval Test', got %v", retrievedTitle)
 	}
 
 	t.Logf("✅ Session retrieval test passed - Retrieved session: %s", retrievedID)
@@ -127,7 +127,7 @@ func TestRESTSessionDeletion(t *testing.T) {
 
 	// Create a session to delete
 	sessionRequest := map[string]interface{}{
-		"title": "Deletion Test Session",
+		"title": "Deletion Test",
 	}
 
 	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)

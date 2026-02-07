@@ -17,13 +17,13 @@ RESTAGE=false
 # Run frontend formatting if there are staged frontend files
 if [ -n "$STAGED_FRONTEND_FILES" ]; then
     echo "📝 Formatting frontend code..."
-    make frontend-format
+    task frontend-format
 
     echo "🔎 Linting frontend code..."
-    make frontend-lint
+    task frontend-lint
 
     echo "🔍 Type checking frontend code..."
-    if ! make frontend-typecheck; then
+    if ! task frontend-typecheck; then
         echo "❌ TypeScript type checking failed. Please fix the errors before committing."
         exit 1
     fi
@@ -39,7 +39,7 @@ fi
 # Run unified linting if there are any staged code files
 if [ -n "$STAGED_GO_FILES" ] || [ -n "$STAGED_FRONTEND_FILES" ]; then
     echo "🔎 Running linters..."
-    if ! make lint; then
+    if ! task lint; then
         echo "❌ Linting failed. Please fix the errors before committing."
         exit 1
     fi

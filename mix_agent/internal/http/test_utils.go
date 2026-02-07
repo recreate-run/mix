@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/joho/godotenv"
 	"mix/internal/app"
 	"mix/internal/config"
 	"mix/internal/db"
@@ -26,6 +29,17 @@ type TestServerResult struct {
 	DataDir   string
 }
 
+// loadEnvFile loads environment variables from .env file for testing
+func loadEnvFile(t *testing.T) {
+	t.Helper()
+
+	// Test working directory is /mix_agent/internal/http, so .env is three levels up
+	envPath := filepath.Join("..", "..", "..", ".env")
+
+	// Load .env file - ignore error if file doesn't exist
+	_ = godotenv.Load(envPath)
+}
+
 // initMCPTools mock implementation for testing
 func initMCPTools(ctx context.Context, a *app.App) {
 	// Mock implementation - in real app this initializes MCP tools
@@ -36,6 +50,10 @@ func initMCPTools(ctx context.Context, a *app.App) {
 // This function consolidates the common setup logic shared between REST and SSE tests
 func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	t.Helper()
+
+	// Load environment variables from .env file
+	loadEnvFile(t)
+
 	// Auto-generate test name from test function name
 	testName := t.Name()
 
@@ -75,8 +93,12 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	// Initialize MCP tools
 	initMCPTools(ctx, testApp)
 
-	// Create test session
-	session, err := testApp.Sessions.Create(ctx, "Test Integration Session", "", "default", session2.SessionTypeMain, "", "", "")
+	// Ensure credentials service is fully initialized
+	// This is needed because credentials are preloaded in a background goroutine
+	time.Sleep(100 * time.Millisecond)
+
+	// Create test session (title must be ≤20 chars due to DB constraint)
+	session, err := testApp.Sessions.Create(ctx, "Test Session", "", "default", session2.SessionTypeMain, "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
@@ -179,11 +201,3 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 	return responseData
 }
 
-// createJSONMessage creates a proper JSON message structure for testing
-func createJSONMessage(text string) string {
-	msgContent := map[string]interface{}{
-		"text": text,
-	}
-	jsonData, _ := json.Marshal(msgContent)
-	return string(jsonData)
-}

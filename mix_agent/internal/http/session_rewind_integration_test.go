@@ -23,6 +23,12 @@ import (
 // setupTestServerForRewind sets up test environment specifically for rewind testing
 func setupTestServerForRewind(t *testing.T) (testApp *app.App, sessionID string) {
 	t.Helper()
+
+	// Skip test if BROWSER_SERVICE_URL is not set (required for app initialization)
+	if os.Getenv("BROWSER_SERVICE_URL") == "" {
+		t.Skip("Skipping test: BROWSER_SERVICE_URL not set (required for app initialization)")
+	}
+
 	// Set up test configuration properly
 	testConfigDir := "/tmp/test-mix-rewind-" + t.Name()
 	testDataDir := "/tmp/test-mix-data-rewind-" + t.Name()

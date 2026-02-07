@@ -30,6 +30,7 @@ import { useActiveSession, useCreateSession } from "@/hooks/useSession";
 import { useSessionExport } from "@/hooks/useSessionExport";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
 import { CACHE_KEYS } from "@/lib/cache-keys";
+import { DEFAULT_THINKING_LEVEL } from "@/lib/data";
 import { useBoundStore } from "@/stores";
 // import type { ToolCall } from '@/types/common';
 // import type { MediaOutput } from '@/types/media';
@@ -44,6 +45,7 @@ import { CommandFileReference } from "./command-file-reference";
 import { CommandSlash } from "./command-slash";
 import { ConversationDisplay } from "./conversation-display";
 import { FileUploadButton } from "./file-upload-button";
+import { NotificationDialog } from "./notification-dialog";
 import { PermissionDialog } from "./permission-dialog";
 import { SdkCodeSnippet } from "./sdk-code-snippet";
 
@@ -83,7 +85,7 @@ export function ChatApp({
 
 	// Thinking level configuration
 	const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
-		ThinkingLevel.Off,
+		DEFAULT_THINKING_LEVEL,
 	);
 
 	// Component lifecycle refs
@@ -822,6 +824,14 @@ export function ChatApp({
 					onDeny={sseStream.denyPermission}
 					onGrant={sseStream.grantPermission}
 					permissionRequest={sseStream.permissionRequests[0]}
+				/>
+			)}
+
+			{/* Notification Dialog - Show the first pending notification */}
+			{sseStream.notifications.length > 0 && (
+				<NotificationDialog
+					notification={sseStream.notifications[0]}
+					onRespond={sseStream.respondToNotification}
 				/>
 			)}
 		</div>

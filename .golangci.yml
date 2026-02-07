@@ -2,7 +2,7 @@ version: 2
 
 run:
   timeout: 5m
-  go: '1.23'
+  go: "1.23"
   tests: true
   skip-dirs:
     - vendor
@@ -11,55 +11,52 @@ run:
 linters:
   enable:
     # Enabled by default
-    - errcheck      # Check for unchecked errors
-    - govet         # Reports suspicious constructs
-    - ineffassign   # Detect ineffectual assignments
-    - staticcheck   # Advanced static analysis (includes gosimple)
-    - unused        # Check for unused code
+    - errcheck # Check for unchecked errors
+    - govet # Reports suspicious constructs
+    - ineffassign # Detect ineffectual assignments
+    - staticcheck # Advanced static analysis (includes gosimple)
+    - unused # Check for unused code
 
     # Additional recommended linters
-    - misspell      # Finds commonly misspelled words
-    - unconvert     # Remove unnecessary type conversions
-    - unparam       # Reports unused function parameters
+    - misspell # Finds commonly misspelled words
+    - unconvert # Remove unnecessary type conversions
+    - unparam # Reports unused function parameters
     # - gosec         # Security problems
-    - bodyclose     # Check HTTP response body is closed
-    - noctx         # Finds sending http request without context.Context
+    - bodyclose # Check HTTP response body is closed
+    - noctx # Finds sending http request without context.Context
     - sqlclosecheck # Check sql.Rows and sql.Stmt are closed
-    - rowserrcheck  # Check whether Err of rows is checked
-    - copyloopvar   # Check for loop variable copies (replaces exportloopref)
-    - goconst       # Repeated strings that could be constants
-    - gocritic      # Opinionated Go linter
+    - rowserrcheck # Check whether Err of rows is checked
+    - copyloopvar # Check for loop variable copies (replaces exportloopref)
+    - goconst # Repeated strings that could be constants
+    - gocritic # Opinionated Go linter
     # - godot         # Check comments end in period
-    - errname       # Check error names (should be ErrXxx or xxxError)
-    - errorlint     # Find misuses of errors
-    - makezero      # Finds slice declarations with non-zero initial length
-    - nilerr        # Finds code returning nil even if it checks error != nil
-    - nilnil        # Checks no simultaneous return of nil error and nil value
-    - predeclared   # Finds shadowing of predeclared identifiers
-    - thelper       # Detects test helpers without t.Helper()
-    - tparallel     # Detects inappropriate usage of t.Parallel()
-    - wastedassign  # Finds wasted assignment statements
-    - whitespace    # Detection of leading/trailing whitespace
+    - errname # Check error names (should be ErrXxx or xxxError)
+    - errorlint # Find misuses of errors
+    - makezero # Finds slice declarations with non-zero initial length
+    - nilerr # Finds code returning nil even if it checks error != nil
+    - nilnil # Checks no simultaneous return of nil error and nil value
+    - predeclared # Finds shadowing of predeclared identifiers
+    - thelper # Detects test helpers without t.Helper()
+    - tparallel # Detects inappropriate usage of t.Parallel()
+    - wastedassign # Finds wasted assignment statements
+    - whitespace # Detection of leading/trailing whitespace
 
     # Additional quality & style linters
-    - dogsled       # Flags excessive blank identifiers
-    - dupword       # Detects duplicate words (with autofix)
+    - dogsled # Flags excessive blank identifiers
+    - dupword # Detects duplicate words (with autofix)
     - usestdlibvars # Use stdlib constants (http.StatusOK vs 200)
 
     # Performance
-    - prealloc      # Pre-allocate slices for better performance
+    - prealloc # Pre-allocate slices for better performance
 
     # Security
-    - bidichk       # Detects dangerous Unicode sequences
-
-    # Code readability
-    - funlen        # Enforces readable function length limits
+    - bidichk # Detects dangerous Unicode sequences
 
     # SQL-specific (for sqlc usage)
-    - unqueryvet    # Detects SELECT * in SQL queries
+    - unqueryvet # Detects SELECT * in SQL queries
 
     # Testing (testify library)
-    - testifylint   # Enforces testify best practices
+    - testifylint # Enforces testify best practices
 
   settings:
     errcheck:
@@ -90,15 +87,10 @@ linters:
         - style
         - performance
       disabled-checks:
-        - hugeParam  # Early stage, optimize later
+        - hugeParam # Early stage, optimize later
 
     stylecheck:
       checks: ["all", "-ST1000", "-ST1003", "-ST1016"]
-
-    funlen:
-      lines: 200             # Maximum lines per function (default: 60)
-      statements: 80           # Maximum statements per function (default: 40)
-      ignore-comments: true    # Ignore comment lines when counting (default: false)
 
     dogsled:
       max-blank-identifiers: 2

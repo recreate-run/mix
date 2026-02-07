@@ -6,6 +6,8 @@ import (
 	"math"
 	"net/http"
 	"sync/atomic"
+
+	"mix/internal/constants"
 )
 
 const (
@@ -129,6 +131,19 @@ type UserMessageCreatedEvent struct {
 	ParentToolCallID string `json:"parentToolCallId,omitempty"`
 }
 
+type NotificationEvent struct {
+	Type         string   `json:"type"`
+	ID           string   `json:"id"`
+	SessionID    string   `json:"sessionId"`
+	NotifType    string   `json:"notificationType"`
+	Title        string   `json:"title"`
+	Message      string   `json:"message"`
+	ResponseType string   `json:"responseType"`
+	Choices      []string `json:"choices,omitempty"`
+	Timeout      int      `json:"timeout"`
+	CreatedAt    int64    `json:"createdAt"` // Unix timestamp in milliseconds
+}
+
 // SSEWriter handles session-scoped SSE writing with automatic compliance
 type SSEWriter struct {
 	w         http.ResponseWriter
@@ -201,15 +216,11 @@ func (s *SSEWriter) calculateExponentialBackoff(attempt int) int {
 		attempt = 1
 	}
 
-	// Exponential backoff: 500ms * (1.5 ^ attempt) with max 60 seconds
-	baseInterval := 500 // 500ms base
-	exponent := 1.5
-	maxInterval := 60000 // 60 seconds max
+	// Exponential backoff: RetryInitialInterval * (RetryBackoffExponent ^ attempt) with max RetryMaxInterval
+	backoffMs := int(float64(constants.RetryInitialInterval) * math.Pow(constants.RetryBackoffExponent, float64(attempt)))
 
-	backoffMs := int(float64(baseInterval) * math.Pow(exponent, float64(attempt)))
-
-	if backoffMs > maxInterval {
-		return maxInterval
+	if backoffMs > constants.RetryMaxInterval {
+		return constants.RetryMaxInterval
 	}
 
 	return backoffMs

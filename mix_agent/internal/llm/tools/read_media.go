@@ -463,7 +463,7 @@ func (r *readMediaTool) createGeminiProvider() (interfaces.Provider, error) {
 	geminiProvider, err := provider.NewProvider(
 		models.ProviderGemini,
 		provider.WithAPIKey(apiKey),
-		provider.WithModel(models.GeminiModels[models.Gemini25]), // Use Gemini 2.5 Pro for multimodal
+		provider.WithModel(models.GeminiModels[models.Gemini3Flash]), // Use Gemini 3 Flash for multimodal
 		provider.WithMaxTokens(4096),
 	)
 	if err != nil {

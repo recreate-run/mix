@@ -98,7 +98,7 @@ func (p *LocalProvider) Delete(ctx context.Context, key string) error {
 
 	if err := os.Remove(fullPath); err != nil {
 		if os.IsNotExist(err) {
-			return nil // Already deleted, consider success
+			return ErrFileNotFound
 		}
 		return fmt.Errorf("failed to delete file: %w", err)
 	}

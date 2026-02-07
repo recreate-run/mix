@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 )
@@ -52,4 +53,10 @@ type Config struct {
 const (
 	ProviderTypeLocal    = "local"
 	ProviderTypeSupabase = "supabase"
+)
+
+// Sentinel errors
+var (
+	// ErrFileNotFound is returned when attempting to access a file that doesn't exist
+	ErrFileNotFound = errors.New("file not found")
 )

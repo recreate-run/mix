@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"sort"
@@ -12,6 +13,7 @@ import (
 	"mix/internal/llm/agent"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
+	"mix/internal/notification"
 	"mix/internal/permission"
 )
 
@@ -344,4 +346,48 @@ func (h *SystemHandler) HandleDenyPermission(w http.ResponseWriter, r *http.Requ
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
+}
+
+// HandleNotificationRespond handles POST /api/notifications/{id}/respond
+func (h *SystemHandler) HandleNotificationRespond(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	notificationID := r.PathValue("id")
+	if notificationID == "" {
+		sendValidationError(w, "id", "notification ID is required")
+		return
+	}
+
+	var response map[string]string
+	if err := parseJSONBody(r, &response); err != nil {
+		sendValidationError(w, "body", err.Error())
+		return
+	}
+
+	// Construct notification response from request body
+	notificationResponse := notification.NotificationResponse{
+		ID:    notificationID,
+		Type:  response["type"],
+		Value: response["value"],
+	}
+
+	// Send response to notification service
+	if err := h.app.Notifications.Respond(notificationID, notificationResponse); err != nil {
+		if errors.Is(err, notification.ErrNotificationNotFound) {
+			http.Error(w, "Notification not found or already responded", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

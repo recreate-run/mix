@@ -22,7 +22,7 @@ const (
 // Supports formats like: "5", "1-3", "1,3,5", "1-3,7,10-12"
 func ParsePageSelection(pages string) ([]int, error) {
 	if pages == "" {
-		return nil, nil
+		return []int{}, nil
 	}
 
 	var pageNumbers []int

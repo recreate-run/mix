@@ -242,6 +242,46 @@ func HandleSSEStream(ctx context.Context, application *app.App, w http.ResponseW
 		}
 	}()
 
+	// Subscribe to notification events for this session
+	notificationEvents := application.Notifications.Subscribe(ctx)
+
+	// Handle notification events in a separate goroutine
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-r.Context().Done():
+				return
+			case notificationEvent, ok := <-notificationEvents:
+				if !ok {
+					return
+				}
+
+				// Only send notification events for the current session
+				if notificationEvent.Type == pubsub.CreatedEvent && notificationEvent.Payload.SessionID == sessionID {
+					// Send notification event to frontend
+					notifEvent := NotificationEvent{
+						Type:         "notification",
+						ID:           notificationEvent.Payload.ID,
+						SessionID:    notificationEvent.Payload.SessionID,
+						NotifType:    string(notificationEvent.Payload.Type),
+						Title:        notificationEvent.Payload.Title,
+						Message:      notificationEvent.Payload.Message,
+						ResponseType: string(notificationEvent.Payload.ResponseType),
+						Choices:      notificationEvent.Payload.Choices,
+						Timeout:      notificationEvent.Payload.Timeout,
+						CreatedAt:    notificationEvent.Payload.CreatedAt.UnixMilli(),
+					}
+
+					if err := sseWriter.WriteEvent("notification", notifEvent); err != nil {
+						return
+					}
+				}
+			}
+		}
+	}()
+
 	// Initialize global session event broadcaster (runs exactly once)
 	sessionEventBroadcaster.Do(func() {
 		go func() {

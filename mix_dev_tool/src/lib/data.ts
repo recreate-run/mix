@@ -1,3 +1,5 @@
+import { ThinkingLevel } from "mix-typescript-sdk/models/operations/sendmessage";
+
 export const EXAMPLE_PROMPTS = [
 	{
 		name: "Video Creation",
@@ -15,3 +17,9 @@ export const EXAMPLE_PROMPTS = [
 			"Look at my portfolio in the data and find the top winners and losers in Q4. Show the three most relevant plots.",
 	},
 ];
+
+/**
+ * Default thinking level for new chat sessions.
+ * Maps to backend token budgets: off (0), basic (4k), medium (10k), maximum (32k)
+ */
+export const DEFAULT_THINKING_LEVEL = ThinkingLevel.Medium;

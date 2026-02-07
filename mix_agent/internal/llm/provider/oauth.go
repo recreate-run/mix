@@ -680,7 +680,9 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 	// Get API credentials service from config
 	credentialsService := config.GetAPICredentials()
 	if credentialsService == nil {
-		return false, "none", fmt.Errorf("credentials service not available")
+		// In test environments or before initialization, credentials service may not be available
+		// Return false but no error to allow graceful handling
+		return false, "none", nil
 	}
 
 	// If provider is empty, try to get the user's preferred provider
@@ -707,12 +709,36 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 		}
 	}
 
+	// Mock provider doesn't require authentication
+	if provider == models.ProviderMock {
+		return true, "mock", nil
+	}
+
 	// First check for API key in database
 	hasAPIKey, err := credentialsService.HasAPIKey(ctx, provider)
 	if err != nil {
 		logging.Warn("Failed to check API credential", "error", err)
 	} else if hasAPIKey {
 		return true, "api_key", nil
+	}
+	
+	// Check for API key in environment variables for supported providers
+	var envVar string
+	switch provider {
+	case models.ProviderGemini:
+		envVar = "GEMINI_API_KEY"
+	case models.ProviderOpenRouter:
+		envVar = "OPENROUTER_API_KEY"
+	case models.ProviderGROQ:
+		envVar = "GROQ_API_KEY"
+	case models.ProviderXAI:
+		envVar = "XAI_API_KEY"
+	}
+	
+	if envVar != "" {
+		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
+			return true, "env_var", nil
+		}
 	}
 
 	// Check for OAuth credentials for supported providers

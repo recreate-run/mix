@@ -26,7 +26,7 @@ func TestGeminiClient_RealAPI_ImageUnderstanding(t *testing.T) {
 
 	opts := providerClientOptions{
 		apiKey:        apiKey,
-		model:         models.SupportedModels[models.Gemini15Pro],
+		model:         models.SupportedModels[models.Gemini3Pro],
 		maxTokens:     1000,
 		systemMessage: "You are a helpful AI assistant that can analyze images.",
 	}
@@ -86,7 +86,7 @@ func TestGeminiClient_RealAPI_StreamImageUnderstanding(t *testing.T) {
 
 	opts := providerClientOptions{
 		apiKey:        apiKey,
-		model:         models.SupportedModels[models.Gemini15Pro],
+		model:         models.SupportedModels[models.Gemini3Pro],
 		maxTokens:     500,
 		systemMessage: "You are a helpful AI assistant.",
 	}
@@ -163,7 +163,7 @@ func TestGeminiClient_RealAPI_MultipleImageFormats(t *testing.T) {
 
 	opts := providerClientOptions{
 		apiKey:        apiKey,
-		model:         models.SupportedModels[models.Gemini15Pro],
+		model:         models.SupportedModels[models.Gemini3Pro],
 		maxTokens:     200,
 		systemMessage: "You are a helpful AI assistant.",
 	}
@@ -229,7 +229,7 @@ func TestGeminiClient_RealAPI_ToolUsage(t *testing.T) {
 
 	opts := providerClientOptions{
 		apiKey:        apiKey,
-		model:         models.SupportedModels[models.Gemini15Pro],
+		model:         models.SupportedModels[models.Gemini3Pro],
 		maxTokens:     1000,
 		systemMessage: "You are a helpful AI assistant with access to tools.",
 	}
@@ -289,7 +289,7 @@ func TestGeminiClient_RealAPI_ErrorHandling(t *testing.T) {
 	// Test with invalid API key
 	opts := providerClientOptions{
 		apiKey:        "invalid-key",
-		model:         models.SupportedModels[models.Gemini15Pro],
+		model:         models.SupportedModels[models.Gemini3Pro],
 		maxTokens:     100,
 		systemMessage: "You are a helpful AI assistant.",
 	}

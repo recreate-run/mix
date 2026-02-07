@@ -56,7 +56,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 	// Initialize credential storage
 	credStorage, err := NewCredentialStorage()
 	if err != nil {
-		logging.Warn("Failed to initialize OAuth credential storage: %v", err)
+		logging.Warn("Failed to initialize OAuth credential storage", "error", err)
 	}
 
 	// Check for OAuth credentials first - highest priority
@@ -74,7 +74,7 @@ func newOpenAIClient(opts providerClientOptions) OpenAIClient {
 					oauthCreds = refreshedCreds
 					logging.Info("OpenAI OAuth token refreshed successfully")
 				} else {
-					logging.Warn("Failed to refresh OpenAI OAuth token: %v", err)
+					logging.Warn("Failed to refresh OpenAI OAuth token", "error", err)
 				}
 			} else if !creds.IsTokenExpired() {
 				oauthCreds = creds
