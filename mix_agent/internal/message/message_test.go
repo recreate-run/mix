@@ -206,28 +206,6 @@ func TestListUserMessageHistory(t *testing.T) {
 	mockQuerier.AssertExpectations(t)
 }
 
-// Test CopyMessagesToSession method
-func TestCopyMessagesToSession(t *testing.T) {
-	svc, mockQuerier := createTestService(t)
-
-	sourceSessionID := uuid.New().String()
-	targetSessionID := uuid.New().String()
-	messageIndex := int64(2)
-
-	dbMessages := []db.Message{createTestDBMessage(), createTestDBMessage()}
-
-	mockQuerier.On("ListMessagesForFork", mock.Anything, mock.AnythingOfType("db.ListMessagesForForkParams")).
-		Return(dbMessages, nil)
-	mockQuerier.On("CreateMessage", mock.Anything, mock.AnythingOfType("db.CreateMessageParams")).
-		Return(createTestDBMessage(), nil).Times(2)
-
-	err := svc.CopyMessagesToSession(context.Background(), sourceSessionID, targetSessionID, messageIndex)
-
-	require.NoError(t, err)
-
-	mockQuerier.AssertExpectations(t)
-}
-
 // Test marshallParts function
 func TestMarshallParts(t *testing.T) {
 	parts := []ContentPart{

@@ -1,11 +1,8 @@
 package integration_tests
 
 import (
-	"context"
 	"net/http"
 	"testing"
-
-	"mix/internal/message"
 )
 
 // Test 2: Session Creation - POST /api/sessions
@@ -164,74 +161,7 @@ func TestRESTSessionDeletion(t *testing.T) {
 	t.Logf("✅ Session deletion test passed - Deleted session: %s", sessionID)
 }
 
-// Test 9: Session Forking - POST /api/sessions/{id}/fork
-func TestRESTSessionForking(t *testing.T) {
-	result := setupIntegrationTestServer(t)
-	defer result.Server.Close()
-
-	t.Log("Testing POST /api/sessions/{id}/fork - Fork session")
-
-	// Create a source session
-	sessionRequest := map[string]interface{}{
-		"title": "Source Session for Forking",
-	}
-
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
-	defer func() { _ = createResp.Body.Close() }()
-	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
-
-	sourceSessionID := createdSessionData["id"].(string)
-
-	// Add a test message to the source session directly to database
-	ctx := context.Background()
-	_, err := result.App.Messages.Create(ctx, sourceSessionID, message.CreateMessageParams{
-		Role: message.User,
-		Parts: []message.ContentPart{
-			message.TextContent{Text: "Test message in source session"},
-		},
-		Model: "claude-4-sonnet",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test message in source session: %v", err)
-	}
-
-	// Fork the session
-	forkRequest := map[string]interface{}{
-		"messageIndex": int64(1),
-		"title":        "Forked Session",
-	}
-
-	forkResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sourceSessionID+"/fork", forkRequest)
-	defer func() { _ = forkResp.Body.Close() }()
-	forkedSessionData := validateObjectResponse(t, forkResp, http.StatusCreated)
-
-	forkedSessionID, ok := forkedSessionData["id"].(string)
-	if !ok || forkedSessionID == "" {
-		t.Fatalf("Expected forked session ID in response, got %v", forkedSessionID)
-	}
-
-	if forkedSessionID == sourceSessionID {
-		t.Fatalf("Expected forked session to have different ID from source session")
-	}
-
-	forkedTitle, ok := forkedSessionData["title"].(string)
-	if !ok || forkedTitle != "Forked Session" {
-		t.Fatalf("Expected forked session title 'Forked Session', got %v", forkedTitle)
-	}
-
-	// Verify both sessions exist independently
-	sourceGetResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sourceSessionID, nil)
-	defer func() { _ = sourceGetResp.Body.Close() }()
-	validateObjectResponse(t, sourceGetResp, http.StatusOK)
-
-	forkedGetResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+forkedSessionID, nil)
-	defer func() { _ = forkedGetResp.Body.Close() }()
-	validateObjectResponse(t, forkedGetResp, http.StatusOK)
-
-	t.Logf("✅ Session forking test passed - Source: %s, Forked: %s", sourceSessionID, forkedSessionID)
-}
-
-// Test 10: Agent Cancellation - POST /api/sessions/{id}/cancel
+// Test 9: Agent Cancellation - POST /api/sessions/{id}/cancel
 func TestRESTAgentCancellation(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()

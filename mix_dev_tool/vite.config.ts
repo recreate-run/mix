@@ -33,7 +33,7 @@ export default defineConfig(async () => ({
 
 	// Development server configuration
 	server: {
-		port: 3010,
+		port:3020,
 		strictPort: false,
 	},
 }));

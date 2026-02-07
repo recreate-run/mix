@@ -99,7 +99,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("POST /api/sessions", sessionHandler.HandleCreateSession)
 	mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.HandleGetSession)
 	mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.HandleDeleteSession)
-	mux.HandleFunc("POST /api/sessions/{id}/fork", sessionHandler.HandleForkSession)
 
 	// Message endpoints
 	mux.HandleFunc("POST /api/sessions/{id}/messages", messageHandler.HandleSendMessage)
@@ -162,6 +161,8 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 }
 
 // validateObjectResponse validates success response as object (flattened)
+//
+//nolint:unparam // expectedStatus may vary in future tests
 func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus int) map[string]interface{} {
 	t.Helper()
 	defer func() { _ = resp.Body.Close() }()
@@ -176,27 +177,6 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 	}
 
 	return responseData
-}
-
-// validateErrorResponse validates that response has proper structure and status for error responses (enveloped)
-func validateErrorResponse(t *testing.T, resp *http.Response, expectedStatus int) ErrorResponse {
-	t.Helper()
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != expectedStatus {
-		t.Fatalf("Expected status code %d, got %d", expectedStatus, resp.StatusCode)
-	}
-
-	var errorResponse ErrorResponse
-	if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
-		t.Fatalf("Failed to decode error response: %v", err)
-	}
-
-	if errorResponse.Error == nil {
-		t.Fatalf("Expected error response to have error field")
-	}
-
-	return errorResponse
 }
 
 // createJSONMessage creates a proper JSON message structure for testing

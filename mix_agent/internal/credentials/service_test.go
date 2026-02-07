@@ -280,7 +280,8 @@ func TestGetOAuthCredentialsNotFound(t *testing.T) {
 		Return(db.OauthCredential{}, sql.ErrNoRows)
 
 	creds, err := service.GetOAuthCredentials(context.Background(), "missing_provider")
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "OAuth credential not found")
 	assert.Nil(t, creds)
 
 	mockQueries.AssertExpectations(t)

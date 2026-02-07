@@ -390,7 +390,6 @@ func TestRESTAPIIntegration(t *testing.T) {
 	t.Run("SessionListing", TestRESTSessionListing)
 	t.Run("SessionRetrieval", TestRESTSessionRetrieval)
 	t.Run("SessionDeletion", TestRESTSessionDeletion)
-	t.Run("SessionForking", TestRESTSessionForking)
 	t.Run("MessageSending", TestRESTMessageSending)
 	t.Run("MessageListing", TestRESTMessageListing)
 	t.Run("MessageHistory", TestRESTMessageHistory)

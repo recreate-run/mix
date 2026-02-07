@@ -99,10 +99,6 @@ func TestLoadToolDescriptionPathConstruction(t *testing.T) {
 			name:     "tool name with underscore",
 			toolName: "bash_output",
 		},
-		{
-			name:     "tool name with multiple underscores",
-			toolName: "todo_write_cc",
-		},
 	}
 
 	for _, tt := range tests {

@@ -19,11 +19,6 @@ func (m *MockService) Create(ctx context.Context, title, customSystemPrompt, pro
 	return args.Get(0).(Session), args.Error(1)
 }
 
-func (m *MockService) Fork(ctx context.Context, sourceSessionID, title string) (Session, error) {
-	args := m.Called(ctx, sourceSessionID, title)
-	return args.Get(0).(Session), args.Error(1)
-}
-
 func (m *MockService) Get(ctx context.Context, id string) (Session, error) {
 	args := m.Called(ctx, id)
 	return args.Get(0).(Session), args.Error(1)

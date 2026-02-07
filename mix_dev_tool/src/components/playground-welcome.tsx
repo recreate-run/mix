@@ -20,7 +20,6 @@ import { formatCurrentModel, usePreferences } from "@/hooks/usePreferences";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
 import { EXAMPLE_PROMPTS } from "@/lib/data";
 import { useBoundStore } from "@/stores";
-import { buildSessionFileUrl } from "@/utils/attachmentUtils";
 import { AttachmentPreview } from "./attachment-preview";
 
 interface PlaygroundWelcomeProps {
@@ -81,15 +80,15 @@ export function PlaygroundWelcome({
 	};
 
 	// Handle file upload success
-	const handleFileUploadSuccess = (fileName: string) => {
+	const handleFileUploadSuccess = (fileName: string, fileUrl: string) => {
 		const displayReference = `@${fileName}`;
 		const newText = inputValue
 			? `${inputValue} ${displayReference} `
 			: `${displayReference} `;
 		setInputValue(newText);
 
-		const fullUrl = buildSessionFileUrl(sessionId, fileName);
-		useBoundStore.getState().addReference(displayReference, fullUrl);
+		// Use URL from backend directly
+		useBoundStore.getState().addReference(displayReference, fileUrl);
 
 		setFeedbackMessage(`File uploaded successfully: ${fileName}`);
 		setTimeout(() => setFeedbackMessage(null), 3000);

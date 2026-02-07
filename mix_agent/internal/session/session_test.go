@@ -70,7 +70,7 @@ func createTestCreateSessionRow() db.CreateSessionRow {
 		PromptTokens:       0,
 		CompletionTokens:   0,
 		CustomSystemPrompt: sql.NullString{String: "test prompt", Valid: true},
-		PromptMode:         sql.NullString{String: "standard", Valid: true},
+		PromptMode:         "standard",
 		Cost:               0,
 		CreatedAt:          time.Now().Unix(),
 		UpdatedAt:          time.Now().Unix(),
@@ -88,7 +88,7 @@ func createTestGetSessionByIDRow() db.GetSessionByIDRow {
 		PromptTokens:          100,
 		CompletionTokens:      200,
 		CustomSystemPrompt:    sql.NullString{String: "test prompt", Valid: true},
-		PromptMode:            sql.NullString{String: "standard", Valid: true},
+		PromptMode:            "standard",
 		Cost:                  1.5,
 		CreatedAt:             time.Now().Unix(),
 		UpdatedAt:             time.Now().Unix(),
@@ -115,35 +115,6 @@ func TestCreate(t *testing.T) {
 	assert.Equal(t, title, session.Title)
 	assert.Equal(t, customSystemPrompt, session.CustomSystemPrompt)
 	assert.Equal(t, promptMode, session.PromptMode)
-
-	mockQuerier.AssertExpectations(t)
-}
-
-// Test Fork method
-func TestFork(t *testing.T) {
-	svc, mockQuerier := createTestService(t)
-
-	sourceSessionID := uuid.New().String()
-	title := "Forked Session"
-
-	sourceSession := createTestGetSessionByIDRow()
-	sourceSession.ID = sourceSessionID
-
-	createRow := createTestCreateSessionRow()
-	createRow.ParentSessionID = sql.NullString{String: sourceSessionID, Valid: true}
-	createRow.Title = title
-
-	mockQuerier.On("GetSessionByID", mock.Anything, sourceSessionID).
-		Return(sourceSession, nil)
-	mockQuerier.On("CreateSession", mock.Anything, mock.AnythingOfType("db.CreateSessionParams")).
-		Return(createRow, nil)
-
-	session, err := svc.Fork(context.Background(), sourceSessionID, title)
-
-	require.NoError(t, err)
-	assert.Equal(t, createRow.ID, session.ID)
-	assert.Equal(t, title, session.Title)
-	assert.Equal(t, sourceSessionID, session.ParentSessionID)
 
 	mockQuerier.AssertExpectations(t)
 }
@@ -184,7 +155,7 @@ func TestList(t *testing.T) {
 			PromptTokens:          100,
 			CompletionTokens:      200,
 			CustomSystemPrompt:    sql.NullString{String: "", Valid: false},
-			PromptMode:            sql.NullString{String: "", Valid: false},
+			PromptMode:            "",
 			Cost:                  1.5,
 			CreatedAt:             time.Now().Unix(),
 			UpdatedAt:             time.Now().Unix(),
@@ -238,7 +209,7 @@ func TestSave(t *testing.T) {
 		PromptTokens:       session.PromptTokens,
 		CompletionTokens:   session.CompletionTokens,
 		CustomSystemPrompt: sql.NullString{String: session.CustomSystemPrompt, Valid: true},
-		PromptMode:         sql.NullString{String: session.PromptMode, Valid: true},
+		PromptMode:         session.PromptMode,
 		Cost:               session.Cost,
 		CreatedAt:          session.CreatedAt,
 		UpdatedAt:          session.UpdatedAt,
@@ -320,7 +291,7 @@ func TestFromListSessionsMetadataRow(t *testing.T) {
 		PromptTokens:          100,
 		CompletionTokens:      200,
 		CustomSystemPrompt:    sql.NullString{String: "test prompt", Valid: true},
-		PromptMode:            sql.NullString{String: "standard", Valid: true},
+		PromptMode:            "standard",
 		Cost:                  1.5,
 		CreatedAt:             time.Now().Unix(),
 		UpdatedAt:             time.Now().Unix(),

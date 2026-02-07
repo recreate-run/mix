@@ -281,11 +281,12 @@ func (acs *APICredentialsService) DeleteAllCredentials(ctx context.Context) erro
 
 // supportedProviders defines the providers we support for API key storage
 var supportedProviders = map[models.ModelProvider]struct{}{
-	models.ProviderAnthropic:  {},
-	models.ProviderOpenAI:     {},
-	models.ProviderOpenRouter: {},
-	models.ProviderGemini:     {},
-	"brave":                   {}, // External tool provider
+	models.ProviderAnthropic:     {},
+	models.ProviderAzureFoundry:  {},
+	models.ProviderOpenAI:        {},
+	models.ProviderOpenRouter:    {},
+	models.ProviderGemini:        {},
+	"brave":                      {}, // External tool provider
 }
 
 // ClearCache removes all entries from the credentials cache
@@ -337,7 +338,7 @@ func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, 
 
 	// Check if provider is supported
 	if _, exists := supportedProviders[provider]; !exists {
-		return fmt.Errorf("provider %s not supported. Supported providers: anthropic, openai, openrouter, gemini", provider)
+		return fmt.Errorf("provider %s not supported. Supported providers: anthropic, azure-foundry, openai, openrouter, gemini", provider)
 	}
 
 	// Basic format validation per provider
@@ -345,6 +346,11 @@ func (acs *APICredentialsService) ValidateAPIKey(provider models.ModelProvider, 
 	case models.ProviderAnthropic:
 		if len(apiKey) < 40 || !strings.HasPrefix(apiKey, "sk-ant-") {
 			return fmt.Errorf("invalid Anthropic API key format")
+		}
+	case models.ProviderAzureFoundry:
+		// Azure Foundry API keys are long alphanumeric strings
+		if len(apiKey) < 50 {
+			return fmt.Errorf("invalid Azure Foundry API key format")
 		}
 	case models.ProviderOpenAI:
 		if len(apiKey) < 40 || !strings.HasPrefix(apiKey, "sk-") {

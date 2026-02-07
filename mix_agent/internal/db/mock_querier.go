@@ -166,11 +166,6 @@ func (m *MockQuerier) ListMessagesBySession(ctx context.Context, sessionID strin
 	return args.Get(0).([]Message), args.Error(1)
 }
 
-func (m *MockQuerier) ListMessagesForFork(ctx context.Context, arg ListMessagesForForkParams) ([]Message, error) {
-	args := m.Called(ctx, arg)
-	return args.Get(0).([]Message), args.Error(1)
-}
-
 func (m *MockQuerier) ListUserMessageHistory(ctx context.Context, arg ListUserMessageHistoryParams) ([]Message, error) {
 	args := m.Called(ctx, arg)
 	return args.Get(0).([]Message), args.Error(1)

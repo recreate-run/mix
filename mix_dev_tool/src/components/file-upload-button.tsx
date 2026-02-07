@@ -9,7 +9,7 @@ import { getFileTypeFromExtension } from "@/utils/fileTypes";
 interface FileUploadButtonProps {
 	sessionId: string;
 	className?: string;
-	onUploadSuccess?: (fileName: string) => void;
+	onUploadSuccess?: (fileName: string, fileUrl: string) => void;
 	onUploadError?: (error: string) => void;
 	enableDropZone?: boolean;
 	dropZoneClassName?: string;
@@ -41,13 +41,13 @@ export function FileUploadButton({
 				id: `file:${result.name}`,
 				name: result.name,
 				type: getFileTypeFromExtension(result.name),
-				path: `/api/sessions/${sessionId}/files/${result.name}`,
+				path: result.url, // Use URL from backend
 				extension: result.name.split(".").pop(),
 				isDirectory: false,
 			});
 
 			// Call success callback
-			onUploadSuccess?.(result.name);
+			onUploadSuccess?.(result.name, result.url);
 		} catch (error) {
 			console.error(`Failed to upload file ${file.name}:`, error);
 			const errorMessage =

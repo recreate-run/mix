@@ -24,15 +24,6 @@ export const createFileAttachment = (
 	};
 };
 
-// URL building utilities
-export const buildSessionFileUrl = (
-	sessionId: string,
-	fileName: string,
-): string => {
-	const backendUrl = import.meta.env.VITE_BACKEND_URL;
-	return `${backendUrl}/api/sessions/${sessionId}/files/${fileName}`;
-};
-
 // Text reference utilities
 export const expandFileReferences = (
 	text: string,

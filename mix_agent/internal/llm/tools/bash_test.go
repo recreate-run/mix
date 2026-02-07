@@ -57,7 +57,7 @@ func (m *MockPermissionService) Request(opts permission.CreatePermissionRequest)
 
 // Test bash constants
 func TestBashConstants(t *testing.T) {
-	assert.Equal(t, "bash", BashToolName)
+	assert.Equal(t, "Bash", BashToolName)
 	assert.Equal(t, 1*60*1000, DefaultTimeout)
 	assert.Equal(t, 10*60*1000, MaxTimeout)
 	assert.Equal(t, 30000, MaxOutputLength)
@@ -246,7 +246,7 @@ func TestBashToolRunInvalidJSON(t *testing.T) {
 
 	response, err := tool.Run(ctx, call)
 
-	require.NoError(t, err) // The function returns an error response, not an error
+	require.Error(t, err) // The function returns an error for invalid JSON
 	assert.True(t, response.IsError)
 	assert.Contains(t, response.Content, "invalid parameters")
 }

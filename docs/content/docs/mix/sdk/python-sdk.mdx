@@ -590,26 +590,6 @@ class EditResponseMetadata(BaseModel):
     removals: int    # Number of lines removed
 ```
 
-### python_execution
-
-Execute Python code in a sandboxed environment.
-
-**Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `code` | `str` | Required | The Python code to execute |
-
-**Response:**
-
-```python
-class PythonExecutionResult(BaseModel):
-    type: str          # Always "code_execution_result"
-    stdout: str        # Standard output
-    stderr: str        # Standard error
-    return_code: int   # Exit code (0 = success)
-```
-
 ### search
 
 Perform web, image, or video searches.

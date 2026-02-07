@@ -27,6 +27,7 @@ type App struct {
 	Analytics       analytics.Service
 	StorageConfig   session.Config
 	StorageProvider storage.Provider
+	BaseURL         string // Base URL for constructing file URLs
 
 	CoderAgent agent.Service
 }
@@ -99,6 +100,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 		Analytics:       analyticsService,
 		StorageConfig:   storageConfig,
 		StorageProvider: storageProvider,
+		BaseURL:         cfg.BaseURL,
 	}
 
 	// Create MCP manager for this agent
@@ -135,16 +137,8 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string
 		fmt.Println("Processing...")
 	}
 
-	const maxPromptLengthForTitle = 100
 	titlePrefix := "Non-interactive: "
-	var titleSuffix string
-
-	if len(prompt) > maxPromptLengthForTitle {
-		titleSuffix = prompt[:maxPromptLengthForTitle] + "..."
-	} else {
-		titleSuffix = prompt
-	}
-	title := titlePrefix + titleSuffix
+	title := session.TruncateTitle(titlePrefix + prompt)
 
 	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "")
 	if err != nil {

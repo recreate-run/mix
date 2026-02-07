@@ -135,12 +135,13 @@ jobs:
     container: ghcr.io/railwayapp/cli:latest
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SVC_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Deploy to Railway Production
-        run: railway up --service=${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        run: railway up --service=${{ env.SVC_ID }} --detach
 
   # Test cross-platform builds (for PRs and non-tag pushes)
   test-build:

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useBoundStore } from "@/stores";
 import type { Attachment } from "@/stores/attachmentSlice";
-import { buildSessionFileUrl } from "@/utils/attachmentUtils";
 import { useSessionFiles } from "./useSessionFiles";
 
 export function useFileReference(
@@ -42,18 +41,13 @@ export function useFileReference(
 		words[words.length - 1] = `${displayReference} `;
 		const newText = words.join(" ");
 
-		// Build full URL using centralized utility
-		const sessionFilePath = `/api/sessions/${sessionId}/files/${file.name}`;
-		const fullUrl = buildSessionFileUrl(sessionId, file.name);
+		// Use URL from file object (already set by useSessionFiles)
+		const fullUrl = file.path || "";
 
 		// Add to attachment store
-		addAttachment({
-			...file,
-			// Ensure proper session file path for serving
-			path: sessionFilePath,
-		});
+		addAttachment(file);
 
-		// Add reference mapping with full URL to ensure consistency with media array
+		// Add reference mapping with full URL from backend
 		addReference(displayReference, fullUrl);
 		setText(newText);
 	};

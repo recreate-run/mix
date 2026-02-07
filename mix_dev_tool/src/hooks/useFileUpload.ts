@@ -12,6 +12,7 @@ interface FileUploadResult {
 	size: number;
 	modified: number;
 	isDir: boolean;
+	url: string; // Full absolute URL returned from backend
 }
 
 async function uploadFile({
@@ -30,6 +31,7 @@ async function uploadFile({
 		size: response.size,
 		modified: response.modified,
 		isDir: response.isDir,
+		url: response.url,
 	};
 }
 

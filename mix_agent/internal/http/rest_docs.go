@@ -28,7 +28,6 @@ func serveOpenAPISpec(w http.ResponseWriter) {
 type OpenAPISpec struct {
 	OpenAPI           string                 `json:"openapi"`
 	Info              OpenAPIInfo            `json:"info"`
-	Servers           []OpenAPIServer        `json:"servers"`
 	XSpeakeasyRetries map[string]interface{} `json:"x-speakeasy-retries"`
 	Paths             map[string]interface{} `json:"paths"`
 	Components        OpenAPIComponents      `json:"components"`
@@ -38,11 +37,6 @@ type OpenAPIInfo struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Version     string `json:"version"`
-}
-
-type OpenAPIServer struct {
-	URL         string `json:"url"`
-	Description string `json:"description"`
 }
 
 type OpenAPIComponents struct {
@@ -59,12 +53,6 @@ func getOpenAPISpec() OpenAPISpec {
 			Title:       "Mix REST API",
 			Description: "REST API for the Mix application - session management, messaging, and system operations",
 			Version:     "1.0.0",
-		},
-		Servers: []OpenAPIServer{
-			{
-				URL:         "http://localhost:8088",
-				Description: "Development server",
-			},
 		},
 		XSpeakeasyRetries: map[string]interface{}{
 			"strategy": "backoff",
@@ -134,7 +122,7 @@ func getOpenAPISpec() OpenAPISpec {
 								"type":        "string",
 								"enum":        []string{"main"},
 								"default":     "main",
-								"description": "Session type. API can only create 'main' sessions. Forked sessions are created via /fork endpoint. Subagent sessions are created automatically by the task delegation system.",
+								"description": "Session type. API can only create 'main' sessions. Subagent sessions are created automatically by the task delegation system.",
 								"example":     "main",
 							},
 							"subagentType": map[string]interface{}{
@@ -206,7 +194,7 @@ func getOpenAPISpec() OpenAPISpec {
 											"value": map[string]interface{}{
 												"error": map[string]interface{}{
 													"code":    400,
-													"message": "API can only create main sessions. Use /fork endpoint for forked sessions. Subagent sessions are created automatically.",
+													"message": "API can only create main sessions. Subagent sessions are created automatically.",
 													"type":    "validation_error",
 												},
 											},
@@ -255,37 +243,6 @@ func getOpenAPISpec() OpenAPISpec {
 							"description": "Session deleted successfully",
 						},
 						"404": createErrorResponse("Session not found"),
-					},
-				},
-			},
-			"/api/sessions/{id}/fork": map[string]interface{}{
-				"post": map[string]interface{}{
-					"operationId": "forkSession",
-					"summary":     "Fork a session",
-					"description": "Create a new session based on an existing session, copying messages up to a specified index",
-					"tags":        []string{"Sessions"},
-					"parameters": []map[string]interface{}{
-						createPathParameter("id", "Source session ID to fork from"),
-					},
-					"requestBody": createRequestBody(map[string]interface{}{
-						"type":     "object",
-						"required": []string{"messageIndex"},
-						"properties": map[string]interface{}{
-							"messageIndex": map[string]interface{}{
-								"type":        "integer",
-								"minimum":     0,
-								"description": "Index of the last message to include in the fork (0-based)",
-							},
-							"title": map[string]interface{}{
-								"type":        "string",
-								"description": "Optional title for the forked session (defaults to 'Forked Session')",
-							},
-						},
-					}),
-					"responses": map[string]interface{}{
-						"201": createSuccessResponse("object", getSessionDataSchema(), "Forked session"),
-						"400": createErrorResponse("Invalid request - messageIndex must be >= 0"),
-						"404": createErrorResponse("Source session not found"),
 					},
 				},
 			},
@@ -704,8 +661,8 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"provider": map[string]interface{}{
 								"type":        "string",
-								"description": "Provider name (anthropic, openai, openrouter, gemini, brave)",
-								"enum":        []string{"anthropic", "openai", "openrouter", "gemini", "brave"},
+								"description": "Provider name (anthropic, azure-foundry, openai, openrouter, gemini, brave)",
+								"enum":        []string{"anthropic", "azure-foundry", "openai", "openrouter", "gemini", "brave"},
 							},
 							"api_key": map[string]interface{}{
 								"type":        "string",
@@ -1031,7 +988,7 @@ func getOpenAPISpec() OpenAPISpec {
 									"properties": map[string]interface{}{
 										"preferred_provider": map[string]interface{}{
 											"type":        "string",
-											"description": "Preferred AI provider (anthropic, openai, openrouter)",
+											"description": "Preferred AI provider (anthropic, azure-foundry, openai, openrouter)",
 										},
 										"main_agent_model": map[string]interface{}{
 											"type":        "string",
@@ -1101,7 +1058,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"properties": map[string]interface{}{
 							"preferred_provider": map[string]interface{}{
 								"type":        "string",
-								"description": "Preferred AI provider (anthropic, openai, openrouter)",
+								"description": "Preferred AI provider (anthropic, azure-foundry, openai, openrouter)",
 							},
 							"main_agent_model": map[string]interface{}{
 								"type":        "string",
@@ -1667,8 +1624,7 @@ func getOpenAPISpec() OpenAPISpec {
 				"CoreToolName": map[string]interface{}{
 					"type": "string",
 					"enum": []string{
-						"Bash", "ReadText", "Glob", "ReadMedia", "Grep", "Write", "Edit",
-						"python_execution", "Search", "TodoWrite", "ExitPlanMode",
+						"Bash", "ReadText", "Glob", "ReadMedia", "Grep", "Write", "Edit", "Search", "TodoWrite", "ExitPlanMode",
 						"Show", "Task",
 					},
 					"description": "Core built-in tool names",
@@ -1782,7 +1738,7 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 						"parentSessionId": map[string]interface{}{
 							"type":        "string",
-							"description": "Parent session ID for forked and subagent sessions (null for main sessions)",
+							"description": "Parent session ID for subagent sessions (null for main sessions)",
 						},
 						"parentToolCallId": map[string]interface{}{
 							"type":        "string",
@@ -1794,8 +1750,8 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 						"sessionType": map[string]interface{}{
 							"type":        "string",
-							"enum":        []string{"main", "forked", "subagent"},
-							"description": "Session type:\n- 'main': Root-level user interactions\n- 'forked': User-created conversation branches\n- 'subagent': Delegated task workers",
+							"enum":        []string{"main", "subagent"},
+							"description": "Session type:\n- 'main': Root-level user interactions\n- 'subagent': Delegated task workers",
 						},
 						"subagentType": map[string]interface{}{
 							"type":        "string",

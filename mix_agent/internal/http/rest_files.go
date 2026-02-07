@@ -11,10 +11,6 @@ import (
 	"mix/internal/session"
 )
 
-const (
-	schemeHTTPS = "https"
-)
-
 // FileInfo represents information about a file in session storage
 type FileInfo struct {
 	Name         string  `json:"name"`                   // The stored filename (sanitized)
@@ -128,19 +124,13 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Construct absolute URL from request
-	scheme := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == schemeHTTPS {
-		scheme = schemeHTTPS
-	}
-	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
-
+	// Use configured base URL for constructing file URLs
 	result := FileInfo{
 		Name:     filename,
 		Size:     uploadedFileInfo.Size,
 		Modified: 0, // Storage provider doesn't track modification time
 		IsDir:    false,
-		URL:      fmt.Sprintf("%s/api/sessions/%s/files/%s", baseURL, sessionID, filename),
+		URL:      fmt.Sprintf("%s/api/sessions/%s/files/%s", h.app.BaseURL, sessionID, filename),
 	}
 
 	// Include original filename if it was different from stored name
@@ -211,14 +201,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Construct absolute URL from request
-	scheme := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == schemeHTTPS {
-		scheme = schemeHTTPS
-	}
-	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
-
-	// Build file list
+	// Build file list using configured base URL
 	files := make([]FileInfo, 0, len(storageFiles))
 	for _, storageFile := range storageFiles {
 		// Skip thumbnail files - they should not be visible in file listings
@@ -233,7 +216,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 			Size:     storageFile.Size,
 			Modified: 0, // Storage provider doesn't track modification time
 			IsDir:    false,
-			URL:      fmt.Sprintf("%s/api/sessions/%s/files/%s", baseURL, sessionID, name),
+			URL:      fmt.Sprintf("%s/api/sessions/%s/files/%s", h.app.BaseURL, sessionID, name),
 		})
 	}
 

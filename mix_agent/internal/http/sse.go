@@ -250,7 +250,7 @@ func HandleSSEStream(ctx context.Context, application *app.App, w http.ResponseW
 			for sessionEvent := range sessionEvents {
 				switch sessionEvent.Type {
 				case pubsub.CreatedEvent:
-					// Only broadcast session_created for main and forked sessions
+					// Only broadcast session_created for main sessions
 					// Subagent sessions are internal implementation details
 					if sessionEvent.Payload.SessionType == session.SessionTypeSubagent {
 						continue

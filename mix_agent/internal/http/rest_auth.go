@@ -84,7 +84,7 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 
 	// Validate provider - only allow supported providers
 	if _, exists := supportedProviders[request.Provider]; !exists {
-		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter, gemini", "INVALID_PROVIDER")
+		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, azure-foundry, openai, openrouter, gemini", "INVALID_PROVIDER")
 		return
 	}
 
@@ -153,7 +153,7 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 
 	// Validate provider - only allow supported providers
 	if _, exists := supportedProviders[provider]; !exists {
-		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter, gemini", "INVALID_PROVIDER")
+		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, azure-foundry, openai, openrouter, gemini", "INVALID_PROVIDER")
 		return
 	}
 
@@ -238,7 +238,7 @@ func (h *AuthHandler) HandleStartOAuth(w http.ResponseWriter, r *http.Request) {
 
 	// Validate provider - only allow supported providers
 	if _, exists := supportedProviders[provider]; !exists {
-		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, openai, openrouter, gemini", "INVALID_PROVIDER")
+		WriteErrorResponse(w, http.StatusBadRequest, "Provider not supported. Supported providers: anthropic, azure-foundry, openai, openrouter, gemini", "INVALID_PROVIDER")
 		return
 	}
 
@@ -337,6 +337,7 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 // supportedProviders defines the limited set of providers we support
 var supportedProviders = map[string]struct{}{
 	providerAnthropic: {},
+	"azure-foundry":   {},
 	"openai":          {},
 	"openrouter":      {},
 	"gemini":          {},
@@ -501,6 +502,7 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 		supportsOAuth bool
 	}{
 		{providerAnthropic, models.ProviderAnthropic, "Anthropic", true},
+		{"azure-foundry", models.ProviderAzureFoundry, "Azure Foundry", false},
 		{"openai", models.ProviderOpenAI, "OpenAI", false},
 		{"openrouter", models.ProviderOpenRouter, "OpenRouter", false},
 		// {"gemini", models.ProviderGemini, "Google Gemini", false},

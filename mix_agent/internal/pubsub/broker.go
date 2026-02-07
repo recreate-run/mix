@@ -9,7 +9,7 @@ import (
 
 var ErrBrokerClosed = errors.New("pubsub broker is closed")
 
-const bufferSize = 64
+const bufferSize = 256
 
 type Broker[T any] struct {
 	subs      map[chan Event[T]]struct{}
