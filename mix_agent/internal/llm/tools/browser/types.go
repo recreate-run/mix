@@ -4,6 +4,7 @@ package browser
 const (
 	ActionOpen        = "open"
 	ActionScreenshot  = "screenshot"
+	ActionReadPage    = "read_page"
 	ActionClick       = "click"
 	ActionType        = "type"
 	ActionScroll      = "scroll"
@@ -32,9 +33,10 @@ const (
 
 // BrowserParams represents the parameters for browser tool operations
 type BrowserParams struct {
-	Action      string `json:"action"`                // Required: open|screenshot|click|type|scroll|upload|get_text|find|close|right_click|double_click|form_input|go_back|go_forward|tab_create|tab_list|tab_switch|tab_close
-	URL         string `json:"url,omitempty"`         // For open action
-	WithOverlay *bool  `json:"withOverlay,omitempty"` // For screenshot (default: true)
+	Action          string `json:"action"`                    // Required: open|screenshot|read_page|click|type|scroll|upload|get_text|find|close|right_click|double_click|form_input|go_back|go_forward|tab_create|tab_list|tab_switch|tab_close
+	URL             string `json:"url,omitempty"`             // For open action
+	WithOverlay     *bool  `json:"withOverlay,omitempty"`     // For screenshot (default: true)
+	InteractiveOnly *bool  `json:"interactiveOnly,omitempty"` // For read_page action (default: false)
 	Index       int    `json:"index,omitempty"`       // For click/type/upload/right_click/double_click/form_input actions
 	Text        string `json:"text,omitempty"`        // For type action
 	Direction   string `json:"direction,omitempty"`   // For scroll action (up/down/left/right)
