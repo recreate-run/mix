@@ -23,6 +23,7 @@ import (
 	"mix/internal/session"
 )
 
+
 // skipIfIntegrationTestsDisabled skips the test if integration tests are disabled
 func skipIfIntegrationTestsDisabled(t *testing.T) {
 	t.Helper()
@@ -120,7 +121,7 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 				backendIDBase := 1000
 
 				// Elements 0-19: In viewport (y: 0-800)
-				for i := 0; i < 20; i++ {
+				for i := range 20 {
 					role := roles[i%len(roles)]
 					rawNodes[i] = map[string]any{
 						"role":      role,
@@ -394,6 +395,29 @@ func startMockBrowserServer(t *testing.T) *mockBrowserServer {
 					}
 				}
 
+			case "Page.pressKey":
+				response.Result = map[string]any{
+					"success": true,
+				}
+
+			case "Page.scrollToElement", "Page.scrollIntoView":
+				response.Result = map[string]any{
+					"success": true,
+				}
+
+			case "Page.executeActions":
+				var params struct {
+					Actions []map[string]any `json:"actions"`
+				}
+				if paramData, err := json.Marshal(req.Params); err == nil {
+					_ = json.Unmarshal(paramData, &params)
+				}
+
+				response.Result = map[string]any{
+					"success":        true,
+					"actionsExecuted": len(params.Actions),
+				}
+
 			default:
 				response.Error = &browserprotocol.Error{
 					Code:    -1,
@@ -431,6 +455,18 @@ func (mbs *mockBrowserServer) Close() {
 	mbs.server.Close()
 }
 
+// close is an alias for Close to match test expectations
+func (mbs *mockBrowserServer) close() {
+	mbs.Close()
+}
+
+// getRequestCount returns the number of requests received
+func (mbs *mockBrowserServer) getRequestCount() int {
+	mbs.mu.Lock()
+	defer mbs.mu.Unlock()
+	return mbs.requestCount
+}
+
 // GetLastClickedBackendID returns the last clicked backend ID
 func (mbs *mockBrowserServer) GetLastClickedBackendID() int64 {
 	mbs.mu.Lock()
@@ -449,7 +485,7 @@ func TestBrowserToolIntegrationFullWorkflow(t *testing.T) {
 	// Create tool
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	// Create test context and temporary directory
 	tempDir := t.TempDir()
@@ -569,7 +605,7 @@ func TestBrowserToolIntegrationScreenshotOverlay(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -585,34 +621,32 @@ func TestBrowserToolIntegrationScreenshotOverlay(t *testing.T) {
 	_, err := tool.Run(ctx, openCall)
 	require.NoError(t, err)
 
-	// Screenshot with overlay (default)
+	// Screenshot (raw mode)
 	t.Run("with overlay", func(t *testing.T) {
 		call := interfaces.ToolCall{
 			ID:    "call-screenshot-1",
 			Name:  BrowserToolName,
-			Input: `{"action": "screenshot", "withOverlay": true}`,
-		}
-
-		response, err := tool.Run(ctx, call)
-		require.NoError(t, err)
-		assert.False(t, response.IsError)
-		assert.Contains(t, response.Content, "interactive elements")
-		assert.Contains(t, response.Content, "Element details:")
-	})
-
-	// Screenshot without overlay
-	t.Run("without overlay", func(t *testing.T) {
-		call := interfaces.ToolCall{
-			ID:    "call-screenshot-2",
-			Name:  BrowserToolName,
-			Input: `{"action": "screenshot", "withOverlay": false}`,
+			Input: `{"action": "screenshot"}`,
 		}
 
 		response, err := tool.Run(ctx, call)
 		require.NoError(t, err)
 		assert.False(t, response.IsError)
 		assert.Contains(t, response.Content, "Screenshot captured successfully")
-		assert.NotContains(t, response.Content, "Element details:")
+	})
+
+	// Screenshot without overlay (same behavior as raw mode doesn't support overlay)
+	t.Run("without overlay", func(t *testing.T) {
+		call := interfaces.ToolCall{
+			ID:    "call-screenshot-2",
+			Name:  BrowserToolName,
+			Input: `{"action": "screenshot"}`,
+		}
+
+		response, err := tool.Run(ctx, call)
+		require.NoError(t, err)
+		assert.False(t, response.IsError)
+		assert.Contains(t, response.Content, "Screenshot captured successfully")
 	})
 }
 
@@ -624,7 +658,7 @@ func TestBrowserToolIntegrationServiceDown(t *testing.T) {
 	sessionConfig := session.DefaultConfig()
 
 	// Use invalid endpoint
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:99999", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:99999", sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -640,7 +674,7 @@ func TestBrowserToolIntegrationServiceDown(t *testing.T) {
 	response, err := tool.Run(ctx, call)
 	require.NoError(t, err)
 	assert.True(t, response.IsError)
-	assert.Contains(t, response.Content, "Failed to connect to browser service")
+	assert.Contains(t, response.Content, "Failed to get browser client")
 }
 
 // Test session isolation - multiple sessions should have separate connections
@@ -652,7 +686,7 @@ func TestBrowserToolIntegrationSessionIsolation(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	mockPermissionService.On("Request", mock.Anything).Return(true)
 
@@ -720,7 +754,7 @@ func TestBrowserToolIntegrationConnectionReuse(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -739,7 +773,7 @@ func TestBrowserToolIntegrationConnectionReuse(t *testing.T) {
 	initialRequestCount := mockServer.requestCount
 
 	// Take multiple screenshots - should reuse same connection
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		screenshotCall := interfaces.ToolCall{
 			ID:    fmt.Sprintf("call-screenshot-%d", i),
 			Name:  BrowserToolName,
@@ -763,7 +797,7 @@ func TestBrowserToolIntegrationScrollDefaultAmount(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -801,7 +835,7 @@ func TestBrowserToolIntegrationScrollDirections(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -844,7 +878,7 @@ func TestBrowserToolIntegrationTimeout(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 
@@ -884,7 +918,7 @@ func TestBrowserToolIntegrationScreenshotURL(t *testing.T) {
 	// Set custom base URL
 	t.Setenv("FRONTEND_URL", "https://custom.example.com")
 
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session-123", "test-message", tempDir)
@@ -923,7 +957,7 @@ func TestBrowserToolIntegrationFileUpload(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -1011,7 +1045,7 @@ func TestBrowserToolIntegrationTextExtraction(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -1072,7 +1106,7 @@ func TestBrowserToolIntegrationDOMSearch(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -1180,7 +1214,7 @@ func TestBrowserToolIntegrationDOMSearchNoResults(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -1219,7 +1253,7 @@ func TestElementCacheAccuracy(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -1248,12 +1282,15 @@ func TestElementCacheAccuracy(t *testing.T) {
 	browserTool, ok := tool.(*browserTool)
 	require.True(t, ok, "Failed to cast tool to *browserTool")
 
-	// Get the active tab ID
-	activeTabID, err := browserTool.getActiveTabID(ctx, "test-session")
+	// Get the active tab ID by listing tabs
+	client, err := browserTool.getClient(ctx, "test-session")
 	require.NoError(t, err)
+	tabListResult, err := client.ListTabs(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, tabListResult.ActiveTabID, "Active tab ID should not be empty")
 
 	// Extract element cache for current tab
-	cacheKey := "test-session_" + activeTabID
+	cacheKey := "test-session_" + tabListResult.ActiveTabID
 	browserTool.cacheMu.RLock()
 	cache, exists := browserTool.elementCache[cacheKey]
 	browserTool.cacheMu.RUnlock()
@@ -1280,7 +1317,7 @@ func TestElementCacheAccuracy(t *testing.T) {
 	}
 
 	// Verify sequential visual indices 0-19 are all present
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		_, found := cache[i]
 		require.True(t, found, "Visual index should be in cache")
 	}
@@ -1296,7 +1333,7 @@ func TestClickWithViewportFiltering(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -1354,7 +1391,7 @@ func TestReadPageAttributeFormatting(t *testing.T) {
 	mockServer := startMockBrowserServer(t)
 	defer mockServer.Close()
 
-	tool := NewBrowserTool(&MockPermissionService{}, mockServer.wsURL, session.DefaultConfig())
+	tool := NewBrowserTool(&MockPermissionService{}, mockServer.wsURL, session.DefaultConfig(), "", mockClientFactory, nil, nil)
 	ctx := createBrowserTestContext("test-session", "test-message", t.TempDir())
 
 	// Navigate first

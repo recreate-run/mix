@@ -5,13 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 
 	"mix/internal/analytics"
+	browserpkg "mix/internal/browser"
 	"mix/internal/config"
 	"mix/internal/db"
 	"mix/internal/format"
 	"mix/internal/history"
 	"mix/internal/llm/agent"
+	"mix/internal/llm/tools/browser"
 	"mix/internal/logging"
 	"mix/internal/message"
 	storage "mix/internal/mix_storage"
@@ -31,7 +34,10 @@ type App struct {
 	StorageProvider storage.Provider
 	BaseURL         string // Base URL for constructing file URLs
 
-	CoderAgent agent.Service
+	CoderAgent        agent.Service
+	TunnelRegistry    interface{} // *http.TunnelRegistry (avoid circular import)
+	BrowserMode       string      // "tunnel" or "service"
+	BrowserServiceURL string      // URL for browser-service
 }
 
 func New(ctx context.Context, conn *sql.DB) (*App, error) {
@@ -94,20 +100,45 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	// Wrap message service with tracking
 	messages := message.NewTrackingService(baseMessageService, analyticsService)
 
+	// Get browser mode from environment variable
+	browserMode := os.Getenv("BROWSER_MODE")
+	if browserMode == "" {
+		browserMode = browserpkg.ModeService // Default to service mode
+	}
+
+	// Get browser service URL from environment
+	browserServiceURL := os.Getenv("BROWSER_SERVICE_URL")
+	if browserServiceURL == "" && browserMode == browserpkg.ModeService {
+		return nil, fmt.Errorf("BROWSER_SERVICE_URL environment variable is required for service mode")
+	}
+
 	app := &App{
-		Sessions:        sessions,
-		Messages:        messages,
-		History:         files,
-		Permissions:     permission.NewPermissionService(sessions, storageConfig),
-		Notifications:   notification.NewService(sessions),
-		Analytics:       analyticsService,
-		StorageConfig:   storageConfig,
-		StorageProvider: storageProvider,
-		BaseURL:         cfg.BaseURL,
+		Sessions:          sessions,
+		Messages:          messages,
+		History:           files,
+		Permissions:       permission.NewPermissionService(sessions, storageConfig),
+		Notifications:     notification.NewService(sessions),
+		Analytics:         analyticsService,
+		StorageConfig:     storageConfig,
+		StorageProvider:   storageProvider,
+		BaseURL:           cfg.BaseURL,
+		BrowserMode:       browserMode,
+		BrowserServiceURL: browserServiceURL,
 	}
 
 	// Create MCP manager for this agent
 	mcpManager := agent.NewMCPClientManager()
+
+	// Create browser connection manager (for service mode)
+	var browserConnectionManager interface{}
+	if browserMode == browserpkg.ModeService {
+		// Import will be needed for this - we'll add it below
+		// For now, create it as interface{} to avoid circular import
+		browserConnectionManager = createBrowserConnectionManager(browserServiceURL)
+	}
+
+	// Create browser client factory with connection manager
+	browserClientFactory := app.createBrowserClientFactory(browserConnectionManager)
 
 	app.CoderAgent, err = agent.NewAgent(
 		config.AgentMain,
@@ -120,6 +151,11 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 			app.Messages,
 			app.History,
 			mcpManager,
+			app.BrowserMode,
+			app.BrowserServiceURL,
+			browserClientFactory,
+			browserConnectionManager,
+			func() interface{} { return app.TunnelRegistry }, // Closure that looks up current value
 		),
 		storageConfig,
 		app.Permissions, // Pass permissions for callback executor
@@ -130,6 +166,25 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	}
 
 	return app, nil
+}
+
+// createBrowserClientFactory creates a factory function for browser clients
+func (app *App) createBrowserClientFactory(connectionManager interface{}) func(sessionID string) (browserpkg.Client, error) {
+	return func(sessionID string) (browserpkg.Client, error) {
+		factoryConfig := browserpkg.FactoryConfig{
+			Mode:              app.BrowserMode,
+			BrowserServiceURL: app.BrowserServiceURL,
+			TunnelRegistry:    app.TunnelRegistry,
+			ConnectionManager: connectionManager,
+		}
+
+		return browserpkg.NewClient(factoryConfig, sessionID)
+	}
+}
+
+// createBrowserConnectionManager creates a connection manager for browser-service
+func createBrowserConnectionManager(serviceURL string) interface{} {
+	return browser.NewConnectionManager(serviceURL)
 }
 
 // Removed theme initialization for embedded binary

@@ -24,6 +24,9 @@ const (
 	ActionTabSwitch   = "tab_switch"
 	ActionTabClose    = "tab_close"
 	ActionWait        = "wait"
+	ActionKey         = "key"
+	ActionScrollTo    = "scroll_to"
+	ActionSequence    = "action"
 )
 
 // Scroll direction constants
@@ -33,6 +36,42 @@ const (
 	DirectionLeft  = "left"
 	DirectionRight = "right"
 )
+
+// Point represents an x,y coordinate
+type Point struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// SubAction represents a single action in an action sequence
+type SubAction struct {
+	Type         string   `json:"type"`                   // Action type: left_click, type, key, scroll_to, etc.
+	Index        *int     `json:"index,omitempty"`        // Element index
+	Coordinate   *Point   `json:"coordinate,omitempty"`   // Click coordinate
+	Text         string   `json:"text,omitempty"`         // For type action
+	Value        string   `json:"value,omitempty"`        // For form_input
+	Key          string   `json:"key,omitempty"`          // For key action
+	Direction    string   `json:"direction,omitempty"`    // For scroll
+	ScrollAmount int      `json:"scroll_amount,omitempty"` // For scroll
+	Duration     int      `json:"duration,omitempty"`     // For wait or drag
+	FromIndex    *int     `json:"fromIndex,omitempty"`    // For drag
+	ToIndex      *int     `json:"toIndex,omitempty"`      // For drag
+	FromX        *float64 `json:"fromX,omitempty"`        // For drag coordinates
+	FromY        *float64 `json:"fromY,omitempty"`
+	ToX          *float64 `json:"toX,omitempty"`
+	ToY          *float64 `json:"toY,omitempty"`
+	Repeat       int      `json:"repeat,omitempty"`    // For multiple clicks
+	FilePath     string   `json:"file_path,omitempty"` // For screenshot
+	Region       []int    `json:"region,omitempty"`    // For screenshot region
+}
+
+// SubActionResult represents the result of a single sub-action
+type SubActionResult struct {
+	Index   int    `json:"index"`
+	Type    string `json:"type"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
 
 // BrowserParams represents the parameters for browser tool operations
 type BrowserParams struct {
@@ -55,4 +94,10 @@ type BrowserParams struct {
 	FromY           *float64 `json:"fromY,omitempty"`         // For drag action (coordinate-based mode)
 	ToX             *float64 `json:"toX,omitempty"`           // For drag action (coordinate-based mode)
 	ToY             *float64 `json:"toY,omitempty"`           // For drag action (coordinate-based mode)
+
+	// NEW: For key action
+	Key string `json:"key,omitempty"` // Keyboard key(s) to press
+
+	// NEW: For action batching
+	Actions []SubAction `json:"actions,omitempty"` // Array of actions to execute
 }

@@ -55,6 +55,7 @@ func (m *MockPermissionService) Request(opts permission.CreatePermissionRequest)
 	return args.Bool(0)
 }
 
+
 // Test constants
 func TestBrowserConstants(t *testing.T) {
 	assert.Equal(t, "Browser", BrowserToolName)
@@ -149,7 +150,7 @@ func TestBrowserParamsJSONSerialization(t *testing.T) {
 func TestNewBrowserTool(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	assert.NotNil(t, tool)
 	assert.Implements(t, (*interfaces.BaseTool)(nil), tool)
@@ -166,7 +167,7 @@ func TestNewBrowserTool(t *testing.T) {
 func TestBrowserToolInfo(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	info := tool.Info()
 
@@ -227,7 +228,7 @@ func createBrowserTestContext(sessionID, messageID, storageDir string) context.C
 func TestBrowserToolRunInvalidJSON(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -247,7 +248,7 @@ func TestBrowserToolRunInvalidJSON(t *testing.T) {
 func TestBrowserToolRunMissingAction(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -267,7 +268,7 @@ func TestBrowserToolRunMissingAction(t *testing.T) {
 func TestBrowserToolRunUnknownAction(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -287,7 +288,7 @@ func TestBrowserToolRunUnknownAction(t *testing.T) {
 func TestBrowserToolRunContextValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	tests := []struct {
 		name        string
@@ -348,7 +349,7 @@ func TestBrowserToolRunContextValidation(t *testing.T) {
 func TestBrowserToolOpenValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	tests := []struct {
 		name     string
@@ -394,7 +395,7 @@ func TestBrowserToolOpenValidation(t *testing.T) {
 func TestBrowserToolFileURLSupport(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	// Create a temporary session directory and test file
 	sessionID := "test-session-123"
@@ -465,7 +466,7 @@ func TestBrowserToolFileURLSupport(t *testing.T) {
 func TestBrowserToolTypeValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -485,7 +486,7 @@ func TestBrowserToolTypeValidation(t *testing.T) {
 func TestBrowserToolScrollValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	tests := []struct {
 		name     string
@@ -530,7 +531,7 @@ func TestBrowserToolOpenPermissionDenied(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig)
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -617,4 +618,321 @@ func TestDefaultScrollAmount(t *testing.T) {
 		amount = 100
 	}
 	assert.Equal(t, 100, amount)
+}
+
+// Test new action constants
+func TestNewActionConstants(t *testing.T) {
+	assert.Equal(t, "key", ActionKey)
+	assert.Equal(t, "scroll_to", ActionScrollTo)
+	assert.Equal(t, "action", ActionSequence)
+}
+
+// Test key action validation
+func TestBrowserToolKeyValidation(t *testing.T) {
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+
+	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
+	call := interfaces.ToolCall{
+		ID:    "call-1",
+		Name:  BrowserToolName,
+		Input: `{"action": "key"}`,
+	}
+
+	response, err := tool.Run(ctx, call)
+
+	require.NoError(t, err)
+	assert.True(t, response.IsError)
+	assert.Contains(t, response.Content, "missing key parameter")
+}
+
+// Test key action with valid key parameter
+func TestBrowserToolKeyValidInput(t *testing.T) {
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+
+	tests := []struct {
+		name  string
+		input string
+		key   string
+	}{
+		{
+			name:  "single key",
+			input: `{"action": "key", "key": "Enter"}`,
+			key:   "Enter",
+		},
+		{
+			name:  "key combination",
+			input: `{"action": "key", "key": "cmd+a"}`,
+			key:   "cmd+a",
+		},
+		{
+			name:  "multiple keys",
+			input: `{"action": "key", "key": "Backspace Backspace"}`,
+			key:   "Backspace Backspace", //nolint:dupword // Intentional duplicate for testing multiple key presses
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
+			call := interfaces.ToolCall{
+				ID:    "call-1",
+				Name:  BrowserToolName,
+				Input: tt.input,
+			}
+
+			response, err := tool.Run(ctx, call)
+
+			// Will fail to connect to browser service, but validation should pass
+			require.NoError(t, err)
+			if response.IsError {
+				// Error should be about connection, not validation
+				assert.NotContains(t, response.Content, "missing key parameter")
+			}
+		})
+	}
+}
+
+// Test scroll_to action validation
+func TestBrowserToolScrollToValidation(t *testing.T) {
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+
+	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
+	call := interfaces.ToolCall{
+		ID:    "call-1",
+		Name:  BrowserToolName,
+		Input: `{"action": "scroll_to", "index": 5}`,
+	}
+
+	response, err := tool.Run(ctx, call)
+
+	// Will fail to connect to browser service, but should pass validation
+	require.NoError(t, err)
+	if response.IsError {
+		// Should be about connection or cache, not about missing index
+		// Index parameter should be properly extracted
+		assert.NotContains(t, response.Content, "missing index parameter")
+	}
+}
+
+// Test action sequence with empty actions array
+func TestBrowserToolActionSequenceEmptyArray(t *testing.T) {
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+
+	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
+	call := interfaces.ToolCall{
+		ID:    "call-1",
+		Name:  BrowserToolName,
+		Input: `{"action": "action", "actions": []}`,
+	}
+
+	response, err := tool.Run(ctx, call)
+
+	require.NoError(t, err)
+	assert.True(t, response.IsError)
+	assert.Contains(t, response.Content, "missing actions array")
+}
+
+// Test action sequence with valid actions
+func TestBrowserToolActionSequenceValidActions(t *testing.T) {
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+
+	input := `{
+		"action": "action",
+		"actions": [
+			{"type": "left_click", "index": 1},
+			{"type": "key", "key": "Enter"},
+			{"type": "wait", "duration": 100}
+		]
+	}`
+
+	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
+	call := interfaces.ToolCall{
+		ID:    "call-1",
+		Name:  BrowserToolName,
+		Input: input,
+	}
+
+	response, err := tool.Run(ctx, call)
+
+	// Will fail to connect to browser service, but validation should pass
+	require.NoError(t, err)
+	if response.IsError {
+		// Error should be about connection, not validation
+		assert.NotContains(t, response.Content, "missing actions array")
+	}
+}
+
+// Test BrowserParams JSON serialization for new fields
+func TestBrowserParamsNewFieldsSerialization(t *testing.T) {
+	tests := []struct {
+		name     string
+		params   BrowserParams
+		expected string
+	}{
+		{
+			name: "key action",
+			params: BrowserParams{
+				Action: ActionKey,
+				Key:    "Enter",
+			},
+			expected: `{"action":"key","key":"Enter"}`,
+		},
+		{
+			name: "key action with combination",
+			params: BrowserParams{
+				Action: ActionKey,
+				Key:    "cmd+a",
+			},
+			expected: `{"action":"key","key":"cmd+a"}`,
+		},
+		{
+			name: "scroll_to action",
+			params: BrowserParams{
+				Action: ActionScrollTo,
+				Index:  10,
+			},
+			expected: `{"action":"scroll_to","index":10}`,
+		},
+		{
+			name: "action sequence",
+			params: BrowserParams{
+				Action: ActionSequence,
+				Actions: []SubAction{
+					{Type: "left_click", Index: intPtr(1)},
+					{Type: "key", Key: "Enter"},
+				},
+			},
+			expected: `{"action":"action","actions":[{"type":"left_click","index":1},{"type":"key","key":"Enter"}]}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test marshaling
+			jsonData, err := json.Marshal(tt.params)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.expected, string(jsonData))
+
+			// Test unmarshaling
+			var params BrowserParams
+			err = json.Unmarshal(jsonData, &params)
+			require.NoError(t, err)
+			assert.Equal(t, tt.params.Action, params.Action)
+			if tt.params.Key != "" {
+				assert.Equal(t, tt.params.Key, params.Key)
+			}
+			if len(tt.params.Actions) > 0 {
+				assert.Len(t, params.Actions, len(tt.params.Actions))
+			}
+		})
+	}
+}
+
+// Test SubAction JSON serialization
+func TestSubActionSerialization(t *testing.T) {
+	tests := []struct {
+		name     string
+		action   SubAction
+		expected string
+	}{
+		{
+			name: "key action",
+			action: SubAction{
+				Type: "key",
+				Key:  "Enter",
+			},
+			expected: `{"type":"key","key":"Enter"}`,
+		},
+		{
+			name: "scroll_to action",
+			action: SubAction{
+				Type:  "scroll_to",
+				Index: intPtr(5),
+			},
+			expected: `{"type":"scroll_to","index":5}`,
+		},
+		{
+			name: "left_click action",
+			action: SubAction{
+				Type:  "left_click",
+				Index: intPtr(1),
+			},
+			expected: `{"type":"left_click","index":1}`,
+		},
+		{
+			name: "type action",
+			action: SubAction{
+				Type:  "type",
+				Index: intPtr(2),
+				Text:  "hello",
+			},
+			expected: `{"type":"type","index":2,"text":"hello"}`,
+		},
+		{
+			name: "wait action",
+			action: SubAction{
+				Type:     "wait",
+				Duration: 500,
+			},
+			expected: `{"type":"wait","duration":500}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test marshaling
+			jsonData, err := json.Marshal(tt.action)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.expected, string(jsonData))
+
+			// Test unmarshaling
+			var action SubAction
+			err = json.Unmarshal(jsonData, &action)
+			require.NoError(t, err)
+			assert.Equal(t, tt.action.Type, action.Type)
+		})
+	}
+}
+
+// Test Info method includes new actions
+func TestBrowserToolInfoIncludesNewActions(t *testing.T) {
+	mockPermissionService := &MockPermissionService{}
+	sessionConfig := session.DefaultConfig()
+	tool := NewBrowserTool(mockPermissionService, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+
+	info := tool.Info()
+
+	// Test action parameter enum includes new actions
+	actionParam, ok := info.Parameters["action"].(map[string]any)
+	assert.True(t, ok)
+	enum, ok := actionParam["enum"].([]string)
+	assert.True(t, ok)
+	assert.Contains(t, enum, ActionKey)
+	assert.Contains(t, enum, ActionScrollTo)
+	assert.Contains(t, enum, ActionSequence)
+
+	// Test key parameter exists
+	keyParam, ok := info.Parameters["key"].(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "string", keyParam["type"])
+
+	// Test actions parameter exists
+	actionsParam, ok := info.Parameters["actions"].(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "array", actionsParam["type"])
+}
+
+// Helper function to create int pointer
+func intPtr(i int) *int {
+	return &i
 }

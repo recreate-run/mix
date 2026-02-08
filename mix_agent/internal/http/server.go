@@ -18,6 +18,12 @@ import (
 
 // StartServer starts the HTTP REST API server with all configured routes
 func StartServer(ctx context.Context, a *app.App, host string, port int) error {
+	// Initialize tunnel registry if not already set
+	if a.TunnelRegistry == nil {
+		a.TunnelRegistry = NewTunnelRegistry()
+	}
+	tunnelRegistry := a.TunnelRegistry.(*TunnelRegistry)
+
 	// Create REST handlers
 	sessionHandler := NewSessionHandler(a)
 	messageHandler := NewMessageHandler(a)
@@ -94,6 +100,68 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	// Add SSE streaming endpoint
 	mux.HandleFunc("/stream", func(w http.ResponseWriter, r *http.Request) {
 		HandleSSEStream(ctx, a, w, r)
+	})
+
+	// WebSocket tunnel endpoint for browser connections
+	mux.HandleFunc("GET /api/v1/tunnel/cdp/session/{sessionId}", tunnelRegistry.HandleTunnelConnection)
+
+	// Active tunnels endpoint
+	mux.HandleFunc("GET /api/v1/tunnel/active", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		activeTunnels := tunnelRegistry.GetActiveTunnels()
+		response := map[string]interface{}{
+			"active_tunnels": activeTunnels,
+			"count":          len(activeTunnels),
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			logging.Error("Failed to encode active tunnels response", "error", err)
+		}
+	})
+
+	// Test command endpoint for E2E testing
+	mux.HandleFunc("POST /api/v1/tunnel/test-command/{sessionId}", func(w http.ResponseWriter, r *http.Request) {
+		sessionID := r.PathValue("sessionId")
+		if sessionID == "" {
+			http.Error(w, "Missing sessionId", http.StatusBadRequest)
+			return
+		}
+
+		// Parse request body
+		var requestBody struct {
+			ID     interface{} `json:"id"`     // Allow client to specify ID
+			Method string      `json:"method"`
+			Params interface{} `json:"params"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+			http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		// Use provided ID or generate a simple one
+		commandID := requestBody.ID
+		if commandID == nil {
+			commandID = int(time.Now().Unix()) // Use Unix timestamp (smaller number)
+		}
+
+		// Create CDP command
+		command := CDPRequest{
+			ID:     commandID,
+			Method: requestBody.Method,
+			Params: requestBody.Params,
+		}
+
+		// Send command and wait for response
+		response, err := tunnelRegistry.SendCommandToTunnel(sessionID, command)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to send command: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Return response
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			logging.Error("Failed to encode test command response", "error", err)
+		}
 	})
 
 	// Add URL video export endpoint (new Playwright-based export)
