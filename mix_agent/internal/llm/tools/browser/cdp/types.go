@@ -100,11 +100,11 @@ type AccessibilityNode struct {
 }
 
 type RoleValue struct {
-	Value string `json:"value"`
+	Value interface{} `json:"value"`
 }
 
 type StringValue struct {
-	Value string `json:"value"`
+	Value interface{} `json:"value"`
 }
 
 type BoundingBox struct {
@@ -117,6 +117,32 @@ type BoundingBox struct {
 type AccessibilityProperty struct {
 	Name  string      `json:"name"`
 	Value StringValue `json:"value"`
+}
+
+// DOMSnapshot domain commands
+
+type DOMSnapshotCaptureSnapshotParams struct {
+	ComputedStyles  []string `json:"computedStyles"`
+	IncludeDOMRects bool     `json:"includeDOMRects,omitempty"`
+	IncludePaintOrder bool   `json:"includePaintOrder,omitempty"`
+}
+
+type DOMSnapshotCaptureSnapshotResult struct {
+	Documents []DOMSnapshotDocument `json:"documents"`
+}
+
+type DOMSnapshotDocument struct {
+	Nodes  DOMSnapshotNodeTree  `json:"nodes"`
+	Layout DOMSnapshotLayoutTree `json:"layout"`
+}
+
+type DOMSnapshotNodeTree struct {
+	BackendNodeID []int64 `json:"backendNodeId"`
+}
+
+type DOMSnapshotLayoutTree struct {
+	NodeIndex []int     `json:"nodeIndex"`
+	Bounds    [][]float64 `json:"bounds"`
 }
 
 // Runtime domain commands

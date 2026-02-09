@@ -357,6 +357,11 @@ func (t *TunnelClientWrapper) ReadPage(ctx context.Context, interactiveOnly bool
 		targetTabID = tabID[0]
 	}
 
+	// Primary approach: get bounds from DOMSnapshot
+	snapshotBounds, _, err := t.getSnapshotBounds(ctx, cdpSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get DOM snapshot bounds: %w", err)
+	}
 	// Get viewport bounds
 	viewport, err := t.getViewportBounds(ctx, cdpSessionID)
 	if err != nil {
@@ -381,25 +386,31 @@ func (t *TunnelClientWrapper) ReadPage(ctx context.Context, interactiveOnly bool
 	}
 
 	// Convert nodes
-	rawNodes := t.convertAXNodesToRaw(axTreeResult.Nodes)
+	rawNodes, axStats := t.convertAXNodesToRawWithSnapshot(axTreeResult.Nodes, snapshotBounds)
+	logging.Info("ReadPage: AX tree conversion", "tabID", targetTabID, "totalNodes", len(rawNodes), "viewportX", viewport.X, "viewportY", viewport.Y, "viewportW", viewport.Width, "viewportH", viewport.Height, "missingAXBounds", axStats.MissingAXBounds, "usedSnapshotBounds", axStats.UsedSnapshotBounds)
 
 	// Filter nodes based on interactiveOnly and viewport visibility
 	filteredNodes := make([]browserprotocol.RawAccessibilityNode, 0)
 	elements := make([]elementInfo, 0)
 
+	var skipZeroSize, skipViewport, skipInteractive int
+
 	for _, node := range rawNodes {
 		// Skip nodes with zero size
 		if node.Bounds.Width <= 0 || node.Bounds.Height <= 0 {
+			skipZeroSize++
 			continue
 		}
 
 		// Check viewport visibility
 		if !isInViewport(&node.Bounds, viewport) {
+			skipViewport++
 			continue
 		}
 
 		// Filter interactive only if requested
 		if interactiveOnly && !isInteractiveRole(node.Role) {
+			skipInteractive++
 			continue
 		}
 
@@ -420,7 +431,7 @@ func (t *TunnelClientWrapper) ReadPage(ctx context.Context, interactiveOnly bool
 	t.elementCache[targetTabID] = elements
 	t.cacheMu.Unlock()
 
-	logging.Info("ReadPage completed", "tabID", targetTabID, "totalNodes", len(rawNodes), "filteredNodes", len(filteredNodes), "cached", len(elements))
+	logging.Debug("ReadPage completed", "tabID", targetTabID, "totalNodes", len(rawNodes), "filteredNodes", len(filteredNodes), "cached", len(elements), "skipZeroSize", skipZeroSize, "skipViewport", skipViewport, "skipInteractive", skipInteractive, "interactiveOnly", interactiveOnly)
 
 	return &browserprotocol.ReadPageResult{
 		Elements: filteredNodes,
@@ -431,6 +442,115 @@ func (t *TunnelClientWrapper) ReadPage(ctx context.Context, interactiveOnly bool
 			Height: viewport.Height,
 		},
 	}, nil
+}
+
+type snapshotStats struct {
+	LayoutNodes      int
+	BoundsCount      int
+	MissingBackendID int
+	MissingBounds    int
+}
+
+func (t *TunnelClientWrapper) getSnapshotBounds(ctx context.Context, cdpSessionID string) (map[int64]browserprotocol.BoundingBox, snapshotStats, error) {
+	params := cdp.DOMSnapshotCaptureSnapshotParams{
+		ComputedStyles:   []string{},
+		IncludeDOMRects:  true,
+		IncludePaintOrder: false,
+	}
+
+	result, err := t.sendCommand(ctx, "DOMSnapshot.captureSnapshot", params, cdpSessionID)
+	if err != nil {
+		return nil, snapshotStats{}, err
+	}
+
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return nil, snapshotStats{}, fmt.Errorf("failed to marshal DOM snapshot result: %w", err)
+	}
+
+	var snapshotResult cdp.DOMSnapshotCaptureSnapshotResult
+	if err := json.Unmarshal(resultJSON, &snapshotResult); err != nil {
+		return nil, snapshotStats{}, fmt.Errorf("failed to unmarshal DOM snapshot result: %w", err)
+	}
+
+	boundsMap := make(map[int64]browserprotocol.BoundingBox)
+	stats := snapshotStats{}
+
+	if len(snapshotResult.Documents) == 0 {
+		return boundsMap, stats, nil
+	}
+
+	doc := snapshotResult.Documents[0]
+	stats.LayoutNodes = len(doc.Layout.NodeIndex)
+	stats.BoundsCount = len(doc.Layout.Bounds)
+
+	for i, nodeIndex := range doc.Layout.NodeIndex {
+		if nodeIndex < 0 || nodeIndex >= len(doc.Nodes.BackendNodeID) {
+			stats.MissingBackendID++
+			continue
+		}
+
+		if i >= len(doc.Layout.Bounds) || len(doc.Layout.Bounds[i]) < 4 {
+			stats.MissingBounds++
+			continue
+		}
+
+		bounds := doc.Layout.Bounds[i]
+		backendID := doc.Nodes.BackendNodeID[nodeIndex]
+		boundsMap[backendID] = browserprotocol.BoundingBox{
+			X:      bounds[0],
+			Y:      bounds[1],
+			Width:  bounds[2],
+			Height: bounds[3],
+		}
+	}
+
+	return boundsMap, stats, nil
+}
+
+type axBoundsStats struct {
+	MissingAXBounds    int
+	UsedSnapshotBounds int
+}
+
+func (t *TunnelClientWrapper) convertAXNodesToRawWithSnapshot(nodes []cdp.AccessibilityNode, snapshotBounds map[int64]browserprotocol.BoundingBox) ([]browserprotocol.RawAccessibilityNode, axBoundsStats) {
+	rawNodes := make([]browserprotocol.RawAccessibilityNode, 0, len(nodes))
+	stats := axBoundsStats{}
+
+	for _, node := range nodes {
+		var bounds browserprotocol.BoundingBox
+		if snapshot, ok := snapshotBounds[node.BackendDOMNodeID]; ok {
+			bounds = snapshot
+			stats.UsedSnapshotBounds++
+		} else if node.BoundingBox != nil {
+			bounds = browserprotocol.BoundingBox{
+				X:      node.BoundingBox.X,
+				Y:      node.BoundingBox.Y,
+				Width:  node.BoundingBox.Width,
+				Height: node.BoundingBox.Height,
+			}
+		} else {
+			stats.MissingAXBounds++
+		}
+
+		attributes := make(map[string]string)
+		for _, prop := range node.Properties {
+			if prop.Name != "" {
+				attributes[prop.Name] = fmt.Sprintf("%v", prop.Value.Value)
+			}
+		}
+
+		rawNodes = append(rawNodes, browserprotocol.RawAccessibilityNode{
+			Role:       fmt.Sprintf("%v", node.Role.Value),
+			Name:       fmt.Sprintf("%v", node.Name.Value),
+			Bounds:     bounds,
+			BackendID:  node.BackendDOMNodeID,
+			FrameID:    node.FrameID,
+			Attributes: attributes,
+		})
+	}
+
+	return rawNodes, stats
 }
 
 // GetText extracts text from the page
@@ -1062,6 +1182,8 @@ func (t *TunnelClientWrapper) getViewportBounds(ctx context.Context, cdpSessionI
 func (t *TunnelClientWrapper) convertAXNodesToRaw(nodes []cdp.AccessibilityNode) []browserprotocol.RawAccessibilityNode {
 	rawNodes := make([]browserprotocol.RawAccessibilityNode, 0, len(nodes))
 
+	var nilBoundingBoxCount int
+
 	for _, node := range nodes {
 		// Get bounds
 		var bounds browserprotocol.BoundingBox
@@ -1072,24 +1194,40 @@ func (t *TunnelClientWrapper) convertAXNodesToRaw(nodes []cdp.AccessibilityNode)
 				Width:  node.BoundingBox.Width,
 				Height: node.BoundingBox.Height,
 			}
+		} else {
+			nilBoundingBoxCount++
 		}
 
 		// Get attributes from properties
 		attributes := make(map[string]string)
 		for _, prop := range node.Properties {
 			if prop.Name != "" {
-				attributes[prop.Name] = prop.Value.Value
+				// Convert Value to string (handles string, bool, number types from CDP)
+				attributes[prop.Name] = fmt.Sprintf("%v", prop.Value.Value)
 			}
 		}
 
 		rawNodes = append(rawNodes, browserprotocol.RawAccessibilityNode{
-			Role:       node.Role.Value,
-			Name:       node.Name.Value,
+			Role:       fmt.Sprintf("%v", node.Role.Value),
+			Name:       fmt.Sprintf("%v", node.Name.Value),
 			Bounds:     bounds,
 			BackendID:  node.BackendDOMNodeID,
 			FrameID:    node.FrameID,
 			Attributes: attributes,
 		})
+	}
+
+	validBoundingBoxCount := len(nodes) - nilBoundingBoxCount
+
+	if nilBoundingBoxCount > 0 {
+		logging.Warn("CDP accessibility nodes missing bounding boxes",
+			"totalNodes", len(nodes),
+			"nilBoundingBoxCount", nilBoundingBoxCount,
+			"validBoundingBoxCount", validBoundingBoxCount)
+	} else {
+		logging.Debug("CDP accessibility nodes bounding boxes verified",
+			"totalNodes", len(nodes),
+			"validBoundingBoxCount", validBoundingBoxCount)
 	}
 
 	return rawNodes

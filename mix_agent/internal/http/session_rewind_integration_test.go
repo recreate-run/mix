@@ -383,7 +383,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				CleanupMedia: false,
 			},
 			expectError: true,
-			statusCode:  400,
+			statusCode:  http.StatusBadRequest,
 		},
 		{
 			name:      "non-existent session",
@@ -393,7 +393,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				CleanupMedia: false,
 			},
 			expectError: true,
-			statusCode:  404,
+			statusCode:  http.StatusNotFound,
 		},
 		{
 			name:      "non-existent message ID",
@@ -403,7 +403,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				CleanupMedia: false,
 			},
 			expectError: true,
-			statusCode:  404,
+			statusCode:  http.StatusNotFound,
 		},
 	}
 

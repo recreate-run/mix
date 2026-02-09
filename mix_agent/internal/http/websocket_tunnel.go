@@ -162,7 +162,6 @@ func (tc *TunnelConnection) readLoop() {
 			continue
 		}
 
-		logging.Info("Received CDP response from browser", "id", response.ID, "session", tc.SessionID)
 
 		// Route to waiting request using normalized ID
 		normalizedID := normalizeID(response.ID)
@@ -241,7 +240,6 @@ func (registry *TunnelRegistry) SendCommandToTunnel(sessionID string, command CD
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
 	}
 
-	logging.Info("Sending CDP command to browser", "id", command.ID, "method", command.Method, "session", sessionID)
 
 	// Send command (non-blocking with timeout)
 	select {

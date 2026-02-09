@@ -289,13 +289,7 @@ func (a *agent) CancelWithReason(sessionID, reason string) {
 
 // setSessionState sets the state of a session and logs the transition
 func (a *agent) setSessionState(sessionID string, state SessionState) {
-	oldState, _ := a.sessionStates.Load(sessionID)
 	a.sessionStates.Store(sessionID, state)
-	logging.Debug("Session state transition",
-		"sessionID", sessionID,
-		"oldState", oldState,
-		"newState", state,
-		"timestamp", time.Now().Format(time.RFC3339Nano))
 }
 
 // getSessionState retrieves the current state of a session
@@ -423,11 +417,6 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, 
 				a.setSessionState(sessionID, SessionStateCompleted)
 			}
 
-			logging.Debug("Removing cancel function for session",
-				"sessionID", sessionID,
-				"finalState", state,
-				"activeSessionsCount", a.countActiveSessions()-1)
-
 			a.activeContexts.Delete(sessionID)
 			cancel()
 			close(events)
@@ -533,12 +522,6 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		if err != nil {
 			return a.err(fmt.Errorf("failed to reload conversation history: %w", err))
 		}
-
-		// Log conversation turn start for observability
-		logging.Debug("Starting conversation turn",
-			"conversationTurn", conversationTurn,
-			"historyLength", len(msgHistory),
-			"sessionID", sessionID)
 
 		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
 		if err != nil {
@@ -847,7 +830,6 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 		// Wait for all callbacks to complete before returning
 		// This ensures injected messages are saved to database before agent checks for them
 		callbackWg.Wait()
-		logging.Debug("All callbacks completed", "sessionID", sessionID)
 	}
 
 	return assistantMsg, &msg, nil
@@ -968,7 +950,6 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		a.accumulator.Store(assistantMsg)
 
 		// Flush immediately for tool events
-		logging.Debug(fmt.Sprintf("Agent: Tool use completed for ID %s - triggering immediate flush", event.ToolCall.ID))
 		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
 			return err
 		}
@@ -1178,7 +1159,7 @@ func getAPIKeyWithFallback(ctx context.Context, providerName models.ModelProvide
 			return dbKey
 		}
 	}
-	
+
 	// Try environment variable fallback for providers that support it
 	var envVar string
 	switch providerName {
@@ -1191,19 +1172,19 @@ func getAPIKeyWithFallback(ctx context.Context, providerName models.ModelProvide
 	case models.ProviderXAI:
 		envVar = "XAI_API_KEY"
 	}
-	
-	logging.Debug("Checking environment variable for API key", "provider", providerName, "envVar", envVar)
+
+
 	if envVar != "" {
 		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
 			return envAPIKey
 		}
 	}
-	
+
 	// Warn for non-OAuth providers that need API keys
 	if providerName != models.ProviderAnthropic && providerName != models.ProviderOpenAI {
 		logging.Warn("No API key found in database or environment for provider", "provider", providerName)
 	}
-	
+
 	return ""
 }
 func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error) {

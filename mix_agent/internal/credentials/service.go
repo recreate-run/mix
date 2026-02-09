@@ -113,46 +113,34 @@ func (acs *APICredentialsService) decrypt(ciphertext string) (string, error) {
 		return "", nil
 	}
 
-	logging.Debug("Decoding base64 ciphertext")
 	data, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
-		logging.Error("Failed to decode base64", "error", err)
 		return "", fmt.Errorf("failed to decode base64: %w", err)
 	}
-	logging.Debug("Base64 decoding successful", "decodedLength", len(data))
 
 	if acs.encryptionKey == nil {
-		logging.Error("Encryption key is nil")
 		return "", fmt.Errorf("encryption key is nil")
 	}
-	logging.Debug("Creating cipher with encryption key", "keyLength", len(acs.encryptionKey))
 
 	block, err := aes.NewCipher(acs.encryptionKey)
 	if err != nil {
-		logging.Error("Failed to create cipher", "error", err)
 		return "", fmt.Errorf("failed to create cipher: %w", err)
 	}
 
-	logging.Debug("Creating GCM from cipher")
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		logging.Error("Failed to create GCM", "error", err)
 		return "", fmt.Errorf("failed to create GCM: %w", err)
 	}
 
 	if len(data) < gcm.NonceSize() {
-		logging.Error("Invalid ciphertext: too short", "dataLength", len(data), "requiredNonceSize", gcm.NonceSize())
 		return "", fmt.Errorf("invalid ciphertext: too short for nonce")
 	}
 
 	nonce := data[:gcm.NonceSize()]
 	cipherBytes := data[gcm.NonceSize():]
-	logging.Debug("Extracted nonce and ciphertext", "nonceSize", len(nonce), "cipherBytesSize", len(cipherBytes))
 
-	logging.Debug("Attempting GCM Open operation")
 	plaintext, err := gcm.Open(nil, nonce, cipherBytes, nil)
 	if err != nil {
-		logging.Error("Failed to decrypt using GCM", "error", err)
 		return "", fmt.Errorf("failed to decrypt: %w", err)
 	}
 
@@ -596,8 +584,6 @@ func (acs *APICredentialsService) PreloadOAuthCredentials(ctx context.Context) {
 		acs.oauthCache.Store(credentials[i].Provider, oauthCreds)
 		count++
 	}
-
-	logging.Debug("Preloaded OAuth credentials", "count", count)
 }
 
 // GetExpiredOAuthCredentials returns OAuth credentials that are expired or will expire soon

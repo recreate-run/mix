@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"mix/internal/constants"
 	"mix/internal/credentials"
 	"mix/internal/database"
 	"mix/internal/llm/models"
@@ -244,41 +245,10 @@ func getEnvOrDefault(key, defaultValue string) string {
 // setProviderDefaults removed - providers now initialized directly from environment
 
 // setupLogging configures the application logger
-func setupLogging(_ bool) {
+func setupLogging(debug bool) {
 	defaultLevel := slog.LevelError
-
-	if os.Getenv("_DEV_DEBUG") == "true" {
-		loggingFile := fmt.Sprintf("%s/%s", cfg.Data.Directory, "debug.log")
-		messagesPath := fmt.Sprintf("%s/%s", cfg.Data.Directory, "messages")
-
-		// Create directories and files if they don't exist
-		if _, err := os.Stat(loggingFile); os.IsNotExist(err) {
-			if err := os.MkdirAll(cfg.Data.Directory, 0o750); err == nil {
-				if _, err := os.Create(loggingFile); err != nil {
-					panic(fmt.Sprintf("failed to create logging file: %v", err))
-				}
-			}
-		}
-
-		if _, err := os.Stat(messagesPath); os.IsNotExist(err) {
-			if err := os.MkdirAll(messagesPath, 0o750); err != nil {
-				panic(fmt.Sprintf("failed to create messages directory: %v", err))
-			}
-		}
-
-		if sloggingFileWriter, err := os.OpenFile(loggingFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
-			logger := slog.New(slog.NewTextHandler(sloggingFileWriter, &slog.HandlerOptions{
-				Level: defaultLevel,
-				ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-					if a.Key == slog.TimeKey {
-						return slog.Attr{}
-					}
-					return a
-				},
-			}))
-			slog.SetDefault(logger)
-			return
-		}
+	if debug || os.Getenv(constants.DevDebugEnv) == "true" {
+		defaultLevel = slog.LevelDebug
 	}
 
 	// Default console logging

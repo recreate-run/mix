@@ -19,6 +19,7 @@ import (
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools"
 	"mix/internal/llm/tools/browser/vision"
+	"mix/internal/logging"
 	"mix/internal/permission"
 	"mix/internal/session"
 )
@@ -229,6 +230,16 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return interfaces.NewTextErrorResponse("missing action parameter"), nil
 	}
 
+	// Log all browser tool invocations with key parameters
+	sessionID, _, err := b.getContextInfo(ctx)
+	if err == nil {
+		logging.Debug("Browser tool invoked",
+			"action", params.Action,
+			"tabID", params.TabID,
+			"sessionID", sessionID,
+			"browserMode", b.browserMode)
+	}
+
 	// Validate tabId requirement for tab-interaction actions
 	requiresTabID := []string{
 		ActionOpen, ActionScreenshot, ActionReadPage, ActionClick, ActionType,
@@ -242,7 +253,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 	}
 
 	// Get session context
-	sessionID, _, sessionStorageDir, err := b.getContextInfo(ctx)
+	sessionID, sessionStorageDir, err := b.getContextInfo(ctx)
 	if err != nil {
 		return interfaces.ToolResponse{}, err
 	}
@@ -1429,37 +1440,28 @@ func getDelayForAction(actionType string) time.Duration {
 }
 
 // getContextInfo extracts context information needed for tool execution
-func (b *browserTool) getContextInfo(ctx context.Context) (sessionID, messageID, sessionStorageDir string, err error) {
+func (b *browserTool) getContextInfo(ctx context.Context) (sessionID, sessionStorageDir string, err error) {
 	sessionIDVal := ctx.Value(interfaces.SessionIDContextKey)
-	messageIDVal := ctx.Value(interfaces.MessageIDContextKey)
 	sessionStorageDirVal := ctx.Value(interfaces.SessionStorageContextKey)
 
 	if sessionIDVal == nil {
-		return "", "", "", fmt.Errorf("session ID not found in context")
-	}
-	if messageIDVal == nil {
-		return "", "", "", fmt.Errorf("message ID not found in context")
+		return "", "", fmt.Errorf("session ID not found in context")
 	}
 	if sessionStorageDirVal == nil {
-		return "", "", "", fmt.Errorf("session storage directory not found in context")
+		return "", "", fmt.Errorf("session storage directory not found in context")
 	}
 
 	sessionID, ok := sessionIDVal.(string)
 	if !ok {
-		return "", "", "", fmt.Errorf("session ID context value is not a string")
-	}
-
-	messageID, ok = messageIDVal.(string)
-	if !ok {
-		return "", "", "", fmt.Errorf("message ID context value is not a string")
+		return "", "", fmt.Errorf("session ID context value is not a string")
 	}
 
 	sessionStorageDir, ok = sessionStorageDirVal.(string)
 	if !ok {
-		return "", "", "", fmt.Errorf("session storage directory context value is not a string")
+		return "", "", fmt.Errorf("session storage directory context value is not a string")
 	}
 
-	return sessionID, messageID, sessionStorageDir, nil
+	return sessionID, sessionStorageDir, nil
 }
 
 // loadBrowserDescription loads the browser tool description
@@ -1480,4 +1482,3 @@ func getBaseURL() string {
 	}
 	return baseURL
 }
-
