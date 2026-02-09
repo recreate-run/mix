@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"mix/e2e"
+	"mix/internal/constants"
 )
 
 const (
@@ -96,7 +97,7 @@ func waitForProcessing(t *testing.T, sessionID string, maxWait time.Duration) {
 
 	deadline := time.Now().Add(maxWait)
 	for time.Now().Before(deadline) {
-		resp := makeRequest(t, "GET", "/api/sessions/"+sessionID+"/messages", nil)
+		resp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
@@ -129,7 +130,7 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
-	createResp := makeRequest(t, "POST", "/api/sessions", map[string]interface{}{
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
 		"title": "E2E Browser Test",
 	})
 	defer func() { _ = createResp.Body.Close() }()
@@ -147,7 +148,7 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 
 	// Step 2: Send message asking to use browser
 	t.Log("Step 2: Sending message to open google.com...")
-	msgResp := makeRequest(t, "POST", "/api/sessions/"+sessionID+"/messages", map[string]interface{}{
+	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
 		"text": "Open google.com in the browser and take a screenshot",
 	})
 	defer func() { _ = msgResp.Body.Close() }()
@@ -163,7 +164,7 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 
 	// Step 4: Verify browser tool was used
 	t.Log("Step 4: Verifying browser tool was used...")
-	messagesResp := makeRequest(t, "POST", "/api/sessions/"+sessionID+"/messages", nil)
+	messagesResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", nil)
 	defer func() { _ = messagesResp.Body.Close() }()
 
 	// Note: In real E2E, we'd check messages for Browser tool usage
@@ -172,7 +173,7 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 
 	// Step 5: List files to verify screenshot was saved
 	t.Log("Step 5: Verifying screenshot was saved...")
-	filesResp := makeRequest(t, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	filesResp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = filesResp.Body.Close() }()
 
 	filesBody, err := io.ReadAll(filesResp.Body)
@@ -202,7 +203,7 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 
 	// Step 6: Cleanup - delete session
 	t.Log("Step 6: Cleaning up test session...")
-	deleteResp := makeRequest(t, "DELETE", "/api/sessions/"+sessionID, nil)
+	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {
@@ -222,12 +223,12 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 	t.Log("=== E2E Test: Session Isolation ===")
 
 	// Create two sessions
-	session1Resp := makeRequest(t, "POST", "/api/sessions", map[string]interface{}{"title": "E2E Session 1"})
+	session1Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{"title": "E2E Session 1"})
 	session1Data := parseJSONResponse(t, session1Resp)
 	session1ID := session1Data["id"].(string)
 	_ = session1Resp.Body.Close()
 
-	session2Resp := makeRequest(t, "POST", "/api/sessions", map[string]interface{}{"title": "E2E Session 2"})
+	session2Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{"title": "E2E Session 2"})
 	session2Data := parseJSONResponse(t, session2Resp)
 	session2ID := session2Data["id"].(string)
 	_ = session2Resp.Body.Close()
@@ -235,12 +236,12 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 	t.Logf("✓ Created two sessions: %s and %s", session1ID, session2ID)
 
 	// Send browser messages to both sessions
-	msg1Resp := makeRequest(t, "POST", "/api/sessions/"+session1ID+"/messages", map[string]interface{}{
+	msg1Resp := makeRequest(t, http.MethodPost, constants.APISessionsPath+session1ID+"/messages", map[string]interface{}{
 		"text": "Open example.com",
 	})
 	_ = msg1Resp.Body.Close()
 
-	msg2Resp := makeRequest(t, "POST", "/api/sessions/"+session2ID+"/messages", map[string]interface{}{
+	msg2Resp := makeRequest(t, http.MethodPost, constants.APISessionsPath+session2ID+"/messages", map[string]interface{}{
 		"text": "Open google.com",
 	})
 	_ = msg2Resp.Body.Close()
@@ -248,13 +249,13 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 	t.Log("✓ Sent messages to both sessions")
 
 	// Verify sessions have different files
-	files1Resp := makeRequest(t, "GET", "/api/sessions/"+session1ID+"/files", nil)
+	files1Resp := makeRequest(t, http.MethodGet, constants.APISessionsPath+session1ID+"/files", nil)
 	files1Body, _ := io.ReadAll(files1Resp.Body)
 	_ = files1Resp.Body.Close()
 	var files1 []interface{}
 	_ = json.Unmarshal(files1Body, &files1)
 
-	files2Resp := makeRequest(t, "GET", "/api/sessions/"+session2ID+"/files", nil)
+	files2Resp := makeRequest(t, http.MethodGet, constants.APISessionsPath+session2ID+"/files", nil)
 	files2Body, _ := io.ReadAll(files2Resp.Body)
 	_ = files2Resp.Body.Close()
 	var files2 []interface{}
@@ -264,8 +265,8 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 	t.Log("✓ Sessions have isolated file storage")
 
 	// Cleanup
-	_ = makeRequest(t, "DELETE", "/api/sessions/"+session1ID, nil).Body.Close()
-	_ = makeRequest(t, "DELETE", "/api/sessions/"+session2ID, nil).Body.Close()
+	_ = makeRequest(t, http.MethodDelete, constants.APISessionsPath+session1ID, nil).Body.Close()
+	_ = makeRequest(t, http.MethodDelete, constants.APISessionsPath+session2ID, nil).Body.Close()
 
 	t.Log("=== E2E Test Completed Successfully ===")
 }
@@ -283,7 +284,7 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
-	createResp := makeRequest(t, "POST", "/api/sessions", map[string]interface{}{
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
 		"title": "E2E Text Extraction Test",
 	})
 	defer func() { _ = createResp.Body.Close() }()
@@ -310,7 +311,7 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 			testURL := testServer.URL + "/text_extraction.html"
 
 			// Send message to extract text from test page
-			msgResp := makeRequest(t, "POST", "/api/sessions/"+sessionID+"/messages", map[string]interface{}{
+			msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
 				"text": fmt.Sprintf("Open %s and extract text using the %s strategy", testURL, strategy),
 			})
 			defer func() { _ = msgResp.Body.Close() }()
@@ -325,7 +326,7 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 			t.Logf("✓ Text extraction completed for %s strategy", strategy)
 
 			// Verify the response contains extracted text
-			messagesResp := makeRequest(t, "GET", "/api/sessions/"+sessionID+"/messages", nil)
+			messagesResp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
 			defer func() { _ = messagesResp.Body.Close() }()
 
 			messagesBody, err := io.ReadAll(messagesResp.Body)
@@ -360,7 +361,7 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 
 	// Cleanup
 	t.Log("Cleaning up test session...")
-	deleteResp := makeRequest(t, "DELETE", "/api/sessions/"+sessionID, nil)
+	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {
@@ -385,7 +386,7 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
-	createResp := makeRequest(t, "POST", "/api/sessions", map[string]interface{}{
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
 		"title": "E2E DOM Search Test",
 	})
 	defer func() { _ = createResp.Body.Close() }()
@@ -404,7 +405,7 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 	// Step 2: Send message to search for elements
 	t.Log("Step 2: Sending message to search for elements...")
 	testURL := testServer.URL + "/dom_search.html"
-	msgResp := makeRequest(t, "POST", "/api/sessions/"+sessionID+"/messages", map[string]interface{}{
+	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
 		"text": fmt.Sprintf("Open %s and find all elements with the word 'search'", testURL),
 	})
 	defer func() { _ = msgResp.Body.Close() }()
@@ -421,7 +422,7 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 
 	// Step 4: Verify the search operation succeeded
 	t.Log("Step 4: Verifying DOM search worked...")
-	messagesResp := makeRequest(t, "GET", "/api/sessions/"+sessionID+"/messages", nil)
+	messagesResp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
 	defer func() { _ = messagesResp.Body.Close() }()
 
 	messagesBody, err := io.ReadAll(messagesResp.Body)
@@ -456,7 +457,7 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 
 	// Cleanup
 	t.Log("Cleaning up test session...")
-	deleteResp := makeRequest(t, "DELETE", "/api/sessions/"+sessionID, nil)
+	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {
@@ -481,7 +482,7 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
-	createResp := makeRequest(t, "POST", "/api/sessions", map[string]interface{}{
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
 		"title": "E2E File Upload Test",
 	})
 	defer func() { _ = createResp.Body.Close() }()
@@ -505,7 +506,7 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 
 	// Step 3: Send message to test file upload
 	t.Log("Step 3: Sending message to test file upload feature...")
-	msgResp := makeRequest(t, "POST", "/api/sessions/"+sessionID+"/messages", map[string]interface{}{
+	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
 		"text": fmt.Sprintf("Open %s, then take a screenshot showing the file upload form. The file upload feature allows uploading files to file input elements.", testURL),
 	})
 	defer func() { _ = msgResp.Body.Close() }()
@@ -521,7 +522,7 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 
 	// Step 5: Verify the file upload page was accessed
 	t.Log("Step 5: Verifying file upload feature integration...")
-	messagesResp := makeRequest(t, "GET", "/api/sessions/"+sessionID+"/messages", nil)
+	messagesResp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
 	defer func() { _ = messagesResp.Body.Close() }()
 
 	messagesBody, err := io.ReadAll(messagesResp.Body)
@@ -556,7 +557,7 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 
 	// Cleanup
 	t.Log("Cleaning up test session...")
-	deleteResp := makeRequest(t, "DELETE", "/api/sessions/"+sessionID, nil)
+	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {

@@ -15,7 +15,7 @@ func TestRESTAPIKeyStorage(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	t.Cleanup(func() { result.Server.Close() })
 
-	t.Log("Testing POST /api/auth/api-key - Store API key")
+	t.Log("Testing http.MethodPost /api/auth/api-key - Store API key")
 
 	testCases := []struct {
 		name           string
@@ -74,7 +74,7 @@ func TestRESTAPIKeyStorage(t *testing.T) {
 			}
 
 			// Make API request
-			resp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", reqBody)
+			resp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", reqBody)
 
 			// Check status code
 			if resp.StatusCode != tc.expectedStatus {
@@ -117,7 +117,7 @@ func TestRESTCredentialDeletion(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	t.Cleanup(func() { result.Server.Close() })
 
-	t.Log("Testing DELETE /api/auth/{provider} - Delete credentials")
+	t.Log("Testing http.MethodDelete /api/auth/{provider} - Delete credentials")
 
 	// First store an API key
 	reqBody := map[string]interface{}{
@@ -125,7 +125,7 @@ func TestRESTCredentialDeletion(t *testing.T) {
 		"api_key":  "sk-ant-test123456789012345678901234567890123456",
 	}
 
-	storeResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", reqBody)
+	storeResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", reqBody)
 	defer func() {
 		_ = storeResp.Body.Close()
 	}()
@@ -168,7 +168,7 @@ func TestRESTCredentialDeletion(t *testing.T) {
 			t.Parallel()
 			// Make delete request
 			deleteURL := "/api/auth/" + tc.provider
-			resp := makeJSONRequest(t, result.Server, "DELETE", deleteURL, nil)
+			resp := makeJSONRequest(t, result.Server, http.MethodDelete, deleteURL, nil)
 
 			// Check status code
 			if resp.StatusCode != tc.expectedStatus {
@@ -211,10 +211,10 @@ func TestRESTAuthStatus(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/auth/status - Get auth status")
+	t.Log("Testing http.MethodGet /api/auth/status - Get auth status")
 
 	// First check with no authentication
-	resp := makeJSONRequest(t, result.Server, "GET", "/api/auth/status", nil)
+	resp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/auth/status", nil)
 	defer func() { _ = resp.Body.Close() }()
 	statusData := validateObjectResponse(t, resp, http.StatusOK)
 
@@ -250,7 +250,7 @@ func TestRESTAuthStatus(t *testing.T) {
 		"provider": "anthropic",
 		"api_key":  "sk-ant-test123456789012345678901234567890123456",
 	}
-	storeResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", reqBody)
+	storeResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", reqBody)
 	defer func() {
 		_ = storeResp.Body.Close()
 	}()
@@ -260,7 +260,7 @@ func TestRESTAuthStatus(t *testing.T) {
 	}
 
 	// Check updated status
-	resp = makeJSONRequest(t, result.Server, "GET", "/api/auth/status", nil)
+	resp = makeJSONRequest(t, result.Server, http.MethodGet, "/api/auth/status", nil)
 	defer func() { _ = resp.Body.Close() }()
 	updatedStatus := validateObjectResponse(t, resp, http.StatusOK)
 
@@ -301,10 +301,10 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/auth/validate - Validate preferred provider")
+	t.Log("Testing http.MethodGet /api/auth/validate - Validate preferred provider")
 
 	// First try without setting a preferred provider in preferences
-	resp := makeJSONRequest(t, result.Server, "GET", "/api/auth/validate", nil)
+	resp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/auth/validate", nil)
 	defer func() { _ = resp.Body.Close() }()
 	validateData := validateObjectResponse(t, resp, http.StatusOK)
 
@@ -322,7 +322,7 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 	prefsBody := map[string]interface{}{
 		"preferred_provider": "anthropic",
 	}
-	prefsResp := makeJSONRequest(t, result.Server, "POST", "/api/preferences", prefsBody)
+	prefsResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/preferences", prefsBody)
 	defer func() {
 		_ = prefsResp.Body.Close()
 	}()
@@ -331,7 +331,7 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 	}
 
 	// Try validation again - validate response structure without strict expectations
-	resp = makeJSONRequest(t, result.Server, "GET", "/api/auth/validate", nil)
+	resp = makeJSONRequest(t, result.Server, http.MethodGet, "/api/auth/validate", nil)
 	defer func() { _ = resp.Body.Close() }()
 	validateData = validateObjectResponse(t, resp, http.StatusOK)
 
@@ -355,7 +355,7 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 		"provider": "anthropic",
 		"api_key":  "sk-ant-test123456789012345678901234567890123456",
 	}
-	authResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", authBody)
+	authResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", authBody)
 	defer func() {
 		_ = authResp.Body.Close()
 	}()
@@ -364,7 +364,7 @@ func TestRESTValidatePreferredProvider(t *testing.T) {
 	}
 
 	// Try validation again after authentication
-	resp = makeJSONRequest(t, result.Server, "GET", "/api/auth/validate", nil)
+	resp = makeJSONRequest(t, result.Server, http.MethodGet, "/api/auth/validate", nil)
 	defer func() { _ = resp.Body.Close() }()
 	validateData = validateObjectResponse(t, resp, http.StatusOK)
 	t.Logf("Validation response after authentication: %+v", validateData)
@@ -392,7 +392,7 @@ func TestRESTOAuthFlow(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	t.Cleanup(func() { result.Server.Close() })
 
-	t.Log("Testing POST /api/auth/oauth/{provider} - Start OAuth flow")
+	t.Log("Testing http.MethodPost /api/auth/oauth/{provider} - Start OAuth flow")
 
 	testCases := []struct {
 		name           string
@@ -428,7 +428,7 @@ func TestRESTOAuthFlow(t *testing.T) {
 			t.Parallel()
 			// Make OAuth init request
 			oauthURL := "/api/auth/oauth/" + tc.provider
-			resp := makeJSONRequest(t, result.Server, "POST", oauthURL, nil)
+			resp := makeJSONRequest(t, result.Server, http.MethodPost, oauthURL, nil)
 
 			// Check status code
 			if resp.StatusCode != tc.expectedStatus {
@@ -477,10 +477,10 @@ func TestRESTOAuthCallback(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	t.Cleanup(func() { result.Server.Close() })
 
-	t.Log("Testing POST /api/auth/oauth-callback - Handle OAuth callback")
+	t.Log("Testing http.MethodPost /api/auth/oauth-callback - Handle OAuth callback")
 
 	// First initiate an OAuth flow to get a valid state
-	oauthInitResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/oauth/anthropic", nil)
+	oauthInitResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/oauth/anthropic", nil)
 	defer func() { _ = oauthInitResp.Body.Close() }()
 	initData := validateObjectResponse(t, oauthInitResp, http.StatusOK)
 
@@ -550,7 +550,7 @@ func TestRESTOAuthCallback(t *testing.T) {
 			}
 
 			// Make callback request
-			resp := makeJSONRequest(t, result.Server, "POST", "/api/auth/oauth-callback", callbackBody)
+			resp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/oauth-callback", callbackBody)
 
 			// Check status code
 			if resp.StatusCode != tc.expectedStatus {

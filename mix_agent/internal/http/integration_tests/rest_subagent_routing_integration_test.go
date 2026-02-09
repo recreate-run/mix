@@ -21,7 +21,7 @@ func TestSubagentEventRoutingVerifyHierarchy(t *testing.T) {
 	sessionRequest := map[string]interface{}{
 		"title": "Main Hierarchy Test",
 	}
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	mainSessionID := sessionData["id"].(string)

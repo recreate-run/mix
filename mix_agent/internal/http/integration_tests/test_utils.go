@@ -19,6 +19,7 @@ import (
 	"github.com/joho/godotenv"
 	"mix/internal/app"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/db"
 	httphandlers "mix/internal/http"
 	_ "mix/internal/llm/models"
@@ -270,7 +271,7 @@ func makeJSONRequest(t *testing.T, server *httptest.Server, method, path string,
 	}
 
 	if payload != nil {
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", constants.ContentTypeJSON)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -283,7 +284,7 @@ func makeJSONRequest(t *testing.T, server *httptest.Server, method, path string,
 
 // sendJSONResponse sends a JSON response (local implementation for tests)
 func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", constants.ContentTypeJSON)
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		// For tests, we can just log to stderr

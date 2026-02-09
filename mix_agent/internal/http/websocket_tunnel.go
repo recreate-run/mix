@@ -105,6 +105,9 @@ func (registry *TunnelRegistry) HandleTunnelConnection(w http.ResponseWriter, r 
 		return
 	}
 
+	// Set read limit to 10MB for large screenshots and accessibility trees
+	conn.SetReadLimit(10 * 1024 * 1024)
+
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
@@ -121,8 +124,6 @@ func (registry *TunnelRegistry) HandleTunnelConnection(w http.ResponseWriter, r 
 	registry.mu.Lock()
 	registry.connections[sessionID] = tunnelConn
 	registry.mu.Unlock()
-
-	logging.Info("Browser connected to tunnel", "session", sessionID)
 
 	// Cleanup on disconnect
 	defer func() {

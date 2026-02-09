@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
 )
@@ -438,7 +439,7 @@ func (flow *OAuthFlow) ExchangeCodeForTokens(authCode string) (*OAuthCredentials
 	}
 
 	// Set browser-like headers to avoid Cloudflare bot detection
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", constants.ContentTypeJSON)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -793,7 +794,7 @@ func RefreshAccessToken(credentials *OAuthCredentials) (*OAuthCredentials, error
 	}
 
 	// Set browser-like headers to avoid Cloudflare bot detection
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", constants.ContentTypeJSON)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")

@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-// Test 7: Commands Listing - GET /api/commands
+// Test 7: Commands Listing - http.MethodGet /api/commands
 func TestRESTCommandsListing(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/commands - List available commands")
+	t.Log("Testing http.MethodGet /api/commands - List available commands")
 
 	// List available commands
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/commands", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/commands", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	commandsList := validateArrayResponse(t, listResp)
 
@@ -48,15 +48,15 @@ func TestRESTCommandsListing(t *testing.T) {
 	t.Logf("✅ Commands listing test passed - Found %d commands", len(commandsList))
 }
 
-// Test 19: Command Details - GET /api/commands/{name}
+// Test 19: Command Details - http.MethodGet /api/commands/{name}
 func TestRESTCommandDetails(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/commands/{name} - Get specific command details")
+	t.Log("Testing http.MethodGet /api/commands/{name} - Get specific command details")
 
 	// First, get the list of available commands to find a valid command name
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/commands", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/commands", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	commandsList := validateArrayResponse(t, listResp)
 
@@ -69,7 +69,7 @@ func TestRESTCommandDetails(t *testing.T) {
 	commandName := firstCommand["name"].(string)
 
 	// Test getting valid command details
-	detailsResp := makeJSONRequest(t, result.Server, "GET", "/api/commands/"+commandName, nil)
+	detailsResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/commands/"+commandName, nil)
 	defer func() { _ = detailsResp.Body.Close() }()
 	commandDetails := validateObjectResponse(t, detailsResp, http.StatusOK)
 
@@ -91,7 +91,7 @@ func TestRESTCommandDetails(t *testing.T) {
 
 	// Test getting non-existent command (should return 404)
 	nonExistentName := "non-existent-command-name"
-	notFoundResp := makeJSONRequest(t, result.Server, "GET", "/api/commands/"+nonExistentName, nil)
+	notFoundResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/commands/"+nonExistentName, nil)
 	defer func() { _ = notFoundResp.Body.Close() }()
 	if notFoundResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d for non-existent command, got %d", http.StatusNotFound, notFoundResp.StatusCode)
@@ -100,15 +100,15 @@ func TestRESTCommandDetails(t *testing.T) {
 	t.Logf("✅ Command details test passed - Command: %s, Type: %s, Description: %.50s...", name, cmdType, description)
 }
 
-// Test 12: MCP Servers Listing - GET /api/mcp
+// Test 12: MCP Servers Listing - http.MethodGet /api/mcp
 func TestRESTMCPServersListing(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/mcp - List MCP servers")
+	t.Log("Testing http.MethodGet /api/mcp - List MCP servers")
 
 	// List MCP servers
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/mcp", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/mcp", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	mcpServersList := validateArrayResponse(t, listResp)
 
@@ -133,15 +133,15 @@ func TestRESTMCPServersListing(t *testing.T) {
 	}
 }
 
-// Test 13: Health Check - GET /health
+// Test 13: Health Check - http.MethodGet /health
 func TestRESTHealthCheck(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /health - Health check")
+	t.Log("Testing http.MethodGet /health - Health check")
 
 	// Check health endpoint
-	healthResp := makeJSONRequest(t, result.Server, "GET", "/health", nil)
+	healthResp := makeJSONRequest(t, result.Server, http.MethodGet, "/health", nil)
 	defer func() { _ = healthResp.Body.Close() }()
 	healthData := validateObjectResponse(t, healthResp, http.StatusOK)
 
@@ -161,18 +161,18 @@ func TestRESTHealthCheck(t *testing.T) {
 	t.Logf("✅ Health check test passed - Status: %s", status)
 }
 
-// Test 14: Stream Endpoint - GET /stream
+// Test 14: Stream Endpoint - http.MethodGet /stream
 func TestRESTStreamEndpoint(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /stream - Stream endpoint")
+	t.Log("Testing http.MethodGet /stream - Stream endpoint")
 
 	// Create a session first to get a valid sessionId
 	sessionRequest := map[string]interface{}{
 		"title": "Stream Test Session",
 	}
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := sessionData["id"].(string)
@@ -229,19 +229,19 @@ func TestRESTStreamEndpoint(t *testing.T) {
 	t.Logf("✅ Stream endpoint test passed - Content-Type: %s, Read %d bytes", contentType, n)
 }
 
-// Test 15: Stream Sub-path Endpoint - GET /stream/{path...}
-// Test 16: Permission Grant - POST /api/permissions/{id}/grant
+// Test 15: Stream Sub-path Endpoint - http.MethodGet /stream/{path...}
+// Test 16: Permission Grant - http.MethodPost /api/permissions/{id}/grant
 func TestRESTPermissionGrant(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing POST /api/permissions/{id}/grant - Grant permission")
+	t.Log("Testing http.MethodPost /api/permissions/{id}/grant - Grant permission")
 
 	// Use a test permission ID
 	testPermissionID := "test-permission-grant-id"
 
 	// Grant the permission
-	grantResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions/"+testPermissionID+"/grant", nil)
+	grantResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/permissions/"+testPermissionID+"/grant", nil)
 	defer func() { _ = grantResp.Body.Close() }()
 	grantData := validateObjectResponse(t, grantResp, http.StatusOK)
 
@@ -263,18 +263,18 @@ func TestRESTPermissionGrant(t *testing.T) {
 	t.Logf("✅ Permission grant test passed - Permission ID: %s, Status: %s", id, status)
 }
 
-// Test 17: Permission Deny - POST /api/permissions/{id}/deny
+// Test 17: Permission Deny - http.MethodPost /api/permissions/{id}/deny
 func TestRESTPermissionDeny(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing POST /api/permissions/{id}/deny - Deny permission")
+	t.Log("Testing http.MethodPost /api/permissions/{id}/deny - Deny permission")
 
 	// Use a test permission ID
 	testPermissionID := "test-permission-deny-id"
 
 	// Deny the permission
-	denyResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions/"+testPermissionID+"/deny", nil)
+	denyResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/permissions/"+testPermissionID+"/deny", nil)
 	defer func() { _ = denyResp.Body.Close() }()
 	denyData := validateObjectResponse(t, denyResp, http.StatusOK)
 
@@ -304,14 +304,14 @@ func TestRESTPermissionInvalidID(t *testing.T) {
 	t.Log("Testing permission endpoints with invalid ID - Error validation")
 
 	// Test grant with empty permission ID - should return 400
-	emptyGrantResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions//grant", nil)
+	emptyGrantResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/permissions//grant", nil)
 	defer func() { _ = emptyGrantResp.Body.Close() }()
 	if emptyGrantResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for empty permission ID in grant, got %d", http.StatusBadRequest, emptyGrantResp.StatusCode)
 	}
 
 	// Test deny with empty permission ID - should return 400
-	emptyDenyResp := makeJSONRequest(t, result.Server, "POST", "/api/permissions//deny", nil)
+	emptyDenyResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/permissions//deny", nil)
 	defer func() { _ = emptyDenyResp.Body.Close() }()
 	if emptyDenyResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for empty permission ID in deny, got %d", http.StatusBadRequest, emptyDenyResp.StatusCode)

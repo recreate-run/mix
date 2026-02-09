@@ -32,7 +32,7 @@ func (m *mockSessionService) List(ctx context.Context) ([]session.Session, error
 }
 
 func (m *mockSessionService) ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error) {
-	return nil, nil
+	return []db.ListSessionsWithContentRow{}, nil
 }
 
 func (m *mockSessionService) Save(ctx context.Context, sess session.Session) (session.Session, error) {

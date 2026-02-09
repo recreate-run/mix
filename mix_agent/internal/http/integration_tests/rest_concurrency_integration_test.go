@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"mix/internal/constants"
 )
 
 // TestResult represents the result of a concurrent test operation
@@ -59,7 +60,7 @@ func TestConcurrentFileOperationsAcrossSessions(t *testing.T) {
 
 			// Upload a file to this session
 			uploadResp := makeMultipartFileRequest(t, result.Server,
-				"/api/sessions/"+sid+"/files/upload",
+				constants.APISessionsPath+sid+"/files/upload",
 				fileName, fileContent)
 
 			duration := time.Since(start)
@@ -137,8 +138,8 @@ func TestConcurrentToolExecutionAcrossSessions(t *testing.T) {
 				"text": messageContent,
 			}
 
-			msgResp := makeJSONRequest(t, result.Server, "POST",
-				"/api/sessions/"+sessionID+"/messages", messageRequest)
+			msgResp := makeJSONRequest(t, result.Server, http.MethodPost,
+				constants.APISessionsPath+sessionID+"/messages", messageRequest)
 
 			duration := time.Since(start)
 			// Accept both 200 (sync) and 202 (async) as success
@@ -198,7 +199,7 @@ func TestConcurrentSessionOperations(t *testing.T) {
 				"title": fmt.Sprintf("Concurrent Session Test %d", index),
 			}
 
-			createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+			createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 			defer func() { _ = createResp.Body.Close() }()
 
 			if createResp.StatusCode == http.StatusCreated {
@@ -268,8 +269,8 @@ func TestConcurrentMessageProcessing(t *testing.T) {
 			}
 
 			start := time.Now()
-			msgResp := makeJSONRequest(t, result.Server, "POST",
-				"/api/sessions/"+sessionID+"/messages", messageRequest)
+			msgResp := makeJSONRequest(t, result.Server, http.MethodPost,
+				constants.APISessionsPath+sessionID+"/messages", messageRequest)
 			duration := time.Since(start)
 
 			success := false
@@ -344,8 +345,8 @@ func TestSessionIsolationUnderLoad(t *testing.T) {
 			}
 
 			start := time.Now()
-			msgResp := makeJSONRequest(t, result.Server, "POST",
-				"/api/sessions/"+sid+"/messages", messageRequest)
+			msgResp := makeJSONRequest(t, result.Server, http.MethodPost,
+				constants.APISessionsPath+sid+"/messages", messageRequest)
 			duration := time.Since(start)
 
 			success := false
@@ -393,7 +394,7 @@ func createTestSessionForConcurrency(t *testing.T, result *TestServerResult, tit
 		"title": title,
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	sessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
@@ -447,8 +448,8 @@ func BenchmarkConcurrentToolExecution(b *testing.B) {
 			"text": fmt.Sprintf("Create benchmark file %d and list current files", i),
 		}
 
-		msgResp := makeJSONRequest(t, result.Server, "POST",
-			"/api/sessions/"+sessionID+"/messages", messageRequest)
+		msgResp := makeJSONRequest(t, result.Server, http.MethodPost,
+			constants.APISessionsPath+sessionID+"/messages", messageRequest)
 
 		if msgResp != nil {
 			_ = msgResp.Body.Close()
@@ -474,8 +475,8 @@ func TestNoConcurrencyRegressions(t *testing.T) {
 		"text": "This is a basic test message to ensure normal functionality works",
 	}
 
-	msgResp := makeJSONRequest(t, result.Server, "POST",
-		"/api/sessions/"+sessionID+"/messages", messageRequest)
+	msgResp := makeJSONRequest(t, result.Server, http.MethodPost,
+		constants.APISessionsPath+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
 	// Accept both 200 (sync) and 202 (async) as success
@@ -544,8 +545,8 @@ func TestErrorHandlingUnderConcurrency(t *testing.T) {
 			}
 
 			start := time.Now()
-			msgResp := makeJSONRequest(t, result.Server, "POST",
-				"/api/sessions/"+sessionID+"/messages", messageRequest)
+			msgResp := makeJSONRequest(t, result.Server, http.MethodPost,
+				constants.APISessionsPath+sessionID+"/messages", messageRequest)
 			duration := time.Since(start)
 
 			// For error handling test, we expect the system to handle errors gracefully

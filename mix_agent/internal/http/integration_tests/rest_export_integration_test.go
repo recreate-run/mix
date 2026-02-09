@@ -8,6 +8,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/message"
+	"mix/internal/constants"
 )
 
 // Helper function to create test messages for export testing
@@ -135,19 +136,19 @@ func validateExportMessages(t *testing.T, messages []interface{}) {
 	}
 }
 
-// Test Export: Session Export - GET /api/sessions/{id}/export
+// Test Export: Session Export - http.MethodGet /api/sessions/{id}/export
 func TestRESTSessionExport(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/sessions/{id}/export - Export session transcript")
+	t.Log("Testing http.MethodGet /api/sessions/{id}/export - Export session transcript")
 
 	// Create a session with some test data
 	sessionRequest := map[string]interface{}{
 		"title": "Export Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -157,7 +158,7 @@ func TestRESTSessionExport(t *testing.T) {
 	createTestMessages(t, ctx, result.App, sessionID)
 
 	// Test the export endpoint
-	exportResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/export", nil)
+	exportResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/export", nil)
 	defer func() { _ = exportResp.Body.Close() }()
 	exportData := validateObjectResponse(t, exportResp, http.StatusOK)
 
@@ -178,16 +179,16 @@ func TestRESTSessionExport(t *testing.T) {
 	t.Logf("✅ Export test passed - Successfully exported %d messages with tool calls and proper structure", len(messages))
 }
 
-// Test Export: Non-existent session - GET /api/sessions/{id}/export
+// Test Export: Non-existent session - http.MethodGet /api/sessions/{id}/export
 func TestRESTSessionExportNotFound(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/sessions/{id}/export - Non-existent session")
+	t.Log("Testing http.MethodGet /api/sessions/{id}/export - Non-existent session")
 
 	// Try to export a non-existent session
 	fakeSessionID := "non-existent-session-id"
-	exportResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+fakeSessionID+"/export", nil)
+	exportResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+fakeSessionID+"/export", nil)
 	defer func() { _ = exportResp.Body.Close() }()
 
 	// Should return 404 Not Found

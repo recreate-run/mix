@@ -18,6 +18,7 @@ import (
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
+	"mix/internal/constants"
 )
 
 // setupTestServerForRewind sets up test environment specifically for rewind testing
@@ -143,7 +144,7 @@ func TestSessionRewindBasic(t *testing.T) {
 	}
 
 	// Make REST API call to rewind session
-	url := server.URL + "/api/sessions/" + sessionID + "/rewind"
+	url := server.URL + constants.APISessionsPath + sessionID + "/rewind"
 	ctx := context.Background()
 	var req *http.Request
 	req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
@@ -259,7 +260,7 @@ func TestSessionRewindWithMediaCleanup(t *testing.T) {
 	}
 
 	// Make REST API call
-	url := server.URL + "/api/sessions/" + sessionID + "/rewind"
+	url := server.URL + constants.APISessionsPath + sessionID + "/rewind"
 	ctx = context.Background()
 	var req *http.Request
 	req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
@@ -324,7 +325,7 @@ func TestSessionRewindToEmpty(t *testing.T) {
 		t.Fatalf("Failed to marshal rewind params: %v", err)
 	}
 
-	url := server.URL + "/api/sessions/" + sessionID + "/rewind"
+	url := server.URL + constants.APISessionsPath + sessionID + "/rewind"
 	ctx = context.Background()
 	var req *http.Request
 	req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
@@ -413,7 +414,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				t.Fatalf("Failed to marshal params: %v", err)
 			}
 
-			url := server.URL + "/api/sessions/" + tc.sessionID + "/rewind"
+			url := server.URL + constants.APISessionsPath + tc.sessionID + "/rewind"
 			ctx := context.Background()
 			var req *http.Request
 			req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))
@@ -431,7 +432,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				t.Errorf("Expected status code %d, got %d", tc.statusCode, resp.StatusCode)
 			}
 
-			if tc.expectError && resp.StatusCode < 400 {
+			if tc.expectError && resp.StatusCode < http.StatusBadRequest {
 				t.Errorf("Expected error response but got success status %d", resp.StatusCode)
 			}
 		})
@@ -475,7 +476,7 @@ func TestSessionRewindBoundary(t *testing.T) {
 		t.Fatalf("Failed to marshal rewind params: %v", err)
 	}
 
-	url := server.URL + "/api/sessions/" + sessionID + "/rewind"
+	url := server.URL + constants.APISessionsPath + sessionID + "/rewind"
 	ctx = context.Background()
 	var req *http.Request
 	req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(paramsJSON))

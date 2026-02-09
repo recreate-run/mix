@@ -9,6 +9,7 @@ import (
 
 	"mix/e2e"
 	"mix/internal/http/integration_tests"
+	"mix/internal/constants"
 )
 
 // TestRESTMessageSending tests the complete end-to-end flow of sending a message and receiving an LLM response
@@ -26,7 +27,7 @@ func TestRESTMessageSending(t *testing.T) {
 		"title": "Message Test Session",
 	}
 
-	createResp := integration_tests.MakeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := integration_tests.MakeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := integration_tests.ValidateObjectResponse(t, createResp, http.StatusCreated)
 
@@ -38,7 +39,7 @@ func TestRESTMessageSending(t *testing.T) {
 	}
 
 	// Make the request
-	msgResp := integration_tests.MakeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
+	msgResp := integration_tests.MakeJSONRequest(t, result.Server, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
 	// In an unauthenticated test environment, we expect a 401 Unauthorized

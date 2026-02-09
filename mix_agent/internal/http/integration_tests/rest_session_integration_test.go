@@ -3,21 +3,23 @@ package integration_tests
 import (
 	"net/http"
 	"testing"
+
+	"mix/internal/constants"
 )
 
-// Test 2: Session Creation - POST /api/sessions
+// Test 2: Session Creation - http.MethodPost /api/sessions
 func TestRESTSessionCreation(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing POST /api/sessions - Create session")
+	t.Log("Testing http.MethodPost /api/sessions - Create session")
 
 	// Create session request
 	sessionRequest := map[string]interface{}{
 		"title": "Integration Test",
 	}
 
-	resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	resp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = resp.Body.Close() }()
 	sessionData := validateObjectResponse(t, resp, http.StatusCreated)
 
@@ -36,26 +38,26 @@ func TestRESTSessionCreation(t *testing.T) {
 	t.Logf("✅ Session creation test passed - Session ID: %s", sessionID)
 }
 
-// Test 3: Session Listing - GET /api/sessions
+// Test 3: Session Listing - http.MethodGet /api/sessions
 func TestRESTSessionListing(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/sessions - List sessions")
+	t.Log("Testing http.MethodGet /api/sessions - List sessions")
 
 	// First create a session to list
 	sessionRequest := map[string]interface{}{
 		"title": "List Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	createdSessionID := createdSessionData["id"].(string)
 
 	// Now list sessions
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/sessions", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	sessionsArray := validateArrayResponse(t, listResp)
 
@@ -82,26 +84,26 @@ func TestRESTSessionListing(t *testing.T) {
 	t.Logf("✅ Session listing test passed - Found %d sessions", len(sessionsArray))
 }
 
-// Test 4: Session Retrieval - GET /api/sessions/{id}
+// Test 4: Session Retrieval - http.MethodGet /api/sessions/{id}
 func TestRESTSessionRetrieval(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/sessions/{id} - Get specific session")
+	t.Log("Testing http.MethodGet /api/sessions/{id} - Get specific session")
 
 	// Create a session first
 	sessionRequest := map[string]interface{}{
 		"title": "Retrieval Test",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
 
 	// Retrieve the specific session
-	getResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID, nil)
+	getResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = getResp.Body.Close() }()
 	retrievedSession := validateObjectResponse(t, getResp, http.StatusOK)
 
@@ -118,33 +120,33 @@ func TestRESTSessionRetrieval(t *testing.T) {
 	t.Logf("✅ Session retrieval test passed - Retrieved session: %s", retrievedID)
 }
 
-// Test 8: Session Deletion - DELETE /api/sessions/{id}
+// Test 8: Session Deletion - http.MethodDelete /api/sessions/{id}
 func TestRESTSessionDeletion(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing DELETE /api/sessions/{id} - Delete session")
+	t.Log("Testing http.MethodDelete /api/sessions/{id} - Delete session")
 
 	// Create a session to delete
 	sessionRequest := map[string]interface{}{
 		"title": "Deletion Test",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
 
 	// Delete the session
-	deleteResp := makeJSONRequest(t, result.Server, "DELETE", "/api/sessions/"+sessionID, nil)
+	deleteResp := makeJSONRequest(t, result.Server, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 	if deleteResp.StatusCode != http.StatusNoContent {
 		t.Fatalf("Expected status code %d for deletion, got %d", http.StatusNoContent, deleteResp.StatusCode)
 	}
 
 	// Verify the session is gone - should return 404
-	getResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID, nil)
+	getResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = getResp.Body.Close() }()
 	if getResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d when retrieving deleted session, got %d", http.StatusNotFound, getResp.StatusCode)
@@ -152,7 +154,7 @@ func TestRESTSessionDeletion(t *testing.T) {
 
 	// Test deleting non-existent session - should return 404 (not found)
 	nonExistentID := "non-existent-session-id"
-	deleteNonExistentResp := makeJSONRequest(t, result.Server, "DELETE", "/api/sessions/"+nonExistentID, nil)
+	deleteNonExistentResp := makeJSONRequest(t, result.Server, http.MethodDelete, constants.APISessionsPath+nonExistentID, nil)
 	defer func() { _ = deleteNonExistentResp.Body.Close() }()
 	if deleteNonExistentResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected status code %d when deleting non-existent session, got %d", http.StatusNotFound, deleteNonExistentResp.StatusCode)
@@ -161,26 +163,26 @@ func TestRESTSessionDeletion(t *testing.T) {
 	t.Logf("✅ Session deletion test passed - Deleted session: %s", sessionID)
 }
 
-// Test 9: Agent Cancellation - POST /api/sessions/{id}/cancel
+// Test 9: Agent Cancellation - http.MethodPost /api/sessions/{id}/cancel
 func TestRESTAgentCancellation(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing POST /api/sessions/{id}/cancel - Cancel agent")
+	t.Log("Testing http.MethodPost /api/sessions/{id}/cancel - Cancel agent")
 
 	// Create a session
 	sessionRequest := map[string]interface{}{
 		"title": "Cancel Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
 	sessionID := createdSessionData["id"].(string)
 
 	// Cancel agent processing for the session
-	cancelResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/cancel", nil)
+	cancelResp := makeJSONRequest(t, result.Server, http.MethodPost, constants.APISessionsPath+sessionID+"/cancel", nil)
 	defer func() { _ = cancelResp.Body.Close() }()
 	cancellationData := validateObjectResponse(t, cancelResp, http.StatusOK)
 

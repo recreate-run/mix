@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"mix/internal/constants"
 )
 
 // SupabaseProvider implements Provider interface for Supabase Storage using native REST API
@@ -17,6 +19,16 @@ type SupabaseProvider struct {
 	apiKey     string
 	bucket     string
 	httpClient *http.Client
+}
+
+// Supabase API request body types
+type supabaseListRequest struct {
+	Prefix string `json:"prefix"`
+	Limit  int    `json:"limit"`
+}
+
+type supabasePresignRequest struct {
+	ExpiresIn int `json:"expiresIn"`
 }
 
 // NewSupabaseProvider creates a new Supabase storage provider
@@ -157,9 +169,9 @@ func (p *SupabaseProvider) List(ctx context.Context, prefix string) ([]*FileInfo
 	url := fmt.Sprintf("%s/storage/v1/object/list/%s", p.projectURL, p.bucket)
 
 	// Request body for listing with prefix
-	reqBody := map[string]interface{}{
-		"prefix": prefix,
-		"limit":  1000,
+	reqBody := supabaseListRequest{
+		Prefix: prefix,
+		Limit:  1000,
 	}
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
@@ -172,7 +184,7 @@ func (p *SupabaseProvider) List(ctx context.Context, prefix string) ([]*FileInfo
 	}
 
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", constants.ContentTypeJSON)
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
@@ -261,8 +273,8 @@ func (p *SupabaseProvider) GetPresignedURL(ctx context.Context, key string, expi
 	// Supabase Storage API: POST /storage/v1/object/sign/{bucket}/{path}
 	url := fmt.Sprintf("%s/storage/v1/object/sign/%s/%s", p.projectURL, p.bucket, key)
 
-	reqBody := map[string]interface{}{
-		"expiresIn": int(expiry.Seconds()),
+	reqBody := supabasePresignRequest{
+		ExpiresIn: int(expiry.Seconds()),
 	}
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
@@ -275,7 +287,7 @@ func (p *SupabaseProvider) GetPresignedURL(ctx context.Context, key string, expi
 	}
 
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", constants.ContentTypeJSON)
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {

@@ -50,6 +50,8 @@ type browserTool struct {
 	clientFactory        ClientFactory            // Factory for creating browser clients
 	tunnelRegistryGetter func() interface{}       // Getter for tunnel registry (allows late initialization)
 	browserServiceURL    string                   // URL for browser-service
+	tunnelClients        map[string]*TunnelClientWrapper // Cache tunnel clients per session
+	tunnelClientsMu      sync.RWMutex                    // Protect tunnel clients cache
 }
 
 // NewBrowserTool creates a new browser tool instance
@@ -82,6 +84,7 @@ func NewBrowserTool(permissions permission.Service, browserServiceURL string, se
 		clientFactory:        clientFactory,
 		tunnelRegistryGetter: tunnelRegistryGetter,
 		browserServiceURL:    browserServiceURL,
+		tunnelClients:        make(map[string]*TunnelClientWrapper),
 	}
 }
 
@@ -93,12 +96,24 @@ func (b *browserTool) getClient(ctx context.Context, sessionID string) (BrowserC
 		return b.connectionManager.GetOrCreate(ctx, sessionID)
 	}
 
-	// Tunnel mode: get registry dynamically to support late initialization
+	// Tunnel mode: get or create cached client
+	b.tunnelClientsMu.Lock()
+	defer b.tunnelClientsMu.Unlock()
+
+	// Return existing client if cached
+	if client, exists := b.tunnelClients[sessionID]; exists {
+		return client, nil
+	}
+
+	// Create new client and cache it
 	var tunnelRegistry interface{}
 	if b.tunnelRegistryGetter != nil {
 		tunnelRegistry = b.tunnelRegistryGetter()
 	}
-	return NewTunnelClientWrapper(tunnelRegistry, sessionID), nil
+
+	client := NewTunnelClientWrapper(tunnelRegistry, sessionID)
+	b.tunnelClients[sessionID] = client
+	return client, nil
 }
 
 // Info returns tool metadata for the LLM
@@ -825,12 +840,14 @@ func (b *browserTool) handleUpload(ctx context.Context, params BrowserParams, se
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully uploaded %d file(s): %s", result.FilesUploaded, strings.Join(result.FileNames, ", ")))
 }
 
+const defaultTextStrategy = "auto"
+
 // handleGetText extracts text content from the page
 func (b *browserTool) handleGetText(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
 	// Default strategy to auto
 	strategy := params.Strategy
 	if strategy == "" {
-		strategy = "auto"
+		strategy = defaultTextStrategy
 	}
 
 	// Get browser connection

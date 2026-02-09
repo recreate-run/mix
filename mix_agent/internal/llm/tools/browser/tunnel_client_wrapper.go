@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	"mix/internal/llm/tools/browser/cdp"
 	"mix/internal/logging"
 
 	browserprotocol "github.com/sarathmenon/browser-service/pkg/protocol"
@@ -18,6 +21,15 @@ type tabInfo struct {
 	friendlyID   string // "tab-1", "tab-2" (friendly ID for LLM)
 	targetID     string // CDP target ID from Target.createTarget
 	cdpSessionID string // CDP session ID from Target.attachToTarget
+}
+
+// elementInfo stores element data for click/type operations
+type elementInfo struct {
+	Role      string
+	Name      string
+	Bounds    browserprotocol.BoundingBox
+	BackendID int64
+	FrameID   string
 }
 
 // TunnelClientWrapper wraps the tunnel registry to provide the same interface as browserclient.Client
@@ -32,6 +44,10 @@ type TunnelClientWrapper struct {
 	tabs        map[string]*tabInfo // friendlyTabId → tab info
 	tabCounter  uint64
 	activeTabID string
+
+	// Element cache (per tab)
+	cacheMu      sync.RWMutex
+	elementCache map[string][]elementInfo // tabID → elements
 }
 
 // NewTunnelClientWrapper creates a new tunnel client wrapper
@@ -44,6 +60,7 @@ func NewTunnelClientWrapper(tunnelRegistry interface{}, sessionID string) *Tunne
 		sessionID:      sessionID,
 		requestID:      1,
 		tabs:           make(map[string]*tabInfo),
+		elementCache:   make(map[string][]elementInfo),
 	}
 }
 
@@ -92,27 +109,25 @@ func (t *TunnelClientWrapper) generateFriendlyTabID() string {
 func (t *TunnelClientWrapper) sendCommand(_ context.Context, method string, params interface{}, cdpSessionID ...string) (interface{}, error) {
 	requestID := t.getNextRequestID()
 
-	// Create command map
-	command := map[string]interface{}{
-		"id":     requestID,
-		"method": method,
-	}
-	if params != nil {
-		command["params"] = params
+	// Create typed command
+	command := cdp.Command{
+		ID:     requestID,
+		Method: method,
+		Params: params,
 	}
 	// Add CDP session ID if provided (required for tab-specific commands)
 	if len(cdpSessionID) > 0 && cdpSessionID[0] != "" {
-		command["sessionId"] = cdpSessionID[0]
+		command.SessionID = cdpSessionID[0]
 	}
 
-	// Convert command map to JSON and back to match the CDPRequest type in internal/http
+	// Convert command to JSON to match the CDPRequest type in internal/http
 	commandJSON, err := json.Marshal(command)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
 	}
 
 	// Debug log all outgoing CDP commands
-	logging.Debug("Sending CDP command via tunnel", "method", method, "sessionId", command["sessionId"], "requestId", requestID, "command", string(commandJSON))
+	logging.Debug("Sending CDP command via tunnel", "method", method, "sessionId", command.SessionID, "requestId", requestID, "command", string(commandJSON))
 
 	// Use reflection to call SendCommandToTunnel
 	registryValue := reflect.ValueOf(t.tunnelRegistry)
@@ -148,29 +163,24 @@ func (t *TunnelClientWrapper) sendCommand(_ context.Context, method string, para
 		return nil, fmt.Errorf("nil response from tunnel")
 	}
 
-	// Convert response to map for easier access
+	// Convert response to typed CDP response
 	responseJSON, err := json.Marshal(responsePtr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal response: %w", err)
 	}
 
-	var responseMap map[string]interface{}
-	if err := json.Unmarshal(responseJSON, &responseMap); err != nil {
+	var response cdp.Response
+	if err := json.Unmarshal(responseJSON, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	// Check for error in response
-	if errVal, hasErr := responseMap["error"]; hasErr && errVal != nil {
-		if errMap, ok := errVal.(map[string]interface{}); ok {
-			if msg, ok := errMap["message"].(string); ok {
-				return nil, fmt.Errorf("CDP error for %s: %s", method, msg)
-			}
-		}
-		return nil, fmt.Errorf("CDP error for %s", method)
+	if response.Error != nil {
+		return nil, fmt.Errorf("CDP error for %s: %s", method, response.Error.Message)
 	}
 
 	// Return result
-	return responseMap["result"], nil
+	return response.Result, nil
 }
 
 // Navigate navigates to a URL
@@ -181,8 +191,8 @@ func (t *TunnelClientWrapper) Navigate(ctx context.Context, url string, tabID ..
 		return nil, fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
-	params := map[string]interface{}{
-		"url": url,
+	params := cdp.PageNavigateParams{
+		URL: url,
 	}
 
 	result, err := t.sendCommand(ctx, "Page.navigate", params, cdpSessionID)
@@ -190,18 +200,20 @@ func (t *TunnelClientWrapper) Navigate(ctx context.Context, url string, tabID ..
 		return nil, err
 	}
 
-	// Convert result to NavigateResult
-	resultMap, ok := result.(map[string]interface{})
-	if !ok {
-		return &browserprotocol.NavigateResult{}, nil
+	// Convert result to typed response
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return &browserprotocol.NavigateResult{}, err
 	}
 
-	frameID, _ := resultMap["frameId"].(string)
-	loaderID, _ := resultMap["loaderId"].(string)
+	var navResult cdp.PageNavigateResult
+	if err := json.Unmarshal(resultJSON, &navResult); err != nil {
+		return &browserprotocol.NavigateResult{}, err
+	}
 
 	return &browserprotocol.NavigateResult{
-		FrameID:  frameID,
-		LoaderID: loaderID,
+		FrameID:  navResult.FrameID,
+		LoaderID: navResult.LoaderID,
 	}, nil
 }
 
@@ -212,9 +224,11 @@ func (t *TunnelClientWrapper) GoBack(ctx context.Context, tabID ...string) (stri
 		return "", fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
-	_, err = t.sendCommand(ctx, "Page.navigateToHistoryEntry", map[string]interface{}{
-		"entryId": -1, // Go back
-	}, cdpSessionID)
+	params := cdp.PageNavigateToHistoryParams{
+		EntryID: -1, // Go back
+	}
+
+	_, err = t.sendCommand(ctx, "Page.navigateToHistoryEntry", params, cdpSessionID)
 	if err != nil {
 		return "", err
 	}
@@ -230,9 +244,11 @@ func (t *TunnelClientWrapper) GoForward(ctx context.Context, tabID ...string) (s
 		return "", fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
-	_, err = t.sendCommand(ctx, "Page.navigateToHistoryEntry", map[string]interface{}{
-		"entryId": 1, // Go forward
-	}, cdpSessionID)
+	params := cdp.PageNavigateToHistoryParams{
+		EntryID: 1, // Go forward
+	}
+
+	_, err = t.sendCommand(ctx, "Page.navigateToHistoryEntry", params, cdpSessionID)
 	if err != nil {
 		return "", err
 	}
@@ -243,32 +259,408 @@ func (t *TunnelClientWrapper) GoForward(ctx context.Context, tabID ...string) (s
 
 // Screenshot captures a screenshot
 func (t *TunnelClientWrapper) Screenshot(ctx context.Context, params browserprotocol.ScreenshotParams) (*browserprotocol.ScreenshotResult, error) {
-	// TODO: Implement screenshot via tunnel
-	return nil, fmt.Errorf("screenshot not yet implemented for tunnel mode")
+	// Convert *string to ...string for getTabCDPSessionID
+	var tabIDSlice []string
+	if params.TabID != nil {
+		tabIDSlice = []string{*params.TabID}
+	}
+	cdpSessionID, err := t.getTabCDPSessionID(tabIDSlice...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Capture screenshot using Page.captureScreenshot
+	screenshotParams := cdp.PageCaptureScreenshotParams{
+		Format:      "png",
+		FromSurface: true,
+	}
+
+	if params.Quality > 0 {
+		screenshotParams.Quality = params.Quality
+	}
+
+	if params.Format == "jpeg" {
+		screenshotParams.Format = "jpeg"
+	}
+
+	result, err := t.sendCommand(ctx, "Page.captureScreenshot", screenshotParams, cdpSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("screenshot failed: %w", err)
+	}
+
+	// Convert result to typed response
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected screenshot result type: %T", result)
+	}
+
+	var screenshotResult cdp.PageCaptureScreenshotResult
+	if err := json.Unmarshal(resultJSON, &screenshotResult); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal screenshot result: %w", err)
+	}
+
+	format := params.Format
+	if format == "" {
+		format = "png"
+	}
+
+	result2 := &browserprotocol.ScreenshotResult{
+		Data:   screenshotResult.Data,
+		Format: format,
+	}
+
+	// Raw mode: return accessibility tree and viewport
+	if params.Raw {
+		// Get full accessibility tree
+		axResult, err := t.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
+		}
+
+		// Convert to typed result
+		axJSON, err := json.Marshal(axResult)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal AX result: %w", err)
+		}
+
+		var axTreeResult cdp.AccessibilityGetFullAXTreeResult
+		if err := json.Unmarshal(axJSON, &axTreeResult); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal AX result: %w", err)
+		}
+
+		// Convert nodes to raw accessibility nodes
+		rawNodes := t.convertAXNodesToRaw(axTreeResult.Nodes)
+
+		// Get viewport bounds
+		viewport, err := t.getViewportBounds(ctx, cdpSessionID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get viewport: %w", err)
+		}
+
+		result2.RawNodes = rawNodes
+		result2.RawViewport = viewport
+	}
+
+	return result2, nil
 }
 
 // ReadPage reads the accessibility tree
 func (t *TunnelClientWrapper) ReadPage(ctx context.Context, interactiveOnly bool, tabID ...string) (*browserprotocol.ReadPageResult, error) {
-	// TODO: Implement read_page via tunnel
-	return nil, fmt.Errorf("read_page not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Determine which tab we're reading
+	targetTabID := t.activeTabID
+	if len(tabID) > 0 && tabID[0] != "" {
+		targetTabID = tabID[0]
+	}
+
+	// Get viewport bounds
+	viewport, err := t.getViewportBounds(ctx, cdpSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get viewport: %w", err)
+	}
+
+	// Get full accessibility tree
+	axResult, err := t.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
+	}
+
+	// Convert to typed result
+	axJSON, err := json.Marshal(axResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal AX result: %w", err)
+	}
+
+	var axTreeResult cdp.AccessibilityGetFullAXTreeResult
+	if err := json.Unmarshal(axJSON, &axTreeResult); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal AX result: %w", err)
+	}
+
+	// Convert nodes
+	rawNodes := t.convertAXNodesToRaw(axTreeResult.Nodes)
+
+	// Filter nodes based on interactiveOnly and viewport visibility
+	filteredNodes := make([]browserprotocol.RawAccessibilityNode, 0)
+	elements := make([]elementInfo, 0)
+
+	for _, node := range rawNodes {
+		// Skip nodes with zero size
+		if node.Bounds.Width <= 0 || node.Bounds.Height <= 0 {
+			continue
+		}
+
+		// Check viewport visibility
+		if !isInViewport(&node.Bounds, viewport) {
+			continue
+		}
+
+		// Filter interactive only if requested
+		if interactiveOnly && !isInteractiveRole(node.Role) {
+			continue
+		}
+
+		filteredNodes = append(filteredNodes, node)
+
+		// Add to element cache for click/type operations
+		elements = append(elements, elementInfo{
+			Role:      node.Role,
+			Name:      node.Name,
+			Bounds:    node.Bounds,
+			BackendID: node.BackendID,
+			FrameID:   node.FrameID,
+		})
+	}
+
+	// Update element cache
+	t.cacheMu.Lock()
+	t.elementCache[targetTabID] = elements
+	t.cacheMu.Unlock()
+
+	logging.Info("ReadPage completed", "tabID", targetTabID, "totalNodes", len(rawNodes), "filteredNodes", len(filteredNodes), "cached", len(elements))
+
+	return &browserprotocol.ReadPageResult{
+		Elements: filteredNodes,
+		Viewport: browserprotocol.BoundingBox{
+			X:      viewport.X,
+			Y:      viewport.Y,
+			Width:  viewport.Width,
+			Height: viewport.Height,
+		},
+	}, nil
 }
 
 // GetText extracts text from the page
 func (t *TunnelClientWrapper) GetText(ctx context.Context, strategy string, tabID ...string) (*browserprotocol.GetTextResult, error) {
-	// TODO: Implement get_text via tunnel
-	return nil, fmt.Errorf("get_text not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Default to auto strategy
+	if strategy == "" {
+		strategy = "auto"
+	}
+
+	// Build JavaScript based on strategy
+	var js string
+	switch strategy {
+	case "auto":
+		js = `(function() {
+			let elem = document.querySelector('article');
+			if (elem) return { text: elem.innerText, source: 'article' };
+
+			elem = document.querySelector('main, [role="main"]');
+			if (elem) return { text: elem.innerText, source: 'main' };
+
+			return { text: document.body.innerText, source: 'body' };
+		})()`
+	case "article":
+		js = `(function() {
+			const elem = document.querySelector('article');
+			if (!elem) return { text: '', source: 'article' };
+			return { text: elem.innerText, source: 'article' };
+		})()`
+	case "main":
+		js = `(function() {
+			const elem = document.querySelector('main, [role="main"]');
+			if (!elem) return { text: '', source: 'main' };
+			return { text: elem.innerText, source: 'main' };
+		})()`
+	case "body":
+		js = `(function() {
+			return { text: document.body.innerText, source: 'body' };
+		})()`
+	default:
+		return nil, fmt.Errorf("invalid strategy: %s", strategy)
+	}
+
+	// Execute JavaScript using Runtime.evaluate
+	evaluateParams := cdp.RuntimeEvaluateParams{
+		Expression:    js,
+		ReturnByValue: true,
+	}
+
+	result, err := t.sendCommand(ctx, "Runtime.evaluate", evaluateParams, cdpSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to evaluate JavaScript: %w", err)
+	}
+
+	// Convert to typed result
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var evalResult cdp.RuntimeEvaluateResult
+	if err := json.Unmarshal(resultJSON, &evalResult); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	// Check for exception
+	if evalResult.ExceptionDetails != nil {
+		return nil, fmt.Errorf("JavaScript execution error")
+	}
+
+	// Extract result value - the value field contains our {text, source} object
+	valueMap, ok := evalResult.Result.Value.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected value type: %T", evalResult.Result.Value)
+	}
+
+	text, _ := valueMap["text"].(string)
+	source, _ := valueMap["source"].(string)
+
+	return &browserprotocol.GetTextResult{
+		Text:   text,
+		Source: source,
+	}, nil
 }
 
 // Find searches for elements
 func (t *TunnelClientWrapper) Find(ctx context.Context, query string, limit int, tabID ...string) (*browserprotocol.FindResult, error) {
-	// TODO: Implement find via tunnel
-	return nil, fmt.Errorf("find not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	if query == "" {
+		return nil, fmt.Errorf("query cannot be empty")
+	}
+
+	// Default limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Get full accessibility tree
+	axResult, err := t.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
+	}
+
+	// Convert to typed result
+	axJSON, err := json.Marshal(axResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal AX result: %w", err)
+	}
+
+	var axTreeResult cdp.AccessibilityGetFullAXTreeResult
+	if err := json.Unmarshal(axJSON, &axTreeResult); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal AX result: %w", err)
+	}
+
+	// Convert nodes
+	rawNodes := t.convertAXNodesToRaw(axTreeResult.Nodes)
+
+	// Parse query for role and keywords
+	queryLower := strings.ToLower(query)
+	words := strings.Fields(queryLower)
+
+	var targetRole string
+	keywords := make([]string, 0)
+
+	// Check if first word is a role
+	if len(words) > 0 {
+		knownRoles := map[string]bool{
+			"button": true, "link": true, "input": true, "textbox": true,
+			"checkbox": true, "radio": true, "menu": true, "tab": true,
+		}
+
+		if knownRoles[words[0]] {
+			targetRole = words[0]
+			keywords = words[1:]
+		} else {
+			keywords = words
+		}
+	}
+
+	// Find matching elements
+	type match struct {
+		element browserprotocol.RawAccessibilityNode
+		score   int
+	}
+
+	matches := make([]match, 0)
+
+	for _, node := range rawNodes {
+		// Skip zero-size elements
+		if node.Bounds.Width <= 0 || node.Bounds.Height <= 0 {
+			continue
+		}
+
+		// Check role match if specified
+		if targetRole != "" && !strings.EqualFold(node.Role, targetRole) {
+			continue
+		}
+
+		// Calculate match score based on keywords
+		score := 0
+		nameLower := strings.ToLower(node.Name)
+
+		for _, keyword := range keywords {
+			if strings.Contains(nameLower, keyword) {
+				score++
+			}
+		}
+
+		// If no keywords or at least one match
+		if len(keywords) == 0 || score > 0 {
+			matches = append(matches, match{
+				element: node,
+				score:   score,
+			})
+		}
+	}
+
+	// Sort by score (descending)
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].score > matches[j].score
+	})
+
+	// Apply limit
+	if len(matches) > limit {
+		matches = matches[:limit]
+	}
+
+	// Extract elements
+	elements := make([]browserprotocol.RawAccessibilityNode, len(matches))
+	for i, m := range matches {
+		elements[i] = m.element
+	}
+
+	return &browserprotocol.FindResult{
+		Elements:  elements,
+		Total:     len(elements),
+		Truncated: len(matches) >= limit,
+	}, nil
 }
 
 // Click clicks an element by index
 func (t *TunnelClientWrapper) Click(ctx context.Context, index int, tabID ...string) error {
-	// TODO: Implement click via tunnel
-	return fmt.Errorf("click not yet implemented for tunnel mode")
+	// Get element from cache
+	targetTabID := t.activeTabID
+	if len(tabID) > 0 && tabID[0] != "" {
+		targetTabID = tabID[0]
+	}
+
+	t.cacheMu.RLock()
+	elements, exists := t.elementCache[targetTabID]
+	t.cacheMu.RUnlock()
+
+	if !exists || len(elements) == 0 {
+		return fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
+	}
+
+	if index < 0 || index >= len(elements) {
+		return fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
+	}
+
+	// Delegate to ClickByBackendID
+	return t.ClickByBackendID(ctx, elements[index].BackendID, tabID...)
 }
 
 // ClickByBackendID clicks an element by backend ID
@@ -278,8 +670,8 @@ func (t *TunnelClientWrapper) ClickByBackendID(ctx context.Context, backendID in
 		return fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
-	params := map[string]interface{}{
-		"backendNodeId": backendID,
+	params := cdp.DOMClickParams{
+		BackendNodeID: backendID,
 	}
 
 	_, err = t.sendCommand(ctx, "DOM.click", params, cdpSessionID)
@@ -330,8 +722,81 @@ func (t *TunnelClientWrapper) Drag(ctx context.Context, fromIndex, toIndex *int,
 
 // Type types text into an element
 func (t *TunnelClientWrapper) Type(ctx context.Context, index int, text string, tabID ...string) error {
-	// TODO: Implement type via tunnel
-	return fmt.Errorf("type not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Get element from cache
+	targetTabID := t.activeTabID
+	if len(tabID) > 0 && tabID[0] != "" {
+		targetTabID = tabID[0]
+	}
+
+	t.cacheMu.RLock()
+	elements, exists := t.elementCache[targetTabID]
+	t.cacheMu.RUnlock()
+
+	if !exists || len(elements) == 0 {
+		return fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
+	}
+
+	if index < 0 || index >= len(elements) {
+		return fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
+	}
+
+	elem := elements[index]
+
+	// Click to focus the element first
+	x := elem.Bounds.X + elem.Bounds.Width/2
+	y := elem.Bounds.Y + elem.Bounds.Height/2
+
+	// Move mouse and click
+	moveParams := cdp.InputDispatchMouseEventParams{
+		Type:   "mouseMoved",
+		X:      x,
+		Y:      y,
+		Button: "left",
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to move mouse: %w", err)
+	}
+
+	pressParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mousePressed",
+		X:          x,
+		Y:          y,
+		Button:     "left",
+		ClickCount: 1,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", pressParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to press mouse: %w", err)
+	}
+
+	releaseParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mouseReleased",
+		X:          x,
+		Y:          y,
+		Button:     "left",
+		ClickCount: 1,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", releaseParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to release mouse: %w", err)
+	}
+
+	// Type text using Input.insertText
+	insertParams := cdp.InputInsertTextParams{
+		Text: text,
+	}
+	_, err = t.sendCommand(ctx, "Input.insertText", insertParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to insert text: %w", err)
+	}
+
+	return nil
 }
 
 // PressKey presses keyboard keys
@@ -348,8 +813,37 @@ func (t *TunnelClientWrapper) FormInput(ctx context.Context, index int, value st
 
 // Scroll scrolls the page
 func (t *TunnelClientWrapper) Scroll(ctx context.Context, direction string, amount int, tabID ...string) error {
-	// TODO: Implement scroll via tunnel
-	return fmt.Errorf("scroll not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	var deltaX, deltaY float64
+
+	switch direction {
+	case "up":
+		deltaY = -float64(amount)
+	case "down":
+		deltaY = float64(amount)
+	case "left":
+		deltaX = -float64(amount)
+	case "right":
+		deltaX = float64(amount)
+	default:
+		return fmt.Errorf("invalid scroll direction: %s (must be up, down, left, or right)", direction)
+	}
+
+	// Use Input.dispatchMouseEvent with type=mouseWheel
+	scrollParams := cdp.InputDispatchMouseEventParams{
+		Type:   "mouseWheel",
+		X:      0,
+		Y:      0,
+		DeltaX: deltaX,
+		DeltaY: deltaY,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", scrollParams, cdpSessionID)
+
+	return err
 }
 
 // ScrollIntoView scrolls an element into view
@@ -382,8 +876,8 @@ func (t *TunnelClientWrapper) CreateTab(ctx context.Context, url ...string) (*br
 		targetURL = url[0]
 	}
 
-	createParams := map[string]interface{}{
-		"url": targetURL,
+	createParams := cdp.TargetCreateParams{
+		URL: targetURL,
 	}
 
 	// Send Target.createTarget (no CDP session ID needed for Target commands)
@@ -392,21 +886,21 @@ func (t *TunnelClientWrapper) CreateTab(ctx context.Context, url ...string) (*br
 		return nil, fmt.Errorf("failed to create target: %w", err)
 	}
 
-	// Extract targetId from result
-	resultMap, ok := createResult.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected create target result type: %T", createResult)
+	// Convert to typed result
+	createJSON, err := json.Marshal(createResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal create result: %w", err)
 	}
 
-	targetID, ok := resultMap["targetId"].(string)
-	if !ok {
-		return nil, fmt.Errorf("targetId not found in create target result")
+	var createRes cdp.TargetCreateResult
+	if err := json.Unmarshal(createJSON, &createRes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal create result: %w", err)
 	}
 
 	// Step 2: Attach to target to get CDP session ID
-	attachParams := map[string]interface{}{
-		"targetId": targetID,
-		"flatten":  true, // Flatten session for easier command routing
+	attachParams := cdp.TargetAttachParams{
+		TargetID: createRes.TargetID,
+		Flatten:  true, // Flatten session for easier command routing
 	}
 
 	attachResult, err := t.sendCommand(ctx, "Target.attachToTarget", attachParams)
@@ -414,15 +908,15 @@ func (t *TunnelClientWrapper) CreateTab(ctx context.Context, url ...string) (*br
 		return nil, fmt.Errorf("failed to attach to target: %w", err)
 	}
 
-	// Extract sessionId from result
-	attachMap, ok := attachResult.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected attach target result type: %T", attachResult)
+	// Convert to typed result
+	attachJSON, err := json.Marshal(attachResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal attach result: %w", err)
 	}
 
-	cdpSessionID, ok := attachMap["sessionId"].(string)
-	if !ok {
-		return nil, fmt.Errorf("sessionId not found in attach target result")
+	var attachRes cdp.TargetAttachResult
+	if err := json.Unmarshal(attachJSON, &attachRes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal attach result: %w", err)
 	}
 
 	// Step 3: Generate friendly tab ID and store mapping
@@ -430,8 +924,8 @@ func (t *TunnelClientWrapper) CreateTab(ctx context.Context, url ...string) (*br
 
 	tab := &tabInfo{
 		friendlyID:   friendlyTabID,
-		targetID:     targetID,
-		cdpSessionID: cdpSessionID,
+		targetID:     createRes.TargetID,
+		cdpSessionID: attachRes.SessionID,
 	}
 
 	t.tabsMu.Lock()
@@ -512,8 +1006,8 @@ func (t *TunnelClientWrapper) CloseTab(ctx context.Context, tabID string) error 
 	t.tabsMu.Unlock()
 
 	// Send Target.closeTarget command
-	closeParams := map[string]interface{}{
-		"targetId": targetID,
+	closeParams := cdp.TargetCloseParams{
+		TargetID: targetID,
 	}
 
 	_, err := t.sendCommand(ctx, "Target.closeTarget", closeParams)
@@ -534,4 +1028,101 @@ func (t *TunnelClientWrapper) Wait(ctx context.Context, duration int, tabID ...s
 func (t *TunnelClientWrapper) Close() error {
 	// Tunnel connections are managed by the registry, so nothing to do here
 	return nil
+}
+
+// Helper methods
+
+// getViewportBounds returns the current viewport dimensions
+func (t *TunnelClientWrapper) getViewportBounds(ctx context.Context, cdpSessionID string) (*browserprotocol.ViewportBounds, error) {
+	result, err := t.sendCommand(ctx, "Page.getLayoutMetrics", nil, cdpSessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to typed result
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal layout metrics: %w", err)
+	}
+
+	var layoutMetrics cdp.PageGetLayoutMetricsResult
+	if err := json.Unmarshal(resultJSON, &layoutMetrics); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal layout metrics: %w", err)
+	}
+
+	return &browserprotocol.ViewportBounds{
+		X:      layoutMetrics.VisualViewport.PageX,
+		Y:      layoutMetrics.VisualViewport.PageY,
+		Width:  layoutMetrics.VisualViewport.ClientWidth,
+		Height: layoutMetrics.VisualViewport.ClientHeight,
+	}, nil
+}
+
+// convertAXNodesToRaw converts CDP accessibility nodes to protocol raw nodes
+func (t *TunnelClientWrapper) convertAXNodesToRaw(nodes []cdp.AccessibilityNode) []browserprotocol.RawAccessibilityNode {
+	rawNodes := make([]browserprotocol.RawAccessibilityNode, 0, len(nodes))
+
+	for _, node := range nodes {
+		// Get bounds
+		var bounds browserprotocol.BoundingBox
+		if node.BoundingBox != nil {
+			bounds = browserprotocol.BoundingBox{
+				X:      node.BoundingBox.X,
+				Y:      node.BoundingBox.Y,
+				Width:  node.BoundingBox.Width,
+				Height: node.BoundingBox.Height,
+			}
+		}
+
+		// Get attributes from properties
+		attributes := make(map[string]string)
+		for _, prop := range node.Properties {
+			if prop.Name != "" {
+				attributes[prop.Name] = prop.Value.Value
+			}
+		}
+
+		rawNodes = append(rawNodes, browserprotocol.RawAccessibilityNode{
+			Role:       node.Role.Value,
+			Name:       node.Name.Value,
+			Bounds:     bounds,
+			BackendID:  node.BackendDOMNodeID,
+			FrameID:    node.FrameID,
+			Attributes: attributes,
+		})
+	}
+
+	return rawNodes
+}
+
+// isInViewport checks if an element's bounds overlap with the viewport
+func isInViewport(bounds *browserprotocol.BoundingBox, viewport *browserprotocol.ViewportBounds) bool {
+	// Check if element overlaps with viewport
+	return bounds.X+bounds.Width > viewport.X &&
+		bounds.X < viewport.X+viewport.Width &&
+		bounds.Y+bounds.Height > viewport.Y &&
+		bounds.Y < viewport.Y+viewport.Height
+}
+
+// isInteractiveRole checks if a role is considered interactive
+func isInteractiveRole(role string) bool {
+	interactiveRoles := map[string]bool{
+		"button":           true,
+		"link":             true,
+		"textbox":          true,
+		"searchbox":        true,
+		"combobox":         true,
+		"listbox":          true,
+		"menu":             true,
+		"menuitem":         true,
+		"menuitemcheckbox": true,
+		"menuitemradio":    true,
+		"tab":              true,
+		"checkbox":         true,
+		"radio":            true,
+		"slider":           true,
+		"spinbutton":       true,
+		"switch":           true,
+	}
+	return interactiveRoles[strings.ToLower(role)]
 }

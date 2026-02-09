@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"mix/internal/constants"
 	"mix/internal/logging"
 )
 
@@ -528,7 +529,7 @@ func RefreshOpenAIAccessToken(credentials *OpenAICredentials) (*OpenAICredential
 	if err != nil {
 		return nil, fmt.Errorf("failed to create refresh request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", constants.ContentTypeJSON)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

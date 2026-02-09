@@ -12,6 +12,7 @@ import (
 	"mix/internal/app"
 	"mix/internal/auth"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/logging"
 	"mix/internal/version"
 )
@@ -77,7 +78,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 
 	// Add health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", constants.ContentTypeJSON)
 		// Return detailed health information
 		health := map[string]interface{}{
 			"status":      "ok",
@@ -107,7 +108,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 
 	// Active tunnels endpoint
 	mux.HandleFunc("GET /api/v1/tunnel/active", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", constants.ContentTypeJSON)
 		activeTunnels := tunnelRegistry.GetActiveTunnels()
 		response := map[string]interface{}{
 			"active_tunnels": activeTunnels,
@@ -158,7 +159,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 		}
 
 		// Return response
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", constants.ContentTypeJSON)
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logging.Error("Failed to encode test command response", "error", err)
 		}

@@ -133,7 +133,7 @@ func TestRunRipgrepStandalone(t *testing.T) {
 		// Use printf to simulate ripgrep output (echo might not handle null bytes well)
 		files := []string{"test1.go", "test2.go"}
 		output := strings.Join(files, "\\0") + "\\0"
-		cmd := exec.Command("printf", output)
+		cmd := exec.CommandContext(context.Background(), "printf", output)
 
 		matches, err := runRipgrep(cmd, "/tmp", 10)
 		require.NoError(t, err)
@@ -141,14 +141,14 @@ func TestRunRipgrepStandalone(t *testing.T) {
 	})
 
 	t.Run("no matches (exit code 1)", func(t *testing.T) {
-		cmd := exec.Command("sh", "-c", "exit 1")
+		cmd := exec.CommandContext(context.Background(), "sh", "-c", "exit 1")
 		matches, err := runRipgrep(cmd, "/tmp", 10)
 		require.NoError(t, err)
 		assert.Nil(t, matches)
 	})
 
 	t.Run("command failure", func(t *testing.T) {
-		cmd := exec.Command("sh", "-c", "exit 2")
+		cmd := exec.CommandContext(context.Background(), "sh", "-c", "exit 2")
 		matches, err := runRipgrep(cmd, "/tmp", 10)
 		require.Error(t, err)
 		assert.Nil(t, matches)

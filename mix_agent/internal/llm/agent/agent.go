@@ -567,11 +567,14 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 
 		// Agent finished with no tools - conversation complete
+		routeTo, origin, parentToolCallID := getSessionRouting(ctx)
 		finalEvent := AgentEvent{
-			Type:      AgentEventTypeResponse,
-			Message:   agentMessage,
-			SessionID: sessionID,
-			Done:      true,
+			Type:             AgentEventTypeResponse,
+			Message:          agentMessage,
+			SessionID:        origin,
+			RouteTo:          routeTo,
+			ParentToolCallID: parentToolCallID,
+			Done:             true,
 		}
 		err = a.Publish(ctx, pubsub.CreatedEvent, finalEvent)
 		if err != nil {

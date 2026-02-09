@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"mix/internal/session"
+	"mix/internal/constants"
 )
 
-// Test 20: File Upload and List - POST /api/sessions/{id}/files/upload + GET /api/sessions/{id}/files
+// Test 20: File Upload and List - http.MethodPost /api/sessions/{id}/files/upload + http.MethodGet /api/sessions/{id}/files
 func TestRESTFileUploadAndList(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
@@ -19,7 +20,7 @@ func TestRESTFileUploadAndList(t *testing.T) {
 		"title": "File Upload Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -29,7 +30,7 @@ func TestRESTFileUploadAndList(t *testing.T) {
 	testFilename := "test-upload.txt"
 
 	uploadResp := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+sessionID+"/files/upload",
+		constants.APISessionsPath+sessionID+"/files/upload",
 		testFilename,
 		testContent)
 	defer func() { _ = uploadResp.Body.Close() }()
@@ -48,7 +49,7 @@ func TestRESTFileUploadAndList(t *testing.T) {
 	}
 
 	// List files in the session
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	filesList := validateArrayResponse(t, listResp)
 
@@ -88,7 +89,7 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 		"title": "File Serving Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -98,7 +99,7 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 	testFilename := "test-serve.txt"
 
 	uploadResp := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+sessionID+"/files/upload",
+		constants.APISessionsPath+sessionID+"/files/upload",
 		testFilename,
 		testContent)
 	defer func() { _ = uploadResp.Body.Close() }()
@@ -106,8 +107,8 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 	validateObjectResponse(t, uploadResp, http.StatusCreated)
 
 	// Download the file
-	downloadResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+testFilename, nil)
+	downloadResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+testFilename, nil)
 
 	if downloadResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d for file download, got %d", http.StatusOK, downloadResp.StatusCode)
@@ -135,8 +136,8 @@ func TestRESTFileUploadAndServing(t *testing.T) {
 	}
 
 	// Test downloading non-existent file (should return 404)
-	nonExistentResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/non-existent.txt", nil)
+	nonExistentResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/non-existent.txt", nil)
 	defer func() { _ = nonExistentResp.Body.Close() }()
 
 	if nonExistentResp.StatusCode != http.StatusNotFound {
@@ -158,7 +159,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 		"title": "Security Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -174,7 +175,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 	t.Logf("Testing multipart filename sanitization for: %s", dangerousFilename)
 
 	uploadResp := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+sessionID+"/files/upload",
+		constants.APISessionsPath+sessionID+"/files/upload",
 		dangerousFilename,
 		testContent)
 
@@ -186,7 +187,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 	_ = uploadResp.Body.Close()
 
 	// Verify the file was created with sanitized name "passwd"
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	filesList := validateArrayResponse(t, listResp)
 
@@ -213,8 +214,8 @@ func TestRESTFilePathSecurity(t *testing.T) {
 	for _, dangerousPath := range dangerousAccessPaths {
 		t.Logf("Testing file access rejection for dangerous path: %s", dangerousPath)
 
-		accessResp := makeJSONRequest(t, result.Server, "GET",
-			"/api/sessions/"+sessionID+"/files/"+dangerousPath, nil)
+		accessResp := makeJSONRequest(t, result.Server, http.MethodGet,
+			constants.APISessionsPath+sessionID+"/files/"+dangerousPath, nil)
 
 		// Should be rejected - either 400 (validation error) or 404 (router rejects path)
 		// Both are acceptable security responses
@@ -230,7 +231,7 @@ func TestRESTFilePathSecurity(t *testing.T) {
 	normalContent := "This is a normal file"
 
 	normalUploadResp := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+sessionID+"/files/upload",
+		constants.APISessionsPath+sessionID+"/files/upload",
 		normalFilename,
 		normalContent)
 
@@ -241,8 +242,8 @@ func TestRESTFilePathSecurity(t *testing.T) {
 	_ = normalUploadResp.Body.Close()
 
 	// Verify normal file can be accessed
-	normalAccessResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+normalFilename, nil)
+	normalAccessResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+normalFilename, nil)
 
 	if normalAccessResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d for normal file access, got %d",
@@ -269,13 +270,13 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	}
 
 	// Create session 1
-	createResp1 := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session1Request)
+	createResp1 := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", session1Request)
 	defer func() { _ = createResp1.Body.Close() }()
 	session1Data := validateObjectResponse(t, createResp1, http.StatusCreated)
 	session1ID := session1Data["id"].(string)
 
 	// Create session 2
-	createResp2 := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session2Request)
+	createResp2 := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", session2Request)
 	defer func() { _ = createResp2.Body.Close() }()
 	session2Data := validateObjectResponse(t, createResp2, http.StatusCreated)
 	session2ID := session2Data["id"].(string)
@@ -285,7 +286,7 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	sharedContent := "This file is uploaded via session 1 but should be accessible from session 2"
 
 	uploadResp1 := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+session1ID+"/files/upload",
+		constants.APISessionsPath+session1ID+"/files/upload",
 		sharedFileName,
 		sharedContent)
 	defer func() { _ = uploadResp1.Body.Close() }()
@@ -293,8 +294,8 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	validateObjectResponse(t, uploadResp1, http.StatusCreated)
 
 	// Verify session 1 can access the uploaded file
-	access1Resp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+session1ID+"/files/"+sharedFileName, nil)
+	access1Resp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+session1ID+"/files/"+sharedFileName, nil)
 
 	if access1Resp.StatusCode != http.StatusOK {
 		t.Fatalf("Session 1 should be able to access uploaded file, got status %d", access1Resp.StatusCode)
@@ -311,8 +312,8 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	}
 
 	// Verify session 2 can also access the same file (since it's in shared uploads)
-	access2Resp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+session2ID+"/files/"+sharedFileName, nil)
+	access2Resp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+session2ID+"/files/"+sharedFileName, nil)
 
 	if access2Resp.StatusCode != http.StatusOK {
 		t.Fatalf("Session 2 should be able to access shared file, got status %d", access2Resp.StatusCode)
@@ -329,11 +330,11 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	}
 
 	// Test file listing - both sessions should see the same files from uploads directory
-	list1Resp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+session1ID+"/files", nil)
+	list1Resp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+session1ID+"/files", nil)
 	defer func() { _ = list1Resp.Body.Close() }()
 	files1List := validateArrayResponse(t, list1Resp)
 
-	list2Resp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+session2ID+"/files", nil)
+	list2Resp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+session2ID+"/files", nil)
 	defer func() { _ = list2Resp.Body.Close() }()
 	files2List := validateArrayResponse(t, list2Resp)
 
@@ -364,7 +365,7 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	}
 
 	// Test cross-session access attempt with invalid session ID (should still fail validation)
-	wrongSessionResp := makeJSONRequest(t, result.Server, "GET",
+	wrongSessionResp := makeJSONRequest(t, result.Server, http.MethodGet,
 		"/api/sessions/wrong-session-id/files/"+sharedFileName, nil)
 
 	// Should fail with validation error (invalid session ID format returns 400 Bad Request)
@@ -377,7 +378,7 @@ func TestRESTFileSharedStorage(t *testing.T) {
 	t.Logf("✅ File shared storage test passed - Files properly shared via uploads directory")
 }
 
-// Test 24: File Deletion - DELETE /api/sessions/{id}/files/{filename}
+// Test 24: File Deletion - http.MethodDelete /api/sessions/{id}/files/{filename}
 func TestRESTFileDeletion(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
@@ -389,7 +390,7 @@ func TestRESTFileDeletion(t *testing.T) {
 		"title": "File Deletion Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -399,7 +400,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	testFilename := "test-delete.txt"
 
 	uploadResp := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+sessionID+"/files/upload",
+		constants.APISessionsPath+sessionID+"/files/upload",
 		testFilename,
 		testContent)
 	defer func() { _ = uploadResp.Body.Close() }()
@@ -407,7 +408,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	validateObjectResponse(t, uploadResp, http.StatusCreated)
 
 	// Verify file exists before deletion
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	filesList := validateArrayResponse(t, listResp)
 
@@ -424,8 +425,8 @@ func TestRESTFileDeletion(t *testing.T) {
 	}
 
 	// Delete the file
-	deleteResp := makeJSONRequest(t, result.Server, "DELETE",
-		"/api/sessions/"+sessionID+"/files/"+testFilename, nil)
+	deleteResp := makeJSONRequest(t, result.Server, http.MethodDelete,
+		constants.APISessionsPath+sessionID+"/files/"+testFilename, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusNoContent {
@@ -433,7 +434,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	}
 
 	// Verify file is gone from file list
-	listAfterDeleteResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listAfterDeleteResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listAfterDeleteResp.Body.Close() }()
 	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp)
 
@@ -445,8 +446,8 @@ func TestRESTFileDeletion(t *testing.T) {
 	}
 
 	// Verify file cannot be accessed directly (should return 404)
-	accessResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+testFilename, nil)
+	accessResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+testFilename, nil)
 	defer func() { _ = accessResp.Body.Close() }()
 
 	if accessResp.StatusCode != http.StatusNotFound {
@@ -454,8 +455,8 @@ func TestRESTFileDeletion(t *testing.T) {
 	}
 
 	// Test deleting non-existent file (should return 404)
-	nonExistentDeleteResp := makeJSONRequest(t, result.Server, "DELETE",
-		"/api/sessions/"+sessionID+"/files/non-existent-file.txt", nil)
+	nonExistentDeleteResp := makeJSONRequest(t, result.Server, http.MethodDelete,
+		constants.APISessionsPath+sessionID+"/files/non-existent-file.txt", nil)
 	defer func() { _ = nonExistentDeleteResp.Body.Close() }()
 
 	if nonExistentDeleteResp.StatusCode != http.StatusNotFound {
@@ -463,7 +464,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	}
 
 	// Test deleting from non-existent session (should return 400)
-	invalidSessionDeleteResp := makeJSONRequest(t, result.Server, "DELETE",
+	invalidSessionDeleteResp := makeJSONRequest(t, result.Server, http.MethodDelete,
 		"/api/sessions/invalid-session-id/files/"+testFilename, nil)
 	defer func() { _ = invalidSessionDeleteResp.Body.Close() }()
 
@@ -474,7 +475,7 @@ func TestRESTFileDeletion(t *testing.T) {
 	t.Logf("✅ File deletion test passed - File properly deleted: %s", testFilename)
 }
 
-// Test 25: Thumbnail Generation - GET /api/sessions/{id}/files/{filename}?thumb=...
+// Test 25: Thumbnail Generation - http.MethodGet /api/sessions/{id}/files/{filename}?thumb=...
 func TestRESTFileThumbnailGeneration(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
@@ -486,7 +487,7 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 		"title": "Thumbnail Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -496,7 +497,7 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	textFilename := "test-text.txt"
 
 	textUploadResp := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+sessionID+"/files/upload",
+		constants.APISessionsPath+sessionID+"/files/upload",
 		textFilename,
 		textContent)
 	defer func() { _ = textUploadResp.Body.Close() }()
@@ -504,8 +505,8 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	validateObjectResponse(t, textUploadResp, http.StatusCreated)
 
 	// Try to generate thumbnail from text file (should fail)
-	textThumbResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+textFilename+"?thumb=100", nil)
+	textThumbResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+textFilename+"?thumb=100", nil)
 
 	if textThumbResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for thumbnail on non-image, got %d", http.StatusBadRequest, textThumbResp.StatusCode)
@@ -513,8 +514,8 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	_ = textThumbResp.Body.Close()
 
 	// Test invalid thumbnail parameter on text file (should return 400)
-	invalidThumbResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+textFilename+"?thumb=invalid", nil)
+	invalidThumbResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+textFilename+"?thumb=invalid", nil)
 
 	if invalidThumbResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected status code %d for invalid thumbnail param, got %d", http.StatusBadRequest, invalidThumbResp.StatusCode)
@@ -522,8 +523,8 @@ func TestRESTFileThumbnailGeneration(t *testing.T) {
 	_ = invalidThumbResp.Body.Close()
 
 	// Test accessing file without thumbnail params (should work normally)
-	normalResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+textFilename, nil)
+	normalResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+textFilename, nil)
 
 	if normalResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d for normal file access, got %d", http.StatusOK, normalResp.StatusCode)
@@ -545,7 +546,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 		"title": "Large File Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -561,7 +562,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	t.Logf("Testing upload of %d KB file", len(largeContent)/1024)
 
 	largeUploadResp := makeMultipartFileRequestFromBytes(t, result.Server,
-		"/api/sessions/"+sessionID+"/files/upload",
+		constants.APISessionsPath+sessionID+"/files/upload",
 		largeFilename,
 		largeContent)
 	defer func() { _ = largeUploadResp.Body.Close() }()
@@ -579,7 +580,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	}
 
 	// Verify the large file appears in file list
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	filesList := validateArrayResponse(t, listResp)
 
@@ -601,8 +602,8 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	}
 
 	// Try to access the large file (verify headers, don't download full content)
-	accessResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+largeFilename, nil)
+	accessResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+largeFilename, nil)
 
 	if accessResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d when accessing large file, got %d", http.StatusOK, accessResp.StatusCode)
@@ -610,8 +611,8 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	_ = accessResp.Body.Close()
 
 	// Verify we can delete the large file
-	deleteResp := makeJSONRequest(t, result.Server, "DELETE",
-		"/api/sessions/"+sessionID+"/files/"+largeFilename, nil)
+	deleteResp := makeJSONRequest(t, result.Server, http.MethodDelete,
+		constants.APISessionsPath+sessionID+"/files/"+largeFilename, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 
 	if deleteResp.StatusCode != http.StatusNoContent {
@@ -619,7 +620,7 @@ func TestRESTLargeFileHandling(t *testing.T) {
 	}
 
 	// Verify file is gone after deletion
-	listAfterDeleteResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listAfterDeleteResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listAfterDeleteResp.Body.Close() }()
 	filesAfterDelete := validateArrayResponse(t, listAfterDeleteResp)
 
@@ -649,13 +650,13 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	}
 
 	// Create session A
-	createARsep := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionARequest)
+	createARsep := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionARequest)
 	defer func() { _ = createARsep.Body.Close() }()
 	sessionAData := validateObjectResponse(t, createARsep, http.StatusCreated)
 	sessionAID := sessionAData["id"].(string)
 
 	// Create session B
-	createBResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionBRequest)
+	createBResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionBRequest)
 	defer func() { _ = createBResp.Body.Close() }()
 	sessionBData := validateObjectResponse(t, createBResp, http.StatusCreated)
 	sessionBID := sessionBData["id"].(string)
@@ -687,8 +688,8 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	}
 
 	// Test 1: Session A should be able to access its own file
-	accessAResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionAID+"/files/"+testFilename, nil)
+	accessAResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionAID+"/files/"+testFilename, nil)
 
 	if accessAResp.StatusCode != http.StatusOK {
 		t.Fatalf("Session A should be able to access its own file, got status %d", accessAResp.StatusCode)
@@ -708,8 +709,8 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	}
 
 	// Test 2: Session B should NOT be able to access session A's file
-	accessBResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionBID+"/files/"+testFilename, nil)
+	accessBResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionBID+"/files/"+testFilename, nil)
 
 	if accessBResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Session B should not be able to access session A's file, got status %d", accessBResp.StatusCode)
@@ -722,7 +723,7 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	sharedFilename := "shared-test.txt"
 
 	uploadResp := makeMultipartFileRequest(t, result.Server,
-		"/api/sessions/"+sessionAID+"/files/upload",
+		constants.APISessionsPath+sessionAID+"/files/upload",
 		sharedFilename,
 		sharedContent)
 	defer func() { _ = uploadResp.Body.Close() }()
@@ -730,15 +731,15 @@ func TestRESTSessionIsolatedFileServing(t *testing.T) {
 	validateObjectResponse(t, uploadResp, http.StatusCreated)
 
 	// Both sessions should be able to access the shared file
-	sharedAccessAResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionAID+"/files/"+sharedFilename, nil)
+	sharedAccessAResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionAID+"/files/"+sharedFilename, nil)
 	if sharedAccessAResp.StatusCode != http.StatusOK {
 		t.Fatalf("Session A should access shared file, got status %d", sharedAccessAResp.StatusCode)
 	}
 	_ = sharedAccessAResp.Body.Close()
 
-	sharedAccessBResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionBID+"/files/"+sharedFilename, nil)
+	sharedAccessBResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionBID+"/files/"+sharedFilename, nil)
 	if sharedAccessBResp.StatusCode != http.StatusOK {
 		t.Fatalf("Session B should access shared file, got status %d", sharedAccessBResp.StatusCode)
 	}

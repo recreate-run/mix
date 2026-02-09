@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"mix/internal/constants"
 )
 
 // Test ErrorResponse structure
@@ -423,7 +424,7 @@ func TestParseJSONBody(t *testing.T) {
 				require.NoError(t, err)
 				req = httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(bodyBytes))
 			}
-			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", constants.ContentTypeJSON)
 
 			// Call function
 			err := parseJSONBody(req, tt.target)

@@ -6,24 +6,25 @@ import (
 	"testing"
 
 	"mix/internal/message"
+	"mix/internal/constants"
 )
 
 // NOTE: TestRESTMessageSending moved to e2e/messaging/message_e2e_test.go
 // It requires real LLM API and is a true E2E test
 
-// Test 6: Message Listing - GET /api/sessions/{id}/messages
+// Test 6: Message Listing - http.MethodGet /api/sessions/{id}/messages
 func TestRESTMessageListing(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/sessions/{id}/messages - List session messages")
+	t.Log("Testing http.MethodGet /api/sessions/{id}/messages - List session messages")
 
 	// Create a session and add some messages
 	sessionRequest := map[string]interface{}{
 		"title": "Message List Test Session",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 
@@ -43,7 +44,7 @@ func TestRESTMessageListing(t *testing.T) {
 	}
 
 	// List messages for the session
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/messages", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	messagesList := validateArrayResponse(t, listResp)
 
@@ -77,19 +78,19 @@ func TestRESTMessageListing(t *testing.T) {
 	t.Logf("✅ Message listing test passed - Found %d messages", len(messagesList))
 }
 
-// Test 11: Message History - GET /api/messages/history
+// Test 11: Message History - http.MethodGet /api/messages/history
 func TestRESTMessageHistory(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
 
-	t.Log("Testing GET /api/messages/history - Get global message history")
+	t.Log("Testing http.MethodGet /api/messages/history - Get global message history")
 
 	// Create multiple sessions with messages
 	session1Request := map[string]interface{}{
 		"title": "History Test Session 1",
 	}
 
-	session1Resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session1Request)
+	session1Resp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", session1Request)
 	defer func() { _ = session1Resp.Body.Close() }()
 	session1Data := validateObjectResponse(t, session1Resp, http.StatusCreated)
 	session1ID := session1Data["id"].(string)
@@ -98,7 +99,7 @@ func TestRESTMessageHistory(t *testing.T) {
 		"title": "History Test Session 2",
 	}
 
-	session2Resp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", session2Request)
+	session2Resp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", session2Request)
 	defer func() { _ = session2Resp.Body.Close() }()
 	session2Data := validateObjectResponse(t, session2Resp, http.StatusCreated)
 	session2ID := session2Data["id"].(string)
@@ -128,7 +129,7 @@ func TestRESTMessageHistory(t *testing.T) {
 	}
 
 	// Test message history with default pagination
-	historyResp := makeJSONRequest(t, result.Server, "GET", "/api/messages/history", nil)
+	historyResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/messages/history", nil)
 	defer func() { _ = historyResp.Body.Close() }()
 	messagesList := validateArrayResponse(t, historyResp)
 
@@ -171,7 +172,7 @@ func TestRESTMessageHistory(t *testing.T) {
 	}
 
 	// Test pagination with limit
-	paginatedResp := makeJSONRequest(t, result.Server, "GET", "/api/messages/history?limit=1&offset=0", nil)
+	paginatedResp := makeJSONRequest(t, result.Server, http.MethodGet, "/api/messages/history?limit=1&offset=0", nil)
 	defer func() { _ = paginatedResp.Body.Close() }()
 	paginatedList := validateArrayResponse(t, paginatedResp)
 

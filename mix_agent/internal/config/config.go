@@ -244,11 +244,8 @@ func getEnvOrDefault(key, defaultValue string) string {
 // setProviderDefaults removed - providers now initialized directly from environment
 
 // setupLogging configures the application logger
-func setupLogging(debug bool) {
-	defaultLevel := slog.LevelInfo
-	if debug {
-		defaultLevel = slog.LevelDebug
-	}
+func setupLogging(_ bool) {
+	defaultLevel := slog.LevelError
 
 	if os.Getenv("_DEV_DEBUG") == "true" {
 		loggingFile := fmt.Sprintf("%s/%s", cfg.Data.Directory, "debug.log")

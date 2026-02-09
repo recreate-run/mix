@@ -11,6 +11,7 @@ import (
 
 	"mix/e2e"
 	"mix/internal/http/integration_tests"
+	"mix/internal/constants"
 )
 
 const (
@@ -33,7 +34,7 @@ func TestSubagentEventRouting(t *testing.T) {
 	sessionRequest := map[string]interface{}{
 		"title": "Subagent Routing",
 	}
-	createResp := integration_tests.MakeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := integration_tests.MakeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	sessionData := integration_tests.ValidateObjectResponse(t, createResp, http.StatusCreated)
 	mainSessionID := sessionData["id"].(string)
@@ -56,7 +57,7 @@ func TestSubagentEventRouting(t *testing.T) {
 	// Send message in background to avoid blocking SSE stream reading
 	go func() {
 		time.Sleep(500 * time.Millisecond) // Give SSE connection time to establish
-		msgResp := integration_tests.MakeJSONRequest(t, result.Server, "POST", "/api/sessions/"+mainSessionID+"/messages", messageRequest)
+		msgResp := integration_tests.MakeJSONRequest(t, result.Server, http.MethodPost, constants.APISessionsPath+mainSessionID+"/messages", messageRequest)
 		if msgResp.StatusCode == http.StatusOK {
 			t.Log("Message sent successfully")
 		} else {

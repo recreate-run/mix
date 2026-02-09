@@ -40,6 +40,7 @@ import (
 	"time"
 
 	"mix/internal/message"
+	"mix/internal/constants"
 )
 
 const toolNameBrowser = "Browser"
@@ -80,7 +81,7 @@ func TestRESTBrowserFullWorkflow(t *testing.T) {
 			"provider": "anthropic",
 			"api_key":  apiKey,
 		}
-		keyResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", storeKeyRequest)
+		keyResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", storeKeyRequest)
 		defer func() { _ = keyResp.Body.Close() }()
 		if keyResp.StatusCode != http.StatusOK {
 			t.Fatalf("Failed to store API key: status %d", keyResp.StatusCode)
@@ -95,7 +96,7 @@ func TestRESTBrowserFullWorkflow(t *testing.T) {
 		"title": "Browser Workflow Test",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -106,7 +107,7 @@ func TestRESTBrowserFullWorkflow(t *testing.T) {
 	}
 
 	t.Log("Sending message to agent...")
-	msgResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
+	msgResp := makeJSONRequest(t, result.Server, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
 	if msgResp.StatusCode != http.StatusAccepted {
@@ -151,7 +152,7 @@ func TestRESTBrowserFullWorkflow(t *testing.T) {
 
 	// Verify screenshot file exists
 	t.Log("Checking for screenshot file...")
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	filesList := validateArrayResponse(t, listResp)
 
@@ -174,9 +175,9 @@ func TestRESTBrowserFullWorkflow(t *testing.T) {
 
 	t.Logf("Found screenshot: %s", screenshotFilename)
 
-	// GET screenshot via API and verify it's a valid PNG
-	downloadResp := makeJSONRequest(t, result.Server, "GET",
-		"/api/sessions/"+sessionID+"/files/"+screenshotFilename, nil)
+	// http.MethodGet screenshot via API and verify it's a valid PNG
+	downloadResp := makeJSONRequest(t, result.Server, http.MethodGet,
+		constants.APISessionsPath+sessionID+"/files/"+screenshotFilename, nil)
 
 	if downloadResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d for screenshot download, got %d", http.StatusOK, downloadResp.StatusCode)
@@ -219,7 +220,7 @@ func TestRESTBrowserMultiAction(t *testing.T) {
 			"provider": "anthropic",
 			"api_key":  apiKey,
 		}
-		keyResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", storeKeyRequest)
+		keyResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", storeKeyRequest)
 		defer func() { _ = keyResp.Body.Close() }()
 		if keyResp.StatusCode != http.StatusOK {
 			t.Fatalf("Failed to store API key: status %d", keyResp.StatusCode)
@@ -234,7 +235,7 @@ func TestRESTBrowserMultiAction(t *testing.T) {
 		"title": "Browser Multi-Action Test",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -245,7 +246,7 @@ func TestRESTBrowserMultiAction(t *testing.T) {
 	}
 
 	t.Log("Sending multi-action message to agent...")
-	msgResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
+	msgResp := makeJSONRequest(t, result.Server, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
 	if msgResp.StatusCode != http.StatusAccepted {
@@ -284,7 +285,7 @@ func TestRESTBrowserMultiAction(t *testing.T) {
 	}
 
 	// Verify multiple screenshots were saved
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	filesList := validateArrayResponse(t, listResp)
 
@@ -320,7 +321,7 @@ func TestRESTBrowserErrorHandling(t *testing.T) {
 			"provider": "anthropic",
 			"api_key":  apiKey,
 		}
-		keyResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", storeKeyRequest)
+		keyResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", storeKeyRequest)
 		defer func() { _ = keyResp.Body.Close() }()
 		if keyResp.StatusCode != http.StatusOK {
 			t.Fatalf("Failed to store API key: status %d", keyResp.StatusCode)
@@ -335,7 +336,7 @@ func TestRESTBrowserErrorHandling(t *testing.T) {
 		"title": "Browser Error Test",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -346,7 +347,7 @@ func TestRESTBrowserErrorHandling(t *testing.T) {
 	}
 
 	t.Log("Sending message with invalid URL...")
-	msgResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
+	msgResp := makeJSONRequest(t, result.Server, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
 	if msgResp.StatusCode != http.StatusAccepted {
@@ -430,7 +431,7 @@ func TestRESTBrowserWikipediaAnatomyClick(t *testing.T) {
 			"provider": "anthropic",
 			"api_key":  apiKey,
 		}
-		keyResp := makeJSONRequest(t, result.Server, "POST", "/api/auth/api-key", storeKeyRequest)
+		keyResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/auth/api-key", storeKeyRequest)
 		defer func() { _ = keyResp.Body.Close() }()
 		if keyResp.StatusCode != http.StatusOK {
 			t.Fatalf("Failed to store API key: status %d", keyResp.StatusCode)
@@ -445,7 +446,7 @@ func TestRESTBrowserWikipediaAnatomyClick(t *testing.T) {
 		"title": "Browser Wikipedia Anatomy Click Test",
 	}
 
-	createResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions", sessionRequest)
+	createResp := makeJSONRequest(t, result.Server, http.MethodPost, "/api/sessions", sessionRequest)
 	defer func() { _ = createResp.Body.Close() }()
 	createdSessionData := validateObjectResponse(t, createResp, http.StatusCreated)
 	sessionID := createdSessionData["id"].(string)
@@ -457,7 +458,7 @@ func TestRESTBrowserWikipediaAnatomyClick(t *testing.T) {
 	}
 
 	t.Log("Sending message to open Wikipedia, click Anatomy link, and verify URL...")
-	msgResp := makeJSONRequest(t, result.Server, "POST", "/api/sessions/"+sessionID+"/messages", messageRequest)
+	msgResp := makeJSONRequest(t, result.Server, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", messageRequest)
 	defer func() { _ = msgResp.Body.Close() }()
 
 	if msgResp.StatusCode != http.StatusAccepted {
@@ -588,7 +589,7 @@ func TestRESTBrowserWikipediaAnatomyClick(t *testing.T) {
 
 	// Secondary verification: Verify multiple screenshots exist
 	t.Log("Verifying screenshots were saved...")
-	listResp := makeJSONRequest(t, result.Server, "GET", "/api/sessions/"+sessionID+"/files", nil)
+	listResp := makeJSONRequest(t, result.Server, http.MethodGet, constants.APISessionsPath+sessionID+"/files", nil)
 	defer func() { _ = listResp.Body.Close() }()
 	filesList := validateArrayResponse(t, listResp)
 

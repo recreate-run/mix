@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"mix/internal/app"
+	"mix/internal/constants"
 )
 
 type SystemInfoHandler struct {
@@ -25,7 +26,7 @@ func (h *SystemInfoHandler) HandleGetSystemInfo(w http.ResponseWriter, r *http.R
 		StorageBasePath: h.app.StorageConfig.BasePath,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", constants.ContentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
 }

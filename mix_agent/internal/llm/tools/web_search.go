@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/logging"
 	"mix/internal/permission"
 )
@@ -373,7 +374,7 @@ func (t *searchTool) executeSearch(ctx context.Context, searchURL, apiKey string
 
 	req.Header.Set("X-Subscription-Token", apiKey)
 	req.Header.Set("User-Agent", "mix/1.0")
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", constants.ContentTypeJSON)
 	req.Header.Set("Accept-Encoding", "gzip")
 
 	resp, err := t.client.Do(req)

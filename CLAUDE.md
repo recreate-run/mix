@@ -33,11 +33,10 @@ task frontend-typecheck     # Always use this for frontend typechecking
 ## Code style
 
 1. As this is an early-stage startup, YOU MUST prioritize simple, readable code with minimal abstraction—avoid premature optimization. Strive for elegant, minimal solutions that reduce complexity.Focus on clear implementation that's easy to understand and iterate on as the product evolves.
-2. NEVER mock LLM API calls
-3. DO NOT preserve backward compatibility unless the user specifically requests it
-4. Do not handle errors (eg. API failures) gracefully, raise exceptions immediately.
-5. ALWAYS extract repeated strings (3+ occurrences) into named constants; use stdlib constants (`http.Method*`, `http.Status*`) instead of string literals
-6. ALWAYS add `t.Helper()` as the first line in any test helper function that takes `*testing.T` as a parameter
+2. DO NOT preserve backward compatibility unless the user specifically requests it
+3. Do not handle errors (eg. API failures) gracefully, raise exceptions immediately.
+4. ALWAYS extract repeated strings (3+ occurrences) into named constants; use stdlib constants (`http.Method*`, `http.Status*`) instead of string literals
+5. ALWAYS add `t.Helper()` as the first line in any test helper function that takes `*testing.T` as a parameter
 
 ## Go specific rules
 

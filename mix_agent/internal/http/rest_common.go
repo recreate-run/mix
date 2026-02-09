@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"mix/internal/constants"
 	"mix/internal/logging"
 )
 
@@ -41,7 +42,7 @@ var errorStatusMap = map[string]int{
 
 // sendJSONResponse sends a flattened JSON response (data directly, no envelope)
 func sendJSONResponse(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", constants.ContentTypeJSON)
 	w.WriteHeader(status)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
@@ -56,7 +57,7 @@ func sendErrorResponse(w http.ResponseWriter, errorType, message string) {
 		status = http.StatusInternalServerError
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", constants.ContentTypeJSON)
 	w.WriteHeader(status)
 
 	response := ErrorResponse{
@@ -141,7 +142,7 @@ func handleCORSPreflight(w http.ResponseWriter, r *http.Request) bool {
 
 // WriteJSONResponse writes a successful JSON response directly (no envelope)
 func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", constants.ContentTypeJSON)
 	w.WriteHeader(status)
 
 	// Send data directly (no envelope)
@@ -152,7 +153,7 @@ func WriteJSONResponse(w http.ResponseWriter, status int, data interface{}) {
 
 // WriteErrorResponse writes a standardized error response
 func WriteErrorResponse(w http.ResponseWriter, status int, message, errorType string) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", constants.ContentTypeJSON)
 	w.WriteHeader(status)
 
 	response := ErrorResponse{

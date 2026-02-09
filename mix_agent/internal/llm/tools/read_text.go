@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"mix/internal/constants"
 	"mix/internal/logging"
 )
 
@@ -383,7 +384,7 @@ func isTextContentType(contentType string) bool {
 
 	textTypes := []string{
 		"text/",
-		"application/json",
+		constants.ContentTypeJSON,
 		"application/xml",
 		"application/javascript",
 		"application/x-yaml",
