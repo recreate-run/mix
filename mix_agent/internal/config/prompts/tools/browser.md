@@ -57,7 +57,7 @@ IMPORTANT Limitations:
 - Does NOT include content that hasn't been loaded yet (below fold, lazy-loaded sections)
 - For pages with lazy-loading, you must scroll to load more content before it appears in read_page results
 
-Coordinates returned are in screenshot coordinates (always within screenshot bounds since only viewport is shown).
+Coordinates shown are element centers in screenshot space (ready for clicking, no offset calculation needed).
 
 Elements are referenced by their ref ID (e.g., f0_ref_1, f1_ref_2). The 'f' prefix indicates the frame:
 - f0_ref_* = main frame
@@ -101,10 +101,11 @@ Click Actions (use `index` parameter):
 * `triple_click`: Triple-click the left mouse button (select paragraph).
 
 Click Action Guidance:
+- CRITICAL: Before clicking, call read_page with interactiveOnly: true to get accurate element coordinates. NEVER estimate coordinates from screenshots alone.
 - PRIMARY preference: Use screenshot coordinates for clicking when possible
 - Use element refs only as a fallback when coordinates are difficult to determine
-- When clicking an element, consult the screenshot and aim for the center of the element, not edges
-- If a click doesn't register, adjust coordinates so the cursor tip is clearly on the target element
+- Coordinates from read_page are element centers (use directly without adjustment)
+- If a click doesn't register, verify the target element position in the screenshot
 - Staleness warning: Page UI changes can make older screenshot coordinates stale — take a fresh screenshot if needed
 
 Keyboard Actions:
@@ -161,9 +162,10 @@ Example:
 }
 ```
 
+* CRITICAL: Before clicking, call read_page with interactiveOnly: true to get accurate element coordinates. NEVER estimate coordinates from screenshots alone.
 * For click actions, prefer using screenshot coordinates. Use element refs only as a fallback when coordinates are difficult to determine or hard to find.
-* When clicking an element, consult the screenshot to determine coordinates. Aim for the center of the element, not the edges.
-* If a click doesn't register, try adjusting coordinates so the cursor tip is clearly on the target element.*: Page UI changes can make older screenshot coordinates stale — take a fresh screenshot if needed.
+* Coordinates from read_page are element centers (use directly). Consult the screenshot to verify element positions visually.
+* If a click doesn't register, verify target position in screenshot. Page UI changes can make coordinates stale — take a fresh screenshot if needed.
 
 ### 5. find (action="find")
 
@@ -288,7 +290,7 @@ See individual action documentation in the full tool description for parameter d
 ## Usage Patterns
 
 1. For click actions, prefer using screenshot coordinates. Use element refs only as a fallback when coordinates are difficult to determine or hard to find."
-2. When clicking an element, consult the screenshot to determine coordinates. Aim for the center of the element, not the edges."
+2. Coordinates from read_page are element centers (use directly). Consult the screenshot to verify element positions visually."
 
 ### Navigate and Explore
 1. Create a tab: `{"action": "tab_create", "url": "..."}` → Returns `{"id": "tab-1", ...}`
@@ -335,9 +337,10 @@ Decision Criteria:
 - Use index when: Working with read_page results, element isn't visually identifiable
 
 Tips:
-- Always aim for the center of elements, not edges
+- CRITICAL: Always call read_page with interactiveOnly: true before clicking to get accurate coordinates
+- Coordinates from read_page are element centers (use directly without adjustment)
 - If clicks fail, take a fresh screenshot (coordinates may be stale)
-- Verify cursor position is clearly on target element
+- Verify target element position matches the screenshot
 
 ### Text Input: form_input vs type
 

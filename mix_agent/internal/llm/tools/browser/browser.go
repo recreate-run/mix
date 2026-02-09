@@ -1590,8 +1590,10 @@ func formatReadPageResponse(elements []browserprotocol.RawAccessibilityNode, vie
 		}
 		fmt.Fprintf(&sb, " [ref=f%d_ref_%d]", frameNum, elem.BackendID)
 
-		// 4. Coordinates (x=X,y=Y)
-		fmt.Fprintf(&sb, " (x=%.0f,y=%.0f)", elem.Bounds.X, elem.Bounds.Y)
+		// 4. Coordinates (x=X,y=Y) - center of element for clicking
+		centerX := elem.Bounds.X + elem.Bounds.Width/2
+		centerY := elem.Bounds.Y + elem.Bounds.Height/2
+		fmt.Fprintf(&sb, " (x=%.0f,y=%.0f)", centerX, centerY)
 
 		// 5. Attributes (inline, space-separated)
 		if len(elem.Attributes) > 0 {

@@ -1,9 +1,14 @@
 package browser
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"reflect"
 	"sort"
 	"strings"
@@ -33,6 +38,11 @@ type elementInfo struct {
 	FrameID   string
 }
 
+type screenshotSize struct {
+	Width  int
+	Height int
+}
+
 // TunnelClientWrapper wraps the tunnel registry to provide the same interface as browserclient.Client
 // This allows the browser tool to work transparently with both tunnel and service modes
 type TunnelClientWrapper struct {
@@ -49,6 +59,10 @@ type TunnelClientWrapper struct {
 	// Element cache (per tab)
 	cacheMu      sync.RWMutex
 	elementCache map[string][]elementInfo // tabID → elements
+
+	// Screenshot size cache (per tab)
+	screenshotMu   sync.RWMutex
+	screenshotSize map[string]screenshotSize // tabID → size in pixels
 }
 
 // NewTunnelClientWrapper creates a new tunnel client wrapper
@@ -62,6 +76,7 @@ func NewTunnelClientWrapper(tunnelRegistry interface{}, sessionID string) *Tunne
 		requestID:      1,
 		tabs:           make(map[string]*tabInfo),
 		elementCache:   make(map[string][]elementInfo),
+		screenshotSize: make(map[string]screenshotSize),
 	}
 }
 
@@ -98,6 +113,25 @@ func (t *TunnelClientWrapper) getTabCDPSessionID(tabID ...string) (string, error
 	return tab.cdpSessionID, nil
 }
 
+func (t *TunnelClientWrapper) setLastScreenshotSize(tabID string, width, height int) {
+	if tabID == "" {
+		return
+	}
+	t.screenshotMu.Lock()
+	t.screenshotSize[tabID] = screenshotSize{Width: width, Height: height}
+	t.screenshotMu.Unlock()
+}
+
+func (t *TunnelClientWrapper) getLastScreenshotSize(tabID string) (screenshotSize, bool) {
+	if tabID == "" {
+		return screenshotSize{}, false
+	}
+	t.screenshotMu.RLock()
+	size, ok := t.screenshotSize[tabID]
+	t.screenshotMu.RUnlock()
+	return size, ok
+}
+
 // generateFriendlyTabID generates a new friendly tab ID
 func (t *TunnelClientWrapper) generateFriendlyTabID() string {
 	counter := atomic.AddUint64(&t.tabCounter, 1)
@@ -127,8 +161,6 @@ func (t *TunnelClientWrapper) sendCommand(_ context.Context, method string, para
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
 	}
 
-	// Debug log all outgoing CDP commands
-	logging.Debug("Sending CDP command via tunnel", "method", method, "sessionId", command.SessionID, "requestId", requestID, "command", string(commandJSON))
 
 	// Use reflection to call SendCommandToTunnel
 	registryValue := reflect.ValueOf(t.tunnelRegistry)
@@ -270,6 +302,11 @@ func (t *TunnelClientWrapper) Screenshot(ctx context.Context, params browserprot
 		return nil, fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
+	targetTabID := t.activeTabID
+	if params.TabID != nil && *params.TabID != "" {
+		targetTabID = *params.TabID
+	}
+
 	// Capture screenshot using Page.captureScreenshot
 	screenshotParams := cdp.PageCaptureScreenshotParams{
 		Format:      "png",
@@ -299,6 +336,16 @@ func (t *TunnelClientWrapper) Screenshot(ctx context.Context, params browserprot
 	if err := json.Unmarshal(resultJSON, &screenshotResult); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal screenshot result: %w", err)
 	}
+
+	decodedImage, err := base64.StdEncoding.DecodeString(screenshotResult.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode screenshot data: %w", err)
+	}
+	imageConfig, _, err := image.DecodeConfig(bytes.NewReader(decodedImage))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode screenshot config: %w", err)
+	}
+	t.setLastScreenshotSize(targetTabID, imageConfig.Width, imageConfig.Height)
 
 	format := params.Format
 	if format == "" {
@@ -387,8 +434,7 @@ func (t *TunnelClientWrapper) ReadPage(ctx context.Context, interactiveOnly bool
 	}
 
 	// Convert nodes
-	rawNodes, axStats := t.convertAXNodesToRawWithSnapshot(axTreeResult.Nodes, snapshotBounds)
-	logging.Info("ReadPage: AX tree conversion", "tabID", targetTabID, "totalNodes", len(rawNodes), "viewportX", viewport.X, "viewportY", viewport.Y, "viewportW", viewport.Width, "viewportH", viewport.Height, "missingAXBounds", axStats.MissingAXBounds, "usedSnapshotBounds", axStats.UsedSnapshotBounds)
+	rawNodes, _ := t.convertAXNodesToRawWithSnapshot(axTreeResult.Nodes, snapshotBounds)
 
 	// Filter nodes based on interactiveOnly and viewport visibility
 	filteredNodes := make([]browserprotocol.RawAccessibilityNode, 0)
@@ -810,10 +856,45 @@ func (t *TunnelClientWrapper) ClickAt(ctx context.Context, x, y float64, button 
 		clickCount = 1
 	}
 
+	targetTabID := t.activeTabID
+	if len(tabID) > 0 && tabID[0] != "" {
+		targetTabID = tabID[0]
+	}
+	viewport, err := t.getViewportBounds(ctx, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get viewport bounds: %w", err)
+	}
+
+	finalX := x
+	finalY := y
+	screenshotSizeValue, hasScreenshotSize := t.getLastScreenshotSize(targetTabID)
+	scaleX := 1.0
+	scaleY := 1.0
+	if hasScreenshotSize && screenshotSizeValue.Width > 0 && screenshotSizeValue.Height > 0 {
+		scaleX = viewport.Width / float64(screenshotSizeValue.Width)
+		scaleY = viewport.Height / float64(screenshotSizeValue.Height)
+		finalX = x * scaleX
+		finalY = y * scaleY
+	}
+
+	logging.Debug("Click transform",
+		"tabID", targetTabID,
+		"rawX", x,
+		"rawY", y,
+		"screenshotW", screenshotSizeValue.Width,
+		"screenshotH", screenshotSizeValue.Height,
+		"viewportW", viewport.Width,
+		"viewportH", viewport.Height,
+		"scaleX", scaleX,
+		"scaleY", scaleY,
+		"finalX", finalX,
+		"finalY", finalY,
+	)
+
 	moveParams := cdp.InputDispatchMouseEventParams{
 		Type:   "mouseMoved",
-		X:      x,
-		Y:      y,
+		X:      finalX,
+		Y:      finalY,
 		Button: button,
 	}
 	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
@@ -823,8 +904,8 @@ func (t *TunnelClientWrapper) ClickAt(ctx context.Context, x, y float64, button 
 
 	pressParams := cdp.InputDispatchMouseEventParams{
 		Type:       "mousePressed",
-		X:          x,
-		Y:          y,
+		X:          finalX,
+		Y:          finalY,
 		Button:     button,
 		ClickCount: clickCount,
 	}
@@ -839,8 +920,8 @@ func (t *TunnelClientWrapper) ClickAt(ctx context.Context, x, y float64, button 
 
 	releaseParams := cdp.InputDispatchMouseEventParams{
 		Type:       "mouseReleased",
-		X:          x,
-		Y:          y,
+		X:          finalX,
+		Y:          finalY,
 		Button:     button,
 		ClickCount: clickCount,
 	}
@@ -1110,6 +1191,11 @@ func (t *TunnelClientWrapper) CreateTab(ctx context.Context, url ...string) (*br
 	}
 	t.tabsMu.Unlock()
 
+	_, err = t.getViewportBounds(ctx, attachRes.SessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get viewport bounds: %w", err)
+	}
+
 	// Step 4: Get tab info (URL and title)
 	// For now, return the URL we navigated to
 	// TODO: Query actual page info from browser
@@ -1224,11 +1310,22 @@ func (t *TunnelClientWrapper) getViewportBounds(ctx context.Context, cdpSessionI
 		return nil, fmt.Errorf("failed to unmarshal layout metrics: %w", err)
 	}
 
+	viewportX := layoutMetrics.CSSLayoutViewport.PageX
+	viewportY := layoutMetrics.CSSLayoutViewport.PageY
+	viewportWidth := layoutMetrics.CSSLayoutViewport.ClientWidth
+	viewportHeight := layoutMetrics.CSSLayoutViewport.ClientHeight
+	if viewportWidth <= 0 || viewportHeight <= 0 {
+		viewportX = layoutMetrics.LayoutViewport.PageX
+		viewportY = layoutMetrics.LayoutViewport.PageY
+		viewportWidth = layoutMetrics.LayoutViewport.ClientWidth
+		viewportHeight = layoutMetrics.LayoutViewport.ClientHeight
+	}
+
 	return &browserprotocol.ViewportBounds{
-		X:      layoutMetrics.VisualViewport.PageX,
-		Y:      layoutMetrics.VisualViewport.PageY,
-		Width:  layoutMetrics.VisualViewport.ClientWidth,
-		Height: layoutMetrics.VisualViewport.ClientHeight,
+		X:      viewportX,
+		Y:      viewportY,
+		Width:  viewportWidth,
+		Height: viewportHeight,
 	}, nil
 }
 

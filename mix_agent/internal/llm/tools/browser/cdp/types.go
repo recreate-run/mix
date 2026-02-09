@@ -74,10 +74,26 @@ type PageCaptureScreenshotResult struct {
 }
 
 type PageGetLayoutMetricsResult struct {
-	VisualViewport VisualViewport `json:"visualViewport"`
+	LayoutViewport    LayoutViewport    `json:"layoutViewport"`
+	VisualViewport    VisualViewport    `json:"visualViewport"`
+	CSSLayoutViewport CSSLayoutViewport `json:"cssLayoutViewport"`
+}
+
+type LayoutViewport struct {
+	PageX        float64 `json:"pageX"`
+	PageY        float64 `json:"pageY"`
+	ClientWidth  float64 `json:"clientWidth"`
+	ClientHeight float64 `json:"clientHeight"`
 }
 
 type VisualViewport struct {
+	PageX        float64 `json:"pageX"`
+	PageY        float64 `json:"pageY"`
+	ClientWidth  float64 `json:"clientWidth"`
+	ClientHeight float64 `json:"clientHeight"`
+}
+
+type CSSLayoutViewport struct {
 	PageX        float64 `json:"pageX"`
 	PageY        float64 `json:"pageY"`
 	ClientWidth  float64 `json:"clientWidth"`
