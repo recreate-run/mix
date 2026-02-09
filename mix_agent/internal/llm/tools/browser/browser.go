@@ -2,6 +2,7 @@ package browser
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +36,9 @@ const (
 	schemeHTTP  = "http"
 	schemeHTTPS = "https"
 	schemeFile  = "file"
+
+	mouseButtonLeft  = "left"
+	mouseButtonRight = "right"
 )
 
 // ClientFactory creates browser clients for sessions
@@ -45,12 +50,12 @@ type browserTool struct {
 	connectionManager    *ConnectionManager
 	sessionConfig        session.Config
 	baseURL              string
-	elementCache         map[string]map[int]int64 // sessionID_tabID → visualIndex → backendID
-	cacheMu              sync.RWMutex             // Protect element cache
-	browserMode          string                   // "tunnel" or "service"
-	clientFactory        ClientFactory            // Factory for creating browser clients
-	tunnelRegistryGetter func() interface{}       // Getter for tunnel registry (allows late initialization)
-	browserServiceURL    string                   // URL for browser-service
+	elementCache         map[string]map[int]int64        // sessionID_tabID → visualIndex → backendID
+	cacheMu              sync.RWMutex                    // Protect element cache
+	browserMode          string                          // "tunnel" or "service"
+	clientFactory        ClientFactory                   // Factory for creating browser clients
+	tunnelRegistryGetter func() interface{}              // Getter for tunnel registry (allows late initialization)
+	browserServiceURL    string                          // URL for browser-service
 	tunnelClients        map[string]*TunnelClientWrapper // Cache tunnel clients per session
 	tunnelClientsMu      sync.RWMutex                    // Protect tunnel clients cache
 }
@@ -128,6 +133,10 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 				"description": "The action to perform",
 				"enum":        []string{ActionOpen, ActionScreenshot, ActionReadPage, ActionClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence},
 			},
+			"description": map[string]any{
+				"type":        "string",
+				"description": "A 2-6 word description of what the action does",
+			},
 			"url": map[string]any{
 				"type":        "string",
 				"description": "URL to navigate to (for open action or optional for tab_create). Supports http://, https://, and file:// schemes. For file:// URLs, path must be within session storage directory.",
@@ -140,6 +149,17 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 				"type":        "integer",
 				"description": "Element index (for click/type/upload actions)",
 			},
+			"ref": map[string]any{
+				"type":        "string",
+				"description": "Element reference from read_page (e.g. f0_ref_1) for click actions",
+			},
+			"coordinate": map[string]any{
+				"type":        "array",
+				"description": "Coordinate in screenshot space [x, y] for click actions",
+				"items": map[string]any{
+					"type": "number",
+				},
+			},
 			"text": map[string]any{
 				"type":        "string",
 				"description": "Text to type (for type action)",
@@ -149,7 +169,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 				"description": "Scroll direction (for scroll action)",
 				"enum":        []string{DirectionUp, DirectionDown, DirectionLeft, DirectionRight},
 			},
-			"amount": map[string]any{
+			"scroll_amount": map[string]any{
 				"type":        "integer",
 				"description": "Scroll amount in pixels (for scroll action)",
 			},
@@ -173,6 +193,10 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"tabId": map[string]any{
 				"type":        "string",
 				"description": "Tab ID to operate on. Required for all tab-specific actions (open, screenshot, read_page, click, type, scroll, upload, get_text, find, form_input, go_back, go_forward, key, scroll_to, sequence, wait, tab_switch, tab_close). Not required for tab_create, tab_list, or close actions.",
+			},
+			"tab_id": map[string]any{
+				"type":        "string",
+				"description": "Tab ID to operate on (reference-style field).",
 			},
 			"duration": map[string]any{
 				"type":        "integer",
@@ -229,6 +253,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 	if params.Action == "" {
 		return interfaces.NewTextErrorResponse("missing action parameter"), nil
 	}
+	params.TabID = params.EffectiveTabID()
 
 	// Log all browser tool invocations with key parameters
 	sessionID, _, err := b.getContextInfo(ctx)
@@ -394,7 +419,7 @@ func (b *browserTool) handleScreenshot(ctx context.Context, params BrowserParams
 	screenshotParams := browserprotocol.ScreenshotParams{
 		Format:   "png",
 		FullPage: false,
-		Raw:      true,   // Request raw accessibility tree
+		Raw:      true, // Request raw accessibility tree
 		TabID:    &params.TabID,
 	}
 
@@ -433,6 +458,9 @@ func (b *browserTool) handleScreenshot(ctx context.Context, params BrowserParams
 func (b *browserTool) cacheElementMapping(_ context.Context, sessionID, tabID string, rawNodes []browserprotocol.RawAccessibilityNode, viewport browserprotocol.ViewportBounds) {
 	// tabID is required - cannot cache without it
 	if tabID == "" {
+		logging.Error("Failed to cache element mapping: empty tabID",
+			"sessionID", sessionID,
+			"operation", "cacheElementMapping")
 		return
 	}
 
@@ -465,6 +493,88 @@ func (b *browserTool) cacheElementMapping(_ context.Context, sessionID, tabID st
 	b.cacheMu.Lock()
 	b.elementCache[cacheKey] = mapping
 	b.cacheMu.Unlock()
+}
+
+// cacheElementMappingFromReadPage caches BackendID mappings from read_page results
+func (b *browserTool) cacheElementMappingFromReadPage(sessionID, tabID string, elements []browserprotocol.RawAccessibilityNode) {
+	if tabID == "" {
+		return
+	}
+
+	cacheKey := sessionID + "_" + tabID
+	mapping := make(map[int]int64, len(elements))
+	for i, elem := range elements {
+		mapping[i] = elem.BackendID
+	}
+
+	b.cacheMu.Lock()
+	b.elementCache[cacheKey] = mapping
+	b.cacheMu.Unlock()
+}
+
+// readPageElements fetches elements using read_page and optionally caches index mappings
+func (b *browserTool) readPageElements(ctx context.Context, sessionID, tabID string, interactiveOnly, cache bool) ([]browserprotocol.RawAccessibilityNode, error) {
+	client, err := b.getClient(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get browser client: %w", err)
+	}
+
+	result, err := client.ReadPage(ctx, interactiveOnly, tabID)
+	if err != nil {
+		return nil, fmt.Errorf("read page failed: %w", err)
+	}
+
+	if cache {
+		b.cacheElementMappingFromReadPage(sessionID, tabID, result.Elements)
+	}
+
+	return result.Elements, nil
+}
+
+// parseRefBackendID parses fX_ref_Y and returns backend ID
+func parseRefBackendID(ref string) (int64, error) {
+	const refMarker = "_ref_"
+	refIndex := strings.LastIndex(ref, refMarker)
+	if refIndex == -1 {
+		return 0, fmt.Errorf("invalid ref format: %s", ref)
+	}
+
+	backendIDStr := ref[refIndex+len(refMarker):]
+	backendID, err := strconv.ParseInt(backendIDStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid ref backend ID: %w", err)
+	}
+
+	return backendID, nil
+}
+
+// findElementByCoordinate finds the smallest element containing the coordinate
+func findElementByCoordinate(elements []browserprotocol.RawAccessibilityNode, coordinate Coordinate) (browserprotocol.RawAccessibilityNode, bool) {
+	var found browserprotocol.RawAccessibilityNode
+	foundAny := false
+	var bestArea float64
+
+	for _, elem := range elements {
+		bounds := elem.Bounds
+		if bounds.Width == 0 || bounds.Height == 0 {
+			continue
+		}
+		if coordinate.X < bounds.X || coordinate.X > bounds.X+bounds.Width {
+			continue
+		}
+		if coordinate.Y < bounds.Y || coordinate.Y > bounds.Y+bounds.Height {
+			continue
+		}
+
+		area := bounds.Width * bounds.Height
+		if !foundAny || area < bestArea {
+			found = elem
+			foundAny = true
+			bestArea = area
+		}
+	}
+
+	return found, foundAny
 }
 
 // getBackendIDFromCache looks up the BackendID for a given visual index
@@ -502,7 +612,9 @@ func (b *browserTool) getBackendIDFromCache(_ context.Context, sessionID, tabID 
 func (b *browserTool) clearCacheForTab(sessionID, tabID string) {
 	// Always use explicit tabID for cache key
 	if tabID == "" {
-		// If no tabID provided, cannot clear cache reliably
+		logging.Error("Failed to clear cache: empty tabID",
+			"sessionID", sessionID,
+			"operation", "clearCacheForTab")
 		return
 	}
 
@@ -513,6 +625,133 @@ func (b *browserTool) clearCacheForTab(sessionID, tabID string) {
 	b.cacheMu.Unlock()
 }
 
+type coordinateClicker interface {
+	ClickAt(ctx context.Context, x, y float64, button string, clickCount int, duration *int, tabID ...string) error
+}
+
+func (b *browserTool) backendIDFromIndex(ctx context.Context, sessionID, tabID string, index int) (int64, error) {
+	backendID, err := b.getBackendIDFromCache(ctx, sessionID, tabID, index)
+	if err == nil {
+		return backendID, nil
+	}
+
+	_, readErr := b.readPageElements(ctx, sessionID, tabID, true, true)
+	if readErr != nil {
+		return 0, readErr
+	}
+
+	return b.getBackendIDFromCache(ctx, sessionID, tabID, index)
+}
+
+func (b *browserTool) backendIDFromRef(ref string) (int64, error) {
+	if ref == "" {
+		return 0, fmt.Errorf("ref is required")
+	}
+	return parseRefBackendID(ref)
+}
+
+func (b *browserTool) backendIDFromCoordinate(ctx context.Context, sessionID, tabID string, coordinate Coordinate) (int64, error) {
+	elements, err := b.readPageElements(ctx, sessionID, tabID, false, false)
+	if err != nil {
+		return 0, err
+	}
+
+	elem, ok := findElementByCoordinate(elements, coordinate)
+	if !ok {
+		return 0, fmt.Errorf("no element found at coordinate (%.0f, %.0f)", coordinate.X, coordinate.Y)
+	}
+
+	return elem.BackendID, nil
+}
+
+func (b *browserTool) coordinateFromIndex(ctx context.Context, sessionID, tabID string, index int) (Coordinate, error) {
+	elements, err := b.readPageElements(ctx, sessionID, tabID, true, false)
+	if err != nil {
+		return Coordinate{}, err
+	}
+	if index < 0 || index >= len(elements) {
+		return Coordinate{}, fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
+	}
+
+	elem := elements[index]
+	return Coordinate{
+		X: elem.Bounds.X + elem.Bounds.Width/2,
+		Y: elem.Bounds.Y + elem.Bounds.Height/2,
+	}, nil
+}
+
+func (b *browserTool) coordinateFromBackendID(ctx context.Context, sessionID, tabID string, backendID int64) (Coordinate, error) {
+	elements, err := b.readPageElements(ctx, sessionID, tabID, false, false)
+	if err != nil {
+		return Coordinate{}, err
+	}
+
+	for _, elem := range elements {
+		if elem.BackendID == backendID {
+			return Coordinate{
+				X: elem.Bounds.X + elem.Bounds.Width/2,
+				Y: elem.Bounds.Y + elem.Bounds.Height/2,
+			}, nil
+		}
+	}
+
+	return Coordinate{}, fmt.Errorf("backend ID %d not found in read_page results", backendID)
+}
+
+func (b *browserTool) clickByBackendID(ctx context.Context, client BrowserClient, backendID int64, tabID, button string, clickCount int) error {
+	switch button {
+	case mouseButtonLeft:
+		switch clickCount {
+		case 1:
+			return client.ClickByBackendID(ctx, backendID, tabID)
+		case 2:
+			return client.DoubleClickByBackendID(ctx, backendID, tabID)
+		case 3:
+			return client.TripleClickByBackendID(ctx, backendID, tabID)
+		default:
+			return fmt.Errorf("unsupported click count: %d", clickCount)
+		}
+	case mouseButtonRight:
+		if clickCount != 1 {
+			return fmt.Errorf("right click only supports single click")
+		}
+		return client.RightClickByBackendID(ctx, backendID, tabID)
+	default:
+		return fmt.Errorf("unsupported button: %s", button)
+	}
+}
+
+func (b *browserTool) clickByCoordinate(ctx context.Context, client BrowserClient, sessionID, tabID string, coordinate Coordinate, button string, clickCount int, duration *int, repeat int) error {
+	if repeat <= 0 {
+		repeat = 1
+	}
+
+	if coordClient, ok := client.(coordinateClicker); ok {
+		for i := 0; i < repeat; i++ {
+			if err := coordClient.ClickAt(ctx, coordinate.X, coordinate.Y, button, clickCount, duration, tabID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if duration != nil && *duration > 0 {
+		return fmt.Errorf("coordinate click duration requires coordinate click support")
+	}
+
+	backendID, err := b.backendIDFromCoordinate(ctx, sessionID, tabID, coordinate)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < repeat; i++ {
+		if err := b.clickByBackendID(ctx, client, backendID, tabID, button, clickCount); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // handleClick clicks an element
 func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
@@ -522,15 +761,51 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
-	// Fix 4: Look up BackendID from cache with validation
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	if params.Ref != "" {
+		backendID, err := b.backendIDFromRef(params.Ref)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
+			if err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+			}
+			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 1, nil, 1); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully clicked element by ref")
+		}
+		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully clicked element by ref")
 	}
 
-	// Click by BackendID (tabID is always required and validated)
-	err = client.ClickByBackendID(ctx, backendID, params.TabID)
+	if params.Coordinate != nil {
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonLeft, 1, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully clicked coordinate")
+	}
+
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+		}
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 1, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+		}
+		return interfaces.NewTextResponse(fmt.Sprintf("Successfully clicked element %d", params.Index))
+	}
+
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+	}
+
+	if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 1); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
 	}
 
@@ -545,15 +820,51 @@ func (b *browserTool) handleRightClick(ctx context.Context, params BrowserParams
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
-	// Fix 4: Look up BackendID from cache with validation
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	if params.Ref != "" {
+		backendID, err := b.backendIDFromRef(params.Ref)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
+			if err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+			}
+			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonRight, 1, nil, 1); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully right-clicked element by ref")
+		}
+		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonRight, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully right-clicked element by ref")
 	}
 
-	// Right-click by BackendID (tabID is always required and validated)
-	err = client.RightClickByBackendID(ctx, backendID, params.TabID)
+	if params.Coordinate != nil {
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonRight, 1, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully right-clicked coordinate")
+	}
+
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+		}
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonRight, 1, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse(fmt.Sprintf("Successfully right-clicked element %d", params.Index))
+	}
+
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+	}
+
+	if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonRight, 1); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
 	}
 
@@ -568,15 +879,51 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
-	// Fix 4: Look up BackendID from cache with validation
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	if params.Ref != "" {
+		backendID, err := b.backendIDFromRef(params.Ref)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
+			if err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+			}
+			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 2, nil, 1); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully double-clicked element by ref")
+		}
+		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 2); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully double-clicked element by ref")
 	}
 
-	// Double-click by BackendID (tabID is always required and validated)
-	err = client.DoubleClickByBackendID(ctx, backendID, params.TabID)
+	if params.Coordinate != nil {
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonLeft, 2, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully double-clicked coordinate")
+	}
+
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+		}
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 2, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse(fmt.Sprintf("Successfully double-clicked element %d", params.Index))
+	}
+
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+	}
+
+	if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 2); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
 	}
 
@@ -591,15 +938,51 @@ func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
-	// Fix 4: Look up BackendID from cache with validation
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+	if params.Ref != "" {
+		backendID, err := b.backendIDFromRef(params.Ref)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
+			if err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+			}
+			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 3, nil, 1); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully triple-clicked element by ref")
+		}
+		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 3); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully triple-clicked element by ref")
 	}
 
-	// Triple-click by BackendID (tabID is always required and validated)
-	err = client.TripleClickByBackendID(ctx, backendID, params.TabID)
+	if params.Coordinate != nil {
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonLeft, 3, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse("Successfully triple-clicked coordinate")
+	}
+
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
+		if err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+		}
+		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 3, nil, 1); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+		}
+		return interfaces.NewTextResponse(fmt.Sprintf("Successfully triple-clicked element %d", params.Index))
+	}
+
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
+	}
+
+	if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 3); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
 	}
 
@@ -626,14 +1009,14 @@ func (b *browserTool) handleDrag(ctx context.Context, params BrowserParams, sess
 		return interfaces.NewTextErrorResponse("drag action cannot mix index mode and coordinate mode")
 	}
 
-	// Set duration pointer
-	var duration *int
+	// Set duration with default of 500ms if not specified
+	duration := 500
 	if params.Duration > 0 {
-		duration = &params.Duration
+		duration = params.Duration
 	}
 
 	// Perform drag (tabID is always required and validated)
-	err = client.Drag(ctx, params.FromIndex, params.ToIndex, params.FromX, params.FromY, params.ToX, params.ToY, duration, params.TabID)
+	err = client.Drag(ctx, params.FromIndex, params.ToIndex, params.FromX, params.FromY, params.ToX, params.ToY, &duration, params.TabID)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Drag failed: %v", err))
 	}
@@ -652,7 +1035,7 @@ func (b *browserTool) handleDrag(ctx context.Context, params BrowserParams, sess
 // handleFormInput sets form input value directly
 func (b *browserTool) handleFormInput(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
 	// Validate value parameter
-	if params.Value == "" {
+	if params.Value == nil {
 		return interfaces.NewTextErrorResponse("missing value parameter for form_input action")
 	}
 
@@ -662,8 +1045,11 @@ func (b *browserTool) handleFormInput(ctx context.Context, params BrowserParams,
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
+	// Convert value to string (handles string, number, boolean)
+	valueStr := fmt.Sprintf("%v", params.Value)
+
 	// Set form input value (tabID is always required and validated)
-	err = client.FormInput(ctx, params.Index, params.Value, params.TabID)
+	err = client.FormInput(ctx, params.Index, valueStr, params.TabID)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Form input failed: %v", err))
 	}
@@ -685,6 +1071,9 @@ func (b *browserTool) handleGoBack(ctx context.Context, params BrowserParams, se
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Go back failed: %v", err))
 	}
 
+	// Clear element cache on navigation
+	b.clearCacheForTab(sessionID, params.TabID)
+
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated back to: %s", resultURL))
 }
 
@@ -702,13 +1091,16 @@ func (b *browserTool) handleGoForward(ctx context.Context, params BrowserParams,
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Go forward failed: %v", err))
 	}
 
+	// Clear element cache on navigation
+	b.clearCacheForTab(sessionID, params.TabID)
+
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated forward to: %s", resultURL))
 }
 
 // handleWait pauses execution for specified milliseconds
 func (b *browserTool) handleWait(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
-	if params.Duration <= 0 {
-		return interfaces.NewTextErrorResponse("missing or invalid duration parameter for wait action")
+	if params.Duration <= 0 || params.Duration > MaxWaitDuration {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("invalid duration: must be between 1-%d milliseconds", MaxWaitDuration))
 	}
 
 	client, err := b.getClient(ctx, sessionID)
@@ -766,7 +1158,7 @@ func (b *browserTool) handleScroll(ctx context.Context, params BrowserParams, se
 	}
 
 	// Default amount to 100 pixels if not specified
-	amount := params.Amount
+	amount := params.ScrollAmount
 	if amount == 0 {
 		amount = 100
 	}
@@ -892,6 +1284,12 @@ func (b *browserTool) handleFind(ctx context.Context, params BrowserParams, sess
 		return interfaces.NewTextErrorResponse("missing query parameter for find action")
 	}
 
+	// Get session storage dir for potential file writing
+	_, sessionStorageDir, err := b.getContextInfo(ctx)
+	if err != nil {
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get session info: %v", err))
+	}
+
 	// Get browser connection
 	client, err := b.getClient(ctx, sessionID)
 	if err != nil {
@@ -909,7 +1307,33 @@ func (b *browserTool) handleFind(ctx context.Context, params BrowserParams, sess
 		return interfaces.NewTextResponse(fmt.Sprintf("No elements found matching query: %s", params.Query))
 	}
 
-	// Format response
+	// If more than 100 results, write to file
+	if result.Total > 100 {
+		// Format all results for file
+		var fileContent strings.Builder
+		fmt.Fprintf(&fileContent, "Find Results for query: %s\n", params.Query)
+		fmt.Fprintf(&fileContent, "Total matches: %d\n\n", result.Total)
+
+		for i, elem := range result.Elements {
+			fmt.Fprintf(&fileContent, "[%d] %s: %s (x:%.0f, y:%.0f)\n", i+1, elem.Role, elem.Name, elem.Bounds.X, elem.Bounds.Y)
+		}
+
+		// Write to session storage
+		timestamp := time.Now().Format("20060102_150405")
+		filename := fmt.Sprintf("find_results_%s.txt", timestamp)
+		filePath := filepath.Join(sessionStorageDir, filename)
+
+		if err := os.WriteFile(filePath, []byte(fileContent.String()), 0o644); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to save results to file: %v", err))
+		}
+
+		// Return response with file reference
+		return interfaces.NewTextResponse(
+			fmt.Sprintf("Found %d elements matching query: %s\n\n⚠️  Results exceed 100 items. Full results saved to: %s\n\nUse the Read tool to view complete results.",
+				result.Total, params.Query, filename))
+	}
+
+	// Format inline response for <= 100 results
 	var response strings.Builder
 	fmt.Fprintf(&response, "Found %d element(s) matching query: %s\n\n", result.Total, params.Query)
 
@@ -1207,10 +1631,10 @@ func (b *browserTool) handleScrollTo(ctx context.Context, params BrowserParams, 
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
-	// Get BackendID from cache
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, params.TabID, params.Index)
+	// Get BackendID from cache or read_page
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found in cache: %v. Please take a screenshot first.", err))
+		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
 	}
 
 	// Scroll element into view (tabID is always required and validated)
@@ -1236,7 +1660,6 @@ func (b *browserTool) handleActionSequence(ctx context.Context, params BrowserPa
 	results := make([]SubActionResult, len(params.Actions))
 	successCount := 0
 	var lastErr error
-	containsScreenshot := false
 
 	// Execute each action in sequence
 	for i := range params.Actions {
@@ -1246,13 +1669,8 @@ func (b *browserTool) handleActionSequence(ctx context.Context, params BrowserPa
 			Type:  subAction.Type,
 		}
 
-		// Check if sequence contains screenshot
-		if subAction.Type == "screenshot" {
-			containsScreenshot = true
-		}
-
 		// Execute sub-action
-		err := b.executeSubAction(ctx, client, *subAction, sessionID, params.TabID)
+		screenshotFile, err := b.executeSubAction(ctx, client, *subAction, sessionID, params.TabID, sessionStorageDir)
 		if err != nil {
 			result.Success = false
 			result.Error = err.Error()
@@ -1263,6 +1681,7 @@ func (b *browserTool) handleActionSequence(ctx context.Context, params BrowserPa
 		}
 
 		result.Success = true
+		result.ScreenshotFile = screenshotFile
 		successCount++
 		results[i] = result
 
@@ -1273,9 +1692,18 @@ func (b *browserTool) handleActionSequence(ctx context.Context, params BrowserPa
 		}
 	}
 
-	// Take automatic screenshot if sequence doesn't contain one
+	// Check if any sub-action was a screenshot
+	hasScreenshotSubAction := false
+	for _, result := range results {
+		if result.Type == SubActionScreenshot && result.Success {
+			hasScreenshotSubAction = true
+			break
+		}
+	}
+
+	// Take automatic screenshot after successful sequence (only if no screenshot sub-action)
 	var screenshotFile string
-	if !containsScreenshot && lastErr == nil {
+	if lastErr == nil && !hasScreenshotSubAction {
 		screenshotParams := browserprotocol.ScreenshotParams{
 			Format:   "png",
 			FullPage: false,
@@ -1311,10 +1739,15 @@ func (b *browserTool) handleActionSequence(ctx context.Context, params BrowserPa
 		}
 
 		fmt.Fprintf(&response, "[%d] %s %s\n", result.Index, result.Type, status)
+
+		// Include screenshot file from sub-action if present
+		if result.ScreenshotFile != "" {
+			fmt.Fprintf(&response, "    Screenshot: %s\n", formatScreenshotResponse(result.ScreenshotFile, sessionID, b.baseURL))
+		}
 	}
 
 	if screenshotFile != "" {
-		fmt.Fprintf(&response, "\nScreenshot: %s\n", formatScreenshotResponse(screenshotFile, sessionID, b.baseURL))
+		fmt.Fprintf(&response, "\nFinal Screenshot: %s\n", formatScreenshotResponse(screenshotFile, sessionID, b.baseURL))
 	}
 
 	if lastErr != nil {
@@ -1325,98 +1758,288 @@ func (b *browserTool) handleActionSequence(ctx context.Context, params BrowserPa
 }
 
 // executeSubAction executes a single sub-action
-func (b *browserTool) executeSubAction(ctx context.Context, client BrowserClient, action SubAction, sessionID, tabID string) error {
+func (b *browserTool) executeSubAction(ctx context.Context, client BrowserClient, action SubAction, sessionID, tabID, sessionStorageDir string) (screenshotFile string, err error) {
 	switch action.Type {
-	case "left_click":
-		return b.executeClick(ctx, client, action, sessionID, tabID)
-	case "right_click":
-		return b.executeRightClick(ctx, client, action, sessionID, tabID)
-	case "double_click":
-		return b.executeDoubleClick(ctx, client, action, sessionID, tabID)
-	case "triple_click":
-		return b.executeTripleClick(ctx, client, action, sessionID, tabID)
-	case "type":
-		return b.executeType(ctx, client, action, sessionID, tabID)
-	case "key":
-		return client.PressKey(ctx, action.Key, tabID)
-	case "scroll":
+	case SubActionLeftClick:
+		return "", b.executeClick(ctx, client, action, sessionID, tabID)
+	case SubActionRightClick:
+		return "", b.executeRightClick(ctx, client, action, sessionID, tabID)
+	case SubActionDoubleClick:
+		return "", b.executeDoubleClick(ctx, client, action, sessionID, tabID)
+	case SubActionTripleClick:
+		return "", b.executeTripleClick(ctx, client, action, sessionID, tabID)
+	case SubActionType:
+		return "", b.executeType(ctx, client, action, sessionID, tabID)
+	case SubActionKey:
+		return "", client.PressKey(ctx, action.Key, tabID)
+	case SubActionScroll:
 		amount := action.ScrollAmount
 		if amount == 0 {
 			amount = 100
 		}
-		return client.Scroll(ctx, action.Direction, amount, tabID)
-	case "scroll_to":
+		return "", client.Scroll(ctx, action.Direction, amount, tabID)
+	case SubActionScrollTo:
 		if action.Index == nil {
-			return fmt.Errorf("index required for scroll_to action")
+			return "", fmt.Errorf("index required for scroll_to action")
 		}
-		backendID, err := b.getBackendIDFromCache(ctx, sessionID, tabID, *action.Index)
+		backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 		if err != nil {
-			return err
+			return "", err
 		}
-		return client.ScrollIntoViewByBackendID(ctx, backendID, tabID)
-	case "form_input":
+		return "", client.ScrollIntoViewByBackendID(ctx, backendID, tabID)
+	case SubActionFormInput:
 		if action.Index == nil {
-			return fmt.Errorf("index required for form_input action")
+			return "", fmt.Errorf("index required for form_input action")
 		}
-		return client.FormInput(ctx, *action.Index, action.Value, tabID)
-	case "wait":
-		return client.Wait(ctx, action.Duration, tabID)
-	case "left_click_drag":
-		return client.Drag(ctx, action.FromIndex, action.ToIndex, action.FromX, action.FromY, action.ToX, action.ToY, nil, tabID)
-	case "screenshot":
-		// Skip screenshot in sequence - handled at end
-		return nil
+		// Convert value to string (handles string, number, boolean)
+		valueStr := fmt.Sprintf("%v", action.Value)
+		return "", client.FormInput(ctx, *action.Index, valueStr, tabID)
+	case SubActionWait:
+		return "", client.Wait(ctx, action.Duration, tabID)
+	case SubActionLeftClickDrag:
+		// Support both index mode and coordinate mode
+		hasIndexMode := action.FromIndex != nil && action.ToIndex != nil
+		hasCoordMode := action.FromX != nil && action.FromY != nil && action.ToX != nil && action.ToY != nil
+
+		if !hasIndexMode && !hasCoordMode {
+			return "", fmt.Errorf("left_click_drag requires either (fromIndex and toIndex) or (fromX, fromY, toX, toY)")
+		}
+		if hasIndexMode && hasCoordMode {
+			return "", fmt.Errorf("left_click_drag cannot mix index mode and coordinate mode")
+		}
+
+		// Set duration with default of 500ms if not specified
+		duration := 500
+		if action.Duration > 0 {
+			duration = action.Duration
+		}
+
+		if hasIndexMode {
+			// Index mode: drag from element to element
+			return "", client.Drag(ctx, action.FromIndex, action.ToIndex, nil, nil, nil, nil, &duration, tabID)
+		}
+
+		// Coordinate mode: drag from coordinate to coordinate
+		return "", client.Drag(ctx, nil, nil, action.FromX, action.FromY, action.ToX, action.ToY, &duration, tabID)
+	case SubActionScreenshot:
+		// Take screenshot and save to session storage
+		screenshotParams := browserprotocol.ScreenshotParams{
+			Format:   "png",
+			FullPage: false,
+			Raw:      true,
+			TabID:    &tabID,
+		}
+		result, err := client.Screenshot(ctx, screenshotParams)
+		if err != nil {
+			return "", fmt.Errorf("screenshot failed: %w", err)
+		}
+
+		// Save screenshot - use custom file_path if provided
+		var filename string
+		if action.FilePath != "" {
+			// Custom filename specified - decode base64 data
+			imgData, err := base64.StdEncoding.DecodeString(result.Data)
+			if err != nil {
+				return "", fmt.Errorf("failed to decode screenshot: %w", err)
+			}
+			filename = action.FilePath
+			fullPath := filepath.Join(sessionStorageDir, filename)
+			if err := os.WriteFile(fullPath, imgData, 0o644); err != nil {
+				return "", fmt.Errorf("failed to save screenshot: %w", err)
+			}
+		} else {
+			// Auto-generate filename
+			filename, err = saveScreenshot(result.Data, sessionStorageDir)
+			if err != nil {
+				return "", fmt.Errorf("failed to save screenshot: %w", err)
+			}
+		}
+
+		// Cache element mappings if available
+		if result.RawNodes != nil && result.RawViewport != nil {
+			b.cacheElementMapping(ctx, sessionID, tabID, result.RawNodes, *result.RawViewport)
+		}
+
+		return filename, nil
 	default:
-		return fmt.Errorf("unknown sub-action type: %s", action.Type)
+		return "", fmt.Errorf("unknown sub-action type: %s", action.Type)
 	}
 }
 
 // executeClick executes a click sub-action
 func (b *browserTool) executeClick(ctx context.Context, client BrowserClient, action SubAction, sessionID, tabID string) error {
-	if action.Index == nil {
-		return fmt.Errorf("index required for click action")
+	if action.Ref != "" {
+		backendID, err := b.backendIDFromRef(action.Ref)
+		if err != nil {
+			return err
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
+			if err != nil {
+				return err
+			}
+			duration := action.Duration
+			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 1, &duration, action.Repeat)
+		}
+		repeat := action.Repeat
+		if repeat <= 0 {
+			repeat = 1
+		}
+		for i := 0; i < repeat; i++ {
+			if err := b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 1); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, tabID, *action.Index)
+
+	if action.Coordinate != nil {
+		duration := action.Duration
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonLeft, 1, &duration, action.Repeat)
+	}
+
+	if action.Index == nil {
+		return fmt.Errorf("index, ref, or coordinate required for click action")
+	}
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
+		if err != nil {
+			return err
+		}
+		duration := action.Duration
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 1, &duration, action.Repeat)
+	}
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err
 	}
-	return client.ClickByBackendID(ctx, backendID, tabID)
+	repeat := action.Repeat
+	if repeat <= 0 {
+		repeat = 1
+	}
+	for i := 0; i < repeat; i++ {
+		if err := b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 1); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // executeRightClick executes a right-click sub-action
 func (b *browserTool) executeRightClick(ctx context.Context, client BrowserClient, action SubAction, sessionID, tabID string) error {
-	if action.Index == nil {
-		return fmt.Errorf("index required for right_click action")
+	if action.Ref != "" {
+		backendID, err := b.backendIDFromRef(action.Ref)
+		if err != nil {
+			return err
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
+			if err != nil {
+				return err
+			}
+			duration := action.Duration
+			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonRight, 1, &duration, 1)
+		}
+		return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonRight, 1)
 	}
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, tabID, *action.Index)
+
+	if action.Coordinate != nil {
+		duration := action.Duration
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonRight, 1, &duration, 1)
+	}
+
+	if action.Index == nil {
+		return fmt.Errorf("index, ref, or coordinate required for right_click action")
+	}
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
+		if err != nil {
+			return err
+		}
+		duration := action.Duration
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonRight, 1, &duration, 1)
+	}
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err
 	}
-	return client.RightClickByBackendID(ctx, backendID, tabID)
+	return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonRight, 1)
 }
 
 // executeDoubleClick executes a double-click sub-action
 func (b *browserTool) executeDoubleClick(ctx context.Context, client BrowserClient, action SubAction, sessionID, tabID string) error {
-	if action.Index == nil {
-		return fmt.Errorf("index required for double_click action")
+	if action.Ref != "" {
+		backendID, err := b.backendIDFromRef(action.Ref)
+		if err != nil {
+			return err
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
+			if err != nil {
+				return err
+			}
+			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 2, nil, 1)
+		}
+		return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 2)
 	}
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, tabID, *action.Index)
+
+	if action.Coordinate != nil {
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonLeft, 2, nil, 1)
+	}
+
+	if action.Index == nil {
+		return fmt.Errorf("index, ref, or coordinate required for double_click action")
+	}
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
+		if err != nil {
+			return err
+		}
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 2, nil, 1)
+	}
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err
 	}
-	return client.DoubleClickByBackendID(ctx, backendID, tabID)
+	return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 2)
 }
 
 // executeTripleClick executes a triple-click sub-action
 func (b *browserTool) executeTripleClick(ctx context.Context, client BrowserClient, action SubAction, sessionID, tabID string) error {
-	if action.Index == nil {
-		return fmt.Errorf("index required for triple_click action")
+	if action.Ref != "" {
+		backendID, err := b.backendIDFromRef(action.Ref)
+		if err != nil {
+			return err
+		}
+		if _, ok := client.(coordinateClicker); ok {
+			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
+			if err != nil {
+				return err
+			}
+			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 3, nil, 1)
+		}
+		return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 3)
 	}
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, tabID, *action.Index)
+
+	if action.Coordinate != nil {
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonLeft, 3, nil, 1)
+	}
+
+	if action.Index == nil {
+		return fmt.Errorf("index, ref, or coordinate required for triple_click action")
+	}
+	if _, ok := client.(coordinateClicker); ok {
+		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
+		if err != nil {
+			return err
+		}
+		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 3, nil, 1)
+	}
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err
 	}
-	return client.TripleClickByBackendID(ctx, backendID, tabID)
+	return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 3)
 }
 
 // executeType executes a type sub-action
@@ -1430,9 +2053,9 @@ func (b *browserTool) executeType(ctx context.Context, client BrowserClient, act
 // getDelayForAction returns appropriate inter-action delay
 func getDelayForAction(actionType string) time.Duration {
 	switch actionType {
-	case "left_click", "right_click", "double_click", "triple_click":
+	case SubActionLeftClick, SubActionRightClick, SubActionDoubleClick, SubActionTripleClick:
 		return 100 * time.Millisecond
-	case "type", "form_input":
+	case SubActionType, SubActionFormInput:
 		return 50 * time.Millisecond
 	default:
 		return 50 * time.Millisecond

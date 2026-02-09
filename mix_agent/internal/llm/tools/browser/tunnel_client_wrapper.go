@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"mix/internal/llm/tools/browser/cdp"
 	"mix/internal/logging"
@@ -36,7 +37,7 @@ type elementInfo struct {
 // This allows the browser tool to work transparently with both tunnel and service modes
 type TunnelClientWrapper struct {
 	tunnelRegistry interface{} // *httppkg.TunnelRegistry (stored as interface to avoid import cycles)
-	sessionID      string       // Mix session ID (user session)
+	sessionID      string      // Mix session ID (user session)
 	requestID      int
 
 	// Tab management
@@ -453,8 +454,8 @@ type snapshotStats struct {
 
 func (t *TunnelClientWrapper) getSnapshotBounds(ctx context.Context, cdpSessionID string) (map[int64]browserprotocol.BoundingBox, snapshotStats, error) {
 	params := cdp.DOMSnapshotCaptureSnapshotParams{
-		ComputedStyles:   []string{},
-		IncludeDOMRects:  true,
+		ComputedStyles:    []string{},
+		IncludeDOMRects:   true,
 		IncludePaintOrder: false,
 	}
 
@@ -796,6 +797,59 @@ func (t *TunnelClientWrapper) ClickByBackendID(ctx context.Context, backendID in
 
 	_, err = t.sendCommand(ctx, "DOM.click", params, cdpSessionID)
 	return err
+}
+
+// ClickAt clicks at the given coordinate using Input.dispatchMouseEvent
+func (t *TunnelClientWrapper) ClickAt(ctx context.Context, x, y float64, button string, clickCount int, duration *int, tabID ...string) error {
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	if clickCount <= 0 {
+		clickCount = 1
+	}
+
+	moveParams := cdp.InputDispatchMouseEventParams{
+		Type:   "mouseMoved",
+		X:      x,
+		Y:      y,
+		Button: button,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to move mouse: %w", err)
+	}
+
+	pressParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mousePressed",
+		X:          x,
+		Y:          y,
+		Button:     button,
+		ClickCount: clickCount,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", pressParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to press mouse: %w", err)
+	}
+
+	if duration != nil && *duration > 0 {
+		time.Sleep(time.Duration(*duration) * time.Millisecond)
+	}
+
+	releaseParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mouseReleased",
+		X:          x,
+		Y:          y,
+		Button:     button,
+		ClickCount: clickCount,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", releaseParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to release mouse: %w", err)
+	}
+
+	return nil
 }
 
 // RightClick right-clicks an element by index

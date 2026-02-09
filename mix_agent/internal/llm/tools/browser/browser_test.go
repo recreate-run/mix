@@ -122,11 +122,11 @@ func TestBrowserParamsJSONSerialization(t *testing.T) {
 		{
 			name: "scroll action",
 			params: BrowserParams{
-				Action:    ActionScroll,
-				Direction: DirectionDown,
-				Amount:    200,
+				Action:       ActionScroll,
+				Direction:    DirectionDown,
+				ScrollAmount: 200,
 			},
-			expected: `{"action":"scroll","direction":"down","amount":200}`,
+			expected: `{"action":"scroll","direction":"down","scroll_amount":200}`,
 		},
 	}
 
