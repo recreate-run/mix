@@ -900,7 +900,6 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		a.accumulator.Store(assistantMsg)
 
 		// Flush immediately for tool events (they're less frequent)
-		logging.Debug(fmt.Sprintf("Agent: Tool use started for %s - triggering immediate flush", event.ToolCall.Name))
 		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
 			return err
 		}

@@ -63,6 +63,17 @@ type PageNavigateToHistoryParams struct {
 	EntryID int `json:"entryId"`
 }
 
+type PageGetNavigationHistoryResult struct {
+	CurrentIndex int                      `json:"currentIndex"`
+	Entries      []NavigationHistoryEntry `json:"entries"`
+}
+
+type NavigationHistoryEntry struct {
+	ID    int    `json:"id"`
+	URL   string `json:"url"`
+	Title string `json:"title"`
+}
+
 type PageCaptureScreenshotParams struct {
 	Format      string `json:"format"`
 	FromSurface bool   `json:"fromSurface"`
@@ -190,12 +201,40 @@ type InputDispatchMouseEventParams struct {
 	DeltaY     float64 `json:"deltaY,omitempty"`
 }
 
+// InputDispatchMouseWheelParams for mouseWheel events (requires deltaX and deltaY)
+type InputDispatchMouseWheelParams struct {
+	Type   string  `json:"type"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	DeltaX float64 `json:"deltaX"` // Required for mouseWheel
+	DeltaY float64 `json:"deltaY"` // Required for mouseWheel
+}
+
 type InputInsertTextParams struct {
 	Text string `json:"text"`
+}
+
+// Input.dispatchKeyEvent - for PressKey
+type InputDispatchKeyEventParams struct {
+	Type                  string `json:"type"`                            // "keyDown", "keyUp", "char"
+	Modifiers             int    `json:"modifiers,omitempty"`             // Alt=1, Ctrl=2, Meta=4, Shift=8
+	Key                   string `json:"key,omitempty"`                   // DOM key value (e.g., "Enter")
+	Code                  string `json:"code,omitempty"`                  // Physical key
+	Text                  string `json:"text,omitempty"`                  // Character for char events
+	WindowsVirtualKeyCode int    `json:"windowsVirtualKeyCode,omitempty"` // Virtual key code
 }
 
 // DOM domain commands
 
 type DOMClickParams struct {
 	BackendNodeID int64 `json:"backendNodeId"`
+}
+
+type DOMSetFileInputFilesParams struct {
+	Files         []string `json:"files"`
+	BackendNodeID int64    `json:"backendNodeId,omitempty"`
+}
+
+type DOMScrollIntoViewIfNeededParams struct {
+	BackendNodeID int64 `json:"backendNodeId,omitempty"`
 }

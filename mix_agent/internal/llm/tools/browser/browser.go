@@ -255,15 +255,8 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 	}
 	params.TabID = params.EffectiveTabID()
 
-	// Log all browser tool invocations with key parameters
-	sessionID, _, err := b.getContextInfo(ctx)
-	if err == nil {
-		logging.Debug("Browser tool invoked",
-			"action", params.Action,
-			"tabID", params.TabID,
-			"sessionID", sessionID,
-			"browserMode", b.browserMode)
-	}
+	// Validate input parameters
+
 
 	// Validate tabId requirement for tab-interaction actions
 	requiresTabID := []string{

@@ -257,17 +257,40 @@ func (t *TunnelClientWrapper) GoBack(ctx context.Context, tabID ...string) (stri
 		return "", fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
+	// Get navigation history first to find the previous entry
+	histResult, err := t.sendCommand(ctx, "Page.getNavigationHistory", nil, cdpSessionID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get navigation history: %w", err)
+	}
+
+	// Convert to typed result
+	histJSON, err := json.Marshal(histResult)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal navigation history: %w", err)
+	}
+
+	var navHistory cdp.PageGetNavigationHistoryResult
+	if err := json.Unmarshal(histJSON, &navHistory); err != nil {
+		return "", fmt.Errorf("failed to unmarshal navigation history: %w", err)
+	}
+
+	// Check if we can go back
+	if navHistory.CurrentIndex <= 0 {
+		return "", fmt.Errorf("cannot go back: already at first entry")
+	}
+
+	// Navigate to previous entry
+	previousEntry := navHistory.Entries[navHistory.CurrentIndex-1]
 	params := cdp.PageNavigateToHistoryParams{
-		EntryID: -1, // Go back
+		EntryID: previousEntry.ID,
 	}
 
 	_, err = t.sendCommand(ctx, "Page.navigateToHistoryEntry", params, cdpSessionID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to navigate back: %w", err)
 	}
 
-	// TODO: Return actual URL from navigation
-	return "", nil
+	return previousEntry.URL, nil
 }
 
 // GoForward navigates forward in history
@@ -277,17 +300,40 @@ func (t *TunnelClientWrapper) GoForward(ctx context.Context, tabID ...string) (s
 		return "", fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
+	// Get navigation history first to find the next entry
+	histResult, err := t.sendCommand(ctx, "Page.getNavigationHistory", nil, cdpSessionID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get navigation history: %w", err)
+	}
+
+	// Convert to typed result
+	histJSON, err := json.Marshal(histResult)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal navigation history: %w", err)
+	}
+
+	var navHistory cdp.PageGetNavigationHistoryResult
+	if err := json.Unmarshal(histJSON, &navHistory); err != nil {
+		return "", fmt.Errorf("failed to unmarshal navigation history: %w", err)
+	}
+
+	// Check if we can go forward
+	if navHistory.CurrentIndex >= len(navHistory.Entries)-1 {
+		return "", fmt.Errorf("cannot go forward: already at last entry")
+	}
+
+	// Navigate to next entry
+	nextEntry := navHistory.Entries[navHistory.CurrentIndex+1]
 	params := cdp.PageNavigateToHistoryParams{
-		EntryID: 1, // Go forward
+		EntryID: nextEntry.ID,
 	}
 
 	_, err = t.sendCommand(ctx, "Page.navigateToHistoryEntry", params, cdpSessionID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to navigate forward: %w", err)
 	}
 
-	// TODO: Return actual URL from navigation
-	return "", nil
+	return nextEntry.URL, nil
 }
 
 // Screenshot captures a screenshot
@@ -477,8 +523,6 @@ func (t *TunnelClientWrapper) ReadPage(ctx context.Context, interactiveOnly bool
 	t.cacheMu.Lock()
 	t.elementCache[targetTabID] = elements
 	t.cacheMu.Unlock()
-
-	logging.Debug("ReadPage completed", "tabID", targetTabID, "totalNodes", len(rawNodes), "filteredNodes", len(filteredNodes), "cached", len(elements), "skipZeroSize", skipZeroSize, "skipViewport", skipViewport, "skipInteractive", skipInteractive, "interactiveOnly", interactiveOnly)
 
 	return &browserprotocol.ReadPageResult{
 		Elements: filteredNodes,
@@ -868,28 +912,12 @@ func (t *TunnelClientWrapper) ClickAt(ctx context.Context, x, y float64, button 
 	finalX := x
 	finalY := y
 	screenshotSizeValue, hasScreenshotSize := t.getLastScreenshotSize(targetTabID)
-	scaleX := 1.0
-	scaleY := 1.0
 	if hasScreenshotSize && screenshotSizeValue.Width > 0 && screenshotSizeValue.Height > 0 {
-		scaleX = viewport.Width / float64(screenshotSizeValue.Width)
-		scaleY = viewport.Height / float64(screenshotSizeValue.Height)
+		scaleX := viewport.Width / float64(screenshotSizeValue.Width)
+		scaleY := viewport.Height / float64(screenshotSizeValue.Height)
 		finalX = x * scaleX
 		finalY = y * scaleY
 	}
-
-	logging.Debug("Click transform",
-		"tabID", targetTabID,
-		"rawX", x,
-		"rawY", y,
-		"screenshotW", screenshotSizeValue.Width,
-		"screenshotH", screenshotSizeValue.Height,
-		"viewportW", viewport.Width,
-		"viewportH", viewport.Height,
-		"scaleX", scaleX,
-		"scaleY", scaleY,
-		"finalX", finalX,
-		"finalY", finalY,
-	)
 
 	moveParams := cdp.InputDispatchMouseEventParams{
 		Type:   "mouseMoved",
@@ -971,8 +999,124 @@ func (t *TunnelClientWrapper) TripleClickByBackendID(ctx context.Context, backen
 
 // Drag performs a drag operation
 func (t *TunnelClientWrapper) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, fromY, toX, toY *float64, duration *int, tabID ...string) error {
-	// TODO: Implement drag via tunnel
-	return fmt.Errorf("drag not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	var startX, startY, endX, endY float64
+
+	// Determine coordinates based on mode (index or coordinate)
+	switch {
+	case fromIndex != nil && toIndex != nil:
+		// Index mode: get coordinates from element cache
+		targetTabID := t.activeTabID
+		if len(tabID) > 0 && tabID[0] != "" {
+			targetTabID = tabID[0]
+		}
+
+		t.cacheMu.RLock()
+		elements, exists := t.elementCache[targetTabID]
+		t.cacheMu.RUnlock()
+
+		if !exists || len(elements) == 0 {
+			return fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
+		}
+
+		if *fromIndex < 0 || *fromIndex >= len(elements) {
+			return fmt.Errorf("fromIndex %d out of range (0-%d)", *fromIndex, len(elements)-1)
+		}
+
+		if *toIndex < 0 || *toIndex >= len(elements) {
+			return fmt.Errorf("toIndex %d out of range (0-%d)", *toIndex, len(elements)-1)
+		}
+
+		fromElem := elements[*fromIndex]
+		toElem := elements[*toIndex]
+
+		startX = fromElem.Bounds.X + fromElem.Bounds.Width/2
+		startY = fromElem.Bounds.Y + fromElem.Bounds.Height/2
+		endX = toElem.Bounds.X + toElem.Bounds.Width/2
+		endY = toElem.Bounds.Y + toElem.Bounds.Height/2
+	case fromX != nil && fromY != nil && toX != nil && toY != nil:
+		// Coordinate mode: use provided coordinates
+		startX = *fromX
+		startY = *fromY
+		endX = *toX
+		endY = *toY
+	default:
+		return fmt.Errorf("must provide either fromIndex/toIndex or fromX/fromY/toX/toY")
+	}
+
+	// Default duration
+	dragDuration := 500
+	if duration != nil && *duration > 0 {
+		dragDuration = *duration
+	}
+
+	// Calculate interpolation steps (10 steps for smooth drag)
+	steps := 10
+	stepDelay := time.Duration(dragDuration/steps) * time.Millisecond
+
+	// Move mouse to start position
+	moveParams := cdp.InputDispatchMouseEventParams{
+		Type:   "mouseMoved",
+		X:      startX,
+		Y:      startY,
+		Button: "left",
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to move to start position: %w", err)
+	}
+
+	// Press mouse button
+	pressParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mousePressed",
+		X:          startX,
+		Y:          startY,
+		Button:     "left",
+		ClickCount: 1,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", pressParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to press mouse: %w", err)
+	}
+
+	// Interpolate movement
+	for i := 1; i <= steps; i++ {
+		progress := float64(i) / float64(steps)
+		currentX := startX + (endX-startX)*progress
+		currentY := startY + (endY-startY)*progress
+
+		moveParams := cdp.InputDispatchMouseEventParams{
+			Type:   "mouseMoved",
+			X:      currentX,
+			Y:      currentY,
+			Button: "left",
+		}
+		_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
+		if err != nil {
+			return fmt.Errorf("failed to move mouse during drag: %w", err)
+		}
+
+		time.Sleep(stepDelay)
+	}
+
+	// Release mouse button
+	releaseParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mouseReleased",
+		X:          endX,
+		Y:          endY,
+		Button:     "left",
+		ClickCount: 1,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", releaseParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to release mouse: %w", err)
+	}
+
+	return nil
 }
 
 // Type types text into an element
@@ -1056,14 +1200,196 @@ func (t *TunnelClientWrapper) Type(ctx context.Context, index int, text string, 
 
 // PressKey presses keyboard keys
 func (t *TunnelClientWrapper) PressKey(ctx context.Context, keys string, tabID ...string) error {
-	// TODO: Implement press_key via tunnel
-	return fmt.Errorf("press_key not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Key code mappings
+	keyCodeMap := map[string]int{
+		"Enter":      13,
+		"Backspace":  8,
+		"Tab":        9,
+		"Escape":     27,
+		"ArrowUp":    38,
+		"ArrowDown":  40,
+		"ArrowLeft":  37,
+		"ArrowRight": 39,
+		"Delete":     46,
+		"Home":       36,
+		"End":        35,
+		"PageUp":     33,
+		"PageDown":   34,
+	}
+
+	modifierBits := map[string]int{
+		"alt":   1,
+		"ctrl":  2,
+		"meta":  4,
+		"cmd":   4,
+		"shift": 8,
+	}
+
+	// Parse space-separated key sequences
+	keySequences := strings.Fields(keys)
+
+	for _, keySeq := range keySequences {
+		// Parse modifiers and key (e.g., "cmd+a" or "Enter")
+		parts := strings.Split(keySeq, "+")
+		var modifiers int
+		var key string
+
+		// Process each part
+		for i, part := range parts {
+			lowerPart := strings.ToLower(part)
+			if modBit, isMod := modifierBits[lowerPart]; isMod {
+				modifiers |= modBit
+			} else if i == len(parts)-1 {
+				// Last part (or only part) is the actual key
+				key = part
+			}
+		}
+
+		if key == "" {
+			return fmt.Errorf("invalid key sequence: %s", keySeq)
+		}
+
+		// Get virtual key code
+		keyCode, hasCode := keyCodeMap[key]
+		isPrintable := len(key) == 1
+
+		// Dispatch keyDown
+		keyDownParams := cdp.InputDispatchKeyEventParams{
+			Type:      "keyDown",
+			Modifiers: modifiers,
+			Key:       key,
+		}
+		if hasCode {
+			keyDownParams.WindowsVirtualKeyCode = keyCode
+		}
+		if isPrintable {
+			keyDownParams.Text = key
+		}
+
+		_, err = t.sendCommand(ctx, "Input.dispatchKeyEvent", keyDownParams, cdpSessionID)
+		if err != nil {
+			return fmt.Errorf("failed to dispatch keyDown: %w", err)
+		}
+
+		// Dispatch char event for printable characters
+		if isPrintable {
+			charParams := cdp.InputDispatchKeyEventParams{
+				Type:      "char",
+				Modifiers: modifiers,
+				Text:      key,
+			}
+			_, err = t.sendCommand(ctx, "Input.dispatchKeyEvent", charParams, cdpSessionID)
+			if err != nil {
+				return fmt.Errorf("failed to dispatch char: %w", err)
+			}
+		}
+
+		// Dispatch keyUp
+		keyUpParams := cdp.InputDispatchKeyEventParams{
+			Type:      "keyUp",
+			Modifiers: modifiers,
+			Key:       key,
+		}
+		if hasCode {
+			keyUpParams.WindowsVirtualKeyCode = keyCode
+		}
+
+		_, err = t.sendCommand(ctx, "Input.dispatchKeyEvent", keyUpParams, cdpSessionID)
+		if err != nil {
+			return fmt.Errorf("failed to dispatch keyUp: %w", err)
+		}
+
+		// Small delay between key sequences
+		if len(keySequences) > 1 {
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	return nil
 }
 
 // FormInput sets form input value
 func (t *TunnelClientWrapper) FormInput(ctx context.Context, index int, value string, tabID ...string) error {
-	// TODO: Implement form_input via tunnel
-	return fmt.Errorf("form_input not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Get element from cache
+	targetTabID := t.activeTabID
+	if len(tabID) > 0 && tabID[0] != "" {
+		targetTabID = tabID[0]
+	}
+
+	t.cacheMu.RLock()
+	elements, exists := t.elementCache[targetTabID]
+	t.cacheMu.RUnlock()
+
+	if !exists || len(elements) == 0 {
+		return fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
+	}
+
+	if index < 0 || index >= len(elements) {
+		return fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
+	}
+
+	elem := elements[index]
+
+	// Calculate center coordinates
+	x := elem.Bounds.X + elem.Bounds.Width/2
+	y := elem.Bounds.Y + elem.Bounds.Height/2
+
+	// Triple-click to select all existing text
+	moveParams := cdp.InputDispatchMouseEventParams{
+		Type:   "mouseMoved",
+		X:      x,
+		Y:      y,
+		Button: "left",
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to move mouse: %w", err)
+	}
+
+	pressParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mousePressed",
+		X:          x,
+		Y:          y,
+		Button:     "left",
+		ClickCount: 3, // Triple-click to select all
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", pressParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to press mouse: %w", err)
+	}
+
+	releaseParams := cdp.InputDispatchMouseEventParams{
+		Type:       "mouseReleased",
+		X:          x,
+		Y:          y,
+		Button:     "left",
+		ClickCount: 3,
+	}
+	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", releaseParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to release mouse: %w", err)
+	}
+
+	// Insert new text (replaces selected text)
+	insertParams := cdp.InputInsertTextParams{
+		Text: value,
+	}
+	_, err = t.sendCommand(ctx, "Input.insertText", insertParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to insert text: %w", err)
+	}
+
+	return nil
 }
 
 // Scroll scrolls the page
@@ -1071,6 +1397,12 @@ func (t *TunnelClientWrapper) Scroll(ctx context.Context, direction string, amou
 	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
 	if err != nil {
 		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Get viewport bounds to use center point for mouse position
+	viewport, err := t.getViewportBounds(ctx, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get viewport bounds: %w", err)
 	}
 
 	var deltaX, deltaY float64
@@ -1088,11 +1420,11 @@ func (t *TunnelClientWrapper) Scroll(ctx context.Context, direction string, amou
 		return fmt.Errorf("invalid scroll direction: %s (must be up, down, left, or right)", direction)
 	}
 
-	// Use Input.dispatchMouseEvent with type=mouseWheel
-	scrollParams := cdp.InputDispatchMouseEventParams{
+	// Use Input.dispatchMouseEvent with type=mouseWheel at viewport center
+	scrollParams := cdp.InputDispatchMouseWheelParams{
 		Type:   "mouseWheel",
-		X:      0,
-		Y:      0,
+		X:      viewport.Width / 2,
+		Y:      viewport.Height / 2,
 		DeltaX: deltaX,
 		DeltaY: deltaY,
 	}
@@ -1103,8 +1435,50 @@ func (t *TunnelClientWrapper) Scroll(ctx context.Context, direction string, amou
 
 // ScrollIntoView scrolls an element into view
 func (t *TunnelClientWrapper) ScrollIntoView(ctx context.Context, index *int, backendID *int64, tabID ...string) error {
-	// TODO: Implement scroll_into_view via tunnel
-	return fmt.Errorf("scroll_into_view not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	var targetBackendID int64
+
+	switch {
+	case backendID != nil:
+		targetBackendID = *backendID
+	case index != nil:
+		// Get element from cache
+		targetTabID := t.activeTabID
+		if len(tabID) > 0 && tabID[0] != "" {
+			targetTabID = tabID[0]
+		}
+
+		t.cacheMu.RLock()
+		elements, exists := t.elementCache[targetTabID]
+		t.cacheMu.RUnlock()
+
+		if !exists || len(elements) == 0 {
+			return fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
+		}
+
+		if *index < 0 || *index >= len(elements) {
+			return fmt.Errorf("index %d out of range (0-%d)", *index, len(elements)-1)
+		}
+
+		targetBackendID = elements[*index].BackendID
+	default:
+		return fmt.Errorf("either index or backendID must be provided")
+	}
+
+	params := cdp.DOMScrollIntoViewIfNeededParams{
+		BackendNodeID: targetBackendID,
+	}
+
+	_, err = t.sendCommand(ctx, "DOM.scrollIntoViewIfNeeded", params, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to scroll into view: %w", err)
+	}
+
+	return nil
 }
 
 // ScrollIntoViewByIndex scrolls an element into view by index
@@ -1119,8 +1493,45 @@ func (t *TunnelClientWrapper) ScrollIntoViewByBackendID(ctx context.Context, bac
 
 // UploadFile uploads files to a file input element
 func (t *TunnelClientWrapper) UploadFile(ctx context.Context, index int, filePaths []string, tabID ...string) (*browserprotocol.UploadFileResult, error) {
-	// TODO: Implement upload_file via tunnel
-	return nil, fmt.Errorf("upload_file not yet implemented for tunnel mode")
+	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tab CDP session: %w", err)
+	}
+
+	// Get element from cache
+	targetTabID := t.activeTabID
+	if len(tabID) > 0 && tabID[0] != "" {
+		targetTabID = tabID[0]
+	}
+
+	t.cacheMu.RLock()
+	elements, exists := t.elementCache[targetTabID]
+	t.cacheMu.RUnlock()
+
+	if !exists || len(elements) == 0 {
+		return nil, fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
+	}
+
+	if index < 0 || index >= len(elements) {
+		return nil, fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
+	}
+
+	elem := elements[index]
+
+	params := cdp.DOMSetFileInputFilesParams{
+		Files:         filePaths,
+		BackendNodeID: elem.BackendID,
+	}
+
+	_, err = t.sendCommand(ctx, "DOM.setFileInputFiles", params, cdpSessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload files: %w", err)
+	}
+
+	return &browserprotocol.UploadFileResult{
+		FilesUploaded: len(filePaths),
+		FileNames:     filePaths,
+	}, nil
 }
 
 // CreateTab creates a new tab
@@ -1280,8 +1691,12 @@ func (t *TunnelClientWrapper) CloseTab(ctx context.Context, tabID string) error 
 
 // Wait pauses execution
 func (t *TunnelClientWrapper) Wait(ctx context.Context, duration int, tabID ...string) error {
-	// TODO: Implement wait via tunnel (or just use time.Sleep?)
-	return fmt.Errorf("wait not yet implemented for tunnel mode")
+	select {
+	case <-time.After(time.Duration(duration) * time.Millisecond):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Close closes the tunnel connection
