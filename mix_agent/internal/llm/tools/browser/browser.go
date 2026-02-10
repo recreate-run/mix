@@ -131,7 +131,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen, ActionScreenshot, ActionReadPage, ActionClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence},
+				"enum":        []string{ActionOpen, ActionScreenshot, ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence},
 			},
 			"description": map[string]any{
 				"type":        "string",
@@ -260,7 +260,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 
 	// Validate tabId requirement for tab-interaction actions
 	requiresTabID := []string{
-		ActionOpen, ActionScreenshot, ActionReadPage, ActionClick, ActionType,
+		ActionOpen, ActionScreenshot, ActionReadPage, ActionLeftClick, ActionType,
 		ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionRightClick,
 		ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput,
 		ActionGoBack, ActionGoForward, ActionKey, ActionScrollTo, ActionSequence, ActionWait,
@@ -288,7 +288,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return b.handleScreenshot(ctx, params, sessionID, sessionStorageDir), nil
 	case ActionReadPage:
 		return b.handleReadPage(ctx, params, sessionID), nil
-	case ActionClick:
+	case ActionLeftClick:
 		return b.handleClick(ctx, params, sessionID), nil
 	case ActionType:
 		return b.handleType(ctx, params, sessionID), nil
@@ -657,22 +657,6 @@ func (b *browserTool) backendIDFromCoordinate(ctx context.Context, sessionID, ta
 	return elem.BackendID, nil
 }
 
-func (b *browserTool) coordinateFromIndex(ctx context.Context, sessionID, tabID string, index int) (Coordinate, error) {
-	elements, err := b.readPageElements(ctx, sessionID, tabID, true, false)
-	if err != nil {
-		return Coordinate{}, err
-	}
-	if index < 0 || index >= len(elements) {
-		return Coordinate{}, fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
-	}
-
-	elem := elements[index]
-	return Coordinate{
-		X: elem.Bounds.X + elem.Bounds.Width/2,
-		Y: elem.Bounds.Y + elem.Bounds.Height/2,
-	}, nil
-}
-
 func (b *browserTool) coordinateFromBackendID(ctx context.Context, sessionID, tabID string, backendID int64) (Coordinate, error) {
 	elements, err := b.readPageElements(ctx, sessionID, tabID, false, false)
 	if err != nil {
@@ -782,17 +766,12 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		return interfaces.NewTextResponse("Successfully clicked coordinate")
 	}
 
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
-		if err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
-		}
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 1, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
-		}
-		return interfaces.NewTextResponse(fmt.Sprintf("Successfully clicked element %d", params.Index))
+		return interfaces.NewTextErrorResponse("Index-based clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
@@ -841,17 +820,12 @@ func (b *browserTool) handleRightClick(ctx context.Context, params BrowserParams
 		return interfaces.NewTextResponse("Successfully right-clicked coordinate")
 	}
 
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
-		if err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
-		}
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonRight, 1, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
-		}
-		return interfaces.NewTextResponse(fmt.Sprintf("Successfully right-clicked element %d", params.Index))
+		return interfaces.NewTextErrorResponse("Index-based right-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
@@ -900,17 +874,12 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextResponse("Successfully double-clicked coordinate")
 	}
 
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
-		if err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
-		}
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 2, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
-		}
-		return interfaces.NewTextResponse(fmt.Sprintf("Successfully double-clicked element %d", params.Index))
+		return interfaces.NewTextErrorResponse("Index-based double-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
@@ -959,17 +928,12 @@ func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextResponse("Successfully triple-clicked coordinate")
 	}
 
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, params.TabID, params.Index)
-		if err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
-		}
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 3, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
-		}
-		return interfaces.NewTextResponse(fmt.Sprintf("Successfully triple-clicked element %d", params.Index))
+		return interfaces.NewTextErrorResponse("Index-based triple-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
@@ -1896,14 +1860,13 @@ func (b *browserTool) executeClick(ctx context.Context, client BrowserClient, ac
 	if action.Index == nil {
 		return fmt.Errorf("index, ref, or coordinate required for click action")
 	}
+
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
-		if err != nil {
-			return err
-		}
-		duration := action.Duration
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 1, &duration, action.Repeat)
+		return fmt.Errorf("index-based clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
+
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err
@@ -1946,14 +1909,13 @@ func (b *browserTool) executeRightClick(ctx context.Context, client BrowserClien
 	if action.Index == nil {
 		return fmt.Errorf("index, ref, or coordinate required for right_click action")
 	}
+
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
-		if err != nil {
-			return err
-		}
-		duration := action.Duration
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonRight, 1, &duration, 1)
+		return fmt.Errorf("index-based right-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
+
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err
@@ -1985,13 +1947,13 @@ func (b *browserTool) executeDoubleClick(ctx context.Context, client BrowserClie
 	if action.Index == nil {
 		return fmt.Errorf("index, ref, or coordinate required for double_click action")
 	}
+
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
-		if err != nil {
-			return err
-		}
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 2, nil, 1)
+		return fmt.Errorf("index-based double-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
+
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err
@@ -2023,13 +1985,13 @@ func (b *browserTool) executeTripleClick(ctx context.Context, client BrowserClie
 	if action.Index == nil {
 		return fmt.Errorf("index, ref, or coordinate required for triple_click action")
 	}
+
+	// Tunnel mode: reject index-based clicking
 	if _, ok := client.(coordinateClicker); ok {
-		coordinate, err := b.coordinateFromIndex(ctx, sessionID, tabID, *action.Index)
-		if err != nil {
-			return err
-		}
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 3, nil, 1)
+		return fmt.Errorf("index-based triple-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
+
+	// Service mode: support index-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, tabID, *action.Index)
 	if err != nil {
 		return err

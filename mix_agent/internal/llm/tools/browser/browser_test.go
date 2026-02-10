@@ -66,7 +66,7 @@ func TestBrowserConstants(t *testing.T) {
 func TestActionConstants(t *testing.T) {
 	assert.Equal(t, "open", ActionOpen)
 	assert.Equal(t, "screenshot", ActionScreenshot)
-	assert.Equal(t, "click", ActionClick)
+	assert.Equal(t, "left_click", ActionLeftClick)
 	assert.Equal(t, "type", ActionType)
 	assert.Equal(t, "scroll", ActionScroll)
 	assert.Equal(t, "close", ActionClose)
@@ -105,7 +105,7 @@ func TestBrowserParamsJSONSerialization(t *testing.T) {
 		{
 			name: "click action",
 			params: BrowserParams{
-				Action: ActionClick,
+				Action: ActionLeftClick,
 				Index:  5,
 			},
 			expected: `{"action":"click","index":5}`,
@@ -191,7 +191,7 @@ func TestBrowserToolInfo(t *testing.T) {
 	assert.True(t, ok)
 	assert.Contains(t, enum, ActionOpen)
 	assert.Contains(t, enum, ActionScreenshot)
-	assert.Contains(t, enum, ActionClick)
+	assert.Contains(t, enum, ActionLeftClick)
 	assert.Contains(t, enum, ActionType)
 	assert.Contains(t, enum, ActionScroll)
 	assert.Contains(t, enum, ActionClose)

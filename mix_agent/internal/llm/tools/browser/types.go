@@ -10,7 +10,7 @@ const (
 	ActionOpen        = "open"
 	ActionScreenshot  = "screenshot"
 	ActionReadPage    = "read_page"
-	ActionClick       = "click"
+	ActionLeftClick   = "left_click"
 	ActionType        = "type"
 	ActionScroll      = "scroll"
 	ActionUpload      = "upload"
@@ -116,11 +116,11 @@ type SubActionResult struct {
 
 // BrowserParams represents the parameters for browser tool operations
 type BrowserParams struct {
-	Action          string      `json:"action"`                    // Required: open|screenshot|read_page|click|type|scroll|upload|get_text|find|close|right_click|double_click|triple_click|drag|form_input|go_back|go_forward|tab_create|tab_list|tab_switch|tab_close
+	Action          string      `json:"action"`                    // Required: open|screenshot|read_page|left_click|type|scroll|upload|get_text|find|close|right_click|double_click|triple_click|drag|form_input|go_back|go_forward|tab_create|tab_list|tab_switch|tab_close
 	Description     string      `json:"description,omitempty"`     // For action batching
 	URL             string      `json:"url,omitempty"`             // For open action
 	InteractiveOnly *bool       `json:"interactiveOnly,omitempty"` // For read_page action (default: false)
-	Index           int         `json:"index,omitempty"`           // For click/type/upload/right_click/double_click/triple_click/form_input actions
+	Index           int         `json:"index,omitempty"`           // For left_click/type/upload/right_click/double_click/triple_click/form_input actions
 	Ref             string      `json:"ref,omitempty"`             // Element reference (e.g. f0_ref_1)
 	Coordinate      *Coordinate `json:"coordinate,omitempty"`      // Click coordinate
 	Text            string      `json:"text,omitempty"`            // For type action
