@@ -131,7 +131,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen, ActionScreenshot, ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence},
+				"enum":        []string{ActionOpen, /* ActionScreenshot, */ ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
 			},
 			"description": map[string]any{
 				"type":        "string",
@@ -237,6 +237,10 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 					"type": "object",
 				},
 			},
+			"prompt": map[string]any{
+				"type":        "string",
+				"description": "Analysis prompt for screenshot (for analyze_screenshot action). For bounding boxes, include keywords like 'bounding box' or 'coordinates'",
+			},
 		},
 		Required: []string{"action"},
 	}
@@ -260,11 +264,11 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 
 	// Validate tabId requirement for tab-interaction actions
 	requiresTabID := []string{
-		ActionOpen, ActionScreenshot, ActionReadPage, ActionLeftClick, ActionType,
+		ActionOpen, /* ActionScreenshot, */ ActionReadPage, ActionLeftClick, ActionType,
 		ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionRightClick,
 		ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput,
 		ActionGoBack, ActionGoForward, ActionKey, ActionScrollTo, ActionSequence, ActionWait,
-		ActionTabSwitch, ActionTabClose,
+		ActionTabSwitch, ActionTabClose, ActionAnalyzeScreenshot,
 	}
 	if slices.Contains(requiresTabID, params.Action) && params.TabID == "" {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("%s action requires tabId parameter", params.Action)), nil
@@ -284,8 +288,8 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 	switch params.Action {
 	case ActionOpen:
 		return b.handleOpen(ctx, params, sessionID), nil
-	case ActionScreenshot:
-		return b.handleScreenshot(ctx, params, sessionID, sessionStorageDir), nil
+	// case ActionScreenshot:
+	// 	return b.handleScreenshot(ctx, params, sessionID, sessionStorageDir), nil
 	case ActionReadPage:
 		return b.handleReadPage(ctx, params, sessionID), nil
 	case ActionLeftClick:
@@ -332,6 +336,8 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return b.handleScrollTo(ctx, params, sessionID), nil
 	case ActionSequence:
 		return b.handleActionSequence(ctx, params, sessionID, sessionStorageDir), nil
+	case ActionAnalyzeScreenshot:
+		return b.handleAnalyzeScreenshot(ctx, params, sessionID), nil
 	default:
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("unknown action: %s", params.Action)), nil
 	}
@@ -400,52 +406,6 @@ func (b *browserTool) handleOpen(ctx context.Context, params BrowserParams, sess
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated to %s (Frame ID: %s)", params.URL, result.FrameID))
 }
 
-// handleScreenshot captures a screenshot
-func (b *browserTool) handleScreenshot(ctx context.Context, params BrowserParams, sessionID, sessionStorageDir string) interfaces.ToolResponse {
-	// Get or create browser connection
-	client, err := b.getClient(ctx, sessionID)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
-	}
-
-	// Request raw screenshot with accessibility data (tabID is always required and validated)
-	screenshotParams := browserprotocol.ScreenshotParams{
-		Format:   "png",
-		FullPage: false,
-		Raw:      true, // Request raw accessibility tree
-		TabID:    &params.TabID,
-	}
-
-	result, err := client.Screenshot(ctx, screenshotParams)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Screenshot failed: %v", err))
-	}
-
-	// Save screenshot directly to session storage
-	filename, err := saveScreenshot(result.Data, sessionStorageDir)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to save screenshot: %v", err))
-	}
-
-	// Check if page is blank (Fix 2: Validate Screenshot Results)
-	if result.RawNodes == nil || result.RawViewport == nil {
-		// Clear cache for blank/unloaded pages (tabID is always provided)
-		b.clearCacheForTab(sessionID, params.TabID)
-
-		// Format response with warning
-		response := formatScreenshotResponse(filename, sessionID, b.baseURL)
-		response += "\n\n⚠️  Warning: Page appears blank or not fully loaded. Element cache cleared."
-		return interfaces.NewTextResponse(response)
-	}
-
-	// Cache BackendID mappings if raw data is available
-	b.cacheElementMapping(ctx, sessionID, params.TabID, result.RawNodes, *result.RawViewport)
-
-	// Format response
-	response := formatScreenshotResponse(filename, sessionID, b.baseURL)
-
-	return interfaces.NewTextResponse(response)
-}
 
 // cacheElementMapping filters raw accessibility nodes and caches BackendID mappings
 func (b *browserTool) cacheElementMapping(_ context.Context, sessionID, tabID string, rawNodes []browserprotocol.RawAccessibilityNode, viewport browserprotocol.ViewportBounds) {

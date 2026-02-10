@@ -302,15 +302,6 @@ func (a *agent) getSessionState(sessionID string) (SessionState, bool) {
 	return "", false
 }
 
-// countActiveSessions returns the number of sessions currently being processed
-func (a *agent) countActiveSessions() int {
-	count := 0
-	a.activeContexts.Range(func(key, value interface{}) bool {
-		count++
-		return true
-	})
-	return count
-}
 
 func (a *agent) generateTitle(ctx context.Context, sessionID, content string) error {
 	if content == "" {
@@ -392,9 +383,6 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, 
 
 	// Set session state to processing
 	a.setSessionState(sessionID, SessionStateProcessing)
-	logging.Debug("Stored cancel function for session",
-		"sessionID", sessionID,
-		"activeSessionsCount", a.countActiveSessions())
 
 	// Add plan mode to context
 	if planMode {
@@ -422,7 +410,6 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, 
 			close(events)
 		}()
 
-		logging.Debug("Request started", "sessionID", sessionID, "planMode", planMode)
 		defer logging.RecoverPanic("agent.Run", func() {
 			events <- a.err(fmt.Errorf("panic while running the agent"))
 		})

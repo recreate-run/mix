@@ -29,9 +29,10 @@ const (
 	ActionTabSwitch   = "tab_switch"
 	ActionTabClose    = "tab_close"
 	ActionWait        = "wait"
-	ActionKey         = "key"
-	ActionScrollTo    = "scroll_to"
-	ActionSequence    = "action"
+	ActionKey              = "key"
+	ActionScrollTo         = "scroll_to"
+	ActionSequence         = "action"
+	ActionAnalyzeScreenshot = "analyze_screenshot"
 )
 
 // Sub-action constants for action sequences
@@ -145,6 +146,9 @@ type BrowserParams struct {
 
 	// NEW: For action batching
 	Actions []SubAction `json:"actions,omitempty"` // Array of actions to execute
+
+	// NEW: For analyze_screenshot action
+	Prompt string `json:"prompt,omitempty"` // Analysis prompt for screenshot
 }
 
 // EffectiveTabID returns the resolved tab ID value

@@ -5,7 +5,6 @@ package provider
 
 import (
 	"context"
-	"encoding/base64"
 	"os"
 	"testing"
 	"time"
@@ -17,6 +16,27 @@ import (
 
 // Integration tests for Gemini provider with real API calls
 // Run with: go test -tags=integration
+
+// mockTool is a simple test tool implementation
+type mockTool struct {
+	name        string
+	description string
+	parameters  map[string]interface{}
+	required    []string
+}
+
+func (m *mockTool) Info() interfaces.ToolInfo {
+	return interfaces.ToolInfo{
+		Name:        m.name,
+		Description: m.description,
+		Parameters:  m.parameters,
+		Required:    m.required,
+	}
+}
+
+func (m *mockTool) Run(ctx context.Context, call interfaces.ToolCall) (interfaces.ToolResponse, error) {
+	return interfaces.ToolResponse{}, nil
+}
 
 func TestGeminiClient_RealAPI_ImageUnderstanding(t *testing.T) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
@@ -36,22 +56,21 @@ func TestGeminiClient_RealAPI_ImageUnderstanding(t *testing.T) {
 		t.Fatal("Failed to create Gemini client")
 	}
 
-	// Create a simple test image (red 2x2 PNG)
-	testImageBase64 := "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mNkYGBgZGBgYGQkGQAALAALAAE+fPkAAAAASUVORK5CYII="
-	imageData, err := base64.StdEncoding.DecodeString(testImageBase64)
+	// Load test image from testdata
+	imageData, err := os.ReadFile("testdata/taxonomy_button.png")
 	if err != nil {
-		t.Fatalf("Failed to decode test image: %v", err)
+		t.Fatalf("Failed to read test image: %v", err)
 	}
 
 	// Create message with image
 	msg := message.Message{
 		Role: message.User,
-		Parts: []message.MessagePart{
-			{Content: "What do you see in this image? Describe its colors and dimensions."},
-			{BinaryContent: &message.BinaryContent{
+		Parts: []message.ContentPart{
+			message.TextContent{Text: "Describe what you see in this image briefly"},
+			message.BinaryContent{
 				Data:     imageData,
 				MIMEType: "image/png",
-			}},
+			},
 		},
 	}
 
@@ -96,21 +115,20 @@ func TestGeminiClient_RealAPI_StreamImageUnderstanding(t *testing.T) {
 		t.Fatal("Failed to create Gemini client")
 	}
 
-	// Create a simple test image
-	testImageBase64 := "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mNkYGBgZGBgYGQkGQAALAALAAE+fPkAAAAASUVORK5CYII="
-	imageData, err := base64.StdEncoding.DecodeString(testImageBase64)
+	// Load test image from testdata
+	imageData, err := os.ReadFile("testdata/taxonomy_button.png")
 	if err != nil {
-		t.Fatalf("Failed to decode test image: %v", err)
+		t.Fatalf("Failed to read test image: %v", err)
 	}
 
 	msg := message.Message{
 		Role: message.User,
-		Parts: []message.MessagePart{
-			{Content: "Briefly describe this image in one sentence."},
-			{BinaryContent: &message.BinaryContent{
+		Parts: []message.ContentPart{
+			message.TextContent{Text: "Briefly describe this image in one sentence."},
+			message.BinaryContent{
 				Data:     imageData,
 				MIMEType: "image/png",
-			}},
+			},
 		},
 	}
 
@@ -173,34 +191,35 @@ func TestGeminiClient_RealAPI_MultipleImageFormats(t *testing.T) {
 		t.Fatal("Failed to create Gemini client")
 	}
 
+	// Load test image from testdata
+	imageData, err := os.ReadFile("testdata/taxonomy_button.png")
+	if err != nil {
+		t.Fatalf("Failed to read test image: %v", err)
+	}
+
 	// Test different image formats
 	testCases := []struct {
 		name     string
 		mimeType string
-		base64   string
+		data     []byte
 	}{
 		{
 			name:     "PNG",
 			mimeType: "image/png",
-			base64:   "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mNkYGBgZGBgYGQkGQAALAALAAE+fPkAAAAASUVORK5CYII=",
+			data:     imageData,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			imageData, err := base64.StdEncoding.DecodeString(tc.base64)
-			if err != nil {
-				t.Fatalf("Failed to decode %s image: %v", tc.name, err)
-			}
-
 			msg := message.Message{
 				Role: message.User,
-				Parts: []message.MessagePart{
-					{Content: "What format is this image?"},
-					{BinaryContent: &message.BinaryContent{
-						Data:     imageData,
+				Parts: []message.ContentPart{
+					message.TextContent{Text: "What type of content is shown in this image?"},
+					message.BinaryContent{
+						Data:     tc.data,
 						MIMEType: tc.mimeType,
-					}},
+					},
 				},
 			}
 
@@ -254,8 +273,8 @@ func TestGeminiClient_RealAPI_ToolUsage(t *testing.T) {
 
 	msg := message.Message{
 		Role: message.User,
-		Parts: []message.MessagePart{
-			{Content: "What is 15 multiplied by 7? Use the calculator tool."},
+		Parts: []message.ContentPart{
+			message.TextContent{Text: "What is 15 multiplied by 7? Use the calculator tool."},
 		},
 	}
 
@@ -301,8 +320,8 @@ func TestGeminiClient_RealAPI_ErrorHandling(t *testing.T) {
 
 	msg := message.Message{
 		Role: message.User,
-		Parts: []message.MessagePart{
-			{Content: "Hello"},
+		Parts: []message.ContentPart{
+			message.TextContent{Text: "Hello"},
 		},
 	}
 

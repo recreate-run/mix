@@ -113,15 +113,6 @@ Click Actions (use `coordinate` [x, y] or `ref` parameter):
 - `double_click`: Double-click the left mouse button.
 - `triple_click`: Triple-click the left mouse button (select paragraph).
 
-Click Action Guidance:
-
-- CRITICAL: Before clicking, call read_page with interactiveOnly: true to get accurate element coordinates. NEVER estimate coordinates from screenshots alone.
-- PRIMARY preference: Use screenshot coordinates for clicking when possible
-- Use element refs only as a fallback when coordinates are difficult to determine
-- Coordinates from read_page are element centers (use directly without adjustment)
-- If a click doesn't register, verify the target element position in the screenshot
-- Staleness warning: Page UI changes can make older screenshot coordinates stale — take a fresh screenshot if needed
-
 Keyboard Actions:
 
 - `type`: Type text using keyboard. Requires `text` (string). Best for simple text input where you need to simulate actual typing.
@@ -138,19 +129,8 @@ Scroll Actions:
 
 Scroll Action Tips:
 
-- Can batch scroll with screenshot to see results mid-scroll (e.g., `[scroll, screenshot, scroll, screenshot]`)
 - Useful for lazy-loading pages where content loads as you scroll
-
-Screenshot Action:
-
-- `screenshot`: Capture the current page state. Use this to inspect visual content mid-sequence (e.g., after scrolling to check what's visible before continuing). Optional: `file_path` to save to disk.
-
-Screenshot Behavior:
-
-- Automatically caches element mappings for subsequent actions
-- Returns warning if page appears blank or not fully loaded
-- Element cache is cleared when page is blank
-- Coordinates become stale if page UI changes - take fresh screenshot if needed
+- Use standalone analyze_screenshot action after scrolling to verify loaded content
 
 Other Actions:
 
@@ -166,9 +146,8 @@ Parameters:
 Usage Guidelines:
 
 - IMPORTANT: Verify actions were executed correctly before performing irreversible actions (e.g. check form fields before submitting, review email content before sending).
-- IMPORTANT: You can interleave `screenshot` actions between other actions when you need to see the page state mid-sequence (e.g., `[scroll, screenshot, scroll, screenshot]` to read content while scrolling through a lazy-loading page).
-- If you include any `screenshot` actions, no automatic screenshot is added at the end.
 - It's okay to chain multiple actions together if they are safe, there will automatically be a short delay between them while executing.
+- To check page state mid-workflow, use standalone analyze_screenshot action between action sequences.
 
 Example:
 
@@ -180,16 +159,27 @@ Example:
     {"type": "left_click", "coordinate": [450, 300]},
     {"type": "wait", "duration": 500},
     {"type": "type", "text": "search query"},
-    {"type": "key", "key": "Enter"},
-    {"type": "screenshot"}
+    {"type": "key", "key": "Enter"}
   ]
 }
 ```
 
-- CRITICAL: Before clicking, call read_page with interactiveOnly: true to get accurate element coordinates. NEVER estimate coordinates from screenshots alone.
-- For click actions, prefer using screenshot coordinates. Use element refs only as a fallback when coordinates are difficult to determine or hard to find.
-- Coordinates from read_page are element centers (use directly). Consult the screenshot to verify element positions visually.
-- If a click doesn't register, verify target position in screenshot. Page UI changes can make coordinates stale — take a fresh screenshot if needed.
+### Standalone Action Usage
+
+All sub-actions documented above can also be called as individual actions instead of within an action sequence. When calling standalone:
+
+- Actions requiring element targeting (`type`, `form_input`, `scroll_to`) need `tabId` + targeting parameter
+- Actions with `coordinate` or `ref` parameters (`left_click`, `right_click`, etc.) need `tabId`
+- Actions like `scroll`, `key`, `wait` need `tabId`
+- `tab_create`, `tab_list`, and `close` do NOT require `tabId`
+
+Example standalone call:
+
+```json
+{"action": "left_click", "coordinate": [450, 300], "tabId": "tab-1"}
+```
+
+Prefer action sequences for multiple operations.
 
 ### 5. find (action="find")
 
@@ -301,37 +291,66 @@ Example:
 {"action": "tab_list"}
 ```
 
-## Other Actions
+### 9. analyze_screenshot (action="analyze_screenshot")
 
-The Browser tool also supports these individual actions for compatibility. All actions except `tab_create`, `tab_list`, and `close` require the `tabId` parameter.
+Captures the current page state and performs image analysis or element location detection.
 
-Actions requiring `tabId`:
+Two Modes:
 
-- `screenshot`: Capture page screenshot. Automatically caches element mappings. Returns warning if page is blank. Element cache cleared on blank pages.
-- `left_click`: Left-click element
-- `type`: Type text into element (requires index for targeting)
-- `right_click`, `double_click`, `triple_click`
-- `scroll`: Scroll page by direction and amount
-- `key`: Press keyboard keys (e.g., "Enter", "cmd+a")
-- `scroll_to`: Scroll element into view (requires index for targeting)
-- `drag`: Drag and drop operations (two modes: index or coordinate)
-- `form_input`: Set form values directly (requires index for targeting, preferred for React apps)
-- `wait`: Pause execution (use for animations, transitions, async operations)
-- `tab_switch`: Switch to different tab. Important: Must take a screenshot after switching to interact with the tab
-- `tab_close`: Close a tab. Clears element cache for that tab. Cannot close the last remaining tab
+1. Text Analysis Mode (default):
+   - Returns natural language description of page content
+   - Use for understanding page layout, verifying page state, extracting information
+   - Example prompts: "What's on this page?", "Describe the navigation menu"
 
-Actions NOT requiring `tabId`:
+2. Bounding Box Mode (auto-detected):
+   - Gives Coordinates of the element centers computed from the bounding box
+   - Triggered by keywords: "bounding box", "coordinates", "box_2d" in prompt
+   - Use for precise element location and visual targeting
+   - Example prompts: "Give me bounding box coordinates for the submit button"
 
-- `tab_create`: Create new tab (returns new tab ID)
-- `tab_list`: List all tabs
-- `close`: Close entire browser session. Clears all element caches. Cannot be recovered - session must be recreated
+Parameters:
 
-See individual action documentation in the full tool description for parameter details.
+- `action`: "analyze_screenshot"
+- `prompt`: Analysis instruction for Gemini (required)
+- `tabId`: Tab ID to analyze (required)
+
+Examples:
+
+Text Analysis:
+
+```json
+{
+  "action": "analyze_screenshot",
+  "prompt": "Describe the main navigation menu and its options",
+  "tabId": "tab-1"
+}
+```
+
+Bounding Box Detection:
+
+```json
+{
+  "action": "analyze_screenshot",
+  "prompt": "Give me the bounding box coordinates for the 'Sign In' button",
+  "tabId": "tab-1"
+}
+```
+
+Output Formats:
+
+Text Mode (default):
+
+```
+The page shows a login form with two input fields (email and password) and a blue submit button below...
+```
+
+Bounding Box Mode (read_page style):
+
+```
+- button (x=408,y=70)
+```
 
 ## Usage Patterns
-
-1. For click actions, prefer using screenshot coordinates. Use element refs as fallback when coordinates are difficult to determine.
-2. Coordinates from read_page are element centers (use directly). Consult the screenshot to verify element positions visually.
 
 ### Navigate and Explore
 
@@ -368,24 +387,25 @@ See individual action documentation in the full tool description for parameter d
 
 When you have multiple ways to accomplish the same task, use these guidelines to choose the best approach:
 
-### Click Actions: Coordinates vs Refs
+### Click Actions: Three-Tier Approach
 
 Preference Hierarchy:
 
-1. Screenshot coordinates (PRIMARY) - Most reliable, directly targets visual position
-2. Element refs (FALLBACK) - Use when coordinate calculation is complex
+1. analyze_screenshot (PRIMARY) - Use bounding box prompt to get element centers in read_page format, directly usable
+2. read_page coordinates (FIRST FALLBACK) - Get element centers via interactiveOnly: true, use directly without adjustment
+3. Element refs (SECOND FALLBACK) - Use when both coordinate approaches fail or element has persistent ref
 
-Decision Criteria:
+Decision Flow:
 
-- Use coordinates when: Element is clearly visible in screenshot, you can identify center point
-- Use refs when: Element has stable ref from read_page, coordinate calculation is complex or you need persistent element reference
+- Start with analyze_screenshot for visual targeting
+- Fall back to read_page if bounding box detection fails or is ambiguous
+- Use refs only when coordinates are unreliable or element reference needed across actions
 
 Tips:
 
-- CRITICAL: Always call read_page with interactiveOnly: true before clicking to get accurate coordinates
-- Coordinates from read_page are element centers (use directly without adjustment)
-- If clicks fail, take a fresh screenshot (coordinates may be stale)
-- Verify target element position matches the screenshot
+- If clicks fail, refresh with analyze_screenshot (coordinates stale after page changes)
+- Both analyze_screenshot and read_page return center coordinates directly usable with coordinate parameter
+- Element refs remain valid until page reload
 
 ### Text Input: form_input vs type
 
@@ -422,8 +442,6 @@ When to use `scroll_to`:
 - Ensuring an element is visible before interaction
 - Jumping directly to specific content
 - Requires element index from read_page
-
-Tip: Batch scroll with screenshot to see results: `[scroll, screenshot, scroll, screenshot]`
 
 ### Content Extraction: get_page_text vs Multiple Screenshots
 
@@ -503,9 +521,8 @@ Understanding DOM Limitations:
 
 Strategy:
 
-- Use action sequences: `[scroll, screenshot, scroll, screenshot]` to progressively load content
-- Take screenshots to verify content loaded before searching
-- For infinite scroll: scroll in increments, checking for new content each time
+- Use action sequences with scroll, then analyze_screenshot separately to verify loaded content
+- For infinite scroll: scroll in increments, use analyze_screenshot to check for new content each time
 
 ### Form Handling Best Practices
 
@@ -534,12 +551,11 @@ Batch Operations:
 - Reduces total number of tool calls and round-trip time
 - Example: `[click, wait, type, key]` instead of 4 separate calls
 
-Take Screenshots Strategically:
+Use analyze_screenshot Strategically:
 
 - After state changes to verify results
 - After scrolling to see what's loaded
 - Before and after critical actions (form submission, navigation)
-- Can interleave screenshots in action sequences: `[scroll, screenshot, scroll, screenshot]`
 
 Minimize Round Trips:
 

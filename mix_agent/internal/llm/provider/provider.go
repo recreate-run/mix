@@ -23,6 +23,7 @@ type providerClientOptions struct {
 	model         models.Model
 	maxTokens     int64
 	systemMessage string
+	temperature   *float32 // Optional temperature parameter
 
 	anthropicOptions []AnthropicOption
 	openaiOptions    []OpenAIOption
@@ -40,7 +41,6 @@ type baseProvider[C interfaces.ProviderClient] struct {
 // retrieveAPIKey attempts to get the API key from database if not already set
 func retrieveAPIKey(options *providerClientOptions, providerName models.ModelProvider) {
 	if options.apiKey != "" {
-		logging.Info("API key source", "provider", providerName, "source", "direct")
 		return
 	}
 
@@ -52,7 +52,6 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 
 	apiKey, err := credentialsService.GetAPIKey(ctx, providerName)
 	if err == nil && apiKey != "" {
-		logging.Info("API key source", "provider", providerName, "source", "database")
 		options.apiKey = apiKey
 		return
 	}
@@ -72,7 +71,6 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 
 	if envVar != "" {
 		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
-			logging.Info("API key source", "provider", providerName, "source", "environment", "var", envVar)
 			options.apiKey = envAPIKey
 			return
 		}
@@ -267,6 +265,12 @@ func WithGeminiOptions(geminiOptions ...GeminiOption) ProviderClientOption {
 func WithBedrockOptions(bedrockOptions ...BedrockOption) ProviderClientOption {
 	return func(options *providerClientOptions) {
 		options.bedrockOptions = bedrockOptions
+	}
+}
+
+func WithTemperature(temperature float32) ProviderClientOption {
+	return func(options *providerClientOptions) {
+		options.temperature = &temperature
 	}
 }
 
