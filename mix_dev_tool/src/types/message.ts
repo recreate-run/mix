@@ -39,6 +39,8 @@ export interface UIMessage {
 	id?: string;
 	content: string;
 	from: "user" | "assistant";
+	isStreaming?: boolean;
+	streamingStatus?: "streaming" | "cancelled" | "error" | "final";
 	frontend_only?: boolean;
 	toolCalls?: ToolCall[];
 	attachments?: Attachment[];

@@ -245,32 +245,6 @@ export function ChatApp({
 		}
 	}, [messages]);
 
-	// Clear pending user message if it's found in stored messages (fixes duplicate after tab switch during streaming)
-	useEffect(() => {
-		if (!sseStream.pendingUserMessage || messages.length === 0) return;
-
-		// Check if pending message exists in the last few stored messages
-		const pendingText = sseStream.pendingUserMessage.text?.trim() ?? "";
-
-		// Skip if pending text is empty (handles undefined/null case)
-		if (!pendingText) return;
-
-		const recentMessages = messages.slice(-5); // Check last 5 messages instead of 3
-
-		const messageExists = recentMessages.some(
-			(msg) => msg.from === "user" && msg.content?.trim() === pendingText,
-		);
-
-		if (messageExists) {
-			// Message has been saved to DB and is in stored messages - clear only pending message without affecting streaming
-			sseStream.clearPendingUserMessage();
-		}
-	}, [
-		messages,
-		sseStream.pendingUserMessage,
-		sseStream.clearPendingUserMessage,
-	]);
-
 	const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
 		userMessageRefs.current[index] = el;
 	};
@@ -679,7 +653,7 @@ export function ChatApp({
 							onPlanAction={handlePlanAction}
 							sessionId={session?.id}
 							setUserMessageRef={setUserMessageRef}
-							sseStream={sseStream}
+							disableEdit={sseStream.processing}
 						/>
 					)}
 				</div>
