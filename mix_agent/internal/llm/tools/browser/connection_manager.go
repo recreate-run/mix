@@ -12,20 +12,20 @@ import (
 // ConnectionManager manages WebSocket connections to browser service per session
 type ConnectionManager struct {
 	mu          sync.RWMutex
-	connections map[string]*browserclient.Client // sessionID → client
+	connections map[string]BrowserClient // sessionID → client (wrapped in adapter)
 	endpoint    string
 }
 
 // NewConnectionManager creates a new connection manager
 func NewConnectionManager(endpoint string) *ConnectionManager {
 	return &ConnectionManager{
-		connections: make(map[string]*browserclient.Client),
+		connections: make(map[string]BrowserClient),
 		endpoint:    endpoint,
 	}
 }
 
 // GetOrCreate returns an existing connection or creates a new one for the session
-func (cm *ConnectionManager) GetOrCreate(ctx context.Context, sessionID string) (*browserclient.Client, error) {
+func (cm *ConnectionManager) GetOrCreate(ctx context.Context, sessionID string) (BrowserClient, error) {
 	// First try to get existing connection with read lock
 	cm.mu.RLock()
 	client, exists := cm.connections[sessionID]
@@ -50,14 +50,16 @@ func (cm *ConnectionManager) GetOrCreate(ctx context.Context, sessionID string) 
 		delete(cm.connections, sessionID)
 	}
 
-	// Create new connection
-	newClient, err := browserclient.New(cm.endpoint)
+	// Create new external client and wrap in adapter
+	externalClient, err := browserclient.New(cm.endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to browser service: %w", err)
 	}
 
-	cm.connections[sessionID] = newClient
-	return newClient, nil
+	// Wrap external client in adapter to implement BrowserClient interface
+	adapter := NewServiceClientAdapter(externalClient)
+	cm.connections[sessionID] = adapter
+	return adapter, nil
 }
 
 // Close closes and removes the connection for a session
@@ -75,8 +77,8 @@ func (cm *ConnectionManager) Close(sessionID string) error {
 }
 
 // isConnected tests if a client connection is still alive
-// Uses a lightweight GetElements call to test the connection
-func (cm *ConnectionManager) isConnected(ctx context.Context, client *browserclient.Client) bool {
+// Uses a lightweight ReadPage call to test the connection
+func (cm *ConnectionManager) isConnected(ctx context.Context, client BrowserClient) bool {
 	if client == nil {
 		return false
 	}
@@ -86,6 +88,6 @@ func (cm *ConnectionManager) isConnected(ctx context.Context, client *browsercli
 	defer cancel()
 
 	// Try a lightweight operation to check if connection is alive
-	_, err := client.GetElements(checkCtx)
+	_, err := client.ReadPage(checkCtx, false)
 	return err == nil
 }

@@ -220,8 +220,6 @@ func (ups *UserPreferencesService) GetPreferredProvider(ctx context.Context) (mo
 
 // PreloadPreferences loads all preferences into the cache to avoid database hits
 func (ups *UserPreferencesService) PreloadPreferences(ctx context.Context) {
-	logging.Debug("Preloading user preferences into cache")
-
 	// Try to get existing preferences
 	prefs, err := ups.queries.GetUserPreferences(ctx)
 	if err != nil {
@@ -236,7 +234,6 @@ func (ups *UserPreferencesService) PreloadPreferences(ctx context.Context) {
 
 	// Store in cache
 	ups.preferencesCache.Store("default_user", &prefs)
-	logging.Debug("User preferences successfully preloaded into cache")
 }
 
 // ClearCache removes all entries from the preferences cache

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"mix/internal/constants"
 	"mix/internal/credentials"
 	"mix/internal/database"
 	"mix/internal/llm/models"
@@ -217,11 +218,19 @@ func loadDatabaseConfig() database.Config {
 			URL:       os.Getenv("MIX_DB_TURSO_URL"),
 			AuthToken: os.Getenv("MIX_DB_TURSO_AUTH_TOKEN"),
 		},
+		Postgres: database.PostgresConfig{
+			Host:     getEnvOrDefault("MIX_DB_POSTGRES_HOST", "localhost"),
+			Port:     getEnvIntOrDefault("MIX_DB_POSTGRES_PORT", 5432),
+			Database: getEnvOrDefault("MIX_DB_POSTGRES_DB", "mix_dev"),
+			User:     getEnvOrDefault("MIX_DB_POSTGRES_USER", "mix"),
+			Password: os.Getenv("MIX_DB_POSTGRES_PASSWORD"),
+			SSLMode:  getEnvOrDefault("MIX_DB_POSTGRES_SSL_MODE", "disable"),
+		},
 	}
 
 	// Validate the database type
 	switch config.Type {
-	case database.ProviderSQLite, database.ProviderTurso:
+	case database.ProviderSQLite, database.ProviderTurso, database.ProviderPostgres:
 		// Valid types
 	default:
 		logging.Debug("Invalid database type, defaulting to SQLite", "type", dbType)
@@ -239,46 +248,26 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
+// getEnvIntOrDefault gets environment variable as int or returns default value
+func getEnvIntOrDefault(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		var intValue int
+		if _, err := fmt.Sscanf(value, "%d", &intValue); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
 // initializeProviders removed - providers now managed by database API credentials service
 
 // setProviderDefaults removed - providers now initialized directly from environment
 
 // setupLogging configures the application logger
-func setupLogging(_ bool) {
+func setupLogging(debug bool) {
 	defaultLevel := slog.LevelError
-
-	if os.Getenv("_DEV_DEBUG") == "true" {
-		loggingFile := fmt.Sprintf("%s/%s", cfg.Data.Directory, "debug.log")
-		messagesPath := fmt.Sprintf("%s/%s", cfg.Data.Directory, "messages")
-
-		// Create directories and files if they don't exist
-		if _, err := os.Stat(loggingFile); os.IsNotExist(err) {
-			if err := os.MkdirAll(cfg.Data.Directory, 0o750); err == nil {
-				if _, err := os.Create(loggingFile); err != nil {
-					panic(fmt.Sprintf("failed to create logging file: %v", err))
-				}
-			}
-		}
-
-		if _, err := os.Stat(messagesPath); os.IsNotExist(err) {
-			if err := os.MkdirAll(messagesPath, 0o750); err != nil {
-				panic(fmt.Sprintf("failed to create messages directory: %v", err))
-			}
-		}
-
-		if sloggingFileWriter, err := os.OpenFile(loggingFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
-			logger := slog.New(slog.NewTextHandler(sloggingFileWriter, &slog.HandlerOptions{
-				Level: defaultLevel,
-				ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-					if a.Key == slog.TimeKey {
-						return slog.Attr{}
-					}
-					return a
-				},
-			}))
-			slog.SetDefault(logger)
-			return
-		}
+	if debug || os.Getenv(constants.DevDebugEnv) == "true" {
+		defaultLevel = slog.LevelDebug
 	}
 
 	// Default console logging

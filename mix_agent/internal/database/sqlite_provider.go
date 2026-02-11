@@ -79,8 +79,6 @@ func (p *SQLiteProvider) Connect(ctx context.Context) error {
 		pragmaCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		if _, err = p.db.ExecContext(pragmaCtx, pragma); err != nil {
 			logging.Error("Failed to set pragma", pragma, err)
-		} else {
-			logging.Debug("Set pragma", "pragma", pragma)
 		}
 		cancel()
 	}

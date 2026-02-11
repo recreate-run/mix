@@ -51,6 +51,7 @@ function PlaygroundApp() {
 			try {
 				const newSession = await createSession.mutateAsync({
 					title: `Playground Session - ${new Date().toLocaleDateString()}`,
+					browserMode: "local-browser-service",
 				});
 				setSessionId(newSession.id);
 				localStorage.setItem(PLAYGROUND_SESSION_KEY, newSession.id);
@@ -74,6 +75,7 @@ function PlaygroundApp() {
 			// Create new session
 			const newSession = await createSession.mutateAsync({
 				title: `Playground Session - ${new Date().toLocaleDateString()}`,
+				browserMode: "local-browser-service",
 			});
 
 			// Update localStorage with new session ID

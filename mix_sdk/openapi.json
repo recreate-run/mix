@@ -1335,12 +1335,27 @@
             "application/json": {
               "schema": {
                 "properties": {
+                  "browserMode": {
+                    "description": "Browser automation mode (required):\n- 'electron-embedded-browser': Electron app with embedded Chromium browser\n- 'local-browser-service': Local browser-service (GoRod-based)\n- 'remote-cdp-websocket': Remote CDP WebSocket URL (cloud browser providers)",
+                    "enum": [
+                      "electron-embedded-browser",
+                      "local-browser-service",
+                      "remote-cdp-websocket"
+                    ],
+                    "example": "local-browser-service",
+                    "type": "string"
+                  },
                   "callbacks": {
                     "description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
                     "items": {
                       "$ref": "#/components/schemas/Callback"
                     },
                     "type": "array"
+                  },
+                  "cdpUrl": {
+                    "description": "CDP WebSocket URL for remote browser connections. Required when browserMode is 'remote-cdp-websocket'. Must start with 'ws://' or 'wss://'.",
+                    "example": "wss://connect.browserbase.com/v1/sessions/abc123",
+                    "type": "string"
                   },
                   "customSystemPrompt": {
                     "description": "Custom system prompt content. Size limits apply based on promptMode: 100KB (102,400 bytes) for replace mode, 50KB (51,200 bytes) for append mode. Ignored in default mode. Supports environment variable substitution with $<variable> syntax.",
@@ -1379,7 +1394,8 @@
                   }
                 },
                 "required": [
-                  "title"
+                  "title",
+                  "browserMode"
                 ],
                 "type": "object"
               }
@@ -4121,12 +4137,26 @@
             "description": "Number of assistant messages in session",
             "type": "integer"
           },
+          "browserMode": {
+            "description": "Browser automation mode:\n- 'electron-embedded-browser': Electron app with embedded Chromium browser\n- 'local-browser-service': Local browser-service (GoRod-based)\n- 'remote-cdp-websocket': Remote CDP WebSocket URL (cloud browser providers)",
+            "enum": [
+              "electron-embedded-browser",
+              "local-browser-service",
+              "remote-cdp-websocket"
+            ],
+            "type": "string"
+          },
           "callbacks": {
             "description": "Session-level callback configurations (optional)",
             "items": {
               "$ref": "#/components/schemas/Callback"
             },
             "type": "array"
+          },
+          "cdpUrl": {
+            "description": "CDP WebSocket URL for remote browser connections (only present when browserMode is 'remote-cdp-websocket')",
+            "example": "wss://connect.browserbase.com/v1/sessions/abc123",
+            "type": "string"
           },
           "completionTokens": {
             "description": "Total completion tokens used",
@@ -4194,6 +4224,7 @@
           "id",
           "title",
           "sessionType",
+          "browserMode",
           "userMessageCount",
           "assistantMessageCount",
           "toolCallCount",

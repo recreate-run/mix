@@ -48,6 +48,7 @@ export function AppSidebar({ sessionId, ...props }: AppSidebarProps) {
 			// Create a new session
 			const newSession = await createSession.mutateAsync({
 				title: "Chat Session",
+				browserMode: "local-browser-service",
 			});
 			navigate({
 				to: "/$sessionId",

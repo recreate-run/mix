@@ -84,8 +84,8 @@ tasks:
     deps: [install]
     cmds:
       - echo "Installing project dependencies..."
-      - echo "Installing Air (Go hot reload)..."
-      - command -v air >/dev/null 2>&1 || go install github.com/air-verse/air@latest
+      - echo "Installing CompileDaemon (Go hot reload)..."
+      - command -v CompileDaemon >/dev/null 2>&1 || go install github.com/githubnemo/CompileDaemon@latest
       - echo "Installing capture script dependencies..."
       - echo "Installing Tauri app dependencies..."
       - cd mix_dev_tool && bun i
@@ -337,6 +337,31 @@ tasks:
       - curl -s {{.OPENAPI_ENDPOINT}} > mix_sdk/openapi-spec.json
       - echo "Saving pretty-printed OpenAPI document to mix_sdk/openapi.json..."
       - curl -s {{.OPENAPI_ENDPOINT}} | jq '.' > mix_sdk/openapi.json
+
+  # Database tasks
+  db-up:
+    desc: Start PostgreSQL database with Docker
+    cmds:
+      - docker compose up -d postgres
+      - echo "✅ PostgreSQL started at localhost:5432"
+      - echo "Database mix_dev - User mix - Password mix_local_dev"
+
+  db-down:
+    desc: Stop PostgreSQL database
+    cmds:
+      - docker compose down
+      - echo "✅ PostgreSQL stopped"
+
+  db-logs:
+    desc: View PostgreSQL logs
+    cmds:
+      - docker compose logs -f postgres
+
+  db-reset:
+    desc: Reset PostgreSQL database (deletes all data)
+    cmds:
+      - docker compose down -v
+      - echo "✅ PostgreSQL data volume deleted"
 
   # Cleanup task
   clean:

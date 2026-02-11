@@ -3,19 +3,20 @@ package browser
 import (
 	"context"
 	"fmt"
-
-	"mix/internal/browser/service"
 )
 
 const (
-	// ModeTunnel uses Electron tunnel for browser communication
-	ModeTunnel = "tunnel"
+	// ModeElectronEmbedded uses Electron app with embedded Chromium browser
+	ModeElectronEmbedded = "electron-embedded-browser"
 
-	// ModeService uses browser-service for browser communication
-	ModeService = "service"
+	// ModeLocalBrowserService uses local browser-service (GoRod-based)
+	ModeLocalBrowserService = "local-browser-service"
+
+	// ModeRemoteCDP connects to remote CDP WebSocket URL (cloud browser providers)
+	ModeRemoteCDP = "remote-cdp-websocket"
 
 	// DefaultMode is the default browser mode
-	DefaultMode = ModeService
+	DefaultMode = ModeLocalBrowserService
 )
 
 // CDPRequest represents a Chrome DevTools Protocol command request
@@ -43,7 +44,7 @@ type CDPError struct {
 }
 
 // Client is the common interface for browser implementations
-// Supports both browser-service and Electron tunnel implementations
+// Supports Electron embedded browser, local browser-service, and remote CDP
 type Client interface {
 	// SendCommand sends a CDP command and waits for response
 	SendCommand(ctx context.Context, method string, params interface{}) (interface{}, error)
@@ -54,33 +55,36 @@ type Client interface {
 
 // FactoryConfig contains configuration for creating browser clients
 type FactoryConfig struct {
-	Mode              string      // "tunnel" or "service"
-	BrowserServiceURL string      // URL for browser-service (used in service mode)
-	TunnelRegistry    interface{} // Tunnel registry (used in tunnel mode)
-	ConnectionManager interface{} // Connection manager (used in service mode)
+	Mode              string      // "electron-embedded-browser", "local-browser-service", or "remote-cdp-websocket"
+	BrowserServiceURL string      // URL for browser-service (used in local-browser-service mode)
+	TunnelRegistry    interface{} // Tunnel registry (used in electron-embedded-browser mode)
+	ConnectionManager interface{} // Connection manager (used in local-browser-service mode)
+	CDPURL            string      // CDP WebSocket URL (used in remote-cdp-websocket mode)
 }
 
 // NewClient creates a browser client based on the provided mode and configuration
 func NewClient(config FactoryConfig, sessionID string) (Client, error) {
 	switch config.Mode {
-	case ModeTunnel:
+	case ModeElectronEmbedded:
 		if config.TunnelRegistry == nil {
-			return nil, fmt.Errorf("tunnel registry required for tunnel mode")
+			return nil, fmt.Errorf("tunnel registry required for electron-embedded-browser mode")
 		}
 		return newTunnelClient(config.TunnelRegistry, sessionID), nil
 
-	case ModeService:
-		if config.ConnectionManager == nil {
-			return nil, fmt.Errorf("connection manager required for service mode")
+	case ModeLocalBrowserService:
+		// Local browser-service mode uses connection manager directly, not factory pattern
+		// The browser tool calls connectionManager.GetOrCreate() directly for this mode
+		return nil, fmt.Errorf("local-browser-service mode should use connection manager directly, not factory")
+
+	case ModeRemoteCDP:
+		if config.CDPURL == "" {
+			return nil, fmt.Errorf("CDP URL required for remote-cdp-websocket mode")
 		}
-		// Type assert the connection manager to the interface expected by service
-		connMgr, ok := config.ConnectionManager.(service.ConnectionManager)
-		if !ok {
-			return nil, fmt.Errorf("invalid connection manager type")
-		}
-		return newServiceClient(connMgr, sessionID), nil
+		// Remote CDP clients are created directly in browser tool's getClient() method
+		// This factory pattern is only used for tunnel mode
+		return nil, fmt.Errorf("remote CDP mode uses direct client creation, not factory pattern")
 
 	default:
-		return nil, fmt.Errorf("unknown browser mode: %s (must be 'tunnel' or 'service')", config.Mode)
+		return nil, fmt.Errorf("unknown browser mode: %s (must be 'electron-embedded-browser', 'local-browser-service', or 'remote-cdp-websocket')", config.Mode)
 	}
 }

@@ -95,9 +95,6 @@ func (ts *TrackingService) Update(ctx context.Context, message Message) error {
 					// Use standard tracking for other models
 					if err := ts.analytics.TrackAgentResponse(ctx, message.SessionID, message.ID, content, string(message.Model)); err != nil {
 						logging.Error("Failed to track updated assistant response: %v", err)
-					} else {
-						logging.Debug("Tracked final assistant response for message %s with %d characters",
-							message.ID, len(content))
 					}
 				}
 			}

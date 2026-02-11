@@ -90,6 +90,7 @@ mix_agent/storage/
 
 planning/
 speakeasy_docs/
+debug_screenshots/
 
 # SDK generation temporary files
 sdk/openapi-spec.json

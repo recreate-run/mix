@@ -1,5 +1,6 @@
 import type { Callback } from "mix-typescript-sdk/models/callback.js";
 import type {
+	BrowserMode,
 	SessionType,
 	SubagentType,
 } from "mix-typescript-sdk/models/sessiondata.js";
@@ -28,6 +29,8 @@ export interface SessionData {
 	subagentType?: SubagentType;
 	parentSessionId?: string;
 	parentToolCallId?: string;
+	browserMode: BrowserMode;
+	cdpUrl?: string;
 	userMessageCount: number;
 	assistantMessageCount: number;
 	toolCallCount: number;

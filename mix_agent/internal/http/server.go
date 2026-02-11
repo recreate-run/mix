@@ -21,7 +21,7 @@ import (
 func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	// Initialize tunnel registry if not already set
 	if a.TunnelRegistry == nil {
-		a.TunnelRegistry = NewTunnelRegistry()
+		a.TunnelRegistry = NewTunnelRegistry(a.StorageConfig)
 	}
 	tunnelRegistry := a.TunnelRegistry.(*TunnelRegistry)
 

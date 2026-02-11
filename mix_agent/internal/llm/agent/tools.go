@@ -38,12 +38,12 @@ func CoderAgentTools(
 		tools.NewWebSearchTool(permissions),
 		tools.NewWriteTool(permissions, historySvc),
 		// tools.NewPythonExecutionTool(permissions),
-		// tools.NewReadMediaTool(),
+		tools.NewReadMediaTool(),
 		tools.NewTodoWriteTool(),
 		tools.NewExitPlanModeTool(),
 		// tools.NewShowTool(),
 		tools.NewNotifyTool(notifications),
-		browser.NewBrowserTool(permissions, browserServiceURL, session.DefaultConfig(), browserMode, clientFactory, connectionManager, tunnelRegistryGetter),
+		browser.NewBrowserTool(permissions, sessions, browserServiceURL, session.DefaultConfig(), browserMode, clientFactory, connectionManager, tunnelRegistryGetter),
 		NewTaskTool(sessions, messages, permissions),
 	}
 }

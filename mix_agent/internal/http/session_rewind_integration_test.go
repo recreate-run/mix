@@ -73,7 +73,7 @@ func setupTestServerForRewind(t *testing.T) (testApp *app.App, sessionID string)
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	testSession, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default", session.SessionTypeMain, "", "", "")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default", session.SessionTypeMain, "", "", "", "local-browser-service", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
@@ -383,7 +383,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				CleanupMedia: false,
 			},
 			expectError: true,
-			statusCode:  400,
+			statusCode:  http.StatusBadRequest,
 		},
 		{
 			name:      "non-existent session",
@@ -393,7 +393,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				CleanupMedia: false,
 			},
 			expectError: true,
-			statusCode:  404,
+			statusCode:  http.StatusNotFound,
 		},
 		{
 			name:      "non-existent message ID",
@@ -403,7 +403,7 @@ func TestSessionRewindErrorHandling(t *testing.T) {
 				CleanupMedia: false,
 			},
 			expectError: true,
-			statusCode:  404,
+			statusCode:  http.StatusNotFound,
 		},
 	}
 

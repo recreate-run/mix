@@ -387,10 +387,10 @@ func TestBrowserToolTunnelIntegrationE2E(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
 
-	// Create a factory for tunnel mode
+	// Create a factory for electron-embedded-browser mode
 	tunnelFactory := func(sid string) (browserpkg.Client, error) {
 		config := browserpkg.FactoryConfig{
-			Mode:           browserpkg.ModeTunnel,
+			Mode:           browserpkg.ModeElectronEmbedded,
 			TunnelRegistry: tunnelRegistry,
 		}
 
@@ -398,7 +398,7 @@ func TestBrowserToolTunnelIntegrationE2E(t *testing.T) {
 	}
 
 	// Create browser tool with tunnel registry getter
-	tool := NewBrowserTool(mockPermissionService, "ws://unused:9999", sessionConfig, browserpkg.ModeTunnel, tunnelFactory, nil, func() interface{} { return tunnelRegistry })
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://unused:9999", sessionConfig, browserpkg.ModeElectronEmbedded, tunnelFactory, nil, func() interface{} { return tunnelRegistry })
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext(sessionID, "test-message", tempDir)
@@ -540,13 +540,13 @@ func TestBrowserToolTunnelConnectionFallback(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
 
-	// Create a factory for service mode (fallback)
+	// Create a factory for local-browser-service mode (fallback)
 	serviceFactory := func(sid string) (browserpkg.Client, error) {
 		// Return error to force use of ConnectionManager
 		return nil, ErrMockFactoryNotConfigured
 	}
 
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, browserpkg.ModeService, serviceFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, browserpkg.ModeLocalBrowserService, serviceFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	sessionID := "fallback-session"

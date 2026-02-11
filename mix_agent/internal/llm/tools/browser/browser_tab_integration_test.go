@@ -35,7 +35,7 @@ func TestBrowserTool_TabCreate(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -66,7 +66,7 @@ func TestBrowserTool_TabList(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -113,7 +113,7 @@ func TestBrowserTool_TabSwitch(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -160,7 +160,7 @@ func TestBrowserTool_TabClose(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -207,7 +207,7 @@ func TestBrowserTool_TabCloseLastTabError(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -267,7 +267,7 @@ func TestBrowserTool_NavigateSpecificTab(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -333,7 +333,7 @@ func TestBrowserTool_ScreenshotSpecificTab(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -401,7 +401,7 @@ func TestBrowserTool_ClickInSpecificTab(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -463,7 +463,7 @@ func TestBrowserTool_TabSwitchInvalidID(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -494,7 +494,7 @@ func TestBrowserTool_TabMissingIDForSwitch(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -525,7 +525,7 @@ func TestBrowserTool_TabMissingIDForClose(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -556,7 +556,7 @@ func TestBrowserTool_TypeInSpecificTab(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -618,7 +618,7 @@ func TestBrowserTool_MultipleTabsWorkflow(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)

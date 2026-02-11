@@ -296,7 +296,6 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		} else if messageContent != "" {
 			// Fall back to keyword detection
 			tokenBudget = a.options.thinkingBudget(messageContent)
-			logging.Debug("Using keyword-based thinking budget", "tokenBudget", tokenBudget)
 		}
 
 		// Check if conversation history contains thinking blocks
@@ -326,7 +325,7 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 			temperature = anthropic.Float(1)
 			logging.Debug("Thinking enabled for API compatibility", "tokenBudget", 1024)
 		default:
-			logging.Debug("Thinking disabled - no budget provided and no thinking in history")
+			// No thinking enabled
 		}
 	} else {
 		logging.Debug("No thinking budget function - thinking disabled")

@@ -63,6 +63,17 @@ type PageNavigateToHistoryParams struct {
 	EntryID int `json:"entryId"`
 }
 
+type PageGetNavigationHistoryResult struct {
+	CurrentIndex int                      `json:"currentIndex"`
+	Entries      []NavigationHistoryEntry `json:"entries"`
+}
+
+type NavigationHistoryEntry struct {
+	ID    int    `json:"id"`
+	URL   string `json:"url"`
+	Title string `json:"title"`
+}
+
 type PageCaptureScreenshotParams struct {
 	Format      string `json:"format"`
 	FromSurface bool   `json:"fromSurface"`
@@ -74,10 +85,26 @@ type PageCaptureScreenshotResult struct {
 }
 
 type PageGetLayoutMetricsResult struct {
-	VisualViewport VisualViewport `json:"visualViewport"`
+	LayoutViewport    LayoutViewport    `json:"layoutViewport"`
+	VisualViewport    VisualViewport    `json:"visualViewport"`
+	CSSLayoutViewport CSSLayoutViewport `json:"cssLayoutViewport"`
+}
+
+type LayoutViewport struct {
+	PageX        float64 `json:"pageX"`
+	PageY        float64 `json:"pageY"`
+	ClientWidth  float64 `json:"clientWidth"`
+	ClientHeight float64 `json:"clientHeight"`
 }
 
 type VisualViewport struct {
+	PageX        float64 `json:"pageX"`
+	PageY        float64 `json:"pageY"`
+	ClientWidth  float64 `json:"clientWidth"`
+	ClientHeight float64 `json:"clientHeight"`
+}
+
+type CSSLayoutViewport struct {
 	PageX        float64 `json:"pageX"`
 	PageY        float64 `json:"pageY"`
 	ClientWidth  float64 `json:"clientWidth"`
@@ -100,11 +127,11 @@ type AccessibilityNode struct {
 }
 
 type RoleValue struct {
-	Value string `json:"value"`
+	Value interface{} `json:"value"`
 }
 
 type StringValue struct {
-	Value string `json:"value"`
+	Value interface{} `json:"value"`
 }
 
 type BoundingBox struct {
@@ -117,6 +144,32 @@ type BoundingBox struct {
 type AccessibilityProperty struct {
 	Name  string      `json:"name"`
 	Value StringValue `json:"value"`
+}
+
+// DOMSnapshot domain commands
+
+type DOMSnapshotCaptureSnapshotParams struct {
+	ComputedStyles  []string `json:"computedStyles"`
+	IncludeDOMRects bool     `json:"includeDOMRects,omitempty"`
+	IncludePaintOrder bool   `json:"includePaintOrder,omitempty"`
+}
+
+type DOMSnapshotCaptureSnapshotResult struct {
+	Documents []DOMSnapshotDocument `json:"documents"`
+}
+
+type DOMSnapshotDocument struct {
+	Nodes  DOMSnapshotNodeTree  `json:"nodes"`
+	Layout DOMSnapshotLayoutTree `json:"layout"`
+}
+
+type DOMSnapshotNodeTree struct {
+	BackendNodeID []int64 `json:"backendNodeId"`
+}
+
+type DOMSnapshotLayoutTree struct {
+	NodeIndex []int     `json:"nodeIndex"`
+	Bounds    [][]float64 `json:"bounds"`
 }
 
 // Runtime domain commands
@@ -148,12 +201,40 @@ type InputDispatchMouseEventParams struct {
 	DeltaY     float64 `json:"deltaY,omitempty"`
 }
 
+// InputDispatchMouseWheelParams for mouseWheel events (requires deltaX and deltaY)
+type InputDispatchMouseWheelParams struct {
+	Type   string  `json:"type"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	DeltaX float64 `json:"deltaX"` // Required for mouseWheel
+	DeltaY float64 `json:"deltaY"` // Required for mouseWheel
+}
+
 type InputInsertTextParams struct {
 	Text string `json:"text"`
+}
+
+// Input.dispatchKeyEvent - for PressKey
+type InputDispatchKeyEventParams struct {
+	Type                  string `json:"type"`                            // "keyDown", "keyUp", "char"
+	Modifiers             int    `json:"modifiers,omitempty"`             // Alt=1, Ctrl=2, Meta=4, Shift=8
+	Key                   string `json:"key,omitempty"`                   // DOM key value (e.g., "Enter")
+	Code                  string `json:"code,omitempty"`                  // Physical key
+	Text                  string `json:"text,omitempty"`                  // Character for char events
+	WindowsVirtualKeyCode int    `json:"windowsVirtualKeyCode,omitempty"` // Virtual key code
 }
 
 // DOM domain commands
 
 type DOMClickParams struct {
 	BackendNodeID int64 `json:"backendNodeId"`
+}
+
+type DOMSetFileInputFilesParams struct {
+	Files         []string `json:"files"`
+	BackendNodeID int64    `json:"backendNodeId,omitempty"`
+}
+
+type DOMScrollIntoViewIfNeededParams struct {
+	BackendNodeID int64 `json:"backendNodeId,omitempty"`
 }

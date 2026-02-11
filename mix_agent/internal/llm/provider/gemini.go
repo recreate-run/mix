@@ -21,7 +21,10 @@ import (
 )
 
 type geminiOptions struct {
-	disableCache bool
+	disableCache       bool
+	responseMIMEType   string
+	responseJSONSchema map[string]any
+	mediaResolution    *genai.MediaResolution // Optional media resolution override
 }
 
 type GeminiOption func(*geminiOptions)
@@ -224,7 +227,7 @@ func (g *geminiClient) Send(ctx context.Context, messages []message.Message, too
 	geminiMessages := g.convertMessages(messages)
 
 	cfg := config.Get()
-	if cfg.Debug {
+	if cfg != nil && cfg.Debug {
 		jsonData, _ := json.Marshal(geminiMessages)
 		logging.Debug("Prepared messages", "messages", string(jsonData))
 	}
@@ -233,6 +236,28 @@ func (g *geminiClient) Send(ctx context.Context, messages []message.Message, too
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	genCfg := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
+	}
+
+	// Set temperature (default to 1.0 if not specified)
+	if g.providerOptions.temperature != nil {
+		genCfg.Temperature = g.providerOptions.temperature
+	} else {
+		defaultTemp := float32(1.0)
+		genCfg.Temperature = &defaultTemp
+	}
+
+	// Set structured output options if provided
+	if g.options.responseMIMEType != "" {
+		genCfg.ResponseMIMEType = g.options.responseMIMEType
+	}
+	if g.options.responseJSONSchema != nil {
+		genCfg.ResponseJsonSchema = g.options.responseJSONSchema
+	}
+
+	// Set media resolution based on content type
+	mediaRes := g.getMediaResolutionForMessages(messages)
+	if mediaRes != genai.MediaResolutionUnspecified {
+		genCfg.MediaResolution = mediaRes
 	}
 
 	// Only add system instruction if we have a non-empty system message
@@ -327,7 +352,7 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 	geminiMessages := g.convertMessages(messages)
 
 	cfg := config.Get()
-	if cfg.Debug {
+	if cfg != nil && cfg.Debug {
 		jsonData, _ := json.Marshal(geminiMessages)
 		logging.Debug("Prepared messages", "messages", string(jsonData))
 	}
@@ -336,6 +361,28 @@ func (g *geminiClient) Stream(ctx context.Context, messages []message.Message, t
 	lastMsg := geminiMessages[len(geminiMessages)-1]
 	genCfg := &genai.GenerateContentConfig{
 		MaxOutputTokens: int32(g.providerOptions.maxTokens),
+	}
+
+	// Set temperature (default to 1.0 if not specified)
+	if g.providerOptions.temperature != nil {
+		genCfg.Temperature = g.providerOptions.temperature
+	} else {
+		defaultTemp := float32(1.0)
+		genCfg.Temperature = &defaultTemp
+	}
+
+	// Set structured output options if provided
+	if g.options.responseMIMEType != "" {
+		genCfg.ResponseMIMEType = g.options.responseMIMEType
+	}
+	if g.options.responseJSONSchema != nil {
+		genCfg.ResponseJsonSchema = g.options.responseJSONSchema
+	}
+
+	// Set media resolution based on content type
+	mediaRes := g.getMediaResolutionForMessages(messages)
+	if mediaRes != genai.MediaResolutionUnspecified {
+		genCfg.MediaResolution = mediaRes
 	}
 
 	// Only add system instruction if we have a non-empty system message
@@ -517,6 +564,28 @@ func (g *geminiClient) usage(resp *genai.GenerateContentResponse) interfaces.Tok
 func WithGeminiDisableCache() GeminiOption {
 	return func(options *geminiOptions) {
 		options.disableCache = true
+	}
+}
+
+// WithGeminiResponseMIMEType sets the MIME type for structured output (e.g., "application/json")
+func WithGeminiResponseMIMEType(mimeType string) GeminiOption {
+	return func(options *geminiOptions) {
+		options.responseMIMEType = mimeType
+	}
+}
+
+// WithGeminiResponseJSONSchema sets the JSON schema for structured output validation
+func WithGeminiResponseJSONSchema(schema map[string]any) GeminiOption {
+	return func(options *geminiOptions) {
+		options.responseJSONSchema = schema
+	}
+}
+
+// WithGeminiMediaResolution sets the media resolution for images/videos
+// Available options: MediaResolutionLow, MediaResolutionMedium, MediaResolutionHigh
+func WithGeminiMediaResolution(resolution genai.MediaResolution) GeminiOption {
+	return func(options *geminiOptions) {
+		options.mediaResolution = &resolution
 	}
 }
 
@@ -712,4 +781,75 @@ func (g *geminiClient) isSupportedVideoFormat(mimeType string) bool {
 		}
 	}
 	return false
+}
+
+// determineMediaResolution returns the appropriate MediaResolution based on MIME type
+// Follows Gemini 3 best practices:
+// - Images: HIGH (1120 tokens) - recommended for most image analysis tasks
+// - PDFs: MEDIUM (560 tokens) - optimal for document understanding
+// - Videos: LOW (70 tokens/frame) - sufficient for action recognition
+func (g *geminiClient) determineMediaResolution(mimeType string) genai.MediaResolution {
+	// If explicitly set via options, use that
+	if g.options.mediaResolution != nil {
+		return *g.options.mediaResolution
+	}
+
+	// Determine based on MIME type
+	switch {
+	case strings.HasPrefix(mimeType, "image/"):
+		return genai.MediaResolutionHigh
+	case mimeType == "application/pdf":
+		return genai.MediaResolutionMedium
+	case strings.HasPrefix(mimeType, "video/"):
+		return genai.MediaResolutionLow
+	default:
+		// For unknown types, use medium as a safe default
+		return genai.MediaResolutionMedium
+	}
+}
+
+// getMediaResolutionForMessages determines the appropriate media resolution for the conversation
+// Scans all messages for media content and returns the highest resolution needed
+func (g *geminiClient) getMediaResolutionForMessages(messages []message.Message) genai.MediaResolution {
+	// If explicitly set via options, use that for all media
+	if g.options.mediaResolution != nil {
+		return *g.options.mediaResolution
+	}
+
+	// Scan messages for media content
+	highestResolution := genai.MediaResolutionUnspecified
+
+	for _, msg := range messages {
+		// Check binary content
+		for _, binaryContent := range msg.BinaryContent() {
+			resolution := g.determineMediaResolution(binaryContent.MIMEType)
+			if shouldUpgradeResolution(highestResolution, resolution) {
+				highestResolution = resolution
+			}
+		}
+
+		// Check URI content
+		for _, uriContent := range msg.URIContent() {
+			resolution := g.determineMediaResolution(uriContent.MIMEType)
+			if shouldUpgradeResolution(highestResolution, resolution) {
+				highestResolution = resolution
+			}
+		}
+	}
+
+	// Return the highest resolution needed, or unspecified if no media
+	return highestResolution
+}
+
+// shouldUpgradeResolution determines if we should upgrade to a higher resolution
+// Resolution priority: HIGH > MEDIUM > LOW > UNSPECIFIED
+func shouldUpgradeResolution(current, target genai.MediaResolution) bool {
+	priority := map[genai.MediaResolution]int{
+		genai.MediaResolutionUnspecified: 0,
+		genai.MediaResolutionLow:         1,
+		genai.MediaResolutionMedium:      2,
+		genai.MediaResolutionHigh:        3,
+	}
+
+	return priority[target] > priority[current]
 }

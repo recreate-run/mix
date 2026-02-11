@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"mix/internal/browser_logger"
 	"mix/internal/logging"
+	"mix/internal/session"
 
 	"github.com/coder/websocket"
 )
@@ -66,14 +68,16 @@ func normalizeID(id interface{}) string {
 
 // TunnelRegistry manages all active tunnel connections
 type TunnelRegistry struct {
-	mu          sync.RWMutex
-	connections map[string]*TunnelConnection // sessionId -> connection
+	mu            sync.RWMutex
+	connections   map[string]*TunnelConnection // sessionId -> connection
+	storageConfig session.Config
 }
 
 // NewTunnelRegistry creates a new tunnel registry
-func NewTunnelRegistry() *TunnelRegistry {
+func NewTunnelRegistry(storageConfig session.Config) *TunnelRegistry {
 	return &TunnelRegistry{
-		connections: make(map[string]*TunnelConnection),
+		connections:   make(map[string]*TunnelConnection),
+		storageConfig: storageConfig,
 	}
 }
 
@@ -141,11 +145,11 @@ func (registry *TunnelRegistry) HandleTunnelConnection(w http.ResponseWriter, r 
 	go tunnelConn.pingLoop()
 
 	// Read messages from browser (blocks until connection closes)
-	tunnelConn.readLoop()
+	tunnelConn.readLoop(registry.storageConfig)
 }
 
 // readLoop reads messages from the browser
-func (tc *TunnelConnection) readLoop() {
+func (tc *TunnelConnection) readLoop(storageConfig session.Config) {
 	for {
 		_, message, err := tc.Conn.Read(tc.Context)
 		if err != nil {
@@ -155,14 +159,35 @@ func (tc *TunnelConnection) readLoop() {
 			return
 		}
 
+		// Check if this is a browser_log message (one-way event)
+		// Browser logs have {"type": "browser_log", ...} while CDP responses have {"id": ..., "result": ...}
+		var msgType struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(message, &msgType); err == nil && msgType.Type == "browser_log" {
+			// Handle browser log message
+			var logMessage browser_logger.BrowserLogMessage
+			if err := json.Unmarshal(message, &logMessage); err != nil {
+				logging.Error("Failed to parse browser log message", "error", err, "session", tc.SessionID)
+				continue
+			}
+
+			// Log received browser log message for debugging/verification
+			logging.Debug("Browser log received", "session", logMessage.SessionID, "tabId", logMessage.TabID, "logType", logMessage.LogType, "timestamp", logMessage.Timestamp)
+
+			// Write log (fire-and-forget, errors logged but don't crash handler)
+			if err := browser_logger.AppendLog(logMessage, storageConfig); err != nil {
+				logging.Error("Failed to write browser log", "error", err, "session", tc.SessionID)
+			}
+			continue
+		}
+
 		// Parse CDP response from browser
 		var response CDPResponse
 		if err := json.Unmarshal(message, &response); err != nil {
 			logging.Error("Failed to parse CDP response", "error", err, "session", tc.SessionID)
 			continue
 		}
-
-		logging.Info("Received CDP response from browser", "id", response.ID, "session", tc.SessionID)
 
 		// Route to waiting request using normalized ID
 		normalizedID := normalizeID(response.ID)
@@ -173,8 +198,6 @@ func (tc *TunnelConnection) readLoop() {
 			case <-time.After(time.Second):
 				logging.Warn("Response channel full, dropping response", "id", response.ID, "session", tc.SessionID)
 			}
-		} else {
-			logging.Debug("No pending request for response", "id", response.ID, "normalizedID", normalizedID, "session", tc.SessionID)
 		}
 	}
 }
@@ -241,7 +264,6 @@ func (registry *TunnelRegistry) SendCommandToTunnel(sessionID string, command CD
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
 	}
 
-	logging.Info("Sending CDP command to browser", "id", command.ID, "method", command.Method, "session", sessionID)
 
 	// Send command (non-blocking with timeout)
 	select {
