@@ -387,7 +387,7 @@ func TestBrowserTool_BlankPageDetection(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -470,7 +470,7 @@ func TestBrowserTool_CacheInvalidationOnTabSwitch(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -555,7 +555,7 @@ func TestBrowserTool_ActiveTabTracking(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -633,7 +633,7 @@ func TestBrowserTool_BackendIDCacheValidation(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -723,7 +723,7 @@ func TestBrowserTool_EmptyURLHandling(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -766,7 +766,7 @@ func TestBrowserTool_CacheStalenessCrossPage(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -855,7 +855,7 @@ func TestBrowserTool_RapidNavigationSequence(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
@@ -954,7 +954,7 @@ func TestBrowserTool_ConcurrentTabScreenshots(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext("test-session", "test-message", tempDir)

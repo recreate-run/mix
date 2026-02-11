@@ -36,7 +36,7 @@ type App struct {
 
 	CoderAgent        agent.Service
 	TunnelRegistry    interface{} // *http.TunnelRegistry (avoid circular import)
-	BrowserMode       string      // "tunnel" or "service"
+	BrowserMode       string      // "electron-embedded-browser", "local-browser-service", or "remote-cdp-websocket"
 	BrowserServiceURL string      // URL for browser-service
 }
 
@@ -103,13 +103,13 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	// Get browser mode from environment variable
 	browserMode := os.Getenv("BROWSER_MODE")
 	if browserMode == "" {
-		browserMode = browserpkg.ModeService // Default to service mode
+		browserMode = browserpkg.ModeLocalBrowserService // Default to local-browser-service mode
 	}
 
 	// Get browser service URL from environment
 	browserServiceURL := os.Getenv("BROWSER_SERVICE_URL")
-	if browserServiceURL == "" && browserMode == browserpkg.ModeService {
-		return nil, fmt.Errorf("BROWSER_SERVICE_URL environment variable is required for service mode")
+	if browserServiceURL == "" && browserMode == browserpkg.ModeLocalBrowserService {
+		return nil, fmt.Errorf("BROWSER_SERVICE_URL environment variable is required for local-browser-service mode")
 	}
 
 	app := &App{
@@ -129,9 +129,9 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	// Create MCP manager for this agent
 	mcpManager := agent.NewMCPClientManager()
 
-	// Create browser connection manager (for service mode)
+	// Create browser connection manager (for local-browser-service mode)
 	var browserConnectionManager interface{}
-	if browserMode == browserpkg.ModeService {
+	if browserMode == browserpkg.ModeLocalBrowserService {
 		// Import will be needed for this - we'll add it below
 		// For now, create it as interface{} to avoid circular import
 		browserConnectionManager = createBrowserConnectionManager(browserServiceURL)
@@ -199,7 +199,7 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string
 	titlePrefix := "Non-interactive: "
 	title := session.TruncateTitle(titlePrefix + prompt)
 
-	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "")
+	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "", "local-browser-service", "")
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}

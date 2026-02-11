@@ -98,7 +98,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	time.Sleep(100 * time.Millisecond)
 
 	// Create test session (title must be ≤20 chars due to DB constraint)
-	session, err := testApp.Sessions.Create(ctx, "Test Session", "", "default", session2.SessionTypeMain, "", "", "")
+	session, err := testApp.Sessions.Create(ctx, "Test Session", "", "default", session2.SessionTypeMain, "", "", "", "local-browser-service", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}

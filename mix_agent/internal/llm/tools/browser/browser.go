@@ -47,12 +47,13 @@ type ClientFactory func(sessionID string) (browserpkg.Client, error)
 // browserTool implements the Browser tool for LLM-driven browser automation
 type browserTool struct {
 	permissions          permission.Service
+	sessions             session.Service // Session service to fetch per-session browser config
 	connectionManager    *ConnectionManager
 	sessionConfig        session.Config
 	baseURL              string
 	elementCache         map[string]map[int]int64        // sessionID_tabID → visualIndex → backendID
 	cacheMu              sync.RWMutex                    // Protect element cache
-	browserMode          string                          // "tunnel" or "service"
+	browserMode          string                          // Global browser mode (fallback for legacy sessions)
 	clientFactory        ClientFactory                   // Factory for creating browser clients
 	tunnelRegistryGetter func() interface{}              // Getter for tunnel registry (allows late initialization)
 	browserServiceURL    string                          // URL for browser-service
@@ -61,10 +62,10 @@ type browserTool struct {
 }
 
 // NewBrowserTool creates a new browser tool instance
-func NewBrowserTool(permissions permission.Service, browserServiceURL string, sessionConfig session.Config, browserMode string, clientFactory ClientFactory, connectionManager interface{}, tunnelRegistryGetter func() interface{}) interfaces.BaseTool {
-	// Default to service mode if not specified
+func NewBrowserTool(permissions permission.Service, sessions session.Service, browserServiceURL string, sessionConfig session.Config, browserMode string, clientFactory ClientFactory, connectionManager interface{}, tunnelRegistryGetter func() interface{}) interfaces.BaseTool {
+	// Default to local-browser-service mode if not specified
 	if browserMode == "" {
-		browserMode = browserpkg.ModeService
+		browserMode = browserpkg.ModeLocalBrowserService
 	}
 
 	// Type assert connection manager if provided
@@ -82,6 +83,7 @@ func NewBrowserTool(permissions permission.Service, browserServiceURL string, se
 
 	return &browserTool{
 		permissions:          permissions,
+		sessions:             sessions,
 		connectionManager:    connMgr,
 		sessionConfig:        sessionConfig,
 		baseURL:              getBaseURL(),
@@ -98,28 +100,61 @@ func NewBrowserTool(permissions permission.Service, browserServiceURL string, se
 // Supports both tunnel and service modes based on configuration
 // Returns BrowserClient interface that works with both modes
 func (b *browserTool) getClient(ctx context.Context, sessionID string) (BrowserClient, error) {
-	if b.browserMode == browserpkg.ModeService {
+	// Try to get session from context first (preferred - no DB query)
+	var sess session.Session
+	if sessionVal := ctx.Value(interfaces.SessionContextKey); sessionVal != nil {
+		if s, ok := sessionVal.(session.Session); ok {
+			sess = s
+		}
+	}
+
+	// Fall back to DB query if not in context (backward compatibility)
+	if sess.ID == "" {
+		var err error
+		sess, err = b.sessions.Get(ctx, sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get session: %w", err)
+		}
+	}
+
+	// Use session's browser mode (falls back to tool's global mode if empty)
+	browserMode := sess.BrowserMode
+	if browserMode == "" {
+		browserMode = b.browserMode
+	}
+
+	// Route to appropriate client based on browser mode
+	switch browserMode {
+	case browserpkg.ModeLocalBrowserService:
 		return b.connectionManager.GetOrCreate(ctx, sessionID)
-	}
 
-	// Tunnel mode: get or create cached client
-	b.tunnelClientsMu.Lock()
-	defer b.tunnelClientsMu.Unlock()
+	case browserpkg.ModeRemoteCDP:
+		// TODO: Implement rod client for remote CDP
+		return nil, fmt.Errorf("remote CDP mode not yet implemented")
 
-	// Return existing client if cached
-	if client, exists := b.tunnelClients[sessionID]; exists {
+	case browserpkg.ModeElectronEmbedded:
+		// Tunnel mode: get or create cached client
+		b.tunnelClientsMu.Lock()
+		defer b.tunnelClientsMu.Unlock()
+
+		// Return existing client if cached
+		if client, exists := b.tunnelClients[sessionID]; exists {
+			return client, nil
+		}
+
+		// Create new client and cache it
+		var tunnelRegistry interface{}
+		if b.tunnelRegistryGetter != nil {
+			tunnelRegistry = b.tunnelRegistryGetter()
+		}
+
+		client := NewTunnelClientWrapper(tunnelRegistry, sessionID)
+		b.tunnelClients[sessionID] = client
 		return client, nil
-	}
 
-	// Create new client and cache it
-	var tunnelRegistry interface{}
-	if b.tunnelRegistryGetter != nil {
-		tunnelRegistry = b.tunnelRegistryGetter()
+	default:
+		return nil, fmt.Errorf("unsupported browser mode: %s", browserMode)
 	}
-
-	client := NewTunnelClientWrapper(tunnelRegistry, sessionID)
-	b.tunnelClients[sessionID] = client
-	return client, nil
 }
 
 // Info returns tool metadata for the LLM

@@ -8,6 +8,7 @@ import (
 // Context keys for session and message identification
 type (
 	sessionIDContextKey      string
+	sessionContextKey        string
 	messageIDContextKey      string
 	sessionStorageContextKey string
 	planModeContextKey       string
@@ -16,6 +17,7 @@ type (
 
 const (
 	SessionIDContextKey      sessionIDContextKey      = "session_id"
+	SessionContextKey        sessionContextKey        = "session"
 	MessageIDContextKey      messageIDContextKey      = "message_id"
 	SessionStorageContextKey sessionStorageContextKey = "session_storage"
 	PlanModeContextKey       planModeContextKey       = "plan_mode"

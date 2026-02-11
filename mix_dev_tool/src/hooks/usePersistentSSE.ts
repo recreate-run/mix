@@ -737,6 +737,15 @@ export function usePersistentSSE(sessionId: string): PersistentSSEHook {
 						case "user_message_created": {
 							const userMsgEvent = event as SSEUserMessageCreatedEvent;
 
+							// Skip if content is missing or empty (backend contract violation)
+							if (!userMsgEvent.data.content) {
+								console.warn(
+									"user_message_created: received event with missing content",
+									userMsgEvent,
+								);
+								break;
+							}
+
 							// Track in ref for cache update
 							userMessageIdRef.current = userMsgEvent.data.messageId;
 							pendingUserMessageRef.current = {

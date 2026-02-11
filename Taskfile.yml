@@ -84,8 +84,8 @@ tasks:
     deps: [install]
     cmds:
       - echo "Installing project dependencies..."
-      - echo "Installing Air (Go hot reload)..."
-      - command -v air >/dev/null 2>&1 || go install github.com/air-verse/air@latest
+      - echo "Installing CompileDaemon (Go hot reload)..."
+      - command -v CompileDaemon >/dev/null 2>&1 || go install github.com/githubnemo/CompileDaemon@latest
       - echo "Installing capture script dependencies..."
       - echo "Installing Tauri app dependencies..."
       - cd mix_dev_tool && bun i

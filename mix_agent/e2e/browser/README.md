@@ -27,7 +27,7 @@ These E2E tests verify the Browser tool works correctly in a real environment:
 | **Location** | `/mix_agent/e2e/browser/` | `/mix_agent/internal/http/integration_tests/` |
 | **Server** | Real server (task dev) | Test server (httptest.Server) |
 | **Database** | Real database | Isolated test database |
-| **Services** | Real browser-service | Mocked browser client |
+| **Services** | Real local-browser-service | Mocked browser client |
 | **Purpose** | Test real user workflows | Test API contracts |
 | **Speed** | Slower | Faster |
 | **When to run** | Before deployment | During development |
@@ -41,7 +41,7 @@ Before running these tests, you must have:
    task dev
    ```
 
-2. **Browser service running:**
+2. **Local browser service running:**
    ```bash
    cd browser-service
    go run ./cmd/server
@@ -74,7 +74,7 @@ go test ./mix_agent/e2e/browser/... -v
 The tests will **automatically skip** if:
 - `SKIP_E2E_TESTS` environment variable is set
 - Server is not running at the expected URL
-- Browser service is not running at `localhost:8081`
+- Local browser service is not running at `localhost:8081`
 - Health check endpoint returns non-200 status
 
 Example output when skipping:
@@ -118,7 +118,7 @@ If tests fail:
    curl http://localhost:3020/health
    ```
 
-2. **Check browser-service is running:**
+2. **Check local-browser-service is running:**
    ```bash
    curl http://localhost:8081/health
    ```
@@ -156,7 +156,7 @@ When adding new browser E2E tests:
    func TestBrowserE2ENewScenario(t *testing.T) {
        skipIfE2EDisabled(t)
        skipIfServerNotRunning(t)
-       skipIfBrowserServiceNotRunning(t)
+       skipIfLocalBrowserServiceNotRunning(t)
        // ... test implementation
    }
    ```

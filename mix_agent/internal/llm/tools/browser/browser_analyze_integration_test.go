@@ -76,7 +76,7 @@ func TestBrowserTool_AnalyzeScreenshot_Integration(t *testing.T) {
 		nil, // permissions not needed for test
 		mockServer.wsURL,
 		sessionConfig,
-		"service",
+		"local-browser-service",
 		nil, // client factory not needed
 		nil, // connection manager
 		nil, // tunnel registry getter

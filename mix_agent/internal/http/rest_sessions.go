@@ -27,6 +27,8 @@ type SessionData struct {
 	Title                 string                      `json:"title"`
 	SessionType           string                      `json:"sessionType"`
 	SubagentType          string                      `json:"subagentType,omitempty"`
+	BrowserMode           string                      `json:"browserMode"`
+	CdpUrl                string                      `json:"cdpUrl,omitempty"`
 	UserMessageCount      int64                       `json:"userMessageCount"`
 	AssistantMessageCount int64                       `json:"assistantMessageCount"`
 	ToolCallCount         int64                       `json:"toolCallCount"`
@@ -58,6 +60,8 @@ func sessionToData(session session2.Session) (SessionData, error) {
 		Title:                 session.Title,
 		SessionType:           session.SessionType.String(),
 		SubagentType:          session.SubagentType.String(),
+		BrowserMode:           session.BrowserMode,
+		CdpUrl:                session.CdpUrl,
 		UserMessageCount:      session.UserMessageCount,
 		AssistantMessageCount: session.AssistantMessageCount,
 		ToolCallCount:         session.ToolCallCount,
@@ -113,6 +117,8 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 			Title:                 sessions[i].Title,
 			SessionType:           sessions[i].SessionType,         // String field from db.ListSessionsWithContentRow
 			SubagentType:          sessions[i].SubagentType.String, // String field from db.ListSessionsWithContentRow
+			BrowserMode:           sessions[i].BrowserMode,
+			CdpUrl:                sessions[i].CdpUrl.String,
 			UserMessageCount:      sessions[i].UserMessageCount,
 			AssistantMessageCount: sessions[i].AssistantMessageCount,
 			ToolCallCount:         sessions[i].ToolCallCount,
@@ -168,6 +174,8 @@ type CreateSessionRequest struct {
 	PromptMode         string                      `json:"promptMode,omitempty"`
 	SessionType        string                      `json:"sessionType,omitempty"`  // Only "main" or empty allowed
 	SubagentType       string                      `json:"subagentType,omitempty"` // Must be empty for API-created sessions
+	BrowserMode        string                      `json:"browserMode"`            // Required: "electron-embedded-browser", "local-browser-service", or "remote-cdp-websocket"
+	CdpUrl             string                      `json:"cdpUrl,omitempty"`       // Required if browserMode is "remote-cdp-websocket"
 	Callbacks          []interfaces.CallbackConfig `json:"callbacks,omitempty"`    // Session-level callbacks
 }
 
@@ -241,8 +249,43 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Validate browser mode (required)
+	if req.BrowserMode == "" {
+		sendValidationError(w, "browserMode", "browserMode is required (must be 'electron-embedded-browser', 'local-browser-service', or 'remote-cdp-websocket')")
+		return
+	}
+	validModes := []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"}
+	isValidMode := false
+	for _, mode := range validModes {
+		if req.BrowserMode == mode {
+			isValidMode = true
+			break
+		}
+	}
+	if !isValidMode {
+		sendValidationError(w, "browserMode", fmt.Sprintf("browserMode must be one of: %v", validModes))
+		return
+	}
+
+	// Validate CDP URL based on browser mode
+	if req.BrowserMode == "remote-cdp-websocket" {
+		if req.CdpUrl == "" {
+			sendValidationError(w, "cdpUrl", "cdpUrl is required when browserMode is 'remote-cdp-websocket'")
+			return
+		}
+		// Validate CDP URL format
+		if !strings.HasPrefix(req.CdpUrl, "ws://") && !strings.HasPrefix(req.CdpUrl, "wss://") {
+			sendValidationError(w, "cdpUrl", "cdpUrl must start with 'ws://' or 'wss://'")
+			return
+		}
+	} else if req.CdpUrl != "" {
+		// Ensure CDP URL is not set for other modes
+		sendValidationError(w, "cdpUrl", "cdpUrl can only be set when browserMode is 'remote-cdp-websocket'")
+		return
+	}
+
 	ctx := r.Context()
-	session, err := h.app.Sessions.Create(ctx, title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "", "")
+	session, err := h.app.Sessions.Create(ctx, title, req.CustomSystemPrompt, promptMode, session2.SessionTypeMain, "", "", "", req.BrowserMode, req.CdpUrl)
 	if err != nil {
 		sendInternalError(w, "creating session", err)
 		return

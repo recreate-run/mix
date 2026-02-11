@@ -15,7 +15,7 @@ import (
 // mockSessionService for testing
 type mockSessionService struct{}
 
-func (m *mockSessionService) Create(ctx context.Context, title, customSystemPrompt, promptMode string, sessionType session.SessionType, subagentType session.SubagentType, parentSessionID, parentToolCallID string) (session.Session, error) {
+func (m *mockSessionService) Create(ctx context.Context, title, customSystemPrompt, promptMode string, sessionType session.SessionType, subagentType session.SubagentType, parentSessionID, parentToolCallID, browserMode, cdpUrl string) (session.Session, error) {
 	return session.Session{ID: "test-session-id"}, nil
 }
 

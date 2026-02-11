@@ -250,11 +250,15 @@ export function ChatApp({
 		if (!sseStream.pendingUserMessage || messages.length === 0) return;
 
 		// Check if pending message exists in the last few stored messages
-		const pendingText = sseStream.pendingUserMessage.text.trim();
+		const pendingText = sseStream.pendingUserMessage.text?.trim() ?? "";
+
+		// Skip if pending text is empty (handles undefined/null case)
+		if (!pendingText) return;
+
 		const recentMessages = messages.slice(-5); // Check last 5 messages instead of 3
 
 		const messageExists = recentMessages.some(
-			(msg) => msg.from === "user" && msg.content.trim() === pendingText,
+			(msg) => msg.from === "user" && msg.content?.trim() === pendingText,
 		);
 
 		if (messageExists) {
@@ -493,6 +497,7 @@ export function ChatApp({
 			// Create a new session
 			const newSession = await createSession.mutateAsync({
 				title: "New Session",
+				browserMode: "local-browser-service",
 			});
 
 			// Navigate to the new session - this will automatically trigger UI updates

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"mix/internal/db"
 	"mix/internal/llm/interfaces"
@@ -104,6 +105,8 @@ type Session struct {
 	Callbacks             string       // JSON-encoded []interfaces.CallbackConfig
 	SessionType           SessionType  // Type-safe session category
 	SubagentType          SubagentType // Type-safe subagent specialization
+	BrowserMode           string       // Browser mode: "electron-embedded-browser", "local-browser-service", or "remote-cdp-websocket"
+	CdpUrl                string       // CDP WebSocket URL (required for remote-cdp-websocket mode)
 	Cost                  float64
 	CreatedAt             int64
 	UpdatedAt             int64
@@ -112,7 +115,7 @@ type Session struct {
 // Simplified Service interface for embedded binary
 type Service interface {
 	pubsub.Suscriber[Session]
-	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string) (Session, error)
+	Create(ctx context.Context, title string, customSystemPrompt string, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID string, parentToolCallID string, browserMode string, cdpUrl string) (Session, error)
 	Get(ctx context.Context, id string) (Session, error)
 	List(ctx context.Context) ([]Session, error)
 	ListWithContent(ctx context.Context) ([]db.ListSessionsWithContentRow, error)
@@ -127,7 +130,7 @@ type service struct {
 	storageConfig Config
 }
 
-func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID, parentToolCallID string) (Session, error) {
+func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptMode string, sessionType SessionType, subagentType SubagentType, parentSessionID, parentToolCallID, browserMode, cdpUrl string) (Session, error) {
 	// Default to 'main' session type if not specified
 	if sessionType == "" {
 		sessionType = SessionTypeMain
@@ -136,6 +139,36 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 	// Validate subagent type if specified
 	if subagentType != "" && !IsValidSubagentType(subagentType.String()) {
 		return Session{}, fmt.Errorf("invalid subagent type: %s", subagentType)
+	}
+
+	// Validate browser mode (required)
+	if browserMode == "" {
+		return Session{}, fmt.Errorf("browserMode is required")
+	}
+	validModes := []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"}
+	isValidMode := false
+	for _, mode := range validModes {
+		if browserMode == mode {
+			isValidMode = true
+			break
+		}
+	}
+	if !isValidMode {
+		return Session{}, fmt.Errorf("browserMode must be one of: %v", validModes)
+	}
+
+	// Validate CDP URL if mode is remote-cdp-websocket
+	if browserMode == "remote-cdp-websocket" {
+		if cdpUrl == "" {
+			return Session{}, fmt.Errorf("cdpUrl is required when browserMode is 'remote-cdp-websocket'")
+		}
+		// Validate CDP URL format
+		if !strings.HasPrefix(cdpUrl, "ws://") && !strings.HasPrefix(cdpUrl, "wss://") {
+			return Session{}, fmt.Errorf("cdpUrl must start with 'ws://' or 'wss://'")
+		}
+	} else if cdpUrl != "" {
+		// Ensure CDP URL is not set for other modes
+		return Session{}, fmt.Errorf("cdpUrl can only be set when browserMode is 'remote-cdp-websocket'")
 	}
 
 	// Validate session hierarchy constraints BEFORE creating any resources
@@ -184,6 +217,8 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 		Callbacks:          sql.NullString{Valid: false}, // Session callbacks initially empty, updated via Save() when configured
 		SessionType:        sessionTypeStr,
 		SubagentType:       sql.NullString{String: subagentTypeStr, Valid: subagentTypeStr != ""},
+		BrowserMode:        browserMode,
+		CdpUrl:             sql.NullString{String: cdpUrl, Valid: cdpUrl != ""},
 	})
 	if err != nil {
 		// If DB creation fails after directory creation, we have an orphaned directory
@@ -321,6 +356,8 @@ func (s *service) fromGetSessionByIDRow(item db.GetSessionByIDRow) (Session, err
 		Callbacks:             item.Callbacks.String,
 		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
+		BrowserMode:           item.BrowserMode,
+		CdpUrl:                item.CdpUrl.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -343,6 +380,8 @@ func (s *service) fromListSessionsMetadataRow(item db.ListSessionsMetadataRow) S
 		Callbacks:             item.Callbacks.String,
 		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
+		BrowserMode:           item.BrowserMode,
+		CdpUrl:                item.CdpUrl.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,
@@ -365,6 +404,8 @@ func (s *service) fromCreatedSessionRow(item db.CreateSessionRow) Session {
 		Callbacks:             item.Callbacks.String,
 		SessionType:           SessionType(item.SessionType),          // Convert string to type
 		SubagentType:          SubagentType(item.SubagentType.String), // Convert string to type
+		BrowserMode:           item.BrowserMode,
+		CdpUrl:                item.CdpUrl.String,
 		Cost:                  item.Cost,
 		CreatedAt:             item.CreatedAt,
 		UpdatedAt:             item.UpdatedAt,

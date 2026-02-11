@@ -101,7 +101,7 @@ func getOpenAPISpec() OpenAPISpec {
 					"tags":        []string{"Sessions"},
 					"requestBody": createRequestBody(map[string]interface{}{
 						"type":     "object",
-						"required": []string{"title"},
+						"required": []string{"title", "browserMode"},
 						"properties": map[string]interface{}{
 							"title": map[string]interface{}{
 								"type":        "string",
@@ -131,6 +131,17 @@ func getOpenAPISpec() OpenAPISpec {
 								"type":        "string",
 								"description": "Subagent type - must not be set for API-created sessions. This field is reserved for programmatic subagent creation.",
 								"example":     "",
+							},
+							"browserMode": map[string]interface{}{
+								"type":        "string",
+								"enum":        []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"},
+								"description": "Browser automation mode (required):\n- 'electron-embedded-browser': Electron app with embedded Chromium browser\n- 'local-browser-service': Local browser-service (GoRod-based)\n- 'remote-cdp-websocket': Remote CDP WebSocket URL (cloud browser providers)",
+								"example":     "local-browser-service",
+							},
+							"cdpUrl": map[string]interface{}{
+								"type":        "string",
+								"description": "CDP WebSocket URL for remote browser connections. Required when browserMode is 'remote-cdp-websocket'. Must start with 'ws://' or 'wss://'.",
+								"example":     "wss://connect.browserbase.com/v1/sessions/abc123",
 							},
 							"callbacks": map[string]interface{}{
 								"type":        "array",
@@ -1794,6 +1805,16 @@ func getOpenAPISpec() OpenAPISpec {
 							"enum":        []string{"general-purpose"},
 							"description": "Subagent specialization type (only present for subagent sessions)",
 						},
+						"browserMode": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"},
+							"description": "Browser automation mode:\n- 'electron-embedded-browser': Electron app with embedded Chromium browser\n- 'local-browser-service': Local browser-service (GoRod-based)\n- 'remote-cdp-websocket': Remote CDP WebSocket URL (cloud browser providers)",
+						},
+						"cdpUrl": map[string]interface{}{
+							"type":        "string",
+							"description": "CDP WebSocket URL for remote browser connections (only present when browserMode is 'remote-cdp-websocket')",
+							"example":     "wss://connect.browserbase.com/v1/sessions/abc123",
+						},
 						"userMessageCount": map[string]interface{}{
 							"type":        "integer",
 							"description": "Number of user messages in session",
@@ -1836,7 +1857,7 @@ func getOpenAPISpec() OpenAPISpec {
 							},
 						},
 					},
-					"required": []string{"id", "title", "sessionType", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
+					"required": []string{"id", "title", "sessionType", "browserMode", "userMessageCount", "assistantMessageCount", "toolCallCount", "promptTokens", "completionTokens", "cost", "createdAt"},
 				},
 				"MessageData": map[string]interface{}{
 					"type":        "object",

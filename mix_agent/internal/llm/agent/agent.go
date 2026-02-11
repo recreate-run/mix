@@ -318,6 +318,8 @@ func (a *agent) generateTitle(ctx context.Context, sessionID, content string) er
 
 	// Add session storage directory to context
 	ctx = tools.SetSessionStorageContext(ctx, sess.ID, a.storageConfig)
+	// Add full session object to context
+	ctx = context.WithValue(ctx, interfaces.SessionContextKey, sess)
 
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	response, err := a.titleProvider.SendMessages(
@@ -651,6 +653,8 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 	}
 	// Add session storage directory to context
 	ctx = tools.SetSessionStorageContext(ctx, sess.ID, a.storageConfig)
+	// Add full session object to context for tools that need browser mode, etc.
+	ctx = context.WithValue(ctx, interfaces.SessionContextKey, sess)
 
 	// Get cached session-specific provider
 	sessionProvider, err := a.getOrCreateSessionProvider(ctx, sessionID, &sess)

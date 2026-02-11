@@ -108,7 +108,7 @@ func TestCreate(t *testing.T) {
 	mockQuerier.On("CreateSession", mock.Anything, mock.AnythingOfType("db.CreateSessionParams")).
 		Return(createRow, nil)
 
-	session, err := svc.Create(context.Background(), title, customSystemPrompt, promptMode, SessionTypeMain, "", "", "")
+	session, err := svc.Create(context.Background(), title, customSystemPrompt, promptMode, SessionTypeMain, SubagentType(""), "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Equal(t, createRow.ID, session.ID)

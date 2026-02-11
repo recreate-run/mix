@@ -398,10 +398,10 @@ export function ConversationDisplay({
 		// Fallback to content-based matching for backward compatibility
 		// Check the last few messages (up to 5) to see if pending message already exists
 		const recentMessages = messages.slice(-5);
-		const pendingText = sseStream.pendingUserMessage.text.trim();
+		const pendingText = sseStream.pendingUserMessage.text?.trim() ?? "";
 
 		for (const msg of recentMessages) {
-			if (msg.from === "user" && msg.content.trim() === pendingText) {
+			if (msg.from === "user" && msg.content?.trim() === pendingText) {
 				// Message already exists in stored messages - don't show pending
 				return false;
 			}

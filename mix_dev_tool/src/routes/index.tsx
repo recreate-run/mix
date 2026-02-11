@@ -54,6 +54,7 @@ function AutoRedirectHome() {
 				// Create first session for fresh database
 				const newSession = await createSession.mutateAsync({
 					title: "New Session",
+					browserMode: "local-browser-service",
 				});
 				localStorage.setItem(LAST_SESSION_KEY, newSession.id);
 				navigate({

@@ -73,7 +73,7 @@ func setupTestServerForRewind(t *testing.T) (testApp *app.App, sessionID string)
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	testSession, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default", session.SessionTypeMain, "", "", "")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default", session.SessionTypeMain, "", "", "", "local-browser-service", "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}

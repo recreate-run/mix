@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SessionData } from "mix-typescript-sdk/models/sessiondata.js";
+import type {
+	BrowserMode,
+	SessionData,
+} from "mix-typescript-sdk/models/sessiondata.js";
 import { toast } from "sonner";
 import { CACHE_KEYS } from "@/lib/cache-keys";
 import { mix } from "@/lib/mix-sdk";
@@ -7,10 +10,16 @@ import type { Session } from "@/types/common";
 
 interface CreateSessionParams {
 	title: string;
+	browserMode: BrowserMode;
+	cdpUrl?: string;
 }
 
 async function createSession(params: CreateSessionParams): Promise<Session> {
-	const response = await mix.sessions.create(params);
+	const response = await mix.sessions.create({
+		title: params.title,
+		browserMode: params.browserMode,
+		cdpUrl: params.cdpUrl,
+	});
 
 	return {
 		id: response.id,
