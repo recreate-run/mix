@@ -218,11 +218,19 @@ func loadDatabaseConfig() database.Config {
 			URL:       os.Getenv("MIX_DB_TURSO_URL"),
 			AuthToken: os.Getenv("MIX_DB_TURSO_AUTH_TOKEN"),
 		},
+		Postgres: database.PostgresConfig{
+			Host:     getEnvOrDefault("MIX_DB_POSTGRES_HOST", "localhost"),
+			Port:     getEnvIntOrDefault("MIX_DB_POSTGRES_PORT", 5432),
+			Database: getEnvOrDefault("MIX_DB_POSTGRES_DB", "mix_dev"),
+			User:     getEnvOrDefault("MIX_DB_POSTGRES_USER", "mix"),
+			Password: os.Getenv("MIX_DB_POSTGRES_PASSWORD"),
+			SSLMode:  getEnvOrDefault("MIX_DB_POSTGRES_SSL_MODE", "disable"),
+		},
 	}
 
 	// Validate the database type
 	switch config.Type {
-	case database.ProviderSQLite, database.ProviderTurso:
+	case database.ProviderSQLite, database.ProviderTurso, database.ProviderPostgres:
 		// Valid types
 	default:
 		logging.Debug("Invalid database type, defaulting to SQLite", "type", dbType)
@@ -236,6 +244,17 @@ func loadDatabaseConfig() database.Config {
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+// getEnvIntOrDefault gets environment variable as int or returns default value
+func getEnvIntOrDefault(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		var intValue int
+		if _, err := fmt.Sscanf(value, "%d", &intValue); err == nil {
+			return intValue
+		}
 	}
 	return defaultValue
 }

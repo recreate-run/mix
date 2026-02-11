@@ -27,15 +27,17 @@ type Provider interface {
 type ProviderType string
 
 const (
-	ProviderSQLite ProviderType = "sqlite"
-	ProviderTurso  ProviderType = "turso"
+	ProviderSQLite   ProviderType = "sqlite"
+	ProviderTurso    ProviderType = "turso"
+	ProviderPostgres ProviderType = "postgres"
 )
 
 // Config holds database configuration
 type Config struct {
-	Type   ProviderType `json:"type"`
-	SQLite SQLiteConfig `json:"sqlite"`
-	Turso  TursoConfig  `json:"turso"`
+	Type     ProviderType   `json:"type"`
+	SQLite   SQLiteConfig   `json:"sqlite"`
+	Turso    TursoConfig    `json:"turso"`
+	Postgres PostgresConfig `json:"postgres"`
 }
 
 // SQLiteConfig holds SQLite-specific configuration
@@ -48,4 +50,14 @@ type SQLiteConfig struct {
 type TursoConfig struct {
 	URL       string `json:"url"`       // libsql://[databaseId]-[organizationName].turso.io
 	AuthToken string `json:"authToken"` // Turso auth token
+}
+
+// PostgresConfig holds PostgreSQL-specific configuration
+type PostgresConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	SSLMode  string `json:"sslMode"` // disable, require, verify-full
 }

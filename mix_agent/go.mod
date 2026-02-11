@@ -30,6 +30,7 @@ require (
 	github.com/coder/websocket v1.8.13
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
 )
 
 require (

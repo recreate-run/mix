@@ -75,9 +75,18 @@ uv run examples/web_search_multimodal.py
 uv run examples/system_prompt_change.py
 ```
 
+## Database Support
+
+Mix supports multiple database backends via environment configuration:
+
+- **SQLite** (default) - Zero-config file-based storage for local development
+- **PostgreSQL** - Production-ready with Docker Compose setup (`task db-up`)
+- **Turso** - Distributed edge SQLite for global deployments
+
+Switch providers by setting `MIX_DB_TYPE` in `.env`. See [DATABASE_SETUP.md](DATABASE_SETUP.md) for configuration details.
+
 ## Roadmap
 
-- Support for hosted SQLite/LibSQL databases (eg. turso)
 - Image/Video generation
 - REST clients in other languages
 

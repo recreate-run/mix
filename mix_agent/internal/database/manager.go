@@ -21,6 +21,8 @@ func NewManager(config Config) (*Manager, error) {
 		provider = NewSQLiteProvider(config.SQLite)
 	case ProviderTurso:
 		provider = NewTursoProvider(config.Turso)
+	case ProviderPostgres:
+		provider = NewPostgresProvider(config.Postgres)
 	default:
 		return nil, fmt.Errorf("unsupported database provider type: %s", config.Type)
 	}
