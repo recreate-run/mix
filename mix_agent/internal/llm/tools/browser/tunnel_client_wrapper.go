@@ -22,6 +22,11 @@ import (
 	browserprotocol "github.com/sarathmenon/browser-service/pkg/protocol"
 )
 
+const (
+	imageFormatJPEG = "jpeg"
+	imageFormatPNG  = "png"
+)
+
 // tabInfo stores CDP-level identifiers for a tab
 type tabInfo struct {
 	friendlyID   string // "tab-1", "tab-2" (friendly ID for LLM)
@@ -363,8 +368,8 @@ func (t *TunnelClientWrapper) Screenshot(ctx context.Context, params browserprot
 		screenshotParams.Quality = params.Quality
 	}
 
-	if params.Format == "jpeg" {
-		screenshotParams.Format = "jpeg"
+	if params.Format == imageFormatJPEG {
+		screenshotParams.Format = imageFormatJPEG
 	}
 
 	result, err := t.sendCommand(ctx, "Page.captureScreenshot", screenshotParams, cdpSessionID)

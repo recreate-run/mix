@@ -80,7 +80,9 @@ func NewClient(config FactoryConfig, sessionID string) (Client, error) {
 		if config.CDPURL == "" {
 			return nil, fmt.Errorf("CDP URL required for remote-cdp-websocket mode")
 		}
-		return nil, fmt.Errorf("remote CDP mode not yet implemented")
+		// Remote CDP clients are created directly in browser tool's getClient() method
+		// This factory pattern is only used for tunnel mode
+		return nil, fmt.Errorf("remote CDP mode uses direct client creation, not factory pattern")
 
 	default:
 		return nil, fmt.Errorf("unknown browser mode: %s (must be 'electron-embedded-browser', 'local-browser-service', or 'remote-cdp-websocket')", config.Mode)

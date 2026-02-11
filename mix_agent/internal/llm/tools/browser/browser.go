@@ -59,6 +59,8 @@ type browserTool struct {
 	browserServiceURL    string                          // URL for browser-service
 	tunnelClients        map[string]*TunnelClientWrapper // Cache tunnel clients per session
 	tunnelClientsMu      sync.RWMutex                    // Protect tunnel clients cache
+	remoteCDPClients     map[string]*RemoteCDPClient     // Cache remote CDP clients per session
+	remoteCDPClientsMu   sync.RWMutex                    // Protect remote CDP clients cache
 }
 
 // NewBrowserTool creates a new browser tool instance
@@ -93,6 +95,7 @@ func NewBrowserTool(permissions permission.Service, sessions session.Service, br
 		tunnelRegistryGetter: tunnelRegistryGetter,
 		browserServiceURL:    browserServiceURL,
 		tunnelClients:        make(map[string]*TunnelClientWrapper),
+		remoteCDPClients:     make(map[string]*RemoteCDPClient),
 	}
 }
 
@@ -129,8 +132,28 @@ func (b *browserTool) getClient(ctx context.Context, sessionID string) (BrowserC
 		return b.connectionManager.GetOrCreate(ctx, sessionID)
 
 	case browserpkg.ModeRemoteCDP:
-		// TODO: Implement rod client for remote CDP
-		return nil, fmt.Errorf("remote CDP mode not yet implemented")
+		// Remote CDP mode: get or create cached client
+		b.remoteCDPClientsMu.Lock()
+		defer b.remoteCDPClientsMu.Unlock()
+
+		// Return existing client if cached
+		if client, exists := b.remoteCDPClients[sessionID]; exists {
+			return client, nil
+		}
+
+		// Validate CDP URL
+		if sess.CdpUrl == "" {
+			return nil, fmt.Errorf("CDP URL is required for remote-cdp-websocket mode")
+		}
+
+		// Create new client and cache it
+		client, err := NewRemoteCDPClient(ctx, sess.CdpUrl)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create remote CDP client: %w", err)
+		}
+
+		b.remoteCDPClients[sessionID] = client
+		return client, nil
 
 	case browserpkg.ModeElectronEmbedded:
 		// Tunnel mode: get or create cached client
