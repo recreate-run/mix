@@ -156,6 +156,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 			browserClientFactory,
 			browserConnectionManager,
 			func() interface{} { return app.TunnelRegistry }, // Closure that looks up current value
+			app.BaseURL,
 		),
 		storageConfig,
 		app.Permissions, // Pass permissions for callback executor

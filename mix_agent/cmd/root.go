@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 
 	"mix/internal/app"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/database"
 	"mix/internal/format"
 	httphandlers "mix/internal/http"
@@ -101,7 +101,7 @@ and content creation workflows.`,
 			return fmt.Errorf("failed to create database manager: %w", err)
 		}
 
-		dbCtx, dbCancel := context.WithTimeout(ctx, 30*time.Second)
+		dbCtx, dbCancel := context.WithTimeout(ctx, constants.DatabaseConnectionTimeout)
 		defer dbCancel()
 
 		err = dbManager.Connect(dbCtx)
@@ -122,6 +122,20 @@ and content creation workflows.`,
 
 		// HTTP server mode (blocks, no other modes)
 		if httpPort > 0 {
+			// Override BaseURL if it doesn't match the HTTP server port
+			// This ensures screenshot URLs and file URLs use the correct server address
+			if httpHost == "" {
+				httpHost = "localhost"
+			}
+			expectedBaseURL := fmt.Sprintf("http://%s:%d", httpHost, httpPort)
+			if appInstance.BaseURL != expectedBaseURL {
+				logging.Warn("BaseURL mismatch detected",
+					"configured", appInstance.BaseURL,
+					"expected", expectedBaseURL,
+					"action", "overriding to match HTTP server")
+				appInstance.BaseURL = expectedBaseURL
+			}
+
 			return httphandlers.StartServer(ctx, appInstance, httpHost, httpPort)
 		}
 
@@ -146,7 +160,7 @@ func initMCPTools(ctx context.Context, appInstance *app.App) {
 		defer logging.RecoverPanic("MCP-goroutine", nil)
 
 		// Create a context with timeout for the initial MCP tools fetch
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, constants.MCPInitTimeout)
 		defer cancel()
 
 		// Set this up once with proper error handling
@@ -168,7 +182,7 @@ func runQuery(ctx context.Context, appInstance *app.App, queryType, outputFormat
 
 	result, err := handler.HandleQueryType(ctx, queryType)
 	if err != nil {
-		return fmt.Errorf("query error: %s", err.Error())
+		return fmt.Errorf("query error: %w", err)
 	}
 
 	// Format output

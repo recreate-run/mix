@@ -542,7 +542,7 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 		if os.IsNotExist(err) {
 			return false, nil // File doesn't exist in session storage, try shared storage
 		}
-		return false, fmt.Errorf("invalid filename or path traversal attempt: %s", err.Error())
+		return false, fmt.Errorf("invalid filename or path traversal attempt: %w", err)
 	}
 
 	// Don't serve directories

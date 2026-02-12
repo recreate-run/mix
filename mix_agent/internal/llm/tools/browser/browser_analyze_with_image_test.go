@@ -178,13 +178,15 @@ func TestBrowserTool_AnalyzeScreenshot_WithRealImage_Integration(t *testing.T) {
 	}
 
 	tool := NewBrowserTool(
-		nil, // permissions not needed for test
+		nil,              // permissions not needed for test
+		&MockSessionService{}, // sessions
 		mockServer.wsURL,
 		sessionConfig,
 		"local-browser-service",
 		nil, // client factory not needed
 		nil, // connection manager
 		nil, // tunnel registry getter
+		"",  // baseURL not needed for test
 	)
 
 	// Create context with session info

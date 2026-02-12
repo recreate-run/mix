@@ -66,7 +66,7 @@ type browserTool struct {
 }
 
 // NewBrowserTool creates a new browser tool instance
-func NewBrowserTool(permissions permission.Service, sessions session.Service, browserServiceURL string, sessionConfig session.Config, browserMode string, clientFactory ClientFactory, connectionManager interface{}, tunnelRegistryGetter func() interface{}) interfaces.BaseTool {
+func NewBrowserTool(permissions permission.Service, sessions session.Service, browserServiceURL string, sessionConfig session.Config, browserMode string, clientFactory ClientFactory, connectionManager interface{}, tunnelRegistryGetter func() interface{}, baseURL string) interfaces.BaseTool {
 	// Default to local-browser-service mode if not specified
 	if browserMode == "" {
 		browserMode = browserpkg.ModeLocalBrowserService
@@ -90,7 +90,7 @@ func NewBrowserTool(permissions permission.Service, sessions session.Service, br
 		sessions:             sessions,
 		connectionManager:    connMgr,
 		sessionConfig:        sessionConfig,
-		baseURL:              getBaseURL(),
+		baseURL:              baseURL,
 		elementCache:         make(map[string]map[int]int64),
 		browserMode:          browserMode,
 		clientFactory:        clientFactory,
@@ -98,7 +98,7 @@ func NewBrowserTool(permissions permission.Service, sessions session.Service, br
 		browserServiceURL:    browserServiceURL,
 		tunnelClients:        make(map[string]*TunnelClientWrapper),
 		remoteCDPClients:     make(map[string]*RemoteCDPClient),
-		screenshotStorage:    storage.NewStorage(sessionConfig.BasePath, getBaseURL()),
+		screenshotStorage:    storage.NewStorage(sessionConfig.BasePath, baseURL),
 	}
 }
 
@@ -2078,16 +2078,3 @@ func loadBrowserDescription() string {
 	return tools.LoadToolDescription("browser")
 }
 
-// getBaseURL returns the base URL for file access
-func getBaseURL() string {
-	// Backend API URL for serving screenshots via HTTP endpoint
-	// Try BACKEND_URL first, then BASE_URL, then default to localhost:8088
-	baseURL := os.Getenv("BACKEND_URL")
-	if baseURL == "" {
-		baseURL = os.Getenv("BASE_URL")
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost:8088"
-	}
-	return baseURL
-}

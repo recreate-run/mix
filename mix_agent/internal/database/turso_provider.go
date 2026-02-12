@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/pressly/goose/v3"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 
+	"mix/internal/constants"
 	"mix/internal/db"
 	"mix/internal/logging"
 )
@@ -49,7 +49,7 @@ func (p *TursoProvider) Connect(ctx context.Context) error {
 	p.db = sqlDB
 
 	// Verify connection with timeout
-	pingCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, constants.DatabaseConnectionTimeout)
 	defer cancel()
 	if err = p.db.PingContext(pingCtx); err != nil {
 		_ = p.db.Close() // Ignore close error in cleanup path
@@ -113,7 +113,7 @@ func (p *TursoProvider) RunMigrations(ctx context.Context) error {
 	}
 
 	// Run migrations with timeout
-	migrationCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	migrationCtx, cancel := context.WithTimeout(ctx, constants.DatabaseMigrationTimeout)
 	defer cancel()
 
 	if err := goose.UpContext(migrationCtx, p.db, "migrations"); err != nil {

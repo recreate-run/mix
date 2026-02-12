@@ -195,7 +195,7 @@ func TestBrowserParamsJSONSerialization(t *testing.T) {
 func TestNewBrowserTool(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	assert.NotNil(t, tool)
 	assert.Implements(t, (*interfaces.BaseTool)(nil), tool)
@@ -212,7 +212,7 @@ func TestNewBrowserTool(t *testing.T) {
 func TestBrowserToolInfo(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	info := tool.Info()
 
@@ -278,7 +278,7 @@ func createBrowserTestContext(sessionID, messageID, storageDir string) context.C
 func TestBrowserToolRunInvalidJSON(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -298,7 +298,7 @@ func TestBrowserToolRunInvalidJSON(t *testing.T) {
 func TestBrowserToolRunMissingAction(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -318,7 +318,7 @@ func TestBrowserToolRunMissingAction(t *testing.T) {
 func TestBrowserToolRunUnknownAction(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -338,7 +338,7 @@ func TestBrowserToolRunUnknownAction(t *testing.T) {
 func TestBrowserToolRunContextValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	tests := []struct {
 		name        string
@@ -399,7 +399,7 @@ func TestBrowserToolRunContextValidation(t *testing.T) {
 func TestBrowserToolOpenValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	tests := []struct {
 		name     string
@@ -445,7 +445,7 @@ func TestBrowserToolOpenValidation(t *testing.T) {
 func TestBrowserToolFileURLSupport(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	// Create a temporary session directory and test file
 	sessionID := "test-session-123"
@@ -516,7 +516,7 @@ func TestBrowserToolFileURLSupport(t *testing.T) {
 func TestBrowserToolTypeValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -536,7 +536,7 @@ func TestBrowserToolTypeValidation(t *testing.T) {
 func TestBrowserToolScrollValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	tests := []struct {
 		name     string
@@ -581,7 +581,7 @@ func TestBrowserToolOpenPermissionDenied(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -600,49 +600,6 @@ func TestBrowserToolOpenPermissionDenied(t *testing.T) {
 	mockPermissionService.AssertExpectations(t)
 }
 
-// Test getBaseURL function
-func TestGetBaseURL(t *testing.T) {
-	tests := []struct {
-		name         string
-		frontendURL  string
-		baseURL      string
-		expectedURL  string
-	}{
-		{
-			name:        "FRONTEND_URL set",
-			frontendURL: "https://frontend.example.com",
-			baseURL:     "",
-			expectedURL: "https://frontend.example.com",
-		},
-		{
-			name:        "BASE_URL set when FRONTEND_URL empty",
-			frontendURL: "",
-			baseURL:     "https://base.example.com",
-			expectedURL: "https://base.example.com",
-		},
-		{
-			name:        "default when both empty",
-			frontendURL: "",
-			baseURL:     "",
-			expectedURL: "http://localhost:3020",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variables
-			if tt.frontendURL != "" {
-				t.Setenv("FRONTEND_URL", tt.frontendURL)
-			}
-			if tt.baseURL != "" {
-				t.Setenv("BASE_URL", tt.baseURL)
-			}
-
-			result := getBaseURL()
-			assert.Equal(t, tt.expectedURL, result)
-		})
-	}
-}
 
 // Test scroll direction validation with valid directions
 func TestScrollDirectionValidation(t *testing.T) {
@@ -681,7 +638,7 @@ func TestNewActionConstants(t *testing.T) {
 func TestBrowserToolKeyValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -701,7 +658,7 @@ func TestBrowserToolKeyValidation(t *testing.T) {
 func TestBrowserToolKeyValidInput(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	tests := []struct {
 		name  string
@@ -750,7 +707,7 @@ func TestBrowserToolKeyValidInput(t *testing.T) {
 func TestBrowserToolScrollToValidation(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -774,7 +731,7 @@ func TestBrowserToolScrollToValidation(t *testing.T) {
 func TestBrowserToolActionSequenceEmptyArray(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", "/tmp/test")
 	call := interfaces.ToolCall{
@@ -794,7 +751,7 @@ func TestBrowserToolActionSequenceEmptyArray(t *testing.T) {
 func TestBrowserToolActionSequenceValidActions(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	input := `{
 		"action": "action",
@@ -958,7 +915,7 @@ func TestSubActionSerialization(t *testing.T) {
 func TestBrowserToolInfoIncludesNewActions(t *testing.T) {
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	info := tool.Info()
 

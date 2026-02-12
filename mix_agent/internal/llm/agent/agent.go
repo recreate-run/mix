@@ -876,7 +876,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	case interfaces.EventContentStart:
 		// Content block starting - no action needed
 		// The actual content will arrive via EventContentDelta events
-		return nil, nil
+		return &interfaces.TokenUsage{}, nil
 	case interfaces.EventThinkingDelta:
 		// Claude thinking delta received
 		assistantMsg.AppendReasoningContent(event.Thinking)
@@ -920,7 +920,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		// Content block finished - no action needed
 		// Final content state is already accumulated via EventContentDelta
 		// EventComplete will follow with finish reason and token usage
-		return nil, nil
+		return &interfaces.TokenUsage{}, nil
 	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
 
@@ -1011,7 +1011,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		if event.Error != nil {
 			logging.Warn("Provider warning: %v", event.Error)
 		}
-		return nil, nil
+		return &interfaces.TokenUsage{}, nil
 	case interfaces.EventError:
 		// Store current state before error
 		a.accumulator.Store(assistantMsg)

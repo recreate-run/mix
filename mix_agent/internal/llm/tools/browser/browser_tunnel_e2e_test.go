@@ -398,7 +398,7 @@ func TestBrowserToolTunnelIntegrationE2E(t *testing.T) {
 	}
 
 	// Create browser tool with tunnel registry getter
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://unused:9999", sessionConfig, browserpkg.ModeElectronEmbedded, tunnelFactory, nil, func() interface{} { return tunnelRegistry })
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://unused:9999", sessionConfig, browserpkg.ModeElectronEmbedded, tunnelFactory, nil, func() interface{} { return tunnelRegistry }, "http://localhost:8081")
 
 	tempDir := t.TempDir()
 	ctx := createBrowserTestContext(sessionID, "test-message", tempDir)
@@ -546,7 +546,7 @@ func TestBrowserToolTunnelConnectionFallback(t *testing.T) {
 		return nil, ErrMockFactoryNotConfigured
 	}
 
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, browserpkg.ModeLocalBrowserService, serviceFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, browserpkg.ModeLocalBrowserService, serviceFactory, nil, nil, "")
 
 	tempDir := t.TempDir()
 	sessionID := "fallback-session"

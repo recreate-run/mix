@@ -21,7 +21,7 @@ func TestNewActionsE2E(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	sessionID := "e2e-test-session"
 	ctx := createBrowserTestContext(sessionID, "message-1", t.TempDir())
@@ -155,7 +155,7 @@ func TestActionBatchingValidation(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", t.TempDir())
 
@@ -216,7 +216,7 @@ func TestKeyActionIntegration(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	sessionID := "key-test-session"
 	ctx := createBrowserTestContext(sessionID, "message-1", t.TempDir())
@@ -289,7 +289,7 @@ func TestScrollToActionIntegration(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	sessionID := "scroll-test-session"
 	ctx := createBrowserTestContext(sessionID, "message-1", t.TempDir())

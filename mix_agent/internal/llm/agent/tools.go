@@ -23,6 +23,7 @@ func CoderAgentTools(
 	clientFactory browser.ClientFactory,
 	connectionManager interface{},
 	tunnelRegistryGetter func() interface{},
+	baseURL string,
 ) []tools.BaseTool {
 	// Don't block on MCP tools during initialization - they will be loaded in the background
 	// and available when first needed (lazy loading happens in GetClient)
@@ -43,7 +44,7 @@ func CoderAgentTools(
 		tools.NewExitPlanModeTool(),
 		// tools.NewShowTool(),
 		tools.NewNotifyTool(notifications),
-		browser.NewBrowserTool(permissions, sessions, browserServiceURL, session.DefaultConfig(), browserMode, clientFactory, connectionManager, tunnelRegistryGetter),
+		browser.NewBrowserTool(permissions, sessions, browserServiceURL, session.DefaultConfig(), browserMode, clientFactory, connectionManager, tunnelRegistryGetter, baseURL),
 		NewTaskTool(sessions, messages, permissions),
 	}
 }
