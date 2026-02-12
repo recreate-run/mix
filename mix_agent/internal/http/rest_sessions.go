@@ -459,11 +459,11 @@ func (h *SessionHandler) findRewindPoint(ctx context.Context, sessionID, message
 		return nil, fmt.Errorf("fetching messages: %w", err)
 	}
 
-	for i, msg := range allMessages {
-		if msg.ID == messageID {
+	for i := range allMessages {
+		if allMessages[i].ID == messageID {
 			// Use the timestamp of the NEXT message (first to delete) if it exists
 			// Otherwise use the rewind message timestamp (no cleanup needed)
-			cleanupTimestamp := msg.CreatedAt
+			cleanupTimestamp := allMessages[i].CreatedAt
 			if i+1 < len(allMessages) {
 				cleanupTimestamp = allMessages[i+1].CreatedAt
 			}

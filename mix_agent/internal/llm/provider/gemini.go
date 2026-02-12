@@ -58,7 +58,8 @@ func newGeminiClient(opts providerClientOptions) GeminiClient {
 
 func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Content {
 	var history []*genai.Content
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		switch msg.Role {
 		case message.User:
 			var parts []*genai.Part
@@ -160,9 +161,9 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 				}
 
 				var toolCall message.ToolCall
-				for _, m := range messages {
-					if m.Role == message.Assistant {
-						for _, call := range m.ToolCalls() {
+				for j := range messages {
+					if messages[j].Role == message.Assistant {
+						for _, call := range messages[j].ToolCalls() {
 							if call.ID == result.ToolCallID {
 								toolCall = call
 								break
@@ -819,7 +820,8 @@ func (g *geminiClient) getMediaResolutionForMessages(messages []message.Message)
 	// Scan messages for media content
 	highestResolution := genai.MediaResolutionUnspecified
 
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		// Check binary content
 		for _, binaryContent := range msg.BinaryContent() {
 			resolution := g.determineMediaResolution(binaryContent.MIMEType)

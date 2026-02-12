@@ -196,12 +196,12 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 }
 
 func (p *baseProvider[C]) cleanMessages(messages []message.Message) (cleaned []message.Message) {
-	for _, msg := range messages {
+	for i := range messages {
 		// The message has no content
-		if len(msg.Parts) == 0 {
+		if len(messages[i].Parts) == 0 {
 			continue
 		}
-		cleaned = append(cleaned, msg)
+		cleaned = append(cleaned, messages[i])
 	}
 	return
 }

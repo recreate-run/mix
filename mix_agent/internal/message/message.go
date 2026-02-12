@@ -140,8 +140,8 @@ func (s *service) List(ctx context.Context, sessionID string) ([]Message, error)
 		return nil, err
 	}
 	messages := make([]Message, len(dbMessages))
-	for i, dbMessage := range dbMessages {
-		messages[i], err = s.fromDBItem(dbMessage)
+	for i := range dbMessages {
+		messages[i], err = s.fromDBItem(dbMessages[i])
 		if err != nil {
 			return nil, err
 		}
@@ -158,8 +158,8 @@ func (s *service) ListUserMessageHistory(ctx context.Context, limit, offset int6
 		return nil, err
 	}
 	messages := make([]Message, len(dbMessages))
-	for i, dbMessage := range dbMessages {
-		messages[i], err = s.fromDBItem(dbMessage)
+	for i := range dbMessages {
+		messages[i], err = s.fromDBItem(dbMessages[i])
 		if err != nil {
 			return nil, err
 		}

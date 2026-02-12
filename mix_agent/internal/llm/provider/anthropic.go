@@ -156,7 +156,8 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 }
 
 func (a *anthropicClient) convertMessages(messages []message.Message) (anthropicMessages []anthropic.MessageParam) {
-	for i, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		cache := false
 		if i > len(messages)-3 {
 			cache = true

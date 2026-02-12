@@ -522,9 +522,9 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 	// Pass 1: Build global map of all tool results from all messages
 	// Tool results are stored in separate messages with role='tool', not embedded in assistant messages
 	allToolResults := make(map[string]message.ToolResult)
-	for _, msg := range messages {
-		if msg.Role == message.Tool {
-			for _, tr := range msg.ToolResults() {
+	for i := range messages {
+		if messages[i].Role == message.Tool {
+			for _, tr := range messages[i].ToolResults() {
 				allToolResults[tr.ToolCallID] = tr
 			}
 		}
@@ -532,7 +532,8 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 
 	// Pass 2: Process messages and attach tool results to tool calls
 	result := []MessageData{}
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		// Extract tool calls and match with tool results
 		toolCalls := msg.ToolCalls()
 		callbackResults := msg.CallbackResults()
@@ -640,7 +641,8 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 func (h *MessageHandler) convertToExportSession(sess session.Session, messages []message.Message) ExportSession {
 	exportMessages := make([]ExportMessage, 0, len(messages))
 
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		exportMsg := ExportMessage{
 			ID:        msg.ID,
 			Role:      string(msg.Role),

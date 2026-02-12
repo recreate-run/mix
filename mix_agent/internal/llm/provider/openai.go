@@ -146,7 +146,8 @@ func (o *openaiClient) convertMessages(messages []message.Message) (openaiMessag
 	// Add system message first
 	openaiMessages = append(openaiMessages, openai.SystemMessage(o.providerOptions.systemMessage))
 
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		switch msg.Role {
 		case message.User:
 			var content []openai.ChatCompletionContentPartUnionParam
