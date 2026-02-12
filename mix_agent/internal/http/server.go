@@ -33,6 +33,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	authHandler := NewAuthHandler(a)
 	toolsHandler := NewToolsHandler(a)
 	systemInfoHandler := NewSystemInfoHandler(a)
+	screenshotHandler := NewScreenshotHandler(a)
 
 	// Create session-aware asset handler
 	fileHandler := NewFileHandler(a)
@@ -174,6 +175,9 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	mux.HandleFunc("GET /api/sessions/{id}/files", fileHandler.HandleListFiles)
 	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
 	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
+
+	// Screenshot endpoints
+	mux.HandleFunc("GET /api/sessions/{sessionID}/screenshots/{filename}", screenshotHandler.HandleGetScreenshot)
 
 	// REST API Endpoints
 

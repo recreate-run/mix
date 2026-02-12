@@ -24,6 +24,7 @@ import (
 	"mix/internal/logging"
 	"mix/internal/permission"
 	"mix/internal/session"
+	"mix/internal/storage"
 )
 
 const (
@@ -61,6 +62,7 @@ type browserTool struct {
 	tunnelClientsMu      sync.RWMutex                    // Protect tunnel clients cache
 	remoteCDPClients     map[string]*RemoteCDPClient     // Cache remote CDP clients per session
 	remoteCDPClientsMu   sync.RWMutex                    // Protect remote CDP clients cache
+	screenshotStorage    storage.ScreenshotStorage       // Storage for analyze_screenshot screenshots
 }
 
 // NewBrowserTool creates a new browser tool instance
@@ -96,6 +98,7 @@ func NewBrowserTool(permissions permission.Service, sessions session.Service, br
 		browserServiceURL:    browserServiceURL,
 		tunnelClients:        make(map[string]*TunnelClientWrapper),
 		remoteCDPClients:     make(map[string]*RemoteCDPClient),
+		screenshotStorage:    storage.NewStorage(sessionConfig.BasePath, getBaseURL()),
 	}
 }
 
@@ -337,6 +340,14 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 	if err != nil {
 		return interfaces.ToolResponse{}, err
 	}
+
+	// TODO: Implement screenshot capture based on session.EnableScreenshotCapture flag
+	// 1. Fetch session config: sess, err := b.sessions.Get(ctx, sessionID)
+	// 2. If sess.EnableScreenshotCapture is true, capture screenshot after each action
+	// 3. Upload screenshot to storage (S3/CDN) and get URL
+	// 4. Add URL to ToolResponse.ScreenshotUrls field (needs to be added first)
+	// 5. Screenshots should be lightweight transient URLs, not base64 data
+	// Note: The commented-out handleScreenshot method below may serve as reference implementation
 
 	// Add timeout to context
 	ctx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)

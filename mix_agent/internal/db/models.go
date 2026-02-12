@@ -28,14 +28,19 @@ type File struct {
 }
 
 type Message struct {
-	ID         string         `json:"id"`
-	SessionID  string         `json:"session_id"`
-	Role       string         `json:"role"`
-	Parts      string         `json:"parts"`
-	Model      sql.NullString `json:"model"`
-	CreatedAt  int64          `json:"created_at"`
-	UpdatedAt  int64          `json:"updated_at"`
-	FinishedAt sql.NullInt64  `json:"finished_at"`
+	ID                  string          `json:"id"`
+	SessionID           string          `json:"session_id"`
+	Role                string          `json:"role"`
+	Parts               string          `json:"parts"`
+	Model               sql.NullString  `json:"model"`
+	CreatedAt           int64           `json:"created_at"`
+	UpdatedAt           int64           `json:"updated_at"`
+	FinishedAt          sql.NullInt64   `json:"finished_at"`
+	InputTokens         sql.NullInt64   `json:"input_tokens"`
+	OutputTokens        sql.NullInt64   `json:"output_tokens"`
+	CacheCreationTokens sql.NullInt64   `json:"cache_creation_tokens"`
+	CacheReadTokens     sql.NullInt64   `json:"cache_read_tokens"`
+	Cost                sql.NullFloat64 `json:"cost"`
 }
 
 type OauthCredential struct {

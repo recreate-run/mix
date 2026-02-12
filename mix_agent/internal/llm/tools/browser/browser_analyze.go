@@ -63,6 +63,13 @@ func (b *browserTool) handleAnalyzeScreenshot(ctx context.Context, params Browse
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to decode screenshot: %v", err))
 	}
 
+	// Save screenshot and get URL
+	screenshotURL, err := b.screenshotStorage.Save(ctx, sessionID, imageData)
+	if err != nil {
+		// Log error but continue (screenshot saving is non-critical)
+		fmt.Printf("[WARN] Failed to save screenshot: %v\n", err)
+	}
+
 	// Get actual image dimensions (required for coordinate conversion)
 	imageWidth, imageHeight, err := getImageDimensions(imageData)
 	if err != nil {
@@ -102,6 +109,12 @@ func (b *browserTool) handleAnalyzeScreenshot(ctx context.Context, params Browse
 		return interfaces.NewTextErrorResponse("No response received from Gemini")
 	}
 
+	// Build screenshot URLs array (only if save succeeded)
+	var screenshotUrls []string
+	if screenshotURL != "" {
+		screenshotUrls = []string{screenshotURL}
+	}
+
 	// For bounding box responses, validate and format in read_page style
 	if useBoundingBox {
 		formattedResponse, err := formatBoundingBoxResponse(response.Content, imageWidth, imageHeight)
@@ -114,10 +127,18 @@ func (b *browserTool) handleAnalyzeScreenshot(ctx context.Context, params Browse
 			go visualizeBoundingBoxes(imageData, response.Content, imageWidth, imageHeight, params.Prompt)
 		}
 
-		return interfaces.NewTextResponse(formattedResponse)
+		return interfaces.ToolResponse{
+			Type:           interfaces.ToolResponseTypeText,
+			Content:        formattedResponse,
+			ScreenshotUrls: screenshotUrls,
+		}
 	}
 
-	return interfaces.NewTextResponse(response.Content)
+	return interfaces.ToolResponse{
+		Type:           interfaces.ToolResponseTypeText,
+		Content:        response.Content,
+		ScreenshotUrls: screenshotUrls,
+	}
 }
 
 // createGeminiProviderForAnalysis creates a Gemini provider for screenshot analysis

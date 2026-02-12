@@ -131,7 +131,7 @@ type Service interface {
 	Model() models.Model
 	GetBroker() *pubsub.Broker[AgentEvent]
 	Run(ctx context.Context, sessionID string, content string, attachments ...message.Attachment) (<-chan AgentEvent, error)
-	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, thinkingBudget *int, attachments ...message.Attachment) (<-chan AgentEvent, error)
+	RunWithPlanMode(ctx context.Context, sessionID string, content string, planMode bool, thinkingBudget *int, maxSteps *int, attachments ...message.Attachment) (<-chan AgentEvent, error)
 	Cancel(sessionID string)
 	CancelWithReason(sessionID string, reason string)
 	Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error)
@@ -355,10 +355,10 @@ func (a *agent) err(err error) AgentEvent {
 }
 
 func (a *agent) Run(ctx context.Context, sessionID, content string, attachments ...message.Attachment) (<-chan AgentEvent, error) {
-	return a.RunWithPlanMode(ctx, sessionID, content, false, nil, attachments...)
+	return a.RunWithPlanMode(ctx, sessionID, content, false, nil, nil, attachments...)
 }
 
-func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, planMode bool, thinkingBudget *int, attachments ...message.Attachment) (<-chan AgentEvent, error) {
+func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, planMode bool, thinkingBudget *int, maxSteps *int, attachments ...message.Attachment) (<-chan AgentEvent, error) {
 	if !a.provider.Model().SupportsAttachments && attachments != nil {
 		attachments = nil
 	}
@@ -421,7 +421,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, 
 			attachmentParts = append(attachmentParts, message.BinaryContent{Path: attachment.FilePath, MIMEType: attachment.MimeType, Data: attachment.Content})
 		}
 
-		result := a.processGeneration(genCtx, sessionID, content, attachmentParts)
+		result := a.processGeneration(genCtx, sessionID, content, attachmentParts, maxSteps)
 		if result.Error != nil && !errors.Is(result.Error, ErrRequestCancelled) && !errors.Is(result.Error, context.Canceled) {
 			logging.Error(result.Error.Error())
 		}
@@ -460,7 +460,7 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, 
 	return events, nil
 }
 
-func (a *agent) processGeneration(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) AgentEvent {
+func (a *agent) processGeneration(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart, maxSteps *int) AgentEvent {
 	// Starting message processing for session
 	_ = config.Get()
 
@@ -535,6 +535,13 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		// If agent used tools, continue to next turn (DB reload will get the latest state)
 		if hasTools {
 			conversationTurn++
+
+			// Check if max steps limit has been reached
+			if maxSteps != nil && conversationTurn > *maxSteps {
+				a.finishMessage(&agentMessage)
+				return a.err(fmt.Errorf("maximum iteration limit (%d steps) reached", *maxSteps))
+			}
+
 			continue
 		}
 
@@ -631,6 +638,7 @@ func shouldExcludeMessage(msg message.Message) bool {
 }
 
 func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (assistantMsg message.Message, toolResultMsg *message.Message, err error) {
+	var usage interfaces.TokenUsage
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
 
 	// Check authentication before processing
@@ -697,13 +705,33 @@ func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msg
 
 	// Process each event in the stream.
 	for event := range eventChan {
-		if processErr := a.processEvent(ctx, sessionID, &assistantMsg, event); processErr != nil {
+		eventUsage, processErr := a.processEvent(ctx, sessionID, &assistantMsg, event)
+		if processErr != nil {
 			a.finishMessage(&assistantMsg)
 			return assistantMsg, nil, processErr
+		}
+		// Capture usage from completion event
+		if eventUsage != nil {
+			usage = *eventUsage
 		}
 		if ctx.Err() != nil {
 			a.finishMessage(&assistantMsg)
 			return assistantMsg, nil, ctx.Err()
+		}
+	}
+
+	// Store token usage in message after finalization
+	if usage.InputTokens > 0 || usage.OutputTokens > 0 {
+		cost := a.calculateMessageCost(sessionProvider.Model(), usage)
+		assistantMsg.InputTokens = usage.InputTokens
+		assistantMsg.OutputTokens = usage.OutputTokens
+		assistantMsg.CacheCreationTokens = usage.CacheCreationTokens
+		assistantMsg.CacheReadTokens = usage.CacheReadTokens
+		assistantMsg.Cost = cost
+
+		// Update message in database with token data
+		if updateErr := a.messages.Update(ctx, assistantMsg); updateErr != nil {
+			logging.Error("Failed to update message with token usage", "error", updateErr, "messageID", assistantMsg.ID)
 		}
 	}
 
@@ -836,10 +864,10 @@ func (a *agent) finishMessage(msg *message.Message) {
 	_ = a.accumulator.FinalizeMessage(msg.ID, message.FinishReasonCanceled)
 }
 
-func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event interfaces.ProviderEvent) error {
+func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg *message.Message, event interfaces.ProviderEvent) (*interfaces.TokenUsage, error) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return nil, ctx.Err()
 	default:
 		// Continue processing.
 	}
@@ -854,7 +882,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 		// Update thinking content in accumulator
 		if err := a.accumulator.UpdateThinking(assistantMsg.ID, event.Thinking); err != nil {
-			return err
+			return nil, err
 		}
 
 		// Publish thinking event for real-time streaming
@@ -864,7 +892,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID: sessionID,
 			Thinking:  event.Thinking,
 		})
-		return err
+		return nil, err
 	case interfaces.EventContentDelta:
 		assistantMsg.AppendContent(event.Content)
 
@@ -873,7 +901,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 		// Update content in accumulator
 		if err := a.accumulator.UpdateContent(assistantMsg.ID, event.Content); err != nil {
-			return err
+			return nil, err
 		}
 
 		// Publish content delta event for real-time streaming
@@ -883,7 +911,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID: sessionID,
 			Content:   event.Content, // Send only the delta, not accumulated content
 		})
-		return err
+		return nil, err
 	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
 
@@ -892,7 +920,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 		// Flush immediately for tool events (they're less frequent)
 		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
-			return err
+			return nil, err
 		}
 
 		// Capture snapshot of tool call state at this moment to prevent race conditions
@@ -913,11 +941,11 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID:        sessionID,
 			ToolCallSnapshot: &toolCallSnapshot,
 		})
-		return err
+		return nil, err
 	case interfaces.EventToolUseDelta:
 		// Append partial tool input to the message
 		if err := assistantMsg.AppendToolCallInput(event.ToolCall.ID, event.ToolCall.Input); err != nil {
-			return fmt.Errorf("failed to append tool call input for tool %s: %w", event.ToolCall.ID, err)
+			return nil, fmt.Errorf("failed to append tool call input for tool %s: %w", event.ToolCall.ID, err)
 		}
 
 		// Store in accumulator without immediate flush
@@ -932,7 +960,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			ToolCallID: event.ToolCall.ID,
 			Content:    event.ToolCall.Input, // Send the delta JSON
 		})
-		return err
+		return nil, err
 	case interfaces.EventToolUseStop:
 		assistantMsg.FinishToolCall(event.ToolCall.ID)
 
@@ -941,7 +969,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 		// Flush immediately for tool events
 		if err := a.accumulator.FlushMessage(assistantMsg.ID); err != nil {
-			return err
+			return nil, err
 		}
 
 		// Find the completed tool call to capture its final state
@@ -968,7 +996,7 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			SessionID:        sessionID,
 			ToolCallSnapshot: toolCallSnapshot,
 		})
-		return err
+		return nil, err
 	case interfaces.EventError:
 		// Store current state before error
 		a.accumulator.Store(assistantMsg)
@@ -979,10 +1007,10 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 
 		if errors.Is(event.Error, context.Canceled) {
 			// Event processing canceled for session
-			return context.Canceled
+			return nil, context.Canceled
 		}
 		logging.Error(event.Error.Error())
-		return event.Error
+		return nil, event.Error
 	case interfaces.EventComplete:
 		// Note: We rely on manual accumulation during streaming (AddToolCall/AppendToolCallInput/FinishToolCall)
 		// rather than SDK's accumulated tool calls, since we unmarshal delta strings before concatenation.
@@ -1003,13 +1031,28 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		// Finalize message with the finish reason from response
 		// The finish reason is already set by AddFinish
 		if err := a.accumulator.FinalizeMessage(assistantMsg.ID, event.Response.FinishReason); err != nil {
-			return fmt.Errorf("failed to finalize message: %w", err)
+			return nil, fmt.Errorf("failed to finalize message: %w", err)
 		}
 
-		return a.TrackUsage(ctx, sessionID, a.provider.Model(), event.Response.Usage)
+		// Track session-level usage
+		if err := a.TrackUsage(ctx, sessionID, a.provider.Model(), event.Response.Usage); err != nil {
+			return nil, err
+		}
+
+		// Return usage so caller can store per-message tokens
+		return &event.Response.Usage, nil
 	}
 
-	return nil
+	return nil, nil
+}
+
+// calculateMessageCost calculates the cost for a single message based on token usage
+func (a *agent) calculateMessageCost(model models.Model, usage interfaces.TokenUsage) float64 {
+	cost := model.CostPer1MInCached/1e6*float64(usage.CacheCreationTokens) +
+		model.CostPer1MOutCached/1e6*float64(usage.CacheReadTokens) +
+		model.CostPer1MIn/1e6*float64(usage.InputTokens) +
+		model.CostPer1MOut/1e6*float64(usage.OutputTokens)
+	return cost
 }
 
 func (a *agent) TrackUsage(ctx context.Context, sessionID string, model models.Model, usage interfaces.TokenUsage) error {

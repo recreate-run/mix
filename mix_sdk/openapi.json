@@ -3290,6 +3290,7 @@
               "tool_execution_start",
               "tool_execution_complete",
               "permission",
+              "notification",
               "user_message_created",
               "session_created",
               "session_deleted"

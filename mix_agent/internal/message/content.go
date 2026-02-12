@@ -133,11 +133,12 @@ type ToolCall struct {
 func (ToolCall) isPart() {}
 
 type ToolResult struct {
-	ToolCallID string `json:"tool_call_id"`
-	Name       string `json:"name"`
-	Content    string `json:"content"`
-	Metadata   string `json:"metadata"`
-	IsError    bool   `json:"is_error"`
+	ToolCallID     string   `json:"tool_call_id"`
+	Name           string   `json:"name"`
+	Content        string   `json:"content"`
+	Metadata       string   `json:"metadata"`
+	IsError        bool     `json:"is_error"`
+	ScreenshotUrls []string `json:"screenshot_urls,omitempty"`
 }
 
 func (ToolResult) isPart() {}
@@ -174,13 +175,18 @@ type Finish struct {
 func (Finish) isPart() {}
 
 type Message struct {
-	ID        string
-	Role      MessageRole
-	SessionID string
-	Parts     []ContentPart
-	Model     models.ModelID
-	CreatedAt int64
-	UpdatedAt int64
+	ID                  string
+	Role                MessageRole
+	SessionID           string
+	Parts               []ContentPart
+	Model               models.ModelID
+	InputTokens         int64
+	OutputTokens        int64
+	CacheCreationTokens int64
+	CacheReadTokens     int64
+	Cost                float64
+	CreatedAt           int64
+	UpdatedAt           int64
 }
 
 func (m *Message) Content() TextContent {

@@ -11,6 +11,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -92,10 +94,14 @@ func parseJSONResponse(t *testing.T, resp *http.Response) map[string]interface{}
 }
 
 // waitForProcessing waits for message processing to complete
+// Processing is complete when the last message is an assistant message with no unfinished tool calls
 func waitForProcessing(t *testing.T, sessionID string, maxWait time.Duration) {
 	t.Helper()
 
 	deadline := time.Now().Add(maxWait)
+	lastMessageCount := 0
+	stableCount := 0
+
 	for time.Now().Before(deadline) {
 		resp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
 		body, err := io.ReadAll(resp.Body)
@@ -104,21 +110,91 @@ func waitForProcessing(t *testing.T, sessionID string, maxWait time.Duration) {
 			t.Fatalf("Failed to read response body: %v", err)
 		}
 
-		var messages []interface{}
+		var messages []map[string]interface{}
 		if err := json.Unmarshal(body, &messages); err != nil {
 			t.Fatalf("Failed to parse messages array: %v", err)
 		}
 
-		// Check if we have assistant messages (processing complete)
-		if len(messages) > 1 {
-			t.Log("✓ Message processing completed")
-			return
+		// Need at least user + assistant message
+		if len(messages) < 2 {
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
 
+		// Check if message count has stabilized (no new messages for 4 consecutive checks = 2 seconds)
+		if len(messages) == lastMessageCount {
+			stableCount++
+			if stableCount >= 4 {
+				// Verify last message is assistant role with finished/no tool calls
+				lastMsg := messages[len(messages)-1]
+				if role, ok := lastMsg["role"].(string); ok && role == "assistant" {
+					// Check if there are unfinished tool calls
+					hasUnfinishedTools := false
+					if toolCalls, ok := lastMsg["toolCalls"].([]interface{}); ok {
+						for _, tc := range toolCalls {
+							if toolCall, ok := tc.(map[string]interface{}); ok {
+								if finished, ok := toolCall["finished"].(bool); ok && !finished {
+									hasUnfinishedTools = true
+									break
+								}
+							}
+						}
+					}
+
+					if !hasUnfinishedTools {
+						t.Logf("✓ Message processing completed (%d messages)", len(messages))
+						return
+					}
+				}
+			}
+		} else {
+			stableCount = 0
+		}
+
+		lastMessageCount = len(messages)
 		time.Sleep(500 * time.Millisecond)
 	}
 
 	t.Fatal("Timeout waiting for message processing")
+}
+
+// startTestHTMLServer starts an HTTP server serving test HTML files from testdata
+func startTestHTMLServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	// Get the testdata directory relative to the test file
+	testdataDir := "testdata"
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Remove leading slash and construct file path
+		filename := strings.TrimPrefix(r.URL.Path, "/")
+		if filename == "" {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+
+		// Read the file from testdata
+		filepath := testdataDir + "/" + filename
+		content, err := os.ReadFile(filepath)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("File not found: %s", filename), http.StatusNotFound)
+			return
+		}
+
+		// Set content type based on file extension
+		if strings.HasSuffix(filename, ".html") {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		} else if strings.HasSuffix(filename, ".txt") {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(content)
+	})
+
+	server := httptest.NewServer(handler)
+	t.Logf("✓ Test HTML server started at %s", server.URL)
+	return server
 }
 
 // TestBrowserE2EFullWorkflow tests the complete user workflow
@@ -557,6 +633,158 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 
 	// Cleanup
 	t.Log("Cleaning up test session...")
+	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
+	defer func() { _ = deleteResp.Body.Close() }()
+
+	if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {
+		t.Logf("Warning: Failed to delete session: status %d", deleteResp.StatusCode)
+	} else {
+		t.Log("✓ Session cleaned up")
+	}
+
+	t.Log("=== E2E Test Completed Successfully ===")
+}
+
+// TestBrowserE2EScreenshotURL tests screenshot HTTP serving via analyze_screenshot
+func TestBrowserE2EScreenshotURL(t *testing.T) {
+	e2e.Setup(t)
+	skipIfBrowserServiceNotRunning(t)
+
+	t.Log("=== E2E Test: Screenshot URL Serving ===")
+
+	// Step 1: Create session
+	t.Log("Step 1: Creating session...")
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
+		"title":       "Screenshot URL Test",
+		"browserMode": "local-browser-service",
+	})
+	defer func() { _ = createResp.Body.Close() }()
+
+	if createResp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status 201, got %d", createResp.StatusCode)
+	}
+
+	sessionData := parseJSONResponse(t, createResp)
+	sessionID, ok := sessionData["id"].(string)
+	if !ok {
+		t.Fatal("Failed to get session ID from response")
+	}
+	t.Logf("✓ Created session: %s", sessionID)
+
+
+	// Step 2: Send message to analyze screenshot
+	t.Log("Step 2: Sending message to use analyze_screenshot...")
+	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
+		"text": "Navigate to https://example.com in the browser and analyze what you see on the page using a screenshot",
+	})
+	defer func() { _ = msgResp.Body.Close() }()
+
+	if msgResp.StatusCode != http.StatusAccepted {
+		t.Fatalf("Expected status 202 (Accepted), got %d", msgResp.StatusCode)
+	}
+	t.Log("✓ Message sent, processing started")
+
+	// Step 3: Wait for processing to complete
+	t.Log("Step 3: Waiting for agent to process message...")
+	waitForProcessing(t, sessionID, 120*time.Second)
+
+
+	// Step 4: Get messages and extract screenshot URL from tool results
+	t.Log("Step 4: Extracting screenshot URL from tool results...")
+	messagesResp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
+	defer func() { _ = messagesResp.Body.Close() }()
+
+	messagesBody, err := io.ReadAll(messagesResp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read messages response: %v", err)
+	}
+
+	var messages []map[string]interface{}
+	if err := json.Unmarshal(messagesBody, &messages); err != nil {
+		t.Fatalf("Failed to parse messages: %v", err)
+	}
+
+	// Debug: Print ALL fields in ALL messages
+	t.Logf("DEBUG: Received %d messages", len(messages))
+	for i, msg := range messages {
+		msgJSON, _ := json.MarshalIndent(msg, "", "  ")
+		t.Logf("DEBUG: Message %d (FULL):\n%s", i, string(msgJSON))
+
+		// Specifically check for important fields
+		if role, ok := msg["role"].(string); ok {
+			t.Logf("DEBUG: Message %d role: %s", i, role)
+		}
+		if content, ok := msg["assistantResponse"].(string); ok {
+			t.Logf("DEBUG: Message %d assistantResponse length: %d", i, len(content))
+		}
+		if toolCalls, ok := msg["toolCalls"].([]interface{}); ok {
+			t.Logf("DEBUG: Message %d has %d tool calls", i, len(toolCalls))
+		}
+	}
+
+	// Find screenshot URL in tool calls
+	var screenshotURL string
+	for _, msg := range messages {
+		if role, ok := msg["role"].(string); ok && role == "assistant" {
+			if toolCalls, ok := msg["toolCalls"].([]interface{}); ok {
+				for _, tc := range toolCalls {
+					if toolCall, ok := tc.(map[string]interface{}); ok {
+						if name, ok := toolCall["name"].(string); ok && name == "Browser" {
+							if screenshotUrls, ok := toolCall["screenshotUrls"].([]interface{}); ok && len(screenshotUrls) > 0 {
+								if url, ok := screenshotUrls[0].(string); ok {
+									screenshotURL = url
+									t.Logf("✓ Found screenshot URL: %s", screenshotURL)
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+			if screenshotURL != "" {
+				break
+			}
+		}
+	}
+
+	if screenshotURL == "" {
+		t.Fatal("No screenshot URL found in tool results")
+	}
+
+	// Step 5: Fetch screenshot via HTTP
+	t.Log("Step 5: Fetching screenshot via HTTP...")
+	imgResp := makeRequest(t, http.MethodGet, screenshotURL, nil)
+	defer func() { _ = imgResp.Body.Close() }()
+
+	if imgResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200 for screenshot, got %d", imgResp.StatusCode)
+	}
+
+	contentType := imgResp.Header.Get("Content-Type")
+	if contentType != "image/png" {
+		t.Fatalf("Expected Content-Type 'image/png', got '%s'", contentType)
+	}
+
+	cacheControl := imgResp.Header.Get("Cache-Control")
+	if !strings.Contains(cacheControl, "max-age") {
+		t.Logf("⚠ Warning: Cache-Control header not optimal: %s", cacheControl)
+	}
+
+	imgData, err := io.ReadAll(imgResp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read screenshot data: %v", err)
+	}
+
+	if len(imgData) == 0 {
+		t.Fatal("Screenshot data is empty")
+	}
+
+	t.Logf("✓ Screenshot fetched successfully (%d bytes)", len(imgData))
+	t.Logf("✓ Content-Type: %s", contentType)
+	t.Logf("✓ Cache-Control: %s", cacheControl)
+
+	// Step 6: Cleanup - delete session
+	t.Log("Step 6: Cleaning up test session...")
 	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 
