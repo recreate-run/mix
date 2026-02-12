@@ -13,6 +13,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/commands"
+	"mix/internal/constants"
 	"mix/internal/llm/agent"
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
@@ -202,7 +203,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -373,7 +374,7 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -404,7 +405,7 @@ func (h *MessageHandler) HandleMessageHistory(w http.ResponseWriter, r *http.Req
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -445,7 +446,7 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -474,7 +475,7 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -525,6 +526,12 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 	for i := range messages {
 		if messages[i].Role == message.Tool {
 			for _, tr := range messages[i].ToolResults() {
+				if _, exists := allToolResults[tr.ToolCallID]; exists {
+					logging.Warn("Duplicate tool result for tool call ID, overwriting",
+						"toolCallID", tr.ToolCallID,
+						"messageID", messages[i].ID,
+					)
+				}
 				allToolResults[tr.ToolCallID] = tr
 			}
 		}

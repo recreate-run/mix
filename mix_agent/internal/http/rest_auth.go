@@ -11,6 +11,7 @@ import (
 	"mix/internal/app"
 	"mix/internal/auth"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/credentials"
 	"mix/internal/llm/models"
 	llmprovider "mix/internal/llm/provider"
@@ -98,7 +99,7 @@ func (h *AuthHandler) HandleStoreAPIKey(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if r.Method != http.MethodPost {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -178,7 +179,7 @@ func (h *AuthHandler) HandleDeleteCredentials(w http.ResponseWriter, r *http.Req
 	}
 
 	if r.Method != http.MethodDelete {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -245,7 +246,7 @@ func (h *AuthHandler) HandleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodGet {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -263,7 +264,7 @@ func (h *AuthHandler) HandleStartOAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodPost {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -313,7 +314,7 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 	}
 
 	if r.Method != http.MethodGet {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -388,7 +389,7 @@ func (h *AuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request
 	}
 
 	if r.Method != http.MethodPost {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -616,7 +617,7 @@ func (h *AuthHandler) HandleRefreshTokens(w http.ResponseWriter, r *http.Request
 	}
 
 	if r.Method != http.MethodPost {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -647,7 +648,7 @@ func (h *AuthHandler) HandleOAuthHealth(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if r.Method != http.MethodGet {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 

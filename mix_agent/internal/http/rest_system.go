@@ -10,6 +10,7 @@ import (
 	"mix/internal/app"
 	"mix/internal/commands"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/llm/agent"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
@@ -85,7 +86,7 @@ func (h *SystemHandler) HandleSetAPIKey(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -119,7 +120,7 @@ func (h *SystemHandler) HandleListMCPServers(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -207,7 +208,7 @@ func (h *SystemHandler) HandleListCommands(w http.ResponseWriter, r *http.Reques
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -248,7 +249,7 @@ func (h *SystemHandler) HandleGetCommand(w http.ResponseWriter, r *http.Request)
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -296,7 +297,7 @@ func (h *SystemHandler) HandleGrantPermission(w http.ResponseWriter, r *http.Req
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -326,7 +327,7 @@ func (h *SystemHandler) HandleDenyPermission(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -356,7 +357,7 @@ func (h *SystemHandler) HandleNotificationRespond(w http.ResponseWriter, r *http
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 

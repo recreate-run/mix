@@ -2080,14 +2080,14 @@ func loadBrowserDescription() string {
 
 // getBaseURL returns the base URL for file access
 func getBaseURL() string {
-	// Frontend URL for serving session files (screenshots, etc)
-	// Try FRONTEND_URL first, then BASE_URL, then default to localhost:3020
-	baseURL := os.Getenv("FRONTEND_URL")
+	// Backend API URL for serving screenshots via HTTP endpoint
+	// Try BACKEND_URL first, then BASE_URL, then default to localhost:8088
+	baseURL := os.Getenv("BACKEND_URL")
 	if baseURL == "" {
 		baseURL = os.Getenv("BASE_URL")
 	}
 	if baseURL == "" {
-		baseURL = "http://localhost:3020"
+		baseURL = "http://localhost:8088"
 	}
 	return baseURL
 }

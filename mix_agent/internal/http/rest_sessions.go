@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"mix/internal/app"
+	"mix/internal/constants"
 	"mix/internal/llm/interfaces"
 	session2 "mix/internal/session"
 )
@@ -86,7 +87,7 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -141,7 +142,7 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -187,7 +188,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -330,7 +331,7 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -392,7 +393,7 @@ func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *
 	}
 
 	if r.Method != http.MethodPatch {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -526,7 +527,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 

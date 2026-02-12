@@ -9,6 +9,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
 	"mix/internal/tools"
@@ -77,7 +78,7 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodPost {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -155,7 +156,7 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 	}
 
 	if r.Method != http.MethodDelete {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -215,7 +216,7 @@ func (h *ToolsHandler) HandleToolCredentialsStatus(w http.ResponseWriter, r *htt
 	}
 
 	if r.Method != http.MethodGet {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 
@@ -249,7 +250,7 @@ func (h *ToolsHandler) HandleListLLMTools(w http.ResponseWriter, r *http.Request
 	}
 
 	if r.Method != http.MethodGet {
-		WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed", "METHOD_NOT_ALLOWED")
+		WriteErrorResponse(w, http.StatusMethodNotAllowed, constants.MethodNotAllowed, "METHOD_NOT_ALLOWED")
 		return
 	}
 

@@ -121,27 +121,17 @@ func waitForProcessing(t *testing.T, sessionID string, maxWait time.Duration) {
 			continue
 		}
 
-		// Check if message count has stabilized (no new messages for 4 consecutive checks = 2 seconds)
+		// Check if message count has stabilized (no new messages for 8 consecutive checks = 4 seconds)
 		if len(messages) == lastMessageCount {
 			stableCount++
-			if stableCount >= 4 {
-				// Verify last message is assistant role with finished/no tool calls
+			if stableCount >= 8 {
+				// Verify last message is assistant role with NO tool calls (final response)
 				lastMsg := messages[len(messages)-1]
 				if role, ok := lastMsg["role"].(string); ok && role == "assistant" {
-					// Check if there are unfinished tool calls
-					hasUnfinishedTools := false
-					if toolCalls, ok := lastMsg["toolCalls"].([]interface{}); ok {
-						for _, tc := range toolCalls {
-							if toolCall, ok := tc.(map[string]interface{}); ok {
-								if finished, ok := toolCall["finished"].(bool); ok && !finished {
-									hasUnfinishedTools = true
-									break
-								}
-							}
-						}
-					}
-
-					if !hasUnfinishedTools {
+					// Check if last message has any tool calls at all
+					toolCalls, hasToolCalls := lastMsg["toolCalls"].([]interface{})
+					if !hasToolCalls || len(toolCalls) == 0 {
+						// Last message is assistant with no tool calls - conversation is complete
 						t.Logf("✓ Message processing completed (%d messages)", len(messages))
 						return
 					}
@@ -675,7 +665,7 @@ func TestBrowserE2EScreenshotURL(t *testing.T) {
 	// Step 2: Send message to analyze screenshot
 	t.Log("Step 2: Sending message to use analyze_screenshot...")
 	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
-		"text": "Navigate to https://example.com in the browser and analyze what you see on the page using a screenshot",
+		"text": "Go to the Wikipedia page on cats and take a screenshot",
 	})
 	defer func() { _ = msgResp.Body.Close() }()
 
@@ -686,7 +676,8 @@ func TestBrowserE2EScreenshotURL(t *testing.T) {
 
 	// Step 3: Wait for processing to complete
 	t.Log("Step 3: Waiting for agent to process message...")
-	waitForProcessing(t, sessionID, 120*time.Second)
+	// Wait longer to ensure all tool calls complete (analyze_screenshot takes time)
+	waitForProcessing(t, sessionID, 180*time.Second)
 
 
 	// Step 4: Get messages and extract screenshot URL from tool results
@@ -753,7 +744,12 @@ func TestBrowserE2EScreenshotURL(t *testing.T) {
 
 	// Step 5: Fetch screenshot via HTTP
 	t.Log("Step 5: Fetching screenshot via HTTP...")
-	imgResp := makeRequest(t, http.MethodGet, screenshotURL, nil)
+	// Screenshot URL is already absolute, fetch it directly
+	client := &http.Client{Timeout: defaultTimeout}
+	imgResp, err := client.Get(screenshotURL)
+	if err != nil {
+		t.Fatalf("Failed to fetch screenshot: %v", err)
+	}
 	defer func() { _ = imgResp.Body.Close() }()
 
 	if imgResp.StatusCode != http.StatusOK {

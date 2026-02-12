@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"mix/internal/app"
+	"mix/internal/constants"
 	storage "mix/internal/mix_storage"
 	"mix/internal/session"
 )
@@ -75,7 +76,7 @@ func (h *FileHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -173,7 +174,7 @@ func (h *FileHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -233,7 +234,7 @@ func (h *FileHandler) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 

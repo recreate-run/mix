@@ -358,7 +358,7 @@ func (a *agent) Run(ctx context.Context, sessionID, content string, attachments 
 	return a.RunWithPlanMode(ctx, sessionID, content, false, nil, nil, attachments...)
 }
 
-func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, planMode bool, thinkingBudget *int, maxSteps *int, attachments ...message.Attachment) (<-chan AgentEvent, error) {
+func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, planMode bool, thinkingBudget, maxSteps *int, attachments ...message.Attachment) (<-chan AgentEvent, error) {
 	if !a.provider.Model().SupportsAttachments && attachments != nil {
 		attachments = nil
 	}
@@ -592,11 +592,11 @@ func (a *agent) loadConversationHistory(ctx context.Context, sessionID string) (
 
 	// Filter out messages with excluded callback results
 	filteredMsgs := make([]message.Message, 0, len(msgs))
-	for _, msg := range msgs {
-		if shouldExcludeMessage(msg) {
+	for i := range msgs {
+		if shouldExcludeMessage(msgs[i]) {
 			continue
 		}
-		filteredMsgs = append(filteredMsgs, msg)
+		filteredMsgs = append(filteredMsgs, msgs[i])
 	}
 	msgs = filteredMsgs
 
@@ -873,6 +873,10 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 	}
 
 	switch event.Type {
+	case interfaces.EventContentStart:
+		// Content block starting - no action needed
+		// The actual content will arrive via EventContentDelta events
+		return nil, nil
 	case interfaces.EventThinkingDelta:
 		// Claude thinking delta received
 		assistantMsg.AppendReasoningContent(event.Thinking)
@@ -912,6 +916,11 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			Content:   event.Content, // Send only the delta, not accumulated content
 		})
 		return nil, err
+	case interfaces.EventContentStop:
+		// Content block finished - no action needed
+		// Final content state is already accumulated via EventContentDelta
+		// EventComplete will follow with finish reason and token usage
+		return nil, nil
 	case interfaces.EventToolUseStart:
 		assistantMsg.AddToolCall(*event.ToolCall)
 
@@ -997,6 +1006,12 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 			ToolCallSnapshot: toolCallSnapshot,
 		})
 		return nil, err
+	case interfaces.EventWarning:
+		// Log warning but continue processing
+		if event.Error != nil {
+			logging.Warn("Provider warning: %v", event.Error)
+		}
+		return nil, nil
 	case interfaces.EventError:
 		// Store current state before error
 		a.accumulator.Store(assistantMsg)
@@ -1043,7 +1058,8 @@ func (a *agent) processEvent(ctx context.Context, sessionID string, assistantMsg
 		return &event.Response.Usage, nil
 	}
 
-	return nil, nil
+	// Unknown event type - should not happen if all event types are handled
+	return nil, fmt.Errorf("unhandled event type: %v", event.Type)
 }
 
 // calculateMessageCost calculates the cost for a single message based on token usage

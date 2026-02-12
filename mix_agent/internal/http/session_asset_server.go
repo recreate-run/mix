@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"mix/internal/app"
+	"mix/internal/constants"
 	"mix/internal/logging"
 	"mix/internal/session"
 
@@ -99,7 +100,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
