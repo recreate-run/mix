@@ -377,7 +377,7 @@ func visualizeBoundingBoxes(imageData []byte, responseJSON string, imageWidth, i
 	if err != nil {
 		return
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	_ = jpeg.Encode(outFile, rgba, &jpeg.Options{Quality: 90})
 

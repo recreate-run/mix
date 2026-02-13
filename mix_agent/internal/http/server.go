@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -246,7 +247,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	}()
 
 	// Start server and block (this will block until server shuts down)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("HTTP server failed: %w", err)
 	}
 

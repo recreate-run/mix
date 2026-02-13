@@ -474,13 +474,13 @@ func TestHandleCORSPreflight(t *testing.T) {
 		},
 		{
 			name:           "GET request",
-			method:         "GET",
+			method:         http.MethodGet,
 			expectedResult: false,
 			expectedStatus: 0, // No status set
 		},
 		{
 			name:           "POST request",
-			method:         "POST",
+			method:         http.MethodPost,
 			expectedResult: false,
 			expectedStatus: 0, // No status set
 		},

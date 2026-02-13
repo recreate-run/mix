@@ -2,7 +2,9 @@ package http
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -19,6 +21,11 @@ import (
 const (
 	MaxReplacePromptSize = 100 * 1024 // 100KB
 	MaxAppendPromptSize  = 50 * 1024  // 50KB
+)
+
+// Sentinel errors
+var (
+	ErrMessageNotFound = errors.New("message not found")
 )
 
 // SessionData represents session information for REST API
@@ -364,7 +371,7 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 	err = h.app.Sessions.Delete(ctx, sessionID)
 	if err != nil {
 		// Check if the error is because the session doesn't exist
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no rows") {
+		if errors.Is(err, sql.ErrNoRows) {
 			sendNotFoundError(w, "Session", sessionID)
 			return
 		}
@@ -478,7 +485,7 @@ func (h *SessionHandler) findRewindPoint(ctx context.Context, sessionID, message
 		}
 	}
 
-	return nil, fmt.Errorf("message not found: %s", messageID)
+	return nil, fmt.Errorf("%w: %s", ErrMessageNotFound, messageID)
 }
 
 // performRewindCleanup deletes messages and optionally cleans up media files
@@ -560,7 +567,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 	// Find the rewind point
 	point, err := h.findRewindPoint(ctx, sessionID, req.MessageID)
 	if err != nil {
-		if strings.Contains(err.Error(), "message not found") {
+		if errors.Is(err, ErrMessageNotFound) {
 			sendNotFoundError(w, "Message", req.MessageID)
 			return
 		}

@@ -179,7 +179,7 @@ func (flow *OpenAIOAuthFlow) GetAuthorizationURL() string {
 func (flow *OpenAIOAuthFlow) StartAuthFlow() (*OpenAICredentials, error) {
 	// Start HTTP server in background
 	go func() {
-		if err := flow.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := flow.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logging.Error("OAuth server error", "error", err)
 		}
 	}()
