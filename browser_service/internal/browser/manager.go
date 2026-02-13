@@ -43,7 +43,8 @@ func NewManager(ctx context.Context, cfg Config) (*Manager, error) {
 		Devtools(false).
 		Set("ignore-certificate-errors").      // Ignore SSL certificate errors for testing
 		Set("allow-insecure-localhost").       // Allow insecure localhost connections
-		Set("disable-web-security")            // Disable web security for testing
+		Set("disable-web-security").           // Disable web security for testing
+		Set("disable-pdf-viewer")              // Auto-download PDFs instead of displaying in browser
 
 	// Add stealth arguments if enabled
 	if cfg.Stealth {
