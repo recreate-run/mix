@@ -965,47 +965,9 @@
                       "type": "object"
                     },
                     "preferences": {
+                      "$ref": "#/components/schemas/UserPreferencesResponse",
                       "description": "User preferences (null if no preferences exist)",
-                      "nullable": true,
-                      "properties": {
-                        "created_at": {
-                          "description": "Unix timestamp when preferences were created",
-                          "type": "integer"
-                        },
-                        "main_agent_max_tokens": {
-                          "description": "Maximum tokens for main agent responses",
-                          "type": "integer"
-                        },
-                        "main_agent_model": {
-                          "description": "Main agent model ID",
-                          "type": "string"
-                        },
-                        "main_agent_reasoning_effort": {
-                          "description": "Reasoning effort setting for main agent",
-                          "type": "string"
-                        },
-                        "preferred_provider": {
-                          "description": "Preferred AI provider (anthropic, openai, openrouter)",
-                          "type": "string"
-                        },
-                        "sub_agent_max_tokens": {
-                          "description": "Maximum tokens for sub agent responses",
-                          "type": "integer"
-                        },
-                        "sub_agent_model": {
-                          "description": "Sub agent model ID",
-                          "type": "string"
-                        },
-                        "sub_agent_reasoning_effort": {
-                          "description": "Reasoning effort setting for sub agent",
-                          "type": "string"
-                        },
-                        "updated_at": {
-                          "description": "Unix timestamp of last update",
-                          "type": "integer"
-                        }
-                      },
-                      "type": "object"
+                      "nullable": true
                     }
                   },
                   "required": [
@@ -2085,6 +2047,12 @@
             "application/json": {
               "schema": {
                 "properties": {
+                  "max_steps": {
+                    "description": "Maximum tool call iterations for this message. If not provided, unlimited iterations allowed.",
+                    "example": 25,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
                   "plan_mode": {
                     "default": false,
                     "description": "Whether the message is in planning mode",
@@ -2804,12 +2772,42 @@
   },
   "components": {
     "schemas": {
+      "ActiveTunnelsResponse": {
+        "description": "Active WebSocket tunnels response",
+        "properties": {
+          "active_tunnels": {
+            "description": "List of active tunnel session IDs",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "count": {
+            "description": "Number of active tunnels",
+            "example": 2,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_tunnels",
+          "count"
+        ],
+        "type": "object"
+      },
       "BackendMessage": {
         "description": "Backend message structure representing a complete message exchange",
         "properties": {
           "assistantResponse": {
             "description": "Assistant's response message (optional)",
             "type": "string"
+          },
+          "cacheCreationTokens": {
+            "description": "Tokens used for prompt cache creation (optional)",
+            "type": "integer"
+          },
+          "cacheReadTokens": {
+            "description": "Tokens read from prompt cache (optional)",
+            "type": "integer"
           },
           "callbackResults": {
             "description": "Callback execution results (optional)",
@@ -2818,9 +2816,26 @@
             },
             "type": "array"
           },
+          "cost": {
+            "description": "Cost for this specific message in USD",
+            "format": "double",
+            "type": "number"
+          },
           "id": {
             "description": "Unique message identifier",
             "type": "string"
+          },
+          "inputTokens": {
+            "description": "Input tokens used for this message (includes cache creation)",
+            "type": "integer"
+          },
+          "model": {
+            "description": "Model used for this message (e.g., 'claude-sonnet-4')",
+            "type": "string"
+          },
+          "outputTokens": {
+            "description": "Output tokens generated for this message (includes cache reads)",
+            "type": "integer"
           },
           "reasoning": {
             "description": "Reasoning process (optional)",
@@ -3003,6 +3018,26 @@
         ],
         "type": "string"
       },
+      "DeleteToolCredentialResponse": {
+        "description": "Success response when deleting a tool credential",
+        "properties": {
+          "message": {
+            "description": "Success message",
+            "example": "Tool credential deleted successfully",
+            "type": "string"
+          },
+          "status": {
+            "description": "Operation status",
+            "example": "success",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message"
+        ],
+        "type": "object"
+      },
       "ErrorResponse": {
         "properties": {
           "error": {
@@ -3152,14 +3187,6 @@
             "description": "Parsed tool input (optional)",
             "type": "object"
           },
-          "isError": {
-            "description": "Whether execution resulted in error (optional)",
-            "type": "boolean"
-          },
-          "metadata": {
-            "description": "Additional tool metadata (optional)",
-            "type": "string"
-          },
           "name": {
             "description": "Tool name",
             "type": "string"
@@ -3167,6 +3194,13 @@
           "result": {
             "description": "Tool execution result (optional)",
             "type": "string"
+          },
+          "screenshotUrls": {
+            "description": "Screenshot URLs captured during tool execution (optional)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "type": {
             "description": "Tool type",
@@ -3216,6 +3250,26 @@
         ],
         "type": "object"
       },
+      "HealthServices": {
+        "description": "Backend services health status",
+        "properties": {
+          "backend": {
+            "description": "Backend service status",
+            "example": "healthy",
+            "type": "string"
+          },
+          "database": {
+            "description": "Database connection status",
+            "example": "connected",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backend",
+          "database"
+        ],
+        "type": "object"
+      },
       "MessageData": {
         "description": "Message data structure for user input",
         "properties": {
@@ -3242,6 +3296,78 @@
           "tool"
         ],
         "type": "string"
+      },
+      "PermissionResponse": {
+        "description": "Permission operation response",
+        "properties": {
+          "id": {
+            "description": "Permission request ID",
+            "example": "perm_abc123",
+            "type": "string"
+          },
+          "message": {
+            "description": "Status message",
+            "example": "Permission granted successfully",
+            "type": "string"
+          },
+          "status": {
+            "description": "Permission status (granted or denied)",
+            "enum": [
+              "granted",
+              "denied"
+            ],
+            "example": "granted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "id",
+          "message"
+        ],
+        "type": "object"
+      },
+      "PreferencesWithProviders": {
+        "description": "User preferences with available provider metadata",
+        "properties": {
+          "available_providers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProviderInfo"
+            },
+            "description": "Available LLM providers with their metadata",
+            "type": "object"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/UserPreferencesResponse",
+            "description": "User preferences (null if not set)",
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "preferences",
+          "available_providers"
+        ],
+        "type": "object"
+      },
+      "ProviderInfo": {
+        "description": "LLM provider metadata",
+        "properties": {
+          "display_name": {
+            "description": "Provider display name",
+            "example": "Anthropic",
+            "type": "string"
+          },
+          "models": {
+            "description": "Available models for this provider (dynamic structure)",
+            "type": "object"
+          }
+        },
+        "required": [
+          "display_name",
+          "models"
+        ],
+        "type": "object"
       },
       "RESTError": {
         "properties": {
@@ -4236,6 +4362,94 @@
         ],
         "type": "object"
       },
+      "SetAPIKeyResponse": {
+        "description": "Success response when setting an API key",
+        "properties": {
+          "message": {
+            "description": "Success message",
+            "example": "API key set successfully. You can now use the application.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Operation status",
+            "example": "success",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message"
+        ],
+        "type": "object"
+      },
+      "StoreToolAPIKeyResponse": {
+        "description": "Success response when storing a tool API key",
+        "properties": {
+          "message": {
+            "description": "Success message",
+            "example": "Brave Search API key stored successfully",
+            "type": "string"
+          },
+          "provider": {
+            "description": "Provider identifier",
+            "example": "brave",
+            "type": "string"
+          },
+          "status": {
+            "description": "Operation status",
+            "example": "success",
+            "type": "string"
+          },
+          "tool_type": {
+            "description": "Tool type identifier",
+            "example": "web_search",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "tool_type",
+          "provider",
+          "message"
+        ],
+        "type": "object"
+      },
+      "SystemHealthResponse": {
+        "description": "System health check response",
+        "properties": {
+          "environment": {
+            "description": "Environment name",
+            "example": "production",
+            "type": "string"
+          },
+          "services": {
+            "$ref": "#/components/schemas/HealthServices"
+          },
+          "status": {
+            "description": "Overall system status",
+            "example": "ok",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Health check timestamp",
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "description": "Application version",
+            "example": "1.0.0",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp",
+          "version",
+          "environment",
+          "services"
+        ],
+        "type": "object"
+      },
       "ToolCallData": {
         "properties": {
           "finished": {
@@ -4261,6 +4475,13 @@
           "result": {
             "description": "Tool execution result (optional)",
             "type": "string"
+          },
+          "screenshotUrls": {
+            "description": "Screenshot URLs captured during tool execution (optional)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "type": {
             "description": "Tool type",
@@ -4289,6 +4510,48 @@
           }
         ],
         "description": "Tool name - either a core tool or MCP tool following {serverName}_{toolName} pattern"
+      },
+      "UserPreferencesResponse": {
+        "description": "User preferences configuration",
+        "properties": {
+          "created_at": {
+            "description": "Unix timestamp when preferences were created",
+            "type": "integer"
+          },
+          "main_agent_max_tokens": {
+            "description": "Maximum tokens for main agent responses",
+            "type": "integer"
+          },
+          "main_agent_model": {
+            "description": "Main agent model ID",
+            "type": "string"
+          },
+          "main_agent_reasoning_effort": {
+            "description": "Reasoning effort setting for main agent",
+            "type": "string"
+          },
+          "preferred_provider": {
+            "description": "Preferred AI provider (anthropic, openai, openrouter)",
+            "type": "string"
+          },
+          "sub_agent_max_tokens": {
+            "description": "Maximum tokens for sub agent responses",
+            "type": "integer"
+          },
+          "sub_agent_model": {
+            "description": "Sub agent model ID",
+            "type": "string"
+          },
+          "sub_agent_reasoning_effort": {
+            "description": "Reasoning effort setting for sub agent",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Unix timestamp of last update",
+            "type": "integer"
+          }
+        },
+        "type": "object"
       }
     }
   }

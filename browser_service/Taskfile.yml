@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 tasks:
   default:
@@ -11,6 +11,16 @@ tasks:
     desc: Start with hot reload (rebuilds on file changes)
     cmds:
       - ./scripts/dev.sh
+
+  dev-headless:
+    desc: Start dev server in headless mode (for E2E tests)
+    cmds:
+      - ./scripts/dev.sh --headless
+
+  dev-with-args:
+    desc: "Start dev server with custom args (usage: task dev-with-args -- --headless --port 9000)"
+    cmds:
+      - ./scripts/dev.sh {{.CLI_ARGS}}
 
   tail-dev-log:
     desc: Show the last 100 lines of the dev server log
@@ -35,27 +45,6 @@ tasks:
       - echo "Running tests with race detection..."
       - go test -v -race ./...
       - echo "Tests passed!"
-
-  test-phase1:
-    desc: Run Phase 1 tests (WebSocket + Browser basics)
-    cmds:
-      - echo "Running Phase 1 tests..."
-      - go test -v -race ./... -run "TestWebSocket|TestBrowser|TestNavigate|TestScreenshot|TestContext|TestCleanup"
-      - echo "Phase 1 tests passed!"
-
-  test-phase2:
-    desc: Run Phase 2 tests (Vision + Element interaction)
-    cmds:
-      - echo "Running Phase 2 tests..."
-      - go test -v -race ./... -run "TestAccessibility|TestElement|TestBoundingBox|TestClick|TestType|TestScroll"
-      - echo "Phase 2 tests passed!"
-
-  test-phase4:
-    desc: Run Phase 4 tests (Cookies + Anti-detection)
-    cmds:
-      - echo "Running Phase 4 tests..."
-      - go test -v -race ./... -run "TestChrome|TestCookie|TestUserAgent|TestWebdriver|TestDialog|TestReconnect|TestTimeout|TestCrash"
-      - echo "Phase 4 tests passed!"
 
   coverage:
     desc: Run tests with coverage report
@@ -105,15 +94,3 @@ tasks:
       - go mod download
       - go mod tidy
       - echo "Dependencies installed!"
-
-  ws-test:
-    desc: Start a WebSocket test client (requires wscat)
-    cmds:
-      - |
-        if ! command -v wscat &> /dev/null; then
-          echo "wscat not found. Install with: npm install -g wscat"
-          exit 1
-        fi
-        echo "Connecting to ws://localhost:8081..."
-        echo "Try sending: {\"id\":\"1\",\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://example.com\"}}"
-        wscat -c ws://localhost:8081

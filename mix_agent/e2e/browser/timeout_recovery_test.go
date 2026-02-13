@@ -17,6 +17,7 @@ import (
 
 // TestBrowserE2ESlowPageLoad tests that browser handles slow-loading pages without hanging indefinitely
 func TestBrowserE2ESlowPageLoad(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Slow Page Load Handling ===")
 
 	testServerURL, sessionID, cleanup := setupBrowserTest(t, "E2E Slow Page Load Test")
@@ -101,6 +102,7 @@ func TestBrowserE2ESlowPageLoad(t *testing.T) {
 
 // TestBrowserE2ENetworkFailure tests that browser handles network failures gracefully
 func TestBrowserE2ENetworkFailure(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Network Failure Handling ===")
 
 	testServerURL, sessionID, cleanup := setupBrowserTest(t, "E2E Network Failure Test")
@@ -160,6 +162,7 @@ func TestBrowserE2ENetworkFailure(t *testing.T) {
 
 // TestBrowserE2ESlowActionSequence tests that action sequences handle delays properly
 func TestBrowserE2ESlowActionSequence(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Slow Action Sequence Handling ===")
 
 	testServerURL, sessionID, cleanup := setupBrowserTest(t, "E2E Slow Action Sequence Test")

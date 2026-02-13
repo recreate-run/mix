@@ -64,6 +64,7 @@ func TestBrowserE2EDragByIndex(t *testing.T) {
 
 // TestBrowserE2EDragByCoordinates tests drag-and-drop using coordinates (slider)
 func TestBrowserE2EDragByCoordinates(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Drag and Drop - Coordinate Mode ===")
 
 	// Setup test environment
@@ -110,6 +111,7 @@ func TestBrowserE2EDragByCoordinates(t *testing.T) {
 
 // TestBrowserE2EDragFailure tests error handling for invalid drag operations
 func TestBrowserE2EDragFailure(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Drag and Drop - Error Handling ===")
 
 	// Setup test environment

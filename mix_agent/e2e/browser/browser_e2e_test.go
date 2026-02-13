@@ -275,6 +275,7 @@ func startTestHTMLServer(t *testing.T) *httptest.Server {
 
 // TestBrowserE2EFullWorkflow tests the complete user workflow
 func TestBrowserE2EFullWorkflow(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -283,7 +284,8 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E Browser Test",
+		"title":       "E2E Browser Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -369,6 +371,7 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 
 // TestBrowserE2ESessionIsolation tests that browser sessions are isolated
 func TestBrowserE2ESessionIsolation(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -431,6 +434,7 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 
 // TestBrowserE2ETextExtraction tests the text extraction feature with different strategies
 func TestBrowserE2ETextExtraction(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -443,7 +447,8 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E Text Extraction Test",
+		"title":       "E2E Text Extraction Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -533,6 +538,7 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 
 // TestBrowserE2EDOMSearch tests the DOM search feature
 func TestBrowserE2EDOMSearch(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -545,7 +551,8 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E DOM Search Test",
+		"title":       "E2E DOM Search Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -629,6 +636,7 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 
 // TestBrowserE2EFileUpload tests the file upload feature
 func TestBrowserE2EFileUpload(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -641,7 +649,8 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E File Upload Test",
+		"title":       "E2E File Upload Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -729,6 +738,7 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 
 // TestBrowserE2EScreenshotURL tests screenshot HTTP serving via analyze_screenshot
 func TestBrowserE2EScreenshotURL(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 

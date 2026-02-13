@@ -129,6 +129,7 @@ func verifyFormWorkflow(t *testing.T, messages []map[string]interface{}) {
 
 // TestBrowserE2EFormSequentialActions tests sequential form actions without validation complexity
 func TestBrowserE2EFormSequentialActions(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Browser Form Sequential Actions ===")
 
 	// Setup test environment

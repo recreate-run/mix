@@ -75,6 +75,7 @@ func checkElectronAppRunning(t *testing.T) bool {
 
 // TestBrowserE2EModeCompatibility tests browser operations across all supported modes
 func TestBrowserE2EModeCompatibility(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 
 	// Start test HTML server
@@ -193,6 +194,7 @@ func testModeWorkflow(t *testing.T, browserMode, cdpURL, testURL string) {
 
 // TestBrowserE2EModeSwitching tests creating multiple sessions with same mode
 func TestBrowserE2EModeSwitching(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Multi-Session Browser Isolation ===")
 
 	e2e.Setup(t)
@@ -251,6 +253,7 @@ func TestBrowserE2EModeSwitching(t *testing.T) {
 
 // TestBrowserE2EModeValidation tests browser mode validation
 func TestBrowserE2EModeValidation(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 
 	t.Log("=== E2E Test: Browser Mode Validation ===")

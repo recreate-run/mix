@@ -69,6 +69,7 @@ func TestBrowserE2EElementSelectionByIndex(t *testing.T) {
 
 // TestBrowserE2EElementSelectionByRef tests element selection using ref mode
 func TestBrowserE2EElementSelectionByRef(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Element Selection by Ref ===")
 
 	// Setup test environment
@@ -124,6 +125,7 @@ func TestBrowserE2EElementSelectionByRef(t *testing.T) {
 
 // TestBrowserE2EElementSelectionByCoordinate tests element selection using coordinate mode
 func TestBrowserE2EElementSelectionByCoordinate(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -220,6 +222,7 @@ func TestBrowserE2EElementSelectionByCoordinate(t *testing.T) {
 
 // TestBrowserE2EInvalidRefHandling tests handling of invalid element refs
 func TestBrowserE2EInvalidRefHandling(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -308,6 +311,7 @@ func TestBrowserE2EInvalidRefHandling(t *testing.T) {
 
 // TestBrowserE2EStaleRefAfterNavigation tests handling of stale refs after page navigation
 func TestBrowserE2EStaleRefAfterNavigation(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 

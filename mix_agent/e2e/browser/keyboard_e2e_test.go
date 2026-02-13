@@ -77,6 +77,7 @@ func TestBrowserE2EKeyboardBasicKeys(t *testing.T) {
 
 // TestBrowserE2EKeyboardModifiers tests modifier key combinations
 func TestBrowserE2EKeyboardModifiers(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Keyboard Modifier Combinations ===")
 
 	testServerURL, sessionID, cleanup := setupBrowserTest(t, "Keyboard Modifiers Test")

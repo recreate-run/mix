@@ -17,6 +17,7 @@ import (
 
 // TestBrowserE2ETabManagement tests multi-tab workflows end-to-end
 func TestBrowserE2ETabManagement(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Browser Tab Management Workflow ===")
 
 	testServerURL, sessionID, cleanup := setupBrowserTest(t, "E2E Tab Management Test")

@@ -45,12 +45,24 @@ Common commands:
 
 ```bash
 task dev              # Start with hot reload
+task dev-headless     # Start in headless mode (for E2E tests)
 task build            # Build binary
 task test             # Run all tests
 task test-phase1      # Run Phase 1 tests only
 task lint             # Run linters
 task fmt              # Format code
 ```
+
+### Headless Mode
+
+Use headless mode for E2E testing or CI/CD environments:
+
+```bash
+task dev-headless                              # Headless with hot reload
+task dev-with-args -- --headless --port 9000   # Custom arguments
+```
+
+**Note:** Headless mode is set at browser launch (server-level), not per-session. All WebSocket clients share the same browser instance.
 
 ## Testing
 

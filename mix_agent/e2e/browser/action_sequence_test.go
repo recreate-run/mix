@@ -68,6 +68,7 @@ func TestBrowserE2EActionSequenceSuccess(t *testing.T) {
 
 // TestBrowserE2EActionSequenceFailFast tests that sequences stop on first error
 func TestBrowserE2EActionSequenceFailFast(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Action Sequence - Fail Fast Behavior ===")
 
 	// Setup test environment
@@ -114,6 +115,7 @@ func TestBrowserE2EActionSequenceFailFast(t *testing.T) {
 
 // TestBrowserE2EActionSequenceWithScreenshots tests screenshot capture between actions
 func TestBrowserE2EActionSequenceWithScreenshots(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Action Sequence - Screenshot Verification ===")
 
 	// Setup test environment
