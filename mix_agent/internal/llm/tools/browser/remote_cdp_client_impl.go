@@ -522,35 +522,33 @@ func (c *RemoteCDPClient) clickByBackendIDWithButton(ctx context.Context, backen
 		return fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
-	targetTabID := c.activeTabID
-	if len(tabID) > 0 && tabID[0] != "" {
-		targetTabID = tabID[0]
+	// Get element bounds using DOM.getBoxModel (on-demand lookup, no cache dependency)
+	boxModelParams := cdp.DOMGetBoxModelParams{
+		BackendNodeID: backendID,
+	}
+	result, err := c.sendCommand(ctx, "DOM.getBoxModel", boxModelParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get element box model for backendID %d: %w", backendID, err)
 	}
 
-	// Find element in cache by backend ID
-	c.cacheMu.RLock()
-	elements, exists := c.elementCache[targetTabID]
-	c.cacheMu.RUnlock()
-
-	if !exists {
-		return fmt.Errorf("no element cache for tab %s", targetTabID)
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("unexpected box model result type: %T", result)
 	}
 
-	var elem *elementInfo
-	for i := range elements {
-		if elements[i].BackendID == backendID {
-			elem = &elements[i]
-			break
-		}
+	var boxModelResult cdp.DOMGetBoxModelResult
+	if err := json.Unmarshal(resultJSON, &boxModelResult); err != nil {
+		return fmt.Errorf("failed to unmarshal box model result: %w", err)
 	}
 
-	if elem == nil {
-		return fmt.Errorf("element with backend ID %d not found", backendID)
+	// Calculate click position from content quad (center of bounding box)
+	// Content quad: [x1, y1, x2, y2, x3, y3, x4, y4]
+	if len(boxModelResult.Model.Content) < 8 {
+		return fmt.Errorf("invalid box model content quad for backendID %d", backendID)
 	}
 
-	// Calculate click position
-	x := elem.Bounds.X + elem.Bounds.Width/2
-	y := elem.Bounds.Y + elem.Bounds.Height/2
+	x := (boxModelResult.Model.Content[0] + boxModelResult.Model.Content[4]) / 2
+	y := (boxModelResult.Model.Content[1] + boxModelResult.Model.Content[5]) / 2
 
 	// Dispatch mouse events
 	moveParams := cdp.InputDispatchMouseEventParams{

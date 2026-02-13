@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"mix/internal/browser"
 	"mix/internal/llm/tools"
 	"mix/internal/message"
 	"mix/internal/permission"
@@ -95,7 +96,7 @@ func (b *taskTool) createSubagentAndSession(ctx context.Context, params TaskPara
 		return nil, nil, fmt.Errorf("error creating agent: %w", err)
 	}
 
-	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, toolCallID, "local-browser-service", "")
+	subSession, err := b.sessions.Create(ctx, "Subagent: "+params.Description, "", "default", session.SessionTypeSubagent, session.SubagentType(params.SubagentType), sessionID, toolCallID, browser.ModeLocalBrowserService, "")
 	if err != nil {
 		agent.Shutdown()
 		return nil, nil, fmt.Errorf("error creating session for tool call %s: %w", toolCallID, err)

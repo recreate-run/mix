@@ -56,6 +56,11 @@ func (a *ServiceClientAdapter) Find(ctx context.Context, query string, limit int
 	return a.client.Find(ctx, query, limit, tabID...)
 }
 
+// GetElements returns all interactive elements (populates click cache in browser-service)
+func (a *ServiceClientAdapter) GetElements(ctx context.Context, tabID ...string) ([]browserprotocol.RawAccessibilityNode, error) {
+	return a.client.GetElements(ctx, tabID...)
+}
+
 // Click clicks an element by index
 func (a *ServiceClientAdapter) Click(ctx context.Context, index int, tabID ...string) error {
 	return a.client.Click(ctx, index, tabID...)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"mix/internal/browser"
 	"mix/internal/db"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools/shell"
@@ -145,7 +146,7 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 	if browserMode == "" {
 		return Session{}, fmt.Errorf("browserMode is required")
 	}
-	validModes := []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"}
+	validModes := []string{browser.ModeElectronEmbedded, browser.ModeLocalBrowserService, browser.ModeRemoteCDP}
 	isValidMode := false
 	for _, mode := range validModes {
 		if browserMode == mode {
@@ -158,9 +159,9 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 	}
 
 	// Validate CDP URL if mode is remote-cdp-websocket
-	if browserMode == "remote-cdp-websocket" {
+	if browserMode == browser.ModeRemoteCDP {
 		if cdpUrl == "" {
-			return Session{}, fmt.Errorf("cdpUrl is required when browserMode is 'remote-cdp-websocket'")
+			return Session{}, fmt.Errorf("cdpUrl is required when browserMode is '%s'", browser.ModeRemoteCDP)
 		}
 		// Validate CDP URL format
 		if !strings.HasPrefix(cdpUrl, "ws://") && !strings.HasPrefix(cdpUrl, "wss://") {
@@ -168,7 +169,7 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 		}
 	} else if cdpUrl != "" {
 		// Ensure CDP URL is not set for other modes
-		return Session{}, fmt.Errorf("cdpUrl can only be set when browserMode is 'remote-cdp-websocket'")
+		return Session{}, fmt.Errorf("cdpUrl can only be set when browserMode is '%s'", browser.ModeRemoteCDP)
 	}
 
 	// Validate session hierarchy constraints BEFORE creating any resources

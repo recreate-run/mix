@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Action Sequence Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input {
+            padding: 8px;
+            font-size: 14px;
+            width: 300px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            min-height: 30px;
+            font-weight: bold;
+        }
+        #counter {
+            font-size: 24px;
+            color: #2196F3;
+            margin: 20px 0;
+        }
+        .hidden {
+            display: none;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="title">Action Sequence Test Page</h1>
+    <p>This page tests multi-step action sequences with observable state changes.</p>
+
+    <div class="section">
+        <h2>Counter Test</h2>
+        <div id="counter">Count: 0</div>
+        <button id="incrementBtn" onclick="incrementCounter()">Increment Counter</button>
+        <button id="resetBtn" onclick="resetCounter()">Reset Counter</button>
+    </div>
+
+    <div class="section">
+        <h2>Input Test</h2>
+        <input id="textInput" type="text" placeholder="Type here to test text input"/>
+        <button id="clearInputBtn" onclick="clearInput()">Clear Input</button>
+    </div>
+
+    <div class="section">
+        <h2>Toggle Test</h2>
+        <button id="toggleBtn" onclick="toggleElement()">Toggle Element</button>
+        <div id="toggleTarget" class="hidden" style="margin-top: 10px; padding: 10px; background-color: #ffeb3b; border-radius: 4px;">
+            This element can be toggled!
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Status Display</h2>
+        <div id="status">Ready</div>
+        <button id="statusBtn" onclick="updateStatus()">Update Status</button>
+    </div>
+
+    <script>
+        let count = 0;
+
+        function incrementCounter() {
+            count++;
+            document.getElementById('counter').textContent = 'Count: ' + count;
+            document.getElementById('status').textContent = 'Counter incremented to ' + count;
+        }
+
+        function resetCounter() {
+            count = 0;
+            document.getElementById('counter').textContent = 'Count: 0';
+            document.getElementById('status').textContent = 'Counter reset';
+        }
+
+        function clearInput() {
+            document.getElementById('textInput').value = '';
+            document.getElementById('status').textContent = 'Input cleared';
+        }
+
+        function toggleElement() {
+            const target = document.getElementById('toggleTarget');
+            target.classList.toggle('hidden');
+            const isVisible = !target.classList.contains('hidden');
+            document.getElementById('status').textContent = 'Element is now ' + (isVisible ? 'visible' : 'hidden');
+        }
+
+        function updateStatus() {
+            const timestamp = new Date().toLocaleTimeString();
+            document.getElementById('status').textContent = 'Status updated at ' + timestamp;
+        }
+
+        // Track input changes
+        document.getElementById('textInput').addEventListener('input', function(e) {
+            if (e.target.value) {
+                document.getElementById('status').textContent = 'Input value: ' + e.target.value;
+            }
+        });
+    </script>
+</body>
+</html>

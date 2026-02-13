@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"mix/internal/browser"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools/shell"
 	"mix/internal/logging"
@@ -187,7 +188,7 @@ func (e *executor) executeSubAgent(ctx context.Context, config interfaces.Callba
 		session.SubagentType(subagentType),
 		callbackCtx.SessionID,
 		callbackCtx.ToolCall.ID,
-		"local-browser-service", // browser mode
+		browser.ModeLocalBrowserService, // browser mode
 		"", // cdp URL (empty for local mode)
 	)
 	if err != nil {

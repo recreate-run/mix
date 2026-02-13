@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drag and Drop Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 24px;
+      line-height: 1.4;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: 24px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .column {
+      border: 1px solid #bfc7d5;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 180px;
+      position: relative;
+      background: #f8fafc;
+    }
+
+    .column-title {
+      margin: 0 0 8px;
+      font-weight: 600;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #d4dbe8;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 10px;
+      cursor: grab;
+      user-select: none;
+      position: relative;
+    }
+
+    .drop-zone {
+      border: 2px dashed #6b7c93;
+      border-radius: 8px;
+      min-height: 100px;
+      padding: 10px;
+      background: #eef2ff;
+    }
+
+    .slider-container {
+      margin-top: 10px;
+      border: 1px solid #bfc7d5;
+      border-radius: 8px;
+      padding: 14px;
+      background: #f8fafc;
+    }
+
+    .rail {
+      width: 320px;
+      height: 8px;
+      border-radius: 999px;
+      background: #d6dde9;
+      position: relative;
+      margin: 12px 0;
+    }
+
+    .knob {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #0f172a;
+      position: absolute;
+      left: 0;
+      top: -9px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .status {
+      margin: 10px 0;
+      font-weight: 600;
+    }
+
+    .event-log {
+      margin-top: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #111827;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Drag and Drop Fixture</h1>
+
+  <div class="board">
+    <section class="column" id="source-column">
+      <p class="column-title">Source</p>
+      <div class="card" id="card-a">Card A</div>
+      <div class="card" id="card-b">Card B</div>
+    </section>
+
+    <section class="column drop-zone" id="drop-zone">
+      <p class="column-title">Drop Zone</p>
+    </section>
+  </div>
+
+  <p id="dragStatus" class="status">Drag status: waiting</p>
+
+  <section class="slider-container">
+    <p class="column-title">Slider Drag</p>
+    <div id="sliderRail" class="rail">
+      <div id="sliderKnob" class="knob"></div>
+    </div>
+    <p id="sliderStatus" class="status">Slider value: 0</p>
+  </section>
+
+  <div id="eventLog" class="event-log">events:</div>
+
+  <script>
+    (function () {
+      const dragStatus = document.getElementById('dragStatus');
+      const sliderStatus = document.getElementById('sliderStatus');
+      const eventLog = document.getElementById('eventLog');
+      const dropZone = document.getElementById('drop-zone');
+      const cards = Array.from(document.querySelectorAll('.card'));
+      const rail = document.getElementById('sliderRail');
+      const knob = document.getElementById('sliderKnob');
+
+      let draggingCard = null;
+      let dragOffsetX = 0;
+      let dragOffsetY = 0;
+
+      let draggingKnob = false;
+      let knobOffsetX = 0;
+
+      function logEvent(name) {
+        eventLog.textContent += '\n' + name;
+      }
+
+      function pointInsideRect(x, y, rect) {
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      }
+
+      function clamp(num, min, max) {
+        return Math.min(Math.max(num, min), max);
+      }
+
+      cards.forEach((card) => {
+        card.addEventListener('mousedown', (event) => {
+          draggingCard = card;
+          dragOffsetX = event.clientX - card.getBoundingClientRect().left;
+          dragOffsetY = event.clientY - card.getBoundingClientRect().top;
+          card.style.position = 'fixed';
+          card.style.zIndex = '1000';
+          card.style.pointerEvents = 'none';
+          logEvent('mousedown card ' + card.id);
+        });
+      });
+
+      knob.addEventListener('mousedown', (event) => {
+        draggingKnob = true;
+        knobOffsetX = event.clientX - knob.getBoundingClientRect().left;
+        logEvent('mousedown knob');
+      });
+
+      document.addEventListener('mousemove', (event) => {
+        if (draggingCard) {
+          draggingCard.style.left = (event.clientX - dragOffsetX) + 'px';
+          draggingCard.style.top = (event.clientY - dragOffsetY) + 'px';
+          logEvent('mousemove card');
+        }
+
+        if (draggingKnob) {
+          const railRect = rail.getBoundingClientRect();
+          const maxLeft = railRect.width - knob.offsetWidth;
+          const nextLeft = clamp(event.clientX - railRect.left - knobOffsetX, 0, maxLeft);
+          knob.style.left = nextLeft + 'px';
+          const value = Math.round((nextLeft / maxLeft) * 100);
+          sliderStatus.textContent = 'Slider value: ' + value;
+          logEvent('mousemove knob');
+        }
+      });
+
+      document.addEventListener('mouseup', (event) => {
+        if (draggingCard) {
+          const zoneRect = dropZone.getBoundingClientRect();
+          if (pointInsideRect(event.clientX, event.clientY, zoneRect)) {
+            dropZone.appendChild(draggingCard);
+            draggingCard.style.position = 'relative';
+            draggingCard.style.left = '0';
+            draggingCard.style.top = '0';
+            draggingCard.style.zIndex = '1';
+            draggingCard.style.pointerEvents = 'auto';
+            dragStatus.textContent = 'Drag status: dropped ' + draggingCard.id + ' into drop zone';
+            logEvent('mouseup card drop success');
+          } else {
+            draggingCard.style.position = 'relative';
+            draggingCard.style.left = '0';
+            draggingCard.style.top = '0';
+            draggingCard.style.zIndex = '1';
+            draggingCard.style.pointerEvents = 'auto';
+            dragStatus.textContent = 'Drag status: drop missed for ' + draggingCard.id;
+            logEvent('mouseup card drop missed');
+          }
+          draggingCard = null;
+        }
+
+        if (draggingKnob) {
+          draggingKnob = false;
+          logEvent('mouseup knob');
+        }
+      });
+    }());
+  </script>
+</body>
+</html>

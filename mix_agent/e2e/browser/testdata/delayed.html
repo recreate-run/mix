@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delayed Load Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .loading {
+            color: #ff9800;
+            font-size: 20px;
+        }
+        .loaded {
+            color: #4CAF50;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="title">Delayed Loading Test Page</h1>
+    <div id="status" class="loading">Loading...</div>
+    <div id="content" style="display: none;">
+        <p class="loaded">Content Loaded Successfully!</p>
+        <button id="testBtn" onclick="alert('Button clicked!')">Test Button</button>
+    </div>
+
+    <script>
+        // Get delay from URL parameter, default to 3 seconds
+        const urlParams = new URLSearchParams(window.location.search);
+        const delay = parseInt(urlParams.get('delay')) || 3000;
+
+        // Simulate slow page load
+        setTimeout(() => {
+            document.getElementById('status').textContent = 'Page fully loaded after ' + delay + 'ms delay';
+            document.getElementById('status').className = 'loaded';
+            document.getElementById('content').style.display = 'block';
+        }, delay);
+    </script>
+</body>
+</html>

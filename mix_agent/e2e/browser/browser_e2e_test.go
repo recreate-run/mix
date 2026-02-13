@@ -148,6 +148,92 @@ func waitForProcessing(t *testing.T, sessionID string, maxWait time.Duration) {
 	t.Fatal("Timeout waiting for message processing")
 }
 
+// createTestSession creates a test session and returns session ID with cleanup function
+func createTestSession(t *testing.T, title, browserMode string, opts map[string]interface{}) (sessionID string, cleanup func()) {
+	t.Helper()
+
+	t.Logf("Creating session with mode '%s'...", browserMode)
+
+	payload := map[string]interface{}{
+		"title":       title,
+		"browserMode": browserMode,
+	}
+
+	// Merge optional parameters
+	for k, v := range opts {
+		payload[k] = v
+	}
+
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", payload)
+	defer func() { _ = createResp.Body.Close() }()
+
+	if createResp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(createResp.Body)
+		t.Fatalf("Expected status 201, got %d. Body: %s", createResp.StatusCode, string(body))
+	}
+
+	sessionData := parseJSONResponse(t, createResp)
+	sessionID, ok := sessionData["id"].(string)
+	if !ok {
+		t.Fatal("Failed to get session ID from response")
+	}
+	t.Logf("✓ Created session: %s", sessionID)
+
+	cleanup = func() {
+		t.Log("Cleaning up test session...")
+		deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
+		defer func() { _ = deleteResp.Body.Close() }()
+
+		if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {
+			t.Logf("Warning: Failed to delete session: status %d", deleteResp.StatusCode)
+		} else {
+			t.Log("✓ Session cleaned up")
+		}
+	}
+
+	return sessionID, cleanup
+}
+
+// sendMessage sends a message to a session and returns the response
+func sendMessage(t *testing.T, sessionID, text string) *http.Response {
+	t.Helper()
+
+	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
+		"text": text,
+	})
+
+	if msgResp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(msgResp.Body)
+		_ = msgResp.Body.Close()
+		t.Fatalf("Expected status 202 (Accepted), got %d. Body: %s", msgResp.StatusCode, string(body))
+	}
+
+	return msgResp
+}
+
+// setupBrowserTest sets up a complete browser test environment with test server and session
+func setupBrowserTest(t *testing.T, sessionTitle string) (testServerURL string, sessionID string, cleanup func()) {
+	t.Helper()
+
+	e2e.Setup(t)
+	skipIfBrowserServiceNotRunning(t)
+
+	// Start test HTML server
+	testServer := startTestHTMLServer(t)
+	testServerURL = testServer.URL
+
+	// Create session
+	sessionID, sessionCleanup := createTestSession(t, sessionTitle, "local-browser-service", nil)
+
+	// Combined cleanup function
+	cleanup = func() {
+		sessionCleanup()
+		testServer.Close()
+	}
+
+	return testServerURL, sessionID, cleanup
+}
+
 // startTestHTMLServer starts an HTTP server serving test HTML files from testdata
 func startTestHTMLServer(t *testing.T) *httptest.Server {
 	t.Helper()
@@ -289,12 +375,18 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 	t.Log("=== E2E Test: Session Isolation ===")
 
 	// Create two sessions
-	session1Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{"title": "E2E Session 1"})
+	session1Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
+		"title":       "E2E Session 1",
+		"browserMode": "local-browser-service",
+	})
 	session1Data := parseJSONResponse(t, session1Resp)
 	session1ID := session1Data["id"].(string)
 	_ = session1Resp.Body.Close()
 
-	session2Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{"title": "E2E Session 2"})
+	session2Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
+		"title":       "E2E Session 2",
+		"browserMode": "local-browser-service",
+	})
 	session2Data := parseJSONResponse(t, session2Resp)
 	session2ID := session2Data["id"].(string)
 	_ = session2Resp.Body.Close()
@@ -303,12 +395,12 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 
 	// Send browser messages to both sessions
 	msg1Resp := makeRequest(t, http.MethodPost, constants.APISessionsPath+session1ID+"/messages", map[string]interface{}{
-		"text": "Open example.com",
+		"text": "Go to the Wikipedia page on cats",
 	})
 	_ = msg1Resp.Body.Close()
 
 	msg2Resp := makeRequest(t, http.MethodPost, constants.APISessionsPath+session2ID+"/messages", map[string]interface{}{
-		"text": "Open google.com",
+		"text": "Go to the Wikipedia page on cats",
 	})
 	_ = msg2Resp.Body.Close()
 

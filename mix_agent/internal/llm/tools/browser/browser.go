@@ -192,7 +192,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen, /* ActionScreenshot, */ ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
+				"enum":        []string{ActionOpen, /* ActionScreenshot, */ ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
 			},
 			"description": map[string]any{
 				"type":        "string",
@@ -327,7 +327,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 	requiresTabID := []string{
 		ActionOpen, /* ActionScreenshot, */ ActionReadPage, ActionLeftClick, ActionType,
 		ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionRightClick,
-		ActionDoubleClick, ActionTripleClick, ActionDrag, ActionFormInput,
+		ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput,
 		ActionGoBack, ActionGoForward, ActionKey, ActionScrollTo, ActionSequence, ActionWait,
 		ActionTabSwitch, ActionTabClose, ActionAnalyzeScreenshot,
 	}
@@ -381,7 +381,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return b.handleDoubleClick(ctx, params, sessionID), nil
 	case ActionTripleClick:
 		return b.handleTripleClick(ctx, params, sessionID), nil
-	case ActionDrag:
+	case ActionLeftClickDrag:
 		return b.handleDrag(ctx, params, sessionID), nil
 	case ActionFormInput:
 		return b.handleFormInput(ctx, params, sessionID), nil
@@ -800,7 +800,23 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		return interfaces.NewTextErrorResponse("Index-based clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
-	// Service mode: support index-based clicking
+	// browser-service mode: use Click(index) directly to avoid cache synchronization issues
+	// browser-service's ReadPage doesn't populate the backendID click cache, so we use the index-based Click API instead
+	if adapter, ok := client.(*ServiceClientAdapter); ok {
+		// Call ReadPage to ensure element list is fresh
+		_, readErr := adapter.ReadPage(ctx, true, params.TabID)
+		if readErr != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to read page elements: %v", readErr))
+		}
+
+		// Use index-based Click directly
+		if err := adapter.Click(ctx, params.Index, params.TabID); err != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+		}
+		return interfaces.NewTextResponse(fmt.Sprintf("Successfully clicked element %d", params.Index))
+	}
+
+	// Other modes (RemoteCDP): use backendID-based clicking
 	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))

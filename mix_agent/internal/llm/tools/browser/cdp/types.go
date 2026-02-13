@@ -238,3 +238,20 @@ type DOMSetFileInputFilesParams struct {
 type DOMScrollIntoViewIfNeededParams struct {
 	BackendNodeID int64 `json:"backendNodeId,omitempty"`
 }
+
+type DOMGetBoxModelParams struct {
+	BackendNodeID int64 `json:"backendNodeId,omitempty"`
+}
+
+type DOMGetBoxModelResult struct {
+	Model BoxModel `json:"model"`
+}
+
+type BoxModel struct {
+	Content []float64 `json:"content"` // x1, y1, x2, y2, x3, y3, x4, y4
+	Padding []float64 `json:"padding"`
+	Border  []float64 `json:"border"`
+	Margin  []float64 `json:"margin"`
+	Width   float64   `json:"width"`
+	Height  float64   `json:"height"`
+}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"mix/internal/app"
+	"mix/internal/browser"
 	"mix/internal/constants"
 	"mix/internal/llm/interfaces"
 	session2 "mix/internal/session"
@@ -255,7 +256,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		sendValidationError(w, "browserMode", "browserMode is required (must be 'electron-embedded-browser', 'local-browser-service', or 'remote-cdp-websocket')")
 		return
 	}
-	validModes := []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"}
+	validModes := []string{browser.ModeElectronEmbedded, browser.ModeLocalBrowserService, browser.ModeRemoteCDP}
 	isValidMode := false
 	for _, mode := range validModes {
 		if req.BrowserMode == mode {
@@ -269,9 +270,9 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Validate CDP URL based on browser mode
-	if req.BrowserMode == "remote-cdp-websocket" {
+	if req.BrowserMode == browser.ModeRemoteCDP {
 		if req.CdpUrl == "" {
-			sendValidationError(w, "cdpUrl", "cdpUrl is required when browserMode is 'remote-cdp-websocket'")
+			sendValidationError(w, "cdpUrl", fmt.Sprintf("cdpUrl is required when browserMode is '%s'", browser.ModeRemoteCDP))
 			return
 		}
 		// Validate CDP URL format
@@ -281,7 +282,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		}
 	} else if req.CdpUrl != "" {
 		// Ensure CDP URL is not set for other modes
-		sendValidationError(w, "cdpUrl", "cdpUrl can only be set when browserMode is 'remote-cdp-websocket'")
+		sendValidationError(w, "cdpUrl", fmt.Sprintf("cdpUrl can only be set when browserMode is '%s'", browser.ModeRemoteCDP))
 		return
 	}
 

@@ -18,6 +18,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"mix/internal/app"
+	"mix/internal/browser"
 	"mix/internal/config"
 	"mix/internal/constants"
 	"mix/internal/db"
@@ -154,7 +155,7 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	time.Sleep(100 * time.Millisecond)
 
 	// Create test session (max 20 chars per DB constraint)
-	testSession, err := testApp.Sessions.Create(ctx, "Test Session", "", "default", session.SessionTypeMain, "", "", "", "local-browser-service", "")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Session", "", "default", session.SessionTypeMain, "", "", "", browser.ModeLocalBrowserService, "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}

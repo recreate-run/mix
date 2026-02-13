@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Element Selection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0b7dda;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            min-height: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="title">Element Selection Test Page</h1>
+    <p>This page tests different element selection strategies: index, ref, and coordinates.</p>
+
+    <div class="section">
+        <h2>Click Target Buttons</h2>
+        <button id="button1" onclick="handleClick('Button 1')">Button 1</button>
+        <button id="button2" onclick="handleClick('Button 2')">Button 2</button>
+        <button id="button3" onclick="handleClick('Button 3')">Button 3</button>
+        <button id="button4" onclick="handleClick('Button 4')">Button 4</button>
+    </div>
+
+    <div class="section">
+        <h2>Form Elements</h2>
+        <input id="textInput" type="text" placeholder="Test input field" style="padding: 8px; width: 300px; margin: 10px 0;"/>
+        <br>
+        <select id="dropdown" onchange="handleDropdownChange()" style="padding: 8px; margin: 10px 0;">
+            <option value="">Select an option</option>
+            <option value="option1">Option 1</option>
+            <option value="option2">Option 2</option>
+            <option value="option3">Option 3</option>
+        </select>
+    </div>
+
+    <div class="section">
+        <h2>Status</h2>
+        <div id="status">Ready - No actions performed yet</div>
+    </div>
+
+    <script>
+        function handleClick(buttonName) {
+            document.getElementById('status').textContent = 'Clicked: ' + buttonName + ' at ' + new Date().toLocaleTimeString();
+        }
+
+        function handleDropdownChange() {
+            const value = document.getElementById('dropdown').value;
+            document.getElementById('status').textContent = 'Dropdown changed to: ' + value;
+        }
+
+        // Track input changes
+        document.getElementById('textInput').addEventListener('input', function(e) {
+            if (e.target.value) {
+                document.getElementById('status').textContent = 'Input value: ' + e.target.value;
+            }
+        });
+    </script>
+</body>
+</html>

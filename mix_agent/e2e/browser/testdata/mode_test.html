@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Mode Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        input {
+            padding: 8px;
+            font-size: 14px;
+            width: 300px;
+            margin: 10px 0;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="title">Browser Mode Test Page</h1>
+    <p>This page is used to test browser automation across different modes.</p>
+
+    <button id="clickBtn" onclick="handleClick()">Click Me</button>
+
+    <div>
+        <input id="searchInput" type="text" placeholder="Type here to test keyboard input"/>
+    </div>
+
+    <div id="output">Output will appear here...</div>
+
+    <script>
+        function handleClick() {
+            document.getElementById('output').textContent = 'Button clicked successfully!';
+        }
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            document.getElementById('output').textContent = 'Input value: ' + e.target.value;
+        });
+    </script>
+</body>
+</html>

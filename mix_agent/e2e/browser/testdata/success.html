@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Success</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .success-message {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .user-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: left;
+        }
+        .user-info p {
+            margin: 10px 0;
+        }
+        h1 {
+            color: #28a745;
+        }
+    </style>
+    <script>
+        // Parse URL parameters to show submitted data
+        window.addEventListener('DOMContentLoaded', function() {
+            const params = new URLSearchParams(window.location.search);
+            const username = params.get('username') || 'Unknown';
+            const role = params.get('role') || 'Unknown';
+
+            document.getElementById('displayUsername').textContent = username;
+            document.getElementById('displayRole').textContent = role;
+        });
+    </script>
+</head>
+<body>
+    <h1>Login Successful</h1>
+
+    <div class="success-message">
+        <h2>✓ Authentication Complete</h2>
+        <p>You have successfully logged in to the system.</p>
+    </div>
+
+    <div class="user-info">
+        <h3>User Information:</h3>
+        <p><strong>Username:</strong> <span id="displayUsername">Loading...</span></p>
+        <p><strong>Role:</strong> <span id="displayRole">Loading...</span></p>
+        <p><strong>Status:</strong> Active</p>
+    </div>
+</body>
+</html>
