@@ -81,14 +81,14 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", constants.ContentTypeJSON)
 		// Return detailed health information
-		health := map[string]interface{}{
-			"status":      "ok",
-			"timestamp":   time.Now().Format(time.RFC3339),
-			"version":     version.Version,
-			"environment": os.Getenv("ENV"),
-			"services": map[string]string{
-				"backend":  "healthy",
-				"database": "connected",
+		health := SystemHealthResponse{
+			Status:      "ok",
+			Timestamp:   time.Now().Format(time.RFC3339),
+			Version:     version.Version,
+			Environment: os.Getenv("ENV"),
+			Services: HealthServices{
+				Backend:  "healthy",
+				Database: "connected",
 			},
 		}
 		if err := json.NewEncoder(w).Encode(health); err != nil {
@@ -111,9 +111,9 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	mux.HandleFunc("GET /api/v1/tunnel/active", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", constants.ContentTypeJSON)
 		activeTunnels := tunnelRegistry.GetActiveTunnels()
-		response := map[string]interface{}{
-			"active_tunnels": activeTunnels,
-			"count":          len(activeTunnels),
+		response := ActiveTunnelsResponse{
+			ActiveTunnels: activeTunnels,
+			Count:         len(activeTunnels),
 		}
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logging.Error("Failed to encode active tunnels response", "error", err)

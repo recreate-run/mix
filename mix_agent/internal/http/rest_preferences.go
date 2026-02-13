@@ -68,9 +68,9 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 	if err != nil {
 		// If preferences don't exist, return an empty response with available providers
 		if errors.Is(err, sql.ErrNoRows) {
-			WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
-				"preferences":         nil,
-				"available_providers": models.GetProviders(),
+			WriteJSONResponse(w, http.StatusOK, PreferencesWithProviders{
+				Preferences:        nil,
+				AvailableProviders: convertProvidersToInfo(models.GetProviders()),
 			})
 			return
 		}
@@ -95,9 +95,9 @@ func (h *PreferencesHandler) HandleGetPreferences(w http.ResponseWriter, r *http
 	}
 
 	// Include additional information about available providers
-	responseWithProviders := map[string]interface{}{
-		"preferences":         response,
-		"available_providers": models.GetProviders(),
+	responseWithProviders := PreferencesWithProviders{
+		Preferences:        &response,
+		AvailableProviders: convertProvidersToInfo(models.GetProviders()),
 	}
 
 	WriteJSONResponse(w, http.StatusOK, responseWithProviders)
@@ -140,20 +140,7 @@ func (h *PreferencesHandler) HandleUpdatePreferences(w http.ResponseWriter, r *h
 // HandleGetAvailableProviders handles GET /api/preferences/providers
 func (h *PreferencesHandler) HandleGetAvailableProviders(w http.ResponseWriter, r *http.Request) {
 	providers := models.GetProviders()
-
-	// Check which providers are authenticated
-	availableProviders := make(map[string]interface{})
-
-	for providerName, providerInfo := range providers {
-		// Check if provider is authenticated
-		// This would require checking OAuth credentials and API keys
-		// For now, return all providers with their info
-		availableProviders[string(providerName)] = map[string]interface{}{
-			"display_name": providerInfo.DisplayName,
-			"models":       providerInfo.Models,
-		}
-	}
-
+	availableProviders := convertProvidersToInfo(providers)
 	WriteJSONResponse(w, http.StatusOK, availableProviders)
 }
 
@@ -440,4 +427,16 @@ func buildPreferencesResponse(prefs db.UserPreference) UserPreferencesResponse {
 		CreatedAt:                prefs.CreatedAt,
 		UpdatedAt:                prefs.UpdatedAt,
 	}
+}
+
+// convertProvidersToInfo converts the models package provider info to API response format
+func convertProvidersToInfo(providers map[models.ModelProvider]models.ProviderInfo) map[string]ProviderInfo {
+	result := make(map[string]ProviderInfo, len(providers))
+	for providerName, providerInfo := range providers {
+		result[string(providerName)] = ProviderInfo{
+			DisplayName: providerInfo.DisplayName,
+			Models:      providerInfo.Models,
+		}
+	}
+	return result
 }

@@ -17,6 +17,7 @@ import (
 
 // TestBrowserE2EFormFilling tests the form filling and submission workflow
 func TestBrowserE2EFormFilling(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Browser Form Filling Workflow ===")
 
 	// Setup test environment

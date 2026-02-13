@@ -2896,6 +2896,193 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 				},
+				// New typed response schemas (replacing map[string]interface{} in handlers)
+				"StoreToolAPIKeyResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Success response when storing a tool API key",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Operation status",
+							"example":     "success",
+						},
+						"tool_type": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool type identifier",
+							"example":     "web_search",
+						},
+						"provider": map[string]interface{}{
+							"type":        "string",
+							"description": "Provider identifier",
+							"example":     "brave",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Success message",
+							"example":     "Brave Search API key stored successfully",
+						},
+					},
+					"required": []string{"status", "tool_type", "provider", "message"},
+				},
+				"DeleteToolCredentialResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Success response when deleting a tool credential",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Operation status",
+							"example":     "success",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Success message",
+							"example":     "Tool credential deleted successfully",
+						},
+					},
+					"required": []string{"status", "message"},
+				},
+				"SystemHealthResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "System health check response",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Overall system status",
+							"example":     "ok",
+						},
+						"timestamp": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Health check timestamp",
+						},
+						"version": map[string]interface{}{
+							"type":        "string",
+							"description": "Application version",
+							"example":     "1.0.0",
+						},
+						"environment": map[string]interface{}{
+							"type":        "string",
+							"description": "Environment name",
+							"example":     "production",
+						},
+						"services": map[string]interface{}{
+							"$ref": "#/components/schemas/HealthServices",
+						},
+					},
+					"required": []string{"status", "timestamp", "version", "environment", "services"},
+				},
+				"HealthServices": map[string]interface{}{
+					"type":        "object",
+					"description": "Backend services health status",
+					"properties": map[string]interface{}{
+						"backend": map[string]interface{}{
+							"type":        "string",
+							"description": "Backend service status",
+							"example":     "healthy",
+						},
+						"database": map[string]interface{}{
+							"type":        "string",
+							"description": "Database connection status",
+							"example":     "connected",
+						},
+					},
+					"required": []string{"backend", "database"},
+				},
+				"ActiveTunnelsResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Active WebSocket tunnels response",
+					"properties": map[string]interface{}{
+						"active_tunnels": map[string]interface{}{
+							"type":        "array",
+							"description": "List of active tunnel session IDs",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+						},
+						"count": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of active tunnels",
+							"example":     2,
+						},
+					},
+					"required": []string{"active_tunnels", "count"},
+				},
+				"SetAPIKeyResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Success response when setting an API key",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Operation status",
+							"example":     "success",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Success message",
+							"example":     "API key set successfully. You can now use the application.",
+						},
+					},
+					"required": []string{"status", "message"},
+				},
+				"PermissionResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Permission operation response",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Permission status (granted or denied)",
+							"enum":        []string{"granted", "denied"},
+							"example":     "granted",
+						},
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Permission request ID",
+							"example":     "perm_abc123",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Status message",
+							"example":     "Permission granted successfully",
+						},
+					},
+					"required": []string{"status", "id", "message"},
+				},
+				"PreferencesWithProviders": map[string]interface{}{
+					"type":        "object",
+					"description": "User preferences with available provider metadata",
+					"properties": map[string]interface{}{
+						"preferences": map[string]interface{}{
+							"type":        "object",
+							"description": "User preferences (null if not set)",
+							"nullable":    true,
+							"$ref":        "#/components/schemas/UserPreferencesResponse",
+						},
+						"available_providers": map[string]interface{}{
+							"type":        "object",
+							"description": "Available LLM providers with their metadata",
+							"additionalProperties": map[string]interface{}{
+								"$ref": "#/components/schemas/ProviderInfo",
+							},
+						},
+					},
+					"required": []string{"preferences", "available_providers"},
+				},
+				"ProviderInfo": map[string]interface{}{
+					"type":        "object",
+					"description": "LLM provider metadata",
+					"properties": map[string]interface{}{
+						"display_name": map[string]interface{}{
+							"type":        "string",
+							"description": "Provider display name",
+							"example":     "Anthropic",
+						},
+						"models": map[string]interface{}{
+							"type":        "object",
+							"description": "Available models for this provider (dynamic structure)",
+						},
+					},
+					"required": []string{"display_name", "models"},
+				},
 			},
 		},
 	}

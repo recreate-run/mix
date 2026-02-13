@@ -17,6 +17,7 @@ import (
 
 // TestBrowserE2EActionSequenceSuccess tests successful multi-step action sequences
 func TestBrowserE2EActionSequenceSuccess(t *testing.T) {
+	t.Parallel()
 	t.Log("=== E2E Test: Action Sequence - Successful Execution ===")
 
 	// Setup test environment

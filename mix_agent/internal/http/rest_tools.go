@@ -138,11 +138,11 @@ func (h *ToolsHandler) HandleStoreToolAPIKey(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Return success response
-	response := map[string]interface{}{
-		"status":    "success",
-		"tool_type": request.ToolType,
-		"provider":  request.Provider,
-		"message":   fmt.Sprintf("%s API key stored successfully", tool.DisplayName),
+	response := StoreToolAPIKeyResponse{
+		Status:   "success",
+		ToolType: request.ToolType,
+		Provider: request.Provider,
+		Message:  fmt.Sprintf("%s API key stored successfully", tool.DisplayName),
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)
@@ -199,9 +199,9 @@ func (h *ToolsHandler) HandleDeleteToolCredential(w http.ResponseWriter, r *http
 	}
 
 	// Return success response
-	response := map[string]interface{}{
-		"status":  "success",
-		"message": "Tool credential deleted successfully",
+	response := DeleteToolCredentialResponse{
+		Status:  "success",
+		Message: "Tool credential deleted successfully",
 	}
 
 	WriteJSONResponse(w, http.StatusOK, response)

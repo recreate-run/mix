@@ -84,11 +84,11 @@ type OAuthCallbackResponse struct {
 	ExpiresIn int64  `json:"expires_in"`
 }
 
-// HealthCheckResponse represents the health check response
-type HealthCheckResponse struct {
-	Status    string                  `json:"status"`
+// OAuthHealthResponse represents the OAuth/auth-specific health check response
+type OAuthHealthResponse struct {
+	Status    string                       `json:"status"`
 	Providers map[string]auth.TokenStatus `json:"providers"`
-	Timestamp string                  `json:"timestamp"`
+	Timestamp string                       `json:"timestamp"`
 }
 
 // HandleStoreAPIKey handles POST /api/auth/api-key
@@ -685,7 +685,7 @@ func (h *AuthHandler) HandleOAuthHealth(w http.ResponseWriter, r *http.Request) 
 		overallHealth = "degraded"
 	}
 
-	response := HealthCheckResponse{
+	response := OAuthHealthResponse{
 		Status:    overallHealth,
 		Providers: status,
 		Timestamp: time.Now().Format(time.RFC3339),

@@ -135,7 +135,8 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 
 			if len(msg.ToolCalls()) > 0 {
 				for _, call := range msg.ToolCalls() {
-					args, _ := parseJsonToMap(call.Input)
+					// INTENTIONAL: Tool inputs are dynamic JSON determined by each tool's schema
+					args, _ := ParseJSONToObject(call.Input)
 					assistantParts = append(assistantParts, &genai.Part{
 						FunctionCall: &genai.FunctionCall{
 							Name: call.Name,
@@ -154,8 +155,9 @@ func (g *geminiClient) convertMessages(messages []message.Message) []*genai.Cont
 
 		case message.Tool:
 			for _, result := range msg.ToolResults() {
+				// Try to parse as structured JSON first, fall back to simple result wrapper
 				response := map[string]interface{}{"result": result.Content}
-				parsed, err := parseJsonToMap(result.Content)
+				parsed, err := ParseJSONToObject(result.Content)
 				if err == nil {
 					response = parsed
 				}
@@ -591,12 +593,19 @@ func WithGeminiMediaResolution(resolution genai.MediaResolution) GeminiOption {
 }
 
 // Helper functions
-func parseJsonToMap(jsonStr string) (map[string]interface{}, error) {
+
+// ParseJSONToObject parses a JSON string into a dynamic map object.
+// This is intentionally untyped because Gemini tool results can have arbitrary structure
+// determined by the tool implementation at runtime.
+func ParseJSONToObject(jsonStr string) (map[string]interface{}, error) {
 	var result map[string]interface{}
 	err := json.Unmarshal([]byte(jsonStr), &result)
 	return result, err
 }
 
+// convertSchemaProperties converts tool parameter schema to Gemini format.
+// INTENTIONAL map[string]interface{}: Parameters come from the dynamic tool schema system
+// where field types and structure are defined at runtime by each tool's schema definition.
 func convertSchemaProperties(parameters map[string]interface{}) map[string]*genai.Schema {
 	properties := make(map[string]*genai.Schema)
 
@@ -607,6 +616,9 @@ func convertSchemaProperties(parameters map[string]interface{}) map[string]*gena
 	return properties
 }
 
+// convertToSchema converts a dynamic schema parameter to Gemini Schema format.
+// INTENTIONAL map[string]interface{}: Schema conversion requires runtime type inspection
+// since tool schemas are dynamically generated and can have nested object/array structures.
 func convertToSchema(param interface{}) *genai.Schema {
 	schema := &genai.Schema{Type: genai.TypeString}
 
@@ -635,6 +647,7 @@ func convertToSchema(param interface{}) *genai.Schema {
 	case "array":
 		schema.Items = processArrayItems(paramMap)
 	case "object":
+		// INTENTIONAL map[string]interface{}: Nested properties schema is dynamic
 		if props, ok := paramMap["properties"].(map[string]interface{}); ok {
 			schema.Properties = convertSchemaProperties(props)
 		}
@@ -643,6 +656,8 @@ func convertToSchema(param interface{}) *genai.Schema {
 	return schema
 }
 
+// processArrayItems extracts and converts array item schema.
+// INTENTIONAL map[string]interface{}: Array items schema structure is dynamic.
 func processArrayItems(paramMap map[string]interface{}) *genai.Schema {
 	items, ok := paramMap["items"].(map[string]interface{})
 	if !ok {
@@ -693,6 +708,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 
 	// Log request details
 	requestFile := filepath.Join(logDir, fmt.Sprintf("gemini-empty-response-%s-%s-request.txt", sessionID, timestamp))
+	// INTENTIONAL map[string]interface{}: Debug logging with heterogeneous data types
 	requestData := map[string]interface{}{
 		"timestamp": time.Now().Format(time.RFC3339),
 		"sessionID": sessionID,
@@ -715,6 +731,7 @@ func (g *geminiClient) logEmptyResponseDetails(sessionID string, messages []mess
 
 	// Log response details
 	responseFile := filepath.Join(logDir, fmt.Sprintf("gemini-empty-response-%s-%s-response.txt", sessionID, timestamp))
+	// INTENTIONAL map[string]interface{}: Debug logging with heterogeneous data types
 	responseData := map[string]interface{}{
 		"timestamp": time.Now().Format(time.RFC3339),
 		"sessionID": sessionID,

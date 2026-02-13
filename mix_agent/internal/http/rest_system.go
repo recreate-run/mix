@@ -104,9 +104,9 @@ func (h *SystemHandler) HandleSetAPIKey(w http.ResponseWriter, r *http.Request) 
 	// Set environment variable
 	_ = os.Setenv("ANTHROPIC_API_KEY", req.APIKey)
 
-	result := map[string]interface{}{
-		"status":  "success",
-		"message": "API key set successfully. You can now use the application.",
+	result := SetAPIKeyResponse{
+		Status:  "success",
+		Message: "API key set successfully. You can now use the application.",
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
@@ -310,10 +310,10 @@ func (h *SystemHandler) HandleGrantPermission(w http.ResponseWriter, r *http.Req
 	// Grant the permission using the existing service
 	h.app.Permissions.Grant(permission.PermissionRequest{ID: permissionID})
 
-	result := map[string]string{
-		"status":  "granted",
-		"id":      permissionID,
-		"message": "Permission granted successfully",
+	result := PermissionResponse{
+		Status:  "granted",
+		ID:      permissionID,
+		Message: "Permission granted successfully",
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
@@ -340,10 +340,10 @@ func (h *SystemHandler) HandleDenyPermission(w http.ResponseWriter, r *http.Requ
 	// Deny the permission using the existing service
 	h.app.Permissions.Deny(permission.PermissionRequest{ID: permissionID})
 
-	result := map[string]string{
-		"status":  "denied",
-		"id":      permissionID,
-		"message": "Permission denied successfully",
+	result := PermissionResponse{
+		Status:  "denied",
+		ID:      permissionID,
+		Message: "Permission denied successfully",
 	}
 
 	sendJSONResponse(w, http.StatusOK, result)
