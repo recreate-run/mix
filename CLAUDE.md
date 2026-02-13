@@ -36,6 +36,7 @@ task tail-log     # Reads the current log file (last 100 lines of code)
 task clean
 task              # Show all available tasks (default)
 task frontend-typecheck     # Always use this for frontend typechecking
+go test -tags=e2e -v -parallel=10 ./e2e/browser/...  # Run E2E browser tests with 10 parallel workers
 
 </bash_commands>
 
