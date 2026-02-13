@@ -1,3 +1,5 @@
 go 1.25.5
 
 use ./mix_agent
+
+use ./browser_service

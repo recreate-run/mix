@@ -1,0 +1,55 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/sarathmenon/browser-service/internal/constants"
+	"github.com/sarathmenon/browser-service/internal/server"
+)
+
+func main() {
+	port := flag.String("port", constants.DefaultPort, "WebSocket server port")
+	headless := flag.Bool("headless", false, "Run browser in headless mode")
+	flag.Parse()
+
+	cfg := server.Config{
+		Port:     *port,
+		Headless: *headless,
+	}
+
+	// Create root context
+	ctx := context.Background()
+
+	srv, err := server.New(ctx, cfg)
+	if err != nil {
+		log.Fatalf("Failed to create server: %v", err)
+	}
+
+	// Handle graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		log.Println("Shutting down gracefully...")
+
+		// Create shutdown context with timeout
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
+		defer cancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Error during shutdown: %v", err)
+		}
+		os.Exit(0)
+	}()
+
+	log.Printf("Starting browser service on port %s (headless=%v)", *port, *headless)
+	if err := srv.Start(); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}

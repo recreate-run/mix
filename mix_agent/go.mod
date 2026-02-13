@@ -157,4 +157,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/sarathmenon/browser-service => ../../browser-use-trial/browser-service
+replace github.com/sarathmenon/browser-service => ../browser_service

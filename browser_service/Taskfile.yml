@@ -1,0 +1,119 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  dev:
+    desc: Start with hot reload (rebuilds on file changes)
+    cmds:
+      - ./scripts/dev.sh
+
+  tail-dev-log:
+    desc: Show the last 100 lines of the dev server log
+    cmds:
+      - |
+        if [ -f {{.ROOT_DIR}}/dev.log ]; then
+          tail -100 {{.ROOT_DIR}}/dev.log | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'
+        else
+          echo "dev.log not found. Run 'task dev' first."
+        fi
+
+  build:
+    desc: Build the binary
+    cmds:
+      - echo "Building browser-service binary..."
+      - go build -o bin/browser-service ./cmd/server
+      - echo "Build complete! Binary at bin/browser-service"
+
+  test:
+    desc: Run tests with race detection
+    cmds:
+      - echo "Running tests with race detection..."
+      - go test -v -race ./...
+      - echo "Tests passed!"
+
+  test-phase1:
+    desc: Run Phase 1 tests (WebSocket + Browser basics)
+    cmds:
+      - echo "Running Phase 1 tests..."
+      - go test -v -race ./... -run "TestWebSocket|TestBrowser|TestNavigate|TestScreenshot|TestContext|TestCleanup"
+      - echo "Phase 1 tests passed!"
+
+  test-phase2:
+    desc: Run Phase 2 tests (Vision + Element interaction)
+    cmds:
+      - echo "Running Phase 2 tests..."
+      - go test -v -race ./... -run "TestAccessibility|TestElement|TestBoundingBox|TestClick|TestType|TestScroll"
+      - echo "Phase 2 tests passed!"
+
+  test-phase4:
+    desc: Run Phase 4 tests (Cookies + Anti-detection)
+    cmds:
+      - echo "Running Phase 4 tests..."
+      - go test -v -race ./... -run "TestChrome|TestCookie|TestUserAgent|TestWebdriver|TestDialog|TestReconnect|TestTimeout|TestCrash"
+      - echo "Phase 4 tests passed!"
+
+  coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - echo "Running tests with coverage..."
+      - go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      - go tool cover -func=coverage.out | tail -1
+      - echo "Coverage report generated at coverage.out"
+      - echo "Run 'task coverage-html' to view detailed HTML report"
+
+  coverage-html:
+    desc: Generate and open HTML coverage report
+    cmds:
+      - echo "Generating HTML coverage report..."
+      - go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "HTML report generated at coverage.html"
+      - open coverage.html || xdg-open coverage.html || echo "Please open coverage.html in your browser"
+
+  lint:
+    desc: Run linters
+    cmds:
+      - echo "Running linters..."
+      - golangci-lint run
+      - echo "Linting complete!"
+
+  fmt:
+    desc: Format code
+    cmds:
+      - echo "Formatting code..."
+      - go fmt ./...
+      - gofumpt -l -w .
+      - echo "Code formatted!"
+
+  clean:
+    desc: Clean build artifacts and log files
+    cmds:
+      - echo "Cleaning build artifacts and log files..."
+      - rm -rf bin/ dist/
+      - rm -f dev.log dev-prev.log coverage.out coverage.html
+      - echo "Cleaned successfully!"
+
+  install:
+    desc: Install dependencies
+    cmds:
+      - echo "Installing dependencies..."
+      - go mod download
+      - go mod tidy
+      - echo "Dependencies installed!"
+
+  ws-test:
+    desc: Start a WebSocket test client (requires wscat)
+    cmds:
+      - |
+        if ! command -v wscat &> /dev/null; then
+          echo "wscat not found. Install with: npm install -g wscat"
+          exit 1
+        fi
+        echo "Connecting to ws://localhost:8081..."
+        echo "Try sending: {\"id\":\"1\",\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://example.com\"}}"
+        wscat -c ws://localhost:8081

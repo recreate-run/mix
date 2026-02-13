@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Service Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 { color: #333; }
+        button, input, a {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input {
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            min-height: 40px;
+            font-weight: bold;
+            color: #333;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 4px;
+        }
+        .scrollable-content {
+            height: 2000px;
+            margin-top: 50px;
+            padding: 20px;
+            background: linear-gradient(to bottom, #fff, #e0e0e0);
+        }
+        #bottom-marker {
+            position: relative;
+            top: 1950px;
+            padding: 20px;
+            background: #4CAF50;
+            color: white;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Page for Element Interaction</h1>
+    <p>This page contains multiple interactive elements for testing browser automation.</p>
+
+    <div class="section">
+        <h2>Buttons</h2>
+        <button id="btn1" onclick="document.getElementById('result').innerText='Button 1 clicked'">
+            Click Me (Button 1)
+        </button>
+
+        <button id="btn2" onclick="document.getElementById('result').innerText='Button 2 clicked'">
+            Another Button
+        </button>
+
+        <button id="btn3" onclick="document.getElementById('result').innerText='Button 3 clicked'">
+            Third Button
+        </button>
+    </div>
+
+    <div class="section">
+        <h2>Text Inputs</h2>
+        <input type="text" id="input1" placeholder="Type here (Input 1)">
+        <input type="text" id="input2" placeholder="Another input (Input 2)">
+        <input type="email" id="email" placeholder="Email input">
+        <input type="search" id="search" placeholder="Search box">
+    </div>
+
+    <div class="section">
+        <h2>Links</h2>
+        <a href="#link1" onclick="document.getElementById('result').innerText='Link 1 clicked'; return false;">
+            Test Link 1
+        </a>
+        <a href="#link2" onclick="document.getElementById('result').innerText='Link 2 clicked'; return false;">
+            Test Link 2
+        </a>
+        <a href="#link3" onclick="document.getElementById('result').innerText='Link 3 clicked'; return false;">
+            Test Link 3
+        </a>
+    </div>
+
+    <div class="section">
+        <h2>Other Interactive Elements</h2>
+        <label>
+            <input type="checkbox" id="checkbox1" onchange="document.getElementById('result').innerText='Checkbox toggled'">
+            Checkbox Option
+        </label>
+        <br><br>
+        <label>
+            <input type="radio" name="radio-group" value="option1" onchange="document.getElementById('result').innerText='Radio 1 selected'">
+            Radio Option 1
+        </label>
+        <br>
+        <label>
+            <input type="radio" name="radio-group" value="option2" onchange="document.getElementById('result').innerText='Radio 2 selected'">
+            Radio Option 2
+        </label>
+    </div>
+
+    <div id="result">Action result will appear here</div>
+
+    <!-- Scrollable content for scroll tests -->
+    <div class="scrollable-content">
+        <p style="font-size: 18px; font-weight: bold;">Scrollable Content Section</p>
+        <p>This section adds height to the page for testing scroll functionality.</p>
+        <p>The page is now tall enough to test scrolling up and down.</p>
+
+        <div id="bottom-marker">
+            Bottom of Page Marker
+        </div>
+    </div>
+
+    <script>
+        // Add event listeners for better interaction feedback
+        document.querySelectorAll('input[type="text"], input[type="email"], input[type="search"]').forEach(input => {
+            input.addEventListener('input', function() {
+                document.getElementById('result').innerText = `Typed in ${this.placeholder}: "${this.value}"`;
+            });
+        });
+
+        // Log all interactions
+        console.log('Test page loaded successfully');
+    </script>
+</body>
+</html>

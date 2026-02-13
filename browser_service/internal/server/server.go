@@ -1,0 +1,222 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/sarathmenon/browser-service/internal/browser"
+	"github.com/sarathmenon/browser-service/internal/constants"
+)
+
+// Config holds server configuration
+type Config struct {
+	Port     string
+	Headless bool
+}
+
+// Server represents the WebSocket server
+type Server struct {
+	config        Config
+	upgrader      websocket.Upgrader
+	manager       *browser.Manager
+	clients       map[string]*Client
+	mu            sync.RWMutex
+	srv           *http.Server
+	ctx           context.Context
+	cancel        context.CancelFunc
+	clientCounter uint64
+}
+
+// Client represents a connected WebSocket client
+type Client struct {
+	ID      string
+	Conn    *websocket.Conn
+	Context *browser.Context
+	done    chan struct{}
+}
+
+// New creates a new server instance
+func New(ctx context.Context, cfg Config) (*Server, error) {
+	mgr, err := browser.NewManager(ctx, cfg.Headless)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create browser manager: %w", err)
+	}
+
+	srvCtx, cancel := context.WithCancel(ctx)
+
+	return &Server{
+		config: cfg,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true // Allow all origins for development
+			},
+		},
+		manager: mgr,
+		clients: make(map[string]*Client),
+		ctx:     srvCtx,
+		cancel:  cancel,
+	}, nil
+}
+
+// Start starts the WebSocket server
+func (s *Server) Start() error {
+	mux := http.NewServeMux()
+	mux.HandleFunc(constants.WebSocketEndpoint, s.handleWebSocket)
+	mux.HandleFunc(constants.HealthEndpoint, s.handleHealth)
+
+	addr := ":" + s.config.Port
+	if s.config.Port == "" {
+		addr = ":" + constants.DefaultPort
+	}
+
+	s.srv = &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	return s.srv.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server
+func (s *Server) Shutdown(ctx context.Context) error {
+	// Cancel server context
+	s.cancel()
+
+	// Close all client connections
+	s.mu.Lock()
+	for id, client := range s.clients {
+		close(client.done)
+		if err := client.Conn.Close(); err != nil {
+			log.Printf("Error closing client connection %s: %v", id, err)
+		}
+		if client.Context != nil {
+			if err := client.Context.Close(ctx); err != nil {
+				log.Printf("Error closing client context %s: %v", id, err)
+			}
+		}
+		delete(s.clients, id)
+	}
+	s.mu.Unlock()
+
+	// Close browser manager
+	if err := s.manager.Close(ctx); err != nil {
+		log.Printf("Error closing browser manager: %v", err)
+	}
+
+	// Shutdown HTTP server
+	if s.srv != nil {
+		return s.srv.Shutdown(ctx)
+	}
+
+	return nil
+}
+
+// handleHealth returns server health status
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+		log.Printf("Failed to write health response: %v", err)
+	}
+}
+
+// handleWebSocket handles new WebSocket connections
+func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := s.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade error: %v", err)
+		return
+	}
+
+	// Check concurrent connection limit
+	s.mu.RLock()
+	if len(s.clients) >= constants.MaxConcurrentConns {
+		s.mu.RUnlock()
+		log.Printf("Max concurrent connections reached")
+		if err := conn.Close(); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+		return
+	}
+	s.mu.RUnlock()
+
+	// Generate client ID using atomic counter for thread safety
+	clientID := fmt.Sprintf("client-%d", atomic.AddUint64(&s.clientCounter, 1))
+
+	// Create browser context for this client
+	//nolint:contextcheck // s.ctx is the server context, not request context
+	ctx, err := s.manager.NewContext(s.ctx)
+	if err != nil {
+		log.Printf("Failed to create browser context: %v", err)
+		if err := conn.Close(); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+		return
+	}
+
+	client := &Client{
+		ID:      clientID,
+		Conn:    conn,
+		Context: ctx,
+		done:    make(chan struct{}),
+	}
+
+	s.mu.Lock()
+	s.clients[clientID] = client
+	s.mu.Unlock()
+
+	log.Printf("Client connected: %s", clientID)
+
+	// Start handling messages
+	go s.handleClient(client)
+}
+
+// handleClient processes messages from a client
+func (s *Server) handleClient(client *Client) {
+	defer func() {
+		s.mu.Lock()
+		delete(s.clients, client.ID)
+		s.mu.Unlock()
+
+		if client.Context != nil {
+			if err := client.Context.Close(s.ctx); err != nil {
+				log.Printf("Error closing client context: %v", err)
+			}
+		}
+		if err := client.Conn.Close(); err != nil {
+			log.Printf("Error closing client connection: %v", err)
+		}
+		log.Printf("Client disconnected: %s", client.ID)
+	}()
+
+	handler := NewMessageHandler(client)
+
+	for {
+		select {
+		case <-client.done:
+			return
+		case <-s.ctx.Done():
+			return
+		default:
+			_, message, err := client.Conn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					log.Printf("WebSocket error: %v", err)
+				}
+				return
+			}
+
+			response := handler.Handle(s.ctx, message)
+			if err := client.Conn.WriteJSON(response); err != nil {
+				log.Printf("Write error: %v", err)
+				return
+			}
+		}
+	}
+}

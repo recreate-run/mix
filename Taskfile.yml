@@ -14,6 +14,11 @@ vars:
   LDFLAGS: -s -w -X mix/internal/version.Version={{.VERSION}} -X main.buildTime={{.BUILD_TIME}}
   CGO_ENV: CGO_ENABLED=0
 
+includes:
+  browser:
+    taskfile: ./browser_service/Taskfile.yml
+    dir: ./browser_service
+
 tasks:
   default:
     desc: Show available tasks
@@ -372,6 +377,8 @@ tasks:
       - rm -rf mix_agent/build || true
       - rm -f mix_agent/mix || true
       - cd mix_agent && go clean || true
+      - echo "Cleaning browser service..."
+      - task browser:clean
       - echo "Cleaning Tauri frontend (mix_dev_tool)..."
       - rm -rf mix_dev_tool/node_modules || true
       - rm -rf mix_dev_tool/src-tauri/target || true

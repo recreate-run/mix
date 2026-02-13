@@ -1,0 +1,110 @@
+package constants
+
+import "time"
+
+// Protocol methods
+const (
+	MethodPageNavigate      = "Page.navigate"
+	MethodPageScreenshot    = "Page.screenshot"
+	MethodPageGetElements   = "Page.getElements"
+	MethodPageReadPage      = "Page.readPage"
+	MethodPageClick         = "Page.click"
+	MethodPageClickByBackendID = "Page.clickByBackendID"
+	MethodPageType          = "Page.type"
+	MethodPageScroll        = "Page.scroll"
+	MethodPageUploadFile    = "Page.uploadFile"
+	MethodPageGetText       = "Page.getText"
+	MethodPageFind          = "Page.find"
+	MethodBrowserClose      = "Browser.close"
+	MethodBrowserImportCookies = "Browser.importCookies"
+	MethodBrowserSetUserAgent  = "Browser.setUserAgent"
+	MethodPageRightClick    = "Page.rightClick"
+	MethodPageRightClickByBackendID = "Page.rightClickByBackendID"
+	MethodPageDoubleClick   = "Page.doubleClick"
+	MethodPageDoubleClickByBackendID = "Page.doubleClickByBackendID"
+	MethodPageTripleClick   = "Page.tripleClick"
+	MethodPageTripleClickByBackendID = "Page.tripleClickByBackendID"
+	MethodPageDrag          = "Page.drag"
+	MethodPageFormInput     = "Page.formInput"
+	MethodPageGoBack        = "Page.goBack"
+	MethodPageGoForward     = "Page.goForward"
+	MethodTabCreate         = "Tab.create"
+	MethodTabList           = "Tab.list"
+	MethodTabSwitch         = "Tab.switch"
+	MethodTabClose          = "Tab.close"
+	MethodPageWait          = "Page.wait"
+	MethodPagePressKey      = "Page.pressKey"
+	MethodPageScrollIntoView = "Page.scrollIntoView"
+)
+
+// Timeouts
+const (
+	DefaultNavigationTimeout = 30 * time.Second
+	DefaultScreenshotTimeout = 5 * time.Second
+	DefaultClickTimeout      = 2 * time.Second
+	DefaultShutdownTimeout   = 10 * time.Second
+)
+
+// Browser
+const (
+	DefaultBrowser        = "chrome"
+	DefaultBrowserProfile = "Default"
+)
+
+// Screenshot
+const (
+	DefaultImageFormat = "png"
+	ImageFormatPNG     = "png"
+	ImageFormatJPEG    = "jpeg"
+)
+
+// Scroll directions
+const (
+	ScrollUp    = "up"
+	ScrollDown  = "down"
+	ScrollLeft  = "left"
+	ScrollRight = "right"
+)
+
+// Interactive element roles
+const (
+	RoleButton           = "button"
+	RoleLink             = "link"
+	RoleTextbox          = "textbox"
+	RoleSearchbox        = "searchbox"
+	RoleCombobox         = "combobox"
+	RoleListbox          = "listbox"
+	RoleMenu             = "menu"
+	RoleMenuItem         = "menuitem"
+	RoleMenuItemCheckbox = "menuitemcheckbox"
+	RoleMenuItemRadio    = "menuitemradio"
+	RoleTab              = "tab"
+	RoleCheckbox         = "checkbox"
+	RoleRadio            = "radio"
+	RoleSlider           = "slider"
+	RoleSpinbutton       = "spinbutton"
+	RoleSwitch           = "switch"
+)
+
+// Text extraction
+const (
+	MaxTextSize         = 1048576 // 1MB in bytes
+	TextStrategyAuto    = "auto"
+	TextStrategyArticle = "article"
+	TextStrategyMain    = "main"
+	TextStrategyBody    = "body"
+)
+
+// DOM search
+const (
+	MaxFindResults  = 100
+	DefaultFindLimit = 100
+)
+
+// Server
+const (
+	DefaultPort        = "8081"
+	HealthEndpoint     = "/health"
+	WebSocketEndpoint  = "/ws"
+	MaxConcurrentConns = 100
+)
