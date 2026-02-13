@@ -435,6 +435,51 @@ type GetLocalStorageResult struct {
 	Items map[string]string `json:"items"`
 }
 
+// --- Downloads Types ---
+
+// Download represents a browser download
+type Download struct {
+	GUID              string `json:"guid"`
+	URL               string `json:"url"`
+	SuggestedFilename string `json:"suggestedFilename"`
+	TotalBytes        int64  `json:"totalBytes"`
+	State             string `json:"state"` // "inProgress", "completed"
+	Path              string `json:"path"`  // Final file path
+}
+
+// SetDownloadBehaviorParams for Browser.setDownloadBehavior
+type SetDownloadBehaviorParams struct {
+	Path   string `json:"path"`   // Download directory path
+	Accept bool   `json:"accept"` // Whether to accept downloads
+	TabID  *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// SetDownloadBehaviorResult for Browser.setDownloadBehavior response
+type SetDownloadBehaviorResult struct {
+	Configured bool `json:"configured"`
+}
+
+// GetDownloadsParams for Page.getDownloads
+type GetDownloadsParams struct {
+	TabID *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// GetDownloadsResult for Page.getDownloads response
+type GetDownloadsResult struct {
+	Downloads []Download `json:"downloads"`
+}
+
+// WaitForDownloadParams for Page.waitForDownload
+type WaitForDownloadParams struct {
+	Timeout int     `json:"timeout"`         // Timeout in milliseconds
+	TabID   *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// WaitForDownloadResult for Page.waitForDownload response
+type WaitForDownloadResult struct {
+	Download Download `json:"download"`
+}
+
 // --- Error Codes ---
 const (
 	ErrCodeInvalidRequest  = -32600

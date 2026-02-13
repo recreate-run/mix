@@ -8,6 +8,7 @@ import (
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/sarathmenon/browser-service/internal/errors"
+	"github.com/sarathmenon/browser-service/pkg/protocol"
 )
 
 // Manager manages the browser instance and contexts
@@ -64,9 +65,11 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 
 	// Create initial tab with ID "tab-1"
 	initialTab := &tabContext{
-		id:       "tab-1",
-		page:     page,
-		elements: make([]elementInfo, 0),
+		id:           "tab-1",
+		page:         page,
+		elements:     make([]elementInfo, 0),
+		downloads:    make([]protocol.Download, 0),
+		downloadChan: make(chan protocol.Download, 10),
 	}
 
 	return &Context{

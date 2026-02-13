@@ -40,6 +40,9 @@ type tabContext struct {
 	currentURL        string       // Cached current URL
 	currentTitle      string       // Cached current title
 	navigationTimeout time.Duration // Navigation timeout (not wrapped page)
+	downloads         []protocol.Download
+	downloadsMu       sync.RWMutex
+	downloadChan      chan protocol.Download
 }
 
 // elementInfo stores element data for click/type operations
@@ -129,6 +132,8 @@ func (c *Context) CreateTab(ctx context.Context) (*protocol.TabInfo, error) {
 		currentURL:        info.URL,
 		currentTitle:      info.Title,
 		navigationTimeout: constants.DefaultNavigationTimeout,
+		downloads:         make([]protocol.Download, 0),
+		downloadChan:      make(chan protocol.Download, 10), // Buffered channel for download events
 	}
 
 	c.tabs[tabID] = tab
@@ -2217,6 +2222,147 @@ func (c *Context) GetLocalStorage(ctx context.Context, tabID *string) (*protocol
 	}
 
 	return &protocol.GetLocalStorageResult{Items: items}, nil
+}
+
+// SetDownloadBehavior configures download behavior for the browser
+func (c *Context) SetDownloadBehavior(ctx context.Context, path string, accept bool, tabID *string) (*protocol.SetDownloadBehaviorResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enable Page domain for download events
+	err = proto.PageEnable{}.Call(tab.page)
+	if err != nil {
+		return nil, errors.NewBrowserError("set_download_behavior", fmt.Errorf("failed to enable Page domain: %w", err))
+	}
+
+	// Configure download behavior using CDP
+	behavior := "deny"
+	if accept {
+		behavior = "allow"
+	}
+
+	err = proto.PageSetDownloadBehavior{
+		Behavior:     proto.PageSetDownloadBehaviorBehavior(behavior),
+		DownloadPath: path,
+	}.Call(tab.page)
+
+	if err != nil {
+		return nil, errors.NewBrowserError("set_download_behavior", fmt.Errorf("failed to configure downloads: %w", err))
+	}
+
+	// Start listening for download events if accepting downloads
+	if accept {
+		c.listenForDownloadEvents(tab, path)
+	}
+
+	return &protocol.SetDownloadBehaviorResult{Configured: true}, nil
+}
+
+// GetDownloads returns the list of downloads for the current tab
+func (c *Context) GetDownloads(ctx context.Context, tabID *string) (*protocol.GetDownloadsResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	tab.downloadsMu.RLock()
+	defer tab.downloadsMu.RUnlock()
+
+	// Return a copy of downloads to avoid data races
+	downloadsCopy := make([]protocol.Download, len(tab.downloads))
+	copy(downloadsCopy, tab.downloads)
+
+	return &protocol.GetDownloadsResult{Downloads: downloadsCopy}, nil
+}
+
+// WaitForDownload blocks until a download completes or timeout occurs
+func (c *Context) WaitForDownload(ctx context.Context, timeoutMs int, tabID *string) (*protocol.WaitForDownloadResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	timeout := time.Duration(timeoutMs) * time.Millisecond
+	select {
+	case download := <-tab.downloadChan:
+		return &protocol.WaitForDownloadResult{Download: download}, nil
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("timeout waiting for download")
+	case <-ctx.Done():
+		return nil, errors.NewBrowserError("wait_for_download", ctx.Err())
+	}
+}
+
+// listenForDownloadEvents listens for CDP download events in goroutines
+func (c *Context) listenForDownloadEvents(tab *tabContext, downloadPath string) {
+	// Track downloads by GUID
+	downloadsByGUID := make(map[string]int) // GUID -> index in tab.downloads
+	var guidMu sync.Mutex
+
+	// Listen for downloadWillBegin events in a goroutine
+	go tab.page.EachEvent(func(e *proto.PageDownloadWillBegin) {
+		// Generate GUID for download
+		guid := e.GUID
+		if guid == "" {
+			guid = fmt.Sprintf("download-%d", time.Now().UnixNano())
+		}
+
+		// Construct the full download path
+		fullPath := filepath.Join(downloadPath, e.SuggestedFilename)
+
+		download := protocol.Download{
+			GUID:              guid,
+			URL:               e.URL,
+			SuggestedFilename: e.SuggestedFilename,
+			State:             "inProgress",
+			TotalBytes:        0,
+			Path:              fullPath,
+		}
+
+		tab.downloadsMu.Lock()
+		tab.downloads = append(tab.downloads, download)
+		downloadIndex := len(tab.downloads) - 1
+		tab.downloadsMu.Unlock()
+
+		guidMu.Lock()
+		downloadsByGUID[guid] = downloadIndex
+		guidMu.Unlock()
+	})()
+
+	// Listen for downloadProgress events in a separate goroutine
+	go tab.page.EachEvent(func(e *proto.PageDownloadProgress) {
+		// Handle download completion or cancellation (in headless mode, downloads often show as "canceled" even when successful)
+		// We treat both "completed" and "canceled" with TotalBytes > 0 as successful downloads
+		isFinished := e.State == proto.PageDownloadProgressStateCompleted ||
+			(e.State == proto.PageDownloadProgressState("canceled") && e.TotalBytes > 0)
+
+		if isFinished {
+			guidMu.Lock()
+			downloadIndex, exists := downloadsByGUID[e.GUID]
+			guidMu.Unlock()
+
+			if !exists {
+				return
+			}
+
+			tab.downloadsMu.Lock()
+			if downloadIndex < len(tab.downloads) {
+				tab.downloads[downloadIndex].State = "completed"
+				tab.downloads[downloadIndex].TotalBytes = int64(e.TotalBytes)
+
+				completedDownload := tab.downloads[downloadIndex]
+				tab.downloadsMu.Unlock()
+
+				// Send completed download to channel (blocking)
+				// The channel is buffered, so this won't block unless buffer is full
+				tab.downloadChan <- completedDownload
+			} else {
+				tab.downloadsMu.Unlock()
+			}
+		}
+	})()
 }
 
 // Close closes the browser context

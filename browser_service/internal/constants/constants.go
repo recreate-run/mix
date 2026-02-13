@@ -42,6 +42,9 @@ const (
 	MethodBrowserLoadStorageState = "Browser.loadStorageState"
 	MethodPageSetLocalStorage   = "Page.setLocalStorage"
 	MethodPageGetLocalStorage   = "Page.getLocalStorage"
+	MethodBrowserSetDownloadBehavior = "Browser.setDownloadBehavior"
+	MethodPageGetDownloads        = "Page.getDownloads"
+	MethodPageWaitForDownload     = "Page.waitForDownload"
 )
 
 // Timeouts
