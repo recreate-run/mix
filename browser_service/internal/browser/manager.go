@@ -2,6 +2,7 @@ package browser
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/go-rod/rod"
@@ -11,22 +12,54 @@ import (
 	"github.com/sarathmenon/browser-service/pkg/protocol"
 )
 
+// Config holds browser configuration
+type Config struct {
+	Headless     bool
+	Stealth      bool
+	WindowWidth  int
+	WindowHeight int
+}
+
 // Manager manages the browser instance and contexts
 type Manager struct {
-	browser  *rod.Browser
-	headless bool
-	mu       sync.Mutex
+	browser *rod.Browser
+	config  Config
+	mu      sync.Mutex
 }
 
 // NewManager creates a new browser manager
-func NewManager(ctx context.Context, headless bool) (*Manager, error) {
+func NewManager(ctx context.Context, cfg Config) (*Manager, error) {
+	// Set defaults
+	if cfg.WindowWidth == 0 {
+		cfg.WindowWidth = 1280
+	}
+	if cfg.WindowHeight == 0 {
+		cfg.WindowHeight = 720
+	}
+
 	// Configure browser launcher
 	l := launcher.New().
-		Headless(headless).
+		Headless(cfg.Headless).
 		Devtools(false).
 		Set("ignore-certificate-errors").      // Ignore SSL certificate errors for testing
 		Set("allow-insecure-localhost").       // Allow insecure localhost connections
 		Set("disable-web-security")            // Disable web security for testing
+
+	// Add stealth arguments if enabled
+	if cfg.Stealth {
+		l = l.
+			Set("disable-blink-features", "AutomationControlled").
+			Set("disable-sync").
+			Set("no-first-run").
+			Set("disable-client-side-phishing-detection").
+			Set("silent-debugger-extension-api").
+			Set("disable-component-extensions-with-background-pages").
+			Set("no-default-browser-check").
+			Set("disable-background-networking")
+	}
+
+	// Set window size
+	l = l.Set("window-size", fmt.Sprintf("%d,%d", cfg.WindowWidth, cfg.WindowHeight))
 
 	// Launch browser
 	url, err := l.Launch()
@@ -40,8 +73,8 @@ func NewManager(ctx context.Context, headless bool) (*Manager, error) {
 	}
 
 	return &Manager{
-		browser:  browser,
-		headless: headless,
+		browser: browser,
+		config:  cfg,
 	}, nil
 }
 

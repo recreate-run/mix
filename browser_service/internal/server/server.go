@@ -16,8 +16,11 @@ import (
 
 // Config holds server configuration
 type Config struct {
-	Port     string
-	Headless bool
+	Port         string
+	Headless     bool
+	Stealth      bool // Enable stealth mode (disable automation detection)
+	WindowWidth  int  // Browser window width (default: 1280)
+	WindowHeight int  // Browser window height (default: 720)
 }
 
 // Server represents the WebSocket server
@@ -43,7 +46,15 @@ type Client struct {
 
 // New creates a new server instance
 func New(ctx context.Context, cfg Config) (*Server, error) {
-	mgr, err := browser.NewManager(ctx, cfg.Headless)
+	// Create browser config from server config
+	browserCfg := browser.Config{
+		Headless:     cfg.Headless,
+		Stealth:      cfg.Stealth,
+		WindowWidth:  cfg.WindowWidth,
+		WindowHeight: cfg.WindowHeight,
+	}
+
+	mgr, err := browser.NewManager(ctx, browserCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create browser manager: %w", err)
 	}

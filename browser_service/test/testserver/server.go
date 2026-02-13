@@ -142,5 +142,25 @@ func StartTestServer(t *testing.T) *httptest.Server {
 		_, _ = w.Write([]byte("<html><body>Regular page with no downloads</body></html>"))
 	})
 
+	// Stealth test pages
+	handler.HandleFunc("/detect-automation", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body><article><script>
+			document.querySelector('article').textContent = 'webdriver: ' + navigator.webdriver;
+		</script></article></body></html>`))
+	})
+
+	handler.HandleFunc("/echo-user-agent", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(fmt.Sprintf(`<html><body><article>%s</article></body></html>`, r.UserAgent())))
+	})
+
+	handler.HandleFunc("/viewport-info", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body><article><script>
+			document.querySelector('article').textContent = 'Width: ' + window.innerWidth + ', Height: ' + window.innerHeight;
+		</script></article></body></html>`))
+	})
+
 	return httptest.NewServer(handler)
 }

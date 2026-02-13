@@ -15,11 +15,17 @@ import (
 func main() {
 	port := flag.String("port", constants.DefaultPort, "WebSocket server port")
 	headless := flag.Bool("headless", false, "Run browser in headless mode")
+	stealth := flag.Bool("stealth", false, "Enable stealth mode (disable automation detection)")
+	windowWidth := flag.Int("window-width", 1280, "Browser window width")
+	windowHeight := flag.Int("window-height", 720, "Browser window height")
 	flag.Parse()
 
 	cfg := server.Config{
-		Port:     *port,
-		Headless: *headless,
+		Port:         *port,
+		Headless:     *headless,
+		Stealth:      *stealth,
+		WindowWidth:  *windowWidth,
+		WindowHeight: *windowHeight,
 	}
 
 	// Create root context

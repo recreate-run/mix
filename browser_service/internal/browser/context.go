@@ -1517,7 +1517,7 @@ func (c *Context) GetText(ctx context.Context, strategy string, tabID *string) (
 	var js string
 	switch strategy {
 	case constants.TextStrategyAuto:
-		js = `(function() {
+		js = `() => {
 			let elem = document.querySelector('article');
 			if (elem) return { text: elem.innerText, source: 'article' };
 
@@ -1525,23 +1525,23 @@ func (c *Context) GetText(ctx context.Context, strategy string, tabID *string) (
 			if (elem) return { text: elem.innerText, source: 'main' };
 
 			return { text: document.body.innerText, source: 'body' };
-		})()`
+		}`
 	case constants.TextStrategyArticle:
-		js = `(function() {
+		js = `() => {
 			const elem = document.querySelector('article');
 			if (!elem) return { text: '', source: 'article' };
 			return { text: elem.innerText, source: 'article' };
-		})()`
+		}`
 	case constants.TextStrategyMain:
-		js = `(function() {
+		js = `() => {
 			const elem = document.querySelector('main, [role="main"]');
 			if (!elem) return { text: '', source: 'main' };
 			return { text: elem.innerText, source: 'main' };
-		})()`
+		}`
 	case constants.TextStrategyBody:
-		js = `(function() {
+		js = `() => {
 			return { text: document.body.innerText, source: 'body' };
-		})()`
+		}`
 	default:
 		return nil, errors.NewValidationError("strategy", strategy, fmt.Errorf("invalid strategy"))
 	}
@@ -1915,8 +1915,8 @@ func (c *Context) GetCookies(ctx context.Context, tabID *string) (*protocol.GetC
 		return nil, err
 	}
 
-	// Use CDP Network.getCookies to get all cookies
-	cookiesProto, err := proto.NetworkGetCookies{}.Call(tab.page)
+	// Use CDP Network.getAllCookies to get all cookies regardless of current page path
+	cookiesProto, err := proto.NetworkGetAllCookies{}.Call(tab.page)
 	if err != nil {
 		return nil, errors.NewBrowserError("get_cookies", fmt.Errorf("failed to get cookies: %w", err))
 	}
@@ -2015,8 +2015,8 @@ func (c *Context) SaveStorageState(ctx context.Context, tabID *string) (*protoco
 		return nil, err
 	}
 
-	// Get cookies
-	cookiesProto, err := proto.NetworkGetCookies{}.Call(tab.page)
+	// Get all cookies
+	cookiesProto, err := proto.NetworkGetAllCookies{}.Call(tab.page)
 	if err != nil {
 		return nil, errors.NewBrowserError("save_storage_state", fmt.Errorf("failed to get cookies: %w", err))
 	}
@@ -2048,16 +2048,19 @@ func (c *Context) SaveStorageState(ctx context.Context, tabID *string) (*protoco
 	}
 
 	// Also add the current page origin
-	currentURL := tab.page.MustInfo().URL
-	if currentURL != "" && currentURL != "about:blank" {
-		// Extract origin from URL
-		if idx := strings.Index(currentURL, "://"); idx != -1 {
-			rest := currentURL[idx+3:]
-			if slashIdx := strings.Index(rest, "/"); slashIdx != -1 {
-				origin := currentURL[:idx+3+slashIdx]
-				originMap[origin] = true
-			} else {
-				originMap[currentURL] = true
+	currentURL := ""
+	if info, err := tab.page.Info(); err == nil && info != nil {
+		currentURL = info.URL
+		if currentURL != "" && currentURL != "about:blank" {
+			// Extract origin from URL
+			if idx := strings.Index(currentURL, "://"); idx != -1 {
+				rest := currentURL[idx+3:]
+				if slashIdx := strings.Index(rest, "/"); slashIdx != -1 {
+					origin := currentURL[:idx+3+slashIdx]
+					originMap[origin] = true
+				} else {
+					originMap[currentURL] = true
+				}
 			}
 		}
 	}
@@ -2066,8 +2069,12 @@ func (c *Context) SaveStorageState(ctx context.Context, tabID *string) (*protoco
 	origins := make([]protocol.OriginState, 0)
 	for origin := range originMap {
 		// Navigate to origin to read localStorage
-		tab.page.MustNavigate(origin)
-		tab.page.MustWaitLoad()
+		err = tab.page.Navigate(origin)
+		if err != nil {
+			// Skip origins that can't be navigated to
+			continue
+		}
+		tab.page.WaitLoad()
 
 		// Get localStorage via JavaScript
 		localStorage, err := tab.page.Eval("() => { return JSON.stringify(localStorage) }")
@@ -2105,7 +2112,10 @@ func (c *Context) LoadStorageState(ctx context.Context, state protocol.StorageSt
 	}
 
 	// Save current URL
-	currentURL := tab.page.MustInfo().URL
+	currentURL := ""
+	if info, err := tab.page.Info(); err == nil && info != nil {
+		currentURL = info.URL
+	}
 
 	// Set cookies (can be done cross-origin)
 	for _, cookie := range state.Cookies {
@@ -2147,8 +2157,11 @@ func (c *Context) LoadStorageState(ctx context.Context, state protocol.StorageSt
 		}
 
 		// Navigate to origin
-		tab.page.MustNavigate(originState.Origin)
-		tab.page.MustWaitLoad()
+		err = tab.page.Navigate(originState.Origin)
+		if err != nil {
+			return nil, errors.NewBrowserError("load_storage_state", fmt.Errorf("failed to navigate to origin %s: %w", originState.Origin, err))
+		}
+		tab.page.WaitLoad()
 
 		// Set each localStorage item via JavaScript
 		for key, value := range originState.LocalStorage {
@@ -2158,7 +2171,7 @@ func (c *Context) LoadStorageState(ctx context.Context, state protocol.StorageSt
 			escapedValue := strings.ReplaceAll(value, "\\", "\\\\")
 			escapedValue = strings.ReplaceAll(escapedValue, "'", "\\'")
 
-			script := fmt.Sprintf("localStorage.setItem('%s', '%s')", escapedKey, escapedValue)
+			script := fmt.Sprintf("() => localStorage.setItem('%s', '%s')", escapedKey, escapedValue)
 			_, err := tab.page.Eval(script)
 			if err != nil {
 				return nil, errors.NewBrowserError("load_storage_state", fmt.Errorf("failed to set localStorage for %s: %w", originState.Origin, err))
@@ -2168,10 +2181,13 @@ func (c *Context) LoadStorageState(ctx context.Context, state protocol.StorageSt
 
 	// Navigate back to original URL or about:blank
 	if currentURL != "" && currentURL != "about:blank" {
-		tab.page.MustNavigate(currentURL)
-		tab.page.MustWaitLoad()
+		err = tab.page.Navigate(currentURL)
+		if err == nil {
+			tab.page.WaitLoad()
+		}
+		// Ignore navigation errors on return
 	} else {
-		tab.page.MustNavigate("about:blank")
+		_ = tab.page.Navigate("about:blank")
 	}
 
 	return &protocol.LoadStorageStateResult{Loaded: true}, nil
@@ -2192,7 +2208,7 @@ func (c *Context) SetLocalStorage(ctx context.Context, items map[string]string, 
 		escapedValue := strings.ReplaceAll(value, "\\", "\\\\")
 		escapedValue = strings.ReplaceAll(escapedValue, "'", "\\'")
 
-		script := fmt.Sprintf("localStorage.setItem('%s', '%s')", escapedKey, escapedValue)
+		script := fmt.Sprintf("() => localStorage.setItem('%s', '%s')", escapedKey, escapedValue)
 		_, err := tab.page.Eval(script)
 		if err != nil {
 			return nil, errors.NewBrowserError("set_local_storage", fmt.Errorf("failed to set item %s: %w", key, err))

@@ -23,7 +23,7 @@ func setupBrowserTest(t *testing.T) (ctx context.Context, mgr *Manager, browserC
 	t.Helper()
 	ctx = context.Background()
 
-	mgr, err := NewManager(ctx, true)
+	mgr, err := NewManager(ctx, Config{Headless: true})
 	if err != nil {
 		t.Fatalf("Failed to create browser manager: %v", err)
 	}
