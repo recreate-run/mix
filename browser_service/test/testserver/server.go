@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -96,6 +97,49 @@ func StartTestServer(t *testing.T) *httptest.Server {
 				};
 			</script>
 		</body></html>`))
+	})
+
+	// Download test pages
+	handler.HandleFunc("/download-file", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Disposition", "attachment; filename=test.txt")
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("Test file content"))
+	})
+
+	handler.HandleFunc("/multi-download-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<a href="/files/file1.txt" download>Download 1</a>
+			<a href="/files/file2.txt" download>Download 2</a>
+			<a href="/files/file3.txt" download>Download 3</a>
+		</body></html>`))
+	})
+
+	handler.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {
+		filename := filepath.Base(r.URL.Path)
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("File content for " + filename))
+	})
+
+	handler.HandleFunc("/document.pdf", func(w http.ResponseWriter, r *http.Request) {
+		// Minimal valid PDF
+		pdfContent := "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj xref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000114 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF"
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", "attachment; filename=document.pdf")
+		_, _ = w.Write([]byte(pdfContent))
+	})
+
+	handler.HandleFunc("/trigger-download", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<a href="/download-file" id="download-link">Click to download</a>
+		</body></html>`))
+	})
+
+	handler.HandleFunc("/no-download-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<html><body>Regular page with no downloads</body></html>"))
 	})
 
 	return httptest.NewServer(handler)

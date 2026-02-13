@@ -1126,3 +1126,93 @@ func (c *Client) GetLocalStorage(ctx context.Context, tabID ...string) (*protoco
 
 	return &result, nil
 }
+
+// SetDownloadBehavior configures download behavior for the browser
+func (c *Client) SetDownloadBehavior(ctx context.Context, path string, accept bool, tabID ...string) (*protocol.SetDownloadBehaviorResult, error) {
+	params := protocol.SetDownloadBehaviorParams{
+		Path:   path,
+		Accept: accept,
+	}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserSetDownloadBehavior, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("setDownloadBehavior error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.SetDownloadBehaviorResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// GetDownloads returns the list of downloads for the current tab
+func (c *Client) GetDownloads(ctx context.Context, tabID ...string) (*protocol.GetDownloadsResult, error) {
+	var params *protocol.GetDownloadsParams
+	if len(tabID) > 0 {
+		params = &protocol.GetDownloadsParams{TabID: &tabID[0]}
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageGetDownloads, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("getDownloads error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.GetDownloadsResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// WaitForDownload blocks until a download completes or timeout occurs
+func (c *Client) WaitForDownload(ctx context.Context, timeoutMs int, tabID ...string) (*protocol.WaitForDownloadResult, error) {
+	params := protocol.WaitForDownloadParams{Timeout: timeoutMs}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageWaitForDownload, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("waitForDownload error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.WaitForDownloadResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}

@@ -107,6 +107,12 @@ func (h *MessageHandler) Handle(ctx context.Context, data []byte) protocol.Respo
 		return h.handleSetLocalStorage(ctx, req)
 	case constants.MethodPageGetLocalStorage:
 		return h.handleGetLocalStorage(ctx, req)
+	case constants.MethodBrowserSetDownloadBehavior:
+		return h.handleSetDownloadBehavior(ctx, req)
+	case constants.MethodPageGetDownloads:
+		return h.handleGetDownloads(ctx, req)
+	case constants.MethodPageWaitForDownload:
+		return h.handleWaitForDownload(ctx, req)
 	default:
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeMethodNotFound, "Method not found: "+req.Method))
@@ -776,6 +782,64 @@ func (h *MessageHandler) handleGetLocalStorage(ctx context.Context, req protocol
 	if err != nil {
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleSetDownloadBehavior configures download behavior
+func (h *MessageHandler) handleSetDownloadBehavior(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.SetDownloadBehaviorParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	result, err := h.client.Context.SetDownloadBehavior(ctx, params.Path, params.Accept, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleGetDownloads gets the list of downloads for the current tab
+func (h *MessageHandler) handleGetDownloads(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.GetDownloadsParams
+	if req.Params != nil {
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return protocol.NewErrorResponse(req.ID,
+				protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+		}
+	}
+
+	result, err := h.client.Context.GetDownloads(ctx, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleWaitForDownload blocks until a download completes or timeout occurs
+func (h *MessageHandler) handleWaitForDownload(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.WaitForDownloadParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if params.Timeout <= 0 {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Timeout must be positive"))
+	}
+
+	result, err := h.client.Context.WaitForDownload(ctx, params.Timeout, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeTimeout, err.Error()))
 	}
 
 	return protocol.NewResponse(req.ID, result)

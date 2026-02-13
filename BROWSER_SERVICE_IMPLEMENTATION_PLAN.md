@@ -964,6 +964,41 @@ All 7 storage state methods successfully implemented with full protocol support,
 
 **Status**: Core functionality verified working. Storage state save/load/restore operations function correctly via API. Remaining test failures are due to unrelated GetText bug, not storage implementation.
 
-### Phase 2: Downloads Management - 🔄 PENDING
+### Phase 2: Downloads Management - ✅ COMPLETED
+
+**Date Completed**: February 14, 2026
+
+**Implementation Summary**:
+Successfully implemented all downloads management infrastructure with full protocol support and E2E test coverage.
+
+**Protocol & Infrastructure** (`pkg/protocol/messages.go`, `internal/constants/constants.go`):
+- Added `Download` struct with GUID, URL, SuggestedFilename, TotalBytes, State, and Path fields
+- Implemented all request/response types for 3 new methods
+- Added method constants for download operations
+
+**Core Methods** (`internal/browser/context.go`):
+- `SetDownloadBehavior()`: Configures download path and acceptance via CDP `Page.setDownloadBehavior`
+- `GetDownloads()`: Returns thread-safe copy of downloads list for current tab
+- `WaitForDownload()`: Blocks until download completes or timeout using buffered channel pattern
+- Event listeners: Capture CDP `PageDownloadWillBegin` and `PageDownloadProgress` events in goroutines
+
+**Handler & Client Methods**:
+- Added 3 matching handler methods in `internal/server/handler.go`
+- Added 3 client methods in `pkg/client/client.go` with proper marshaling
+
+**Test Infrastructure**:
+- Updated `test/testserver/server.go` with download test pages (trigger-download, multi-download, PDF)
+- Implemented 3 E2E tests in `test/downloads_test.go`:
+  - **TestDownloadConfiguration**: ✅ PASSING - Validates download detection, file saving, and content verification
+  - **TestDownloadRejection**: ✅ PASSING - Verifies downloads can be blocked when accept=false
+  - **TestDownloadTimeout**: ✅ PASSING - Confirms timeout behavior when no download occurs
+
+**Critical Issues Resolved**:
+1. **Nil channel bug**: Initial tab in `manager.go` wasn't initializing downloadChan - fixed by adding initialization
+2. **Event delivery failure**: Non-blocking channel send was dropping events - switched to blocking send with buffered channel
+3. **Headless compatibility**: `Browser.setDownloadBehavior` doesn't save files in headless mode - switched to `Page.setDownloadBehavior`
+4. **State handling**: Chrome reports successful downloads as "canceled" in headless - added handling for both "completed" and "canceled" states with TotalBytes > 0
+
+**Status**: All 3 tests passing in both headless and non-headless modes. Download files are correctly saved to disk with accurate metadata.
 
 ### Phase 3: Stealth Enhancements - 🔄 PENDING
