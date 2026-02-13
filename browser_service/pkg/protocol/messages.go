@@ -336,6 +336,105 @@ type ScrollIntoViewParams struct {
 	TabID     *string `json:"tabId,omitempty"`     // Optional tab ID
 }
 
+// --- Storage State Types ---
+
+// Cookie represents a browser cookie
+type Cookie struct {
+	Name     string  `json:"name"`
+	Value    string  `json:"value"`
+	Domain   string  `json:"domain"`
+	Path     string  `json:"path"`
+	Expires  float64 `json:"expires"`           // Unix timestamp
+	HTTPOnly bool    `json:"httpOnly"`
+	Secure   bool    `json:"secure"`
+	SameSite string  `json:"sameSite"`          // "Strict", "Lax", "None"
+}
+
+// OriginState represents localStorage for a specific origin
+type OriginState struct {
+	Origin       string            `json:"origin"`
+	LocalStorage map[string]string `json:"localStorage"`
+}
+
+// StorageState represents combined cookies and localStorage state
+type StorageState struct {
+	Cookies []Cookie      `json:"cookies"`
+	Origins []OriginState `json:"origins"`
+}
+
+// GetCookiesParams for Browser.getCookies
+type GetCookiesParams struct {
+	TabID *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// GetCookiesResult for Browser.getCookies response
+type GetCookiesResult struct {
+	Cookies []Cookie `json:"cookies"`
+}
+
+// SetCookiesParams for Browser.setCookies
+type SetCookiesParams struct {
+	Cookies []Cookie `json:"cookies"`
+	TabID   *string  `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// SetCookiesResult for Browser.setCookies response
+type SetCookiesResult struct {
+	Set int `json:"set"` // number of cookies set
+}
+
+// ClearCookiesParams for Browser.clearCookies
+type ClearCookiesParams struct {
+	TabID *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// ClearCookiesResult for Browser.clearCookies response
+type ClearCookiesResult struct {
+	Cleared int `json:"cleared"` // number of cookies cleared
+}
+
+// SaveStorageStateParams for Browser.saveStorageState
+type SaveStorageStateParams struct {
+	TabID *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// SaveStorageStateResult for Browser.saveStorageState response
+type SaveStorageStateResult struct {
+	State StorageState `json:"state"`
+}
+
+// LoadStorageStateParams for Browser.loadStorageState
+type LoadStorageStateParams struct {
+	State StorageState `json:"state"`
+	TabID *string      `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// LoadStorageStateResult for Browser.loadStorageState response
+type LoadStorageStateResult struct {
+	Loaded bool `json:"loaded"`
+}
+
+// SetLocalStorageParams for Page.setLocalStorage
+type SetLocalStorageParams struct {
+	Items map[string]string `json:"items"`
+	TabID *string           `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// SetLocalStorageResult for Page.setLocalStorage response
+type SetLocalStorageResult struct {
+	Set int `json:"set"` // number of items set
+}
+
+// GetLocalStorageParams for Page.getLocalStorage
+type GetLocalStorageParams struct {
+	TabID *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// GetLocalStorageResult for Page.getLocalStorage response
+type GetLocalStorageResult struct {
+	Items map[string]string `json:"items"`
+}
+
 // --- Error Codes ---
 const (
 	ErrCodeInvalidRequest  = -32600

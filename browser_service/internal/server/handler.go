@@ -93,6 +93,20 @@ func (h *MessageHandler) Handle(ctx context.Context, data []byte) protocol.Respo
 		return h.handlePressKey(ctx, req)
 	case constants.MethodPageScrollIntoView:
 		return h.handleScrollIntoView(ctx, req)
+	case constants.MethodBrowserGetCookies:
+		return h.handleGetCookies(ctx, req)
+	case constants.MethodBrowserSetCookies:
+		return h.handleSetCookies(ctx, req)
+	case constants.MethodBrowserClearCookies:
+		return h.handleClearCookies(ctx, req)
+	case constants.MethodBrowserSaveStorageState:
+		return h.handleSaveStorageState(ctx, req)
+	case constants.MethodBrowserLoadStorageState:
+		return h.handleLoadStorageState(ctx, req)
+	case constants.MethodPageSetLocalStorage:
+		return h.handleSetLocalStorage(ctx, req)
+	case constants.MethodPageGetLocalStorage:
+		return h.handleGetLocalStorage(ctx, req)
 	default:
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeMethodNotFound, "Method not found: "+req.Method))
@@ -628,4 +642,141 @@ func (h *MessageHandler) handleScrollIntoView(ctx context.Context, req protocol.
 	}
 
 	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
+}
+
+// handleGetCookies gets all cookies
+func (h *MessageHandler) handleGetCookies(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.GetCookiesParams
+	if req.Params != nil {
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return protocol.NewErrorResponse(req.ID,
+				protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+		}
+	}
+
+	result, err := h.client.Context.GetCookies(ctx, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleSetCookies sets cookies
+func (h *MessageHandler) handleSetCookies(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.SetCookiesParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if len(params.Cookies) == 0 {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Cookies array is required"))
+	}
+
+	result, err := h.client.Context.SetCookies(ctx, params.Cookies, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleClearCookies clears all cookies
+func (h *MessageHandler) handleClearCookies(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.ClearCookiesParams
+	if req.Params != nil {
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return protocol.NewErrorResponse(req.ID,
+				protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+		}
+	}
+
+	result, err := h.client.Context.ClearCookies(ctx, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleSaveStorageState saves the current storage state (cookies + localStorage)
+func (h *MessageHandler) handleSaveStorageState(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.SaveStorageStateParams
+	if req.Params != nil {
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return protocol.NewErrorResponse(req.ID,
+				protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+		}
+	}
+
+	result, err := h.client.Context.SaveStorageState(ctx, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleLoadStorageState loads a storage state (cookies + localStorage)
+func (h *MessageHandler) handleLoadStorageState(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.LoadStorageStateParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	result, err := h.client.Context.LoadStorageState(ctx, params.State, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleSetLocalStorage sets localStorage items for the current page
+func (h *MessageHandler) handleSetLocalStorage(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.SetLocalStorageParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if params.Items == nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Items map is required"))
+	}
+
+	result, err := h.client.Context.SetLocalStorage(ctx, params.Items, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleGetLocalStorage gets all localStorage items for the current page
+func (h *MessageHandler) handleGetLocalStorage(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.GetLocalStorageParams
+	if req.Params != nil {
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return protocol.NewErrorResponse(req.ID,
+				protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+		}
+	}
+
+	result, err := h.client.Context.GetLocalStorage(ctx, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
 }

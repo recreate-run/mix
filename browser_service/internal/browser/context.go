@@ -1903,6 +1903,322 @@ func (c *Context) ScrollIntoView(ctx context.Context, index *int, backendID *int
 	return nil
 }
 
+// GetCookies retrieves all cookies from the browser
+func (c *Context) GetCookies(ctx context.Context, tabID *string) (*protocol.GetCookiesResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use CDP Network.getCookies to get all cookies
+	cookiesProto, err := proto.NetworkGetCookies{}.Call(tab.page)
+	if err != nil {
+		return nil, errors.NewBrowserError("get_cookies", fmt.Errorf("failed to get cookies: %w", err))
+	}
+
+	// Convert CDP cookies to protocol cookies
+	cookies := make([]protocol.Cookie, len(cookiesProto.Cookies))
+	for i, c := range cookiesProto.Cookies {
+		cookies[i] = protocol.Cookie{
+			Name:     c.Name,
+			Value:    c.Value,
+			Domain:   c.Domain,
+			Path:     c.Path,
+			Expires:  float64(c.Expires),
+			HTTPOnly: c.HTTPOnly,
+			Secure:   c.Secure,
+			SameSite: string(c.SameSite),
+		}
+	}
+
+	return &protocol.GetCookiesResult{Cookies: cookies}, nil
+}
+
+// SetCookies sets cookies in the browser
+func (c *Context) SetCookies(ctx context.Context, cookies []protocol.Cookie, tabID *string) (*protocol.SetCookiesResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	count := 0
+	for _, cookie := range cookies {
+		// Convert protocol cookie to CDP cookie
+		sameSite := proto.NetworkCookieSameSiteLax
+		switch cookie.SameSite {
+		case "Strict":
+			sameSite = proto.NetworkCookieSameSiteStrict
+		case "None":
+			sameSite = proto.NetworkCookieSameSiteNone
+		case "Lax":
+			sameSite = proto.NetworkCookieSameSiteLax
+		}
+
+		expires := proto.TimeSinceEpoch(cookie.Expires)
+		result, err := proto.NetworkSetCookie{
+			Name:     cookie.Name,
+			Value:    cookie.Value,
+			Domain:   cookie.Domain,
+			Path:     cookie.Path,
+			Expires:  expires,
+			HTTPOnly: cookie.HTTPOnly,
+			Secure:   cookie.Secure,
+			SameSite: sameSite,
+		}.Call(tab.page)
+
+		if err != nil {
+			return nil, errors.NewBrowserError("set_cookies", fmt.Errorf("failed to set cookie %s: %w", cookie.Name, err))
+		}
+
+		if result != nil && !result.Success {
+			return nil, errors.NewBrowserError("set_cookies", fmt.Errorf("cookie %s was rejected by browser (domain/path mismatch?)", cookie.Name))
+		}
+		count++
+	}
+
+	return &protocol.SetCookiesResult{Set: count}, nil
+}
+
+// ClearCookies clears all cookies from the browser
+func (c *Context) ClearCookies(ctx context.Context, tabID *string) (*protocol.ClearCookiesResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	// First get all cookies to count them
+	cookiesProto, err := proto.NetworkGetCookies{}.Call(tab.page)
+	if err != nil {
+		return nil, errors.NewBrowserError("clear_cookies", fmt.Errorf("failed to get cookies: %w", err))
+	}
+
+	count := len(cookiesProto.Cookies)
+
+	// Clear all cookies
+	err = proto.NetworkClearBrowserCookies{}.Call(tab.page)
+	if err != nil {
+		return nil, errors.NewBrowserError("clear_cookies", fmt.Errorf("failed to clear cookies: %w", err))
+	}
+
+	return &protocol.ClearCookiesResult{Cleared: count}, nil
+}
+
+// SaveStorageState saves the current storage state (cookies + localStorage)
+func (c *Context) SaveStorageState(ctx context.Context, tabID *string) (*protocol.SaveStorageStateResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get cookies
+	cookiesProto, err := proto.NetworkGetCookies{}.Call(tab.page)
+	if err != nil {
+		return nil, errors.NewBrowserError("save_storage_state", fmt.Errorf("failed to get cookies: %w", err))
+	}
+
+	// Convert CDP cookies to protocol cookies
+	cookies := make([]protocol.Cookie, len(cookiesProto.Cookies))
+	for i, c := range cookiesProto.Cookies {
+		cookies[i] = protocol.Cookie{
+			Name:     c.Name,
+			Value:    c.Value,
+			Domain:   c.Domain,
+			Path:     c.Path,
+			Expires:  float64(c.Expires),
+			HTTPOnly: c.HTTPOnly,
+			Secure:   c.Secure,
+			SameSite: string(c.SameSite),
+		}
+	}
+
+	// Get unique origins from cookies
+	originMap := make(map[string]bool)
+	for _, cookie := range cookies {
+		// Create origin from cookie domain
+		origin := "http://" + strings.TrimPrefix(cookie.Domain, ".")
+		if cookie.Secure {
+			origin = "https://" + strings.TrimPrefix(cookie.Domain, ".")
+		}
+		originMap[origin] = true
+	}
+
+	// Also add the current page origin
+	currentURL := tab.page.MustInfo().URL
+	if currentURL != "" && currentURL != "about:blank" {
+		// Extract origin from URL
+		if idx := strings.Index(currentURL, "://"); idx != -1 {
+			rest := currentURL[idx+3:]
+			if slashIdx := strings.Index(rest, "/"); slashIdx != -1 {
+				origin := currentURL[:idx+3+slashIdx]
+				originMap[origin] = true
+			} else {
+				originMap[currentURL] = true
+			}
+		}
+	}
+
+	// Get localStorage for each origin
+	origins := make([]protocol.OriginState, 0)
+	for origin := range originMap {
+		// Navigate to origin to read localStorage
+		tab.page.MustNavigate(origin)
+		tab.page.MustWaitLoad()
+
+		// Get localStorage via JavaScript
+		localStorage, err := tab.page.Eval("() => { return JSON.stringify(localStorage) }")
+		if err != nil {
+			// Skip if localStorage is not accessible
+			continue
+		}
+
+		var items map[string]string
+		if err := json.Unmarshal([]byte(localStorage.Value.String()), &items); err != nil {
+			continue
+		}
+
+		if len(items) > 0 {
+			origins = append(origins, protocol.OriginState{
+				Origin:       origin,
+				LocalStorage: items,
+			})
+		}
+	}
+
+	state := protocol.StorageState{
+		Cookies: cookies,
+		Origins: origins,
+	}
+
+	return &protocol.SaveStorageStateResult{State: state}, nil
+}
+
+// LoadStorageState loads a storage state (cookies + localStorage)
+func (c *Context) LoadStorageState(ctx context.Context, state protocol.StorageState, tabID *string) (*protocol.LoadStorageStateResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save current URL
+	currentURL := tab.page.MustInfo().URL
+
+	// Set cookies (can be done cross-origin)
+	for _, cookie := range state.Cookies {
+		sameSite := proto.NetworkCookieSameSiteLax
+		switch cookie.SameSite {
+		case "Strict":
+			sameSite = proto.NetworkCookieSameSiteStrict
+		case "None":
+			sameSite = proto.NetworkCookieSameSiteNone
+		case "Lax":
+			sameSite = proto.NetworkCookieSameSiteLax
+		}
+
+		expires := proto.TimeSinceEpoch(cookie.Expires)
+		result, err := proto.NetworkSetCookie{
+			Name:     cookie.Name,
+			Value:    cookie.Value,
+			Domain:   cookie.Domain,
+			Path:     cookie.Path,
+			Expires:  expires,
+			HTTPOnly: cookie.HTTPOnly,
+			Secure:   cookie.Secure,
+			SameSite: sameSite,
+		}.Call(tab.page)
+
+		if err != nil {
+			return nil, errors.NewBrowserError("load_storage_state", fmt.Errorf("failed to set cookie %s: %w", cookie.Name, err))
+		}
+
+		if result != nil && !result.Success {
+			return nil, errors.NewBrowserError("load_storage_state", fmt.Errorf("cookie %s was rejected by browser (domain/path mismatch?)", cookie.Name))
+		}
+	}
+
+	// Set localStorage for each origin (requires navigation due to same-origin policy)
+	for _, originState := range state.Origins {
+		if len(originState.LocalStorage) == 0 {
+			continue
+		}
+
+		// Navigate to origin
+		tab.page.MustNavigate(originState.Origin)
+		tab.page.MustWaitLoad()
+
+		// Set each localStorage item via JavaScript
+		for key, value := range originState.LocalStorage {
+			// Escape quotes in key and value
+			escapedKey := strings.ReplaceAll(key, "\\", "\\\\")
+			escapedKey = strings.ReplaceAll(escapedKey, "'", "\\'")
+			escapedValue := strings.ReplaceAll(value, "\\", "\\\\")
+			escapedValue = strings.ReplaceAll(escapedValue, "'", "\\'")
+
+			script := fmt.Sprintf("localStorage.setItem('%s', '%s')", escapedKey, escapedValue)
+			_, err := tab.page.Eval(script)
+			if err != nil {
+				return nil, errors.NewBrowserError("load_storage_state", fmt.Errorf("failed to set localStorage for %s: %w", originState.Origin, err))
+			}
+		}
+	}
+
+	// Navigate back to original URL or about:blank
+	if currentURL != "" && currentURL != "about:blank" {
+		tab.page.MustNavigate(currentURL)
+		tab.page.MustWaitLoad()
+	} else {
+		tab.page.MustNavigate("about:blank")
+	}
+
+	return &protocol.LoadStorageStateResult{Loaded: true}, nil
+}
+
+// SetLocalStorage sets localStorage items for the current page
+func (c *Context) SetLocalStorage(ctx context.Context, items map[string]string, tabID *string) (*protocol.SetLocalStorageResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	count := 0
+	for key, value := range items {
+		// Escape quotes in key and value
+		escapedKey := strings.ReplaceAll(key, "\\", "\\\\")
+		escapedKey = strings.ReplaceAll(escapedKey, "'", "\\'")
+		escapedValue := strings.ReplaceAll(value, "\\", "\\\\")
+		escapedValue = strings.ReplaceAll(escapedValue, "'", "\\'")
+
+		script := fmt.Sprintf("localStorage.setItem('%s', '%s')", escapedKey, escapedValue)
+		_, err := tab.page.Eval(script)
+		if err != nil {
+			return nil, errors.NewBrowserError("set_local_storage", fmt.Errorf("failed to set item %s: %w", key, err))
+		}
+		count++
+	}
+
+	return &protocol.SetLocalStorageResult{Set: count}, nil
+}
+
+// GetLocalStorage gets all localStorage items from the current page
+func (c *Context) GetLocalStorage(ctx context.Context, tabID *string) (*protocol.GetLocalStorageResult, error) {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get localStorage via JavaScript
+	localStorage, err := tab.page.Eval("() => { return JSON.stringify(localStorage) }")
+	if err != nil {
+		return nil, errors.NewBrowserError("get_local_storage", fmt.Errorf("failed to get localStorage: %w", err))
+	}
+
+	var items map[string]string
+	if err := json.Unmarshal([]byte(localStorage.Value.String()), &items); err != nil {
+		return nil, errors.NewBrowserError("get_local_storage", fmt.Errorf("failed to parse localStorage: %w", err))
+	}
+
+	return &protocol.GetLocalStorageResult{Items: items}, nil
+}
+
 // Close closes the browser context
 func (c *Context) Close(ctx context.Context) error {
 	c.mu.Lock()
