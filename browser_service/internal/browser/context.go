@@ -493,6 +493,18 @@ func (c *Context) ReadPage(ctx context.Context, interactiveOnly bool, tabID *str
 		elements = append(elements, elem)
 	}
 
+	// CRITICAL: Populate element cache so ClickByBackendID can find these elements
+	// Without this, parallel sessions experience "element not found in cache" errors
+	tab.elements = make([]elementInfo, len(elements))
+	for i, elem := range elements {
+		tab.elements[i] = elementInfo{
+			Role:      elem.Role,
+			Name:      elem.Name,
+			Bounds:    elem.Bounds,
+			BackendID: elem.BackendID,
+		}
+	}
+
 	return elements, viewport, nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"mix/internal/browser"
 	"mix/internal/db"
@@ -245,6 +246,12 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+
+	// CRITICAL: Grace period to allow background operations (agent loops, browser tool calls,
+	// message persistence) to complete before session deletion. Without this, parallel tests
+	// experience FK violations when background goroutines try to insert messages after session
+	// is deleted. 2 seconds is sufficient for most tool calls to complete and persist results.
+	time.Sleep(2 * time.Second)
 
 	// Delete session from database
 	err = s.q.DeleteSession(ctx, session.ID)
