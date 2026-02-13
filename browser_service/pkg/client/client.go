@@ -923,3 +923,206 @@ func (c *Client) ScrollIntoViewByIndex(ctx context.Context, index int, tabID ...
 func (c *Client) ScrollIntoViewByBackendID(ctx context.Context, backendID int64, tabID ...string) error {
 	return c.ScrollIntoView(ctx, nil, &backendID, tabID...)
 }
+
+// GetCookies retrieves all cookies from the browser
+func (c *Client) GetCookies(ctx context.Context, tabID ...string) (*protocol.GetCookiesResult, error) {
+	var params *protocol.GetCookiesParams
+	if len(tabID) > 0 {
+		params = &protocol.GetCookiesParams{TabID: &tabID[0]}
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserGetCookies, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("getCookies error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.GetCookiesResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// SetCookies sets cookies in the browser
+func (c *Client) SetCookies(ctx context.Context, cookies []protocol.Cookie, tabID ...string) (*protocol.SetCookiesResult, error) {
+	params := protocol.SetCookiesParams{Cookies: cookies}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserSetCookies, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("setCookies error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.SetCookiesResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// ClearCookies clears all cookies from the browser
+func (c *Client) ClearCookies(ctx context.Context, tabID ...string) (*protocol.ClearCookiesResult, error) {
+	var params *protocol.ClearCookiesParams
+	if len(tabID) > 0 {
+		params = &protocol.ClearCookiesParams{TabID: &tabID[0]}
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserClearCookies, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("clearCookies error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.ClearCookiesResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// SaveStorageState saves the current storage state (cookies + localStorage)
+func (c *Client) SaveStorageState(ctx context.Context, tabID ...string) (*protocol.SaveStorageStateResult, error) {
+	var params *protocol.SaveStorageStateParams
+	if len(tabID) > 0 {
+		params = &protocol.SaveStorageStateParams{TabID: &tabID[0]}
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserSaveStorageState, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("saveStorageState error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.SaveStorageStateResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// LoadStorageState loads a storage state (cookies + localStorage)
+func (c *Client) LoadStorageState(ctx context.Context, state protocol.StorageState, tabID ...string) (*protocol.LoadStorageStateResult, error) {
+	params := protocol.LoadStorageStateParams{State: state}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserLoadStorageState, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("loadStorageState error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.LoadStorageStateResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// SetLocalStorage sets localStorage items for the current page
+func (c *Client) SetLocalStorage(ctx context.Context, items map[string]string, tabID ...string) (*protocol.SetLocalStorageResult, error) {
+	params := protocol.SetLocalStorageParams{Items: items}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageSetLocalStorage, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("setLocalStorage error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.SetLocalStorageResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// GetLocalStorage gets all localStorage items from the current page
+func (c *Client) GetLocalStorage(ctx context.Context, tabID ...string) (*protocol.GetLocalStorageResult, error) {
+	var params *protocol.GetLocalStorageParams
+	if len(tabID) > 0 {
+		params = &protocol.GetLocalStorageParams{TabID: &tabID[0]}
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageGetLocalStorage, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("getLocalStorage error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.GetLocalStorageResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}

@@ -35,6 +35,13 @@ const (
 	MethodPageWait          = "Page.wait"
 	MethodPagePressKey      = "Page.pressKey"
 	MethodPageScrollIntoView = "Page.scrollIntoView"
+	MethodBrowserGetCookies     = "Browser.getCookies"
+	MethodBrowserSetCookies     = "Browser.setCookies"
+	MethodBrowserClearCookies   = "Browser.clearCookies"
+	MethodBrowserSaveStorageState = "Browser.saveStorageState"
+	MethodBrowserLoadStorageState = "Browser.loadStorageState"
+	MethodPageSetLocalStorage   = "Page.setLocalStorage"
+	MethodPageGetLocalStorage   = "Page.getLocalStorage"
 )
 
 // Timeouts
