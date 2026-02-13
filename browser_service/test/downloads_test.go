@@ -197,3 +197,81 @@ func TestDownloadTimeout(t *testing.T) {
 		t.Error("Expected non-empty error message")
 	}
 }
+
+func TestPDFAutoDownloadWithFlag(t *testing.T) {
+	// Setup: Create temp download directory, start server
+	tmpDir := t.TempDir()
+	server := testserver.StartTestServer(t)
+	defer server.Close()
+
+	// Connect to browser_service
+	c, err := client.New("ws://localhost:8081/ws")
+	if err != nil {
+		t.Fatalf("Failed to connect to browser service: %v", err)
+	}
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// 1. Call Browser.setDownloadBehavior(tmpDir, true)
+	result, err := c.SetDownloadBehavior(ctx, tmpDir, true)
+	if err != nil {
+		t.Fatalf("Failed to set download behavior: %v", err)
+	}
+	if !result.Configured {
+		t.Fatal("Download behavior not configured")
+	}
+
+	// 2. Navigate directly to PDF URL: server.URL + "/document.pdf"
+	// Note: Navigation will fail with ERR_ABORTED because Chrome auto-downloads the PDF
+	// This is expected behavior with --disable-pdf-viewer flag
+	_, _ = c.Navigate(ctx, server.URL+"/document.pdf")
+
+	// 3. Call Page.waitForDownload(timeout: 5000)
+	downloadResult, err := c.WaitForDownload(ctx, 5000)
+	if err != nil {
+		t.Fatalf("Failed to wait for download: %v", err)
+	}
+
+	// 4. Assert: Download.State == "completed"
+	if downloadResult.Download.State != "completed" {
+		t.Errorf("Expected download state 'completed', got '%s'", downloadResult.Download.State)
+	}
+
+	// 5. Assert: Download.SuggestedFilename == "document.pdf"
+	if downloadResult.Download.SuggestedFilename != "document.pdf" {
+		t.Errorf("Expected filename 'document.pdf', got '%s'", downloadResult.Download.SuggestedFilename)
+	}
+
+	// Give Chrome a moment to finish writing the file to disk
+	time.Sleep(500 * time.Millisecond)
+
+	// 6. Read file from tmpDir, verify PDF magic bytes (%PDF)
+	expectedPath := downloadResult.Download.Path
+	if expectedPath == "" {
+		t.Fatal("Download path is empty")
+	}
+
+	content, err := os.ReadFile(expectedPath)
+	if err != nil {
+		t.Fatalf("Failed to read downloaded PDF file: %v", err)
+	}
+
+	// 7. Assert: First 4 bytes are PDF magic bytes (%PDF)
+	if len(content) < 4 {
+		t.Fatal("Downloaded file is too small to be a valid PDF")
+	}
+	if string(content[0:4]) != "%PDF" {
+		t.Errorf("Expected PDF magic bytes '%%PDF', got '%s'", string(content[0:4]))
+	}
+
+	// 8. Assert: File size matches Download.TotalBytes
+	fileInfo, err := os.Stat(expectedPath)
+	if err != nil {
+		t.Fatalf("Failed to stat downloaded file: %v", err)
+	}
+	if fileInfo.Size() != downloadResult.Download.TotalBytes {
+		t.Errorf("Expected file size %d, got %d", downloadResult.Download.TotalBytes, fileInfo.Size())
+	}
+}
