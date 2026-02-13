@@ -4,7 +4,7 @@ vars:
   BINARY_NAME: mix
   BUILD_DIR: mix_agent/build
   MAIN_PATH: ./mix_agent/main.go
-  SDK_OUTPUT_DIR: ../mix-typescript-mix_sdk
+  SDK_OUTPUT_DIR: ../mix-typescript-sdk
   OPENAPI_ENDPOINT: http://localhost:8088/doc
   VERSION:
     sh: git tag --sort=committerdate | grep -E '[0-9]' | tail -1 2>/dev/null || echo "dev"
@@ -50,7 +50,6 @@ tasks:
         else
           echo "No PID file found. Attempting to kill processes manually..."
           pkill -f "air" || true
-          pkill -f "bun run tauri dev" || true
           pkill -f "mix --http-port" || true
           echo "✅ Killed stray processes (if any)"
         fi
@@ -61,7 +60,7 @@ tasks:
     cmds:
       - |
         echo "Starting frontend-only development server..."
-        echo "Frontend will be available at http://localhost:1420"
+        echo "Frontend will be available at http://localhost:3020"
         if [ -f .env ]; then
           export $(grep -v '^#' .env | grep '^VITE_' | xargs) && cd mix_dev_tool && bun run dev
         else
@@ -379,8 +378,7 @@ tasks:
       - cd mix_agent && go clean || true
       - echo "Cleaning browser service..."
       - task browser:clean
-      - echo "Cleaning Tauri frontend (mix_dev_tool)..."
+      - echo "Cleaning frontend (mix_dev_tool)..."
       - rm -rf mix_dev_tool/node_modules || true
-      - rm -rf mix_dev_tool/src-tauri/target || true
       - rm -rf mix_dev_tool/dist || true
       - echo "✅ All build artifacts cleaned!"

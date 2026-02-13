@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"mix/internal/config"
@@ -312,6 +313,11 @@ func (a *agent) generateTitle(ctx context.Context, sessionID, content string) er
 	}
 	sess, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Session was deleted - exit silently
+			logging.Debug("Session deleted during title generation, skipping", "sessionID", sessionID)
+			return nil
+		}
 		return err
 	}
 	ctx = context.WithValue(ctx, tools.SessionIDContextKey, sessionID)
@@ -1074,6 +1080,11 @@ func (a *agent) calculateMessageCost(model models.Model, usage interfaces.TokenU
 func (a *agent) TrackUsage(ctx context.Context, sessionID string, model models.Model, usage interfaces.TokenUsage) error {
 	sess, err := a.sessions.Get(ctx, sessionID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Session was deleted - exit silently
+			logging.Debug("Session deleted during usage tracking, skipping", "sessionID", sessionID)
+			return nil
+		}
 		return fmt.Errorf("failed to get session: %w", err)
 	}
 

@@ -609,11 +609,11 @@ func (b *browserTool) getBackendIDFromCache(_ context.Context, sessionID, tabID 
 	// Create cache key using tabID
 	cacheKey := sessionID + "_" + tabID
 
-	// Fix 4: Validate cache exists before lookup
+	// Hold read lock for entire cache access operation to prevent races
 	b.cacheMu.RLock()
-	mapping, exists := b.elementCache[cacheKey]
-	b.cacheMu.RUnlock()
+	defer b.cacheMu.RUnlock()
 
+	mapping, exists := b.elementCache[cacheKey]
 	if !exists {
 		return 0, fmt.Errorf("no element cache found for this tab")
 	}
