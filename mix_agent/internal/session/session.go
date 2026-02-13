@@ -17,6 +17,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// WaitForOperations is a hook that can be set by the agent package to wait for in-flight operations
+// before session deletion. This avoids circular dependencies between session and agent packages.
+var WaitForOperations func(sessionID string, timeout time.Duration)
+
 // SessionType represents the type/category of a session
 type SessionType string
 
@@ -247,11 +251,12 @@ func (s *service) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	// CRITICAL: Grace period to allow background operations (agent loops, browser tool calls,
-	// message persistence) to complete before session deletion. Without this, parallel tests
-	// experience FK violations when background goroutines try to insert messages after session
-	// is deleted. 2 seconds is sufficient for most tool calls to complete and persist results.
-	time.Sleep(2 * time.Second)
+	// Wait for all in-flight operations to complete before deletion
+	// This prevents foreign key constraint violations when background goroutines
+	// try to save tool results after the session has been deleted
+	if WaitForOperations != nil {
+		WaitForOperations(session.ID, 10*time.Second)
+	}
 
 	// Delete session from database
 	err = s.q.DeleteSession(ctx, session.ID)

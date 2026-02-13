@@ -24,6 +24,50 @@ import (
 	"time"
 )
 
+// Global operation tracker for session cleanup synchronization
+// Maps session ID to *sync.WaitGroup for tracking in-flight operations
+var globalOperationTracker sync.Map
+
+func init() {
+	// Set up hook for session deletion to wait for in-flight operations
+	session.WaitForOperations = WaitForSessionOperations
+}
+
+// trackSessionOperation increments the operation counter for a session
+func trackSessionOperation(sessionID string) *sync.WaitGroup {
+	wg, _ := globalOperationTracker.LoadOrStore(sessionID, &sync.WaitGroup{})
+	wgTyped := wg.(*sync.WaitGroup)
+	wgTyped.Add(1)
+	return wgTyped
+}
+
+// WaitForSessionOperations waits for all in-flight operations for a session to complete
+// This is called by session.Delete() to ensure no operations are in progress before deletion
+func WaitForSessionOperations(sessionID string, timeout time.Duration) {
+	wgRaw, exists := globalOperationTracker.Load(sessionID)
+	if !exists {
+		return // No operations to wait for
+	}
+
+	wg := wgRaw.(*sync.WaitGroup)
+
+	// Wait with timeout
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All operations completed
+		globalOperationTracker.Delete(sessionID)
+	case <-time.After(timeout):
+		// Timeout - log warning but continue with deletion
+		logging.Warn(fmt.Sprintf("Timeout waiting for session %s operations to complete", sessionID))
+	}
+}
+
 type contextKey string
 
 const sessionRoutingKey contextKey = "session_routing"
@@ -405,8 +449,14 @@ func (a *agent) RunWithPlanMode(ctx context.Context, sessionID, content string, 
 	// Subscribe to agent events for real-time streaming
 	subscription := a.Subscribe(genCtx)
 
+	// Track this operation in the session's WaitGroup
+	wg := trackSessionOperation(sessionID)
+
 	go func() {
 		defer func() {
+			// Mark operation as complete
+			wg.Done()
+
 			// Check if session was cancelled or completed normally
 			state, _ := a.getSessionState(sessionID)
 			if state != SessionStateCancelled {
