@@ -115,7 +115,12 @@ Click Actions (use `coordinate` [x, y] or `ref` parameter):
 
 Keyboard Actions:
 
-- `type`: Type text using keyboard. Requires `text` (string). Best for simple text input where you need to simulate actual typing.
+- `type`: Type text using keyboard. Requires `text` (string). Optional `index` parameter targets specific element. If index omitted, types into currently focused element. Best for simple text input where you need to simulate actual typing.
+
+  Usage modes:
+  • With index: Clicks element at index, then types (use when element not focused)
+  • Without index: Types into focused element (use after clicking the element)
+
 - `key`: Press keyboard key(s). Requires `key` with space-separated keys (e.g., "Enter", "Backspace Backspace", "cmd+a"). Use for navigation (Tab, Enter), shortcuts (Cmd+A, Ctrl+C), special keys (Escape, Backspace).
 
 Form Actions:
@@ -168,7 +173,8 @@ Example:
 
 All sub-actions documented above can also be called as individual actions instead of within an action sequence. When calling standalone:
 
-- Actions requiring element targeting (`type`, `form_input`, `scroll_to`) need `tabId` + targeting parameter
+- Actions requiring element targeting (`form_input`, `scroll_to`) need `tabId` + targeting parameter
+- `type` needs `tabId` + optional `index` (omit index to type into focused element)
 - Actions with `coordinate` or `ref` parameters (`left_click`, `right_click`, etc.) need `tabId`
 - Actions like `scroll`, `key`, `wait` need `tabId`
 - `tab_create`, `tab_list`, and `close` do NOT require `tabId`

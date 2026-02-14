@@ -240,6 +240,36 @@ Tests multi-step sequences with multiple screenshot captures. Verifies all actio
 
 ---
 
+### spa_search_test.go
+
+Tests dynamic single-page application (SPA) interactions with search functionality, simulating Amazon-like behavior.
+
+**Mock Page:** `spa_search.html` - SPA with search input, dynamic DOM updates, and product results.
+
+#### TestBrowserE2EDynamicSPASearch
+**Prompt:** "Open {url} and type 'laptops' into the search box, then press Enter to search. Tell me what search results you see."
+
+Tests complete SPA search workflow: typing into input field, pressing Enter key to trigger search, and verifying dynamic DOM updates show search results. Validates that cache synchronization fixes work correctly on SPAs that modify the DOM after user input (similar to Amazon search behavior).
+
+Verifies: Type action executes, Enter key press triggers search, search results appear dynamically in DOM, and browser tool completes successfully without stale element errors.
+
+---
+
+### spa_form_test.go
+
+Tests dynamic single-page application (SPA) form submission with JavaScript-driven processing, simulating modern React/Vue form behavior.
+
+**Mock Page:** `spa_registration_form.html` - Registration form with multiple input types, validation, and in-page success display.
+
+#### TestBrowserE2EDynamicSPAFormSubmission
+**Prompt:** "Open {url} and fill out the registration form with these details: name 'Alice Smith', email 'alice@test.com', password 'Pass123!', country 'USA', check the terms checkbox, and submit the form. Tell me what success message you see."
+
+Tests complete SPA form workflow: filling text inputs, selecting dropdown options, checking checkboxes, submitting form with JavaScript, and verifying success message appears without page navigation. Validates cache synchronization on forms that dynamically update DOM after submission.
+
+Verifies: Type actions for all text fields, dropdown selection for country, checkbox interaction for terms, form submission without navigation, success message with user data appears dynamically in DOM. Tests multiple input types (text, email, password, select, checkbox) in a single workflow.
+
+---
+
 ## Test HTML Pages
 
 ### action_sequence.html
@@ -262,6 +292,12 @@ Simple test page with clickable button and text input. Used for testing across d
 
 ### sortable_list.html
 Drag-and-drop fixture with draggable cards, drop zone, and slider. Includes mouse event logging for drag operations.
+
+### spa_search.html
+Dynamic single-page application simulating Amazon-like product search. Features search input with Enter key handler, JavaScript-driven DOM updates, loading states, and mock product database with laptops, headphones, and keyboards. Results display dynamically with product cards showing title, price, rating, and description. Tests cache synchronization and dynamic DOM interaction.
+
+### spa_registration_form.html
+Modern SPA registration form with gradient design, multiple input types (text, email, password, select, checkbox), real-time validation, and JavaScript-driven form submission. Prevents default form submission and processes registration client-side with 600ms simulated API delay. Shows loading spinner, then displays success message with submitted user data in-page without navigation. Includes mock email validation (duplicate detection) and inline error messages. Tests cache synchronization on dynamic form processing.
 
 ### success.html
 Login confirmation page displaying submitted username and role from URL parameters. Used to verify form submission.

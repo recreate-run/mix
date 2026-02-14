@@ -71,7 +71,7 @@ func TestE2EElementWorkflow(t *testing.T) {
 
 	if found {
 		t.Logf("Found input at index %d", inputIndex)
-		err = c.Type(ctx, inputIndex, "test input")
+		err = c.Type(ctx, &inputIndex, "test input")
 		if err != nil {
 			t.Errorf("Type failed: %v", err)
 		} else {
@@ -230,7 +230,8 @@ func TestE2EInvalidElementIndex(t *testing.T) {
 	}
 
 	// Try to type with invalid index
-	err = c.Type(ctx, 9999, "test")
+	invalidIdx := 9999
+	err = c.Type(ctx, &invalidIdx, "test")
 	if err == nil {
 		t.Error("Expected error when typing to invalid index, got none")
 	} else {

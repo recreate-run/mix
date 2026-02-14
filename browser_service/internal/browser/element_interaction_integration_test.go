@@ -120,7 +120,7 @@ func TestTypeByIndex(t *testing.T) {
 
 	// Type into the input
 	testText := "hello world"
-	err = browserCtx.Type(ctx, inputIndex, testText, nil)
+	err = browserCtx.Type(ctx, &inputIndex, testText, nil)
 	if err != nil {
 		t.Errorf("Failed to type into element %d: %v", inputIndex, err)
 	}
@@ -410,7 +410,8 @@ func TestLazyLoadingType(t *testing.T) {
 	// Type immediately without calling GetElements first
 	// This should trigger lazy loading of elements
 	testText := "test"
-	err = browserCtx.Type(ctx, 0, testText, nil)
+	zeroIdx := 0
+	err = browserCtx.Type(ctx, &zeroIdx, testText, nil)
 	if err != nil {
 		t.Errorf("Failed to type with lazy loading: %v", err)
 	}

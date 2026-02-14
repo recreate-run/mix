@@ -173,6 +173,42 @@ type TripleClickByBackendIDParams struct {
 	TabID     *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
 }
 
+// ClickAtParams for Page.clickAt
+type ClickAtParams struct {
+	X          float64 `json:"x"`                   // X coordinate
+	Y          float64 `json:"y"`                   // Y coordinate
+	Button     *string `json:"button,omitempty"`    // left, right, middle (default: left)
+	ClickCount *int    `json:"clickCount,omitempty"` // 1, 2, 3 (default: 1)
+	Duration   *int    `json:"duration,omitempty"`  // Optional duration in ms (default: 0)
+	TabID      *string `json:"tabId,omitempty"`     // Optional tab ID (defaults to active tab)
+}
+
+// RightClickAtParams for Page.rightClickAt
+type RightClickAtParams struct {
+	X        float64 `json:"x"`                  // X coordinate
+	Y        float64 `json:"y"`                  // Y coordinate
+	Duration *int    `json:"duration,omitempty"` // Optional duration in ms (default: 0)
+	TabID    *string `json:"tabId,omitempty"`    // Optional tab ID (defaults to active tab)
+}
+
+// DoubleClickAtParams for Page.doubleClickAt
+type DoubleClickAtParams struct {
+	X        float64 `json:"x"`                  // X coordinate
+	Y        float64 `json:"y"`                  // Y coordinate
+	Button   *string `json:"button,omitempty"`   // left, right, middle (default: left)
+	Duration *int    `json:"duration,omitempty"` // Optional duration in ms (default: 0)
+	TabID    *string `json:"tabId,omitempty"`    // Optional tab ID (defaults to active tab)
+}
+
+// TripleClickAtParams for Page.tripleClickAt
+type TripleClickAtParams struct {
+	X        float64 `json:"x"`                  // X coordinate
+	Y        float64 `json:"y"`                  // Y coordinate
+	Button   *string `json:"button,omitempty"`   // left, right, middle (default: left)
+	Duration *int    `json:"duration,omitempty"` // Optional duration in ms (default: 0)
+	TabID    *string `json:"tabId,omitempty"`    // Optional tab ID (defaults to active tab)
+}
+
 // DragParams for Page.drag
 type DragParams struct {
 	FromIndex *int     `json:"fromIndex,omitempty"` // element index to drag from
@@ -214,7 +250,7 @@ type GoForwardResult struct {
 
 // TypeParams for Page.type
 type TypeParams struct {
-	Index int     `json:"index"`             // element index
+	Index *int    `json:"index,omitempty"`   // Optional element index (if nil, types into currently focused element)
 	Text  string  `json:"text"`              // text to type
 	TabID *string `json:"tabId,omitempty"`   // Optional tab ID (defaults to active tab)
 }

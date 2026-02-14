@@ -417,6 +417,102 @@ func (c *Client) TripleClickByBackendID(ctx context.Context, backendID int64, ta
 	return nil
 }
 
+// ClickAt clicks at specific coordinates
+func (c *Client) ClickAt(ctx context.Context, x, y float64, button *string, clickCount *int, duration *int, tabID ...string) error {
+	params := protocol.ClickAtParams{
+		X:          x,
+		Y:          y,
+		Button:     button,
+		ClickCount: clickCount,
+		Duration:   duration,
+	}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageClickAt, params)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error != nil {
+		return fmt.Errorf("clickAt error: %s", resp.Error.Message)
+	}
+
+	return nil
+}
+
+// RightClickAt right-clicks at specific coordinates
+func (c *Client) RightClickAt(ctx context.Context, x, y float64, duration *int, tabID ...string) error {
+	params := protocol.RightClickAtParams{
+		X:        x,
+		Y:        y,
+		Duration: duration,
+	}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageRightClickAt, params)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error != nil {
+		return fmt.Errorf("rightClickAt error: %s", resp.Error.Message)
+	}
+
+	return nil
+}
+
+// DoubleClickAt double-clicks at specific coordinates
+func (c *Client) DoubleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID ...string) error {
+	params := protocol.DoubleClickAtParams{
+		X:        x,
+		Y:        y,
+		Button:   button,
+		Duration: duration,
+	}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageDoubleClickAt, params)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error != nil {
+		return fmt.Errorf("doubleClickAt error: %s", resp.Error.Message)
+	}
+
+	return nil
+}
+
+// TripleClickAt triple-clicks at specific coordinates
+func (c *Client) TripleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID ...string) error {
+	params := protocol.TripleClickAtParams{
+		X:        x,
+		Y:        y,
+		Button:   button,
+		Duration: duration,
+	}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageTripleClickAt, params)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error != nil {
+		return fmt.Errorf("tripleClickAt error: %s", resp.Error.Message)
+	}
+
+	return nil
+}
+
 // Drag performs a drag operation either by index or coordinates
 func (c *Client) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, fromY, toX, toY *float64, duration *int, tabID ...string) error {
 	params := protocol.DragParams{
@@ -548,7 +644,7 @@ func (c *Client) Wait(ctx context.Context, duration int, tabID ...string) error 
 }
 
 // Type types text into an element
-func (c *Client) Type(ctx context.Context, index int, text string, tabID ...string) error {
+func (c *Client) Type(ctx context.Context, index *int, text string, tabID ...string) error {
 	params := protocol.TypeParams{
 		Index: index,
 		Text:  text,

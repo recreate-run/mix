@@ -44,8 +44,6 @@ type Context struct {
 type tabContext struct {
 	id                string
 	page              *rod.Page
-	elements          []elementInfo
-	mu                sync.RWMutex // Per-tab element cache lock
 	currentURL        string       // Cached current URL
 	currentTitle      string       // Cached current title
 	navigationTimeout time.Duration // Navigation timeout (not wrapped page)
@@ -638,15 +636,14 @@ func (t *tabContext) batchExtractAttributes(backendIDs []int64) map[int64]map[st
 }
 
 // extractElements extracts interactive elements from the accessibility tree (tab-level method)
-func (t *tabContext) extractElements() ([]protocol.RawAccessibilityNode, error) {
+func (t *tabContext) extractElements() ([]elementInfo, error) {
 	// Get accessibility tree
 	tree, err := proto.AccessibilityGetFullAXTree{}.Call(t.page)
 	if err != nil {
 		return nil, errors.NewBrowserError("get_accessibility_tree", err)
 	}
 
-	elements := make([]protocol.RawAccessibilityNode, 0)
-	t.elements = make([]elementInfo, 0)
+	elements := make([]elementInfo, 0)
 
 	for _, node := range tree.Nodes {
 		// Filter for interactive elements
@@ -668,21 +665,13 @@ func (t *tabContext) extractElements() ([]protocol.RawAccessibilityNode, error) 
 		name := getNodeName(node)
 		role := getNodeRole(node)
 
-		elem := protocol.RawAccessibilityNode{
+		elem := elementInfo{
 			Role:      role,
 			Name:      name,
 			Bounds:    *bounds,
 			BackendID: int64(node.BackendDOMNodeID),
 		}
 		elements = append(elements, elem)
-
-		// Store for later interaction
-		t.elements = append(t.elements, elementInfo{
-			Role:      role,
-			Name:      name,
-			Bounds:    *bounds,
-			BackendID: int64(node.BackendDOMNodeID),
-		})
 	}
 
 	return elements, nil
@@ -1125,6 +1114,155 @@ func (c *Context) TripleClickByBackendID(ctx context.Context, backendID int64, t
 	return nil
 }
 
+// ClickAt clicks at specific coordinates
+func (c *Context) ClickAt(ctx context.Context, x, y float64, button *string, clickCount *int, duration *int, tabID *string) error {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return err
+	}
+
+	// Validate coordinates
+	if x < 0 || y < 0 {
+		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
+	}
+
+	// Default values
+	mouseButton := proto.InputMouseButtonLeft
+	if button != nil {
+		switch *button {
+		case "left":
+			mouseButton = proto.InputMouseButtonLeft
+		case "right":
+			mouseButton = proto.InputMouseButtonRight
+		case "middle":
+			mouseButton = proto.InputMouseButtonMiddle
+		default:
+			return fmt.Errorf("invalid button type: %s (must be left, right, or middle)", *button)
+		}
+	}
+
+	clicks := 1
+	if clickCount != nil {
+		clicks = *clickCount
+		if clicks < 1 || clicks > 3 {
+			return fmt.Errorf("clickCount must be 1, 2, or 3, got %d", clicks)
+		}
+	}
+
+	// Move to position and click
+	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
+		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
+	}
+
+	if err := tab.page.Mouse.Click(mouseButton, clicks); err != nil {
+		return fmt.Errorf("failed to click at (%f, %f): %w", x, y, err)
+	}
+
+	return nil
+}
+
+// RightClickAt right-clicks at specific coordinates
+func (c *Context) RightClickAt(ctx context.Context, x, y float64, duration *int, tabID *string) error {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return err
+	}
+
+	// Validate coordinates
+	if x < 0 || y < 0 {
+		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
+	}
+
+	// Move to position and right-click
+	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
+		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
+	}
+
+	if err := tab.page.Mouse.Click(proto.InputMouseButtonRight, 1); err != nil {
+		return fmt.Errorf("failed to right-click at (%f, %f): %w", x, y, err)
+	}
+
+	return nil
+}
+
+// DoubleClickAt double-clicks at specific coordinates
+func (c *Context) DoubleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID *string) error {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return err
+	}
+
+	// Validate coordinates
+	if x < 0 || y < 0 {
+		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
+	}
+
+	// Default to left button
+	mouseButton := proto.InputMouseButtonLeft
+	if button != nil {
+		switch *button {
+		case "left":
+			mouseButton = proto.InputMouseButtonLeft
+		case "right":
+			mouseButton = proto.InputMouseButtonRight
+		case "middle":
+			mouseButton = proto.InputMouseButtonMiddle
+		default:
+			return fmt.Errorf("invalid button type: %s (must be left, right, or middle)", *button)
+		}
+	}
+
+	// Move to position and double-click
+	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
+		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
+	}
+
+	if err := tab.page.Mouse.Click(mouseButton, 2); err != nil {
+		return fmt.Errorf("failed to double-click at (%f, %f): %w", x, y, err)
+	}
+
+	return nil
+}
+
+// TripleClickAt triple-clicks at specific coordinates
+func (c *Context) TripleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID *string) error {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return err
+	}
+
+	// Validate coordinates
+	if x < 0 || y < 0 {
+		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
+	}
+
+	// Default to left button
+	mouseButton := proto.InputMouseButtonLeft
+	if button != nil {
+		switch *button {
+		case "left":
+			mouseButton = proto.InputMouseButtonLeft
+		case "right":
+			mouseButton = proto.InputMouseButtonRight
+		case "middle":
+			mouseButton = proto.InputMouseButtonMiddle
+		default:
+			return fmt.Errorf("invalid button type: %s (must be left, right, or middle)", *button)
+		}
+	}
+
+	// Move to position and triple-click
+	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
+		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
+	}
+
+	if err := tab.page.Mouse.Click(mouseButton, 3); err != nil {
+		return fmt.Errorf("failed to triple-click at (%f, %f): %w", x, y, err)
+	}
+
+	return nil
+}
+
 // Drag performs a drag operation either by index or coordinates
 func (c *Context) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, fromY, toX, toY *float64, duration *int, tabID *string) error {
 	tab, err := c.getTab(tabID)
@@ -1352,7 +1490,7 @@ func (c *Context) Wait(ctx context.Context, duration int, tabID *string) error {
 }
 
 // Type types text into an element
-func (c *Context) Type(ctx context.Context, index int, text string, tabID *string) error {
+func (c *Context) Type(ctx context.Context, index *int, text string, tabID *string) error {
 	tab, err := c.getTab(tabID)
 	if err != nil {
 		return err
@@ -1361,37 +1499,45 @@ func (c *Context) Type(ctx context.Context, index int, text string, tabID *strin
 	tab.mu.Lock()
 	defer tab.mu.Unlock()
 
-	// Lazy load elements if cache is empty
-	if len(tab.elements) == 0 {
-		_, err := tab.extractElements()
-		if err != nil {
-			return fmt.Errorf("failed to auto-extract elements for type: %w", err)
+	// If index is provided, click element to focus
+	if index != nil {
+		// Lazy load elements if cache is empty
+		if len(tab.elements) == 0 {
+			_, err := tab.extractElements()
+			if err != nil {
+				return fmt.Errorf("failed to auto-extract elements for type: %w", err)
+			}
+		}
+
+		idx := *index
+		if idx < 0 || idx >= len(tab.elements) {
+			return errors.NewElementError(idx, "type", errors.NewValidationError("index", idx, nil))
+		}
+
+		elem := tab.elements[idx]
+
+		// Click to focus
+		x := elem.Bounds.X + elem.Bounds.Width/2
+		y := elem.Bounds.Y + elem.Bounds.Height/2
+
+		if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
+			return errors.NewElementError(idx, "type", err)
+		}
+
+		if err := tab.page.Mouse.Click(proto.InputMouseButtonLeft, 1); err != nil {
+			return errors.NewElementError(idx, "type", err)
 		}
 	}
-
-	if index < 0 || index >= len(tab.elements) {
-		return errors.NewElementError(index, "type", errors.NewValidationError("index", index, nil))
-	}
-
-	elem := tab.elements[index]
-
-	// Click to focus
-	x := elem.Bounds.X + elem.Bounds.Width/2
-	y := elem.Bounds.Y + elem.Bounds.Height/2
-
-	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
-		return errors.NewElementError(index, "type", err)
-	}
-
-	if err := tab.page.Mouse.Click(proto.InputMouseButtonLeft, 1); err != nil {
-		return errors.NewElementError(index, "type", err)
-	}
+	// If index is nil, type into currently focused element without clicking
 
 	// Type text character by character
 	for _, ch := range text {
 		key := input.Key(ch)
 		if err := tab.page.Keyboard.Type(key); err != nil {
-			return errors.NewElementError(index, "type", err)
+			if index != nil {
+				return errors.NewElementError(*index, "type", err)
+			}
+			return fmt.Errorf("type failed: %w", err)
 		}
 	}
 

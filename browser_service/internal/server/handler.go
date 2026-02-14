@@ -73,6 +73,14 @@ func (h *MessageHandler) Handle(ctx context.Context, data []byte) protocol.Respo
 		return h.handleTripleClick(ctx, req)
 	case constants.MethodPageTripleClickByBackendID:
 		return h.handleTripleClickByBackendID(ctx, req)
+	case constants.MethodPageClickAt:
+		return h.handleClickAt(ctx, req)
+	case constants.MethodPageRightClickAt:
+		return h.handleRightClickAt(ctx, req)
+	case constants.MethodPageDoubleClickAt:
+		return h.handleDoubleClickAt(ctx, req)
+	case constants.MethodPageTripleClickAt:
+		return h.handleTripleClickAt(ctx, req)
 	case constants.MethodPageDrag:
 		return h.handleDrag(ctx, req)
 	case constants.MethodPageFormInput:
@@ -335,6 +343,70 @@ func (h *MessageHandler) handleTripleClickByBackendID(ctx context.Context, req p
 	if err := h.client.Context.TripleClickByBackendID(ctx, params.BackendID, params.TabID); err != nil {
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeElementNotFound, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
+}
+
+// handleClickAt clicks at specific coordinates
+func (h *MessageHandler) handleClickAt(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.ClickAtParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if err := h.client.Context.ClickAt(ctx, params.X, params.Y, params.Button, params.ClickCount, params.Duration, params.TabID); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
+}
+
+// handleRightClickAt right-clicks at specific coordinates
+func (h *MessageHandler) handleRightClickAt(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.RightClickAtParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if err := h.client.Context.RightClickAt(ctx, params.X, params.Y, params.Duration, params.TabID); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
+}
+
+// handleDoubleClickAt double-clicks at specific coordinates
+func (h *MessageHandler) handleDoubleClickAt(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.DoubleClickAtParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if err := h.client.Context.DoubleClickAt(ctx, params.X, params.Y, params.Button, params.Duration, params.TabID); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
+}
+
+// handleTripleClickAt triple-clicks at specific coordinates
+func (h *MessageHandler) handleTripleClickAt(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.TripleClickAtParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if err := h.client.Context.TripleClickAt(ctx, params.X, params.Y, params.Button, params.Duration, params.TabID); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
 	}
 
 	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})

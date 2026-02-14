@@ -1126,71 +1126,76 @@ func (t *TunnelClientWrapper) Drag(ctx context.Context, fromIndex, toIndex *int,
 }
 
 // Type types text into an element
-func (t *TunnelClientWrapper) Type(ctx context.Context, index int, text string, tabID ...string) error {
+func (t *TunnelClientWrapper) Type(ctx context.Context, index *int, text string, tabID ...string) error {
 	cdpSessionID, err := t.getTabCDPSessionID(tabID...)
 	if err != nil {
 		return fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
-	// Get element from cache
-	targetTabID := t.activeTabID
-	if len(tabID) > 0 && tabID[0] != "" {
-		targetTabID = tabID[0]
-	}
+	// If index is provided, click element to focus
+	if index != nil {
+		// Get element from cache
+		targetTabID := t.activeTabID
+		if len(tabID) > 0 && tabID[0] != "" {
+			targetTabID = tabID[0]
+		}
 
-	t.cacheMu.RLock()
-	elements, exists := t.elementCache[targetTabID]
-	t.cacheMu.RUnlock()
+		t.cacheMu.RLock()
+		elements, exists := t.elementCache[targetTabID]
+		t.cacheMu.RUnlock()
 
-	if !exists || len(elements) == 0 {
-		return fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
-	}
+		if !exists || len(elements) == 0 {
+			return fmt.Errorf("no elements cached for tab %s, call read_page first", targetTabID)
+		}
 
-	if index < 0 || index >= len(elements) {
-		return fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
-	}
+		idx := *index
+		if idx < 0 || idx >= len(elements) {
+			return fmt.Errorf("index %d out of range (0-%d)", idx, len(elements)-1)
+		}
 
-	elem := elements[index]
+		elem := elements[idx]
 
-	// Click to focus the element first
-	x := elem.Bounds.X + elem.Bounds.Width/2
-	y := elem.Bounds.Y + elem.Bounds.Height/2
+		// Click to focus the element first
+		x := elem.Bounds.X + elem.Bounds.Width/2
+		y := elem.Bounds.Y + elem.Bounds.Height/2
 
-	// Move mouse and click
-	moveParams := cdp.InputDispatchMouseEventParams{
-		Type:   "mouseMoved",
-		X:      x,
-		Y:      y,
-		Button: "left",
-	}
-	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
-	if err != nil {
-		return fmt.Errorf("failed to move mouse: %w", err)
-	}
+		// Move mouse and click
+		moveParams := cdp.InputDispatchMouseEventParams{
+			Type:   "mouseMoved",
+			X:      x,
+			Y:      y,
+			Button: "left",
+		}
+		_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", moveParams, cdpSessionID)
+		if err != nil {
+			return fmt.Errorf("failed to move mouse: %w", err)
+		}
 
-	pressParams := cdp.InputDispatchMouseEventParams{
-		Type:       "mousePressed",
-		X:          x,
-		Y:          y,
-		Button:     "left",
-		ClickCount: 1,
-	}
-	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", pressParams, cdpSessionID)
-	if err != nil {
-		return fmt.Errorf("failed to press mouse: %w", err)
-	}
+		pressParams := cdp.InputDispatchMouseEventParams{
+			Type:       "mousePressed",
+			X:          x,
+			Y:          y,
+			Button:     "left",
+			ClickCount: 1,
+		}
+		_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", pressParams, cdpSessionID)
+		if err != nil {
+			return fmt.Errorf("failed to press mouse: %w", err)
+		}
 
-	releaseParams := cdp.InputDispatchMouseEventParams{
-		Type:       "mouseReleased",
-		X:          x,
-		Y:          y,
-		Button:     "left",
-		ClickCount: 1,
+		releaseParams := cdp.InputDispatchMouseEventParams{
+			Type:       "mouseReleased",
+			X:          x,
+			Y:          y,
+			Button:     "left",
+			ClickCount: 1,
+		}
+		_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", releaseParams, cdpSessionID)
+		if err != nil {
+			return fmt.Errorf("failed to release mouse: %w", err)
+		}
 	}
-	_, err = t.sendCommand(ctx, "Input.dispatchMouseEvent", releaseParams, cdpSessionID)
-	if err != nil {
-		return fmt.Errorf("failed to release mouse: %w", err)
-	}
+	// If index is nil, type into currently focused element without clicking
 
 	// Type text using Input.insertText
 	insertParams := cdp.InputInsertTextParams{

@@ -746,14 +746,17 @@ func (c *RemoteCDPClient) Drag(ctx context.Context, fromIndex, toIndex *int, fro
 }
 
 // Type types text into an element
-func (c *RemoteCDPClient) Type(ctx context.Context, index int, text string, tabID ...string) error {
-	// First click the element to focus it
-	if err := c.Click(ctx, index, tabID...); err != nil {
-		return fmt.Errorf("failed to focus element: %w", err)
-	}
+func (c *RemoteCDPClient) Type(ctx context.Context, index *int, text string, tabID ...string) error {
+	// If index is provided, click the element to focus it
+	if index != nil {
+		if err := c.Click(ctx, *index, tabID...); err != nil {
+			return fmt.Errorf("failed to focus element: %w", err)
+		}
 
-	// Small delay to ensure focus
-	time.Sleep(100 * time.Millisecond)
+		// Small delay to ensure focus
+		time.Sleep(100 * time.Millisecond)
+	}
+	// If index is nil, type into currently focused element without clicking
 
 	cdpSessionID, err := c.getTabCDPSessionID(tabID...)
 	if err != nil {
@@ -803,7 +806,7 @@ func (c *RemoteCDPClient) PressKey(ctx context.Context, keys string, tabID ...st
 
 // FormInput sets form input value
 func (c *RemoteCDPClient) FormInput(ctx context.Context, index int, value string, tabID ...string) error {
-	return c.Type(ctx, index, value, tabID...)
+	return c.Type(ctx, &index, value, tabID...)
 }
 
 // Scroll scrolls the page

@@ -1060,6 +1060,14 @@ func (b *browserTool) handleFormInput(ctx context.Context, params BrowserParams,
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
+	// browser-service mode: refresh element cache to avoid stale element errors
+	if adapter, ok := client.(*ServiceClientAdapter); ok {
+		_, readErr := adapter.ReadPage(ctx, true, params.TabID)
+		if readErr != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to read page elements: %v", readErr))
+		}
+	}
+
 	// Convert value to string (handles string, number, boolean)
 	valueStr := fmt.Sprintf("%v", params.Value)
 
@@ -1145,8 +1153,16 @@ func (b *browserTool) handleType(ctx context.Context, params BrowserParams, sess
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
+	// browser-service mode: refresh element cache to avoid stale element errors
+	if adapter, ok := client.(*ServiceClientAdapter); ok {
+		_, readErr := adapter.ReadPage(ctx, true, params.TabID)
+		if readErr != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to read page elements: %v", readErr))
+		}
+	}
+
 	// Type text (tabID is always required and validated)
-	err = client.Type(ctx, params.Index, params.Text, params.TabID)
+	err = client.Type(ctx, &params.Index, params.Text, params.TabID)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Type failed: %v", err))
 	}
@@ -1247,6 +1263,14 @@ func (b *browserTool) handleUpload(ctx context.Context, params BrowserParams, se
 	client, err := b.getClient(ctx, sessionID)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
+	}
+
+	// browser-service mode: refresh element cache to avoid stale element errors
+	if adapter, ok := client.(*ServiceClientAdapter); ok {
+		_, readErr := adapter.ReadPage(ctx, true, params.TabID)
+		if readErr != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to read page elements: %v", readErr))
+		}
 	}
 
 	// Upload file (tabID is always required and validated)
@@ -1646,6 +1670,14 @@ func (b *browserTool) handleScrollTo(ctx context.Context, params BrowserParams, 
 	client, err := b.getClient(ctx, sessionID)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
+	}
+
+	// browser-service mode: refresh element cache to avoid stale element errors
+	if adapter, ok := client.(*ServiceClientAdapter); ok {
+		_, readErr := adapter.ReadPage(ctx, true, params.TabID)
+		if readErr != nil {
+			return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to read page elements: %v", readErr))
+		}
 	}
 
 	// Get BackendID from cache or read_page
@@ -2059,10 +2091,8 @@ func (b *browserTool) executeTripleClick(ctx context.Context, client BrowserClie
 
 // executeType executes a type sub-action
 func (b *browserTool) executeType(ctx context.Context, client BrowserClient, action SubAction, _, tabID string) error {
-	if action.Index == nil {
-		return fmt.Errorf("index required for type action")
-	}
-	return client.Type(ctx, *action.Index, action.Text, tabID)
+	// Index is optional - if nil, types into currently focused element
+	return client.Type(ctx, action.Index, action.Text, tabID)
 }
 
 // getDelayForAction returns appropriate inter-action delay
