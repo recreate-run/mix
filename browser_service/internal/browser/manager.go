@@ -8,6 +8,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/sarathmenon/browser-service/internal/browser/events"
 	"github.com/sarathmenon/browser-service/internal/browser/watchdog"
 	"github.com/sarathmenon/browser-service/internal/errors"
 	"github.com/sarathmenon/browser-service/pkg/protocol"
@@ -107,9 +108,13 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		downloadChan: make(chan protocol.Download, 10),
 	}
 
+	// Create event bus
+	eventBus := events.NewBroker[events.BrowserEvent]()
+
 	// Create and start watchdogs
 	popupsWd := watchdog.NewPopupsWatchdog(browserCtx)
 	permissionsWd := watchdog.NewPermissionsWatchdog(browserCtx)
+	crashWd := watchdog.NewCrashWatchdog(browserCtx, eventBus)
 
 	// Start watchdogs
 	if err := popupsWd.Start(ctx); err != nil {
@@ -122,10 +127,20 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		return nil, errors.NewContextError("start_permissions_watchdog", err)
 	}
 
-	// Register initial page with popups watchdog
+	if err := crashWd.Start(ctx); err != nil {
+		browserCtx.MustClose()
+		return nil, errors.NewContextError("start_crash_watchdog", err)
+	}
+
+	// Register initial page with watchdogs
 	if err := popupsWd.RegisterPage(ctx, page); err != nil {
 		browserCtx.MustClose()
-		return nil, errors.NewContextError("register_initial_page", err)
+		return nil, errors.NewContextError("register_initial_page_popups", err)
+	}
+
+	if err := crashWd.RegisterPage(ctx, page); err != nil {
+		browserCtx.MustClose()
+		return nil, errors.NewContextError("register_initial_page_crash", err)
 	}
 
 	return &Context{
@@ -135,6 +150,8 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		tabIDCounter:        1, // Start counter at 1 since we already created tab-1
 		popupsWatchdog:      popupsWd,
 		permissionsWatchdog: permissionsWd,
+		crashWatchdog:       crashWd,
+		eventBus:            eventBus,
 	}, nil
 }
 

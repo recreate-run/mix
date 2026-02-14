@@ -1836,6 +1836,66 @@ handler.HandleFunc("/slow-endpoint", func(w http.ResponseWriter, r *http.Request
 })
 ```
 
+### Phase 6: Crash Watchdog - ✅ COMPLETED
+
+**Date Completed**: February 14, 2026
+
+**Implementation Summary**:
+Successfully implemented the Crash Watchdog system that monitors browser health and detects crashes, network timeouts, and responsiveness issues.
+
+**Event System Infrastructure** (`internal/browser/events/`):
+- Created `broker.go` - Generic event broker with publish/subscribe pattern
+  - Non-blocking event publishing with buffered channels (100 events)
+  - Automatic cleanup on context cancellation
+  - Thread-safe subscriber management
+- Created `events.go` - Browser event type definitions
+  - `BrowserEvent` interface for type-safe event handling
+  - `BrowserErrorEvent` for crash, timeout, and unresponsive errors
+  - `TargetCrashedEvent` for target crash notifications
+
+**Crash Watchdog Implementation** (`internal/browser/watchdog/crash.go`):
+- **Network Request Tracking**:
+  - Monitors all network requests via CDP `Network.requestWillBeSent` events
+  - Clears completed requests via `Network.responseReceived` and `Network.loadingFailed`
+  - Detects requests hanging > 10 seconds
+  - Publishes `NetworkTimeout` events with request details
+- **Target Crash Detection**:
+  - Listens for CDP `Target.targetCrashed` events
+  - Publishes `TargetCrash` events to event bus
+- **Health Check Loop**:
+  - Runs every 5 seconds after 10-second initial delay
+  - Executes simple JavaScript eval (`1+1`) with 1-second timeout
+  - Publishes `BrowserUnresponsive` events on failure
+- **Multi-Page Support**:
+  - Registers CDP listeners for each browser page/tab
+  - Tracks targets to prevent duplicate listener registration
+  - Proper goroutine and channel cleanup on context cancellation
+
+**Context Integration**:
+- Added `crashWatchdog` and `eventBus` fields to `Context` struct
+- Initialize crash watchdog and event bus in `NewContext` (manager.go)
+- Register new tabs with crash watchdog in `CreateTab` (context.go)
+- Stop crash watchdog and close event bus in `Close` method
+
+**Test Infrastructure** (`test/crash_test.go`):
+- Implemented 6 E2E tests, all passing:
+  - **TestCrashWatchdogDetectsTargetCrash**: ✅ PASSING - Verifies crash detection and recovery
+  - **TestCrashWatchdogDetectsNetworkTimeout**: ✅ PASSING - Tests network timeout detection
+  - **TestCrashWatchdogHealthCheck**: ✅ PASSING - Validates health check functionality
+  - **TestCrashWatchdogWithMultipleTabs**: ✅ PASSING - Tests multi-tab monitoring
+  - **TestCrashWatchdogNetworkTracking**: ✅ PASSING - Verifies network request tracking
+  - **TestCrashWatchdogStartsAndStops**: ✅ PASSING - Tests lifecycle management
+
+**Technical Achievements**:
+- Generic event broker pattern enables future watchdog extensibility
+- Non-blocking event publishing prevents browser operation interference
+- Thread-safe implementation with proper mutex protection
+- Resource cleanup prevents goroutine and memory leaks
+- Multi-tab aware monitoring with per-target listener tracking
+- Configurable timeouts (10s network, 5s health check interval)
+
+**Status**: All 6 tests passing. Browser health monitoring is active and correctly detecting crashes, timeouts, and unresponsive states without impacting browser performance.
+
 ---
 
 ## Phase 7: Storage State Watchdog - 1 Day
