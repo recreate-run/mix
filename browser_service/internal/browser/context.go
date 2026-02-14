@@ -51,6 +51,7 @@ type tabContext struct {
 	downloads         []protocol.Download
 	downloadsMu       sync.RWMutex
 	downloadChan      chan protocol.Download
+	downloadsWatchdog *watchdog.DownloadsWatchdog
 }
 
 // elementInfo stores element data for click/type operations
@@ -2379,6 +2380,14 @@ func (c *Context) SetDownloadBehavior(ctx context.Context, path string, accept b
 	// Start listening for download events if accepting downloads
 	if accept {
 		c.listenForDownloadEvents(tab, path)
+
+		// Initialize and start downloads watchdog
+		if tab.downloadsWatchdog == nil {
+			tab.downloadsWatchdog = watchdog.NewDownloadsWatchdog(tab.page, c.eventBus, path)
+			if err := tab.downloadsWatchdog.Start(ctx); err != nil {
+				return nil, errors.NewBrowserError("set_download_behavior", fmt.Errorf("failed to start downloads watchdog: %w", err))
+			}
+		}
 	}
 
 	return &protocol.SetDownloadBehaviorResult{Configured: true}, nil

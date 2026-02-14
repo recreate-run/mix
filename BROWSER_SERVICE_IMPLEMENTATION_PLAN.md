@@ -1043,40 +1043,37 @@ func TestFullEvaluationWorkflow(t *testing.T) {
 - [ ] Write TestStorageWatchdogMergesStates
 - [ ] All Phase 7 tests pass (3 tests)
 
-### Phase 8: Enhanced Downloads Watchdog
-- [ ] Extend DownloadsWatchdog with new fields:
-  - [ ] downloadCallbacks []DownloadCallback
-  - [ ] detectedDownloads map[string]bool
-  - [ ] sessionPDFURLs map[string]string
-  - [ ] networkMonitoredTargets map[string]bool
-- [ ] Implement network monitoring:
-  - [ ] Enable `Network.enable` for each session
-  - [ ] Listen for `Network.responseReceived` events
-  - [ ] Check Content-Type for "application/pdf"
-  - [ ] Check Content-Disposition for "attachment"
-  - [ ] Filter out unwanted types (images, CSS, JS, JSON, fonts)
-  - [ ] Track in detectedDownloads to prevent duplicates
-  - [ ] Check sessionPDFURLs cache to prevent re-downloads
-- [ ] Implement JavaScript fetch fallback:
-  - [ ] Execute fetch(url, {cache: 'force-cache'})
-  - [ ] Convert blob to arrayBuffer to Uint8Array
-  - [ ] Return data array and size
-  - [ ] Write to download directory
-  - [ ] Generate unique filename if collision
-  - [ ] Cache in sessionPDFURLs
-- [ ] Implement direct callbacks:
-  - [ ] OnDownloadComplete(callback) registration
-  - [ ] Call callbacks synchronously from CDP events
-  - [ ] Call callbacks from network fetch path
-- [ ] Add FileDownloadedEvent with auto_download field
-- [ ] Add test pages:
-  - [ ] /data.csv with Content-Disposition: attachment
-  - [ ] /report.pdf with Content-Type: application/pdf
-- [ ] Write TestDownloadsWatchdogNetworkDetection
-- [ ] Write TestDownloadsWatchdogPDFContentType
-- [ ] Write TestDownloadsWatchdogDirectCallbacks
-- [ ] Write TestDownloadsWatchdogPreventsDuplicates
-- [ ] All Phase 8 tests pass (4 tests)
+### Phase 8: Enhanced Downloads Watchdog ✅
+- [x] Extend DownloadsWatchdog with new fields:
+  - [x] downloadCallbacks []DownloadCallback
+  - [x] detectedDownloads map[string]bool
+  - [x] sessionPDFURLs map[string]string
+  - [x] networkMonitoredTargets map[string]bool
+- [x] Implement network monitoring:
+  - [x] Enable `Network.enable` for each session
+  - [x] Listen for `Network.responseReceived` events
+  - [x] Check Content-Type for "application/pdf"
+  - [x] Check Content-Disposition for "attachment"
+  - [x] Filter out unwanted types (images, CSS, JS, JSON, fonts)
+  - [x] Track in detectedDownloads to prevent duplicates
+  - [x] Check sessionPDFURLs cache to prevent re-downloads
+- [x] Implement JavaScript download (XMLHttpRequest):
+  - [x] Synchronous XHR GET request
+  - [x] Convert to base64 via btoa
+  - [x] Write to download directory
+  - [x] Cache in sessionPDFURLs
+- [x] Implement direct callbacks:
+  - [x] OnDownloadComplete(callback) registration
+  - [x] Call callbacks from download completion
+- [x] Add FileDownloadedEvent with auto_download field
+- [x] Add test pages:
+  - [x] /data.csv with Content-Disposition: attachment
+  - [x] /report.pdf with Content-Type: application/pdf
+  - [x] /pdf-fetch-page for resource loading
+- [x] Write TestDownloadsWatchdogNetworkDetection
+- [x] Write TestDownloadsWatchdogPDFContentType
+- [x] Write TestDownloadsWatchdogPreventsDuplicates
+- [x] All Phase 8 tests pass (3 tests)
 
 ### Phase 9: Browser Extensions
 - [ ] Create `internal/browser/extensions/` package

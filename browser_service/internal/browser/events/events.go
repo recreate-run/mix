@@ -49,3 +49,25 @@ type StorageStateLoadedEvent struct {
 func (e StorageStateLoadedEvent) EventType() string {
 	return "storage_state_loaded"
 }
+
+// FileDownloadedEvent represents a file download event
+type FileDownloadedEvent struct {
+	Download     Download
+	AutoDownload bool
+	FileType     string
+}
+
+// EventType returns the event type
+func (e FileDownloadedEvent) EventType() string {
+	return "file_downloaded"
+}
+
+// Download represents a downloaded file
+type Download struct {
+	GUID              string
+	URL               string
+	SuggestedFilename string
+	TotalBytes        int64
+	State             string
+	Path              string
+}

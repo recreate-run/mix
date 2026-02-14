@@ -131,6 +131,39 @@ func StartTestServer(t *testing.T) *httptest.Server {
 		_, _ = w.Write([]byte(pdfContent))
 	})
 
+	handler.HandleFunc("/data.csv", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", "attachment; filename=data.csv")
+		_, _ = w.Write([]byte("col1,col2\nval1,val2"))
+	})
+
+	handler.HandleFunc("/report.pdf", func(w http.ResponseWriter, r *http.Request) {
+		// Minimal valid PDF - NO Content-Disposition, only Content-Type
+		pdfContent := "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj xref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000114 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF"
+		w.Header().Set("Content-Type", "application/pdf")
+		// NO Content-Disposition header - testing pure PDF content-type detection
+		_, _ = w.Write([]byte(pdfContent))
+	})
+
+	handler.HandleFunc("/pdf-fetch-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<h1>PDF Fetch Test</h1>
+			<div id="status">Loading...</div>
+			<script>
+				// Trigger fetch to load PDF, which should be detected by network watchdog
+				fetch('/report.pdf')
+					.then(response => response.blob())
+					.then(() => {
+						document.getElementById('status').textContent = 'Fetch complete';
+					})
+					.catch(error => {
+						document.getElementById('status').textContent = 'Error: ' + error.message;
+					});
+			</script>
+		</body></html>`))
+	})
+
 	handler.HandleFunc("/trigger-download", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(`<html><body>
