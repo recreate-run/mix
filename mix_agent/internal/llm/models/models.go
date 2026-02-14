@@ -88,7 +88,7 @@ func GetSupportedProviders() []ModelProvider {
 		ProviderOpenAI,
 		ProviderOpenRouter,
 		ProviderAnthropic, // Claude
-		// ProviderGemini,
+		ProviderGemini,
 	}
 }
 

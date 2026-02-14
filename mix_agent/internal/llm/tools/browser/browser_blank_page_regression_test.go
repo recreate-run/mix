@@ -21,7 +21,6 @@ import (
 
 
 const (
-	urlAboutBlank  = "about:blank"
 	methodNavigate = "Page.navigate"
 )
 

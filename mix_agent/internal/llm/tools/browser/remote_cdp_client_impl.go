@@ -1002,10 +1002,10 @@ func (c *RemoteCDPClient) CreateTab(ctx context.Context, url ...string) (*browse
 
 	// Determine final URL to return
 	finalURL := "data:text/html,<html><body></body></html>"
-	if userURL == "about:blank" {
+	if userURL == urlAboutBlank {
 		// User explicitly requested about:blank - return that
 		// (but we already have blank page via data URL, no need to navigate)
-		finalURL = "about:blank"
+		finalURL = urlAboutBlank
 	} else if userURL != "" {
 		// User provided a real URL - navigate explicitly and wait for page load
 		navParams := cdp.PageNavigateParams{

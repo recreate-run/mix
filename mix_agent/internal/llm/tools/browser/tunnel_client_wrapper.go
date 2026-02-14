@@ -25,6 +25,7 @@ import (
 const (
 	imageFormatJPEG = "jpeg"
 	imageFormatPNG  = "png"
+	urlAboutBlank   = "about:blank"
 )
 
 // tabInfo stores CDP-level identifiers for a tab
@@ -1542,7 +1543,7 @@ func (t *TunnelClientWrapper) UploadFile(ctx context.Context, index int, filePat
 // CreateTab creates a new tab
 func (t *TunnelClientWrapper) CreateTab(ctx context.Context, url ...string) (*browserprotocol.TabInfo, error) {
 	// Step 1: Create target
-	targetURL := "about:blank"
+	targetURL := urlAboutBlank
 	if len(url) > 0 && url[0] != "" {
 		targetURL = url[0]
 	}
