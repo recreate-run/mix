@@ -47,6 +47,7 @@ const (
 	MethodPageGetDownloads        = "Page.getDownloads"
 	MethodPageWaitForDownload     = "Page.waitForDownload"
 	MethodBrowserGetClosedPopupMessages = "Browser.getClosedPopupMessages"
+	MethodBrowserLoadTaskCredentials    = "Browser.loadTaskCredentials"
 )
 
 // Timeouts

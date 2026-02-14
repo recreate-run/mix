@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // StartTestServer starts an HTTP test server for E2E tests
@@ -202,6 +203,33 @@ func StartTestServer(t *testing.T) *httptest.Server {
 						document.getElementById('output').textContent = 'Read: ' + text;
 					} catch (e) {
 						document.getElementById('output').textContent = 'Read error: ' + e.message;
+					}
+				};
+			</script>
+		</body></html>`))
+	})
+
+	// Crash watchdog test pages
+	handler.HandleFunc("/slow-request", func(w http.ResponseWriter, r *http.Request) {
+		// Sleep for 15 seconds to trigger network timeout (watchdog monitors 10s)
+		time.Sleep(15 * time.Second)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Slow response"))
+	})
+
+	handler.HandleFunc("/trigger-slow-fetch", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<button id="trigger">Trigger Slow Fetch</button>
+			<div id="status">Ready</div>
+			<script>
+				document.getElementById('trigger').onclick = async () => {
+					document.getElementById('status').textContent = 'Fetching...';
+					try {
+						const resp = await fetch('/slow-request');
+						document.getElementById('status').textContent = 'Done: ' + resp.status;
+					} catch (e) {
+						document.getElementById('status').textContent = 'Error: ' + e.message;
 					}
 				};
 			</script>
