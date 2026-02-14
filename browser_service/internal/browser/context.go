@@ -17,6 +17,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/sarathmenon/browser-service/internal/browser/events"
 	"github.com/sarathmenon/browser-service/internal/browser/watchdog"
 	"github.com/sarathmenon/browser-service/internal/constants"
 	"github.com/sarathmenon/browser-service/internal/errors"
@@ -25,13 +26,15 @@ import (
 
 // Context represents an isolated browser context for a single client
 type Context struct {
-	browser            *rod.Browser
-	tabs               map[string]*tabContext // tabID → tab context
-	activeTabID        string                 // Current active tab
-	tabIDCounter       uint64                 // Atomic counter for tab IDs
-	mu                 sync.RWMutex
-	popupsWatchdog     *watchdog.PopupsWatchdog
+	browser             *rod.Browser
+	tabs                map[string]*tabContext // tabID → tab context
+	activeTabID         string                 // Current active tab
+	tabIDCounter        uint64                 // Atomic counter for tab IDs
+	mu                  sync.RWMutex
+	popupsWatchdog      *watchdog.PopupsWatchdog
 	permissionsWatchdog *watchdog.PermissionsWatchdog
+	crashWatchdog       *watchdog.CrashWatchdog
+	eventBus            *events.Broker[events.BrowserEvent]
 }
 
 // tabContext represents a single browser tab
@@ -141,9 +144,16 @@ func (c *Context) CreateTab(ctx context.Context) (*protocol.TabInfo, error) {
 
 	c.tabs[tabID] = tab
 
-	// Register page with popups watchdog
+	// Register page with watchdogs
 	if c.popupsWatchdog != nil {
 		if err := c.popupsWatchdog.RegisterPage(ctx, page); err != nil {
+			// Log but don't fail - watchdog registration is non-critical
+			_ = err
+		}
+	}
+
+	if c.crashWatchdog != nil {
+		if err := c.crashWatchdog.RegisterPage(ctx, page); err != nil {
 			// Log but don't fail - watchdog registration is non-critical
 			_ = err
 		}
@@ -2416,6 +2426,15 @@ func (c *Context) Close(ctx context.Context) error {
 	// Stop watchdogs
 	if c.popupsWatchdog != nil {
 		c.popupsWatchdog.Stop()
+	}
+
+	if c.crashWatchdog != nil {
+		c.crashWatchdog.Stop()
+	}
+
+	// Close event bus
+	if c.eventBus != nil {
+		c.eventBus.Close()
 	}
 
 	if c.browser != nil {
