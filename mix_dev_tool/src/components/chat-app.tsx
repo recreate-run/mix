@@ -223,31 +223,8 @@ export function ChatApp({
 		batchSize: 50,
 	});
 
-	// Simple auto-scroll to last user message
-	const userMessageRefs = useRef<(HTMLDivElement | null)[]>([]);
 	const messages = sessionMessages.data || [];
 	const firstUserMessage = messages.find((msg) => msg.from === "user");
-
-	useEffect(() => {
-		const lastUserMessageIndex = messages.findLastIndex(
-			(m) => m.from === "user",
-		);
-		if (
-			lastUserMessageIndex !== -1 &&
-			userMessageRefs.current[lastUserMessageIndex]
-		) {
-			setTimeout(() => {
-				userMessageRefs.current[lastUserMessageIndex]?.scrollIntoView({
-					behavior: "smooth",
-					block: "start",
-				});
-			}, 100);
-		}
-	}, [messages]);
-
-	const setUserMessageRef = (index: number) => (el: HTMLDivElement | null) => {
-		userMessageRefs.current[index] = el;
-	};
 
 	// Handle paste events to detect video URLs
 	const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -652,7 +629,6 @@ export function ChatApp({
 							onEditMessage={handleEditMessage}
 							onPlanAction={handlePlanAction}
 							sessionId={session?.id}
-							setUserMessageRef={setUserMessageRef}
 							disableEdit={sseStream.processing}
 						/>
 					)}
