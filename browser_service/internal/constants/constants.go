@@ -15,6 +15,7 @@ const (
 	MethodPageUploadFile    = "Page.uploadFile"
 	MethodPageGetText       = "Page.getText"
 	MethodPageFind          = "Page.find"
+	MethodPageEvalJS        = "Page.evalJS"
 	MethodBrowserClose      = "Browser.close"
 	MethodBrowserImportCookies = "Browser.importCookies"
 	MethodBrowserSetUserAgent  = "Browser.setUserAgent"
@@ -45,6 +46,7 @@ const (
 	MethodBrowserSetDownloadBehavior = "Browser.setDownloadBehavior"
 	MethodPageGetDownloads        = "Page.getDownloads"
 	MethodPageWaitForDownload     = "Page.waitForDownload"
+	MethodBrowserGetClosedPopupMessages = "Browser.getClosedPopupMessages"
 )
 
 // Timeouts

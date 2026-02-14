@@ -8,6 +8,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/sarathmenon/browser-service/internal/browser/watchdog"
 	"github.com/sarathmenon/browser-service/internal/errors"
 	"github.com/sarathmenon/browser-service/pkg/protocol"
 )
@@ -106,11 +107,34 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		downloadChan: make(chan protocol.Download, 10),
 	}
 
+	// Create and start watchdogs
+	popupsWd := watchdog.NewPopupsWatchdog(browserCtx)
+	permissionsWd := watchdog.NewPermissionsWatchdog(browserCtx)
+
+	// Start watchdogs
+	if err := popupsWd.Start(ctx); err != nil {
+		browserCtx.MustClose()
+		return nil, errors.NewContextError("start_popups_watchdog", err)
+	}
+
+	if err := permissionsWd.Start(ctx); err != nil {
+		browserCtx.MustClose()
+		return nil, errors.NewContextError("start_permissions_watchdog", err)
+	}
+
+	// Register initial page with popups watchdog
+	if err := popupsWd.RegisterPage(ctx, page); err != nil {
+		browserCtx.MustClose()
+		return nil, errors.NewContextError("register_initial_page", err)
+	}
+
 	return &Context{
-		browser:      browserCtx,
-		tabs:         map[string]*tabContext{"tab-1": initialTab},
-		activeTabID:  "tab-1",
-		tabIDCounter: 1, // Start counter at 1 since we already created tab-1
+		browser:             browserCtx,
+		tabs:                map[string]*tabContext{"tab-1": initialTab},
+		activeTabID:         "tab-1",
+		tabIDCounter:        1, // Start counter at 1 since we already created tab-1
+		popupsWatchdog:      popupsWd,
+		permissionsWatchdog: permissionsWd,
 	}, nil
 }
 
