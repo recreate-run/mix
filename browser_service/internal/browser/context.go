@@ -35,6 +35,7 @@ type Context struct {
 	popupsWatchdog      *watchdog.PopupsWatchdog
 	permissionsWatchdog *watchdog.PermissionsWatchdog
 	crashWatchdog       *watchdog.CrashWatchdog
+	storageWatchdog     *watchdog.StorageStateWatchdog
 	eventBus            *events.Broker[events.BrowserEvent]
 }
 
@@ -2525,6 +2526,10 @@ func (c *Context) Close(ctx context.Context) error {
 
 	if c.crashWatchdog != nil {
 		c.crashWatchdog.Stop()
+	}
+
+	if c.storageWatchdog != nil {
+		c.storageWatchdog.Stop()
 	}
 
 	// Close event bus

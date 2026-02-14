@@ -72,6 +72,53 @@ func startTestServer(t *testing.T, ctx context.Context) (srv *server.Server, wsU
 	return srv, wsURL, cleanup
 }
 
+// startTestServerWithStorageState starts a test server with a custom storage state path
+func startTestServerWithStorageState(t *testing.T, ctx context.Context, storageStatePath string) (srv *server.Server, wsURL string, cleanup func()) {
+	t.Helper()
+	// Get a free port
+	lc := net.ListenConfig{}
+	listener, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to get free port: %v", err)
+	}
+	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("Failed to get TCP address")
+	}
+	port := tcpAddr.Port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("Failed to close listener: %v", err)
+	}
+
+	// Create server with storage state path
+	srv, err = server.New(ctx, server.Config{
+		Port:             fmt.Sprintf("%d", port),
+		Headless:         true,
+		StorageStatePath: storageStatePath,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create server: %v", err)
+	}
+
+	// Start server in background
+	go func() {
+		_ = srv.Start()
+	}()
+
+	// Give server time to start
+	time.Sleep(500 * time.Millisecond)
+
+	wsURL = fmt.Sprintf("ws://127.0.0.1:%d/ws", port)
+
+	cleanup = func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+	}
+
+	return srv, wsURL, cleanup
+}
+
 // setupE2ETest creates server, client, and context for E2E tests
 // Returns command context, client, and cleanup function
 func setupE2ETest(t *testing.T, timeoutSec int) (context.Context, *client.Client, func()) {

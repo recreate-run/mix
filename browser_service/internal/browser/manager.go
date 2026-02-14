@@ -16,10 +16,11 @@ import (
 
 // Config holds browser configuration
 type Config struct {
-	Headless     bool
-	Stealth      bool
-	WindowWidth  int
-	WindowHeight int
+	Headless         bool
+	Stealth          bool
+	WindowWidth      int
+	WindowHeight     int
+	StorageStatePath string // Path to save/load storage state (empty to disable)
 }
 
 // Manager manages the browser instance and contexts
@@ -116,6 +117,12 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 	permissionsWd := watchdog.NewPermissionsWatchdog(browserCtx)
 	crashWd := watchdog.NewCrashWatchdog(browserCtx, eventBus)
 
+	// Create storage watchdog if path is configured
+	var storageWd *watchdog.StorageStateWatchdog
+	if m.config.StorageStatePath != "" {
+		storageWd = watchdog.NewStorageStateWatchdog(browserCtx, eventBus, m.config.StorageStatePath)
+	}
+
 	// Start watchdogs
 	if err := popupsWd.Start(ctx); err != nil {
 		browserCtx.MustClose()
@@ -130,6 +137,14 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 	if err := crashWd.Start(ctx); err != nil {
 		browserCtx.MustClose()
 		return nil, errors.NewContextError("start_crash_watchdog", err)
+	}
+
+	// Start storage watchdog if configured
+	if storageWd != nil {
+		if err := storageWd.Start(ctx); err != nil {
+			browserCtx.MustClose()
+			return nil, errors.NewContextError("start_storage_watchdog", err)
+		}
 	}
 
 	// Register initial page with watchdogs
@@ -151,6 +166,7 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		popupsWatchdog:      popupsWd,
 		permissionsWatchdog: permissionsWd,
 		crashWatchdog:       crashWd,
+		storageWatchdog:     storageWd,
 		eventBus:            eventBus,
 	}, nil
 }

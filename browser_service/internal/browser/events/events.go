@@ -25,3 +25,27 @@ type TargetCrashedEvent struct {
 func (e TargetCrashedEvent) EventType() string {
 	return "target_crashed"
 }
+
+// StorageStateSavedEvent represents a storage state save event
+type StorageStateSavedEvent struct {
+	Path         string
+	CookiesCount int
+	OriginsCount int
+}
+
+// EventType returns the event type
+func (e StorageStateSavedEvent) EventType() string {
+	return "storage_state_saved"
+}
+
+// StorageStateLoadedEvent represents a storage state load event
+type StorageStateLoadedEvent struct {
+	Path         string
+	CookiesCount int
+	OriginsCount int
+}
+
+// EventType returns the event type
+func (e StorageStateLoadedEvent) EventType() string {
+	return "storage_state_loaded"
+}

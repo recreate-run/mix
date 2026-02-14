@@ -2977,3 +2977,69 @@ All nine phases provide complete feature parity with browser-use:
 - **Phase 9**: Browser extensions (uBlock Origin, cookie consent, ClearURLs) for performance and privacy
 
 The browser service now has **complete 1:1 feature parity** with browser-use for all critical and high-priority features (excluding element highlighting).
+
+### Phase 7: Storage State Watchdog - ✅ COMPLETED
+
+**Date Completed**: February 14, 2026
+
+**Implementation Summary**:
+Successfully implemented the Storage State Watchdog system that auto-saves and auto-loads browser cookies and localStorage, with atomic file writes and state merging.
+
+**Event Types Added** (`internal/browser/events/events.go`):
+- Added `StorageStateSavedEvent` - Emitted when storage state is saved to disk
+- Added `StorageStateLoadedEvent` - Emitted when storage state is loaded on connect
+
+**Storage State Watchdog Implementation** (`internal/browser/watchdog/storage.go`):
+- **Auto-Save Functionality**:
+  - Monitors cookie changes every 30 seconds
+  - Detects changes by comparing current cookie state with last saved state
+  - Only saves when changes are detected (avoids unnecessary disk writes)
+  - Publishes `StorageStateSavedEvent` to event bus on save
+- **Auto-Load Functionality**:
+  - Loads storage state from file on browser context creation
+  - Navigates to each origin to set localStorage (unavoidable due to same-origin policy)
+  - Publishes `StorageStateLoadedEvent` to event bus on load
+- **Atomic File Writes**:
+  - Uses `.tmp` → `.bak` → final pattern to prevent data corruption
+  - Backup file created before overwriting existing state
+  - Safe even if process crashes mid-write
+- **State Merging**:
+  - Merges new cookies with existing file (new values win)
+  - Keyed by name+domain+path to detect duplicates
+  - Merges localStorage per origin
+  - Combines old and new data intelligently
+
+**Configuration Integration**:
+- Added `StorageStatePath` to `browser.Config` struct
+- Added `--storage-state-path` CLI flag to server startup
+- Passed through `server.Config` → `browser.Config` → `Manager`
+- Watchdog only created if path is configured (optional feature)
+
+**Context Integration**:
+- Added `storageWatchdog` field to `Context` struct
+- Initialize storage watchdog in `NewContext` (manager.go) if path configured
+- Stop storage watchdog in `Close` method
+
+**Test Infrastructure** (`test/storage_watchdog_test.go`, `test/helpers.go`):
+- Created `startTestServerWithStorageState` helper function
+- Implemented 3 E2E tests, all passing:
+  - **TestStorageWatchdogAutoSavesCookies**: ✅ PASSING - Verifies auto-save after 30s
+  - **TestStorageWatchdogAutoLoadsOnRestart**: ✅ PASSING - Validates auto-load on connect
+  - **TestStorageWatchdogMergesStates**: ✅ PASSING - Tests state merging (new values win)
+
+**Technical Achievements**:
+- Thread-safe implementation with proper mutex protection
+- Atomic file writes prevent data corruption
+- State merging combines old and new data intelligently
+- Auto-load works seamlessly on browser connect
+- Change detection prevents unnecessary disk writes
+- Event publishing enables external monitoring
+
+**Known Limitations**:
+- localStorage can only be set on current page origin (same-origin policy)
+- Auto-load requires N navigations for N origins with localStorage
+- Monitoring interval is fixed at 30 seconds (not configurable)
+
+**Status**: All 3 tests passing. Storage state automatically saves every 30 seconds when cookies change, and automatically loads on browser connect. Atomic file writes ensure data integrity.
+
+---

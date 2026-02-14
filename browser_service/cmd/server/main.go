@@ -18,14 +18,16 @@ func main() {
 	stealth := flag.Bool("stealth", false, "Enable stealth mode (disable automation detection)")
 	windowWidth := flag.Int("window-width", 1280, "Browser window width")
 	windowHeight := flag.Int("window-height", 720, "Browser window height")
+	storageStatePath := flag.String("storage-state-path", "", "Path to save/load storage state (empty to disable)")
 	flag.Parse()
 
 	cfg := server.Config{
-		Port:         *port,
-		Headless:     *headless,
-		Stealth:      *stealth,
-		WindowWidth:  *windowWidth,
-		WindowHeight: *windowHeight,
+		Port:             *port,
+		Headless:         *headless,
+		Stealth:          *stealth,
+		WindowWidth:      *windowWidth,
+		WindowHeight:     *windowHeight,
+		StorageStatePath: *storageStatePath,
 	}
 
 	// Create root context
