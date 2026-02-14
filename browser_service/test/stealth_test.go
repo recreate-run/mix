@@ -53,7 +53,7 @@ func TestAutomationDetection_WithStealth(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Get page text using EvalJS (bypass GetText bug)
-	result, err := browserCtx.EvalJS(ctx, "() => document.body.textContent", nil)
+	result, err := browserCtx.EvalJS(ctx, "document.body.textContent", nil)
 	if err != nil {
 		t.Fatalf("Failed to evaluate JS: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestAutomationDetection_WithoutStealth(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Get page text using EvalJS (bypass GetText bug)
-	result, err := browserCtx.EvalJS(ctx, "() => document.body.textContent", nil)
+	result, err := browserCtx.EvalJS(ctx, "document.body.textContent", nil)
 	if err != nil {
 		t.Fatalf("Failed to evaluate JS: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestUserAgentOverride(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	// Get page text using EvalJS (bypass GetText bug)
-	result, err := browserCtx.EvalJS(ctx, "() => document.body.textContent", nil)
+	result, err := browserCtx.EvalJS(ctx, "document.body.textContent", nil)
 	if err != nil {
 		t.Fatalf("Failed to evaluate JS: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestWindowSizeConfiguration(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Get page text using EvalJS (bypass GetText bug)
-	result, err := browserCtx.EvalJS(ctx, "() => document.body.textContent", nil)
+	result, err := browserCtx.EvalJS(ctx, "document.body.textContent", nil)
 	if err != nil {
 		t.Fatalf("Failed to evaluate JS: %v", err)
 	}
