@@ -21,8 +21,8 @@ type Config struct {
 	Port         string
 	Headless     bool
 	Stealth      bool // Enable stealth mode (disable automation detection)
-	WindowWidth  int  // Browser window width (default: 1280)
-	WindowHeight int  // Browser window height (default: 720)
+	WindowWidth  int  // Browser window width (default: 1920)
+	WindowHeight int  // Browser window height (default: 1080)
 }
 
 // Server represents the WebSocket server

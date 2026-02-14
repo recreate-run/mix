@@ -16,8 +16,8 @@ func main() {
 	port := flag.String("port", constants.DefaultPort, "WebSocket server port")
 	headless := flag.Bool("headless", false, "Run browser in headless mode")
 	stealth := flag.Bool("stealth", false, "Enable stealth mode (disable automation detection)")
-	windowWidth := flag.Int("window-width", 1280, "Browser window width")
-	windowHeight := flag.Int("window-height", 720, "Browser window height")
+	windowWidth := flag.Int("window-width", 1920, "Browser window width")
+	windowHeight := flag.Int("window-height", 1080, "Browser window height")
 	flag.Parse()
 
 	cfg := server.Config{

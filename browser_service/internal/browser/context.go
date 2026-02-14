@@ -36,6 +36,8 @@ type Context struct {
 	permissionsWatchdog *watchdog.PermissionsWatchdog
 	crashWatchdog       *watchdog.CrashWatchdog
 	eventBus            *events.Broker[events.BrowserEvent]
+	windowWidth         int // Window width for viewport sizing
+	windowHeight        int // Window height for viewport sizing
 }
 
 // tabContext represents a single browser tab
@@ -113,6 +115,17 @@ func (c *Context) CreateTab(ctx context.Context) (*protocol.TabInfo, error) {
 	page, err := c.browser.Page(proto.TargetCreateTarget{})
 	if err != nil {
 		return nil, errors.NewContextError("create_tab", err)
+	}
+
+	// Set viewport to match window size
+	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
+		Width:             c.windowWidth,
+		Height:            c.windowHeight,
+		DeviceScaleFactor: 1,
+		Mobile:            false,
+	})
+	if err != nil {
+		return nil, errors.NewContextError("set_viewport", err)
 	}
 
 	// Navigate to blank page with proper HTML to ensure valid URL

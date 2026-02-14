@@ -33,10 +33,10 @@ type Manager struct {
 func NewManager(ctx context.Context, cfg Config) (*Manager, error) {
 	// Set defaults
 	if cfg.WindowWidth == 0 {
-		cfg.WindowWidth = 1280
+		cfg.WindowWidth = 1920
 	}
 	if cfg.WindowHeight == 0 {
-		cfg.WindowHeight = 720
+		cfg.WindowHeight = 1080
 	}
 
 	// Configure browser launcher
@@ -99,6 +99,18 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		return nil, errors.NewContextError("create_page", err)
 	}
 
+	// Set viewport to match window size
+	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
+		Width:             m.config.WindowWidth,
+		Height:            m.config.WindowHeight,
+		DeviceScaleFactor: 1,
+		Mobile:            false,
+	})
+	if err != nil {
+		browserCtx.MustClose()
+		return nil, errors.NewContextError("set_viewport", err)
+	}
+
 	// Create initial tab with ID "tab-1"
 	initialTab := &tabContext{
 		id:           "tab-1",
@@ -152,6 +164,8 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		permissionsWatchdog: permissionsWd,
 		crashWatchdog:       crashWd,
 		eventBus:            eventBus,
+		windowWidth:         m.config.WindowWidth,
+		windowHeight:        m.config.WindowHeight,
 	}, nil
 }
 
