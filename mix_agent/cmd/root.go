@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"mix/internal/app"
 	"mix/internal/config"
@@ -135,6 +137,17 @@ and content creation workflows.`,
 					"action", "overriding to match HTTP server")
 				appInstance.BaseURL = expectedBaseURL
 			}
+
+			// Set up signal handling for graceful shutdown during hot reload
+			// This ensures the HTTP server releases port 8088 before the new process starts
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+			go func() {
+				<-sigChan
+				logging.Info("Received shutdown signal, initiating graceful shutdown")
+				cancel() // Cancel the context to trigger server shutdown
+			}()
 
 			return httphandlers.StartServer(ctx, appInstance, httpHost, httpPort)
 		}

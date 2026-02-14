@@ -189,26 +189,35 @@ func (c *RemoteCDPClient) Screenshot(ctx context.Context, params browserprotocol
 		format = imageFormatPNG
 	}
 
-	// Get accessibility tree if requested
+	// Get accessibility tree if requested (with graceful degradation)
 	var rawNodes []browserprotocol.RawAccessibilityNode
 	if params.Raw {
-		axResult, err := c.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+		// Use separate context with timeout for accessibility tree
+		// With domain enabling, this should be nearly instant, but allow time for network latency
+		axCtx, axCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer axCancel()
+
+		axResult, err := c.sendCommand(axCtx, "Accessibility.getFullAXTree", nil, cdpSessionID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
+			// Graceful degradation: return screenshot without accessibility tree
+			logging.Warn("Failed to get accessibility tree for screenshot, continuing without raw nodes",
+				"error", err,
+				"tabID", targetTabID)
+			// rawNodes remains nil - screenshot will be returned without element data
+		} else {
+			axJSON, err := json.Marshal(axResult)
+			if err != nil {
+				logging.Warn("Failed to marshal accessibility result, continuing without raw nodes", "error", err)
+			} else {
+				var axTree cdp.AccessibilityGetFullAXTreeResult
+				if err := json.Unmarshal(axJSON, &axTree); err != nil {
+					logging.Warn("Failed to unmarshal accessibility tree, continuing without raw nodes", "error", err)
+				} else {
+					// Convert accessibility nodes to browser protocol elements
+					rawNodes = c.convertAccessibilityNodesToRawNodes(axTree.Nodes, targetTabID)
+				}
+			}
 		}
-
-		axJSON, err := json.Marshal(axResult)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal accessibility result: %w", err)
-		}
-
-		var axTree cdp.AccessibilityGetFullAXTreeResult
-		if err := json.Unmarshal(axJSON, &axTree); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal accessibility tree: %w", err)
-		}
-
-		// Convert accessibility nodes to browser protocol elements
-		rawNodes = c.convertAccessibilityNodesToRawNodes(axTree.Nodes, targetTabID)
 	}
 
 	return &browserprotocol.ScreenshotResult{
@@ -291,7 +300,11 @@ func (c *RemoteCDPClient) ReadPage(ctx context.Context, interactiveOnly bool, ta
 	}
 
 	// Get accessibility tree
-	axResult, err := c.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+	// With domain enabling, this should be nearly instant
+	axCtx, axCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer axCancel()
+
+	axResult, err := c.sendCommand(axCtx, "Accessibility.getFullAXTree", nil, cdpSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
 	}
@@ -406,7 +419,11 @@ func (c *RemoteCDPClient) Find(ctx context.Context, query string, limit int, tab
 	}
 
 	// Get accessibility tree
-	axResult, err := c.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+	// With domain enabling, this should be nearly instant
+	axCtx, axCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer axCancel()
+
+	axResult, err := c.sendCommand(axCtx, "Accessibility.getFullAXTree", nil, cdpSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
 	}
@@ -956,6 +973,15 @@ func (c *RemoteCDPClient) CreateTab(ctx context.Context, url ...string) (*browse
 	}
 	c.activeTabID = friendlyID
 	c.tabsMu.Unlock()
+
+	// Enable required CDP domains for this tab
+	// This is critical - without enabling, browser builds accessibility tree from scratch (30+ seconds)
+	// With enabling, browser maintains tree incrementally (instant)
+	sessionID := attach.SessionID
+	_, _ = c.sendCommand(ctx, "Page.enable", nil, sessionID)
+	_, _ = c.sendCommand(ctx, "DOM.enable", nil, sessionID)
+	_, _ = c.sendCommand(ctx, "Accessibility.enable", nil, sessionID)
+	_, _ = c.sendCommand(ctx, "Runtime.enable", nil, sessionID)
 
 	logging.Info("Created new tab", "tabID", friendlyID, "targetID", createResult.TargetID, "sessionID", attach.SessionID)
 

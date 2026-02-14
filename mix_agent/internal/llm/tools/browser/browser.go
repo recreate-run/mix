@@ -45,6 +45,13 @@ const (
 // ClientFactory creates browser clients for sessions
 type ClientFactory func(sessionID string) (browserpkg.Client, error)
 
+// clientEntry holds a client with sync.Once for guaranteed single creation
+type clientEntry struct {
+	client BrowserClient
+	once   sync.Once
+	err    error
+}
+
 // browserTool implements the Browser tool for LLM-driven browser automation
 type browserTool struct {
 	permissions          permission.Service
@@ -60,7 +67,7 @@ type browserTool struct {
 	browserServiceURL    string                          // URL for browser-service
 	tunnelClients        map[string]*TunnelClientWrapper // Cache tunnel clients per session
 	tunnelClientsMu      sync.RWMutex                    // Protect tunnel clients cache
-	remoteCDPClients     map[string]*RemoteCDPClient     // Cache remote CDP clients per session
+	remoteCDPClients     map[string]*clientEntry         // Cache remote CDP clients per session
 	remoteCDPClientsMu   sync.RWMutex                    // Protect remote CDP clients cache
 	screenshotStorage    storage.ScreenshotStorage       // Storage for analyze_screenshot screenshots
 }
@@ -97,7 +104,7 @@ func NewBrowserTool(permissions permission.Service, sessions session.Service, br
 		tunnelRegistryGetter: tunnelRegistryGetter,
 		browserServiceURL:    browserServiceURL,
 		tunnelClients:        make(map[string]*TunnelClientWrapper),
-		remoteCDPClients:     make(map[string]*RemoteCDPClient),
+		remoteCDPClients:     make(map[string]*clientEntry),
 		screenshotStorage:    storage.NewStorage(sessionConfig.BasePath, baseURL),
 	}
 }
@@ -135,28 +142,34 @@ func (b *browserTool) getClient(ctx context.Context, sessionID string) (BrowserC
 		return b.connectionManager.GetOrCreate(ctx, sessionID)
 
 	case browserpkg.ModeRemoteCDP:
-		// Remote CDP mode: get or create cached client
+		// Remote CDP mode: get or create cached client using sync.Once pattern
 		b.remoteCDPClientsMu.Lock()
-		defer b.remoteCDPClientsMu.Unlock()
-
-		// Return existing client if cached
-		if client, exists := b.remoteCDPClients[sessionID]; exists {
-			return client, nil
+		entry, exists := b.remoteCDPClients[sessionID]
+		if !exists {
+			entry = &clientEntry{}
+			b.remoteCDPClients[sessionID] = entry
 		}
+		b.remoteCDPClientsMu.Unlock()
 
-		// Validate CDP URL
-		if sess.CdpUrl == "" {
-			return nil, fmt.Errorf("CDP URL is required for remote-cdp-websocket mode")
-		}
+		// Use sync.Once to guarantee exactly one creation
+		entry.once.Do(func() {
+			// Validate CDP URL
+			if sess.CdpUrl == "" {
+				entry.err = fmt.Errorf("CDP URL is required for remote-cdp-websocket mode")
+				return
+			}
 
-		// Create new client and cache it
-		client, err := NewRemoteCDPClient(ctx, sess.CdpUrl)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create remote CDP client: %w", err)
-		}
+			// Create new client
+			client, err := NewRemoteCDPClient(ctx, sess.CdpUrl)
+			if err != nil {
+				entry.err = fmt.Errorf("failed to create remote CDP client: %w", err)
+				return
+			}
 
-		b.remoteCDPClients[sessionID] = client
-		return client, nil
+			entry.client = client
+		})
+
+		return entry.client, entry.err
 
 	case browserpkg.ModeElectronEmbedded:
 		// Tunnel mode: get or create cached client
