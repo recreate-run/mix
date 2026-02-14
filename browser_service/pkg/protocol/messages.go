@@ -480,6 +480,22 @@ type WaitForDownloadResult struct {
 	Download Download `json:"download"`
 }
 
+// GetClosedPopupMessagesResult for Browser.getClosedPopupMessages response
+type GetClosedPopupMessagesResult struct {
+	Messages []string `json:"messages"`
+}
+
+// EvalJSParams for Page.evalJS
+type EvalJSParams struct {
+	Expression string  `json:"expression"`
+	TabID      *string `json:"tabId,omitempty"` // Optional tab ID (defaults to active tab)
+}
+
+// EvalJSResult for Page.evalJS response
+type EvalJSResult struct {
+	Result interface{} `json:"result"`
+}
+
 // --- Error Codes ---
 const (
 	ErrCodeInvalidRequest  = -32600

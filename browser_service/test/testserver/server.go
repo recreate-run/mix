@@ -162,5 +162,51 @@ func StartTestServer(t *testing.T) *httptest.Server {
 		</script></article></body></html>`))
 	})
 
+	// Popups test pages
+	handler.HandleFunc("/alert-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body><article><script>
+			alert('Test alert message');
+			document.querySelector('article').textContent = 'Alert displayed';
+		</script></article></body></html>`))
+	})
+
+	handler.HandleFunc("/confirm-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body><article id="result">Ready</article></body></html>`))
+	})
+
+	handler.HandleFunc("/prompt-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body><article id="result">Ready</article></body></html>`))
+	})
+
+	handler.HandleFunc("/clipboard-test", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<button id="write">Write to clipboard</button>
+			<button id="read">Read from clipboard</button>
+			<div id="output"></div>
+			<script>
+				document.getElementById('write').onclick = async () => {
+					try {
+						await navigator.clipboard.writeText('test data');
+						document.getElementById('output').textContent = 'Write success';
+					} catch (e) {
+						document.getElementById('output').textContent = 'Write error: ' + e.message;
+					}
+				};
+				document.getElementById('read').onclick = async () => {
+					try {
+						const text = await navigator.clipboard.readText();
+						document.getElementById('output').textContent = 'Read: ' + text;
+					} catch (e) {
+						document.getElementById('output').textContent = 'Read error: ' + e.message;
+					}
+				};
+			</script>
+		</body></html>`))
+	})
+
 	return httptest.NewServer(handler)
 }

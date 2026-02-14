@@ -1216,3 +1216,56 @@ func (c *Client) WaitForDownload(ctx context.Context, timeoutMs int, tabID ...st
 
 	return &result, nil
 }
+
+// GetClosedPopupMessages returns all closed popup messages
+func (c *Client) GetClosedPopupMessages(ctx context.Context) (*protocol.GetClosedPopupMessagesResult, error) {
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserGetClosedPopupMessages, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("getClosedPopupMessages error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.GetClosedPopupMessagesResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// EvalJS evaluates JavaScript code on the page
+func (c *Client) EvalJS(ctx context.Context, expression string, tabID ...string) (*protocol.EvalJSResult, error) {
+	params := protocol.EvalJSParams{Expression: expression}
+	if len(tabID) > 0 {
+		params.TabID = &tabID[0]
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodPageEvalJS, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("evalJS error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.EvalJSResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}

@@ -17,6 +17,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/sarathmenon/browser-service/internal/browser/watchdog"
 	"github.com/sarathmenon/browser-service/internal/constants"
 	"github.com/sarathmenon/browser-service/internal/errors"
 	"github.com/sarathmenon/browser-service/pkg/protocol"
@@ -24,11 +25,13 @@ import (
 
 // Context represents an isolated browser context for a single client
 type Context struct {
-	browser      *rod.Browser
-	tabs         map[string]*tabContext // tabID → tab context
-	activeTabID  string                 // Current active tab
-	tabIDCounter uint64                 // Atomic counter for tab IDs
-	mu           sync.RWMutex
+	browser            *rod.Browser
+	tabs               map[string]*tabContext // tabID → tab context
+	activeTabID        string                 // Current active tab
+	tabIDCounter       uint64                 // Atomic counter for tab IDs
+	mu                 sync.RWMutex
+	popupsWatchdog     *watchdog.PopupsWatchdog
+	permissionsWatchdog *watchdog.PermissionsWatchdog
 }
 
 // tabContext represents a single browser tab
@@ -137,6 +140,14 @@ func (c *Context) CreateTab(ctx context.Context) (*protocol.TabInfo, error) {
 	}
 
 	c.tabs[tabID] = tab
+
+	// Register page with popups watchdog
+	if c.popupsWatchdog != nil {
+		if err := c.popupsWatchdog.RegisterPage(ctx, page); err != nil {
+			// Log but don't fail - watchdog registration is non-critical
+			_ = err
+		}
+	}
 
 	return &protocol.TabInfo{
 		ID:       tabID,
@@ -388,7 +399,9 @@ func (c *Context) EvalJS(ctx context.Context, js string, tabID *string) (*proto.
 	tab.mu.RLock()
 	defer tab.mu.RUnlock()
 
-	result, err := tab.page.Eval(js)
+	// Wrap expression in arrow function for Rod's Eval
+	wrappedJS := fmt.Sprintf("() => %s", js)
+	result, err := tab.page.Eval(wrappedJS)
 	if err != nil {
 		return nil, errors.NewBrowserError("eval_js", err)
 	}
@@ -2381,10 +2394,29 @@ func (c *Context) listenForDownloadEvents(tab *tabContext, downloadPath string) 
 	})()
 }
 
+// GetClosedPopupMessages returns all closed popup messages
+func (c *Context) GetClosedPopupMessages(ctx context.Context) (*protocol.GetClosedPopupMessagesResult, error) {
+	if c.popupsWatchdog == nil {
+		return &protocol.GetClosedPopupMessagesResult{
+			Messages: []string{},
+		}, nil
+	}
+
+	messages := c.popupsWatchdog.GetClosedPopupMessages()
+	return &protocol.GetClosedPopupMessagesResult{
+		Messages: messages,
+	}, nil
+}
+
 // Close closes the browser context
 func (c *Context) Close(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Stop watchdogs
+	if c.popupsWatchdog != nil {
+		c.popupsWatchdog.Stop()
+	}
 
 	if c.browser != nil {
 		if err := c.browser.Close(); err != nil {

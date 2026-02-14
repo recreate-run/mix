@@ -53,6 +53,8 @@ func (h *MessageHandler) Handle(ctx context.Context, data []byte) protocol.Respo
 		return h.handleGetText(ctx, req)
 	case constants.MethodPageFind:
 		return h.handleFind(ctx, req)
+	case constants.MethodPageEvalJS:
+		return h.handleEvalJS(ctx, req)
 	case constants.MethodBrowserClose:
 		return h.handleClose(ctx, req)
 	case constants.MethodBrowserImportCookies:
@@ -113,6 +115,8 @@ func (h *MessageHandler) Handle(ctx context.Context, data []byte) protocol.Respo
 		return h.handleGetDownloads(ctx, req)
 	case constants.MethodPageWaitForDownload:
 		return h.handleWaitForDownload(ctx, req)
+	case constants.MethodBrowserGetClosedPopupMessages:
+		return h.handleGetClosedPopupMessages(ctx, req)
 	default:
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeMethodNotFound, "Method not found: "+req.Method))
@@ -843,4 +847,45 @@ func (h *MessageHandler) handleWaitForDownload(ctx context.Context, req protocol
 	}
 
 	return protocol.NewResponse(req.ID, result)
+}
+
+// handleGetClosedPopupMessages returns all closed popup messages
+func (h *MessageHandler) handleGetClosedPopupMessages(ctx context.Context, req protocol.Request) protocol.Response {
+	result, err := h.client.Context.GetClosedPopupMessages(ctx)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleEvalJS evaluates JavaScript code on the page
+func (h *MessageHandler) handleEvalJS(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.EvalJSParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if params.Expression == "" {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Expression is required"))
+	}
+
+	result, err := h.client.Context.EvalJS(ctx, params.Expression, params.TabID)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	// Extract the actual value from the RemoteObject
+	// gson.JSON stores values as JSON, so we need to unmarshal the value
+	var value interface{}
+	if err := result.Value.Unmarshal(&value); err != nil {
+		// If unmarshaling fails, use the raw value
+		value = result.Value.Raw()
+	}
+
+	return protocol.NewResponse(req.ID, protocol.EvalJSResult{Result: value})
 }
