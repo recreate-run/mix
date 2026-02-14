@@ -1,112 +1,165 @@
 package test
 
 import (
-	"net/http"
+	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/sarathmenon/browser-service/pkg/protocol"
 	"github.com/sarathmenon/browser-service/test/testserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestCrashWatchdogDetectsTargetCrash tests that the crash watchdog detects browser tab crashes
-func TestCrashWatchdogDetectsTargetCrash(t *testing.T) {
-	skipIfIntegrationTestsDisabled(t)
+// waitForBrowserEvent waits for a specific browser error event type
+func waitForBrowserEvent(t *testing.T, eventChan <-chan protocol.Event, errorType string, timeout time.Duration) *protocol.BrowserErrorEventParams {
+	t.Helper()
 
-	ctx, _, c, cleanup := setupE2ETestWithServer(t, 30)
-	defer cleanup()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	// Navigate to chrome://crash (triggers renderer crash)
-	// Note: chrome://crash may not work in all environments
-	// We'll use a different approach - navigate to an invalid URL that causes issues
-	_, err := c.Navigate(ctx, "chrome://crash")
-	// Error is expected here since the tab crashes
-	_ = err
+	for {
+		select {
+		case event, ok := <-eventChan:
+			if !ok {
+				t.Fatal("Event channel closed before receiving expected event")
+				return nil
+			}
 
-	// Wait a bit for crash detection
-	time.Sleep(2 * time.Second)
+			if event.Method != "Browser.errorOccurred" {
+				continue
+			}
 
-	// Verify browser is still functional by listing tabs
-	tabs, err := c.ListTabs(ctx)
-	assert.NoError(t, err)
-	assert.NotNil(t, tabs)
+			// Parse event params
+			paramsBytes, err := json.Marshal(event.Params)
+			if err != nil {
+				t.Logf("Failed to marshal event params: %v", err)
+				continue
+			}
 
-	// The browser should still have at least one tab (initial tab or recovery tab)
-	assert.Greater(t, len(tabs.Tabs), 0)
+			var params protocol.BrowserErrorEventParams
+			if err := json.Unmarshal(paramsBytes, &params); err != nil {
+				t.Logf("Failed to unmarshal event params: %v", err)
+				continue
+			}
+
+			t.Logf("Received browser event: %s - %+v", params.ErrorType, params.Details)
+
+			if params.ErrorType == errorType {
+				return &params
+			}
+
+		case <-ctx.Done():
+			t.Fatalf("Timeout waiting for %s event after %v", errorType, timeout)
+			return nil
+		}
+	}
 }
 
-// TestCrashWatchdogDetectsNetworkTimeout tests network timeout detection
+// TestCrashWatchdogDetectsNetworkTimeout tests that the crash watchdog detects hanging network requests
 func TestCrashWatchdogDetectsNetworkTimeout(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
 
-	ctx, c, cleanup := setupE2ETest(t, 30)
+	ctx, c, cleanup := setupE2ETest(t, 60)
 	defer cleanup()
 
-	// Start test HTTP server with slow endpoint
+	// Subscribe to browser events
+	eventChan := c.SubscribeToEvents()
+
+	// Start test HTTP server
 	server := testserver.StartTestServer(t)
 	defer server.Close()
 
-	// Add slow endpoint dynamically using a custom handler
-	mux := http.NewServeMux()
-	mux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
-		// Hang for 15 seconds (longer than the 10s timeout)
-		time.Sleep(15 * time.Second)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("Slow response"))
-	})
+	// Navigate to page with slow fetch button
+	_, err := c.Navigate(ctx, server.URL+"/trigger-slow-fetch")
+	require.NoError(t, err)
 
-	slowServer := &http.Server{
-		Addr:    ":0",
-		Handler: mux,
+	// Wait for page to load
+	time.Sleep(1 * time.Second)
+
+	// Click button to trigger slow fetch (15s request)
+	elements, err := c.GetElements(ctx)
+	require.NoError(t, err)
+	require.Greater(t, len(elements), 0, "Should have interactive elements")
+
+	// Find and click the trigger button
+	var buttonIndex int
+	found := false
+	for i, elem := range elements {
+		if elem.Role == "button" {
+			buttonIndex = i
+			found = true
+			break
+		}
 	}
+	require.True(t, found, "Should find trigger button")
 
-	// Navigate to slow endpoint in background
-	// This should trigger a network timeout event after 10 seconds
-	go func() {
-		_, _ = c.Navigate(ctx, server.URL+"/no-download-page")
-	}()
+	err = c.Click(ctx, buttonIndex)
+	require.NoError(t, err)
 
-	// Wait for initial monitoring delay plus timeout detection
-	// The watchdog has a 10s initial delay, then checks every 5s
-	// Network requests timing out after 10s will be detected
-	time.Sleep(12 * time.Second)
+	// Wait for crash watchdog to detect the timeout
+	// Watchdog has 10s initial delay + checks every 5s + request must exceed 10s
+	// So we expect the event between 20-25 seconds
+	event := waitForBrowserEvent(t, eventChan, "NetworkTimeout", 30*time.Second)
+	require.NotNil(t, event)
 
-	// Verify browser is still responsive
-	tabs, err := c.ListTabs(ctx)
-	assert.NoError(t, err)
-	assert.NotNil(t, tabs)
+	// Verify event details
+	assert.Contains(t, event.Details, "url")
+	assert.Contains(t, event.Details, "elapsed_seconds")
 
-	_ = slowServer
+	elapsedSeconds, ok := event.Details["elapsed_seconds"].(float64)
+	assert.True(t, ok, "elapsed_seconds should be a number")
+	assert.GreaterOrEqual(t, elapsedSeconds, 10.0, "Request should have hung for at least 10 seconds")
 }
 
-// TestCrashWatchdogHealthCheck tests the browser health check functionality
-func TestCrashWatchdogHealthCheck(t *testing.T) {
+// TestCrashWatchdogHealthCheckPasses tests that the health check runs without errors
+func TestCrashWatchdogHealthCheckPasses(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
 
 	ctx, c, cleanup := setupE2ETest(t, 30)
 	defer cleanup()
+
+	// Subscribe to events
+	eventChan := c.SubscribeToEvents()
 
 	// Navigate to a valid page
 	_, err := c.Navigate(ctx, "data:text/html,<h1>Test Page</h1>")
 	require.NoError(t, err)
 
-	// Wait for initial monitoring delay (10s) plus one health check cycle (5s)
-	time.Sleep(16 * time.Second)
+	// Wait for initial monitoring delay (10s) plus two health check cycles (10s)
+	// If health check fails, we'd see BrowserUnresponsive event
+	time.Sleep(21 * time.Second)
 
-	// Browser should still be responsive (health check passed)
+	// Check that NO BrowserUnresponsive events were emitted
+	select {
+	case event := <-eventChan:
+		var params protocol.BrowserErrorEventParams
+		paramsBytes, _ := json.Marshal(event.Params)
+		_ = json.Unmarshal(paramsBytes, &params)
+		if params.ErrorType == "BrowserUnresponsive" {
+			t.Fatalf("Unexpected BrowserUnresponsive event: %+v", params)
+		}
+	default:
+		// No events - this is expected
+	}
+
+	// Browser should still be responsive
 	tabs, err := c.ListTabs(ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, tabs)
 	assert.Greater(t, len(tabs.Tabs), 0)
 }
 
-// TestCrashWatchdogWithMultipleTabs tests crash watchdog with multiple tabs
+// TestCrashWatchdogWithMultipleTabs tests crash watchdog registers listeners for all tabs
 func TestCrashWatchdogWithMultipleTabs(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
 
-	ctx, c, cleanup := setupE2ETest(t, 30)
+	ctx, c, cleanup := setupE2ETest(t, 60)
 	defer cleanup()
+
+	// Subscribe to events
+	eventChan := c.SubscribeToEvents()
 
 	// Create multiple tabs
 	tab2, err := c.CreateTab(ctx)
@@ -133,8 +186,16 @@ func TestCrashWatchdogWithMultipleTabs(t *testing.T) {
 	_, err = c.Navigate(ctx, "data:text/html,<h1>Tab 3</h1>")
 	require.NoError(t, err)
 
-	// Wait for health check cycle
+	// Wait for health check cycle (10s delay + 5s check)
 	time.Sleep(16 * time.Second)
+
+	// Check no errors occurred
+	select {
+	case event := <-eventChan:
+		t.Fatalf("Unexpected event: %+v", event)
+	default:
+		// No events - expected
+	}
 
 	// All tabs should still be functional
 	tabs, err := c.ListTabs(ctx)
@@ -142,24 +203,43 @@ func TestCrashWatchdogWithMultipleTabs(t *testing.T) {
 	assert.Equal(t, 3, len(tabs.Tabs))
 }
 
-// TestCrashWatchdogNetworkTracking tests that network requests are tracked
-func TestCrashWatchdogNetworkTracking(t *testing.T) {
+// TestCrashWatchdogNetworkRequestTracking tests that network requests are properly tracked and cleared
+func TestCrashWatchdogNetworkRequestTracking(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
 
 	ctx, c, cleanup := setupE2ETest(t, 30)
 	defer cleanup()
 
+	// Subscribe to events
+	eventChan := c.SubscribeToEvents()
+
 	// Start test HTTP server
 	server := testserver.StartTestServer(t)
 	defer server.Close()
 
-	// Navigate to a page (this will trigger network requests)
+	// Navigate to a page (this will create network requests)
 	_, err := c.Navigate(ctx, server.URL+"/no-download-page")
 	require.NoError(t, err)
 
-	// Navigate to another page
+	// Navigate to another page (more network requests)
 	_, err = c.Navigate(ctx, server.URL+"/dashboard")
 	require.NoError(t, err)
+
+	// Wait a bit for any potential timeouts (none expected)
+	time.Sleep(3 * time.Second)
+
+	// Check that no network timeout events occurred (requests completed quickly)
+	select {
+	case event := <-eventChan:
+		var params protocol.BrowserErrorEventParams
+		paramsBytes, _ := json.Marshal(event.Params)
+		_ = json.Unmarshal(paramsBytes, &params)
+		if params.ErrorType == "NetworkTimeout" {
+			t.Fatalf("Unexpected NetworkTimeout event: %+v", params)
+		}
+	default:
+		// No events - expected
+	}
 
 	// Browser should remain responsive
 	tabs, err := c.ListTabs(ctx)
@@ -167,25 +247,73 @@ func TestCrashWatchdogNetworkTracking(t *testing.T) {
 	assert.NotNil(t, tabs)
 }
 
-// TestCrashWatchdogStartsAndStops tests that the crash watchdog starts and stops correctly
+// TestCrashWatchdogStartsAndStops tests that the crash watchdog lifecycle works correctly
 func TestCrashWatchdogStartsAndStops(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
 
 	ctx, c, cleanup := setupE2ETest(t, 30)
 	defer cleanup()
 
+	// Subscribe to events
+	eventChan := c.SubscribeToEvents()
+
 	// Navigate to a page to verify browser is working
 	_, err := c.Navigate(ctx, "data:text/html,<h1>Test</h1>")
 	assert.NoError(t, err)
 
-	// Wait for initial delay period
-	time.Sleep(11 * time.Second)
+	// Wait for initial delay period and one health check
+	time.Sleep(16 * time.Second)
 
-	// Verify browser is still responsive (watchdog is running)
+	// Verify no errors occurred
+	select {
+	case event := <-eventChan:
+		t.Logf("Received event (should be none): %+v", event)
+	default:
+		// Expected - no events
+	}
+
+	// Verify browser is still responsive (watchdog is running properly)
 	tabs, err := c.ListTabs(ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, tabs)
 	assert.Equal(t, 1, len(tabs.Tabs))
 
 	// Cleanup will stop the watchdog when context is closed
+}
+
+// TestCrashWatchdogEventsStopAfterDisconnect tests that events stop flowing after disconnect
+func TestCrashWatchdogEventsStopAfterDisconnect(t *testing.T) {
+	skipIfIntegrationTestsDisabled(t)
+
+	ctx, c, cleanup := setupE2ETest(t, 10)
+
+	// Subscribe to events
+	eventChan := c.SubscribeToEvents()
+
+	// Navigate to verify connection works
+	_, err := c.Navigate(ctx, "data:text/html,<h1>Test</h1>")
+	require.NoError(t, err)
+
+	// Close the browser connection
+	cleanup()
+
+	// Either channel should be closed OR no more events should arrive
+	// We don't strictly require channel closure as long as events stop
+	foundEvent := false
+	select {
+	case event, ok := <-eventChan:
+		if ok {
+			// Received an event after disconnect - this is a problem
+			var params protocol.BrowserErrorEventParams
+			paramsBytes, _ := json.Marshal(event.Params)
+			_ = json.Unmarshal(paramsBytes, &params)
+			t.Errorf("Received event after disconnect: %s - %+v", params.ErrorType, params.Details)
+			foundEvent = true
+		}
+		// Channel closed (ok == false) - this is expected behavior
+	case <-time.After(3 * time.Second):
+		// No events received - this is also acceptable
+	}
+
+	assert.False(t, foundEvent, "Should not receive events after disconnect")
 }

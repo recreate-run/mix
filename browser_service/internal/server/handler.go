@@ -117,6 +117,8 @@ func (h *MessageHandler) Handle(ctx context.Context, data []byte) protocol.Respo
 		return h.handleWaitForDownload(ctx, req)
 	case constants.MethodBrowserGetClosedPopupMessages:
 		return h.handleGetClosedPopupMessages(ctx, req)
+	case constants.MethodBrowserLoadTaskCredentials:
+		return h.handleLoadTaskCredentials(ctx, req)
 	default:
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeMethodNotFound, "Method not found: "+req.Method))
@@ -852,6 +854,33 @@ func (h *MessageHandler) handleWaitForDownload(ctx context.Context, req protocol
 // handleGetClosedPopupMessages returns all closed popup messages
 func (h *MessageHandler) handleGetClosedPopupMessages(ctx context.Context, req protocol.Request) protocol.Response {
 	result, err := h.client.Context.GetClosedPopupMessages(ctx)
+	if err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
+	}
+
+	return protocol.NewResponse(req.ID, result)
+}
+
+// handleLoadTaskCredentials loads credentials for a task from Convex
+func (h *MessageHandler) handleLoadTaskCredentials(ctx context.Context, req protocol.Request) protocol.Response {
+	var params protocol.LoadTaskCredentialsParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
+	}
+
+	if params.TestCaseName == "" {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "TestCaseName is required"))
+	}
+
+	if params.TaskID == "" {
+		return protocol.NewErrorResponse(req.ID,
+			protocol.NewError(protocol.ErrCodeInvalidParams, "TaskID is required"))
+	}
+
+	result, err := h.client.Context.LoadTaskCredentials(ctx, params.TestCaseName, params.TaskID)
 	if err != nil {
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))

@@ -21,6 +21,7 @@ import (
 	"github.com/sarathmenon/browser-service/internal/browser/watchdog"
 	"github.com/sarathmenon/browser-service/internal/constants"
 	"github.com/sarathmenon/browser-service/internal/errors"
+	"github.com/sarathmenon/browser-service/pkg/convex"
 	"github.com/sarathmenon/browser-service/pkg/protocol"
 )
 
@@ -2263,6 +2264,89 @@ func (c *Context) GetLocalStorage(ctx context.Context, tabID *string) (*protocol
 	return &protocol.GetLocalStorageResult{Items: items}, nil
 }
 
+// LoadTaskCredentials fetches task credentials from Convex and loads them into the browser
+func (c *Context) LoadTaskCredentials(ctx context.Context, testCaseName, taskID string) (*protocol.LoadTaskCredentialsResult, error) {
+	// Get Convex credentials from environment
+	convexURL := os.Getenv("CONVEX_URL")
+	convexSecretKey := os.Getenv("CONVEX_SECRET_KEY")
+
+	if convexURL == "" || convexSecretKey == "" {
+		return nil, errors.NewValidationError("credentials", "CONVEX_URL and CONVEX_SECRET_KEY",
+			fmt.Errorf("environment variables not set"))
+	}
+
+	// Create Convex client
+	convexClient := convex.NewClient(convexURL, convexSecretKey)
+
+	// Fetch task from Convex
+	task, err := convexClient.FetchTask(ctx, testCaseName, taskID)
+	if err != nil {
+		return nil, errors.NewBrowserError("load_task_credentials",
+			fmt.Errorf("failed to fetch task from Convex: %w", err))
+	}
+
+	cookiesLoaded := 0
+
+	// Load credentials from loginCookie field (legacy support)
+	if task.LoginCookie != "" {
+		// Parse storage state JSON from loginCookie
+		var storageState protocol.StorageState
+		if err := json.Unmarshal([]byte(task.LoginCookie), &storageState); err != nil {
+			return nil, errors.NewBrowserError("load_task_credentials",
+				fmt.Errorf("failed to parse loginCookie: %w", err))
+		}
+
+		// Load storage state (cookies + localStorage)
+		_, err := c.LoadStorageState(ctx, storageState, nil)
+		if err != nil {
+			return nil, errors.NewBrowserError("load_task_credentials",
+				fmt.Errorf("failed to load storage state: %w", err))
+		}
+
+		cookiesLoaded = len(storageState.Cookies)
+	}
+
+	// Load credentials from credentials field (new format)
+	if task.Credentials != nil {
+		// Handle cookies
+		if cookiesRaw, ok := task.Credentials["cookies"]; ok {
+			cookiesJSON, err := json.Marshal(cookiesRaw)
+			if err == nil {
+				var cookies []protocol.Cookie
+				if err := json.Unmarshal(cookiesJSON, &cookies); err == nil {
+					_, err := c.SetCookies(ctx, cookies, nil)
+					if err != nil {
+						return nil, errors.NewBrowserError("load_task_credentials",
+							fmt.Errorf("failed to set cookies: %w", err))
+					}
+					cookiesLoaded += len(cookies)
+				}
+			}
+		}
+
+		// Handle localStorage
+		if localStorageRaw, ok := task.Credentials["localStorage"]; ok {
+			localStorageJSON, err := json.Marshal(localStorageRaw)
+			if err == nil {
+				var localStorage map[string]string
+				if err := json.Unmarshal(localStorageJSON, &localStorage); err == nil {
+					_, err := c.SetLocalStorage(ctx, localStorage, nil)
+					if err != nil {
+						return nil, errors.NewBrowserError("load_task_credentials",
+							fmt.Errorf("failed to set localStorage: %w", err))
+					}
+				}
+			}
+		}
+	}
+
+	return &protocol.LoadTaskCredentialsResult{
+		Loaded:       true,
+		CookiesCount: cookiesLoaded,
+		TaskID:       taskID,
+	}, nil
+}
+
 // SetDownloadBehavior configures download behavior for the browser
 func (c *Context) SetDownloadBehavior(ctx context.Context, path string, accept bool, tabID *string) (*protocol.SetDownloadBehaviorResult, error) {
 	tab, err := c.getTab(tabID)
@@ -2416,6 +2500,17 @@ func (c *Context) GetClosedPopupMessages(ctx context.Context) (*protocol.GetClos
 	return &protocol.GetClosedPopupMessagesResult{
 		Messages: messages,
 	}, nil
+}
+
+// SubscribeToBrowserEvents returns a channel that receives browser events
+func (c *Context) SubscribeToBrowserEvents(ctx context.Context) <-chan events.BrowserEvent {
+	if c.eventBus == nil {
+		// Return a closed channel if event bus is not available
+		ch := make(chan events.BrowserEvent)
+		close(ch)
+		return ch
+	}
+	return c.eventBus.Subscribe(ctx)
 }
 
 // Close closes the browser context

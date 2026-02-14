@@ -497,6 +497,31 @@ type EvalJSResult struct {
 }
 
 // --- Error Codes ---
+// --- Credential Management Types ---
+
+// LoadTaskCredentialsParams for Browser.loadTaskCredentials
+type LoadTaskCredentialsParams struct {
+	TestCaseName string `json:"testCaseName"` // Convex test case name
+	TaskID       string `json:"taskId"`       // Task ID to fetch credentials for
+}
+
+// LoadTaskCredentialsResult for Browser.loadTaskCredentials response
+type LoadTaskCredentialsResult struct {
+	Loaded       bool   `json:"loaded"`       // Whether credentials were successfully loaded
+	CookiesCount int    `json:"cookiesCount"` // Number of cookies loaded
+	TaskID       string `json:"taskId"`       // Task ID
+}
+
+// --- Browser Event Types ---
+
+// BrowserErrorEventParams represents parameters for Browser.errorOccurred event
+type BrowserErrorEventParams struct {
+	ErrorType string         `json:"errorType"` // "TargetCrash", "NetworkTimeout", "BrowserUnresponsive"
+	Details   map[string]any `json:"details"`   // Event-specific details
+}
+
+// --- Error Codes ---
+
 const (
 	ErrCodeInvalidRequest  = -32600
 	ErrCodeMethodNotFound  = -32601

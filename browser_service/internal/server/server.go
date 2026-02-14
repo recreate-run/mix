@@ -11,7 +11,9 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/sarathmenon/browser-service/internal/browser"
+	"github.com/sarathmenon/browser-service/internal/browser/events"
 	"github.com/sarathmenon/browser-service/internal/constants"
+	"github.com/sarathmenon/browser-service/pkg/protocol"
 )
 
 // Config holds server configuration
@@ -184,8 +186,51 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Client connected: %s", clientID)
 
+	// Start event forwarding goroutine
+	go s.forwardBrowserEvents(client)
+
 	// Start handling messages
 	go s.handleClient(client)
+}
+
+// forwardBrowserEvents forwards browser events to the WebSocket client
+func (s *Server) forwardBrowserEvents(client *Client) {
+	eventChan := client.Context.SubscribeToBrowserEvents(s.ctx)
+
+	for {
+		select {
+		case <-client.done:
+			return
+		case <-s.ctx.Done():
+			return
+		case event, ok := <-eventChan:
+			if !ok {
+				// Event channel closed
+				return
+			}
+
+			// Convert event to protocol event
+			var protocolEvent protocol.Event
+			if errorEvent, ok := event.(events.BrowserErrorEvent); ok {
+				protocolEvent = protocol.Event{
+					Method: "Browser.errorOccurred",
+					Params: protocol.BrowserErrorEventParams{
+						ErrorType: errorEvent.ErrorType,
+						Details:   errorEvent.Details,
+					},
+				}
+			} else {
+				// Unknown event type, skip
+				continue
+			}
+
+			// Send event to client
+			if err := client.Conn.WriteJSON(protocolEvent); err != nil {
+				log.Printf("Error forwarding event to client %s: %v", client.ID, err)
+				return
+			}
+		}
+	}
 }
 
 // handleClient processes messages from a client

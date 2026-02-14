@@ -15,14 +15,15 @@ import (
 
 // Client is a Go client for the browser service WebSocket API
 type Client struct {
-	conn      *websocket.Conn
-	endpoint  string
-	requestID uint64
-	mu        sync.Mutex
-	pending   map[string]chan protocol.Response
-	readDone  chan struct{}
-	connected bool
-	closeOnce sync.Once
+	conn           *websocket.Conn
+	endpoint       string
+	requestID      uint64
+	mu             sync.Mutex
+	pending        map[string]chan protocol.Response
+	eventListeners []chan protocol.Event
+	readDone       chan struct{}
+	connected      bool
+	closeOnce      sync.Once
 }
 
 // New creates a new client and connects to the WebSocket endpoint
@@ -591,6 +592,19 @@ func (c *Client) Scroll(ctx context.Context, direction string, amount int, tabID
 }
 
 // Close closes the browser context
+// SubscribeToEvents creates a new event subscription channel
+// The channel will receive all browser events (crashes, timeouts, etc.)
+// The channel is buffered with size 100 to prevent blocking
+// The channel will be closed when the client connection is closed
+func (c *Client) SubscribeToEvents() <-chan protocol.Event {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ch := make(chan protocol.Event, 100)
+	c.eventListeners = append(c.eventListeners, ch)
+	return ch
+}
+
 func (c *Client) Close() error {
 	resp, err := c.sendRequest(context.Background(), constants.MethodBrowserClose, nil)
 	if err != nil {
@@ -822,11 +836,19 @@ func (c *Client) sendRequest(ctx context.Context, method string, params interfac
 func (c *Client) readLoop() {
 	defer c.closeOnce.Do(func() {
 		close(c.readDone)
+		// Close all event listener channels
+		c.mu.Lock()
+		for _, ch := range c.eventListeners {
+			close(ch)
+		}
+		c.eventListeners = nil
+		c.mu.Unlock()
 	})
 
 	for {
-		var resp protocol.Response
-		if err := c.conn.ReadJSON(&resp); err != nil {
+		// Read raw message to determine if it's a response or event
+		_, data, err := c.conn.ReadMessage()
+		if err != nil {
 			// Connection closed
 			c.mu.Lock()
 			c.connected = false
@@ -839,16 +861,36 @@ func (c *Client) readLoop() {
 			return
 		}
 
-		// Deliver response to waiting goroutine
-		c.mu.Lock()
-		if ch, ok := c.pending[resp.ID]; ok {
-			select {
-			case ch <- resp:
-			default:
-				// Channel full or closed, ignore
+		// Try to parse as response first (has ID field)
+		var resp protocol.Response
+		if err := json.Unmarshal(data, &resp); err == nil && resp.ID != "" {
+			// It's a response
+			c.mu.Lock()
+			if ch, ok := c.pending[resp.ID]; ok {
+				select {
+				case ch <- resp:
+				default:
+					// Channel full or closed, ignore
+				}
 			}
+			c.mu.Unlock()
+			continue
 		}
-		c.mu.Unlock()
+
+		// Try to parse as event (has method field, no ID)
+		var event protocol.Event
+		if err := json.Unmarshal(data, &event); err == nil && event.Method != "" {
+			// It's an event - broadcast to all listeners
+			c.mu.Lock()
+			for _, ch := range c.eventListeners {
+				select {
+				case ch <- event:
+				default:
+					// Channel full, drop event
+				}
+			}
+			c.mu.Unlock()
+		}
 	}
 }
 
@@ -1234,6 +1276,35 @@ func (c *Client) GetClosedPopupMessages(ctx context.Context) (*protocol.GetClose
 	}
 
 	var result protocol.GetClosedPopupMessagesResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
+	}
+
+	return &result, nil
+}
+
+// LoadTaskCredentials loads credentials for a task from Convex
+func (c *Client) LoadTaskCredentials(ctx context.Context, testCaseName, taskID string) (*protocol.LoadTaskCredentialsResult, error) {
+	params := protocol.LoadTaskCredentialsParams{
+		TestCaseName: testCaseName,
+		TaskID:       taskID,
+	}
+
+	resp, err := c.sendRequest(ctx, constants.MethodBrowserLoadTaskCredentials, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		return nil, fmt.Errorf("loadTaskCredentials error: %s", resp.Error.Message)
+	}
+
+	data, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	var result protocol.LoadTaskCredentialsResult
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal result: %w", err)
 	}
