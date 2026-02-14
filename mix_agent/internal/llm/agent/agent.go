@@ -1306,7 +1306,7 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 		logging.Warn("Failed to get agent config from database, using default", "error", err, "agent", agentName)
 		// Use Claude as default model if database not available
 		agentConfig = config.Agent{
-			Model:     "claude-4-sonnet",
+			Model:     "claude-sonnet-4-5",
 			MaxTokens: 4096,
 		}
 	}
@@ -1373,7 +1373,7 @@ func createSessionProvider(ctx context.Context, agentName config.AgentName, sess
 		logging.Warn("Failed to get agent config from database for session, using default", "error", err, "agent", agentName)
 		// Use Claude as default model if database not available
 		agentConfig = config.Agent{
-			Model:     "claude-4-sonnet",
+			Model:     "claude-sonnet-4-5",
 			MaxTokens: 4096,
 		}
 	}

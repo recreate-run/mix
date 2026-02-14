@@ -162,7 +162,7 @@ func TestGetAgentFromDatabase(t *testing.T) {
 	userPreferencesService = mockService
 
 	expectedAgent := preferences.Agent{
-		Model:           models.ModelID("claude-4-sonnet"),
+		Model:           models.ModelID("claude-sonnet-4-5"),
 		MaxTokens:       4096,
 		ReasoningEffort: "medium",
 	}

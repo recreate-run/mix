@@ -28,6 +28,13 @@ func (c *RemoteCDPClient) Navigate(ctx context.Context, url string, tabID ...str
 		URL: url,
 	}
 
+	// Start waiting for load event BEFORE sending navigate command
+	loadTimeout := 15 * time.Second
+	loadErrChan := make(chan error, 1)
+	go func() {
+		loadErrChan <- c.waitForEvent(ctx, "Page.loadEventFired", loadTimeout)
+	}()
+
 	result, err := c.sendCommand(ctx, "Page.navigate", params, cdpSessionID)
 	if err != nil {
 		return nil, err
@@ -42,6 +49,14 @@ func (c *RemoteCDPClient) Navigate(ctx context.Context, url string, tabID ...str
 	var navResult cdp.PageNavigateResult
 	if err := json.Unmarshal(resultJSON, &navResult); err != nil {
 		return &browserprotocol.NavigateResult{}, err
+	}
+
+	// Wait for page load completion
+	if loadErr := <-loadErrChan; loadErr != nil {
+		logging.Warn("Page load event timeout during navigation",
+			"url", url,
+			"error", loadErr)
+		// Don't fail - page might still be usable
 	}
 
 	return &browserprotocol.NavigateResult{
@@ -915,14 +930,16 @@ func (c *RemoteCDPClient) UploadFile(ctx context.Context, index int, filePaths [
 
 // CreateTab creates a new tab
 func (c *RemoteCDPClient) CreateTab(ctx context.Context, url ...string) (*browserprotocol.TabInfo, error) {
-	targetURL := "about:blank"
+	userURL := ""
 	if len(url) > 0 && url[0] != "" {
-		targetURL = url[0]
+		userURL = url[0]
 	}
 
-	// Create target
+	// Always create target with a data URL (not about:blank)
+	// about:blank has special browser handling that can cause target detachment
+	// Match local browser service behavior using an empty HTML data URL
 	createParams := cdp.TargetCreateParams{
-		URL: targetURL,
+		URL: "data:text/html,<html><body></body></html>",
 	}
 
 	result, err := c.sendCommand(ctx, "Target.createTarget", createParams)
@@ -983,11 +1000,47 @@ func (c *RemoteCDPClient) CreateTab(ctx context.Context, url ...string) (*browse
 	_, _ = c.sendCommand(ctx, "Accessibility.enable", nil, sessionID)
 	_, _ = c.sendCommand(ctx, "Runtime.enable", nil, sessionID)
 
-	logging.Info("Created new tab", "tabID", friendlyID, "targetID", createResult.TargetID, "sessionID", attach.SessionID)
+	// Determine final URL to return
+	finalURL := "data:text/html,<html><body></body></html>"
+	if userURL == "about:blank" {
+		// User explicitly requested about:blank - return that
+		// (but we already have blank page via data URL, no need to navigate)
+		finalURL = "about:blank"
+	} else if userURL != "" {
+		// User provided a real URL - navigate explicitly and wait for page load
+		navParams := cdp.PageNavigateParams{
+			URL: userURL,
+		}
+
+		// Start waiting for load event BEFORE sending navigate command
+		loadTimeout := 15 * time.Second
+		loadErrChan := make(chan error, 1)
+		go func() {
+			loadErrChan <- c.waitForEvent(ctx, "Page.loadEventFired", loadTimeout)
+		}()
+
+		_, err = c.sendCommand(ctx, "Page.navigate", navParams, sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to navigate to %s: %w", userURL, err)
+		}
+
+		// Wait for page load completion
+		if loadErr := <-loadErrChan; loadErr != nil {
+			logging.Warn("Page load event timeout - page may not be fully loaded",
+				"url", userURL,
+				"tabID", friendlyID,
+				"error", loadErr)
+			// Don't fail - page might still be usable
+		}
+
+		finalURL = userURL
+	}
+
+	logging.Info("Created new tab", "tabID", friendlyID, "targetID", createResult.TargetID, "sessionID", attach.SessionID, "url", finalURL)
 
 	return &browserprotocol.TabInfo{
 		ID:  friendlyID,
-		URL: targetURL,
+		URL: finalURL,
 	}, nil
 }
 

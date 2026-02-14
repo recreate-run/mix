@@ -85,8 +85,15 @@ func NewRemoteCDPClient(ctx context.Context, cdpURL string) (*RemoteCDPClient, e
 		return nil, fmt.Errorf("CDP URL cannot be empty")
 	}
 
+	// Create custom dialer with larger buffers for screenshot responses
+	// Screenshots can be 100KB+ of base64 data
+	dialer := &websocket.Dialer{
+		ReadBufferSize:  1024 * 1024, // 1MB read buffer
+		WriteBufferSize: 1024 * 1024, // 1MB write buffer
+	}
+
 	// Connect to CDP WebSocket
-	conn, resp, err := websocket.DefaultDialer.DialContext(ctx, cdpURL, nil)
+	conn, resp, err := dialer.DialContext(ctx, cdpURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to CDP endpoint %s: %w", cdpURL, err)
 	}
@@ -187,6 +194,14 @@ func (c *RemoteCDPClient) sendCommand(ctx context.Context, method string, params
 	// Add session ID if provided (for tab-specific commands)
 	if len(sessionID) > 0 && sessionID[0] != "" {
 		command.SessionID = sessionID[0]
+	}
+
+	// Log CDP command being sent (with params for debugging)
+	paramsJSON, _ := json.Marshal(params)
+	if command.SessionID != "" {
+		logging.Info("Sending CDP command", "method", method, "id", messageID, "sessionID", command.SessionID, "params", string(paramsJSON))
+	} else {
+		logging.Info("Sending CDP command", "method", method, "id", messageID, "params", string(paramsJSON))
 	}
 
 	// Create response channel
@@ -293,6 +308,9 @@ func (c *RemoteCDPClient) readMessages() {
 			c.handleEvent(event.Method, event.Params)
 			continue
 		}
+
+		// Unknown message format
+		logging.Warn("Received unknown CDP message format", "message", string(msg)[:min(len(msg), 200)])
 	}
 }
 
@@ -302,12 +320,18 @@ func (c *RemoteCDPClient) handleResponse(response *cdp.Response) {
 	ch, exists := c.pending[int64(response.ID)]
 	c.pendingMu.RUnlock()
 
+	hasError := response.Error != nil
+	hasResult := response.Result != nil
+
 	if exists {
+		logging.Debug("CDP response received", "id", response.ID, "hasResult", hasResult, "hasError", hasError)
 		select {
 		case ch <- response:
 		default:
-			// Channel full or closed
+			logging.Warn("CDP response channel full or closed", "id", response.ID)
 		}
+	} else {
+		logging.Warn("CDP response for unknown request ID", "id", response.ID, "hasResult", hasResult, "hasError", hasError)
 	}
 }
 
@@ -321,6 +345,42 @@ func (c *RemoteCDPClient) handleEvent(method string, params json.RawMessage) {
 		for _, listener := range listeners.([]func(interface{})) {
 			listener(params)
 		}
+	}
+}
+
+// waitForEvent waits for a specific CDP event with timeout
+// Returns nil on success, error on timeout or context cancellation
+func (c *RemoteCDPClient) waitForEvent(ctx context.Context, eventMethod string, timeout time.Duration) error {
+	eventChan := make(chan struct{}, 1)
+
+	// Create listener function
+	listener := func(params interface{}) {
+		select {
+		case eventChan <- struct{}{}:
+		default:
+			// Channel already has value, ignore
+		}
+	}
+
+	// Register listener
+	if existing, ok := c.eventListeners.Load(eventMethod); ok {
+		existingListeners := existing.([]func(interface{}))
+		existingListeners = append(existingListeners, listener)
+		c.eventListeners.Store(eventMethod, existingListeners)
+	} else {
+		c.eventListeners.Store(eventMethod, []func(interface{}){listener})
+	}
+
+	// Wait for event with timeout
+	select {
+	case <-eventChan:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("timeout waiting for event %s after %v", eventMethod, timeout)
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.closed:
+		return fmt.Errorf("connection closed while waiting for event %s", eventMethod)
 	}
 }
 
@@ -407,8 +467,14 @@ func (c *RemoteCDPClient) reconnect() error {
 		_ = oldConn.Close()
 	}
 
+	// Create custom dialer with larger buffers
+	dialer := &websocket.Dialer{
+		ReadBufferSize:  1024 * 1024, // 1MB read buffer
+		WriteBufferSize: 1024 * 1024, // 1MB write buffer
+	}
+
 	// Connect to CDP WebSocket
-	conn, resp, err := websocket.DefaultDialer.DialContext(c.ctx, c.cdpURL, nil)
+	conn, resp, err := dialer.DialContext(c.ctx, c.cdpURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to reconnect to CDP endpoint: %w", err)
 	}

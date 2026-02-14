@@ -19,9 +19,6 @@ const (
 	// OpenRouterGemini25       ModelID = "openrouter.gemini-2.5"
 	OpenRouterClaude35Sonnet ModelID = "openrouter.claude-3.5-sonnet"
 	OpenRouterClaude3Haiku   ModelID = "openrouter.claude-3-haiku"
-	OpenRouterClaude37Sonnet ModelID = "openrouter.claude-3.7-sonnet"
-	OpenRouterClaude35Haiku  ModelID = "openrouter.claude-3.5-haiku"
-	OpenRouterClaude3Opus    ModelID = "openrouter.claude-3-opus"
 	OpenRouterDeepSeekR1Free ModelID = "openrouter.deepseek-r1-free"
 	OpenRouterDeepSeekV31    ModelID = "openrouter.deepseek-v3.1"
 	OpenRouterZAIGLM45Air    ModelID = "openrouter.zai-glm-4.5-air"
@@ -227,43 +224,6 @@ var OpenRouterModels = map[ModelID]Model{
 	//	CostPer1MOutCached: AnthropicModels[Claude3Haiku].CostPer1MOutCached,
 	//	ContextWindow:      AnthropicModels[Claude3Haiku].ContextWindow,
 	//	DefaultMaxTokens:   AnthropicModels[Claude3Haiku].DefaultMaxTokens,
-	// },
-	// OpenRouterClaude37Sonnet: {
-	//	ID:                 OpenRouterClaude37Sonnet,
-	//	Name:               "OpenRouter – Claude 3.7 Sonnet",
-	//	Provider:           ProviderOpenRouter,
-	//	APIModel:           "anthropic/claude-3.7-sonnet",
-	//	CostPer1MIn:        AnthropicModels[Claude37Sonnet].CostPer1MIn,
-	//	CostPer1MInCached:  AnthropicModels[Claude37Sonnet].CostPer1MInCached,
-	//	CostPer1MOut:       AnthropicModels[Claude37Sonnet].CostPer1MOut,
-	//	CostPer1MOutCached: AnthropicModels[Claude37Sonnet].CostPer1MOutCached,
-	//	ContextWindow:      AnthropicModels[Claude37Sonnet].ContextWindow,
-	//	DefaultMaxTokens:   AnthropicModels[Claude37Sonnet].DefaultMaxTokens,
-	//	CanReason:          AnthropicModels[Claude37Sonnet].CanReason,
-	// },
-	// OpenRouterClaude35Haiku: {
-	//	ID:                 OpenRouterClaude35Haiku,
-	//	Name:               "OpenRouter – Claude 3.5 Haiku",
-	//	Provider:           ProviderOpenRouter,
-	//	APIModel:           "anthropic/claude-3.5-haiku",
-	//	CostPer1MIn:        AnthropicModels[Claude35Haiku].CostPer1MIn,
-	//	CostPer1MInCached:  AnthropicModels[Claude35Haiku].CostPer1MInCached,
-	//	CostPer1MOut:       AnthropicModels[Claude35Haiku].CostPer1MOut,
-	//	CostPer1MOutCached: AnthropicModels[Claude35Haiku].CostPer1MOutCached,
-	//	ContextWindow:      AnthropicModels[Claude35Haiku].ContextWindow,
-	//	DefaultMaxTokens:   AnthropicModels[Claude35Haiku].DefaultMaxTokens,
-	// },
-	// OpenRouterClaude3Opus: {
-	//	ID:                 OpenRouterClaude3Opus,
-	//	Name:               "OpenRouter – Claude 3 Opus",
-	//	Provider:           ProviderOpenRouter,
-	//	APIModel:           "anthropic/claude-3-opus",
-	//	CostPer1MIn:        AnthropicModels[Claude3Opus].CostPer1MIn,
-	//	CostPer1MInCached:  AnthropicModels[Claude3Opus].CostPer1MInCached,
-	//	CostPer1MOut:       AnthropicModels[Claude3Opus].CostPer1MOut,
-	//	CostPer1MOutCached: AnthropicModels[Claude3Opus].CostPer1MOutCached,
-	//	ContextWindow:      AnthropicModels[Claude3Opus].ContextWindow,
-	//	DefaultMaxTokens:   AnthropicModels[Claude3Opus].DefaultMaxTokens,
 	// },
 
 	// OpenRouterDeepSeekR1Free: {

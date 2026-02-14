@@ -21,7 +21,7 @@ func createTestMessages(t *testing.T, ctx context.Context, application *app.App,
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "Hello, this is a test message"},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test user message: %v", err)
@@ -39,7 +39,7 @@ func createTestMessages(t *testing.T, ctx context.Context, application *app.App,
 				Type:  "tool_use",
 			},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test assistant message: %v", err)

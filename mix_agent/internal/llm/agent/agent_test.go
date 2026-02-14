@@ -76,12 +76,12 @@ func CreateTestMessage() message.Message {
 
 func CreateTestModel() models.Model {
 	return models.Model{
-		ID:               "claude-4-sonnet",
+		ID:               "claude-sonnet-4-5",
 		Provider:         models.ProviderAnthropic,
-		Name:             "Claude 4 Sonnet",
-		APIModel:         "claude-3-sonnet",
-		ContextWindow:    4096,
-		DefaultMaxTokens: 4096,
+		Name:             "Claude 4.5 Sonnet",
+		APIModel:         "claude-sonnet-4-5-20250929",
+		ContextWindow:    200000,
+		DefaultMaxTokens: 50000,
 		CostPer1MIn:      3.0,
 		CostPer1MOut:     15.0,
 	}

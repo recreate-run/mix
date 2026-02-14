@@ -37,7 +37,7 @@ func TestRESTMessageListing(t *testing.T) {
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "Test message for listing"},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test message: %v", err)
@@ -111,7 +111,7 @@ func TestRESTMessageHistory(t *testing.T) {
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "Message in session 1"},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test message in session 1: %v", err)
@@ -122,7 +122,7 @@ func TestRESTMessageHistory(t *testing.T) {
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "Message in session 2"},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test message in session 2: %v", err)
