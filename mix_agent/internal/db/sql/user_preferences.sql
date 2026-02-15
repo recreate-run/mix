@@ -65,14 +65,14 @@ WHERE id = 'default_user'
 RETURNING *;
 
 -- name: ResetUserPreferencesToDefaults :one
-UPDATE user_preferences 
-SET 
+UPDATE user_preferences
+SET
     preferred_provider = 'anthropic',
     main_agent_model = 'claude-sonnet-4-5',
     main_agent_max_tokens = 4096,
-    main_agent_reasoning_effort = '',
+    main_agent_reasoning_effort = 'medium',
     sub_agent_model = 'claude-sonnet-4-5',
     sub_agent_max_tokens = 2048,
-    sub_agent_reasoning_effort = ''
+    sub_agent_reasoning_effort = 'medium'
 WHERE id = 'default_user'
 RETURNING *;

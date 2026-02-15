@@ -20,6 +20,8 @@ func main() {
 	windowHeight := flag.Int("window-height", 1080, "Browser window height")
 	flag.Parse()
 
+	log.SetFlags(0)
+
 	cfg := server.Config{
 		Port:         *port,
 		Headless:     *headless,

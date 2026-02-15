@@ -32,10 +32,10 @@ INSERT OR IGNORE INTO user_preferences (
     'anthropic',
     'claude-sonnet-4-5',
     4096,
-    '',
-    'claude-sonnet-4-5', 
+    'medium',
+    'claude-sonnet-4-5',
     2048,
-    '',
+    'medium',
     strftime('%s', 'now') * 1000,
     strftime('%s', 'now') * 1000
 );

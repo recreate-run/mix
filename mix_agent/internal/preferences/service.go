@@ -78,10 +78,10 @@ func (ups *UserPreferencesService) CreateDefaultUserPreferences(ctx context.Cont
 		PreferredProvider:        sql.NullString{String: "anthropic", Valid: true},
 		MainAgentModel:           sql.NullString{String: "claude-sonnet-4-5", Valid: true},
 		MainAgentMaxTokens:       sql.NullInt64{Int64: 4096, Valid: true},
-		MainAgentReasoningEffort: sql.NullString{String: "", Valid: false},
+		MainAgentReasoningEffort: sql.NullString{String: "medium", Valid: true},
 		SubAgentModel:            sql.NullString{String: "claude-sonnet-4-5", Valid: true},
 		SubAgentMaxTokens:        sql.NullInt64{Int64: 2048, Valid: true},
-		SubAgentReasoningEffort:  sql.NullString{String: "", Valid: false},
+		SubAgentReasoningEffort:  sql.NullString{String: "medium", Valid: true},
 	}
 
 	createdPrefs, err := ups.queries.CreateUserPreferences(ctx, defaultPrefs)

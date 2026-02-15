@@ -968,8 +968,8 @@ func DefaultThinkingBudgetFn(s string) int {
 		return 4000
 	}
 
-	// No thinking
-	return 0
+	// Default: medium thinking (10000 tokens)
+	return 10000
 }
 
 func WithAnthropicThinkingBudgetFn(fn func(string) int) AnthropicOption {
