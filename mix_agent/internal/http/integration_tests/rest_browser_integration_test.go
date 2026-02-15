@@ -39,8 +39,8 @@ import (
 	"testing"
 	"time"
 
-	"mix/internal/message"
 	"mix/internal/constants"
+	"mix/internal/message"
 )
 
 const toolNameBrowser = "Browser"
@@ -638,7 +638,6 @@ func TestRESTBrowserWikipediaAnatomyClick(t *testing.T) {
 	t.Logf("   Anatomy mentions: %v", foundAnatomyMention)
 	t.Logf("   Click mentions: %v", foundClickMention)
 }
-
 
 // waitForMessageCompletion polls the message list until the last assistant message has a finish_reason
 // This ensures the agent has completed processing before sending the next message

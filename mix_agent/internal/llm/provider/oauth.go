@@ -722,7 +722,7 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 	} else if hasAPIKey {
 		return true, "api_key", nil
 	}
-	
+
 	// Check for API key in environment variables for supported providers
 	var envVar string
 	switch provider {
@@ -735,7 +735,7 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 	case models.ProviderXAI:
 		envVar = "XAI_API_KEY"
 	}
-	
+
 	if envVar != "" {
 		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {
 			return true, "env_var", nil

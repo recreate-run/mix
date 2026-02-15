@@ -118,12 +118,12 @@ type AccessibilityGetFullAXTreeResult struct {
 }
 
 type AccessibilityNode struct {
-	Role            RoleValue               `json:"role"`
-	Name            StringValue             `json:"name"`
-	BackendDOMNodeID int64                  `json:"backendDOMNodeId"`
-	FrameID         string                  `json:"frameId"`
-	BoundingBox     *BoundingBox            `json:"boundingBox,omitempty"`
-	Properties      []AccessibilityProperty `json:"properties,omitempty"`
+	Role             RoleValue               `json:"role"`
+	Name             StringValue             `json:"name"`
+	BackendDOMNodeID int64                   `json:"backendDOMNodeId"`
+	FrameID          string                  `json:"frameId"`
+	BoundingBox      *BoundingBox            `json:"boundingBox,omitempty"`
+	Properties       []AccessibilityProperty `json:"properties,omitempty"`
 }
 
 type RoleValue struct {
@@ -149,9 +149,9 @@ type AccessibilityProperty struct {
 // DOMSnapshot domain commands
 
 type DOMSnapshotCaptureSnapshotParams struct {
-	ComputedStyles  []string `json:"computedStyles"`
-	IncludeDOMRects bool     `json:"includeDOMRects,omitempty"`
-	IncludePaintOrder bool   `json:"includePaintOrder,omitempty"`
+	ComputedStyles    []string `json:"computedStyles"`
+	IncludeDOMRects   bool     `json:"includeDOMRects,omitempty"`
+	IncludePaintOrder bool     `json:"includePaintOrder,omitempty"`
 }
 
 type DOMSnapshotCaptureSnapshotResult struct {
@@ -159,7 +159,7 @@ type DOMSnapshotCaptureSnapshotResult struct {
 }
 
 type DOMSnapshotDocument struct {
-	Nodes  DOMSnapshotNodeTree  `json:"nodes"`
+	Nodes  DOMSnapshotNodeTree   `json:"nodes"`
 	Layout DOMSnapshotLayoutTree `json:"layout"`
 }
 
@@ -168,7 +168,7 @@ type DOMSnapshotNodeTree struct {
 }
 
 type DOMSnapshotLayoutTree struct {
-	NodeIndex []int     `json:"nodeIndex"`
+	NodeIndex []int       `json:"nodeIndex"`
 	Bounds    [][]float64 `json:"bounds"`
 }
 

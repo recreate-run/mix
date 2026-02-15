@@ -310,8 +310,8 @@ func (m *mockElectronClient) generateMockResponse(req CDPRequest) CDPResponse {
 		}
 
 		response.Result = map[string]interface{}{
-			"data":   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-			"format": "png",
+			"data":     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+			"format":   "png",
 			"rawNodes": rawNodes,
 			"rawViewport": map[string]interface{}{
 				"x":      0.0,

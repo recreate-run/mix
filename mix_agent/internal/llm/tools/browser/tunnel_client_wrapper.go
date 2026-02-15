@@ -167,7 +167,6 @@ func (t *TunnelClientWrapper) sendCommand(_ context.Context, method string, para
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
 	}
 
-
 	// Use reflection to call SendCommandToTunnel
 	registryValue := reflect.ValueOf(t.tunnelRegistry)
 	sendMethod := registryValue.MethodByName("SendCommandToTunnel")

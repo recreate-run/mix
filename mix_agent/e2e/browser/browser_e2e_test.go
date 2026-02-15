@@ -763,7 +763,6 @@ func TestBrowserE2EScreenshotURL(t *testing.T) {
 	}
 	t.Logf("✓ Created session: %s", sessionID)
 
-
 	// Step 2: Send message to analyze screenshot
 	t.Log("Step 2: Sending message to use analyze_screenshot...")
 	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
@@ -780,7 +779,6 @@ func TestBrowserE2EScreenshotURL(t *testing.T) {
 	t.Log("Step 3: Waiting for agent to process message...")
 	// Wait longer to ensure all tool calls complete (analyze_screenshot takes time)
 	waitForProcessing(t, sessionID, 180*time.Second)
-
 
 	// Step 4: Get messages and extract screenshot URL from tool results
 	t.Log("Step 4: Extracting screenshot URL from tool results...")

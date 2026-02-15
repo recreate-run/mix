@@ -265,7 +265,6 @@ func (registry *TunnelRegistry) SendCommandToTunnel(sessionID string, command CD
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
 	}
 
-
 	// Send command (non-blocking with timeout)
 	select {
 	case conn.SendChan <- message:

@@ -14,7 +14,6 @@ import (
 	"mix/internal/session"
 )
 
-
 // extractTabID extracts tab ID from browser tool response
 // Response format: "Created new tab: tab-X (URL: ...)"
 func extractTabID(content string) string {

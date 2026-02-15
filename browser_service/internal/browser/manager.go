@@ -115,7 +115,6 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 	initialTab := &tabContext{
 		id:           "tab-1",
 		page:         page,
-		elements:     make([]elementInfo, 0),
 		downloads:    make([]protocol.Download, 0),
 		downloadChan: make(chan protocol.Download, 10),
 	}

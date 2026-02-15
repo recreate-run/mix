@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"mix/internal/app"
-	"mix/internal/message"
 	"mix/internal/constants"
+	"mix/internal/message"
 )
 
 // Helper function to create test messages for export testing

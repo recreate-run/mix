@@ -30,8 +30,8 @@ const (
 var commandTimeouts = map[string]time.Duration{
 	"Accessibility.getFullAXTree": 30 * time.Second, // Should be instant with domain enabled, but allow for network latency
 	"Page.captureScreenshot":      30 * time.Second, // High-res screenshots + network transfer
-	"DOM.getBoxModel":              5 * time.Second,
-	"default":                      10 * time.Second,
+	"DOM.getBoxModel":             5 * time.Second,
+	"default":                     10 * time.Second,
 }
 
 // RemoteCDPClient connects to remote CDP WebSocket endpoints (cloud browser providers)
@@ -170,7 +170,6 @@ func (c *RemoteCDPClient) setLastScreenshotSize(tabID string, width, height int)
 	c.screenshotSize[tabID] = screenshotSize{Width: width, Height: height}
 	c.screenshotMu.Unlock()
 }
-
 
 // getCommandTimeout returns the timeout for a specific CDP command
 func getCommandTimeout(method string) time.Duration {

@@ -36,12 +36,12 @@ func TestSubagentEventRoutingVerifyHierarchy(t *testing.T) {
 		"Test Subagent",
 		"",
 		"default",
-		session.SessionTypeSubagent,   // session type
+		session.SessionTypeSubagent,        // session type
 		session.SubagentTypeGeneralPurpose, // subagent type
-		mainSessionID,                 // parent session ID
-		"test-tool-call-id",           // parent tool call ID (test value)
-		browser.ModeLocalBrowserService, // browser mode
-		"",                            // cdp URL (empty for local mode)
+		mainSessionID,                      // parent session ID
+		"test-tool-call-id",                // parent tool call ID (test value)
+		browser.ModeLocalBrowserService,    // browser mode
+		"",                                 // cdp URL (empty for local mode)
 	)
 	if err != nil {
 		t.Fatalf("Failed to create subagent session: %v", err)

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"mix/internal/config"
-	"os"
 	"mix/internal/llm/callbacks"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
@@ -19,6 +18,7 @@ import (
 	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -346,7 +346,6 @@ func (a *agent) getSessionState(sessionID string) (SessionState, bool) {
 	}
 	return "", false
 }
-
 
 func (a *agent) generateTitle(ctx context.Context, sessionID, content string) error {
 	if content == "" {
@@ -1282,7 +1281,6 @@ func getAPIKeyWithFallback(ctx context.Context, providerName models.ModelProvide
 	case models.ProviderXAI:
 		envVar = "XAI_API_KEY"
 	}
-
 
 	if envVar != "" {
 		if envAPIKey := os.Getenv(envVar); envAPIKey != "" {

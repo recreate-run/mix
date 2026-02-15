@@ -131,7 +131,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 
 		// Parse request body
 		var requestBody struct {
-			ID     interface{} `json:"id"`     // Allow client to specify ID
+			ID     interface{} `json:"id"` // Allow client to specify ID
 			Method string      `json:"method"`
 			Params interface{} `json:"params"`
 		}

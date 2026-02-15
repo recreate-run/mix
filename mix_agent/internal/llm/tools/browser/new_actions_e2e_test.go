@@ -10,7 +10,6 @@ import (
 	"mix/internal/session"
 )
 
-
 // TestNewActionsE2E tests the three new browser actions in an end-to-end scenario
 func TestNewActionsE2E(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
@@ -101,8 +100,8 @@ func TestNewActionsE2E(t *testing.T) {
 	t.Run("action_batching", func(t *testing.T) {
 		// Test action sequence: Click, type (with index), and press Enter
 		actionSequenceCall := interfaces.ToolCall{
-			ID:    "sequence-1",
-			Name:  BrowserToolName,
+			ID:   "sequence-1",
+			Name: BrowserToolName,
 			Input: `{
 				"action": "action",
 				"actions": [

@@ -20,8 +20,6 @@ import (
 	browserpkg "mix/internal/browser"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools"
-	"mix/internal/llm/tools/browser/vision"
-	"mix/internal/logging"
 	"mix/internal/permission"
 	"mix/internal/session"
 	"mix/internal/storage"
@@ -59,8 +57,6 @@ type browserTool struct {
 	connectionManager    *ConnectionManager
 	sessionConfig        session.Config
 	baseURL              string
-	elementCache         map[string]map[int]int64        // sessionID_tabID → visualIndex → backendID
-	cacheMu              sync.RWMutex                    // Protect element cache
 	browserMode          string                          // Global browser mode (fallback for legacy sessions)
 	clientFactory        ClientFactory                   // Factory for creating browser clients
 	tunnelRegistryGetter func() interface{}              // Getter for tunnel registry (allows late initialization)
@@ -98,7 +94,6 @@ func NewBrowserTool(permissions permission.Service, sessions session.Service, br
 		connectionManager:    connMgr,
 		sessionConfig:        sessionConfig,
 		baseURL:              baseURL,
-		elementCache:         make(map[string]map[int]int64),
 		browserMode:          browserMode,
 		clientFactory:        clientFactory,
 		tunnelRegistryGetter: tunnelRegistryGetter,
@@ -205,7 +200,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen, /* ActionScreenshot, */ ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
+				"enum":        []string{ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
 			},
 			"description": map[string]any{
 				"type":        "string",
@@ -335,10 +330,9 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 
 	// Validate input parameters
 
-
 	// Validate tabId requirement for tab-interaction actions
 	requiresTabID := []string{
-		ActionOpen, /* ActionScreenshot, */ ActionReadPage, ActionLeftClick, ActionType,
+		ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType,
 		ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionRightClick,
 		ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput,
 		ActionGoBack, ActionGoForward, ActionKey, ActionScrollTo, ActionSequence, ActionWait,
@@ -482,73 +476,11 @@ func (b *browserTool) handleOpen(ctx context.Context, params BrowserParams, sess
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Navigation failed: %v", err))
 	}
 
-	// Clear element cache on navigation
-	b.clearCacheForTab(sessionID, params.TabID)
-
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated to %s (Frame ID: %s)", params.URL, result.FrameID))
 }
 
-
-// cacheElementMapping filters raw accessibility nodes and caches BackendID mappings
-func (b *browserTool) cacheElementMapping(_ context.Context, sessionID, tabID string, rawNodes []browserprotocol.RawAccessibilityNode, viewport browserprotocol.ViewportBounds) {
-	// tabID is required - cannot cache without it
-	if tabID == "" {
-		logging.Error("Failed to cache element mapping: empty tabID",
-			"sessionID", sessionID,
-			"operation", "cacheElementMapping")
-		return
-	}
-
-	// Convert protocol types to vision types
-	visionNodes := make([]vision.RawAccessibilityNode, len(rawNodes))
-	for i, node := range rawNodes {
-		visionNodes[i] = vision.RawAccessibilityNode{
-			Role:      node.Role,
-			Name:      node.Name,
-			Bounds:    vision.BoundingBox(node.Bounds),
-			BackendID: node.BackendID,
-		}
-	}
-
-	visionViewport := vision.ViewportBounds(viewport)
-
-	// Filter to interactive elements in viewport
-	filteredElements := vision.FilterInteractiveElements(visionNodes, visionViewport)
-
-	// Create cache key using tabID
-	cacheKey := sessionID + "_" + tabID
-
-	// Build mapping: visualIndex → backendID
-	mapping := make(map[int]int64)
-	for _, elem := range filteredElements {
-		mapping[elem.Index] = elem.BackendID
-	}
-
-	// Store in cache
-	b.cacheMu.Lock()
-	b.elementCache[cacheKey] = mapping
-	b.cacheMu.Unlock()
-}
-
-// cacheElementMappingFromReadPage caches BackendID mappings from read_page results
-func (b *browserTool) cacheElementMappingFromReadPage(sessionID, tabID string, elements []browserprotocol.RawAccessibilityNode) {
-	if tabID == "" {
-		return
-	}
-
-	cacheKey := sessionID + "_" + tabID
-	mapping := make(map[int]int64, len(elements))
-	for i, elem := range elements {
-		mapping[i] = elem.BackendID
-	}
-
-	b.cacheMu.Lock()
-	b.elementCache[cacheKey] = mapping
-	b.cacheMu.Unlock()
-}
-
-// readPageElements fetches elements using read_page and optionally caches index mappings
-func (b *browserTool) readPageElements(ctx context.Context, sessionID, tabID string, interactiveOnly, cache bool) ([]browserprotocol.RawAccessibilityNode, error) {
+// readPageElements fetches elements using read_page without caching (Phase 11 cacheless design)
+func (b *browserTool) readPageElements(ctx context.Context, sessionID, tabID string, interactiveOnly bool) ([]browserprotocol.RawAccessibilityNode, error) {
 	client, err := b.getClient(ctx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get browser client: %w", err)
@@ -557,10 +489,6 @@ func (b *browserTool) readPageElements(ctx context.Context, sessionID, tabID str
 	result, err := client.ReadPage(ctx, interactiveOnly, tabID)
 	if err != nil {
 		return nil, fmt.Errorf("read page failed: %w", err)
-	}
-
-	if cache {
-		b.cacheElementMappingFromReadPage(sessionID, tabID, result.Elements)
 	}
 
 	return result.Elements, nil
@@ -612,70 +540,22 @@ func findElementByCoordinate(elements []browserprotocol.RawAccessibilityNode, co
 	return found, foundAny
 }
 
-// getBackendIDFromCache looks up the BackendID for a given visual index
-func (b *browserTool) getBackendIDFromCache(_ context.Context, sessionID, tabID string, visualIndex int) (int64, error) {
-	// tabID is required
-	if tabID == "" {
-		return 0, fmt.Errorf("tabId is required for element lookup")
-	}
-
-	// Create cache key using tabID
-	cacheKey := sessionID + "_" + tabID
-
-	// Hold read lock for entire cache access operation to prevent races
-	b.cacheMu.RLock()
-	defer b.cacheMu.RUnlock()
-
-	mapping, exists := b.elementCache[cacheKey]
-	if !exists {
-		return 0, fmt.Errorf("no element cache found for this tab")
-	}
-
-	if len(mapping) == 0 {
-		return 0, fmt.Errorf("element cache is empty for this tab")
-	}
-
-	backendID, found := mapping[visualIndex]
-	if !found {
-		return 0, fmt.Errorf("index %d not found in cache", visualIndex)
-	}
-
-	return backendID, nil
-}
-
-// clearCacheForTab clears the element cache for a specific tab
-func (b *browserTool) clearCacheForTab(sessionID, tabID string) {
-	// Always use explicit tabID for cache key
-	if tabID == "" {
-		logging.Error("Failed to clear cache: empty tabID",
-			"sessionID", sessionID,
-			"operation", "clearCacheForTab")
-		return
-	}
-
-	cacheKey := sessionID + "_" + tabID
-
-	b.cacheMu.Lock()
-	delete(b.elementCache, cacheKey)
-	b.cacheMu.Unlock()
-}
-
 type coordinateClicker interface {
 	ClickAt(ctx context.Context, x, y float64, button string, clickCount int, duration *int, tabID ...string) error
 }
 
 func (b *browserTool) backendIDFromIndex(ctx context.Context, sessionID, tabID string, index int) (int64, error) {
-	backendID, err := b.getBackendIDFromCache(ctx, sessionID, tabID, index)
-	if err == nil {
-		return backendID, nil
+	// Cacheless design (Phase 11): fetch elements on-demand
+	elements, err := b.readPageElements(ctx, sessionID, tabID, true)
+	if err != nil {
+		return 0, err
 	}
 
-	_, readErr := b.readPageElements(ctx, sessionID, tabID, true, true)
-	if readErr != nil {
-		return 0, readErr
+	if index < 0 || index >= len(elements) {
+		return 0, fmt.Errorf("index %d out of range (0-%d)", index, len(elements)-1)
 	}
 
-	return b.getBackendIDFromCache(ctx, sessionID, tabID, index)
+	return elements[index].BackendID, nil
 }
 
 func (b *browserTool) backendIDFromRef(ref string) (int64, error) {
@@ -686,7 +566,7 @@ func (b *browserTool) backendIDFromRef(ref string) (int64, error) {
 }
 
 func (b *browserTool) backendIDFromCoordinate(ctx context.Context, sessionID, tabID string, coordinate Coordinate) (int64, error) {
-	elements, err := b.readPageElements(ctx, sessionID, tabID, false, false)
+	elements, err := b.readPageElements(ctx, sessionID, tabID, false)
 	if err != nil {
 		return 0, err
 	}
@@ -700,7 +580,7 @@ func (b *browserTool) backendIDFromCoordinate(ctx context.Context, sessionID, ta
 }
 
 func (b *browserTool) coordinateFromBackendID(ctx context.Context, sessionID, tabID string, backendID int64) (Coordinate, error) {
-	elements, err := b.readPageElements(ctx, sessionID, tabID, false, false)
+	elements, err := b.readPageElements(ctx, sessionID, tabID, false)
 	if err != nil {
 		return Coordinate{}, err
 	}
@@ -1094,9 +974,6 @@ func (b *browserTool) handleGoBack(ctx context.Context, params BrowserParams, se
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Go back failed: %v", err))
 	}
 
-	// Clear element cache on navigation
-	b.clearCacheForTab(sessionID, params.TabID)
-
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated back to: %s", resultURL))
 }
 
@@ -1113,9 +990,6 @@ func (b *browserTool) handleGoForward(ctx context.Context, params BrowserParams,
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Go forward failed: %v", err))
 	}
-
-	// Clear element cache on navigation
-	b.clearCacheForTab(sessionID, params.TabID)
 
 	return interfaces.NewTextResponse(fmt.Sprintf("Successfully navigated forward to: %s", resultURL))
 }
@@ -1395,15 +1269,6 @@ func (b *browserTool) handleClose(_ context.Context, sessionID string) interface
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to close browser: %v", err))
 	}
 
-	// Clear all caches for this session
-	b.cacheMu.Lock()
-	for key := range b.elementCache {
-		if strings.HasPrefix(key, sessionID+"_") {
-			delete(b.elementCache, key)
-		}
-	}
-	b.cacheMu.Unlock()
-
 	return interfaces.NewTextResponse("Browser closed successfully")
 }
 
@@ -1508,9 +1373,6 @@ func (b *browserTool) handleTabClose(ctx context.Context, params BrowserParams, 
 	if err := client.CloseTab(ctx, params.TabID); err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to close tab: %v", err))
 	}
-
-	// Clear element cache for closed tab
-	b.clearCacheForTab(sessionID, params.TabID)
 
 	return interfaces.NewTextResponse(fmt.Sprintf("Closed tab: %s", params.TabID))
 }
@@ -1765,10 +1627,6 @@ func (b *browserTool) handleActionSequence(ctx context.Context, params BrowserPa
 			filename, err := saveScreenshot(screenshotResult.Data, sessionStorageDir)
 			if err == nil {
 				screenshotFile = filename
-				// Cache element mappings
-				if screenshotResult.RawNodes != nil && screenshotResult.RawViewport != nil {
-					b.cacheElementMapping(ctx, sessionID, params.TabID, screenshotResult.RawNodes, *screenshotResult.RawViewport)
-				}
 			}
 		}
 	}
@@ -1902,11 +1760,6 @@ func (b *browserTool) executeSubAction(ctx context.Context, client BrowserClient
 			if err != nil {
 				return "", fmt.Errorf("failed to save screenshot: %w", err)
 			}
-		}
-
-		// Cache element mappings if available
-		if result.RawNodes != nil && result.RawViewport != nil {
-			b.cacheElementMapping(ctx, sessionID, tabID, result.RawNodes, *result.RawViewport)
 		}
 
 		return filename, nil
@@ -2136,4 +1989,3 @@ func (b *browserTool) getContextInfo(ctx context.Context) (sessionID, sessionSto
 func loadBrowserDescription() string {
 	return tools.LoadToolDescription("browser")
 }
-

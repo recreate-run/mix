@@ -86,9 +86,9 @@ type OAuthCallbackResponse struct {
 
 // OAuthHealthResponse represents the OAuth/auth-specific health check response
 type OAuthHealthResponse struct {
-	Status    string                       `json:"status"`
+	Status    string                      `json:"status"`
 	Providers map[string]auth.TokenStatus `json:"providers"`
-	Timestamp string                       `json:"timestamp"`
+	Timestamp string                      `json:"timestamp"`
 }
 
 // HandleStoreAPIKey handles POST /api/auth/api-key

@@ -189,7 +189,7 @@ func (e *executor) executeSubAgent(ctx context.Context, config interfaces.Callba
 		callbackCtx.SessionID,
 		callbackCtx.ToolCall.ID,
 		browser.ModeLocalBrowserService, // browser mode
-		"", // cdp URL (empty for local mode)
+		"",                              // cdp URL (empty for local mode)
 	)
 	if err != nil {
 		return interfaces.CallbackResult{

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"mix/e2e"
-	"mix/internal/http/integration_tests"
 	"mix/internal/constants"
+	"mix/internal/http/integration_tests"
 )
 
 const (

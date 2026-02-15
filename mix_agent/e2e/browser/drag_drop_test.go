@@ -195,8 +195,8 @@ func verifyDragAction(t *testing.T, messages []map[string]interface{}, mode stri
 			if content, ok := msg["content"].(string); ok {
 				contentLower := strings.ToLower(content)
 				if strings.Contains(contentLower, "drag") &&
-				   (strings.Contains(contentLower, "success") || strings.Contains(contentLower, "moved") ||
-				    strings.Contains(contentLower, "dropped")) {
+					(strings.Contains(contentLower, "success") || strings.Contains(contentLower, "moved") ||
+						strings.Contains(contentLower, "dropped")) {
 					foundSuccessMessage = true
 					t.Log("✓ Found drag success confirmation in assistant response")
 				}
@@ -230,7 +230,7 @@ func verifyDragError(t *testing.T, messages []map[string]interface{}) {
 						if result, ok := toolCall["result"].(string); ok {
 							// Look for specific drag errors
 							if strings.Contains(result, "drag action") &&
-							   (strings.Contains(result, "requires") || strings.Contains(result, "cannot")) {
+								(strings.Contains(result, "requires") || strings.Contains(result, "cannot")) {
 								foundDragError = true
 								t.Logf("✓ Found drag-specific error: %s", result)
 							} else if strings.Contains(result, "Drag failed") {
@@ -248,9 +248,9 @@ func verifyDragError(t *testing.T, messages []map[string]interface{}) {
 			if content, ok := msg["content"].(string); ok {
 				contentLower := strings.ToLower(content)
 				if (strings.Contains(contentLower, "error") ||
-				    strings.Contains(contentLower, "cannot") ||
-				    strings.Contains(contentLower, "invalid")) &&
-				   strings.Contains(contentLower, "drag") {
+					strings.Contains(contentLower, "cannot") ||
+					strings.Contains(contentLower, "invalid")) &&
+					strings.Contains(contentLower, "drag") {
 					foundErrorMention = true
 					t.Log("✓ Found error mention in assistant response")
 				}

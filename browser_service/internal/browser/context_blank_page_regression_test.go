@@ -424,93 +424,10 @@ func TestContext_NavigationTimeoutUsesContext(t *testing.T) {
 	}
 }
 
-// TestContext_ElementCacheClearedBeforeNavigation verifies element cache cleared before navigation attempt
+// TestContext_ElementCacheClearedBeforeNavigation is deprecated - element caching was removed in Phase 11
+// The cacheless design extracts elements on-demand, eliminating cache synchronization bugs
 func TestContext_ElementCacheClearedBeforeNavigation(t *testing.T) {
-	t.Helper()
-	skipIfIntegrationTestsDisabled(t)
-
-	ctx, _, browserCtx := setupBrowserTest(t)
-
-	// Create tab and navigate to URL
-	tabInfo, err := browserCtx.CreateTab(ctx)
-	if err != nil {
-		t.Fatalf("Failed to create tab: %v", err)
-	}
-
-	_, err = browserCtx.Navigate(ctx, "https://example.com", 0, &tabInfo.ID)
-	if err != nil {
-		t.Fatalf("Navigation failed: %v", err)
-	}
-
-	// Get the tab reference
-	tab, err := browserCtx.getTab(&tabInfo.ID)
-	if err != nil {
-		t.Fatalf("Failed to get tab: %v", err)
-	}
-
-	// Call extractElements to populate cache
-	_, err = tab.extractElements()
-	if err != nil {
-		t.Fatalf("Failed to extract elements: %v", err)
-	}
-
-	// Verify tab.elements is not nil
-	tab.mu.RLock()
-	elementsCount := len(tab.elements)
-	tab.mu.RUnlock()
-
-	if elementsCount == 0 {
-		t.Log("Warning: No elements extracted (page might not have interactive elements)")
-	}
-
-	// Navigate to new URL
-	_, err = browserCtx.Navigate(ctx, "https://www.iana.org", 0, &tabInfo.ID)
-	if err != nil {
-		t.Fatalf("Second navigation failed: %v", err)
-	}
-
-	// Verify tab.elements was cleared (should be nil)
-	tab.mu.RLock()
-	elements := tab.elements
-	tab.mu.RUnlock()
-
-	if elements != nil {
-		t.Errorf("Expected elements to be nil after navigation, got %d elements", len(elements))
-	}
-
-	// Even if navigation fails partway, elements should be cleared
-	// Test with invalid URL
-	_, err = browserCtx.Navigate(ctx, "http://invalid-url.local", 5000, &tabInfo.ID)
-	// Expect error for invalid URL
-
-	// Extract elements again
-	_, err = tab.extractElements()
-	if err != nil {
-		t.Fatalf("Failed to extract elements after invalid navigation: %v", err)
-	}
-
-	// Populate cache again
-	tab.mu.RLock()
-	elementsAfter := tab.elements
-	tab.mu.RUnlock()
-
-	if elementsAfter == nil {
-		t.Log("Note: elements is nil after extraction (might be expected if page is in error state)")
-	}
-
-	// Navigate again - cache should be cleared even if previous navigation failed
-	_, err = browserCtx.Navigate(ctx, "https://example.com", 0, &tabInfo.ID)
-	if err != nil {
-		t.Fatalf("Final navigation failed: %v", err)
-	}
-
-	tab.mu.RLock()
-	finalElements := tab.elements
-	tab.mu.RUnlock()
-
-	if finalElements != nil {
-		t.Errorf("Expected elements to be nil after final navigation, got %d elements", len(finalElements))
-	}
+	t.Skip("Test deprecated: element caching removed in Phase 11 (cacheless design)")
 }
 
 // TestContext_ConcurrentNavigationSafety verifies concurrent navigation operations are thread-safe
@@ -574,8 +491,8 @@ func TestContext_ConcurrentNavigationSafety(t *testing.T) {
 		}
 
 		tab.mu.RLock()
-		currentURL := tab.currentURL
-		tab.mu.RUnlock()
+	currentURL := tab.currentURL
+	tab.mu.RUnlock()
 
 		// Extract domain from URL for comparison
 		expectedDomain := urls[i]

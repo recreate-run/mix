@@ -20,7 +20,7 @@ type MockCDPServer struct {
 	mu            sync.RWMutex
 	conns         []*websocket.Conn
 	messageID     atomic.Int64
-	targets       map[string]string        // targetID → sessionID
+	targets       map[string]string // targetID → sessionID
 	crashed       atomic.Bool
 	commandDelays map[string]time.Duration // command method → delay duration
 	t             *testing.T
@@ -222,7 +222,7 @@ func (m *MockCDPServer) handleCommand(cmd *CDPCommand) *CDPResponse {
 		}
 
 	case "Page.enable", "Runtime.enable", "DOM.enable", "Accessibility.enable",
-		 "Network.enable", "Target.setDiscoverTargets", "Target.setAutoAttach":
+		"Network.enable", "Target.setDiscoverTargets", "Target.setAutoAttach":
 		m.t.Logf("Enabling domain: %s", cmd.Method)
 		return &CDPResponse{
 			ID:     cmd.ID,
@@ -246,7 +246,7 @@ func (m *MockCDPServer) handleCommand(cmd *CDPCommand) *CDPResponse {
 			Result: map[string]interface{}{
 				"nodes": []map[string]interface{}{
 					{
-						"nodeId":          "1",
+						"nodeId":           "1",
 						"backendDOMNodeId": 1,
 						"role": map[string]interface{}{
 							"value": "WebArea",
@@ -262,7 +262,7 @@ func (m *MockCDPServer) handleCommand(cmd *CDPCommand) *CDPResponse {
 						},
 					},
 					{
-						"nodeId":          "2",
+						"nodeId":           "2",
 						"backendDOMNodeId": 2,
 						"role": map[string]interface{}{
 							"value": "button",

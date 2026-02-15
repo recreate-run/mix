@@ -143,7 +143,7 @@ func getOpenAPISpec() OpenAPISpec {
 								"description": "CDP WebSocket URL for remote browser connections. Required when browserMode is 'remote-cdp-websocket'. Must start with 'ws://' or 'wss://'.",
 								"example":     "wss://connect.browserbase.com/v1/sessions/abc123",
 							},
-						"callbacks": map[string]interface{}{
+							"callbacks": map[string]interface{}{
 								"type":        "array",
 								"description": "Session-level callbacks that execute after tool completion. Environment variables available: CALLBACK_TOOL_RESULT, CALLBACK_TOOL_NAME, CALLBACK_TOOL_ID, CALLBACK_SESSION_ID",
 								"items": map[string]interface{}{
@@ -1889,31 +1889,31 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "integer",
 							"description": "Reasoning duration in milliseconds (optional)",
 						},
-					"inputTokens": map[string]interface{}{
-						"type":        "integer",
-						"description": "Input tokens used for this message (includes cache creation)",
-					},
-					"outputTokens": map[string]interface{}{
-						"type":        "integer",
-						"description": "Output tokens generated for this message (includes cache reads)",
-					},
-					"cacheCreationTokens": map[string]interface{}{
-						"type":        "integer",
-						"description": "Tokens used for prompt cache creation (optional)",
-					},
-					"cacheReadTokens": map[string]interface{}{
-						"type":        "integer",
-						"description": "Tokens read from prompt cache (optional)",
-					},
-					"cost": map[string]interface{}{
-						"type":        "number",
-						"format":      "double",
-						"description": "Cost for this specific message in USD",
-					},
-					"model": map[string]interface{}{
-						"type":        "string",
-						"description": "Model used for this message (e.g., 'claude-sonnet-4')",
-					},
+						"inputTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Input tokens used for this message (includes cache creation)",
+						},
+						"outputTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Output tokens generated for this message (includes cache reads)",
+						},
+						"cacheCreationTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Tokens used for prompt cache creation (optional)",
+						},
+						"cacheReadTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Tokens read from prompt cache (optional)",
+						},
+						"cost": map[string]interface{}{
+							"type":        "number",
+							"format":      "double",
+							"description": "Cost for this specific message in USD",
+						},
+						"model": map[string]interface{}{
+							"type":        "string",
+							"description": "Model used for this message (e.g., 'claude-sonnet-4')",
+						},
 					},
 					"required": []string{"id", "sessionId", "role", "userInput"},
 				},
@@ -2058,7 +2058,7 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "Tool execution result (optional)",
 						},
-												"screenshotUrls": map[string]interface{}{
+						"screenshotUrls": map[string]interface{}{
 							"type": "array",
 							"items": map[string]interface{}{
 								"type": "string",
@@ -2099,13 +2099,13 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "boolean",
 							"description": "Whether tool call resulted in error (optional)",
 						},
-					"screenshotUrls": map[string]interface{}{
-						"type": "array",
-						"items": map[string]interface{}{
-							"type": "string",
+						"screenshotUrls": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+							"description": "Screenshot URLs captured during tool execution (optional)",
 						},
-						"description": "Screenshot URLs captured during tool execution (optional)",
-					},
 					},
 					"required": []string{"id", "name", "input", "type", "finished"},
 				},
@@ -3045,7 +3045,7 @@ func getOpenAPISpec() OpenAPISpec {
 					},
 					"required": []string{"display_name", "models"},
 				},
-			"UserPreferencesResponse": getUserPreferencesResponseSchema(),
+				"UserPreferencesResponse": getUserPreferencesResponseSchema(),
 			},
 		},
 	}

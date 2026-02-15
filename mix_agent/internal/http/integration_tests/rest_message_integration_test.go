@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"mix/internal/message"
 	"mix/internal/constants"
+	"mix/internal/message"
 )
 
 // NOTE: TestRESTMessageSending moved to e2e/messaging/message_e2e_test.go

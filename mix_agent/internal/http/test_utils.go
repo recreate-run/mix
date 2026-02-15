@@ -201,4 +201,3 @@ func validateObjectResponse(t *testing.T, resp *http.Response, expectedStatus in
 
 	return responseData
 }
-

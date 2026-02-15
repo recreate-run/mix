@@ -600,7 +600,6 @@ func TestBrowserToolOpenPermissionDenied(t *testing.T) {
 	mockPermissionService.AssertExpectations(t)
 }
 
-
 // Test scroll direction validation with valid directions
 func TestScrollDirectionValidation(t *testing.T) {
 	validDirections := []string{DirectionUp, DirectionDown, DirectionLeft, DirectionRight}

@@ -19,23 +19,22 @@ import (
 	"mix/internal/session"
 )
 
-
 const (
 	methodNavigate = "Page.navigate"
 )
 
 // mockBrowserServerBlankPage extends mockBrowserServer for blank page testing
 type mockBrowserServerBlankPage struct {
-	server         *httptest.Server
-	wsURL          string
-	connections    map[*websocket.Conn]bool
-	requestCount   int
-	tabCounter     int
-	tabs           map[string]map[string]any
-	activeTabID    string
-	mu             sync.Mutex
-	blankPageMode  bool             // Returns nil RawNodes when true
-	tabURLs        map[string]string // Track URLs per tab
+	server        *httptest.Server
+	wsURL         string
+	connections   map[*websocket.Conn]bool
+	requestCount  int
+	tabCounter    int
+	tabs          map[string]map[string]any
+	activeTabID   string
+	mu            sync.Mutex
+	blankPageMode bool              // Returns nil RawNodes when true
+	tabURLs       map[string]string // Track URLs per tab
 }
 
 // startMockBrowserServerBlankPage starts a mock browser service server with blank page support

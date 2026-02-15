@@ -73,7 +73,7 @@ func TestBrowserTool_AnalyzeScreenshot_Integration(t *testing.T) {
 	}
 
 	tool := NewBrowserTool(
-		nil,              // permissions not needed for test
+		nil,                   // permissions not needed for test
 		&MockSessionService{}, // sessions
 		mockServer.wsURL,
 		sessionConfig,

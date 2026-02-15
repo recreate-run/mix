@@ -31,9 +31,9 @@ func isQuotaExceededError(err error) bool {
 	if errors.As(err, &apierr) {
 		// Check status code for quota/billing issues
 		return apierr.StatusCode == http.StatusForbidden ||
-		       apierr.StatusCode == http.StatusPaymentRequired ||
-		       strings.Contains(err.Error(), "exceeded your current quota") ||
-		       strings.Contains(err.Error(), "billing details")
+			apierr.StatusCode == http.StatusPaymentRequired ||
+			strings.Contains(err.Error(), "exceeded your current quota") ||
+			strings.Contains(err.Error(), "billing details")
 	}
 	return false
 }

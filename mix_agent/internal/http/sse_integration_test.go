@@ -68,7 +68,6 @@ func connectSSE(t *testing.T, serverURL, sessionID string) (*http.Response, cont
 	return resp, cancel
 }
 
-
 // Helper function to wait for and parse events from persistent connection
 func waitForEvents(t *testing.T, resp *http.Response, expectedMinEvents int, timeout time.Duration) []SSEEvent {
 	t.Helper()
@@ -185,8 +184,6 @@ func TestSSEConnection(t *testing.T) {
 	t.Logf("Successfully established persistent SSE connection")
 }
 
-
-
 func TestSSEErrorHandling(t *testing.T) {
 	result := setupIntegrationTestServer(t)
 	defer result.Server.Close()
@@ -239,7 +236,6 @@ func TestSSEErrorHandling(t *testing.T) {
 	}
 }
 
-
 // Test persistent connection behavior
 func TestPersistentConnection(t *testing.T) {
 	result := setupIntegrationTestServer(t)
@@ -259,5 +255,3 @@ func TestPersistentConnection(t *testing.T) {
 
 	t.Logf("Successfully established and maintained persistent connection")
 }
-
-

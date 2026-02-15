@@ -268,7 +268,7 @@ func verifyFailFastBehavior(t *testing.T, messages []map[string]interface{}) {
 			if content, ok := msg["content"].(string); ok {
 				contentLower := strings.ToLower(content)
 				if strings.Contains(contentLower, "error") || strings.Contains(contentLower, "not found") ||
-				   strings.Contains(contentLower, "could not") || strings.Contains(contentLower, "unable") {
+					strings.Contains(contentLower, "could not") || strings.Contains(contentLower, "unable") {
 					foundErrorMention = true
 					t.Log("✓ Found error mention in assistant response")
 				}
@@ -308,8 +308,8 @@ func verifyScreenshotSequence(t *testing.T, messages []map[string]interface{}) {
 		if role, ok := msg["role"].(string); ok && role == "assistant" {
 			if content, ok := msg["content"].(string); ok {
 				contentLower := strings.ToLower(content)
-				if (strings.Contains(contentLower, "visible") || strings.Contains(contentLower, "hidden") ||
-					strings.Contains(contentLower, "toggle") || strings.Contains(contentLower, "changed")) {
+				if strings.Contains(contentLower, "visible") || strings.Contains(contentLower, "hidden") ||
+					strings.Contains(contentLower, "toggle") || strings.Contains(contentLower, "changed") {
 					foundStateChange = true
 				}
 			}
