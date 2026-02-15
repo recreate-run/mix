@@ -128,7 +128,7 @@ func TestStorageStatePersistence(t *testing.T) {
 		t.Fatal("Username textbox not found")
 	}
 
-	err = client.Type(ctx, &usernameIdx, "testuser")
+	err = client.Type(ctx, usernameIdx, "testuser")
 	if err != nil {
 		t.Fatalf("Failed to type username: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestStorageStatePersistence(t *testing.T) {
 		}
 	}
 
-	err = client.Type(ctx, &passwordIdx, "password123")
+	err = client.Type(ctx, passwordIdx, "password123")
 	if err != nil {
 		t.Fatalf("Failed to type password: %v", err)
 	}

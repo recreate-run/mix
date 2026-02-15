@@ -25,3 +25,49 @@ type TargetCrashedEvent struct {
 func (e TargetCrashedEvent) EventType() string {
 	return "target_crashed"
 }
+
+// StorageStateSavedEvent represents a storage state save event
+type StorageStateSavedEvent struct {
+	Path         string
+	CookiesCount int
+	OriginsCount int
+}
+
+// EventType returns the event type
+func (e StorageStateSavedEvent) EventType() string {
+	return "storage_state_saved"
+}
+
+// StorageStateLoadedEvent represents a storage state load event
+type StorageStateLoadedEvent struct {
+	Path         string
+	CookiesCount int
+	OriginsCount int
+}
+
+// EventType returns the event type
+func (e StorageStateLoadedEvent) EventType() string {
+	return "storage_state_loaded"
+}
+
+// FileDownloadedEvent represents a file download event
+type FileDownloadedEvent struct {
+	Download     Download
+	AutoDownload bool
+	FileType     string
+}
+
+// EventType returns the event type
+func (e FileDownloadedEvent) EventType() string {
+	return "file_downloaded"
+}
+
+// Download represents a downloaded file
+type Download struct {
+	GUID              string
+	URL               string
+	SuggestedFilename string
+	TotalBytes        int64
+	State             string
+	Path              string
+}

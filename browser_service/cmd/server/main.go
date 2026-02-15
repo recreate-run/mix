@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/sarathmenon/browser-service/internal/constants"
@@ -16,37 +17,71 @@ func main() {
 	port := flag.String("port", constants.DefaultPort, "WebSocket server port")
 	headless := flag.Bool("headless", false, "Run browser in headless mode")
 	stealth := flag.Bool("stealth", false, "Enable stealth mode (disable automation detection)")
-	windowWidth := flag.Int("window-width", 1920, "Browser window width")
-	windowHeight := flag.Int("window-height", 1080, "Browser window height")
+	windowWidth := flag.Int("window-width", 1280, "Browser window width")
+	windowHeight := flag.Int("window-height", 720, "Browser window height")
+	storageStatePath := flag.String("storage-state-path", "", "Path to save/load storage state (empty to disable)")
+
+	// Extension flags
+	enableExtensions := flag.Bool("enable-extensions", false, "Enable browser extensions (uBlock Origin, cookie handlers, ClearURLs)")
+	extensionCacheDir := flag.String("extension-cache-dir", "", "Extension cache directory (default: ~/.cache/mix-browser/extensions)")
+	cookieWhitelist := flag.String("cookie-whitelist", "", "Comma-separated list of domains allowed to set cookies (e.g., example.com,test.com)")
+	uBlockEnabled := flag.Bool("ublock-enabled", true, "Enable uBlock Origin extension")
+	cookieConsentEnabled := flag.Bool("cookie-consent-enabled", true, "Enable 'I don't care about cookies' extension")
+	clearURLsEnabled := flag.Bool("clearurls-enabled", true, "Enable ClearURLs extension")
+	allowModals := flag.Bool("allow-modals", false, "Disable modal blocking (modals blocked by default)")
+
 	flag.Parse()
 
-	log.SetFlags(0)
-
-	cfg := server.Config{
-		Port:         *port,
-		Headless:     *headless,
-		Stealth:      *stealth,
-		WindowWidth:  *windowWidth,
-		WindowHeight: *windowHeight,
+	// Parse cookie whitelist
+	var cookieWhitelistDomains []string
+	if *cookieWhitelist != "" {
+		cookieWhitelistDomains = strings.Split(*cookieWhitelist, ",")
+		// Trim whitespace from each domain
+		for i, domain := range cookieWhitelistDomains {
+			cookieWhitelistDomains[i] = strings.TrimSpace(domain)
+		}
 	}
 
-	// Create cancellable root context for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
+	cfg := server.Config{
+		Port:                   *port,
+		Headless:               *headless,
+		Stealth:                *stealth,
+		WindowWidth:            *windowWidth,
+		WindowHeight:           *windowHeight,
+		StorageStatePath:       *storageStatePath,
+		EnableExtensions:       *enableExtensions,
+		ExtensionCacheDir:      *extensionCacheDir,
+		CookieWhitelistDomains: cookieWhitelistDomains,
+		UBlockEnabled:          *uBlockEnabled,
+		CookieConsentEnabled:   *cookieConsentEnabled,
+		ClearURLsEnabled:       *clearURLsEnabled,
+		BlockModals:            !*allowModals, // Modal blocking enabled by default
+	}
+
+	// Create root context
+	ctx := context.Background()
 
 	srv, err := server.New(ctx, cfg)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
 
-	// Set up signal handling for graceful shutdown during hot reload
-	// This ensures the WebSocket server releases the port before the new process starts
+	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigChan
-		log.Println("Received shutdown signal, initiating graceful shutdown")
-		cancel() // Cancel the context to trigger server shutdown
+		log.Println("Shutting down gracefully...")
+
+		// Create shutdown context with timeout
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
+		defer cancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Error during shutdown: %v", err)
+		}
+		os.Exit(0)
 	}()
 
 	log.Printf("Starting browser service on port %s (headless=%v)", *port, *headless)

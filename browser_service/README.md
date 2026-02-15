@@ -11,9 +11,22 @@ task install
 # Start development server with hot reload
 task dev
 
+# Start with ad-blocking enabled
+task dev-with-args -- --enable-extensions --ublock-enabled
+
 # In another terminal, test the WebSocket connection
 task ws-test
 ```
+
+### Ad-Blocking
+
+Enable ad-blocking to hide ads, banners, and sponsored content (100% block rate):
+
+```bash
+browser_service --enable-extensions --ublock-enabled
+```
+
+Uses CDP script injection for reliable ad-blocking in automation mode. Blocks Google Ads, banners, and common ad patterns with zero startup overhead.
 
 ## Documentation
 

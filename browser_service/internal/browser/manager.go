@@ -3,12 +3,18 @@ package browser
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/sarathmenon/browser-service/internal/browser/adblock"
 	"github.com/sarathmenon/browser-service/internal/browser/events"
+	"github.com/sarathmenon/browser-service/internal/browser/extensions"
+	"github.com/sarathmenon/browser-service/internal/browser/modalblock"
 	"github.com/sarathmenon/browser-service/internal/browser/watchdog"
 	"github.com/sarathmenon/browser-service/internal/errors"
 	"github.com/sarathmenon/browser-service/pkg/protocol"
@@ -16,10 +22,18 @@ import (
 
 // Config holds browser configuration
 type Config struct {
-	Headless     bool
-	Stealth      bool
-	WindowWidth  int
-	WindowHeight int
+	Headless               bool
+	Stealth                bool
+	WindowWidth            int
+	WindowHeight           int
+	StorageStatePath       string   // Path to save/load storage state (empty to disable)
+	EnableExtensions       bool     // Default: false
+	ExtensionCacheDir      string   // Default: ~/.cache/mix-browser/extensions
+	CookieWhitelistDomains []string // Domains allowed to set cookies (e.g., ["example.com"])
+	UBlockEnabled          bool     // Default: true
+	CookieConsentEnabled   bool     // Default: true (I don't care about cookies)
+	ClearURLsEnabled       bool     // Default: true
+	BlockModals            bool     // Block HTML modal popups and overlays (default: false)
 }
 
 // Manager manages the browser instance and contexts
@@ -33,20 +47,41 @@ type Manager struct {
 func NewManager(ctx context.Context, cfg Config) (*Manager, error) {
 	// Set defaults
 	if cfg.WindowWidth == 0 {
-		cfg.WindowWidth = 1920
+		cfg.WindowWidth = 1280
 	}
 	if cfg.WindowHeight == 0 {
-		cfg.WindowHeight = 1080
+		cfg.WindowHeight = 720
+	}
+
+	// Setup extensions
+	extensionPaths, err := setupExtensions(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("setup extensions: %w", err)
 	}
 
 	// Configure browser launcher
 	l := launcher.New().
-		Headless(cfg.Headless).
 		Devtools(false).
 		Set("ignore-certificate-errors").      // Ignore SSL certificate errors for testing
 		Set("allow-insecure-localhost").       // Allow insecure localhost connections
 		Set("disable-web-security").           // Disable web security for testing
 		Set("disable-pdf-viewer")              // Auto-download PDFs instead of displaying in browser
+
+	// Handle headless mode - use new headless mode for extension support
+	if cfg.Headless {
+		if len(extensionPaths) > 0 {
+			// New headless mode supports extensions
+			// Use the correct syntax for new headless mode
+			l = l.Set("headless", "new").
+				Set("disable-gpu") // Required for new headless mode
+			fmt.Println("Using new headless mode for extension support")
+		} else {
+			// Traditional headless mode when no extensions
+			l = l.Headless(true)
+		}
+	} else {
+		l = l.Headless(false)
+	}
 
 	// Add stealth arguments if enabled
 	if cfg.Stealth {
@@ -63,6 +98,27 @@ func NewManager(ctx context.Context, cfg Config) (*Manager, error) {
 
 	// Set window size
 	l = l.Set("window-size", fmt.Sprintf("%d,%d", cfg.WindowWidth, cfg.WindowHeight))
+
+	// Add extensions
+	if len(extensionPaths) > 0 {
+		// Join multiple extensions with comma (Chrome supports this)
+		extensionsArg := strings.Join(extensionPaths, ",")
+		fmt.Printf("Loading %d extension(s) from: %s\n", len(extensionPaths), extensionsArg)
+
+		// CRITICAL: Remove disable-extensions flag that Chrome sets by default
+		// Then load extensions using Chrome's native flag format
+		l = l.
+			Delete("disable-extensions").
+			Set("load-extension", extensionsArg).
+			// Allow extensions to run in incognito mode
+			Set("allow-extensions-in-incognito").
+			// Disable extension content verification (allows unpacked extensions)
+			Set("disable-extensions-file-access-check").
+			// Enable extension APIs
+			Delete("disable-background-networking") // Re-enable if disabled by stealth mode
+
+		// Note: Don't use disable-extensions-except as it might interfere
+	}
 
 	// Launch browser
 	url, err := l.Launch()
@@ -81,40 +137,99 @@ func NewManager(ctx context.Context, cfg Config) (*Manager, error) {
 	}, nil
 }
 
+// setupExtensions downloads and configures browser extensions
+func setupExtensions(ctx context.Context, cfg Config) ([]string, error) {
+	if !cfg.EnableExtensions {
+		return nil, nil
+	}
+
+	// NOTE: uBlock Origin extension content scripts don't reliably inject in automation mode
+	// We use CDP script injection instead (see EvalOnNewDocument in NewContext)
+	// So we skip downloading uBlock entirely to avoid timeouts and complexity
+
+	cacheDir := cfg.ExtensionCacheDir
+	if cacheDir == "" {
+		home, _ := os.UserHomeDir()
+		cacheDir = filepath.Join(home, ".cache", "mix-browser", "extensions")
+	}
+
+	extensionPaths := make([]string, 0)
+
+	// Skip uBlock Origin - use injected script instead
+	// Download other extensions only if needed
+
+	// Download I don't care about cookies
+	if cfg.CookieConsentEnabled {
+		path, err := extensions.DownloadExtension(ctx, extensions.SupportedExtensions["cookies"].ID, cacheDir)
+		if err != nil {
+			return nil, fmt.Errorf("download cookie extension: %w", err)
+		}
+
+		// Patch to whitelist domains
+		if len(cfg.CookieWhitelistDomains) > 0 {
+			if err := extensions.PatchCookieExtension(path, cfg.CookieWhitelistDomains); err != nil {
+				fmt.Printf("Warning: failed to patch cookie extension: %v\n", err)
+			}
+		}
+
+		extensionPaths = append(extensionPaths, path)
+	}
+
+	// Download ClearURLs
+	if cfg.ClearURLsEnabled {
+		path, err := extensions.DownloadExtension(ctx, extensions.SupportedExtensions["clearurls"].ID, cacheDir)
+		if err != nil {
+			return nil, fmt.Errorf("download clearurls: %w", err)
+		}
+		extensionPaths = append(extensionPaths, path)
+	}
+
+	return extensionPaths, nil
+}
+
 // NewContext creates a new isolated browser context with initial tab
 func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Create incognito context for isolation
-	browserCtx, err := m.browser.Incognito()
-	if err != nil {
-		return nil, errors.NewContextError("create_incognito", err)
+	// Create browser context for isolation
+	// NOTE: When extensions are enabled, we DON'T use incognito contexts
+	// because extensions (especially content scripts) don't work in incognito mode
+	var browserCtx *rod.Browser
+	var err error
+	var isIncognito bool
+
+	if m.config.EnableExtensions {
+		// Use the main browser context when extensions are enabled
+		// Extensions need to run in the default profile to inject content scripts
+		// WARNING: This means sessions are NOT isolated when extensions are enabled
+		browserCtx = m.browser
+		isIncognito = false
+		fmt.Println("Using main browser context for extensions support (no incognito)")
+	} else {
+		// Use incognito context for better isolation when no extensions
+		browserCtx, err = m.browser.Incognito()
+		if err != nil {
+			return nil, errors.NewContextError("create_incognito", err)
+		}
+		isIncognito = true
+		fmt.Println("Using incognito context (no extensions)")
 	}
 
 	// Create initial page
 	page, err := browserCtx.Page(proto.TargetCreateTarget{})
 	if err != nil {
-		browserCtx.MustClose()
+		if isIncognito {
+			browserCtx.MustClose()
+		}
 		return nil, errors.NewContextError("create_page", err)
-	}
-
-	// Set viewport to match window size
-	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
-		Width:             m.config.WindowWidth,
-		Height:            m.config.WindowHeight,
-		DeviceScaleFactor: 1,
-		Mobile:            false,
-	})
-	if err != nil {
-		browserCtx.MustClose()
-		return nil, errors.NewContextError("set_viewport", err)
 	}
 
 	// Create initial tab with ID "tab-1"
 	initialTab := &tabContext{
 		id:           "tab-1",
 		page:         page,
+		elements:     make([]elementInfo, 0),
 		downloads:    make([]protocol.Download, 0),
 		downloadChan: make(chan protocol.Download, 10),
 	}
@@ -126,6 +241,12 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 	popupsWd := watchdog.NewPopupsWatchdog(browserCtx)
 	permissionsWd := watchdog.NewPermissionsWatchdog(browserCtx)
 	crashWd := watchdog.NewCrashWatchdog(browserCtx, eventBus)
+
+	// Create storage watchdog if path is configured
+	var storageWd *watchdog.StorageStateWatchdog
+	if m.config.StorageStatePath != "" {
+		storageWd = watchdog.NewStorageStateWatchdog(browserCtx, eventBus, m.config.StorageStatePath)
+	}
 
 	// Start watchdogs
 	if err := popupsWd.Start(ctx); err != nil {
@@ -143,15 +264,46 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		return nil, errors.NewContextError("start_crash_watchdog", err)
 	}
 
+	// Start storage watchdog if configured
+	if storageWd != nil {
+		if err := storageWd.Start(ctx); err != nil {
+			browserCtx.MustClose()
+			return nil, errors.NewContextError("start_storage_watchdog", err)
+		}
+	}
+
 	// Register initial page with watchdogs
 	if err := popupsWd.RegisterPage(ctx, page); err != nil {
-		browserCtx.MustClose()
+		if isIncognito {
+			browserCtx.MustClose()
+		}
 		return nil, errors.NewContextError("register_initial_page_popups", err)
 	}
 
 	if err := crashWd.RegisterPage(ctx, page); err != nil {
-		browserCtx.MustClose()
+		if isIncognito {
+			browserCtx.MustClose()
+		}
 		return nil, errors.NewContextError("register_initial_page_crash", err)
+	}
+
+	// If extensions are enabled (specifically uBlock), inject ad-blocking script
+	// This is a workaround because extension content scripts don't reliably inject in automation mode
+	if m.config.EnableExtensions && m.config.UBlockEnabled {
+		fmt.Println("Injecting ad-blocking script into pages (alternative to uBlock extension)")
+		_, err := page.EvalOnNewDocument(adblock.AdBlockScript)
+		if err != nil {
+			fmt.Printf("Warning: failed to inject ad-blocking script: %v\n", err)
+		}
+	}
+
+	// If modal blocking is enabled, inject modal-blocking script
+	if m.config.BlockModals {
+		fmt.Println("Injecting modal-blocking script into pages")
+		_, err := page.EvalOnNewDocument(modalblock.ModalBlockScript)
+		if err != nil {
+			fmt.Printf("Warning: failed to inject modal-blocking script: %v\n", err)
+		}
 	}
 
 	return &Context{
@@ -162,9 +314,9 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		popupsWatchdog:      popupsWd,
 		permissionsWatchdog: permissionsWd,
 		crashWatchdog:       crashWd,
+		storageWatchdog:     storageWd,
 		eventBus:            eventBus,
-		windowWidth:         m.config.WindowWidth,
-		windowHeight:        m.config.WindowHeight,
+		isSharedContext:     !isIncognito, // Shared when extensions enabled
 	}, nil
 }
 

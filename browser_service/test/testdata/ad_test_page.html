@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ad Test Page</title>
+    <style>
+        .advertisement, #ad-banner, .ad-container {
+            width: 300px;
+            height: 250px;
+            background: #ff0000;
+            margin: 10px;
+            padding: 10px;
+        }
+        .ad-frame {
+            width: 728px;
+            height: 90px;
+            border: 2px solid red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Page for Ad Blocking</h1>
+
+    <!-- Common ad-related elements that uBlock should block -->
+    <div class="advertisement" id="ad-1">Advertisement 1</div>
+    <div id="ad-banner">Advertisement Banner</div>
+    <div class="ad-container">Advertisement Container</div>
+    <iframe src="about:blank" class="ad-frame"></iframe>
+    <div class="ads">Ads Section</div>
+
+    <script>
+        // Count visible ad elements
+        window.countVisibleAds = function() {
+            const adSelectors = ['.advertisement', '#ad-banner', '.ad-container', '.ad-frame', '.ads'];
+            let count = 0;
+            adSelectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(el => {
+                    const style = window.getComputedStyle(el);
+                    // Check if element is visible (not display:none and not hidden)
+                    if (style.display !== 'none' &&
+                        style.visibility !== 'hidden' &&
+                        el.offsetParent !== null) {
+                        count++;
+                    }
+                });
+            });
+            return count;
+        };
+
+        // Also count total ad elements
+        window.countTotalAds = function() {
+            const adSelectors = ['.advertisement', '#ad-banner', '.ad-container', '.ad-frame', '.ads'];
+            let count = 0;
+            adSelectors.forEach(selector => {
+                count += document.querySelectorAll(selector).length;
+            });
+            return count;
+        };
+    </script>
+
+    <p id="total-ads">Total ad elements in HTML: 5</p>
+    <p id="visible-ads">Visible ads: <span id="visible-count">?</span></p>
+
+    <script>
+        // Update visible count
+        setTimeout(() => {
+            document.getElementById('visible-count').textContent = countVisibleAds();
+        }, 100);
+    </script>
+</body>
+</html>

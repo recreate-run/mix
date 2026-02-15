@@ -55,12 +55,12 @@ func TestCredentialInjectionWithAuthentication(t *testing.T) {
 	}
 
 	// Type credentials
-	err = client.Type(ctx, &usernameIdx, "testuser")
+	err = client.Type(ctx, usernameIdx, "testuser")
 	if err != nil {
 		t.Fatalf("Failed to type username: %v", err)
 	}
 
-	err = client.Type(ctx, &passwordIdx, "password123")
+	err = client.Type(ctx, passwordIdx, "password123")
 	if err != nil {
 		t.Fatalf("Failed to type password: %v", err)
 	}

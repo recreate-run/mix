@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,11 +18,19 @@ import (
 
 // Config holds server configuration
 type Config struct {
-	Port         string
-	Headless     bool
-	Stealth      bool // Enable stealth mode (disable automation detection)
-	WindowWidth  int  // Browser window width (default: 1920)
-	WindowHeight int  // Browser window height (default: 1080)
+	Port                   string
+	Headless               bool
+	Stealth                bool     // Enable stealth mode (disable automation detection)
+	WindowWidth            int      // Browser window width (default: 1280)
+	WindowHeight           int      // Browser window height (default: 720)
+	StorageStatePath       string   // Path to save/load storage state (empty to disable)
+	EnableExtensions       bool     // Enable browser extensions (default: false)
+	ExtensionCacheDir      string   // Extension cache directory (default: ~/.cache/mix-browser/extensions)
+	CookieWhitelistDomains []string // Domains allowed to set cookies (e.g., ["example.com"])
+	UBlockEnabled          bool     // Enable uBlock Origin (default: true)
+	CookieConsentEnabled   bool     // Enable "I don't care about cookies" (default: true)
+	ClearURLsEnabled       bool     // Enable ClearURLs (default: true)
+	BlockModals            bool     // Block HTML modal popups and overlays (default: false)
 }
 
 // Server represents the WebSocket server
@@ -51,10 +58,18 @@ type Client struct {
 func New(ctx context.Context, cfg Config) (*Server, error) {
 	// Create browser config from server config
 	browserCfg := browser.Config{
-		Headless:     cfg.Headless,
-		Stealth:      cfg.Stealth,
-		WindowWidth:  cfg.WindowWidth,
-		WindowHeight: cfg.WindowHeight,
+		Headless:               cfg.Headless,
+		Stealth:                cfg.Stealth,
+		WindowWidth:            cfg.WindowWidth,
+		WindowHeight:           cfg.WindowHeight,
+		StorageStatePath:       cfg.StorageStatePath,
+		EnableExtensions:       cfg.EnableExtensions,
+		ExtensionCacheDir:      cfg.ExtensionCacheDir,
+		CookieWhitelistDomains: cfg.CookieWhitelistDomains,
+		UBlockEnabled:          cfg.UBlockEnabled,
+		CookieConsentEnabled:   cfg.CookieConsentEnabled,
+		ClearURLsEnabled:       cfg.ClearURLsEnabled,
+		BlockModals:            cfg.BlockModals,
 	}
 
 	mgr, err := browser.NewManager(ctx, browserCfg)
@@ -95,26 +110,7 @@ func (s *Server) Start() error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	// Handle graceful shutdown
-	go func() {
-		<-s.ctx.Done()
-		log.Println("Context cancelled, shutting down server")
-
-		// Create shutdown context with timeout
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
-		defer cancel()
-
-		if err := s.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Error during shutdown: %v", err)
-		}
-	}()
-
-	// Start server and block (this will block until server shuts down)
-	if err := s.srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("server failed: %w", err)
-	}
-
-	return nil
+	return s.srv.ListenAndServe()
 }
 
 // Shutdown gracefully shuts down the server

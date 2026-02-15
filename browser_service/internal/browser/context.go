@@ -35,23 +35,24 @@ type Context struct {
 	popupsWatchdog      *watchdog.PopupsWatchdog
 	permissionsWatchdog *watchdog.PermissionsWatchdog
 	crashWatchdog       *watchdog.CrashWatchdog
+	storageWatchdog     *watchdog.StorageStateWatchdog
 	eventBus            *events.Broker[events.BrowserEvent]
-	windowWidth         int // Window width for viewport sizing
-	windowHeight        int // Window height for viewport sizing
+	isSharedContext     bool // True if using main browser context (extensions enabled), false if incognito
 }
 
 // tabContext represents a single browser tab
 type tabContext struct {
 	id                string
 	page              *rod.Page
-	pageMu            sync.Mutex    // Protects all page operations (CDP calls) to prevent concurrent access
-	mu                sync.RWMutex  // Protects currentURL, currentTitle, navigationTimeout
-	currentURL        string        // Cached current URL
-	currentTitle      string        // Cached current title
+	elements          []elementInfo
+	mu                sync.RWMutex // Per-tab element cache lock
+	currentURL        string       // Cached current URL
+	currentTitle      string       // Cached current title
 	navigationTimeout time.Duration // Navigation timeout (not wrapped page)
 	downloads         []protocol.Download
 	downloadsMu       sync.RWMutex
 	downloadChan      chan protocol.Download
+	downloadsWatchdog *watchdog.DownloadsWatchdog
 }
 
 // elementInfo stores element data for click/type operations
@@ -117,17 +118,6 @@ func (c *Context) CreateTab(ctx context.Context) (*protocol.TabInfo, error) {
 		return nil, errors.NewContextError("create_tab", err)
 	}
 
-	// Set viewport to match window size
-	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
-		Width:             c.windowWidth,
-		Height:            c.windowHeight,
-		DeviceScaleFactor: 1,
-		Mobile:            false,
-	})
-	if err != nil {
-		return nil, errors.NewContextError("set_viewport", err)
-	}
-
 	// Navigate to blank page with proper HTML to ensure valid URL
 	err = page.Navigate("data:text/html,<html><body></body></html>")
 	if err != nil {
@@ -148,6 +138,7 @@ func (c *Context) CreateTab(ctx context.Context) (*protocol.TabInfo, error) {
 	tab := &tabContext{
 		id:                tabID,
 		page:              page,
+		elements:          make([]elementInfo, 0),
 		currentURL:        info.URL,
 		currentTitle:      info.Title,
 		navigationTimeout: constants.DefaultNavigationTimeout,
@@ -188,11 +179,10 @@ func (c *Context) ListTabs(ctx context.Context) ([]protocol.TabInfo, string, err
 	tabs := make([]protocol.TabInfo, 0, len(c.tabs))
 
 	for _, tab := range c.tabs {
-		// Use cached URL and title to avoid issues with wrapped pages
 		tab.mu.RLock()
+		// Use cached URL and title to avoid issues with wrapped pages
 		url := tab.currentURL
 		title := tab.currentTitle
-		tab.mu.RUnlock()
 
 		// Fallback to page.Info() only if cached values are empty
 		if url == "" || title == "" {
@@ -202,6 +192,7 @@ func (c *Context) ListTabs(ctx context.Context) ([]protocol.TabInfo, string, err
 				title = info.Title
 			}
 		}
+		tab.mu.RUnlock()
 
 		tabs = append(tabs, protocol.TabInfo{
 			ID:       tab.id,
@@ -248,7 +239,9 @@ func (c *Context) CloseTab(ctx context.Context, tabID string) error {
 	}
 
 	// Close the page
+	tab.mu.Lock()
 	err := tab.page.Close()
+	tab.mu.Unlock()
 
 	if err != nil {
 		return errors.NewContextError("close_tab", err)
@@ -279,22 +272,24 @@ func (c *Context) Navigate(ctx context.Context, url string, timeoutMs int, tabID
 		return nil, err
 	}
 
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
+
+	// Clear element cache BEFORE navigation (even if navigation fails)
+	tab.elements = nil
+
 	if timeoutMs <= 0 {
 		timeoutMs = int(constants.DefaultNavigationTimeout.Milliseconds())
 	}
 
-	// Store timeout and get previous URL (protected by mutex)
-	tab.mu.Lock()
+	// Store timeout in tab context instead of wrapping page
 	tab.navigationTimeout = time.Duration(timeoutMs) * time.Millisecond
-	previousURL := tab.currentURL
-	timeout := tab.navigationTimeout
-	tab.mu.Unlock()
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	// Store previous URL for error recovery verification
+	previousURL := tab.currentURL
 
 	// Create timeout context for navigation
-	navCtx, cancel := context.WithTimeout(ctx, timeout)
+	navCtx, cancel := context.WithTimeout(ctx, tab.navigationTimeout)
 	defer cancel()
 
 	// Navigate with timeout context using rod.Try for error handling
@@ -325,10 +320,8 @@ func (c *Context) Navigate(ctx context.Context, url string, timeoutMs int, tabID
 		return nil, errors.NewNavigationError(url, fmt.Errorf("failed to get page info after navigation: %w", err))
 	}
 
-	tab.mu.Lock()
 	tab.currentURL = info.URL
 	tab.currentTitle = info.Title
-	tab.mu.Unlock()
 
 	return &protocol.NavigateResult{
 		FrameID: string(tab.page.FrameID),
@@ -342,8 +335,8 @@ func (c *Context) Screenshot(ctx context.Context, params protocol.ScreenshotPara
 		return nil, err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	var data []byte
 
@@ -417,8 +410,8 @@ func (c *Context) EvalJS(ctx context.Context, js string, tabID *string) (*proto.
 		return nil, err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.RLock()
+	defer tab.mu.RUnlock()
 
 	// Wrap expression in arrow function for Rod's Eval
 	wrappedJS := fmt.Sprintf("() => %s", js)
@@ -436,28 +429,10 @@ func (c *Context) GetElements(ctx context.Context, tabID *string) ([]protocol.Ra
 		return nil, err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	elements, err := tab.extractElements()
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert elementInfo to RawAccessibilityNode
-	frameIDStr := string(tab.page.FrameID)
-	nodes := make([]protocol.RawAccessibilityNode, len(elements))
-	for i, elem := range elements {
-		nodes[i] = protocol.RawAccessibilityNode{
-			Role:      elem.Role,
-			Name:      elem.Name,
-			Bounds:    elem.Bounds,
-			BackendID: elem.BackendID,
-			FrameID:   frameIDStr,
-		}
-	}
-
-	return nodes, nil
+	return tab.extractElements()
 }
 
 // ReadPage returns accessibility tree for visible viewport elements only
@@ -467,8 +442,8 @@ func (c *Context) ReadPage(ctx context.Context, interactiveOnly bool, tabID *str
 		return nil, nil, err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	// Get current viewport bounds
 	viewport, err := tab.getViewportBounds()
@@ -548,6 +523,18 @@ func (c *Context) ReadPage(ctx context.Context, interactiveOnly bool, tabID *str
 			Attributes: attrs,
 		}
 		elements = append(elements, elem)
+	}
+
+	// CRITICAL: Populate element cache so ClickByBackendID can find these elements
+	// Without this, parallel sessions experience "element not found in cache" errors
+	tab.elements = make([]elementInfo, len(elements))
+	for i, elem := range elements {
+		tab.elements[i] = elementInfo{
+			Role:      elem.Role,
+			Name:      elem.Name,
+			Bounds:    elem.Bounds,
+			BackendID: elem.BackendID,
+		}
 	}
 
 	return elements, viewport, nil
@@ -641,14 +628,15 @@ func (t *tabContext) batchExtractAttributes(backendIDs []int64) map[int64]map[st
 }
 
 // extractElements extracts interactive elements from the accessibility tree (tab-level method)
-func (t *tabContext) extractElements() ([]elementInfo, error) {
+func (t *tabContext) extractElements() ([]protocol.RawAccessibilityNode, error) {
 	// Get accessibility tree
 	tree, err := proto.AccessibilityGetFullAXTree{}.Call(t.page)
 	if err != nil {
 		return nil, errors.NewBrowserError("get_accessibility_tree", err)
 	}
 
-	elements := make([]elementInfo, 0)
+	elements := make([]protocol.RawAccessibilityNode, 0)
+	t.elements = make([]elementInfo, 0)
 
 	for _, node := range tree.Nodes {
 		// Filter for interactive elements
@@ -670,13 +658,21 @@ func (t *tabContext) extractElements() ([]elementInfo, error) {
 		name := getNodeName(node)
 		role := getNodeRole(node)
 
-		elem := elementInfo{
+		elem := protocol.RawAccessibilityNode{
 			Role:      role,
 			Name:      name,
 			Bounds:    *bounds,
 			BackendID: int64(node.BackendDOMNodeID),
 		}
 		elements = append(elements, elem)
+
+		// Store for later interaction
+		t.elements = append(t.elements, elementInfo{
+			Role:      role,
+			Name:      name,
+			Bounds:    *bounds,
+			BackendID: int64(node.BackendDOMNodeID),
+		})
 	}
 
 	return elements, nil
@@ -810,20 +806,22 @@ func (c *Context) Click(ctx context.Context, index int, tabID *string) error {
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements for click: %w", err)
+	// Lazy load elements if cache is empty
+	if len(tab.elements) == 0 {
+		_, err := tab.extractElements()
+		if err != nil {
+			return fmt.Errorf("failed to auto-extract elements for click: %w", err)
+		}
 	}
 
-	if index < 0 || index >= len(elements) {
+	if index < 0 || index >= len(tab.elements) {
 		return errors.NewElementError(index, "click", errors.NewValidationError("index", index, nil))
 	}
 
-	elem := elements[index]
+	elem := tab.elements[index]
 
 	// Click at center of element
 	x := elem.Bounds.X + elem.Bounds.Width/2
@@ -848,20 +846,22 @@ func (c *Context) RightClick(ctx context.Context, index int, tabID *string) erro
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements for rightClick: %w", err)
+	// Lazy load elements if cache is empty
+	if len(tab.elements) == 0 {
+		_, err := tab.extractElements()
+		if err != nil {
+			return fmt.Errorf("failed to auto-extract elements for rightClick: %w", err)
+		}
 	}
 
-	if index < 0 || index >= len(elements) {
+	if index < 0 || index >= len(tab.elements) {
 		return errors.NewElementError(index, "rightClick", errors.NewValidationError("index", index, nil))
 	}
 
-	elem := elements[index]
+	elem := tab.elements[index]
 
 	// Right-click at center of element
 	x := elem.Bounds.X + elem.Bounds.Width/2
@@ -886,20 +886,22 @@ func (c *Context) DoubleClick(ctx context.Context, index int, tabID *string) err
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements for doubleClick: %w", err)
+	// Lazy load elements if cache is empty
+	if len(tab.elements) == 0 {
+		_, err := tab.extractElements()
+		if err != nil {
+			return fmt.Errorf("failed to auto-extract elements for doubleClick: %w", err)
+		}
 	}
 
-	if index < 0 || index >= len(elements) {
+	if index < 0 || index >= len(tab.elements) {
 		return errors.NewElementError(index, "doubleClick", errors.NewValidationError("index", index, nil))
 	}
 
-	elem := elements[index]
+	elem := tab.elements[index]
 
 	// Double-click at center of element
 	x := elem.Bounds.X + elem.Bounds.Width/2
@@ -924,20 +926,22 @@ func (c *Context) TripleClick(ctx context.Context, index int, tabID *string) err
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements for tripleClick: %w", err)
+	// Lazy load elements if cache is empty
+	if len(tab.elements) == 0 {
+		_, err := tab.extractElements()
+		if err != nil {
+			return fmt.Errorf("failed to auto-extract elements for tripleClick: %w", err)
+		}
 	}
 
-	if index < 0 || index >= len(elements) {
+	if index < 0 || index >= len(tab.elements) {
 		return errors.NewElementError(index, "tripleClick", errors.NewValidationError("index", index, nil))
 	}
 
-	elem := elements[index]
+	elem := tab.elements[index]
 
 	// Triple-click at center of element
 	x := elem.Bounds.X + elem.Bounds.Width/2
@@ -962,26 +966,20 @@ func (c *Context) ClickByBackendID(ctx context.Context, backendID int64, tabID *
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements: %w", err)
-	}
-
-	// Search for element with matching BackendID
+	// Search for element with matching BackendID in cached elements
 	var elem *elementInfo
-	for i := range elements {
-		if elements[i].BackendID == backendID {
-			elem = &elements[i]
+	for i := range tab.elements {
+		if tab.elements[i].BackendID == backendID {
+			elem = &tab.elements[i]
 			break
 		}
 	}
 
 	if elem == nil {
-		return fmt.Errorf("element with backendID %d not found", backendID)
+		return fmt.Errorf("element with backendID %d not found in cache", backendID)
 	}
 
 	// Click at center of element
@@ -1007,26 +1005,20 @@ func (c *Context) RightClickByBackendID(ctx context.Context, backendID int64, ta
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements: %w", err)
-	}
-
-	// Search for element with matching BackendID
+	// Search for element with matching BackendID in cached elements
 	var elem *elementInfo
-	for i := range elements {
-		if elements[i].BackendID == backendID {
-			elem = &elements[i]
+	for i := range tab.elements {
+		if tab.elements[i].BackendID == backendID {
+			elem = &tab.elements[i]
 			break
 		}
 	}
 
 	if elem == nil {
-		return fmt.Errorf("element with backendID %d not found", backendID)
+		return fmt.Errorf("element with backendID %d not found in cache", backendID)
 	}
 
 	// Right-click at center of element
@@ -1052,26 +1044,20 @@ func (c *Context) DoubleClickByBackendID(ctx context.Context, backendID int64, t
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements: %w", err)
-	}
-
-	// Search for element with matching BackendID
+	// Search for element with matching BackendID in cached elements
 	var elem *elementInfo
-	for i := range elements {
-		if elements[i].BackendID == backendID {
-			elem = &elements[i]
+	for i := range tab.elements {
+		if tab.elements[i].BackendID == backendID {
+			elem = &tab.elements[i]
 			break
 		}
 	}
 
 	if elem == nil {
-		return fmt.Errorf("element with backendID %d not found", backendID)
+		return fmt.Errorf("element with backendID %d not found in cache", backendID)
 	}
 
 	// Double-click at center of element
@@ -1097,26 +1083,20 @@ func (c *Context) TripleClickByBackendID(ctx context.Context, backendID int64, t
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements: %w", err)
-	}
-
-	// Search for element with matching BackendID
+	// Search for element with matching BackendID in cached elements
 	var elem *elementInfo
-	for i := range elements {
-		if elements[i].BackendID == backendID {
-			elem = &elements[i]
+	for i := range tab.elements {
+		if tab.elements[i].BackendID == backendID {
+			elem = &tab.elements[i]
 			break
 		}
 	}
 
 	if elem == nil {
-		return fmt.Errorf("element with backendID %d not found", backendID)
+		return fmt.Errorf("element with backendID %d not found in cache", backendID)
 	}
 
 	// Triple-click at center of element
@@ -1135,155 +1115,6 @@ func (c *Context) TripleClickByBackendID(ctx context.Context, backendID int64, t
 	return nil
 }
 
-// ClickAt clicks at specific coordinates
-func (c *Context) ClickAt(ctx context.Context, x, y float64, button *string, clickCount *int, duration *int, tabID *string) error {
-	tab, err := c.getTab(tabID)
-	if err != nil {
-		return err
-	}
-
-	// Validate coordinates
-	if x < 0 || y < 0 {
-		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
-	}
-
-	// Default values
-	mouseButton := proto.InputMouseButtonLeft
-	if button != nil {
-		switch *button {
-		case "left":
-			mouseButton = proto.InputMouseButtonLeft
-		case "right":
-			mouseButton = proto.InputMouseButtonRight
-		case "middle":
-			mouseButton = proto.InputMouseButtonMiddle
-		default:
-			return fmt.Errorf("invalid button type: %s (must be left, right, or middle)", *button)
-		}
-	}
-
-	clicks := 1
-	if clickCount != nil {
-		clicks = *clickCount
-		if clicks < 1 || clicks > 3 {
-			return fmt.Errorf("clickCount must be 1, 2, or 3, got %d", clicks)
-		}
-	}
-
-	// Move to position and click
-	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
-		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
-	}
-
-	if err := tab.page.Mouse.Click(mouseButton, clicks); err != nil {
-		return fmt.Errorf("failed to click at (%f, %f): %w", x, y, err)
-	}
-
-	return nil
-}
-
-// RightClickAt right-clicks at specific coordinates
-func (c *Context) RightClickAt(ctx context.Context, x, y float64, duration *int, tabID *string) error {
-	tab, err := c.getTab(tabID)
-	if err != nil {
-		return err
-	}
-
-	// Validate coordinates
-	if x < 0 || y < 0 {
-		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
-	}
-
-	// Move to position and right-click
-	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
-		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
-	}
-
-	if err := tab.page.Mouse.Click(proto.InputMouseButtonRight, 1); err != nil {
-		return fmt.Errorf("failed to right-click at (%f, %f): %w", x, y, err)
-	}
-
-	return nil
-}
-
-// DoubleClickAt double-clicks at specific coordinates
-func (c *Context) DoubleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID *string) error {
-	tab, err := c.getTab(tabID)
-	if err != nil {
-		return err
-	}
-
-	// Validate coordinates
-	if x < 0 || y < 0 {
-		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
-	}
-
-	// Default to left button
-	mouseButton := proto.InputMouseButtonLeft
-	if button != nil {
-		switch *button {
-		case "left":
-			mouseButton = proto.InputMouseButtonLeft
-		case "right":
-			mouseButton = proto.InputMouseButtonRight
-		case "middle":
-			mouseButton = proto.InputMouseButtonMiddle
-		default:
-			return fmt.Errorf("invalid button type: %s (must be left, right, or middle)", *button)
-		}
-	}
-
-	// Move to position and double-click
-	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
-		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
-	}
-
-	if err := tab.page.Mouse.Click(mouseButton, 2); err != nil {
-		return fmt.Errorf("failed to double-click at (%f, %f): %w", x, y, err)
-	}
-
-	return nil
-}
-
-// TripleClickAt triple-clicks at specific coordinates
-func (c *Context) TripleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID *string) error {
-	tab, err := c.getTab(tabID)
-	if err != nil {
-		return err
-	}
-
-	// Validate coordinates
-	if x < 0 || y < 0 {
-		return fmt.Errorf("coordinates must be non-negative, got (%f, %f)", x, y)
-	}
-
-	// Default to left button
-	mouseButton := proto.InputMouseButtonLeft
-	if button != nil {
-		switch *button {
-		case "left":
-			mouseButton = proto.InputMouseButtonLeft
-		case "right":
-			mouseButton = proto.InputMouseButtonRight
-		case "middle":
-			mouseButton = proto.InputMouseButtonMiddle
-		default:
-			return fmt.Errorf("invalid button type: %s (must be left, right, or middle)", *button)
-		}
-	}
-
-	// Move to position and triple-click
-	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
-		return fmt.Errorf("failed to move mouse to (%f, %f): %w", x, y, err)
-	}
-
-	if err := tab.page.Mouse.Click(mouseButton, 3); err != nil {
-		return fmt.Errorf("failed to triple-click at (%f, %f): %w", x, y, err)
-	}
-
-	return nil
-}
-
 // Drag performs a drag operation either by index or coordinates
 func (c *Context) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, fromY, toX, toY *float64, duration *int, tabID *string) error {
 	tab, err := c.getTab(tabID)
@@ -1291,8 +1122,8 @@ func (c *Context) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, from
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	// Validate: must have either (fromIndex AND toIndex) OR (fromX AND fromY AND toX AND toY)
 	hasIndexMode := fromIndex != nil && toIndex != nil
@@ -1312,22 +1143,24 @@ func (c *Context) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, from
 
 	// Index-based mode
 	if hasIndexMode {
-		// Extract elements on-demand (no caching)
-		elements, err := tab.extractElements()
-		if err != nil {
-			return fmt.Errorf("failed to extract elements for drag: %w", err)
+		// Lazy load elements if cache is empty
+		if len(tab.elements) == 0 {
+			_, err := tab.extractElements()
+			if err != nil {
+				return fmt.Errorf("failed to auto-extract elements for drag: %w", err)
+			}
 		}
 
 		// Validate indices
-		if *fromIndex < 0 || *fromIndex >= len(elements) {
+		if *fromIndex < 0 || *fromIndex >= len(tab.elements) {
 			return errors.NewElementError(*fromIndex, "drag", errors.NewValidationError("fromIndex", *fromIndex, nil))
 		}
-		if *toIndex < 0 || *toIndex >= len(elements) {
+		if *toIndex < 0 || *toIndex >= len(tab.elements) {
 			return errors.NewElementError(*toIndex, "drag", errors.NewValidationError("toIndex", *toIndex, nil))
 		}
 
-		fromElem := elements[*fromIndex]
-		toElem := elements[*toIndex]
+		fromElem := tab.elements[*fromIndex]
+		toElem := tab.elements[*toIndex]
 
 		// Calculate center points
 		startX = fromElem.Bounds.X + fromElem.Bounds.Width/2
@@ -1380,20 +1213,22 @@ func (c *Context) FormInput(ctx context.Context, index int, value string, tabID 
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return fmt.Errorf("failed to extract elements for formInput: %w", err)
+	// Lazy load elements if cache is empty
+	if len(tab.elements) == 0 {
+		_, err := tab.extractElements()
+		if err != nil {
+			return fmt.Errorf("failed to auto-extract elements for formInput: %w", err)
+		}
 	}
 
-	if index < 0 || index >= len(elements) {
+	if index < 0 || index >= len(tab.elements) {
 		return errors.NewElementError(index, "formInput", errors.NewValidationError("index", index, nil))
 	}
 
-	elem := elements[index]
+	elem := tab.elements[index]
 
 	// Validate element is an input field
 	if elem.Role != constants.RoleTextbox && elem.Role != constants.RoleSearchbox && elem.Role != constants.RoleCombobox {
@@ -1432,8 +1267,11 @@ func (c *Context) GoBack(ctx context.Context, tabID *string) (string, error) {
 		return "", err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
+
+	// Clear element cache before navigation
+	tab.elements = nil
 
 	if err := tab.page.NavigateBack(); err != nil {
 		return "", fmt.Errorf("failed to navigate back: %w", err)
@@ -1449,10 +1287,8 @@ func (c *Context) GoBack(ctx context.Context, tabID *string) (string, error) {
 	}
 
 	// Update cached URL and title
-	tab.mu.Lock()
 	tab.currentURL = info.URL
 	tab.currentTitle = info.Title
-	tab.mu.Unlock()
 
 	return info.URL, nil
 }
@@ -1464,8 +1300,11 @@ func (c *Context) GoForward(ctx context.Context, tabID *string) (string, error) 
 		return "", err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
+
+	// Clear element cache before navigation
+	tab.elements = nil
 
 	if err := tab.page.NavigateForward(); err != nil {
 		return "", fmt.Errorf("failed to navigate forward: %w", err)
@@ -1481,10 +1320,8 @@ func (c *Context) GoForward(ctx context.Context, tabID *string) (string, error) 
 	}
 
 	// Update cached URL and title
-	tab.mu.Lock()
 	tab.currentURL = info.URL
 	tab.currentTitle = info.Title
-	tab.mu.Unlock()
 
 	return info.URL, nil
 }
@@ -1505,52 +1342,46 @@ func (c *Context) Wait(ctx context.Context, duration int, tabID *string) error {
 }
 
 // Type types text into an element
-func (c *Context) Type(ctx context.Context, index *int, text string, tabID *string) error {
+func (c *Context) Type(ctx context.Context, index int, text string, tabID *string) error {
 	tab, err := c.getTab(tabID)
 	if err != nil {
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
-	// If index is provided, click element to focus
-	if index != nil {
-		// Extract elements on-demand (no caching)
-		elements, err := tab.extractElements()
+	// Lazy load elements if cache is empty
+	if len(tab.elements) == 0 {
+		_, err := tab.extractElements()
 		if err != nil {
-			return fmt.Errorf("failed to extract elements for type: %w", err)
-		}
-
-		idx := *index
-		if idx < 0 || idx >= len(elements) {
-			return errors.NewElementError(idx, "type", errors.NewValidationError("index", idx, nil))
-		}
-
-		elem := elements[idx]
-
-		// Click to focus
-		x := elem.Bounds.X + elem.Bounds.Width/2
-		y := elem.Bounds.Y + elem.Bounds.Height/2
-
-		if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
-			return errors.NewElementError(idx, "type", err)
-		}
-
-		if err := tab.page.Mouse.Click(proto.InputMouseButtonLeft, 1); err != nil {
-			return errors.NewElementError(idx, "type", err)
+			return fmt.Errorf("failed to auto-extract elements for type: %w", err)
 		}
 	}
-	// If index is nil, type into currently focused element without clicking
+
+	if index < 0 || index >= len(tab.elements) {
+		return errors.NewElementError(index, "type", errors.NewValidationError("index", index, nil))
+	}
+
+	elem := tab.elements[index]
+
+	// Click to focus
+	x := elem.Bounds.X + elem.Bounds.Width/2
+	y := elem.Bounds.Y + elem.Bounds.Height/2
+
+	if err := tab.page.Mouse.MoveTo(proto.Point{X: x, Y: y}); err != nil {
+		return errors.NewElementError(index, "type", err)
+	}
+
+	if err := tab.page.Mouse.Click(proto.InputMouseButtonLeft, 1); err != nil {
+		return errors.NewElementError(index, "type", err)
+	}
 
 	// Type text character by character
 	for _, ch := range text {
 		key := input.Key(ch)
 		if err := tab.page.Keyboard.Type(key); err != nil {
-			if index != nil {
-				return errors.NewElementError(*index, "type", err)
-			}
-			return fmt.Errorf("type failed: %w", err)
+			return errors.NewElementError(index, "type", err)
 		}
 	}
 
@@ -1564,8 +1395,8 @@ func (c *Context) Scroll(ctx context.Context, direction string, amount int, tabI
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	var deltaX, deltaY float64
 
@@ -1596,18 +1427,23 @@ func (c *Context) UploadFile(ctx context.Context, index int, filePaths []string,
 		return nil, err
 	}
 
-	// Extract elements on-demand (no caching)
-	elements, err := tab.extractElements()
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract elements for upload: %w", err)
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
+
+	// Lazy load elements if cache is empty
+	if len(tab.elements) == 0 {
+		_, err := tab.extractElements()
+		if err != nil {
+			return nil, fmt.Errorf("failed to auto-extract elements for upload: %w", err)
+		}
 	}
 
 	// Validate index
-	if index < 0 || index >= len(elements) {
+	if index < 0 || index >= len(tab.elements) {
 		return nil, errors.NewElementError(index, "upload", errors.NewValidationError("index", index, nil))
 	}
 
-	elem := elements[index]
+	elem := tab.elements[index]
 
 	// Validate all files exist
 	fileNames := make([]string, 0, len(filePaths))
@@ -1696,6 +1532,9 @@ func (c *Context) GetText(ctx context.Context, strategy string, tabID *string) (
 		return nil, err
 	}
 
+	tab.mu.RLock()
+	defer tab.mu.RUnlock()
+
 	// Default to auto strategy
 	if strategy == "" {
 		strategy = constants.TextStrategyAuto
@@ -1779,8 +1618,8 @@ func (c *Context) Find(ctx context.Context, query string, limit int, tabID *stri
 		return nil, err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	if query == "" {
 		return nil, errors.NewValidationError("query", query, fmt.Errorf("query cannot be empty"))
@@ -1920,8 +1759,8 @@ func (c *Context) SetUserAgent(ctx context.Context, ua string, tabID *string) er
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	err = proto.NetworkSetUserAgentOverride{
 		UserAgent: ua,
@@ -2002,8 +1841,8 @@ func (c *Context) PressKey(ctx context.Context, keys string, tabID *string) erro
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	// Parse space-separated key sequence
 	keyTokens := strings.Split(keys, " ")
@@ -2059,25 +1898,27 @@ func (c *Context) ScrollIntoView(ctx context.Context, index *int, backendID *int
 		return err
 	}
 
-	tab.pageMu.Lock()
-	defer tab.pageMu.Unlock()
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
 
 	var nodeBackendID int64
 
 	if backendID != nil {
 		nodeBackendID = *backendID
 	} else if index != nil {
-		// Extract elements on demand
-		elements, err := tab.extractElements()
-		if err != nil {
-			return errors.NewBrowserError("scroll_into_view", fmt.Errorf("failed to extract elements: %w", err))
+		// Lazy load elements if needed
+		if len(tab.elements) == 0 {
+			_, err := tab.extractElements()
+			if err != nil {
+				return errors.NewBrowserError("scroll_into_view", fmt.Errorf("failed to extract elements: %w", err))
+			}
 		}
 
-		if *index < 0 || *index >= len(elements) {
+		if *index < 0 || *index >= len(tab.elements) {
 			return errors.NewElementError(*index, "scroll_into_view", fmt.Errorf("index out of range"))
 		}
 
-		nodeBackendID = elements[*index].BackendID
+		nodeBackendID = tab.elements[*index].BackendID
 	} else {
 		return errors.NewValidationError("scroll_into_view", "index or backendId", fmt.Errorf("either index or backendId must be provided"))
 	}
@@ -2540,6 +2381,14 @@ func (c *Context) SetDownloadBehavior(ctx context.Context, path string, accept b
 	// Start listening for download events if accepting downloads
 	if accept {
 		c.listenForDownloadEvents(tab, path)
+
+		// Initialize and start downloads watchdog
+		if tab.downloadsWatchdog == nil {
+			tab.downloadsWatchdog = watchdog.NewDownloadsWatchdog(tab.page, c.eventBus, path)
+			if err := tab.downloadsWatchdog.Start(ctx); err != nil {
+				return nil, errors.NewBrowserError("set_download_behavior", fmt.Errorf("failed to start downloads watchdog: %w", err))
+			}
+		}
 	}
 
 	return &protocol.SetDownloadBehaviorResult{Configured: true}, nil
@@ -2689,15 +2538,29 @@ func (c *Context) Close(ctx context.Context) error {
 		c.crashWatchdog.Stop()
 	}
 
+	if c.storageWatchdog != nil {
+		c.storageWatchdog.Stop()
+	}
+
 	// Close event bus
 	if c.eventBus != nil {
 		c.eventBus.Close()
 	}
 
-	if c.browser != nil {
+	// Only close the browser context if it's an incognito context
+	// Don't close the shared main browser context
+	if c.browser != nil && !c.isSharedContext {
 		if err := c.browser.Close(); err != nil {
 			return errors.NewContextError("close", err)
 		}
 	}
+
+	// If it's a shared context, just close all tabs
+	if c.isSharedContext {
+		for _, tab := range c.tabs {
+			_ = tab.page.Close()
+		}
+	}
+
 	return nil
 }
