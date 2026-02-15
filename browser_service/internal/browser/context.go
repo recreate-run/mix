@@ -37,6 +37,7 @@ type Context struct {
 	crashWatchdog       *watchdog.CrashWatchdog
 	storageWatchdog     *watchdog.StorageStateWatchdog
 	eventBus            *events.Broker[events.BrowserEvent]
+	isSharedContext     bool // True if using main browser context (extensions enabled), false if incognito
 }
 
 // tabContext represents a single browser tab
@@ -2546,10 +2547,20 @@ func (c *Context) Close(ctx context.Context) error {
 		c.eventBus.Close()
 	}
 
-	if c.browser != nil {
+	// Only close the browser context if it's an incognito context
+	// Don't close the shared main browser context
+	if c.browser != nil && !c.isSharedContext {
 		if err := c.browser.Close(); err != nil {
 			return errors.NewContextError("close", err)
 		}
 	}
+
+	// If it's a shared context, just close all tabs
+	if c.isSharedContext {
+		for _, tab := range c.tabs {
+			_ = tab.page.Close()
+		}
+	}
+
 	return nil
 }

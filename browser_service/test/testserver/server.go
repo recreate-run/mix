@@ -16,6 +16,17 @@ func StartTestServer(t *testing.T) *httptest.Server {
 
 	handler := http.NewServeMux()
 
+	// Serve ad test pages
+	handler.HandleFunc("/ad-test-page", func(w http.ResponseWriter, r *http.Request) {
+		testdataPath := filepath.Join("testdata", "ad_test_page.html")
+		http.ServeFile(w, r, testdataPath)
+	})
+
+	handler.HandleFunc("/realistic-ad-test-page", func(w http.ResponseWriter, r *http.Request) {
+		testdataPath := filepath.Join("testdata", "realistic_ad_test_page.html")
+		http.ServeFile(w, r, testdataPath)
+	})
+
 	// Cookie test pages
 	handler.HandleFunc("/echo-cookies", func(w http.ResponseWriter, r *http.Request) {
 		cookies := r.Cookies()

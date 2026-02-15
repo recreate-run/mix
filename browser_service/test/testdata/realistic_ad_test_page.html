@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Realistic Ad Test Page</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .test-element { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .visible { background: #90EE90; }
+        .blocked { background: #FFB6C1; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+    <h1>Realistic Ad Blocking Test</h1>
+    <p>Elements below use patterns that uBlock Origin should block:</p>
+
+    <!-- Google AdSense patterns -->
+    <div id="google_ads_iframe" class="test-element">Google Ads iFrame (id="google_ads_iframe")</div>
+    <ins class="adsbygoogle test-element">AdSense Element (class="adsbygoogle")</ins>
+
+    <!-- Common ad network patterns -->
+    <div class="ad-slot test-element">Ad Slot (class="ad-slot")</div>
+    <div class="ad-banner test-element">Ad Banner (class="ad-banner")</div>
+    <div class="ad-container test-element">Ad Container (class="ad-container")</div>
+    <div id="ad-top" class="test-element">Ad Top (id="ad-top")</div>
+
+    <!-- DoubleClick patterns -->
+    <iframe src="about:blank" class="test-element" id="google_ads_frame"></iframe>
+
+    <!-- Generic ad patterns -->
+    <div class="advertisement test-element">Advertisement</div>
+    <div class="sponsored test-element">Sponsored</div>
+    <div class="ads test-element">Ads</div>
+
+    <script>
+        // Count visible elements
+        window.countVisibleTestElements = function() {
+            const elements = document.querySelectorAll('.test-element');
+            let count = 0;
+            elements.forEach(el => {
+                const style = window.getComputedStyle(el);
+                if (style.display !== 'none' &&
+                    style.visibility !== 'hidden' &&
+                    el.offsetParent !== null) {
+                    count++;
+                    el.classList.add('visible');
+                } else {
+                    el.classList.add('blocked');
+                }
+            });
+            return count;
+        };
+
+        window.countTotalTestElements = function() {
+            return document.querySelectorAll('.test-element').length;
+        };
+
+        // Auto-update on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const total = countTotalTestElements();
+                const visible = countVisibleTestElements();
+                const result = document.getElementById('result');
+                result.textContent = `Visible: ${visible} / ${total}`;
+
+                if (visible < total) {
+                    result.style.color = 'green';
+                    result.textContent += ` (${total - visible} blocked by uBlock!)`;
+                } else {
+                    result.style.color = 'red';
+                    result.textContent += ' (uBlock not working?)';
+                }
+            }, 1000);
+        });
+    </script>
+
+    <h2 id="result">Checking...</h2>
+    <p><small>Total elements: 10. If uBlock is working, many should be hidden/removed.</small></p>
+</body>
+</html>
