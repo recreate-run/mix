@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -94,7 +95,26 @@ func (s *Server) Start() error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	return s.srv.ListenAndServe()
+	// Handle graceful shutdown
+	go func() {
+		<-s.ctx.Done()
+		log.Println("Context cancelled, shutting down server")
+
+		// Create shutdown context with timeout
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
+		defer cancel()
+
+		if err := s.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Error during shutdown: %v", err)
+		}
+	}()
+
+	// Start server and block (this will block until server shuts down)
+	if err := s.srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("server failed: %w", err)
+	}
+
+	return nil
 }
 
 // Shutdown gracefully shuts down the server

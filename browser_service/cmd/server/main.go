@@ -28,30 +28,23 @@ func main() {
 		WindowHeight: *windowHeight,
 	}
 
-	// Create root context
-	ctx := context.Background()
+	// Create cancellable root context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
 
 	srv, err := server.New(ctx, cfg)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
 
-	// Handle graceful shutdown
+	// Set up signal handling for graceful shutdown during hot reload
+	// This ensures the WebSocket server releases the port before the new process starts
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigChan
-		log.Println("Shutting down gracefully...")
-
-		// Create shutdown context with timeout
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
-		defer cancel()
-
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Error during shutdown: %v", err)
-		}
-		os.Exit(0)
+		log.Println("Received shutdown signal, initiating graceful shutdown")
+		cancel() // Cancel the context to trigger server shutdown
 	}()
 
 	log.Printf("Starting browser service on port %s (headless=%v)", *port, *headless)

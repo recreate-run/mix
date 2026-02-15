@@ -194,15 +194,7 @@ func getAnalyticsEnabled() bool {
 
 // getDefaultMCPServers returns the default MCP server configurations
 func getDefaultMCPServers() map[string]MCPServer {
-	return map[string]MCPServer{
-		"blender": {
-			Type:         MCPStdio,
-			Command:      "uvx",
-			Args:         []string{"blender-mcp"},
-			Env:          []string{},
-			AllowedTools: []string{"execute_blender_code"},
-		},
-	}
+	return map[string]MCPServer{}
 }
 
 // loadDatabaseConfig loads database configuration from environment variables

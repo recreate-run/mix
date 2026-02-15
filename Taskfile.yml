@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 vars:
   BINARY_NAME: mix
@@ -49,7 +49,6 @@ tasks:
           fi
         else
           echo "No PID file found. Attempting to kill processes manually..."
-          pkill -f "air" || true
           pkill -f "mix --http-port" || true
           echo "✅ Killed stray processes (if any)"
         fi

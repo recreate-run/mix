@@ -43,7 +43,6 @@ check_command cargo "Rust/Cargo" true
 check_command bun "Bun" true
 check_command uv "UV (Python package manager)" true
 check_command rg "ripgrep" true
-check_command air "Air (Go hot reload)" false
 
 # Check for build directories
 echo -e "\n${BOLD}Checking directory structure${NC}"
