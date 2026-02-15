@@ -28,6 +28,7 @@ func main() {
 	uBlockEnabled := flag.Bool("ublock-enabled", true, "Enable uBlock Origin extension")
 	cookieConsentEnabled := flag.Bool("cookie-consent-enabled", true, "Enable 'I don't care about cookies' extension")
 	clearURLsEnabled := flag.Bool("clearurls-enabled", true, "Enable ClearURLs extension")
+	allowModals := flag.Bool("allow-modals", false, "Disable modal blocking (modals blocked by default)")
 
 	flag.Parse()
 
@@ -54,6 +55,7 @@ func main() {
 		UBlockEnabled:          *uBlockEnabled,
 		CookieConsentEnabled:   *cookieConsentEnabled,
 		ClearURLsEnabled:       *clearURLsEnabled,
+		BlockModals:            !*allowModals, // Modal blocking enabled by default
 	}
 
 	// Create root context

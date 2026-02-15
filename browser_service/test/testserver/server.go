@@ -280,5 +280,68 @@ func StartTestServer(t *testing.T) *httptest.Server {
 		</body></html>`))
 	})
 
+	// Modal blocking test pages
+	handler.HandleFunc("/modal-popup-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<h1>Main Page Content</h1>
+			<p>This is the main content of the page.</p>
+
+			<!-- Location/delivery popup modal (like Amazon) -->
+			<div role="dialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; background: white; padding: 20px; border: 2px solid #000; width: 400px;">
+				<h2>Location Selection</h2>
+				<p>This is a modal popup. We're showing you items that ship to India. To see items that ship to a different country, change your delivery address.</p>
+				<button id="close-modal">Dismiss</button>
+				<button id="change-address">Change Address</button>
+			</div>
+
+			<!-- Modal backdrop overlay -->
+			<div class="modal-backdrop" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9998;"></div>
+		</body></html>`))
+	})
+
+	handler.HandleFunc("/cookie-banner-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<h1>Welcome to our site</h1>
+			<p>This is the main site content.</p>
+
+			<!-- Cookie consent banner -->
+			<div id="cookie-consent-banner" class="cookie-banner" style="position: fixed; bottom: 0; left: 0; width: 100%; background: #333; color: white; padding: 20px; z-index: 9999;">
+				<p>We use cookies to improve your experience. By continuing to use this site, you accept our cookie policy.</p>
+				<button id="accept-cookies">Accept All Cookies</button>
+				<button id="reject-cookies">Reject</button>
+			</div>
+		</body></html>`))
+	})
+
+	handler.HandleFunc("/dynamic-modal-page", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><body>
+			<h1>Dynamic Modal Test</h1>
+			<p>Click the button to trigger a modal.</p>
+			<button id="show-modal-btn">Show Modal</button>
+
+			<script>
+				document.getElementById('show-modal-btn').onclick = () => {
+					// Create modal dynamically (simulates newsletter popups, etc.)
+					const modal = document.createElement('div');
+					modal.id = 'dynamic-modal';
+					modal.setAttribute('role', 'dialog');
+					modal.style.position = 'fixed';
+					modal.style.top = '50%';
+					modal.style.left = '50%';
+					modal.style.transform = 'translate(-50%, -50%)';
+					modal.style.zIndex = '9999';
+					modal.style.background = 'white';
+					modal.style.padding = '30px';
+					modal.style.border = '2px solid #000';
+					modal.innerHTML = '<h2>Subscribe to our newsletter!</h2><p>Get 10% off your first order.</p><button>Subscribe</button>';
+					document.body.appendChild(modal);
+				};
+			</script>
+		</body></html>`))
+	})
+
 	return httptest.NewServer(handler)
 }

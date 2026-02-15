@@ -30,6 +30,7 @@ type Config struct {
 	UBlockEnabled          bool     // Enable uBlock Origin (default: true)
 	CookieConsentEnabled   bool     // Enable "I don't care about cookies" (default: true)
 	ClearURLsEnabled       bool     // Enable ClearURLs (default: true)
+	BlockModals            bool     // Block HTML modal popups and overlays (default: false)
 }
 
 // Server represents the WebSocket server
@@ -68,6 +69,7 @@ func New(ctx context.Context, cfg Config) (*Server, error) {
 		UBlockEnabled:          cfg.UBlockEnabled,
 		CookieConsentEnabled:   cfg.CookieConsentEnabled,
 		ClearURLsEnabled:       cfg.ClearURLsEnabled,
+		BlockModals:            cfg.BlockModals,
 	}
 
 	mgr, err := browser.NewManager(ctx, browserCfg)

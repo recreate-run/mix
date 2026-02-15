@@ -14,6 +14,7 @@ import (
 	"github.com/sarathmenon/browser-service/internal/browser/adblock"
 	"github.com/sarathmenon/browser-service/internal/browser/events"
 	"github.com/sarathmenon/browser-service/internal/browser/extensions"
+	"github.com/sarathmenon/browser-service/internal/browser/modalblock"
 	"github.com/sarathmenon/browser-service/internal/browser/watchdog"
 	"github.com/sarathmenon/browser-service/internal/errors"
 	"github.com/sarathmenon/browser-service/pkg/protocol"
@@ -32,6 +33,7 @@ type Config struct {
 	UBlockEnabled          bool     // Default: true
 	CookieConsentEnabled   bool     // Default: true (I don't care about cookies)
 	ClearURLsEnabled       bool     // Default: true
+	BlockModals            bool     // Block HTML modal popups and overlays (default: false)
 }
 
 // Manager manages the browser instance and contexts
@@ -292,6 +294,15 @@ func (m *Manager) NewContext(ctx context.Context) (*Context, error) {
 		_, err := page.EvalOnNewDocument(adblock.AdBlockScript)
 		if err != nil {
 			fmt.Printf("Warning: failed to inject ad-blocking script: %v\n", err)
+		}
+	}
+
+	// If modal blocking is enabled, inject modal-blocking script
+	if m.config.BlockModals {
+		fmt.Println("Injecting modal-blocking script into pages")
+		_, err := page.EvalOnNewDocument(modalblock.ModalBlockScript)
+		if err != nil {
+			fmt.Printf("Warning: failed to inject modal-blocking script: %v\n", err)
 		}
 	}
 
