@@ -356,17 +356,10 @@ func (h *MessageHandler) handleClickAt(ctx context.Context, req protocol.Request
 			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
 	}
 
-	// Convert coordinate to backend ID
-	backendID, err := h.backendIDFromCoordinate(ctx, params.X, params.Y, params.TabID)
-	if err != nil {
+	// Click at coordinate (browser-service handles element lookup internally)
+	if err := h.client.Context.ClickAtCoordinate(ctx, params.X, params.Y, params.TabID); err != nil {
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeElementNotFound, err.Error()))
-	}
-
-	// Click by backend ID
-	if err := h.client.Context.ClickByBackendID(ctx, backendID, params.TabID); err != nil {
-		return protocol.NewErrorResponse(req.ID,
-			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
 	}
 
 	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
@@ -380,17 +373,10 @@ func (h *MessageHandler) handleRightClickAt(ctx context.Context, req protocol.Re
 			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
 	}
 
-	// Convert coordinate to backend ID
-	backendID, err := h.backendIDFromCoordinate(ctx, params.X, params.Y, params.TabID)
-	if err != nil {
+	// Right-click at coordinate (browser-service handles element lookup internally)
+	if err := h.client.Context.RightClickAtCoordinate(ctx, params.X, params.Y, params.TabID); err != nil {
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeElementNotFound, err.Error()))
-	}
-
-	// Right-click by backend ID
-	if err := h.client.Context.RightClickByBackendID(ctx, backendID, params.TabID); err != nil {
-		return protocol.NewErrorResponse(req.ID,
-			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
 	}
 
 	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
@@ -404,17 +390,10 @@ func (h *MessageHandler) handleDoubleClickAt(ctx context.Context, req protocol.R
 			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
 	}
 
-	// Convert coordinate to backend ID
-	backendID, err := h.backendIDFromCoordinate(ctx, params.X, params.Y, params.TabID)
-	if err != nil {
+	// Double-click at coordinate (browser-service handles element lookup internally)
+	if err := h.client.Context.DoubleClickAtCoordinate(ctx, params.X, params.Y, params.TabID); err != nil {
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeElementNotFound, err.Error()))
-	}
-
-	// Double-click by backend ID
-	if err := h.client.Context.DoubleClickByBackendID(ctx, backendID, params.TabID); err != nil {
-		return protocol.NewErrorResponse(req.ID,
-			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
 	}
 
 	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
@@ -428,17 +407,10 @@ func (h *MessageHandler) handleTripleClickAt(ctx context.Context, req protocol.R
 			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
 	}
 
-	// Convert coordinate to backend ID
-	backendID, err := h.backendIDFromCoordinate(ctx, params.X, params.Y, params.TabID)
-	if err != nil {
+	// Triple-click at coordinate (browser-service handles element lookup internally)
+	if err := h.client.Context.TripleClickAtCoordinate(ctx, params.X, params.Y, params.TabID); err != nil {
 		return protocol.NewErrorResponse(req.ID,
 			protocol.NewError(protocol.ErrCodeElementNotFound, err.Error()))
-	}
-
-	// Triple-click by backend ID
-	if err := h.client.Context.TripleClickByBackendID(ctx, backendID, params.TabID); err != nil {
-		return protocol.NewErrorResponse(req.ID,
-			protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
 	}
 
 	return protocol.NewResponse(req.ID, protocol.SuccessResult{Success: true})
@@ -1034,50 +1006,4 @@ func (h *MessageHandler) handleEvalJS(ctx context.Context, req protocol.Request)
 	}
 
 	return protocol.NewResponse(req.ID, protocol.EvalJSResult{Result: value})
-}
-
-// backendIDFromCoordinate finds the backend ID of the element at the given coordinate
-func (h *MessageHandler) backendIDFromCoordinate(ctx context.Context, x, y float64, tabID *string) (int64, error) {
-	// Get all elements from the page
-	elements, _, err := h.client.Context.ReadPage(ctx, false, tabID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read page: %w", err)
-	}
-
-	// Find the smallest element containing the coordinate
-	var found *protocol.RawAccessibilityNode
-	var bestArea float64
-
-	for i := range elements {
-		elem := &elements[i]
-		bounds := elem.Bounds
-
-		// Skip elements with no size
-		if bounds.Width == 0 || bounds.Height == 0 {
-			continue
-		}
-
-		// Check if coordinate is within bounds
-		if x < bounds.X || x > bounds.X+bounds.Width {
-			continue
-		}
-		if y < bounds.Y || y > bounds.Y+bounds.Height {
-			continue
-		}
-
-		// Calculate area
-		area := bounds.Width * bounds.Height
-
-		// Keep the smallest element (most specific)
-		if found == nil || area < bestArea {
-			found = elem
-			bestArea = area
-		}
-	}
-
-	if found == nil {
-		return 0, fmt.Errorf("no element found at coordinate (%.0f, %.0f)", x, y)
-	}
-
-	return found.BackendID, nil
 }

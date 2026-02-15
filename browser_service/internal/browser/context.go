@@ -1115,6 +1115,117 @@ func (c *Context) TripleClickByBackendID(ctx context.Context, backendID int64, t
 	return nil
 }
 
+// findElementAtCoordinate finds the smallest element containing the given coordinate
+func findElementAtCoordinate(elements []protocol.RawAccessibilityNode, x, y float64) (*protocol.RawAccessibilityNode, error) {
+	var found *protocol.RawAccessibilityNode
+	var bestArea float64
+
+	for i := range elements {
+		elem := &elements[i]
+		bounds := elem.Bounds
+
+		// Skip elements with no size
+		if bounds.Width == 0 || bounds.Height == 0 {
+			continue
+		}
+
+		// Check if coordinate is within bounds
+		if x < bounds.X || x > bounds.X+bounds.Width {
+			continue
+		}
+		if y < bounds.Y || y > bounds.Y+bounds.Height {
+			continue
+		}
+
+		// Calculate area
+		area := bounds.Width * bounds.Height
+
+		// Keep the smallest element (most specific)
+		if found == nil || area < bestArea {
+			found = elem
+			bestArea = area
+		}
+	}
+
+	if found == nil {
+		return nil, fmt.Errorf("no element found at coordinate (%.0f, %.0f)", x, y)
+	}
+
+	return found, nil
+}
+
+// ClickAtCoordinate clicks at the given coordinate by finding the element and clicking it
+func (c *Context) ClickAtCoordinate(ctx context.Context, x, y float64, tabID *string) error {
+	// Get all elements from the page
+	elements, _, err := c.ReadPage(ctx, false, tabID)
+	if err != nil {
+		return fmt.Errorf("failed to read page: %w", err)
+	}
+
+	// Find element at coordinate
+	elem, err := findElementAtCoordinate(elements, x, y)
+	if err != nil {
+		return err
+	}
+
+	// Click by backend ID
+	return c.ClickByBackendID(ctx, elem.BackendID, tabID)
+}
+
+// RightClickAtCoordinate right-clicks at the given coordinate
+func (c *Context) RightClickAtCoordinate(ctx context.Context, x, y float64, tabID *string) error {
+	// Get all elements from the page
+	elements, _, err := c.ReadPage(ctx, false, tabID)
+	if err != nil {
+		return fmt.Errorf("failed to read page: %w", err)
+	}
+
+	// Find element at coordinate
+	elem, err := findElementAtCoordinate(elements, x, y)
+	if err != nil {
+		return err
+	}
+
+	// Right-click by backend ID
+	return c.RightClickByBackendID(ctx, elem.BackendID, tabID)
+}
+
+// DoubleClickAtCoordinate double-clicks at the given coordinate
+func (c *Context) DoubleClickAtCoordinate(ctx context.Context, x, y float64, tabID *string) error {
+	// Get all elements from the page
+	elements, _, err := c.ReadPage(ctx, false, tabID)
+	if err != nil {
+		return fmt.Errorf("failed to read page: %w", err)
+	}
+
+	// Find element at coordinate
+	elem, err := findElementAtCoordinate(elements, x, y)
+	if err != nil {
+		return err
+	}
+
+	// Double-click by backend ID
+	return c.DoubleClickByBackendID(ctx, elem.BackendID, tabID)
+}
+
+// TripleClickAtCoordinate triple-clicks at the given coordinate
+func (c *Context) TripleClickAtCoordinate(ctx context.Context, x, y float64, tabID *string) error {
+	// Get all elements from the page
+	elements, _, err := c.ReadPage(ctx, false, tabID)
+	if err != nil {
+		return fmt.Errorf("failed to read page: %w", err)
+	}
+
+	// Find element at coordinate
+	elem, err := findElementAtCoordinate(elements, x, y)
+	if err != nil {
+		return err
+	}
+
+	// Triple-click by backend ID
+	return c.TripleClickByBackendID(ctx, elem.BackendID, tabID)
+}
+
 // Drag performs a drag operation either by index or coordinates
 func (c *Context) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, fromY, toX, toY *float64, duration *int, tabID *string) error {
 	tab, err := c.getTab(tabID)
