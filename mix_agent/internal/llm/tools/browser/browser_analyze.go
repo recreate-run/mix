@@ -76,6 +76,18 @@ func (b *browserTool) handleAnalyzeScreenshot(ctx context.Context, params Browse
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get image dimensions: %v", err))
 	}
 
+	// DEBUG: Check if RawViewport is populated
+	if result.RawViewport == nil {
+		fmt.Printf("[ERROR] RawViewport is NIL in screenshot result!\n")
+		return interfaces.NewTextErrorResponse("Screenshot did not return viewport information (RawViewport is nil)")
+	}
+	fmt.Printf("[DEBUG] RawViewport: x=%.0f, y=%.0f, width=%.0f, height=%.0f\n",
+		result.RawViewport.X, result.RawViewport.Y, result.RawViewport.Width, result.RawViewport.Height)
+	fmt.Printf("[DEBUG] Image dimensions: width=%d, height=%d\n", imageWidth, imageHeight)
+	if imageWidth > 0 && result.RawViewport.Width > 0 {
+		fmt.Printf("[DEBUG] Device pixel ratio: %.2f\n", float64(imageWidth)/result.RawViewport.Width)
+	}
+
 	// Create Gemini provider for analysis
 	geminiProvider, useBoundingBox, err := b.createGeminiProviderForAnalysis(params.Prompt)
 	if err != nil {

@@ -1422,7 +1422,7 @@ func (t *TunnelClientWrapper) Scroll(ctx context.Context, direction string, amou
 		deltaY = -float64(amount)
 	case "down":
 		deltaY = float64(amount)
-	case "left":
+	case DirectionLeft:
 		deltaX = -float64(amount)
 	case "right":
 		deltaX = float64(amount)

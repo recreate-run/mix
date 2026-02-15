@@ -64,6 +64,24 @@ const (
 	MaxWaitDuration = 150000 // Maximum wait duration in milliseconds
 )
 
+// URL scheme constants
+const (
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
+	schemeFile  = "file"
+)
+
+// Text extraction strategy
+const (
+	defaultTextStrategy = "auto"
+)
+
+// Mouse button constants
+const (
+	mouseButtonLeft  = "left"
+	mouseButtonRight = "right"
+)
+
 // Coordinate represents an x,y coordinate encoded as [x,y]
 type Coordinate struct {
 	X float64
