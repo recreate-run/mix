@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/llm/tools"
 	"mix/internal/logging"
 	"mix/internal/permission"
@@ -56,7 +57,7 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 	if c, exists := m.clients[serverName]; exists {
 		// Check if client is healthy
 		if c.IsInitialized() {
-			pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			pingCtx, cancel := context.WithTimeout(ctx, constants.MCPToolTimeout)
 			defer cancel()
 			if err := c.Ping(pingCtx); err == nil {
 				m.mu.RUnlock()
@@ -76,7 +77,7 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 	// Double-check after acquiring write lock
 	if c, exists := m.clients[serverName]; exists {
 		if c.IsInitialized() {
-			pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			pingCtx, cancel := context.WithTimeout(ctx, constants.MCPToolTimeout)
 			defer cancel()
 			if err := c.Ping(pingCtx); err == nil {
 				return c, nil
@@ -118,7 +119,7 @@ func (m *MCPClientManager) GetClient(ctx context.Context, serverName string, mcp
 		Version: version.Version,
 	}
 
-	initCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	initCtx, cancel := context.WithTimeout(ctx, constants.MCPToolTimeout)
 	defer cancel()
 	_, err = newClient.Initialize(initCtx, initRequest)
 	if err != nil {
@@ -292,7 +293,7 @@ func getTools(ctx context.Context, name string, m config.MCPServer, permissions 
 
 	// List tools from the initialized client
 	toolsRequest := mcp.ListToolsRequest{}
-	listCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	listCtx, cancel := context.WithTimeout(ctx, constants.MCPToolTimeout)
 	defer cancel()
 	toolsList, err := c.ListTools(listCtx, toolsRequest)
 	if err != nil {

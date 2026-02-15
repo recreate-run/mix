@@ -1,0 +1,96 @@
+version: "3"
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  dev:
+    desc: Start with hot reload (rebuilds on file changes)
+    cmds:
+      - ./scripts/dev.sh
+
+  dev-headless:
+    desc: Start dev server in headless mode (for E2E tests)
+    cmds:
+      - ./scripts/dev.sh --headless
+
+  dev-with-args:
+    desc: "Start dev server with custom args (usage: task dev-with-args -- --headless --port 9000)"
+    cmds:
+      - ./scripts/dev.sh {{.CLI_ARGS}}
+
+  tail-dev-log:
+    desc: Show the last 100 lines of the dev server log
+    cmds:
+      - |
+        if [ -f {{.ROOT_DIR}}/dev.log ]; then
+          tail -100 {{.ROOT_DIR}}/dev.log | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'
+        else
+          echo "dev.log not found. Run 'task dev' first."
+        fi
+
+  build:
+    desc: Build the binary
+    cmds:
+      - echo "Building browser-service binary..."
+      - go build -o bin/browser-service ./cmd/server
+      - echo "Build complete! Binary at bin/browser-service"
+
+  test:
+    desc: Run tests with race detection
+    cmds:
+      - echo "Running tests with race detection..."
+      - go test -v -race ./...
+      - echo "Tests passed!"
+
+  coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - echo "Running tests with coverage..."
+      - go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      - go tool cover -func=coverage.out | tail -1
+      - echo "Coverage report generated at coverage.out"
+      - echo "Run 'task coverage-html' to view detailed HTML report"
+
+  coverage-html:
+    desc: Generate and open HTML coverage report
+    cmds:
+      - echo "Generating HTML coverage report..."
+      - go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "HTML report generated at coverage.html"
+      - open coverage.html || xdg-open coverage.html || echo "Please open coverage.html in your browser"
+
+  lint:
+    desc: Run linters
+    cmds:
+      - echo "Running linters..."
+      - golangci-lint run
+      - echo "Linting complete!"
+
+  fmt:
+    desc: Format code
+    cmds:
+      - echo "Formatting code..."
+      - go fmt ./...
+      - gofumpt -l -w .
+      - echo "Code formatted!"
+
+  clean:
+    desc: Clean build artifacts and log files
+    cmds:
+      - echo "Cleaning build artifacts and log files..."
+      - rm -rf bin/ dist/
+      - rm -f dev.log dev-prev.log coverage.out coverage.html
+      - echo "Cleaned successfully!"
+
+  install:
+    desc: Install dependencies
+    cmds:
+      - echo "Installing dependencies..."
+      - go mod download
+      - go mod tidy
+      - echo "Dependencies installed!"

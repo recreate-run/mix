@@ -2,11 +2,11 @@ package integration_tests
 
 import (
 	"fmt"
+	"mix/internal/constants"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
-	"mix/internal/constants"
 )
 
 // TestResult represents the result of a concurrent test operation

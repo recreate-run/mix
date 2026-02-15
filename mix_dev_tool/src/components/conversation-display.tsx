@@ -56,7 +56,6 @@ interface ConversationDisplayProps {
 		messageIndex: number,
 	) => void;
 	onEditMessage?: (index: number) => void;
-	setUserMessageRef?: (index: number) => (el: HTMLDivElement | null) => void;
 	sessionId?: string;
 	disableEdit?: boolean;
 }
@@ -313,7 +312,6 @@ export function ConversationDisplay({
 	messages,
 	onPlanAction,
 	onEditMessage,
-	setUserMessageRef,
 	sessionId,
 	disableEdit = false,
 }: ConversationDisplayProps) {
@@ -354,9 +352,6 @@ export function ConversationDisplay({
 						<AIMessage
 							from={message.from}
 							key={message.id || `message-${index}`}
-							ref={
-								message.from === "user" ? setUserMessageRef?.(index) : undefined
-							}
 						>
 							<AIMessageContent>
 								{message.from === "assistant" ? (

@@ -10,7 +10,6 @@ import (
 	"mix/internal/session"
 )
 
-
 // TestNewActionsE2E tests the three new browser actions in an end-to-end scenario
 func TestNewActionsE2E(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
@@ -21,7 +20,7 @@ func TestNewActionsE2E(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	sessionID := "e2e-test-session"
 	ctx := createBrowserTestContext(sessionID, "message-1", t.TempDir())
@@ -101,8 +100,8 @@ func TestNewActionsE2E(t *testing.T) {
 	t.Run("action_batching", func(t *testing.T) {
 		// Test action sequence: Click, type (with index), and press Enter
 		actionSequenceCall := interfaces.ToolCall{
-			ID:    "sequence-1",
-			Name:  BrowserToolName,
+			ID:   "sequence-1",
+			Name: BrowserToolName,
 			Input: `{
 				"action": "action",
 				"actions": [
@@ -155,7 +154,7 @@ func TestActionBatchingValidation(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	ctx := createBrowserTestContext("session-123", "message-456", t.TempDir())
 
@@ -216,7 +215,7 @@ func TestKeyActionIntegration(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	sessionID := "key-test-session"
 	ctx := createBrowserTestContext(sessionID, "message-1", t.TempDir())
@@ -289,7 +288,7 @@ func TestScrollToActionIntegration(t *testing.T) {
 
 	mockPermissionService := &MockPermissionService{}
 	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil)
+	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	sessionID := "scroll-test-session"
 	ctx := createBrowserTestContext(sessionID, "message-1", t.TempDir())

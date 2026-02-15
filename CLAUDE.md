@@ -36,11 +36,12 @@ task tail-log     # Reads the current log file (last 100 lines of code)
 task clean
 task              # Show all available tasks (default)
 task frontend-typecheck     # Always use this for frontend typechecking
+go test -tags=e2e -v -parallel=10 ./e2e/browser/...  # Run E2E browser tests with 10 parallel workers
 
 </bash_commands>
 
 - Do NOT build the program yourself to check for errors—ever. All output is written to `dev.log`. Run `task tail-log` to view it.
-- Do NOT stop the dev server. It stays running, auto-compiles, and auto-reloads via the Go `air` package, logging to `dev.log`.
+- Do NOT stop the dev server. It stays running, auto-compiles, and auto-reloads via compiledaemon, logging to `dev.log`.
 - Run `task` from the project's top-level directory. If it fails, you probably weren't there.
 - You MUST check the tail-log after finishing each task
 - ALWAYS update mix_agent/internal/http/rest_docs.go when modifying any backend API endpoints, request/response schemas, or validation rules

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPA Search - Dynamic Product Search</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #232f3e;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .search-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        #searchInput {
+            flex: 1;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 2px solid #febd69;
+            border-radius: 4px;
+            outline: none;
+        }
+        #searchInput:focus {
+            border-color: #f90;
+        }
+        .search-button {
+            padding: 12px 24px;
+            background-color: #febd69;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .search-button:hover {
+            background-color: #f90;
+        }
+        #searchStatus {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: white;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #565959;
+            min-height: 20px;
+        }
+        #resultsContainer {
+            margin-top: 20px;
+        }
+        .product-card {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            transition: box-shadow 0.2s;
+        }
+        .product-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .product-title {
+            font-size: 18px;
+            color: #007185;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .product-price {
+            font-size: 24px;
+            color: #B12704;
+            margin-bottom: 8px;
+        }
+        .product-rating {
+            color: #FFA41C;
+            margin-bottom: 8px;
+        }
+        .product-description {
+            color: #565959;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        .result-count {
+            color: #565959;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="search-container">
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Search for products..."
+                autocomplete="off"
+            />
+            <button class="search-button" onclick="performSearch()">Search</button>
+        </div>
+    </div>
+
+    <div id="searchStatus">Ready to search</div>
+    <div id="resultsContainer"></div>
+
+    <script>
+        // Mock product database
+        const productDatabase = {
+            'laptops': [
+                {
+                    title: 'HP 15.6" Laptop, Intel Core i5, 8GB RAM, 256GB SSD',
+                    price: 549.99,
+                    rating: '4.5 out of 5 stars',
+                    reviews: 2847,
+                    description: 'Powerful performance for everyday computing with Windows 11 Home'
+                },
+                {
+                    title: 'Dell Inspiron 15 3000, AMD Ryzen 5, 16GB RAM, 512GB SSD',
+                    price: 649.99,
+                    rating: '4.3 out of 5 stars',
+                    reviews: 1523,
+                    description: 'Reliable laptop with excellent battery life and sleek design'
+                },
+                {
+                    title: 'Lenovo ThinkPad E14, Intel i7, 16GB RAM, 1TB SSD',
+                    price: 899.99,
+                    rating: '4.7 out of 5 stars',
+                    reviews: 3421,
+                    description: 'Business-class laptop with robust security features'
+                },
+                {
+                    title: 'ASUS VivoBook 15, Intel Core i3, 8GB RAM, 128GB SSD',
+                    price: 399.99,
+                    rating: '4.2 out of 5 stars',
+                    reviews: 892,
+                    description: 'Budget-friendly laptop for students and home use'
+                }
+            ],
+            'headphones': [
+                {
+                    title: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones',
+                    price: 398.00,
+                    rating: '4.8 out of 5 stars',
+                    reviews: 5234,
+                    description: 'Industry-leading noise cancellation with premium sound quality'
+                },
+                {
+                    title: 'Bose QuietComfort 45 Bluetooth Headphones',
+                    price: 329.00,
+                    rating: '4.6 out of 5 stars',
+                    reviews: 4123,
+                    description: 'Legendary comfort with powerful noise cancellation'
+                },
+                {
+                    title: 'Apple AirPods Pro (2nd Generation)',
+                    price: 249.00,
+                    rating: '4.7 out of 5 stars',
+                    reviews: 8912,
+                    description: 'Active Noise Cancellation with Adaptive Audio'
+                }
+            ],
+            'keyboard': [
+                {
+                    title: 'Logitech MX Keys Advanced Wireless Illuminated Keyboard',
+                    price: 119.99,
+                    rating: '4.6 out of 5 stars',
+                    reviews: 3456,
+                    description: 'Perfect stroke keys with smart illumination'
+                },
+                {
+                    title: 'Keychron K2 Wireless Mechanical Keyboard',
+                    price: 89.99,
+                    rating: '4.5 out of 5 stars',
+                    reviews: 2341,
+                    description: 'Compact 75% layout with hot-swappable switches'
+                }
+            ]
+        };
+
+        let currentQuery = '';
+
+        // Handle Enter key in search input
+        document.getElementById('searchInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        function performSearch() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+
+            if (!query) {
+                document.getElementById('searchStatus').textContent = 'Please enter a search term';
+                return;
+            }
+
+            currentQuery = query;
+
+            // Show loading state
+            document.getElementById('searchStatus').textContent = 'Searching for "' + query + '"...';
+            document.getElementById('resultsContainer').innerHTML = '<div class="loading">Loading results...</div>';
+
+            // Simulate API delay (like real SPA)
+            setTimeout(() => {
+                displayResults(query);
+            }, 500);
+        }
+
+        function displayResults(query) {
+            const resultsContainer = document.getElementById('resultsContainer');
+
+            // Find matching products
+            let results = [];
+            for (const category in productDatabase) {
+                if (query.includes(category) || category.includes(query)) {
+                    results = productDatabase[category];
+                    break;
+                }
+            }
+
+            // Also check product titles
+            if (results.length === 0) {
+                for (const category in productDatabase) {
+                    const matches = productDatabase[category].filter(product =>
+                        product.title.toLowerCase().includes(query) ||
+                        product.description.toLowerCase().includes(query)
+                    );
+                    if (matches.length > 0) {
+                        results = matches;
+                        break;
+                    }
+                }
+            }
+
+            // Update status
+            if (results.length > 0) {
+                document.getElementById('searchStatus').textContent =
+                    'Results for "' + query + '" (' + results.length + ' items found)';
+
+                // Build results HTML
+                let html = '<div class="result-count">' + results.length + ' results</div>';
+
+                results.forEach((product, index) => {
+                    html += `
+                        <div class="product-card" data-product-index="${index}">
+                            <div class="product-title">${product.title}</div>
+                            <div class="product-price">$${product.price.toFixed(2)}</div>
+                            <div class="product-rating">${product.rating} (${product.reviews.toLocaleString()} reviews)</div>
+                            <div class="product-description">${product.description}</div>
+                        </div>
+                    `;
+                });
+
+                resultsContainer.innerHTML = html;
+            } else {
+                document.getElementById('searchStatus').textContent = 'No results found for "' + query + '"';
+                resultsContainer.innerHTML = '<div class="no-results">No products match your search. Try different keywords.</div>';
+            }
+
+            // Scroll to results
+            window.scrollTo({ top: 200, behavior: 'smooth' });
+        }
+
+        // Track input changes (for debugging)
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            if (!e.target.value) {
+                document.getElementById('searchStatus').textContent = 'Ready to search';
+                document.getElementById('resultsContainer').innerHTML = '';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"mix/internal/browser_logger"
+	"mix/internal/constants"
 	"mix/internal/logging"
 	"mix/internal/session"
 
@@ -209,7 +210,7 @@ func (tc *TunnelConnection) sendLoop() {
 		case <-tc.Context.Done():
 			return
 		case message := <-tc.SendChan:
-			ctx, cancel := context.WithTimeout(tc.Context, 10*time.Second)
+			ctx, cancel := context.WithTimeout(tc.Context, constants.WebSocketWriteTimeout)
 			err := tc.Conn.Write(ctx, websocket.MessageText, message)
 			cancel()
 			if err != nil {
@@ -222,7 +223,7 @@ func (tc *TunnelConnection) sendLoop() {
 
 // pingLoop sends periodic pings
 func (tc *TunnelConnection) pingLoop() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(constants.WebSocketPingInterval)
 	defer ticker.Stop()
 
 	for {
@@ -230,7 +231,7 @@ func (tc *TunnelConnection) pingLoop() {
 		case <-tc.Context.Done():
 			return
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(tc.Context, 5*time.Second)
+			ctx, cancel := context.WithTimeout(tc.Context, constants.WebSocketPongWait)
 			err := tc.Conn.Ping(ctx)
 			cancel()
 			if err != nil {
@@ -263,7 +264,6 @@ func (registry *TunnelRegistry) SendCommandToTunnel(sessionID string, command CD
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
 	}
-
 
 	// Send command (non-blocking with timeout)
 	select {

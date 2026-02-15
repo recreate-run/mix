@@ -11,6 +11,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -92,10 +94,14 @@ func parseJSONResponse(t *testing.T, resp *http.Response) map[string]interface{}
 }
 
 // waitForProcessing waits for message processing to complete
+// Processing is complete when the last message is an assistant message with no unfinished tool calls
 func waitForProcessing(t *testing.T, sessionID string, maxWait time.Duration) {
 	t.Helper()
 
 	deadline := time.Now().Add(maxWait)
+	lastMessageCount := 0
+	stableCount := 0
+
 	for time.Now().Before(deadline) {
 		resp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
 		body, err := io.ReadAll(resp.Body)
@@ -104,25 +110,172 @@ func waitForProcessing(t *testing.T, sessionID string, maxWait time.Duration) {
 			t.Fatalf("Failed to read response body: %v", err)
 		}
 
-		var messages []interface{}
+		var messages []map[string]interface{}
 		if err := json.Unmarshal(body, &messages); err != nil {
 			t.Fatalf("Failed to parse messages array: %v", err)
 		}
 
-		// Check if we have assistant messages (processing complete)
-		if len(messages) > 1 {
-			t.Log("✓ Message processing completed")
-			return
+		// Need at least user + assistant message
+		if len(messages) < 2 {
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
 
+		// Check if message count has stabilized (no new messages for 8 consecutive checks = 4 seconds)
+		if len(messages) == lastMessageCount {
+			stableCount++
+			if stableCount >= 8 {
+				// Verify last message is assistant role with NO tool calls (final response)
+				lastMsg := messages[len(messages)-1]
+				if role, ok := lastMsg["role"].(string); ok && role == "assistant" {
+					// Check if last message has any tool calls at all
+					toolCalls, hasToolCalls := lastMsg["toolCalls"].([]interface{})
+					if !hasToolCalls || len(toolCalls) == 0 {
+						// Last message is assistant with no tool calls - conversation is complete
+						t.Logf("✓ Message processing completed (%d messages)", len(messages))
+						return
+					}
+				}
+			}
+		} else {
+			stableCount = 0
+		}
+
+		lastMessageCount = len(messages)
 		time.Sleep(500 * time.Millisecond)
 	}
 
 	t.Fatal("Timeout waiting for message processing")
 }
 
+// createTestSession creates a test session and returns session ID with cleanup function
+func createTestSession(t *testing.T, title, browserMode string, opts map[string]interface{}) (sessionID string, cleanup func()) {
+	t.Helper()
+
+	t.Logf("Creating session with mode '%s'...", browserMode)
+
+	payload := map[string]interface{}{
+		"title":       title,
+		"browserMode": browserMode,
+	}
+
+	// Merge optional parameters
+	for k, v := range opts {
+		payload[k] = v
+	}
+
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", payload)
+	defer func() { _ = createResp.Body.Close() }()
+
+	if createResp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(createResp.Body)
+		t.Fatalf("Expected status 201, got %d. Body: %s", createResp.StatusCode, string(body))
+	}
+
+	sessionData := parseJSONResponse(t, createResp)
+	sessionID, ok := sessionData["id"].(string)
+	if !ok {
+		t.Fatal("Failed to get session ID from response")
+	}
+	t.Logf("✓ Created session: %s", sessionID)
+
+	cleanup = func() {
+		t.Log("Cleaning up test session...")
+		deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
+		defer func() { _ = deleteResp.Body.Close() }()
+
+		if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {
+			t.Logf("Warning: Failed to delete session: status %d", deleteResp.StatusCode)
+		} else {
+			t.Log("✓ Session cleaned up")
+		}
+	}
+
+	return sessionID, cleanup
+}
+
+// sendMessage sends a message to a session and returns the response
+func sendMessage(t *testing.T, sessionID, text string) *http.Response {
+	t.Helper()
+
+	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
+		"text": text,
+	})
+
+	if msgResp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(msgResp.Body)
+		_ = msgResp.Body.Close()
+		t.Fatalf("Expected status 202 (Accepted), got %d. Body: %s", msgResp.StatusCode, string(body))
+	}
+
+	return msgResp
+}
+
+// setupBrowserTest sets up a complete browser test environment with test server and session
+func setupBrowserTest(t *testing.T, sessionTitle string) (testServerURL string, sessionID string, cleanup func()) {
+	t.Helper()
+
+	e2e.Setup(t)
+	skipIfBrowserServiceNotRunning(t)
+
+	// Start test HTML server
+	testServer := startTestHTMLServer(t)
+	testServerURL = testServer.URL
+
+	// Create session
+	sessionID, sessionCleanup := createTestSession(t, sessionTitle, "local-browser-service", nil)
+
+	// Combined cleanup function
+	cleanup = func() {
+		sessionCleanup()
+		testServer.Close()
+	}
+
+	return testServerURL, sessionID, cleanup
+}
+
+// startTestHTMLServer starts an HTTP server serving test HTML files from testdata
+func startTestHTMLServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	// Get the testdata directory relative to the test file
+	testdataDir := "testdata"
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Remove leading slash and construct file path
+		filename := strings.TrimPrefix(r.URL.Path, "/")
+		if filename == "" {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+
+		// Read the file from testdata
+		filepath := testdataDir + "/" + filename
+		content, err := os.ReadFile(filepath)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("File not found: %s", filename), http.StatusNotFound)
+			return
+		}
+
+		// Set content type based on file extension
+		if strings.HasSuffix(filename, ".html") {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		} else if strings.HasSuffix(filename, ".txt") {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(content)
+	})
+
+	server := httptest.NewServer(handler)
+	t.Logf("✓ Test HTML server started at %s", server.URL)
+	return server
+}
+
 // TestBrowserE2EFullWorkflow tests the complete user workflow
 func TestBrowserE2EFullWorkflow(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -131,7 +284,8 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E Browser Test",
+		"title":       "E2E Browser Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -217,18 +371,25 @@ func TestBrowserE2EFullWorkflow(t *testing.T) {
 
 // TestBrowserE2ESessionIsolation tests that browser sessions are isolated
 func TestBrowserE2ESessionIsolation(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
 	t.Log("=== E2E Test: Session Isolation ===")
 
 	// Create two sessions
-	session1Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{"title": "E2E Session 1"})
+	session1Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
+		"title":       "E2E Session 1",
+		"browserMode": "local-browser-service",
+	})
 	session1Data := parseJSONResponse(t, session1Resp)
 	session1ID := session1Data["id"].(string)
 	_ = session1Resp.Body.Close()
 
-	session2Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{"title": "E2E Session 2"})
+	session2Resp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
+		"title":       "E2E Session 2",
+		"browserMode": "local-browser-service",
+	})
 	session2Data := parseJSONResponse(t, session2Resp)
 	session2ID := session2Data["id"].(string)
 	_ = session2Resp.Body.Close()
@@ -237,12 +398,12 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 
 	// Send browser messages to both sessions
 	msg1Resp := makeRequest(t, http.MethodPost, constants.APISessionsPath+session1ID+"/messages", map[string]interface{}{
-		"text": "Open example.com",
+		"text": "Go to the Wikipedia page on cats",
 	})
 	_ = msg1Resp.Body.Close()
 
 	msg2Resp := makeRequest(t, http.MethodPost, constants.APISessionsPath+session2ID+"/messages", map[string]interface{}{
-		"text": "Open google.com",
+		"text": "Go to the Wikipedia page on cats",
 	})
 	_ = msg2Resp.Body.Close()
 
@@ -273,6 +434,7 @@ func TestBrowserE2ESessionIsolation(t *testing.T) {
 
 // TestBrowserE2ETextExtraction tests the text extraction feature with different strategies
 func TestBrowserE2ETextExtraction(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -285,7 +447,8 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E Text Extraction Test",
+		"title":       "E2E Text Extraction Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -375,6 +538,7 @@ func TestBrowserE2ETextExtraction(t *testing.T) {
 
 // TestBrowserE2EDOMSearch tests the DOM search feature
 func TestBrowserE2EDOMSearch(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -387,7 +551,8 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E DOM Search Test",
+		"title":       "E2E DOM Search Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -471,6 +636,7 @@ func TestBrowserE2EDOMSearch(t *testing.T) {
 
 // TestBrowserE2EFileUpload tests the file upload feature
 func TestBrowserE2EFileUpload(t *testing.T) {
+	t.Parallel()
 	e2e.Setup(t)
 	skipIfBrowserServiceNotRunning(t)
 
@@ -483,7 +649,8 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 	// Step 1: Create a session
 	t.Log("Step 1: Creating session...")
 	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
-		"title": "E2E File Upload Test",
+		"title":       "E2E File Upload Test",
+		"browserMode": "local-browser-service",
 	})
 	defer func() { _ = createResp.Body.Close() }()
 
@@ -557,6 +724,163 @@ func TestBrowserE2EFileUpload(t *testing.T) {
 
 	// Cleanup
 	t.Log("Cleaning up test session...")
+	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
+	defer func() { _ = deleteResp.Body.Close() }()
+
+	if deleteResp.StatusCode != http.StatusOK && deleteResp.StatusCode != http.StatusNoContent {
+		t.Logf("Warning: Failed to delete session: status %d", deleteResp.StatusCode)
+	} else {
+		t.Log("✓ Session cleaned up")
+	}
+
+	t.Log("=== E2E Test Completed Successfully ===")
+}
+
+// TestBrowserE2EScreenshotURL tests screenshot HTTP serving via analyze_screenshot
+func TestBrowserE2EScreenshotURL(t *testing.T) {
+	t.Parallel()
+	e2e.Setup(t)
+	skipIfBrowserServiceNotRunning(t)
+
+	t.Log("=== E2E Test: Screenshot URL Serving ===")
+
+	// Step 1: Create session
+	t.Log("Step 1: Creating session...")
+	createResp := makeRequest(t, http.MethodPost, "/api/sessions", map[string]interface{}{
+		"title":       "Screenshot URL Test",
+		"browserMode": "local-browser-service",
+	})
+	defer func() { _ = createResp.Body.Close() }()
+
+	if createResp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status 201, got %d", createResp.StatusCode)
+	}
+
+	sessionData := parseJSONResponse(t, createResp)
+	sessionID, ok := sessionData["id"].(string)
+	if !ok {
+		t.Fatal("Failed to get session ID from response")
+	}
+	t.Logf("✓ Created session: %s", sessionID)
+
+	// Step 2: Send message to analyze screenshot
+	t.Log("Step 2: Sending message to use analyze_screenshot...")
+	msgResp := makeRequest(t, http.MethodPost, constants.APISessionsPath+sessionID+"/messages", map[string]interface{}{
+		"text": "Go to the Wikipedia page on cats and take a screenshot",
+	})
+	defer func() { _ = msgResp.Body.Close() }()
+
+	if msgResp.StatusCode != http.StatusAccepted {
+		t.Fatalf("Expected status 202 (Accepted), got %d", msgResp.StatusCode)
+	}
+	t.Log("✓ Message sent, processing started")
+
+	// Step 3: Wait for processing to complete
+	t.Log("Step 3: Waiting for agent to process message...")
+	// Wait longer to ensure all tool calls complete (analyze_screenshot takes time)
+	waitForProcessing(t, sessionID, 180*time.Second)
+
+	// Step 4: Get messages and extract screenshot URL from tool results
+	t.Log("Step 4: Extracting screenshot URL from tool results...")
+	messagesResp := makeRequest(t, http.MethodGet, constants.APISessionsPath+sessionID+"/messages", nil)
+	defer func() { _ = messagesResp.Body.Close() }()
+
+	messagesBody, err := io.ReadAll(messagesResp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read messages response: %v", err)
+	}
+
+	var messages []map[string]interface{}
+	if err := json.Unmarshal(messagesBody, &messages); err != nil {
+		t.Fatalf("Failed to parse messages: %v", err)
+	}
+
+	// Debug: Print ALL fields in ALL messages
+	t.Logf("DEBUG: Received %d messages", len(messages))
+	for i, msg := range messages {
+		msgJSON, _ := json.MarshalIndent(msg, "", "  ")
+		t.Logf("DEBUG: Message %d (FULL):\n%s", i, string(msgJSON))
+
+		// Specifically check for important fields
+		if role, ok := msg["role"].(string); ok {
+			t.Logf("DEBUG: Message %d role: %s", i, role)
+		}
+		if content, ok := msg["assistantResponse"].(string); ok {
+			t.Logf("DEBUG: Message %d assistantResponse length: %d", i, len(content))
+		}
+		if toolCalls, ok := msg["toolCalls"].([]interface{}); ok {
+			t.Logf("DEBUG: Message %d has %d tool calls", i, len(toolCalls))
+		}
+	}
+
+	// Find screenshot URL in tool calls
+	var screenshotURL string
+	for _, msg := range messages {
+		if role, ok := msg["role"].(string); ok && role == "assistant" {
+			if toolCalls, ok := msg["toolCalls"].([]interface{}); ok {
+				for _, tc := range toolCalls {
+					if toolCall, ok := tc.(map[string]interface{}); ok {
+						if name, ok := toolCall["name"].(string); ok && name == "Browser" {
+							if screenshotUrls, ok := toolCall["screenshotUrls"].([]interface{}); ok && len(screenshotUrls) > 0 {
+								if url, ok := screenshotUrls[0].(string); ok {
+									screenshotURL = url
+									t.Logf("✓ Found screenshot URL: %s", screenshotURL)
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+			if screenshotURL != "" {
+				break
+			}
+		}
+	}
+
+	if screenshotURL == "" {
+		t.Fatal("No screenshot URL found in tool results")
+	}
+
+	// Step 5: Fetch screenshot via HTTP
+	t.Log("Step 5: Fetching screenshot via HTTP...")
+	// Screenshot URL is already absolute, fetch it directly
+	client := &http.Client{Timeout: defaultTimeout}
+	imgResp, err := client.Get(screenshotURL)
+	if err != nil {
+		t.Fatalf("Failed to fetch screenshot: %v", err)
+	}
+	defer func() { _ = imgResp.Body.Close() }()
+
+	if imgResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200 for screenshot, got %d", imgResp.StatusCode)
+	}
+
+	contentType := imgResp.Header.Get("Content-Type")
+	if contentType != "image/png" {
+		t.Fatalf("Expected Content-Type 'image/png', got '%s'", contentType)
+	}
+
+	cacheControl := imgResp.Header.Get("Cache-Control")
+	if !strings.Contains(cacheControl, "max-age") {
+		t.Logf("⚠ Warning: Cache-Control header not optimal: %s", cacheControl)
+	}
+
+	imgData, err := io.ReadAll(imgResp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read screenshot data: %v", err)
+	}
+
+	if len(imgData) == 0 {
+		t.Fatal("Screenshot data is empty")
+	}
+
+	t.Logf("✓ Screenshot fetched successfully (%d bytes)", len(imgData))
+	t.Logf("✓ Content-Type: %s", contentType)
+	t.Logf("✓ Cache-Control: %s", cacheControl)
+
+	// Step 6: Cleanup - delete session
+	t.Log("Step 6: Cleaning up test session...")
 	deleteResp := makeRequest(t, http.MethodDelete, constants.APISessionsPath+sessionID, nil)
 	defer func() { _ = deleteResp.Body.Close() }()
 

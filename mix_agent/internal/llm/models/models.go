@@ -24,11 +24,7 @@ type Model struct {
 	SupportsAttachments bool          `json:"supports_attachments"`
 }
 
-// Model IDs
-const ( // GEMINI
-	// Bedrock
-	BedrockClaude37Sonnet ModelID = "bedrock.claude-3.7-sonnet"
-)
+// Model IDs - reserved for future use
 
 const (
 	ProviderBedrock ModelProvider = "bedrock"
@@ -92,7 +88,7 @@ func GetSupportedProviders() []ModelProvider {
 		ProviderOpenAI,
 		ProviderOpenRouter,
 		ProviderAnthropic, // Claude
-		// ProviderGemini,
+		ProviderGemini,
 	}
 }
 
@@ -122,9 +118,8 @@ func GetModelsForProvider(provider ModelProvider) []ModelID {
 	case ProviderAnthropic:
 		return []ModelID{
 			Claude45Sonnet,
-			Claude4Sonnet,
-			Claude37Sonnet,
-			Claude4Opus,
+			ClaudeOpus46,
+			ClaudeHaiku45,
 		}
 	case ProviderGemini:
 		return []ModelID{

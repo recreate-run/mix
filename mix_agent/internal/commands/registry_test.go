@@ -209,9 +209,7 @@ func TestRegistryLoadCommandsIntegration(t *testing.T) {
 
 	// Set temporary home directory for this test
 	originalHome := os.Getenv("HOME")
-	if err := os.Setenv("HOME", tempHomeDir); err != nil {
-		t.Fatalf("Failed to set HOME: %v", err)
-	}
+	_ = os.Setenv("HOME", tempHomeDir)
 	defer func() {
 		_ = os.Setenv("HOME", originalHome)
 	}()

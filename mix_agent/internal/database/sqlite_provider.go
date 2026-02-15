@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
 	"github.com/pressly/goose/v3"
 
+	"mix/internal/constants"
 	"mix/internal/db"
 	"mix/internal/logging"
 )
@@ -58,7 +58,7 @@ func (p *SQLiteProvider) Connect(ctx context.Context) error {
 	p.db = sqlDB
 
 	// Verify connection with timeout
-	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, constants.DatabasePingTimeout)
 	defer cancel()
 	if err = p.db.PingContext(pingCtx); err != nil {
 		_ = p.db.Close() // Ignore close error in cleanup path
@@ -76,7 +76,7 @@ func (p *SQLiteProvider) Connect(ctx context.Context) error {
 	}
 
 	for _, pragma := range pragmas {
-		pragmaCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		pragmaCtx, cancel := context.WithTimeout(ctx, constants.DatabasePingTimeout)
 		if _, err = p.db.ExecContext(pragmaCtx, pragma); err != nil {
 			logging.Error("Failed to set pragma", pragma, err)
 		}
@@ -137,7 +137,7 @@ func (p *SQLiteProvider) RunMigrations(ctx context.Context) error {
 	}
 
 	// Run migrations with timeout
-	migrationCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	migrationCtx, cancel := context.WithTimeout(ctx, constants.DatabaseMigrationTimeout)
 	defer cancel()
 
 	if err := goose.UpContext(migrationCtx, p.db, "migrations"); err != nil {

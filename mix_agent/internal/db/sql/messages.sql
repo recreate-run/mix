@@ -16,10 +16,15 @@ INSERT INTO messages (
     role,
     parts,
     model,
+    input_tokens,
+    output_tokens,
+    cache_creation_tokens,
+    cache_read_tokens,
+    cost,
     created_at,
     updated_at
 ) VALUES (
-    ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now')
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now')
 )
 RETURNING *;
 
@@ -28,6 +33,11 @@ UPDATE messages
 SET
     parts = ?,
     finished_at = ?,
+    input_tokens = ?,
+    output_tokens = ?,
+    cache_creation_tokens = ?,
+    cache_read_tokens = ?,
+    cost = ?,
     updated_at = strftime('%s', 'now')
 WHERE id = ?;
 

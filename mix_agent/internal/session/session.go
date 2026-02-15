@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
+	"mix/internal/browser"
 	"mix/internal/db"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/tools/shell"
@@ -14,6 +16,10 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// WaitForOperations is a hook that can be set by the agent package to wait for in-flight operations
+// before session deletion. This avoids circular dependencies between session and agent packages.
+var WaitForOperations func(sessionID string, timeout time.Duration)
 
 // SessionType represents the type/category of a session
 type SessionType string
@@ -145,7 +151,7 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 	if browserMode == "" {
 		return Session{}, fmt.Errorf("browserMode is required")
 	}
-	validModes := []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"}
+	validModes := []string{browser.ModeElectronEmbedded, browser.ModeLocalBrowserService, browser.ModeRemoteCDP}
 	isValidMode := false
 	for _, mode := range validModes {
 		if browserMode == mode {
@@ -158,9 +164,9 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 	}
 
 	// Validate CDP URL if mode is remote-cdp-websocket
-	if browserMode == "remote-cdp-websocket" {
+	if browserMode == browser.ModeRemoteCDP {
 		if cdpUrl == "" {
-			return Session{}, fmt.Errorf("cdpUrl is required when browserMode is 'remote-cdp-websocket'")
+			return Session{}, fmt.Errorf("cdpUrl is required when browserMode is '%s'", browser.ModeRemoteCDP)
 		}
 		// Validate CDP URL format
 		if !strings.HasPrefix(cdpUrl, "ws://") && !strings.HasPrefix(cdpUrl, "wss://") {
@@ -168,7 +174,7 @@ func (s *service) Create(ctx context.Context, title, customSystemPrompt, promptM
 		}
 	} else if cdpUrl != "" {
 		// Ensure CDP URL is not set for other modes
-		return Session{}, fmt.Errorf("cdpUrl can only be set when browserMode is 'remote-cdp-websocket'")
+		return Session{}, fmt.Errorf("cdpUrl can only be set when browserMode is '%s'", browser.ModeRemoteCDP)
 	}
 
 	// Validate session hierarchy constraints BEFORE creating any resources
@@ -243,6 +249,13 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	session, err := s.Get(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	// Wait for all in-flight operations to complete before deletion
+	// This prevents foreign key constraint violations when background goroutines
+	// try to save tool results after the session has been deleted
+	if WaitForOperations != nil {
+		WaitForOperations(session.ID, 10*time.Second)
 	}
 
 	// Delete session from database

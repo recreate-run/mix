@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"mix/internal/app"
+	"mix/internal/constants"
 	"mix/internal/logging"
 	"mix/internal/session"
 
@@ -99,7 +100,7 @@ func (h *SessionAssetHandler) HandleServeFile(w http.ResponseWriter, r *http.Req
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -541,7 +542,7 @@ func (h *SessionAssetHandler) tryServeFromSessionStorage(w http.ResponseWriter, 
 		if os.IsNotExist(err) {
 			return false, nil // File doesn't exist in session storage, try shared storage
 		}
-		return false, fmt.Errorf("invalid filename or path traversal attempt: %s", err.Error())
+		return false, fmt.Errorf("invalid filename or path traversal attempt: %w", err)
 	}
 
 	// Don't serve directories

@@ -210,4 +210,3 @@ func TestSaveScreenshotEmptyData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), info.Size())
 }
-

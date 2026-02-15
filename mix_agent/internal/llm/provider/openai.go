@@ -25,6 +25,27 @@ const (
 	reasoningEffortMedium = "medium"
 )
 
+// Helper functions for error classification
+func isQuotaExceededError(err error) bool {
+	var apierr *openai.Error
+	if errors.As(err, &apierr) {
+		// Check status code for quota/billing issues
+		return apierr.StatusCode == http.StatusForbidden ||
+			apierr.StatusCode == http.StatusPaymentRequired ||
+			strings.Contains(err.Error(), "exceeded your current quota") ||
+			strings.Contains(err.Error(), "billing details")
+	}
+	return false
+}
+
+func isUnauthorizedError(err error) bool {
+	var apierr *openai.Error
+	if errors.As(err, &apierr) {
+		return apierr.StatusCode == http.StatusUnauthorized
+	}
+	return false
+}
+
 type openaiOptions struct {
 	baseURL         string
 	disableCache    bool
@@ -146,7 +167,8 @@ func (o *openaiClient) convertMessages(messages []message.Message) (openaiMessag
 	// Add system message first
 	openaiMessages = append(openaiMessages, openai.SystemMessage(o.providerOptions.systemMessage))
 
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		switch msg.Role {
 		case message.User:
 			var content []openai.ChatCompletionContentPartUnionParam
@@ -298,13 +320,13 @@ func (o *openaiClient) Send(ctx context.Context, messages []message.Message, too
 		// If there is an error we are going to see if we can retry the call
 		if err != nil {
 			// Check for quota exceeded errors
-			if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+			if isQuotaExceededError(err) {
 				logging.Error("OpenAI API quota exceeded", "error", err, "errorMessage", err.Error())
 				return nil, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
 			}
 
 			// Check for 401 and try OAuth token refresh
-			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
+			if o.options.useOAuth && o.options.oauthCreds != nil && isUnauthorizedError(err) && o.options.oauthCreds.RefreshToken != "" {
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
 					// Update stored credentials
 					if o.credentialStorage != nil {
@@ -445,7 +467,7 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 			}
 
 			// Check for quota exceeded errors
-			if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+			if isQuotaExceededError(err) {
 				logging.Error("OpenAI API quota exceeded in streaming request", "error", err, "errorMessage", err.Error())
 				eventChan <- interfaces.ProviderEvent{Type: interfaces.EventError, Error: fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)}
 				close(eventChan)
@@ -453,7 +475,7 @@ func (o *openaiClient) Stream(ctx context.Context, messages []message.Message, t
 			}
 
 			// Check for 401 and try OAuth token refresh
-			if o.options.useOAuth && o.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && o.options.oauthCreds.RefreshToken != "" {
+			if o.options.useOAuth && o.options.oauthCreds != nil && isUnauthorizedError(err) && o.options.oauthCreds.RefreshToken != "" {
 				if refreshedCreds, refreshErr := RefreshOpenAIAccessToken(o.options.oauthCreds); refreshErr == nil {
 					// Update stored credentials
 					if o.credentialStorage != nil {
@@ -507,7 +529,7 @@ func (o *openaiClient) shouldRetry(attempts int, err error) (shouldRetry bool, r
 	}
 
 	// Check for quota exceeded specifically
-	if strings.Contains(err.Error(), "exceeded your current quota") || strings.Contains(err.Error(), "billing details") {
+	if isQuotaExceededError(err) {
 		logging.Error("OpenAI API quota exceeded, cannot retry", "error", err, "statusCode", apierr.StatusCode)
 		return false, 0, fmt.Errorf("OpenAI API quota exceeded. Please check your billing details: %w", err)
 	}

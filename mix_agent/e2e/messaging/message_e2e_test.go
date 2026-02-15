@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"mix/e2e"
-	"mix/internal/http/integration_tests"
 	"mix/internal/constants"
+	"mix/internal/http/integration_tests"
 )
 
 // TestRESTMessageSending tests the complete end-to-end flow of sending a message and receiving an LLM response

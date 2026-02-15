@@ -56,6 +56,11 @@ func (a *ServiceClientAdapter) Find(ctx context.Context, query string, limit int
 	return a.client.Find(ctx, query, limit, tabID...)
 }
 
+// GetElements returns all interactive elements (populates click cache in browser-service)
+func (a *ServiceClientAdapter) GetElements(ctx context.Context, tabID ...string) ([]browserprotocol.RawAccessibilityNode, error) {
+	return a.client.GetElements(ctx, tabID...)
+}
+
 // Click clicks an element by index
 func (a *ServiceClientAdapter) Click(ctx context.Context, index int, tabID ...string) error {
 	return a.client.Click(ctx, index, tabID...)
@@ -96,13 +101,33 @@ func (a *ServiceClientAdapter) TripleClickByBackendID(ctx context.Context, backe
 	return a.client.TripleClickByBackendID(ctx, backendID, tabID...)
 }
 
+// ClickAt clicks at specific coordinates
+func (a *ServiceClientAdapter) ClickAt(ctx context.Context, x, y float64, button *string, clickCount, duration *int, tabID ...string) error {
+	return a.client.ClickAt(ctx, x, y, button, clickCount, duration, tabID...)
+}
+
+// RightClickAt right-clicks at specific coordinates
+func (a *ServiceClientAdapter) RightClickAt(ctx context.Context, x, y float64, duration *int, tabID ...string) error {
+	return a.client.RightClickAt(ctx, x, y, duration, tabID...)
+}
+
+// DoubleClickAt double-clicks at specific coordinates
+func (a *ServiceClientAdapter) DoubleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID ...string) error {
+	return a.client.DoubleClickAt(ctx, x, y, button, duration, tabID...)
+}
+
+// TripleClickAt triple-clicks at specific coordinates
+func (a *ServiceClientAdapter) TripleClickAt(ctx context.Context, x, y float64, button *string, duration *int, tabID ...string) error {
+	return a.client.TripleClickAt(ctx, x, y, button, duration, tabID...)
+}
+
 // Drag performs a drag operation
 func (a *ServiceClientAdapter) Drag(ctx context.Context, fromIndex, toIndex *int, fromX, fromY, toX, toY *float64, duration *int, tabID ...string) error {
 	return a.client.Drag(ctx, fromIndex, toIndex, fromX, fromY, toX, toY, duration, tabID...)
 }
 
 // Type types text into an element
-func (a *ServiceClientAdapter) Type(ctx context.Context, index int, text string, tabID ...string) error {
+func (a *ServiceClientAdapter) Type(ctx context.Context, index *int, text string, tabID ...string) error {
 	return a.client.Type(ctx, index, text, tabID...)
 }
 

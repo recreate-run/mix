@@ -58,7 +58,7 @@ func TestNotificationService_Request_Acknowledge(t *testing.T) {
 	go func() {
 		notifID := <-notifIDChan
 		time.Sleep(100 * time.Millisecond)
-		
+
 		err := svc.Respond(notifID, NotificationResponse{
 			ID:   notifID,
 			Type: "acknowledge",
@@ -105,7 +105,7 @@ func TestNotificationService_Request_Text(t *testing.T) {
 	go func() {
 		notifID := <-notifIDChan
 		time.Sleep(100 * time.Millisecond)
-		
+
 		err := svc.Respond(notifID, NotificationResponse{
 			ID:    notifID,
 			Type:  "text",
@@ -158,7 +158,7 @@ func TestNotificationService_Request_Choice(t *testing.T) {
 	go func() {
 		notifID := <-notifIDChan
 		time.Sleep(100 * time.Millisecond)
-		
+
 		err := svc.Respond(notifID, NotificationResponse{
 			ID:    notifID,
 			Type:  "choice",
@@ -238,7 +238,7 @@ func TestNotificationService_Request_InvalidTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Helper()
-			
+
 			done := make(chan error, 1)
 			go func() {
 				_, err := svc.Request(CreateNotificationRequest{
@@ -314,7 +314,7 @@ func TestNotificationService_PubSub(t *testing.T) {
 	go func() {
 		notifID := <-notifIDChan
 		time.Sleep(100 * time.Millisecond)
-		
+
 		err := svc.Respond(notifID, NotificationResponse{
 			ID:   notifID,
 			Type: "acknowledge",
@@ -357,7 +357,7 @@ func TestNotificationService_ConcurrentRequests(t *testing.T) {
 
 	// Create a shared subscription channel for all requests
 	subChan := svc.Subscribe(context.Background())
-	
+
 	// Map to store notification IDs and their response channels
 	notifMap := sync.Map{}
 
@@ -368,7 +368,7 @@ func TestNotificationService_ConcurrentRequests(t *testing.T) {
 			// Store the notification ID in map
 			respChan := make(chan bool, 1)
 			notifMap.Store(notifID, respChan)
-			
+
 			// Respond after delay
 			go func(id string, ch chan bool) {
 				<-ch // Wait for signal

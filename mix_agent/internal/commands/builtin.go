@@ -348,7 +348,7 @@ func createMcpHandler() func(ctx context.Context, args string) (string, error) {
 		// Get MCP tools to check connection status and group by server
 		// Create temporary manager for informational listing
 		tempManager := agent.NewMCPClientManager()
-		defer tempManager.Close()
+		defer tempManager.Close() // No error returned
 		mcpTools := agent.GetMcpTools(ctx, nil, tempManager)
 
 		// Group tools by server name

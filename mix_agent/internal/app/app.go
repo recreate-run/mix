@@ -156,6 +156,7 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 			browserClientFactory,
 			browserConnectionManager,
 			func() interface{} { return app.TunnelRegistry }, // Closure that looks up current value
+			app.BaseURL,
 		),
 		storageConfig,
 		app.Permissions, // Pass permissions for callback executor
@@ -199,7 +200,7 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string
 	titlePrefix := "Non-interactive: "
 	title := session.TruncateTitle(titlePrefix + prompt)
 
-	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "", "local-browser-service", "")
+	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "", browserpkg.ModeLocalBrowserService, "")
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}

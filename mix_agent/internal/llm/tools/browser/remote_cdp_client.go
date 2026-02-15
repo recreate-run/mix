@@ -14,12 +14,31 @@ import (
 	"mix/internal/logging"
 )
 
+// reconnectionState tracks the current reconnection state
+type reconnectionState int32
+
+const (
+	stateConnected reconnectionState = iota
+	stateDisconnected
+	stateReconnecting
+)
+
+// CDP command timeouts - configured generously for remote browsers with network latency
+// Note: With proper domain enabling (Page.enable, Accessibility.enable, etc.),
+// accessibility tree operations should be nearly instant as the browser maintains the tree.
+// These timeouts handle edge cases (massive pages, slow cloud providers, network issues).
+var commandTimeouts = map[string]time.Duration{
+	"Accessibility.getFullAXTree": 30 * time.Second, // Should be instant with domain enabled, but allow for network latency
+	"Page.captureScreenshot":      30 * time.Second, // High-res screenshots + network transfer
+	"DOM.getBoxModel":             5 * time.Second,
+	"default":                     10 * time.Second,
+}
+
 // RemoteCDPClient connects to remote CDP WebSocket endpoints (cloud browser providers)
 // Implements BrowserClient interface for Browserbase, Brightdata, Hyperbrowser, etc.
 type RemoteCDPClient struct {
 	cdpURL string
-	conn   *websocket.Conn
-	connMu sync.RWMutex
+	conn   atomic.Pointer[websocket.Conn] // Lock-free connection access
 
 	// Message ID management
 	messageID atomic.Int64
@@ -49,6 +68,15 @@ type RemoteCDPClient struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	// Connection failure notification
+	closed   chan struct{}
+	closedMu sync.Mutex
+
+	// Reconnection management
+	reconnectState       atomic.Int32 // reconnectionState
+	reconnectAttempts    atomic.Int32
+	maxReconnectAttempts int
 }
 
 // NewRemoteCDPClient creates a new remote CDP WebSocket client
@@ -57,8 +85,15 @@ func NewRemoteCDPClient(ctx context.Context, cdpURL string) (*RemoteCDPClient, e
 		return nil, fmt.Errorf("CDP URL cannot be empty")
 	}
 
+	// Create custom dialer with larger buffers for screenshot responses
+	// Screenshots can be 100KB+ of base64 data
+	dialer := &websocket.Dialer{
+		ReadBufferSize:  1024 * 1024, // 1MB read buffer
+		WriteBufferSize: 1024 * 1024, // 1MB write buffer
+	}
+
 	// Connect to CDP WebSocket
-	conn, resp, err := websocket.DefaultDialer.DialContext(ctx, cdpURL, nil)
+	conn, resp, err := dialer.DialContext(ctx, cdpURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to CDP endpoint %s: %w", cdpURL, err)
 	}
@@ -69,15 +104,18 @@ func NewRemoteCDPClient(ctx context.Context, cdpURL string) (*RemoteCDPClient, e
 	clientCtx, cancel := context.WithCancel(ctx)
 
 	client := &RemoteCDPClient{
-		cdpURL:         cdpURL,
-		conn:           conn,
-		tabs:           make(map[string]*tabInfo),
-		elementCache:   make(map[string][]elementInfo),
-		screenshotSize: make(map[string]screenshotSize),
-		pending:        make(map[int64]chan *cdp.Response),
-		ctx:            clientCtx,
-		cancel:         cancel,
+		cdpURL:               cdpURL,
+		tabs:                 make(map[string]*tabInfo),
+		elementCache:         make(map[string][]elementInfo),
+		screenshotSize:       make(map[string]screenshotSize),
+		pending:              make(map[int64]chan *cdp.Response),
+		ctx:                  clientCtx,
+		cancel:               cancel,
+		closed:               make(chan struct{}),
+		maxReconnectAttempts: 5,
 	}
+	client.conn.Store(conn)
+	client.reconnectState.Store(int32(stateConnected))
 
 	// Start message reader
 	client.wg.Add(1)
@@ -133,6 +171,13 @@ func (c *RemoteCDPClient) setLastScreenshotSize(tabID string, width, height int)
 	c.screenshotMu.Unlock()
 }
 
+// getCommandTimeout returns the timeout for a specific CDP command
+func getCommandTimeout(method string) time.Duration {
+	if timeout, exists := commandTimeouts[method]; exists {
+		return timeout
+	}
+	return commandTimeouts["default"]
+}
 
 // sendCommand sends a CDP command and waits for response
 func (c *RemoteCDPClient) sendCommand(ctx context.Context, method string, params interface{}, sessionID ...string) (interface{}, error) {
@@ -150,6 +195,14 @@ func (c *RemoteCDPClient) sendCommand(ctx context.Context, method string, params
 		command.SessionID = sessionID[0]
 	}
 
+	// Log CDP command being sent (with params for debugging)
+	paramsJSON, _ := json.Marshal(params)
+	if command.SessionID != "" {
+		logging.Info("Sending CDP command", "method", method, "id", messageID, "sessionID", command.SessionID, "params", string(paramsJSON))
+	} else {
+		logging.Info("Sending CDP command", "method", method, "id", messageID, "params", string(paramsJSON))
+	}
+
 	// Create response channel
 	responseChan := make(chan *cdp.Response, 1)
 	c.pendingMu.Lock()
@@ -164,14 +217,19 @@ func (c *RemoteCDPClient) sendCommand(ctx context.Context, method string, params
 	}()
 
 	// Send command
-	c.connMu.Lock()
-	err := c.conn.WriteJSON(command)
-	c.connMu.Unlock()
+	conn := c.conn.Load()
+	if conn == nil {
+		return nil, fmt.Errorf("connection closed while sending CDP command %s", method)
+	}
+	err := conn.WriteJSON(command)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send CDP command %s: %w", method, err)
 	}
 
-	// Wait for response with timeout
+	// Get timeout for this specific command
+	timeout := getCommandTimeout(method)
+
+	// Wait for response with command-specific timeout
 	select {
 	case response := <-responseChan:
 		if response.Error != nil {
@@ -180,7 +238,19 @@ func (c *RemoteCDPClient) sendCommand(ctx context.Context, method string, params
 		return response.Result, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case <-time.After(30 * time.Second):
+	case <-c.closed:
+		return nil, fmt.Errorf("connection closed while waiting for CDP response to %s", method)
+	case <-time.After(timeout):
+		// Timeout - treat as connection failure and trigger reconnection
+		logging.Warn("CDP command timeout - triggering reconnection", "method", method, "timeout", timeout)
+		c.reconnectState.Store(int32(stateDisconnected))
+		c.notifyPendingRequests()
+
+		// Attempt reconnection in background (only if not already reconnecting)
+		if c.reconnectState.CompareAndSwap(int32(stateDisconnected), int32(stateReconnecting)) {
+			go c.attemptReconnection()
+		}
+
 		return nil, fmt.Errorf("timeout waiting for CDP response to %s", method)
 	}
 }
@@ -196,14 +266,27 @@ func (c *RemoteCDPClient) readMessages() {
 		default:
 		}
 
+		// Read message using atomic pointer (lock-free)
+		conn := c.conn.Load()
+		if conn == nil {
+			return
+		}
+
 		var msg json.RawMessage
-		c.connMu.RLock()
-		err := c.conn.ReadJSON(&msg)
-		c.connMu.RUnlock()
+		err := conn.ReadJSON(&msg)
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 				logging.Error("WebSocket read error", "error", err)
+			}
+
+			// Mark as disconnected and notify pending requests
+			c.reconnectState.Store(int32(stateDisconnected))
+			c.notifyPendingRequests()
+
+			// Attempt reconnection in background (only if not already reconnecting)
+			if c.reconnectState.CompareAndSwap(int32(stateDisconnected), int32(stateReconnecting)) {
+				go c.attemptReconnection()
 			}
 			return
 		}
@@ -224,6 +307,9 @@ func (c *RemoteCDPClient) readMessages() {
 			c.handleEvent(event.Method, event.Params)
 			continue
 		}
+
+		// Unknown message format
+		logging.Warn("Received unknown CDP message format", "message", string(msg)[:min(len(msg), 200)])
 	}
 }
 
@@ -233,12 +319,18 @@ func (c *RemoteCDPClient) handleResponse(response *cdp.Response) {
 	ch, exists := c.pending[int64(response.ID)]
 	c.pendingMu.RUnlock()
 
+	hasError := response.Error != nil
+	hasResult := response.Result != nil
+
 	if exists {
+		logging.Debug("CDP response received", "id", response.ID, "hasResult", hasResult, "hasError", hasError)
 		select {
 		case ch <- response:
 		default:
-			// Channel full or closed
+			logging.Warn("CDP response channel full or closed", "id", response.ID)
 		}
+	} else {
+		logging.Warn("CDP response for unknown request ID", "id", response.ID, "hasResult", hasResult, "hasError", hasError)
 	}
 }
 
@@ -255,14 +347,151 @@ func (c *RemoteCDPClient) handleEvent(method string, params json.RawMessage) {
 	}
 }
 
+// waitForEvent waits for a specific CDP event with timeout
+// Returns nil on success, error on timeout or context cancellation
+func (c *RemoteCDPClient) waitForEvent(ctx context.Context, eventMethod string, timeout time.Duration) error {
+	eventChan := make(chan struct{}, 1)
+
+	// Create listener function
+	listener := func(params interface{}) {
+		select {
+		case eventChan <- struct{}{}:
+		default:
+			// Channel already has value, ignore
+		}
+	}
+
+	// Register listener
+	if existing, ok := c.eventListeners.Load(eventMethod); ok {
+		existingListeners := existing.([]func(interface{}))
+		existingListeners = append(existingListeners, listener)
+		c.eventListeners.Store(eventMethod, existingListeners)
+	} else {
+		c.eventListeners.Store(eventMethod, []func(interface{}){listener})
+	}
+
+	// Wait for event with timeout
+	select {
+	case <-eventChan:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("timeout waiting for event %s after %v", eventMethod, timeout)
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.closed:
+		return fmt.Errorf("connection closed while waiting for event %s", eventMethod)
+	}
+}
+
 // Close closes the CDP connection
 func (c *RemoteCDPClient) Close() error {
 	c.cancel()
 
-	c.connMu.Lock()
-	err := c.conn.Close()
-	c.connMu.Unlock()
+	conn := c.conn.Load()
+	var err error
+	if conn != nil {
+		err = conn.Close()
+	}
 
 	c.wg.Wait()
 	return err
+}
+
+// IsConnected returns whether the client is currently connected
+func (c *RemoteCDPClient) IsConnected() bool {
+	return reconnectionState(c.reconnectState.Load()) == stateConnected
+}
+
+// notifyPendingRequests closes the closed channel to notify all pending requests
+func (c *RemoteCDPClient) notifyPendingRequests() {
+	c.closedMu.Lock()
+	defer c.closedMu.Unlock()
+
+	select {
+	case <-c.closed:
+		// Already closed
+	default:
+		close(c.closed)
+	}
+}
+
+// attemptReconnection tries to reconnect with exponential backoff
+// Only one instance of this goroutine runs at a time (enforced by CompareAndSwap)
+func (c *RemoteCDPClient) attemptReconnection() {
+	for c.reconnectAttempts.Load() < int32(c.maxReconnectAttempts) {
+		attempt := c.reconnectAttempts.Add(1)
+
+		// Exponential backoff: 2^attempt seconds, capped at 30s
+		backoffDuration := time.Duration(1<<uint(attempt)) * time.Second
+		if backoffDuration > 30*time.Second {
+			backoffDuration = 30 * time.Second
+		}
+
+		logging.Info("Attempting reconnection",
+			"attempt", attempt,
+			"maxAttempts", c.maxReconnectAttempts,
+			"backoff", backoffDuration,
+			"url", c.cdpURL)
+
+		time.Sleep(backoffDuration)
+
+		// Try to reconnect
+		if err := c.reconnect(); err != nil {
+			logging.Error("Reconnection attempt failed",
+				"attempt", attempt,
+				"error", err)
+			continue
+		}
+
+		// Reconnection successful
+		logging.Info("Successfully reconnected to CDP endpoint",
+			"attempt", attempt,
+			"url", c.cdpURL)
+		c.reconnectAttempts.Store(0)
+		c.reconnectState.Store(int32(stateConnected))
+		return
+	}
+
+	logging.Error("Max reconnection attempts reached, giving up",
+		"maxAttempts", c.maxReconnectAttempts,
+		"url", c.cdpURL)
+	// Stay in stateReconnecting to prevent further attempts
+}
+
+// reconnect closes the old connection and establishes a new one
+func (c *RemoteCDPClient) reconnect() error {
+	// Close old connection
+	oldConn := c.conn.Load()
+	if oldConn != nil {
+		_ = oldConn.Close()
+	}
+
+	// Create custom dialer with larger buffers
+	dialer := &websocket.Dialer{
+		ReadBufferSize:  1024 * 1024, // 1MB read buffer
+		WriteBufferSize: 1024 * 1024, // 1MB write buffer
+	}
+
+	// Connect to CDP WebSocket
+	conn, resp, err := dialer.DialContext(c.ctx, c.cdpURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to reconnect to CDP endpoint: %w", err)
+	}
+	if resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+
+	// Update connection atomically
+	c.conn.Store(conn)
+
+	// Reset closed channel
+	c.closedMu.Lock()
+	c.closed = make(chan struct{})
+	c.closedMu.Unlock()
+
+	// Restart message reader
+	c.wg.Add(1)
+	go c.readMessages()
+
+	return nil
 }

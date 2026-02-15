@@ -184,10 +184,12 @@ func (a *agent) executeToolCall(ctx context.Context, sessionID string, toolCall 
 
 	// Create tool result
 	result := message.ToolResult{
-		ToolCallID: toolCall.ID,
-		Content:    toolResult.Content,
-		Metadata:   toolResult.Metadata,
-		IsError:    toolResult.IsError,
+		ToolCallID:     toolCall.ID,
+		Name:           toolCall.Name,
+		Content:        toolResult.Content,
+		Metadata:       toolResult.Metadata,
+		IsError:        toolResult.IsError,
+		ScreenshotUrls: toolResult.ScreenshotUrls,
 	}
 
 	return result

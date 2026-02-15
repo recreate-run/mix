@@ -32,7 +32,7 @@ type BrowserClient interface {
 	Drag(ctx context.Context, fromIndex, toIndex *int, fromX, fromY, toX, toY *float64, duration *int, tabID ...string) error
 
 	// Keyboard Actions
-	Type(ctx context.Context, index int, text string, tabID ...string) error
+	Type(ctx context.Context, index *int, text string, tabID ...string) error
 	PressKey(ctx context.Context, keys string, tabID ...string) error
 	FormInput(ctx context.Context, index int, value string, tabID ...string) error
 

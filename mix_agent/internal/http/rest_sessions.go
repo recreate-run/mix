@@ -2,13 +2,17 @@ package http
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"mix/internal/app"
+	"mix/internal/browser"
+	"mix/internal/constants"
 	"mix/internal/llm/interfaces"
 	session2 "mix/internal/session"
 )
@@ -17,6 +21,11 @@ import (
 const (
 	MaxReplacePromptSize = 100 * 1024 // 100KB
 	MaxAppendPromptSize  = 50 * 1024  // 50KB
+)
+
+// Sentinel errors
+var (
+	ErrMessageNotFound = errors.New("message not found")
 )
 
 // SessionData represents session information for REST API
@@ -86,7 +95,7 @@ func (h *SessionHandler) HandleListSessions(w http.ResponseWriter, r *http.Reque
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -141,7 +150,7 @@ func (h *SessionHandler) HandleGetSession(w http.ResponseWriter, r *http.Request
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -187,7 +196,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -254,7 +263,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		sendValidationError(w, "browserMode", "browserMode is required (must be 'electron-embedded-browser', 'local-browser-service', or 'remote-cdp-websocket')")
 		return
 	}
-	validModes := []string{"electron-embedded-browser", "local-browser-service", "remote-cdp-websocket"}
+	validModes := []string{browser.ModeElectronEmbedded, browser.ModeLocalBrowserService, browser.ModeRemoteCDP}
 	isValidMode := false
 	for _, mode := range validModes {
 		if req.BrowserMode == mode {
@@ -268,9 +277,9 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Validate CDP URL based on browser mode
-	if req.BrowserMode == "remote-cdp-websocket" {
+	if req.BrowserMode == browser.ModeRemoteCDP {
 		if req.CdpUrl == "" {
-			sendValidationError(w, "cdpUrl", "cdpUrl is required when browserMode is 'remote-cdp-websocket'")
+			sendValidationError(w, "cdpUrl", fmt.Sprintf("cdpUrl is required when browserMode is '%s'", browser.ModeRemoteCDP))
 			return
 		}
 		// Validate CDP URL format
@@ -280,7 +289,7 @@ func (h *SessionHandler) HandleCreateSession(w http.ResponseWriter, r *http.Requ
 		}
 	} else if req.CdpUrl != "" {
 		// Ensure CDP URL is not set for other modes
-		sendValidationError(w, "cdpUrl", "cdpUrl can only be set when browserMode is 'remote-cdp-websocket'")
+		sendValidationError(w, "cdpUrl", fmt.Sprintf("cdpUrl can only be set when browserMode is '%s'", browser.ModeRemoteCDP))
 		return
 	}
 
@@ -330,7 +339,7 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -362,7 +371,7 @@ func (h *SessionHandler) HandleDeleteSession(w http.ResponseWriter, r *http.Requ
 	err = h.app.Sessions.Delete(ctx, sessionID)
 	if err != nil {
 		// Check if the error is because the session doesn't exist
-		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no rows") {
+		if errors.Is(err, sql.ErrNoRows) {
 			sendNotFoundError(w, "Session", sessionID)
 			return
 		}
@@ -392,7 +401,7 @@ func (h *SessionHandler) HandleUpdateSessionCallbacks(w http.ResponseWriter, r *
 	}
 
 	if r.Method != http.MethodPatch {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -459,11 +468,11 @@ func (h *SessionHandler) findRewindPoint(ctx context.Context, sessionID, message
 		return nil, fmt.Errorf("fetching messages: %w", err)
 	}
 
-	for i, msg := range allMessages {
-		if msg.ID == messageID {
+	for i := range allMessages {
+		if allMessages[i].ID == messageID {
 			// Use the timestamp of the NEXT message (first to delete) if it exists
 			// Otherwise use the rewind message timestamp (no cleanup needed)
-			cleanupTimestamp := msg.CreatedAt
+			cleanupTimestamp := allMessages[i].CreatedAt
 			if i+1 < len(allMessages) {
 				cleanupTimestamp = allMessages[i+1].CreatedAt
 			}
@@ -476,7 +485,7 @@ func (h *SessionHandler) findRewindPoint(ctx context.Context, sessionID, message
 		}
 	}
 
-	return nil, fmt.Errorf("message not found: %s", messageID)
+	return nil, fmt.Errorf("%w: %s", ErrMessageNotFound, messageID)
 }
 
 // performRewindCleanup deletes messages and optionally cleans up media files
@@ -526,7 +535,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -558,7 +567,7 @@ func (h *SessionHandler) HandleRewindSession(w http.ResponseWriter, r *http.Requ
 	// Find the rewind point
 	point, err := h.findRewindPoint(ctx, sessionID, req.MessageID)
 	if err != nil {
-		if strings.Contains(err.Error(), "message not found") {
+		if errors.Is(err, ErrMessageNotFound) {
 			sendNotFoundError(w, "Message", req.MessageID)
 			return
 		}

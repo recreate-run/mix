@@ -383,6 +383,12 @@ func getOpenAPISpec() OpenAPISpec {
 								"nullable":    true,
 								"example":     "medium",
 							},
+							"max_steps": map[string]interface{}{
+								"type":        "integer",
+								"description": "Maximum tool call iterations for this message. If not provided, unlimited iterations allowed.",
+								"minimum":     1,
+								"example":     25,
+							},
 						},
 					}),
 					"responses": map[string]interface{}{
@@ -1029,47 +1035,9 @@ func getOpenAPISpec() OpenAPISpec {
 							"type": "object",
 							"properties": map[string]interface{}{
 								"preferences": map[string]interface{}{
-									"type":        "object",
+									"$ref":        "#/components/schemas/UserPreferencesResponse",
 									"description": "User preferences (null if no preferences exist)",
 									"nullable":    true,
-									"properties": map[string]interface{}{
-										"preferred_provider": map[string]interface{}{
-											"type":        "string",
-											"description": "Preferred AI provider (anthropic, openai, openrouter)",
-										},
-										"main_agent_model": map[string]interface{}{
-											"type":        "string",
-											"description": "Main agent model ID",
-										},
-										"main_agent_max_tokens": map[string]interface{}{
-											"type":        "integer",
-											"description": "Maximum tokens for main agent responses",
-										},
-										"main_agent_reasoning_effort": map[string]interface{}{
-											"type":        "string",
-											"description": "Reasoning effort setting for main agent",
-										},
-										"sub_agent_model": map[string]interface{}{
-											"type":        "string",
-											"description": "Sub agent model ID",
-										},
-										"sub_agent_max_tokens": map[string]interface{}{
-											"type":        "integer",
-											"description": "Maximum tokens for sub agent responses",
-										},
-										"sub_agent_reasoning_effort": map[string]interface{}{
-											"type":        "string",
-											"description": "Reasoning effort setting for sub agent",
-										},
-										"created_at": map[string]interface{}{
-											"type":        "integer",
-											"description": "Unix timestamp when preferences were created",
-										},
-										"updated_at": map[string]interface{}{
-											"type":        "integer",
-											"description": "Unix timestamp of last update",
-										},
-									},
 								},
 								"available_providers": map[string]interface{}{
 									"type":        "object",
@@ -1921,6 +1889,31 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "integer",
 							"description": "Reasoning duration in milliseconds (optional)",
 						},
+						"inputTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Input tokens used for this message (includes cache creation)",
+						},
+						"outputTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Output tokens generated for this message (includes cache reads)",
+						},
+						"cacheCreationTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Tokens used for prompt cache creation (optional)",
+						},
+						"cacheReadTokens": map[string]interface{}{
+							"type":        "integer",
+							"description": "Tokens read from prompt cache (optional)",
+						},
+						"cost": map[string]interface{}{
+							"type":        "number",
+							"format":      "double",
+							"description": "Cost for this specific message in USD",
+						},
+						"model": map[string]interface{}{
+							"type":        "string",
+							"description": "Model used for this message (e.g., 'claude-sonnet-4')",
+						},
 					},
 					"required": []string{"id", "sessionId", "role", "userInput"},
 				},
@@ -2065,13 +2058,12 @@ func getOpenAPISpec() OpenAPISpec {
 							"type":        "string",
 							"description": "Tool execution result (optional)",
 						},
-						"metadata": map[string]interface{}{
-							"type":        "string",
-							"description": "Additional tool metadata (optional)",
-						},
-						"isError": map[string]interface{}{
-							"type":        "boolean",
-							"description": "Whether execution resulted in error (optional)",
+						"screenshotUrls": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+							"description": "Screenshot URLs captured during tool execution (optional)",
 						},
 					},
 					"required": []string{"id", "name", "input", "type", "finished"},
@@ -2106,6 +2098,13 @@ func getOpenAPISpec() OpenAPISpec {
 						"isError": map[string]interface{}{
 							"type":        "boolean",
 							"description": "Whether tool call resulted in error (optional)",
+						},
+						"screenshotUrls": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+							"description": "Screenshot URLs captured during tool execution (optional)",
 						},
 					},
 					"required": []string{"id", "name", "input", "type", "finished"},
@@ -2206,7 +2205,7 @@ func getOpenAPISpec() OpenAPISpec {
 						"event": map[string]interface{}{
 							"type":        "string",
 							"description": "Event type identifier",
-							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool_use_start", "tool_use_parameter_streaming_complete", "tool_use_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "user_message_created", "session_created", "session_deleted"},
+							"enum":        []string{"connected", "heartbeat", "error", "complete", "thinking", "content", "tool_use_start", "tool_use_parameter_streaming_complete", "tool_use_parameter_delta", "tool_execution_start", "tool_execution_complete", "permission", "notification", "user_message_created", "session_created", "session_deleted"},
 						},
 						"retry": map[string]interface{}{
 							"type":        "integer",
@@ -2859,6 +2858,194 @@ func getOpenAPISpec() OpenAPISpec {
 						},
 					},
 				},
+				// New typed response schemas (replacing map[string]interface{} in handlers)
+				"StoreToolAPIKeyResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Success response when storing a tool API key",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Operation status",
+							"example":     "success",
+						},
+						"tool_type": map[string]interface{}{
+							"type":        "string",
+							"description": "Tool type identifier",
+							"example":     "web_search",
+						},
+						"provider": map[string]interface{}{
+							"type":        "string",
+							"description": "Provider identifier",
+							"example":     "brave",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Success message",
+							"example":     "Brave Search API key stored successfully",
+						},
+					},
+					"required": []string{"status", "tool_type", "provider", "message"},
+				},
+				"DeleteToolCredentialResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Success response when deleting a tool credential",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Operation status",
+							"example":     "success",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Success message",
+							"example":     "Tool credential deleted successfully",
+						},
+					},
+					"required": []string{"status", "message"},
+				},
+				"SystemHealthResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "System health check response",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Overall system status",
+							"example":     "ok",
+						},
+						"timestamp": map[string]interface{}{
+							"type":        "string",
+							"format":      "date-time",
+							"description": "Health check timestamp",
+						},
+						"version": map[string]interface{}{
+							"type":        "string",
+							"description": "Application version",
+							"example":     "1.0.0",
+						},
+						"environment": map[string]interface{}{
+							"type":        "string",
+							"description": "Environment name",
+							"example":     "production",
+						},
+						"services": map[string]interface{}{
+							"$ref": "#/components/schemas/HealthServices",
+						},
+					},
+					"required": []string{"status", "timestamp", "version", "environment", "services"},
+				},
+				"HealthServices": map[string]interface{}{
+					"type":        "object",
+					"description": "Backend services health status",
+					"properties": map[string]interface{}{
+						"backend": map[string]interface{}{
+							"type":        "string",
+							"description": "Backend service status",
+							"example":     "healthy",
+						},
+						"database": map[string]interface{}{
+							"type":        "string",
+							"description": "Database connection status",
+							"example":     "connected",
+						},
+					},
+					"required": []string{"backend", "database"},
+				},
+				"ActiveTunnelsResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Active WebSocket tunnels response",
+					"properties": map[string]interface{}{
+						"active_tunnels": map[string]interface{}{
+							"type":        "array",
+							"description": "List of active tunnel session IDs",
+							"items": map[string]interface{}{
+								"type": "string",
+							},
+						},
+						"count": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of active tunnels",
+							"example":     2,
+						},
+					},
+					"required": []string{"active_tunnels", "count"},
+				},
+				"SetAPIKeyResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Success response when setting an API key",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Operation status",
+							"example":     "success",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Success message",
+							"example":     "API key set successfully. You can now use the application.",
+						},
+					},
+					"required": []string{"status", "message"},
+				},
+				"PermissionResponse": map[string]interface{}{
+					"type":        "object",
+					"description": "Permission operation response",
+					"properties": map[string]interface{}{
+						"status": map[string]interface{}{
+							"type":        "string",
+							"description": "Permission status (granted or denied)",
+							"enum":        []string{"granted", "denied"},
+							"example":     "granted",
+						},
+						"id": map[string]interface{}{
+							"type":        "string",
+							"description": "Permission request ID",
+							"example":     "perm_abc123",
+						},
+						"message": map[string]interface{}{
+							"type":        "string",
+							"description": "Status message",
+							"example":     "Permission granted successfully",
+						},
+					},
+					"required": []string{"status", "id", "message"},
+				},
+				"PreferencesWithProviders": map[string]interface{}{
+					"type":        "object",
+					"description": "User preferences with available provider metadata",
+					"properties": map[string]interface{}{
+						"preferences": map[string]interface{}{
+							"type":        "object",
+							"description": "User preferences (null if not set)",
+							"nullable":    true,
+							"$ref":        "#/components/schemas/UserPreferencesResponse",
+						},
+						"available_providers": map[string]interface{}{
+							"type":        "object",
+							"description": "Available LLM providers with their metadata",
+							"additionalProperties": map[string]interface{}{
+								"$ref": "#/components/schemas/ProviderInfo",
+							},
+						},
+					},
+					"required": []string{"preferences", "available_providers"},
+				},
+				"ProviderInfo": map[string]interface{}{
+					"type":        "object",
+					"description": "LLM provider metadata",
+					"properties": map[string]interface{}{
+						"display_name": map[string]interface{}{
+							"type":        "string",
+							"description": "Provider display name",
+							"example":     "Anthropic",
+						},
+						"models": map[string]interface{}{
+							"type":        "object",
+							"description": "Available models for this provider (dynamic structure)",
+						},
+					},
+					"required": []string{"display_name", "models"},
+				},
+				"UserPreferencesResponse": getUserPreferencesResponseSchema(),
 			},
 		},
 	}
@@ -2937,5 +3124,50 @@ func getFileInfoSchema() map[string]interface{} {
 func getBackendMessageSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"$ref": "#/components/schemas/BackendMessage",
+	}
+}
+
+func getUserPreferencesResponseSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type":        "object",
+		"description": "User preferences configuration",
+		"properties": map[string]interface{}{
+			"preferred_provider": map[string]interface{}{
+				"type":        "string",
+				"description": "Preferred AI provider (anthropic, openai, openrouter)",
+			},
+			"main_agent_model": map[string]interface{}{
+				"type":        "string",
+				"description": "Main agent model ID",
+			},
+			"main_agent_max_tokens": map[string]interface{}{
+				"type":        "integer",
+				"description": "Maximum tokens for main agent responses",
+			},
+			"main_agent_reasoning_effort": map[string]interface{}{
+				"type":        "string",
+				"description": "Reasoning effort setting for main agent",
+			},
+			"sub_agent_model": map[string]interface{}{
+				"type":        "string",
+				"description": "Sub agent model ID",
+			},
+			"sub_agent_max_tokens": map[string]interface{}{
+				"type":        "integer",
+				"description": "Maximum tokens for sub agent responses",
+			},
+			"sub_agent_reasoning_effort": map[string]interface{}{
+				"type":        "string",
+				"description": "Reasoning effort setting for sub agent",
+			},
+			"created_at": map[string]interface{}{
+				"type":        "integer",
+				"description": "Unix timestamp when preferences were created",
+			},
+			"updated_at": map[string]interface{}{
+				"type":        "integer",
+				"description": "Unix timestamp of last update",
+			},
+		},
 	}
 }

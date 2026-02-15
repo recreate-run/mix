@@ -1,7 +1,7 @@
 package models
 
 const (
-	// MockClaudeSonnet is a test-only model that mimics Claude 4 Sonnet behavior
+	// MockClaudeSonnet is a test-only model that mimics Claude Sonnet behavior
 	MockClaudeSonnet ModelID = "mock.claude-4-sonnet"
 )
 
@@ -9,7 +9,7 @@ const (
 var MockModels = map[ModelID]Model{
 	MockClaudeSonnet: {
 		ID:                  MockClaudeSonnet,
-		Name:                "Mock Claude 4 Sonnet (Test)",
+		Name:                "Mock Claude Sonnet (Test)",
 		Provider:            ProviderMock,
 		APIModel:            "mock-claude-4-sonnet",
 		CostPer1MIn:         0.0, // No cost for test models

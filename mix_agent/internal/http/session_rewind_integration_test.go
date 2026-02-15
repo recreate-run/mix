@@ -11,14 +11,15 @@ import (
 	"testing"
 
 	"mix/internal/app"
+	"mix/internal/browser"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/db"
 	"mix/internal/message"
 	"mix/internal/session"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 	_ "github.com/ncruces/go-sqlite3/embed"
-	"mix/internal/constants"
 )
 
 // setupTestServerForRewind sets up test environment specifically for rewind testing
@@ -73,7 +74,7 @@ func setupTestServerForRewind(t *testing.T) (testApp *app.App, sessionID string)
 	initMCPTools(ctx, testApp)
 
 	// Create test session
-	testSession, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default", session.SessionTypeMain, "", "", "", "local-browser-service", "")
+	testSession, err := testApp.Sessions.Create(ctx, "Test Rewind Session", "", "default", session.SessionTypeMain, "", "", "", browser.ModeLocalBrowserService, "")
 	if err != nil {
 		t.Fatalf("Failed to create test session: %v", err)
 	}
@@ -94,7 +95,7 @@ func createTestMessagesForRewind(t *testing.T, a *app.App, sessionID string, mes
 			Parts: []message.ContentPart{
 				message.TextContent{Text: "User message " + string(rune('A'+i))},
 			},
-			Model: "claude-4-sonnet",
+			Model: "claude-sonnet-4-5",
 		})
 		if err != nil {
 			t.Fatalf("Failed to create user message %d: %v", i, err)
@@ -107,7 +108,7 @@ func createTestMessagesForRewind(t *testing.T, a *app.App, sessionID string, mes
 			Parts: []message.ContentPart{
 				message.TextContent{Text: "Assistant response " + string(rune('A'+i))},
 			},
-			Model: "claude-4-sonnet",
+			Model: "claude-sonnet-4-5",
 		})
 		if err != nil {
 			t.Fatalf("Failed to create assistant message %d: %v", i, err)
@@ -199,7 +200,7 @@ func TestSessionRewindWithMediaCleanup(t *testing.T) {
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "User message with image"},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create user message: %v", err)
@@ -213,7 +214,7 @@ func TestSessionRewindWithMediaCleanup(t *testing.T) {
 			message.TextContent{Text: "Here's an image"},
 			message.ImageURLContent{URL: testImagePath},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create assistant message: %v", err)
@@ -452,7 +453,7 @@ func TestSessionRewindBoundary(t *testing.T) {
 		Parts: []message.ContentPart{
 			message.TextContent{Text: "Final user message"},
 		},
-		Model: "claude-4-sonnet",
+		Model: "claude-sonnet-4-5",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create final message: %v", err)

@@ -51,4 +51,3 @@ func GetServerURL() string {
 	}
 	return DefaultServerURL
 }
-

@@ -70,11 +70,16 @@ func (s *service) Create(ctx context.Context, sessionID string, params CreateMes
 		return Message{}, err
 	}
 	dbMessage, err := s.q.CreateMessage(ctx, db.CreateMessageParams{
-		ID:        uuid.New().String(),
-		SessionID: sessionID,
-		Role:      string(params.Role),
-		Parts:     string(partsJSON),
-		Model:     sql.NullString{String: string(params.Model), Valid: true},
+		ID:                  uuid.New().String(),
+		SessionID:           sessionID,
+		Role:                string(params.Role),
+		Parts:               string(partsJSON),
+		Model:               sql.NullString{String: string(params.Model), Valid: true},
+		InputTokens:         sql.NullInt64{Int64: 0, Valid: true},
+		OutputTokens:        sql.NullInt64{Int64: 0, Valid: true},
+		CacheCreationTokens: sql.NullInt64{Int64: 0, Valid: true},
+		CacheReadTokens:     sql.NullInt64{Int64: 0, Valid: true},
+		Cost:                sql.NullFloat64{Float64: 0, Valid: true},
 	})
 	if err != nil {
 		return Message{}, err
@@ -101,9 +106,14 @@ func (s *service) Update(ctx context.Context, message Message) error {
 		finishedAt.Valid = true
 	}
 	err = s.q.UpdateMessage(ctx, db.UpdateMessageParams{
-		ID:         message.ID,
-		Parts:      string(parts),
-		FinishedAt: finishedAt,
+		ID:                  message.ID,
+		Parts:               string(parts),
+		FinishedAt:          finishedAt,
+		InputTokens:         sql.NullInt64{Int64: message.InputTokens, Valid: true},
+		OutputTokens:        sql.NullInt64{Int64: message.OutputTokens, Valid: true},
+		CacheCreationTokens: sql.NullInt64{Int64: message.CacheCreationTokens, Valid: true},
+		CacheReadTokens:     sql.NullInt64{Int64: message.CacheReadTokens, Valid: true},
+		Cost:                sql.NullFloat64{Float64: message.Cost, Valid: true},
 	})
 	if err != nil {
 		return err
@@ -130,8 +140,8 @@ func (s *service) List(ctx context.Context, sessionID string) ([]Message, error)
 		return nil, err
 	}
 	messages := make([]Message, len(dbMessages))
-	for i, dbMessage := range dbMessages {
-		messages[i], err = s.fromDBItem(dbMessage)
+	for i := range dbMessages {
+		messages[i], err = s.fromDBItem(dbMessages[i])
 		if err != nil {
 			return nil, err
 		}
@@ -148,8 +158,8 @@ func (s *service) ListUserMessageHistory(ctx context.Context, limit, offset int6
 		return nil, err
 	}
 	messages := make([]Message, len(dbMessages))
-	for i, dbMessage := range dbMessages {
-		messages[i], err = s.fromDBItem(dbMessage)
+	for i := range dbMessages {
+		messages[i], err = s.fromDBItem(dbMessages[i])
 		if err != nil {
 			return nil, err
 		}
@@ -163,13 +173,18 @@ func (s *service) fromDBItem(item db.Message) (Message, error) {
 		return Message{}, err
 	}
 	return Message{
-		ID:        item.ID,
-		SessionID: item.SessionID,
-		Role:      MessageRole(item.Role),
-		Parts:     parts,
-		Model:     models.ModelID(item.Model.String),
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:                  item.ID,
+		SessionID:           item.SessionID,
+		Role:                MessageRole(item.Role),
+		Parts:               parts,
+		Model:               models.ModelID(item.Model.String),
+		InputTokens:         item.InputTokens.Int64,
+		OutputTokens:        item.OutputTokens.Int64,
+		CacheCreationTokens: item.CacheCreationTokens.Int64,
+		CacheReadTokens:     item.CacheReadTokens.Int64,
+		Cost:                item.Cost.Float64,
+		CreatedAt:           item.CreatedAt,
+		UpdatedAt:           item.UpdatedAt,
 	}, nil
 }
 

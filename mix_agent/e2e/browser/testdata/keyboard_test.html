@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Navigation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .field {
+            margin: 15px 0;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Keyboard Navigation Test Page</h1>
+
+    <div class="field">
+        <label for="field1">Field 1 (Tab target):</label>
+        <input type="text" id="field1" value="Initial text" />
+    </div>
+
+    <div class="field">
+        <label for="field2">Field 2 (Tab target):</label>
+        <input type="text" id="field2" placeholder="Type here" />
+    </div>
+
+    <div class="field">
+        <label for="field3">Field 3 (Tab target):</label>
+        <input type="text" id="field3" placeholder="Another field" />
+    </div>
+
+    <div class="field">
+        <label for="textarea">Text Area (for Ctrl+A, Ctrl+C, etc.):</label>
+        <textarea id="textarea">This is some test text that can be selected with Ctrl+A.
+You can also use Backspace and Delete keys here.
+Multiple lines of text for testing.</textarea>
+    </div>
+
+    <div id="output">Keyboard events will appear here...</div>
+
+    <script>
+        const output = document.getElementById('output');
+        const textarea = document.getElementById('textarea');
+        let eventLog = [];
+
+        // Track keyboard events
+        document.addEventListener('keydown', (e) => {
+            const modifiers = [];
+            if (e.ctrlKey || e.metaKey) modifiers.push('Ctrl');
+            if (e.shiftKey) modifiers.push('Shift');
+            if (e.altKey) modifiers.push('Alt');
+
+            const key = e.key === ' ' ? 'Space' : e.key;
+            const combo = modifiers.length > 0 ? `${modifiers.join('+')}+${key}` : key;
+
+            eventLog.push(`Keydown: ${combo} (target: ${e.target.id || e.target.tagName})`);
+            updateOutput();
+
+            // Handle Ctrl+A (Select All)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a' && e.target.id === 'textarea') {
+                setTimeout(() => {
+                    const selectedText = window.getSelection().toString();
+                    if (selectedText.length > 0) {
+                        eventLog.push(`✓ Select All successful: ${selectedText.length} chars selected`);
+                        updateOutput();
+                    }
+                }, 100);
+            }
+        });
+
+        // Track focus changes (Tab navigation)
+        document.addEventListener('focusin', (e) => {
+            if (e.target.id) {
+                eventLog.push(`Focus: ${e.target.id}`);
+                updateOutput();
+            }
+        });
+
+        // Track input changes
+        [document.getElementById('field1'), document.getElementById('field2'), document.getElementById('field3'), textarea].forEach(el => {
+            el.addEventListener('input', (e) => {
+                eventLog.push(`Input: ${e.target.id} = "${e.target.value.substring(0, 50)}${e.target.value.length > 50 ? '...' : ''}"`);
+                updateOutput();
+            });
+        });
+
+        function updateOutput() {
+            output.innerHTML = eventLog.slice(-10).join('\n');
+        }
+
+        // Initial message
+        eventLog.push('Ready for keyboard testing...');
+        updateOutput();
+    </script>
+</body>
+</html>

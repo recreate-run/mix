@@ -163,7 +163,7 @@ func TestFormatReadPageResponseMultipleFrames(t *testing.T) {
 	result := formatReadPageResponse(elements, viewport, false)
 
 	// Verify frame numbering is consistent
-	assert.Contains(t, result, "[ref=f0_ref_1005]")  // main-frame gets f0
-	assert.Contains(t, result, "[ref=f1_ref_2010]")  // iframe-1 gets f1
-	assert.Contains(t, result, "[ref=f0_ref_1020]")  // main-frame still f0
+	assert.Contains(t, result, "[ref=f0_ref_1005]") // main-frame gets f0
+	assert.Contains(t, result, "[ref=f1_ref_2010]") // iframe-1 gets f1
+	assert.Contains(t, result, "[ref=f0_ref_1020]") // main-frame still f0
 }

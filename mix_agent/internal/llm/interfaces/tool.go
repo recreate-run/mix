@@ -39,10 +39,11 @@ const (
 )
 
 type ToolResponse struct {
-	Type     toolResponseType `json:"type"`
-	Content  string           `json:"content"`
-	Metadata string           `json:"metadata,omitempty"`
-	IsError  bool             `json:"is_error"`
+	Type           toolResponseType `json:"type"`
+	Content        string           `json:"content"`
+	Metadata       string           `json:"metadata,omitempty"`
+	IsError        bool             `json:"is_error"`
+	ScreenshotUrls []string         `json:"screenshot_urls,omitempty"`
 }
 
 type ToolCall struct {

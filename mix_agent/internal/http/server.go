@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -33,6 +34,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	authHandler := NewAuthHandler(a)
 	toolsHandler := NewToolsHandler(a)
 	systemInfoHandler := NewSystemInfoHandler(a)
+	screenshotHandler := NewScreenshotHandler(a)
 
 	// Create session-aware asset handler
 	fileHandler := NewFileHandler(a)
@@ -80,14 +82,14 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", constants.ContentTypeJSON)
 		// Return detailed health information
-		health := map[string]interface{}{
-			"status":      "ok",
-			"timestamp":   time.Now().Format(time.RFC3339),
-			"version":     version.Version,
-			"environment": os.Getenv("ENV"),
-			"services": map[string]string{
-				"backend":  "healthy",
-				"database": "connected",
+		health := SystemHealthResponse{
+			Status:      "ok",
+			Timestamp:   time.Now().Format(time.RFC3339),
+			Version:     version.Version,
+			Environment: os.Getenv("ENV"),
+			Services: HealthServices{
+				Backend:  "healthy",
+				Database: "connected",
 			},
 		}
 		if err := json.NewEncoder(w).Encode(health); err != nil {
@@ -110,9 +112,9 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	mux.HandleFunc("GET /api/v1/tunnel/active", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", constants.ContentTypeJSON)
 		activeTunnels := tunnelRegistry.GetActiveTunnels()
-		response := map[string]interface{}{
-			"active_tunnels": activeTunnels,
-			"count":          len(activeTunnels),
+		response := ActiveTunnelsResponse{
+			ActiveTunnels: activeTunnels,
+			Count:         len(activeTunnels),
 		}
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			logging.Error("Failed to encode active tunnels response", "error", err)
@@ -129,7 +131,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 
 		// Parse request body
 		var requestBody struct {
-			ID     interface{} `json:"id"`     // Allow client to specify ID
+			ID     interface{} `json:"id"` // Allow client to specify ID
 			Method string      `json:"method"`
 			Params interface{} `json:"params"`
 		}
@@ -174,6 +176,9 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	mux.HandleFunc("GET /api/sessions/{id}/files", fileHandler.HandleListFiles)
 	mux.HandleFunc("GET /api/sessions/{id}/files/{filename}", sessionAssetHandler.HandleServeFile)
 	mux.HandleFunc("DELETE /api/sessions/{id}/files/{filename}", fileHandler.HandleDeleteFile)
+
+	// Screenshot endpoints
+	mux.HandleFunc("GET /api/sessions/{sessionID}/screenshots/{filename}", screenshotHandler.HandleGetScreenshot)
 
 	// REST API Endpoints
 
@@ -242,7 +247,7 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	}()
 
 	// Start server and block (this will block until server shuts down)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("HTTP server failed: %w", err)
 	}
 

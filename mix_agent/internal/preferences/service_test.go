@@ -24,10 +24,10 @@ func CreateTestService(t *testing.T, mockQueries *db.MockQuerier) *UserPreferenc
 func CreateTestUserPreference() db.UserPreference {
 	return db.UserPreference{
 		PreferredProvider:        sql.NullString{String: "anthropic", Valid: true},
-		MainAgentModel:           sql.NullString{String: "claude-4-sonnet", Valid: true},
+		MainAgentModel:           sql.NullString{String: "claude-sonnet-4-5", Valid: true},
 		MainAgentMaxTokens:       sql.NullInt64{Int64: 4096, Valid: true},
 		MainAgentReasoningEffort: sql.NullString{String: "medium", Valid: true},
-		SubAgentModel:            sql.NullString{String: "claude-4-sonnet", Valid: true},
+		SubAgentModel:            sql.NullString{String: "claude-sonnet-4-5", Valid: true},
 		SubAgentMaxTokens:        sql.NullInt64{Int64: 2048, Valid: true},
 		SubAgentReasoningEffort:  sql.NullString{String: "low", Valid: true},
 		CreatedAt:                time.Now().Unix(),
@@ -154,7 +154,7 @@ func TestUpdateMainAgentPreferences(t *testing.T) {
 	mockQueries.On("UpdateMainAgentModel", mock.Anything, mock.AnythingOfType("db.UpdateMainAgentModelParams")).
 		Return(updatedPrefs, nil)
 
-	err := service.UpdateMainAgentPreferences(context.Background(), "claude-4-opus", 8192, "high")
+	err := service.UpdateMainAgentPreferences(context.Background(), "claude-opus-4-6", 8192, "high")
 	require.NoError(t, err)
 
 	// Check cache is cleared
@@ -220,7 +220,7 @@ func TestGetAgentConfigMain(t *testing.T) {
 
 	agent, err := service.GetAgentConfig(context.Background(), AgentMain)
 	require.NoError(t, err)
-	assert.Equal(t, models.ModelID("claude-4-sonnet"), agent.Model)
+	assert.Equal(t, models.ModelID("claude-sonnet-4-5"), agent.Model)
 	assert.Equal(t, int64(4096), agent.MaxTokens)
 	assert.Equal(t, "medium", agent.ReasoningEffort)
 
@@ -237,7 +237,7 @@ func TestGetAgentConfigSub(t *testing.T) {
 
 	agent, err := service.GetAgentConfig(context.Background(), AgentSub)
 	require.NoError(t, err)
-	assert.Equal(t, models.ModelID("claude-4-sonnet"), agent.Model)
+	assert.Equal(t, models.ModelID("claude-sonnet-4-5"), agent.Model)
 	assert.Equal(t, int64(2048), agent.MaxTokens)
 	assert.Equal(t, "low", agent.ReasoningEffort)
 

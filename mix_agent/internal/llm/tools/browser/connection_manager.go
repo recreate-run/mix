@@ -77,10 +77,20 @@ func (cm *ConnectionManager) Close(sessionID string) error {
 }
 
 // isConnected tests if a client connection is still alive
-// Uses a lightweight ReadPage call to test the connection
+// Uses a lightweight ListTabs call to test the connection
 func (cm *ConnectionManager) isConnected(ctx context.Context, client BrowserClient) bool {
 	if client == nil {
 		return false
+	}
+
+	// Check if client has IsConnected method (for RemoteCDPClient)
+	type connectedChecker interface {
+		IsConnected() bool
+	}
+	if checker, ok := client.(connectedChecker); ok {
+		if !checker.IsConnected() {
+			return false
+		}
 	}
 
 	// Quick context with short timeout for liveness check
@@ -88,6 +98,7 @@ func (cm *ConnectionManager) isConnected(ctx context.Context, client BrowserClie
 	defer cancel()
 
 	// Try a lightweight operation to check if connection is alive
-	_, err := client.ReadPage(checkCtx, false)
+	// ListTabs is much faster than ReadPage (no accessibility tree traversal)
+	_, err := client.ListTabs(checkCtx)
 	return err == nil
 }

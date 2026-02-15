@@ -37,7 +37,7 @@ func createTestMessage() Message {
 		Parts: []ContentPart{
 			TextContent{Text: "Hello, world!"},
 		},
-		Model:     models.ModelID("claude-4-sonnet"),
+		Model:     models.ModelID("claude-sonnet-4-5"),
 		CreatedAt: time.Now().Unix(),
 		UpdatedAt: time.Now().Unix(),
 	}
@@ -52,7 +52,7 @@ func createTestDBMessage() db.Message {
 		SessionID: uuid.New().String(),
 		Role:      string(User),
 		Parts:     string(parts),
-		Model:     sql.NullString{String: "claude-4-sonnet", Valid: true},
+		Model:     sql.NullString{String: "claude-sonnet-4-5", Valid: true},
 		CreatedAt: time.Now().Unix(),
 		UpdatedAt: time.Now().Unix(),
 	}
@@ -68,7 +68,7 @@ func TestCreate(t *testing.T) {
 		Parts: []ContentPart{
 			TextContent{Text: "Test message"},
 		},
-		Model: models.ModelID("claude-4-sonnet"),
+		Model: models.ModelID("claude-sonnet-4-5"),
 	}
 
 	dbMessage := createTestDBMessage()
@@ -96,7 +96,7 @@ func TestCreateAssistant(t *testing.T) {
 		Parts: []ContentPart{
 			TextContent{Text: "Assistant response"},
 		},
-		Model: models.ModelID("claude-4-sonnet"),
+		Model: models.ModelID("claude-sonnet-4-5"),
 	}
 
 	dbMessage := createTestDBMessage()

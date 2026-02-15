@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration - Dynamic SPA Form</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        label .required {
+            color: #e74c3c;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        input.error,
+        select.error {
+            border-color: #e74c3c;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        button[type="submit"]:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .success-message {
+            display: none;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .success-message.show {
+            display: block;
+        }
+        .success-message h3 {
+            margin-bottom: 10px;
+            color: #155724;
+        }
+        .user-data {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .user-data-item {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .user-data-item strong {
+            color: #333;
+        }
+        .form-container {
+            display: block;
+        }
+        .form-container.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create Account</h1>
+        <p class="subtitle">Join us today! Fill in your details below.</p>
+
+        <div class="form-container" id="formContainer">
+            <form id="registrationForm">
+                <div class="form-group">
+                    <label for="fullName">Full Name <span class="required">*</span></label>
+                    <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required>
+                    <div class="error-message" id="nameError">Name must be at least 2 characters</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address <span class="required">*</span></label>
+                    <input type="email" id="email" name="email" placeholder="your.email@example.com" required>
+                    <div class="error-message" id="emailError">Please enter a valid email</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password <span class="required">*</span></label>
+                    <input type="password" id="password" name="password" placeholder="Create a strong password" required>
+                    <div class="error-message" id="passwordError">Password must be at least 6 characters</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="country">Country <span class="required">*</span></label>
+                    <select id="country" name="country" required>
+                        <option value="">-- Select your country --</option>
+                        <option value="USA">United States</option>
+                        <option value="UK">United Kingdom</option>
+                        <option value="Canada">Canada</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Germany">Germany</option>
+                        <option value="France">France</option>
+                        <option value="India">India</option>
+                        <option value="Japan">Japan</option>
+                    </select>
+                    <div class="error-message" id="countryError">Please select a country</div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="terms" name="terms" required>
+                    <label for="terms">I agree to the Terms of Service and Privacy Policy <span class="required">*</span></label>
+                </div>
+                <div class="error-message" id="termsError">You must accept the terms</div>
+
+                <button type="submit" id="submitBtn">Create Account</button>
+            </form>
+        </div>
+
+        <div class="loading" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>Creating your account...</p>
+        </div>
+
+        <div class="success-message" id="successMessage">
+            <h3>✓ Registration Successful!</h3>
+            <p>Welcome aboard! Your account has been created.</p>
+            <div class="user-data" id="userData"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registrationForm');
+        const formContainer = document.getElementById('formContainer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const successMessage = document.getElementById('successMessage');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Mock database for duplicate email check
+        const existingEmails = ['test@example.com', 'admin@test.com'];
+
+        // Form submission handler
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission (SPA behavior)
+
+            // Clear previous errors
+            clearErrors();
+
+            // Get form data
+            const formData = {
+                fullName: document.getElementById('fullName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value,
+                country: document.getElementById('country').value,
+                terms: document.getElementById('terms').checked
+            };
+
+            // Validate form
+            let isValid = true;
+
+            if (formData.fullName.length < 2) {
+                showError('fullName', 'nameError');
+                isValid = false;
+            }
+
+            if (!isValidEmail(formData.email)) {
+                showError('email', 'emailError');
+                isValid = false;
+            } else if (existingEmails.includes(formData.email.toLowerCase())) {
+                document.getElementById('emailError').textContent = 'Email already exists';
+                showError('email', 'emailError');
+                isValid = false;
+            }
+
+            if (formData.password.length < 6) {
+                showError('password', 'passwordError');
+                isValid = false;
+            }
+
+            if (!formData.country) {
+                showError('country', 'countryError');
+                isValid = false;
+            }
+
+            if (!formData.terms) {
+                document.getElementById('termsError').classList.add('show');
+                isValid = false;
+            }
+
+            if (!isValid) {
+                return;
+            }
+
+            // Show loading state
+            formContainer.classList.add('hidden');
+            loadingSpinner.classList.add('show');
+            submitBtn.disabled = true;
+
+            // Simulate API call (600ms delay)
+            setTimeout(() => {
+                processRegistration(formData);
+            }, 600);
+        });
+
+        function processRegistration(data) {
+            // Hide loading
+            loadingSpinner.classList.remove('show');
+
+            // Show success message with user data
+            const userData = document.getElementById('userData');
+            userData.innerHTML = `
+                <div class="user-data-item"><strong>Name:</strong> ${data.fullName}</div>
+                <div class="user-data-item"><strong>Email:</strong> ${data.email}</div>
+                <div class="user-data-item"><strong>Country:</strong> ${data.country}</div>
+                <div class="user-data-item"><strong>Account Status:</strong> Active</div>
+            `;
+
+            successMessage.classList.add('show');
+        }
+
+        function showError(fieldId, errorId) {
+            document.getElementById(fieldId).classList.add('error');
+            document.getElementById(errorId).classList.add('show');
+        }
+
+        function clearErrors() {
+            const errorMessages = document.querySelectorAll('.error-message');
+            errorMessages.forEach(error => error.classList.remove('show'));
+
+            const errorFields = document.querySelectorAll('.error');
+            errorFields.forEach(field => field.classList.remove('error'));
+        }
+
+        function isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Real-time validation feedback
+        document.getElementById('fullName').addEventListener('blur', function() {
+            if (this.value.trim().length > 0 && this.value.trim().length < 2) {
+                showError('fullName', 'nameError');
+            }
+        });
+
+        document.getElementById('email').addEventListener('blur', function() {
+            if (this.value.trim() && !isValidEmail(this.value.trim())) {
+                showError('email', 'emailError');
+            }
+        });
+
+        document.getElementById('password').addEventListener('blur', function() {
+            if (this.value.length > 0 && this.value.length < 6) {
+                showError('password', 'passwordError');
+            }
+        });
+    </script>
+</body>
+</html>

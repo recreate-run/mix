@@ -127,10 +127,11 @@ func Load(sessionStorageDir string, debug, skipPermissions bool) (*Config, error
 	}
 	promptsDir := filepath.Join(homeDir.HomeDir, ".mix", "prompts")
 
-	// Get BaseURL from environment
+	// Get BaseURL from environment (defaults to http://localhost:8088 if not set)
+	// Note: This default will be overridden in cmd/root.go to match the actual HTTP port
 	baseURL := os.Getenv("VITE_BACKEND_URL")
 	if baseURL == "" {
-		return nil, fmt.Errorf("BASE_URL configuration required: set VITE_BACKEND_URL environment variable")
+		baseURL = "http://localhost:8088" // Default backend URL
 	}
 
 	cfg = &Config{
@@ -193,15 +194,7 @@ func getAnalyticsEnabled() bool {
 
 // getDefaultMCPServers returns the default MCP server configurations
 func getDefaultMCPServers() map[string]MCPServer {
-	return map[string]MCPServer{
-		"blender": {
-			Type:         MCPStdio,
-			Command:      "uvx",
-			Args:         []string{"blender-mcp"},
-			Env:          []string{},
-			AllowedTools: []string{"execute_blender_code"},
-		},
-	}
+	return map[string]MCPServer{}
 }
 
 // loadDatabaseConfig loads database configuration from environment variables

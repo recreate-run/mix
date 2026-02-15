@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"mix/internal/constants"
 	"mix/internal/logging"
 	"mix/internal/message"
 )
@@ -193,7 +194,7 @@ func (ma *MessageAccumulator) FinalizeMessage(messageID string, finishReason mes
 
 	// Remove from accumulator after a delay to handle late events
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(constants.MessageCleanupDelay)
 		ma.mu.Lock()
 		delete(ma.messages, messageID)
 		ma.mu.Unlock()

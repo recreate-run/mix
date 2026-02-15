@@ -9,6 +9,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 
+	"mix/internal/constants"
 	"mix/internal/db"
 	"mix/internal/logging"
 )
@@ -75,7 +76,7 @@ func (p *PostgresProvider) Connect(ctx context.Context) error {
 	p.db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Verify connection with timeout
-	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, constants.DatabasePingTimeout)
 	defer cancel()
 	if err = p.db.PingContext(pingCtx); err != nil {
 		_ = p.db.Close() // Ignore close error in cleanup path
@@ -137,7 +138,7 @@ func (p *PostgresProvider) RunMigrations(ctx context.Context) error {
 	}
 
 	// Run migrations with timeout
-	migrationCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	migrationCtx, cancel := context.WithTimeout(ctx, constants.DatabaseMigrationTimeout)
 	defer cancel()
 
 	if err := goose.UpContext(migrationCtx, p.db, "migrations"); err != nil {

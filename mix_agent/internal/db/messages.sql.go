@@ -17,20 +17,30 @@ INSERT INTO messages (
     role,
     parts,
     model,
+    input_tokens,
+    output_tokens,
+    cache_creation_tokens,
+    cache_read_tokens,
+    cost,
     created_at,
     updated_at
 ) VALUES (
-    ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now')
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now')
 )
-RETURNING id, session_id, role, parts, model, created_at, updated_at, finished_at
+RETURNING id, session_id, role, parts, model, created_at, updated_at, finished_at, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost
 `
 
 type CreateMessageParams struct {
-	ID        string         `json:"id"`
-	SessionID string         `json:"session_id"`
-	Role      string         `json:"role"`
-	Parts     string         `json:"parts"`
-	Model     sql.NullString `json:"model"`
+	ID                  string          `json:"id"`
+	SessionID           string          `json:"session_id"`
+	Role                string          `json:"role"`
+	Parts               string          `json:"parts"`
+	Model               sql.NullString  `json:"model"`
+	InputTokens         sql.NullInt64   `json:"input_tokens"`
+	OutputTokens        sql.NullInt64   `json:"output_tokens"`
+	CacheCreationTokens sql.NullInt64   `json:"cache_creation_tokens"`
+	CacheReadTokens     sql.NullInt64   `json:"cache_read_tokens"`
+	Cost                sql.NullFloat64 `json:"cost"`
 }
 
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
@@ -40,6 +50,11 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.Role,
 		arg.Parts,
 		arg.Model,
+		arg.InputTokens,
+		arg.OutputTokens,
+		arg.CacheCreationTokens,
+		arg.CacheReadTokens,
+		arg.Cost,
 	)
 	var i Message
 	err := row.Scan(
@@ -51,6 +66,11 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.FinishedAt,
+		&i.InputTokens,
+		&i.OutputTokens,
+		&i.CacheCreationTokens,
+		&i.CacheReadTokens,
+		&i.Cost,
 	)
 	return i, err
 }
@@ -66,7 +86,7 @@ func (q *Queries) DeleteMessage(ctx context.Context, id string) error {
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at
+SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost
 FROM messages
 WHERE id = ? LIMIT 1
 `
@@ -83,12 +103,17 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (Message, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.FinishedAt,
+		&i.InputTokens,
+		&i.OutputTokens,
+		&i.CacheCreationTokens,
+		&i.CacheReadTokens,
+		&i.Cost,
 	)
 	return i, err
 }
 
 const listMessagesBySession = `-- name: ListMessagesBySession :many
-SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at
+SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost
 FROM messages
 WHERE session_id = ?
 ORDER BY created_at ASC
@@ -112,6 +137,11 @@ func (q *Queries) ListMessagesBySession(ctx context.Context, sessionID string) (
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.FinishedAt,
+			&i.InputTokens,
+			&i.OutputTokens,
+			&i.CacheCreationTokens,
+			&i.CacheReadTokens,
+			&i.Cost,
 		); err != nil {
 			return nil, err
 		}
@@ -127,7 +157,7 @@ func (q *Queries) ListMessagesBySession(ctx context.Context, sessionID string) (
 }
 
 const listUserMessageHistory = `-- name: ListUserMessageHistory :many
-SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at
+SELECT id, session_id, role, parts, model, created_at, updated_at, finished_at, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost
 FROM messages
 WHERE role = 'user'
 ORDER BY created_at DESC
@@ -157,6 +187,11 @@ func (q *Queries) ListUserMessageHistory(ctx context.Context, arg ListUserMessag
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.FinishedAt,
+			&i.InputTokens,
+			&i.OutputTokens,
+			&i.CacheCreationTokens,
+			&i.CacheReadTokens,
+			&i.Cost,
 		); err != nil {
 			return nil, err
 		}
@@ -176,17 +211,36 @@ UPDATE messages
 SET
     parts = ?,
     finished_at = ?,
+    input_tokens = ?,
+    output_tokens = ?,
+    cache_creation_tokens = ?,
+    cache_read_tokens = ?,
+    cost = ?,
     updated_at = strftime('%s', 'now')
 WHERE id = ?
 `
 
 type UpdateMessageParams struct {
-	Parts      string        `json:"parts"`
-	FinishedAt sql.NullInt64 `json:"finished_at"`
-	ID         string        `json:"id"`
+	Parts               string          `json:"parts"`
+	FinishedAt          sql.NullInt64   `json:"finished_at"`
+	InputTokens         sql.NullInt64   `json:"input_tokens"`
+	OutputTokens        sql.NullInt64   `json:"output_tokens"`
+	CacheCreationTokens sql.NullInt64   `json:"cache_creation_tokens"`
+	CacheReadTokens     sql.NullInt64   `json:"cache_read_tokens"`
+	Cost                sql.NullFloat64 `json:"cost"`
+	ID                  string          `json:"id"`
 }
 
 func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) error {
-	_, err := q.exec(ctx, q.updateMessageStmt, updateMessage, arg.Parts, arg.FinishedAt, arg.ID)
+	_, err := q.exec(ctx, q.updateMessageStmt, updateMessage,
+		arg.Parts,
+		arg.FinishedAt,
+		arg.InputTokens,
+		arg.OutputTokens,
+		arg.CacheCreationTokens,
+		arg.CacheReadTokens,
+		arg.Cost,
+		arg.ID,
+	)
 	return err
 }

@@ -18,7 +18,6 @@ if lsof -i :$BACKEND_PORT -sTCP:LISTEN > /dev/null 2>&1; then
     echo "  2. Another application is using this port"
     echo -e "\n${YELLOW}Possible solutions:${NC}"
     echo "  1. Kill the existing process: lsof -ti:$BACKEND_PORT | xargs kill -9"
-    echo "  2. Change the port in .air.toml and Procfile"
     exit 1
 fi
 

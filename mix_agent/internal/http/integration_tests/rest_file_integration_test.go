@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"mix/internal/session"
 	"mix/internal/constants"
+	"mix/internal/session"
 )
 
 // Test 20: File Upload and List - http.MethodPost /api/sessions/{id}/files/upload + http.MethodGet /api/sessions/{id}/files

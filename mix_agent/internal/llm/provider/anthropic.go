@@ -32,6 +32,16 @@ type anthropicOptions struct {
 	useInterleavedThinking bool
 }
 
+// Helper function for error classification
+func isAnthropicUnauthorizedError(err error) bool {
+	var apierr *anthropic.Error
+	if errors.As(err, &apierr) {
+		return apierr.StatusCode == http.StatusUnauthorized
+	}
+	// Fallback to string check if error is not typed (should be rare)
+	return strings.Contains(err.Error(), "401")
+}
+
 type AnthropicOption func(*anthropicOptions)
 
 type anthropicClient struct {
@@ -156,7 +166,8 @@ func newAnthropicClient(opts providerClientOptions) AnthropicClient {
 }
 
 func (a *anthropicClient) convertMessages(messages []message.Message) (anthropicMessages []anthropic.MessageParam) {
-	for i, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		cache := false
 		if i > len(messages)-3 {
 			cache = true
@@ -422,7 +433,7 @@ func (a *anthropicClient) Send(ctx context.Context, messages []message.Message, 
 			logging.Error("Error in Anthropic API call", "error", err)
 
 			// Check for authentication errors (401)
-			if strings.Contains(err.Error(), "401") {
+			if isAnthropicUnauthorizedError(err) {
 				// Check if using placeholder auth (indicating no real auth provided)
 				if !a.options.useOAuth && a.providerOptions.apiKey == "" {
 					// Return a proper authentication error that will be handled by the error path
@@ -712,7 +723,7 @@ func (a *anthropicClient) handleMessageStop(accumulatedMessage anthropic.Message
 }
 
 func (a *anthropicClient) tryRefreshOAuthOnError(err error) bool {
-	if a.options.useOAuth && a.options.oauthCreds != nil && strings.Contains(err.Error(), "401") && a.options.oauthCreds.RefreshToken != "" {
+	if a.options.useOAuth && a.options.oauthCreds != nil && isAnthropicUnauthorizedError(err) && a.options.oauthCreds.RefreshToken != "" {
 		if refreshedCreds, refreshErr := RefreshAccessToken(a.options.oauthCreds); refreshErr == nil {
 			a.storeRefreshedCredentials(refreshedCreds)
 			a.options.oauthCreds = refreshedCreds
@@ -957,8 +968,8 @@ func DefaultThinkingBudgetFn(s string) int {
 		return 4000
 	}
 
-	// No thinking
-	return 0
+	// Default: medium thinking (10000 tokens)
+	return 10000
 }
 
 func WithAnthropicThinkingBudgetFn(fn func(string) int) AnthropicOption {

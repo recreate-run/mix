@@ -13,6 +13,7 @@ import (
 
 	"mix/internal/app"
 	"mix/internal/commands"
+	"mix/internal/constants"
 	"mix/internal/llm/agent"
 	"mix/internal/llm/provider"
 	"mix/internal/llm/tools"
@@ -23,13 +24,14 @@ import (
 
 // ToolCallData represents tool call information for REST API
 type ToolCallData struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Input    string `json:"input"`
-	Type     string `json:"type"`
-	Finished bool   `json:"finished"`
-	Result   string `json:"result,omitempty"`
-	IsError  bool   `json:"isError,omitempty"`
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	Input          string   `json:"input"`
+	Type           string   `json:"type"`
+	Finished       bool     `json:"finished"`
+	Result         string   `json:"result,omitempty"`
+	IsError        bool     `json:"isError,omitempty"`
+	ScreenshotUrls []string `json:"screenshotUrls,omitempty"`
 }
 
 // CallbackResultData represents callback result information for REST API
@@ -49,28 +51,35 @@ type CallbackResultData struct {
 
 // MessageData represents message information for REST API
 type MessageData struct {
-	ID                string               `json:"id"`
-	SessionID         string               `json:"sessionId"`
-	Role              string               `json:"role"`
-	UserInput         string               `json:"userInput"`
-	AssistantResponse string               `json:"assistantResponse,omitempty"`
-	ToolCalls         []ToolCallData       `json:"toolCalls,omitempty"`
-	CallbackResults   []CallbackResultData `json:"callbackResults,omitempty"`
-	Reasoning         string               `json:"reasoning,omitempty"`
-	ReasoningDuration int64                `json:"reasoningDuration,omitempty"`
+	ID                  string               `json:"id"`
+	SessionID           string               `json:"sessionId"`
+	Role                string               `json:"role"`
+	UserInput           string               `json:"userInput"`
+	AssistantResponse   string               `json:"assistantResponse,omitempty"`
+	ToolCalls           []ToolCallData       `json:"toolCalls,omitempty"`
+	CallbackResults     []CallbackResultData `json:"callbackResults,omitempty"`
+	Reasoning           string               `json:"reasoning,omitempty"`
+	ReasoningDuration   int64                `json:"reasoningDuration,omitempty"`
+	InputTokens         int64                `json:"inputTokens,omitempty"`
+	OutputTokens        int64                `json:"outputTokens,omitempty"`
+	CacheCreationTokens int64                `json:"cacheCreationTokens,omitempty"`
+	CacheReadTokens     int64                `json:"cacheReadTokens,omitempty"`
+	Cost                float64              `json:"cost,omitempty"`
+	Model               string               `json:"model,omitempty"`
 }
 
 // ExportToolCall represents comprehensive tool call information for transcript export
 type ExportToolCall struct {
-	ID        string      `json:"id"`
-	Name      string      `json:"name"`
-	Input     string      `json:"input"`
-	InputJSON interface{} `json:"inputJson,omitempty"` // Parsed JSON for structured tools
-	Type      string      `json:"type"`
-	Finished  bool        `json:"finished"`
-	Result    string      `json:"result,omitempty"`
-	Metadata  string      `json:"metadata,omitempty"`
-	IsError   bool        `json:"isError,omitempty"`
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	Input          string      `json:"input"`
+	InputJSON      interface{} `json:"inputJson,omitempty"` // Parsed JSON for structured tools
+	Type           string      `json:"type"`
+	Finished       bool        `json:"finished"`
+	Result         string      `json:"result,omitempty"`
+	Metadata       string      `json:"metadata,omitempty"`
+	IsError        bool        `json:"isError,omitempty"`
+	ScreenshotUrls []string    `json:"screenshotUrls,omitempty"`
 }
 
 // ExportMessage represents comprehensive message information for transcript export
@@ -130,6 +139,7 @@ type SendMessageRequest struct {
 	Text          string  `json:"text"`
 	PlanMode      bool    `json:"plan_mode,omitempty"`
 	ThinkingLevel *string `json:"thinking_level,omitempty"`
+	MaxSteps      *int    `json:"max_steps,omitempty"`
 }
 
 // thinkingLevelToBudget converts thinking level enum to token budget
@@ -193,7 +203,7 @@ func (h *MessageHandler) HandleSendMessage(w http.ResponseWriter, r *http.Reques
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -303,7 +313,7 @@ func (h *MessageHandler) handleSlashCommand(w http.ResponseWriter, ctx context.C
 func (h *MessageHandler) startAgentProcessing(w http.ResponseWriter, sessionID, requestID string, req SendMessageRequest, thinkingBudget *int) {
 	agentCtx := context.Background()
 
-	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode, thinkingBudget)
+	events, err := h.app.CoderAgent.RunWithPlanMode(agentCtx, sessionID, req.Text, req.PlanMode, thinkingBudget, req.MaxSteps)
 	if err != nil {
 		logging.Error("Failed to start agent processing",
 			"sessionID", sessionID,
@@ -364,7 +374,7 @@ func (h *MessageHandler) HandleListSessionMessages(w http.ResponseWriter, r *htt
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -395,7 +405,7 @@ func (h *MessageHandler) HandleMessageHistory(w http.ResponseWriter, r *http.Req
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -436,7 +446,7 @@ func (h *MessageHandler) HandleCancelAgent(w http.ResponseWriter, r *http.Reques
 	}
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -465,7 +475,7 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, constants.MethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -510,11 +520,29 @@ func (h *MessageHandler) HandleExportSession(w http.ResponseWriter, r *http.Requ
 
 // convertMessagesToData converts message objects to MessageData for REST response
 func (h *MessageHandler) convertMessagesToData(messages []message.Message) []MessageData {
+	// Pass 1: Build global map of all tool results from all messages
+	// Tool results are stored in separate messages with role='tool', not embedded in assistant messages
+	allToolResults := make(map[string]message.ToolResult)
+	for i := range messages {
+		if messages[i].Role == message.Tool {
+			for _, tr := range messages[i].ToolResults() {
+				if _, exists := allToolResults[tr.ToolCallID]; exists {
+					logging.Warn("Duplicate tool result for tool call ID, overwriting",
+						"toolCallID", tr.ToolCallID,
+						"messageID", messages[i].ID,
+					)
+				}
+				allToolResults[tr.ToolCallID] = tr
+			}
+		}
+	}
+
+	// Pass 2: Process messages and attach tool results to tool calls
 	result := []MessageData{}
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		// Extract tool calls and match with tool results
 		toolCalls := msg.ToolCalls()
-		toolResults := msg.ToolResults()
 		callbackResults := msg.CallbackResults()
 
 		// Extract reasoning content from both ReasoningContent and ThinkingBlock parts
@@ -535,11 +563,8 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 			}
 		}
 
-		// Create a map of tool results by tool call ID for quick lookup
-		resultsByID := make(map[string]message.ToolResult)
-		for _, tr := range toolResults {
-			resultsByID[tr.ToolCallID] = tr
-		}
+		// Use global tool results map (built in pass 1) for lookup
+		resultsByID := allToolResults
 
 		toolCallsData := make([]ToolCallData, len(toolCalls))
 		for i, tc := range toolCalls {
@@ -555,6 +580,7 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 			if toolResult, exists := resultsByID[tc.ID]; exists {
 				toolCallData.Result = toolResult.Content
 				toolCallData.IsError = toolResult.IsError
+				toolCallData.ScreenshotUrls = toolResult.ScreenshotUrls
 			}
 
 			toolCallsData[i] = toolCallData
@@ -564,10 +590,16 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 		content := msg.Content().String()
 
 		messageData := MessageData{
-			ID:        msg.ID,
-			SessionID: msg.SessionID,
-			Role:      string(msg.Role),
-			UserInput: content, // All messages put their content in userInput, frontend uses role to determine how to display
+			ID:                  msg.ID,
+			SessionID:           msg.SessionID,
+			Role:                string(msg.Role),
+			UserInput:           content, // All messages put their content in userInput, frontend uses role to determine how to display
+			InputTokens:         msg.InputTokens,
+			OutputTokens:        msg.OutputTokens,
+			CacheCreationTokens: msg.CacheCreationTokens,
+			CacheReadTokens:     msg.CacheReadTokens,
+			Cost:                msg.Cost,
+			Model:               string(msg.Model),
 		}
 
 		// For assistant messages, also set assistantResponse field
@@ -616,7 +648,8 @@ func (h *MessageHandler) convertMessagesToData(messages []message.Message) []Mes
 func (h *MessageHandler) convertToExportSession(sess session.Session, messages []message.Message) ExportSession {
 	exportMessages := make([]ExportMessage, 0, len(messages))
 
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		exportMsg := ExportMessage{
 			ID:        msg.ID,
 			Role:      string(msg.Role),
@@ -659,6 +692,7 @@ func (h *MessageHandler) convertToExportSession(sess session.Session, messages [
 					exportTC.Result = toolResult.Content
 					exportTC.Metadata = toolResult.Metadata
 					exportTC.IsError = toolResult.IsError
+					exportTC.ScreenshotUrls = toolResult.ScreenshotUrls
 				}
 
 				exportToolCalls = append(exportToolCalls, exportTC)

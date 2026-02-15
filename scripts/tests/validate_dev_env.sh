@@ -40,14 +40,13 @@ check_tool() {
 check_tool go true
 check_tool bun true
 check_tool cargo true
-check_tool air false
 check_tool uv true
 
 # Step 2: Validate Procfile configuration
 echo -e "\n${BOLD}2. Validating Procfile configuration...${NC}"
 if [ -f "Procfile" ]; then
   echo -e "✅ ${GREEN}Procfile exists${NC}"
-  
+
   # Check backend command
   if grep -q "backend:" Procfile; then
     echo -e "✅ ${GREEN}Procfile contains backend service${NC}"
@@ -55,7 +54,7 @@ if [ -f "Procfile" ]; then
     echo -e "❌ ${RED}Procfile is missing backend service${NC}"
     ERRORS=$((ERRORS + 1))
   fi
-  
+
   # Check frontend command
   if grep -q "frontend:" Procfile; then
     echo -e "✅ ${GREEN}Procfile contains frontend service${NC}"

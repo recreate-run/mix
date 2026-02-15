@@ -28,6 +28,13 @@ func (c *RemoteCDPClient) Navigate(ctx context.Context, url string, tabID ...str
 		URL: url,
 	}
 
+	// Start waiting for load event BEFORE sending navigate command
+	loadTimeout := 15 * time.Second
+	loadErrChan := make(chan error, 1)
+	go func() {
+		loadErrChan <- c.waitForEvent(ctx, "Page.loadEventFired", loadTimeout)
+	}()
+
 	result, err := c.sendCommand(ctx, "Page.navigate", params, cdpSessionID)
 	if err != nil {
 		return nil, err
@@ -42,6 +49,14 @@ func (c *RemoteCDPClient) Navigate(ctx context.Context, url string, tabID ...str
 	var navResult cdp.PageNavigateResult
 	if err := json.Unmarshal(resultJSON, &navResult); err != nil {
 		return &browserprotocol.NavigateResult{}, err
+	}
+
+	// Wait for page load completion
+	if loadErr := <-loadErrChan; loadErr != nil {
+		logging.Warn("Page load event timeout during navigation",
+			"url", url,
+			"error", loadErr)
+		// Don't fail - page might still be usable
 	}
 
 	return &browserprotocol.NavigateResult{
@@ -189,26 +204,35 @@ func (c *RemoteCDPClient) Screenshot(ctx context.Context, params browserprotocol
 		format = imageFormatPNG
 	}
 
-	// Get accessibility tree if requested
+	// Get accessibility tree if requested (with graceful degradation)
 	var rawNodes []browserprotocol.RawAccessibilityNode
 	if params.Raw {
-		axResult, err := c.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+		// Use separate context with timeout for accessibility tree
+		// With domain enabling, this should be nearly instant, but allow time for network latency
+		axCtx, axCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer axCancel()
+
+		axResult, err := c.sendCommand(axCtx, "Accessibility.getFullAXTree", nil, cdpSessionID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
+			// Graceful degradation: return screenshot without accessibility tree
+			logging.Warn("Failed to get accessibility tree for screenshot, continuing without raw nodes",
+				"error", err,
+				"tabID", targetTabID)
+			// rawNodes remains nil - screenshot will be returned without element data
+		} else {
+			axJSON, err := json.Marshal(axResult)
+			if err != nil {
+				logging.Warn("Failed to marshal accessibility result, continuing without raw nodes", "error", err)
+			} else {
+				var axTree cdp.AccessibilityGetFullAXTreeResult
+				if err := json.Unmarshal(axJSON, &axTree); err != nil {
+					logging.Warn("Failed to unmarshal accessibility tree, continuing without raw nodes", "error", err)
+				} else {
+					// Convert accessibility nodes to browser protocol elements
+					rawNodes = c.convertAccessibilityNodesToRawNodes(axTree.Nodes, targetTabID)
+				}
+			}
 		}
-
-		axJSON, err := json.Marshal(axResult)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal accessibility result: %w", err)
-		}
-
-		var axTree cdp.AccessibilityGetFullAXTreeResult
-		if err := json.Unmarshal(axJSON, &axTree); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal accessibility tree: %w", err)
-		}
-
-		// Convert accessibility nodes to browser protocol elements
-		rawNodes = c.convertAccessibilityNodesToRawNodes(axTree.Nodes, targetTabID)
 	}
 
 	return &browserprotocol.ScreenshotResult{
@@ -291,7 +315,11 @@ func (c *RemoteCDPClient) ReadPage(ctx context.Context, interactiveOnly bool, ta
 	}
 
 	// Get accessibility tree
-	axResult, err := c.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+	// With domain enabling, this should be nearly instant
+	axCtx, axCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer axCancel()
+
+	axResult, err := c.sendCommand(axCtx, "Accessibility.getFullAXTree", nil, cdpSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
 	}
@@ -406,7 +434,11 @@ func (c *RemoteCDPClient) Find(ctx context.Context, query string, limit int, tab
 	}
 
 	// Get accessibility tree
-	axResult, err := c.sendCommand(ctx, "Accessibility.getFullAXTree", nil, cdpSessionID)
+	// With domain enabling, this should be nearly instant
+	axCtx, axCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer axCancel()
+
+	axResult, err := c.sendCommand(axCtx, "Accessibility.getFullAXTree", nil, cdpSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accessibility tree: %w", err)
 	}
@@ -522,35 +554,33 @@ func (c *RemoteCDPClient) clickByBackendIDWithButton(ctx context.Context, backen
 		return fmt.Errorf("failed to get tab CDP session: %w", err)
 	}
 
-	targetTabID := c.activeTabID
-	if len(tabID) > 0 && tabID[0] != "" {
-		targetTabID = tabID[0]
+	// Get element bounds using DOM.getBoxModel (on-demand lookup, no cache dependency)
+	boxModelParams := cdp.DOMGetBoxModelParams{
+		BackendNodeID: backendID,
+	}
+	result, err := c.sendCommand(ctx, "DOM.getBoxModel", boxModelParams, cdpSessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get element box model for backendID %d: %w", backendID, err)
 	}
 
-	// Find element in cache by backend ID
-	c.cacheMu.RLock()
-	elements, exists := c.elementCache[targetTabID]
-	c.cacheMu.RUnlock()
-
-	if !exists {
-		return fmt.Errorf("no element cache for tab %s", targetTabID)
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("unexpected box model result type: %T", result)
 	}
 
-	var elem *elementInfo
-	for i := range elements {
-		if elements[i].BackendID == backendID {
-			elem = &elements[i]
-			break
-		}
+	var boxModelResult cdp.DOMGetBoxModelResult
+	if err := json.Unmarshal(resultJSON, &boxModelResult); err != nil {
+		return fmt.Errorf("failed to unmarshal box model result: %w", err)
 	}
 
-	if elem == nil {
-		return fmt.Errorf("element with backend ID %d not found", backendID)
+	// Calculate click position from content quad (center of bounding box)
+	// Content quad: [x1, y1, x2, y2, x3, y3, x4, y4]
+	if len(boxModelResult.Model.Content) < 8 {
+		return fmt.Errorf("invalid box model content quad for backendID %d", backendID)
 	}
 
-	// Calculate click position
-	x := elem.Bounds.X + elem.Bounds.Width/2
-	y := elem.Bounds.Y + elem.Bounds.Height/2
+	x := (boxModelResult.Model.Content[0] + boxModelResult.Model.Content[4]) / 2
+	y := (boxModelResult.Model.Content[1] + boxModelResult.Model.Content[5]) / 2
 
 	// Dispatch mouse events
 	moveParams := cdp.InputDispatchMouseEventParams{
@@ -716,14 +746,17 @@ func (c *RemoteCDPClient) Drag(ctx context.Context, fromIndex, toIndex *int, fro
 }
 
 // Type types text into an element
-func (c *RemoteCDPClient) Type(ctx context.Context, index int, text string, tabID ...string) error {
-	// First click the element to focus it
-	if err := c.Click(ctx, index, tabID...); err != nil {
-		return fmt.Errorf("failed to focus element: %w", err)
-	}
+func (c *RemoteCDPClient) Type(ctx context.Context, index *int, text string, tabID ...string) error {
+	// If index is provided, click the element to focus it
+	if index != nil {
+		if err := c.Click(ctx, *index, tabID...); err != nil {
+			return fmt.Errorf("failed to focus element: %w", err)
+		}
 
-	// Small delay to ensure focus
-	time.Sleep(100 * time.Millisecond)
+		// Small delay to ensure focus
+		time.Sleep(100 * time.Millisecond)
+	}
+	// If index is nil, type into currently focused element without clicking
 
 	cdpSessionID, err := c.getTabCDPSessionID(tabID...)
 	if err != nil {
@@ -773,7 +806,7 @@ func (c *RemoteCDPClient) PressKey(ctx context.Context, keys string, tabID ...st
 
 // FormInput sets form input value
 func (c *RemoteCDPClient) FormInput(ctx context.Context, index int, value string, tabID ...string) error {
-	return c.Type(ctx, index, value, tabID...)
+	return c.Type(ctx, &index, value, tabID...)
 }
 
 // Scroll scrolls the page
@@ -900,14 +933,16 @@ func (c *RemoteCDPClient) UploadFile(ctx context.Context, index int, filePaths [
 
 // CreateTab creates a new tab
 func (c *RemoteCDPClient) CreateTab(ctx context.Context, url ...string) (*browserprotocol.TabInfo, error) {
-	targetURL := "about:blank"
+	userURL := ""
 	if len(url) > 0 && url[0] != "" {
-		targetURL = url[0]
+		userURL = url[0]
 	}
 
-	// Create target
+	// Always create target with a data URL (not about:blank)
+	// about:blank has special browser handling that can cause target detachment
+	// Match local browser service behavior using an empty HTML data URL
 	createParams := cdp.TargetCreateParams{
-		URL: targetURL,
+		URL: "data:text/html,<html><body></body></html>",
 	}
 
 	result, err := c.sendCommand(ctx, "Target.createTarget", createParams)
@@ -959,11 +994,56 @@ func (c *RemoteCDPClient) CreateTab(ctx context.Context, url ...string) (*browse
 	c.activeTabID = friendlyID
 	c.tabsMu.Unlock()
 
-	logging.Info("Created new tab", "tabID", friendlyID, "targetID", createResult.TargetID, "sessionID", attach.SessionID)
+	// Enable required CDP domains for this tab
+	// This is critical - without enabling, browser builds accessibility tree from scratch (30+ seconds)
+	// With enabling, browser maintains tree incrementally (instant)
+	sessionID := attach.SessionID
+	_, _ = c.sendCommand(ctx, "Page.enable", nil, sessionID)
+	_, _ = c.sendCommand(ctx, "DOM.enable", nil, sessionID)
+	_, _ = c.sendCommand(ctx, "Accessibility.enable", nil, sessionID)
+	_, _ = c.sendCommand(ctx, "Runtime.enable", nil, sessionID)
+
+	// Determine final URL to return
+	finalURL := "data:text/html,<html><body></body></html>"
+	if userURL == urlAboutBlank {
+		// User explicitly requested about:blank - return that
+		// (but we already have blank page via data URL, no need to navigate)
+		finalURL = urlAboutBlank
+	} else if userURL != "" {
+		// User provided a real URL - navigate explicitly and wait for page load
+		navParams := cdp.PageNavigateParams{
+			URL: userURL,
+		}
+
+		// Start waiting for load event BEFORE sending navigate command
+		loadTimeout := 15 * time.Second
+		loadErrChan := make(chan error, 1)
+		go func() {
+			loadErrChan <- c.waitForEvent(ctx, "Page.loadEventFired", loadTimeout)
+		}()
+
+		_, err = c.sendCommand(ctx, "Page.navigate", navParams, sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to navigate to %s: %w", userURL, err)
+		}
+
+		// Wait for page load completion
+		if loadErr := <-loadErrChan; loadErr != nil {
+			logging.Warn("Page load event timeout - page may not be fully loaded",
+				"url", userURL,
+				"tabID", friendlyID,
+				"error", loadErr)
+			// Don't fail - page might still be usable
+		}
+
+		finalURL = userURL
+	}
+
+	logging.Info("Created new tab", "tabID", friendlyID, "targetID", createResult.TargetID, "sessionID", attach.SessionID, "url", finalURL)
 
 	return &browserprotocol.TabInfo{
 		ID:  friendlyID,
-		URL: targetURL,
+		URL: finalURL,
 	}, nil
 }
 
