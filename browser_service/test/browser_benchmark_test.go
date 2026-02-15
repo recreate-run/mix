@@ -313,7 +313,7 @@ func BenchmarkType(b *testing.B) {
 	b.Run("10Chars", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err := c.Type(ctx, inputIndex, text10Chars, tab.ID)
+			err := c.Type(ctx, &inputIndex, text10Chars, tab.ID)
 			if err != nil {
 				b.Fatalf("Failed to type: %v", err)
 			}
@@ -323,7 +323,7 @@ func BenchmarkType(b *testing.B) {
 	b.Run("50Chars", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err := c.Type(ctx, inputIndex, text50Chars, tab.ID)
+			err := c.Type(ctx, &inputIndex, text50Chars, tab.ID)
 			if err != nil {
 				b.Fatalf("Failed to type: %v", err)
 			}
@@ -333,7 +333,7 @@ func BenchmarkType(b *testing.B) {
 	b.Run("100Chars", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			err := c.Type(ctx, inputIndex, text100Chars, tab.ID)
+			err := c.Type(ctx, &inputIndex, text100Chars, tab.ID)
 			if err != nil {
 				b.Fatalf("Failed to type: %v", err)
 			}
