@@ -515,11 +515,9 @@ func (h *MessageHandler) handleType(ctx context.Context, req protocol.Request) p
 			protocol.NewError(protocol.ErrCodeInvalidParams, "Invalid params"))
 	}
 
-	// If index is nil, type into focused element using PressKey
+	// If index is nil, type into currently focused element
 	if params.Index == nil {
-		// Type each character using PressKey
-		// Note: This is less efficient but maintains backward compatibility
-		if err := h.client.Context.PressKey(ctx, params.Text, params.TabID); err != nil {
+		if err := h.client.Context.TypeIntoFocused(ctx, params.Text, params.TabID); err != nil {
 			return protocol.NewErrorResponse(req.ID,
 				protocol.NewError(protocol.ErrCodeBrowserError, err.Error()))
 		}

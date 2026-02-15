@@ -1499,6 +1499,27 @@ func (c *Context) Type(ctx context.Context, index int, text string, tabID *strin
 	return nil
 }
 
+// TypeIntoFocused types text into the currently focused element without clicking
+func (c *Context) TypeIntoFocused(ctx context.Context, text string, tabID *string) error {
+	tab, err := c.getTab(tabID)
+	if err != nil {
+		return err
+	}
+
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
+
+	// Type text character by character into the currently focused element
+	for _, ch := range text {
+		key := input.Key(ch)
+		if err := tab.page.Keyboard.Type(key); err != nil {
+			return fmt.Errorf("type into focused element failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // Scroll scrolls the page
 func (c *Context) Scroll(ctx context.Context, direction string, amount int, tabID *string) error {
 	tab, err := c.getTab(tabID)
