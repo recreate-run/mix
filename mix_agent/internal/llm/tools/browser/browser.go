@@ -511,38 +511,6 @@ func parseRefBackendID(ref string) (int64, error) {
 	return backendID, nil
 }
 
-// findElementByCoordinate finds the smallest element containing the coordinate
-func findElementByCoordinate(elements []browserprotocol.RawAccessibilityNode, coordinate Coordinate) (browserprotocol.RawAccessibilityNode, bool) {
-	var found browserprotocol.RawAccessibilityNode
-	foundAny := false
-	var bestArea float64
-
-	for _, elem := range elements {
-		bounds := elem.Bounds
-		if bounds.Width == 0 || bounds.Height == 0 {
-			continue
-		}
-		if coordinate.X < bounds.X || coordinate.X > bounds.X+bounds.Width {
-			continue
-		}
-		if coordinate.Y < bounds.Y || coordinate.Y > bounds.Y+bounds.Height {
-			continue
-		}
-
-		area := bounds.Width * bounds.Height
-		if !foundAny || area < bestArea {
-			found = elem
-			foundAny = true
-			bestArea = area
-		}
-	}
-
-	return found, foundAny
-}
-
-type coordinateClicker interface {
-	ClickAt(ctx context.Context, x, y float64, button string, clickCount int, duration *int, tabID ...string) error
-}
 
 func (b *browserTool) backendIDFromIndex(ctx context.Context, sessionID, tabID string, index int) (int64, error) {
 	// Cacheless design (Phase 11): fetch elements on-demand
@@ -563,20 +531,6 @@ func (b *browserTool) backendIDFromRef(ref string) (int64, error) {
 		return 0, fmt.Errorf("ref is required")
 	}
 	return parseRefBackendID(ref)
-}
-
-func (b *browserTool) backendIDFromCoordinate(ctx context.Context, sessionID, tabID string, coordinate Coordinate) (int64, error) {
-	elements, err := b.readPageElements(ctx, sessionID, tabID, false)
-	if err != nil {
-		return 0, err
-	}
-
-	elem, ok := findElementByCoordinate(elements, coordinate)
-	if !ok {
-		return 0, fmt.Errorf("no element found at coordinate (%.0f, %.0f)", coordinate.X, coordinate.Y)
-	}
-
-	return elem.BackendID, nil
 }
 
 func (b *browserTool) coordinateFromBackendID(ctx context.Context, sessionID, tabID string, backendID int64) (Coordinate, error) {
@@ -620,38 +574,6 @@ func (b *browserTool) clickByBackendID(ctx context.Context, client BrowserClient
 	}
 }
 
-func (b *browserTool) clickByCoordinate(ctx context.Context, client BrowserClient, sessionID, tabID string, coordinate Coordinate, button string, clickCount int, duration *int, repeat int) error {
-	if repeat <= 0 {
-		repeat = 1
-	}
-
-	if coordClient, ok := client.(coordinateClicker); ok {
-		for i := 0; i < repeat; i++ {
-			if err := coordClient.ClickAt(ctx, coordinate.X, coordinate.Y, button, clickCount, duration, tabID); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	if duration != nil && *duration > 0 {
-		return fmt.Errorf("coordinate click duration requires coordinate click support")
-	}
-
-	backendID, err := b.backendIDFromCoordinate(ctx, sessionID, tabID, coordinate)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < repeat; i++ {
-		if err := b.clickByBackendID(ctx, client, backendID, tabID, button, clickCount); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // handleClick clicks an element
 func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
 	// Get browser connection
@@ -665,16 +587,18 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		if err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
 			if err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
 			}
-			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 1, nil, 1); err != nil {
+			if err := tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonLeft, 1, nil, params.TabID); err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
 			}
 			return interfaces.NewTextResponse("Successfully clicked element by ref")
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 1); err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
 		}
@@ -682,14 +606,27 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 	}
 
 	if params.Coordinate != nil {
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonLeft, 1, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			if err := tunnelClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, mouseButtonLeft, 1, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully clicked coordinate")
 		}
-		return interfaces.NewTextResponse("Successfully clicked coordinate")
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonLeft
+			clickCount := 1
+			if err := serviceClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, &button, &clickCount, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully clicked coordinate")
+		}
+		return interfaces.NewTextErrorResponse("Coordinate clicking not supported for this client type")
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return interfaces.NewTextErrorResponse("Index-based clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
@@ -735,16 +672,18 @@ func (b *browserTool) handleRightClick(ctx context.Context, params BrowserParams
 		if err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
 			if err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
 			}
-			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonRight, 1, nil, 1); err != nil {
+			if err := tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonRight, 1, nil, params.TabID); err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
 			}
 			return interfaces.NewTextResponse("Successfully right-clicked element by ref")
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonRight, 1); err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
 		}
@@ -752,14 +691,27 @@ func (b *browserTool) handleRightClick(ctx context.Context, params BrowserParams
 	}
 
 	if params.Coordinate != nil {
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonRight, 1, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			if err := tunnelClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, mouseButtonRight, 1, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully right-clicked coordinate")
 		}
-		return interfaces.NewTextResponse("Successfully right-clicked coordinate")
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonRight
+			clickCount := 1
+			if err := serviceClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, &button, &clickCount, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully right-clicked coordinate")
+		}
+		return interfaces.NewTextErrorResponse("Coordinate right-clicking not supported for this client type")
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return interfaces.NewTextErrorResponse("Index-based right-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
@@ -789,16 +741,18 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 		if err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
 			if err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
 			}
-			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 2, nil, 1); err != nil {
+			if err := tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonLeft, 2, nil, params.TabID); err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
 			}
 			return interfaces.NewTextResponse("Successfully double-clicked element by ref")
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 2); err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
 		}
@@ -806,14 +760,27 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 	}
 
 	if params.Coordinate != nil {
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonLeft, 2, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			if err := tunnelClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, mouseButtonLeft, 2, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully double-clicked coordinate")
 		}
-		return interfaces.NewTextResponse("Successfully double-clicked coordinate")
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonLeft
+			clickCount := 2
+			if err := serviceClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, &button, &clickCount, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully double-clicked coordinate")
+		}
+		return interfaces.NewTextErrorResponse("Coordinate double-clicking not supported for this client type")
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return interfaces.NewTextErrorResponse("Index-based double-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
@@ -843,16 +810,18 @@ func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParam
 		if err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Invalid ref: %v", err))
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, params.TabID, backendID)
 			if err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
 			}
-			if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, coordinate, mouseButtonLeft, 3, nil, 1); err != nil {
+			if err := tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonLeft, 3, nil, params.TabID); err != nil {
 				return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
 			}
 			return interfaces.NewTextResponse("Successfully triple-clicked element by ref")
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		if err := b.clickByBackendID(ctx, client, backendID, params.TabID, mouseButtonLeft, 3); err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
 		}
@@ -860,14 +829,27 @@ func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParam
 	}
 
 	if params.Coordinate != nil {
-		if err := b.clickByCoordinate(ctx, client, sessionID, params.TabID, *params.Coordinate, mouseButtonLeft, 3, nil, 1); err != nil {
-			return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			if err := tunnelClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, mouseButtonLeft, 3, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully triple-clicked coordinate")
 		}
-		return interfaces.NewTextResponse("Successfully triple-clicked coordinate")
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonLeft
+			clickCount := 3
+			if err := serviceClient.ClickAt(ctx, params.Coordinate.X, params.Coordinate.Y, &button, &clickCount, nil, params.TabID); err != nil {
+				return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
+			}
+			return interfaces.NewTextResponse("Successfully triple-clicked coordinate")
+		}
+		return interfaces.NewTextErrorResponse("Coordinate triple-clicking not supported for this client type")
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return interfaces.NewTextErrorResponse("Index-based triple-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead. Call read_page first to get element coordinates and refs.")
 	}
 
@@ -1775,14 +1757,28 @@ func (b *browserTool) executeClick(ctx context.Context, client BrowserClient, ac
 		if err != nil {
 			return err
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
 			if err != nil {
 				return err
 			}
-			duration := action.Duration
-			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 1, &duration, action.Repeat)
+			repeat := action.Repeat
+			if repeat <= 0 {
+				repeat = 1
+			}
+			duration := &action.Duration
+			if action.Duration == 0 {
+				duration = nil
+			}
+			for i := 0; i < repeat; i++ {
+				if err := tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonLeft, 1, duration, tabID); err != nil {
+					return err
+				}
+			}
+			return nil
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		repeat := action.Repeat
 		if repeat <= 0 {
 			repeat = 1
@@ -1796,8 +1792,35 @@ func (b *browserTool) executeClick(ctx context.Context, client BrowserClient, ac
 	}
 
 	if action.Coordinate != nil {
-		duration := action.Duration
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonLeft, 1, &duration, action.Repeat)
+		repeat := action.Repeat
+		if repeat <= 0 {
+			repeat = 1
+		}
+		duration := &action.Duration
+		if action.Duration == 0 {
+			duration = nil
+		}
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			for i := 0; i < repeat; i++ {
+				if err := tunnelClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, mouseButtonLeft, 1, duration, tabID); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonLeft
+			clickCount := 1
+			for i := 0; i < repeat; i++ {
+				if err := serviceClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, &button, &clickCount, duration, tabID); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		return fmt.Errorf("coordinate clicking not supported for this client type")
 	}
 
 	if action.Index == nil {
@@ -1805,7 +1828,7 @@ func (b *browserTool) executeClick(ctx context.Context, client BrowserClient, ac
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return fmt.Errorf("index-based clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
 
@@ -1833,20 +1856,38 @@ func (b *browserTool) executeRightClick(ctx context.Context, client BrowserClien
 		if err != nil {
 			return err
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
 			if err != nil {
 				return err
 			}
-			duration := action.Duration
-			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonRight, 1, &duration, 1)
+			duration := &action.Duration
+			if action.Duration == 0 {
+				duration = nil
+			}
+			return tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonRight, 1, duration, tabID)
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonRight, 1)
 	}
 
 	if action.Coordinate != nil {
-		duration := action.Duration
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonRight, 1, &duration, 1)
+		duration := &action.Duration
+		if action.Duration == 0 {
+			duration = nil
+		}
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			return tunnelClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, mouseButtonRight, 1, duration, tabID)
+		}
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonRight
+			clickCount := 1
+			return serviceClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, &button, &clickCount, duration, tabID)
+		}
+		return fmt.Errorf("coordinate right-clicking not supported for this client type")
 	}
 
 	if action.Index == nil {
@@ -1854,7 +1895,7 @@ func (b *browserTool) executeRightClick(ctx context.Context, client BrowserClien
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return fmt.Errorf("index-based right-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
 
@@ -1873,18 +1914,30 @@ func (b *browserTool) executeDoubleClick(ctx context.Context, client BrowserClie
 		if err != nil {
 			return err
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
 			if err != nil {
 				return err
 			}
-			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 2, nil, 1)
+			return tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonLeft, 2, nil, tabID)
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 2)
 	}
 
 	if action.Coordinate != nil {
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonLeft, 2, nil, 1)
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			return tunnelClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, mouseButtonLeft, 2, nil, tabID)
+		}
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonLeft
+			clickCount := 2
+			return serviceClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, &button, &clickCount, nil, tabID)
+		}
+		return fmt.Errorf("coordinate double-clicking not supported for this client type")
 	}
 
 	if action.Index == nil {
@@ -1892,7 +1945,7 @@ func (b *browserTool) executeDoubleClick(ctx context.Context, client BrowserClie
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return fmt.Errorf("index-based double-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
 
@@ -1911,18 +1964,30 @@ func (b *browserTool) executeTripleClick(ctx context.Context, client BrowserClie
 		if err != nil {
 			return err
 		}
-		if _, ok := client.(coordinateClicker); ok {
+		// Tunnel mode: convert backendID to coordinate for clicking
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
 			coordinate, err := b.coordinateFromBackendID(ctx, sessionID, tabID, backendID)
 			if err != nil {
 				return err
 			}
-			return b.clickByCoordinate(ctx, client, sessionID, tabID, coordinate, mouseButtonLeft, 3, nil, 1)
+			return tunnelClient.ClickAt(ctx, coordinate.X, coordinate.Y, mouseButtonLeft, 3, nil, tabID)
 		}
+		// Service/RemoteCDP mode: use backendID directly
 		return b.clickByBackendID(ctx, client, backendID, tabID, mouseButtonLeft, 3)
 	}
 
 	if action.Coordinate != nil {
-		return b.clickByCoordinate(ctx, client, sessionID, tabID, *action.Coordinate, mouseButtonLeft, 3, nil, 1)
+		// Tunnel mode: ClickAt takes string and int directly
+		if tunnelClient, ok := client.(*TunnelClientWrapper); ok {
+			return tunnelClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, mouseButtonLeft, 3, nil, tabID)
+		}
+		// Service mode: ClickAt takes *string and *int
+		if serviceClient, ok := client.(*ServiceClientAdapter); ok {
+			button := mouseButtonLeft
+			clickCount := 3
+			return serviceClient.ClickAt(ctx, action.Coordinate.X, action.Coordinate.Y, &button, &clickCount, nil, tabID)
+		}
+		return fmt.Errorf("coordinate triple-clicking not supported for this client type")
 	}
 
 	if action.Index == nil {
@@ -1930,7 +1995,7 @@ func (b *browserTool) executeTripleClick(ctx context.Context, client BrowserClie
 	}
 
 	// Tunnel mode: reject index-based clicking
-	if _, ok := client.(coordinateClicker); ok {
+	if _, ok := client.(*TunnelClientWrapper); ok {
 		return fmt.Errorf("index-based triple-clicking not supported in tunnel mode. Use 'coordinate' [x,y] or 'ref' (e.g., f0_ref_123) instead")
 	}
 
