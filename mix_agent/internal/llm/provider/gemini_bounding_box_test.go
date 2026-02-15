@@ -30,7 +30,7 @@ var boundingBoxSchema = map[string]any{
 				},
 				"minItems":    4,
 				"maxItems":    4,
-				"description": "Bounding box coordinates [x1, y1, x2, y2] in normalized range [0, 1000]",
+				"description": "Bounding box coordinates [yMin, xMin, yMax, xMax] in normalized range [0, 1000]",
 			},
 		},
 		"required": []string{"box_2d"},
@@ -39,8 +39,10 @@ var boundingBoxSchema = map[string]any{
 
 // expectedTaxonomyButtonBox is the ground truth bounding box for the taxonomy button
 // in the test image testdata/taxonomy_button.png
+// Format: [yMin, xMin, yMax, xMax] in normalized [0, 1000] range
+// Actual Gemini output: [397, 38, 418, 104]
 var expectedTaxonomyButtonBox = []map[string]interface{}{
-	{"box_2d": []interface{}{float64(398), float64(37), float64(418), float64(104)}},
+	{"box_2d": []interface{}{float64(397), float64(38), float64(418), float64(104)}},
 }
 
 // createBoundingBoxClient creates a Gemini client configured for bounding box detection
@@ -94,7 +96,7 @@ func validateBoundingBoxResponse(t *testing.T, response string) []map[string]int
 	}
 
 	t.Logf("✓ Response has correct JSON structure with box_2d coordinates")
-	t.Logf("Coordinates: [%.0f, %.0f, %.0f, %.0f]", coords[0], coords[1], coords[2], coords[3])
+	t.Logf("Coordinates [yMin, xMin, yMax, xMax]: [%.0f, %.0f, %.0f, %.0f]", coords[0], coords[1], coords[2], coords[3])
 
 	// Validate that all coordinates are in the normalized range [0, 1000]
 	for i, coord := range coords {

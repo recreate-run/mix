@@ -76,18 +76,6 @@ func (b *browserTool) handleAnalyzeScreenshot(ctx context.Context, params Browse
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get image dimensions: %v", err))
 	}
 
-	// DEBUG: Check if RawViewport is populated
-	if result.RawViewport == nil {
-		fmt.Printf("[ERROR] RawViewport is NIL in screenshot result!\n")
-		return interfaces.NewTextErrorResponse("Screenshot did not return viewport information (RawViewport is nil)")
-	}
-	fmt.Printf("[DEBUG] RawViewport: x=%.0f, y=%.0f, width=%.0f, height=%.0f\n",
-		result.RawViewport.X, result.RawViewport.Y, result.RawViewport.Width, result.RawViewport.Height)
-	fmt.Printf("[DEBUG] Image dimensions: width=%d, height=%d\n", imageWidth, imageHeight)
-	if imageWidth > 0 && result.RawViewport.Width > 0 {
-		fmt.Printf("[DEBUG] Device pixel ratio: %.2f\n", float64(imageWidth)/result.RawViewport.Width)
-	}
-
 	// Create Gemini provider for analysis
 	geminiProvider, useBoundingBox, err := b.createGeminiProviderForAnalysis(params.Prompt)
 	if err != nil {
@@ -222,7 +210,7 @@ func getBoundingBoxSchema() map[string]any {
 					},
 					"minItems":    4,
 					"maxItems":    4,
-					"description": "Bounding box coordinates [x1, y1, x2, y2] in normalized range [0, 1000]",
+					"description": "Bounding box coordinates [yMin, xMin, yMax, xMax] in normalized range [0, 1000]",
 				},
 			},
 			"required": []string{"box_2d"},
@@ -275,11 +263,11 @@ func formatBoundingBoxResponse(responseContent string, imageWidth, imageHeight i
 			return "", fmt.Errorf("box_2d must contain 4 coordinates in element %d", i)
 		}
 
-		// Parse normalized coordinates [0, 1000]
-		x1Norm, ok1 := coords[0].(float64)
-		y1Norm, ok2 := coords[1].(float64)
-		x2Norm, ok3 := coords[2].(float64)
-		y2Norm, ok4 := coords[3].(float64)
+		// Parse normalized coordinates [ymin, xmin, ymax, xmax] from Gemini
+		y1Norm, ok1 := coords[0].(float64)
+		x1Norm, ok2 := coords[1].(float64)
+		y2Norm, ok3 := coords[2].(float64)
+		x2Norm, ok4 := coords[3].(float64)
 
 		if !ok1 || !ok2 || !ok3 || !ok4 {
 			return "", fmt.Errorf("invalid coordinate values in element %d", i)
@@ -359,11 +347,11 @@ func visualizeBoundingBoxes(imageData []byte, responseJSON string, imageWidth, i
 			continue
 		}
 
-		// Parse normalized coordinates
-		x1Norm, _ := box2d[0].(float64)
-		y1Norm, _ := box2d[1].(float64)
-		x2Norm, _ := box2d[2].(float64)
-		y2Norm, _ := box2d[3].(float64)
+		// Parse normalized coordinates [ymin, xmin, ymax, xmax] from Gemini
+		y1Norm, _ := box2d[0].(float64)
+		x1Norm, _ := box2d[1].(float64)
+		y2Norm, _ := box2d[2].(float64)
+		x2Norm, _ := box2d[3].(float64)
 
 		// Convert to pixel coordinates
 		x1 := int(x1Norm * scaleX)
