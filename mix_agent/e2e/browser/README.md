@@ -163,12 +163,12 @@ Tests keyboard input operations including special keys and modifiers.
 - "Press Enter key"
 - "Press Backspace key"
 
-Tests basic keyboard operations (Tab, Enter, Backspace). Verifies keyboard tool is called and key press results show "Successfully pressed key".
+Tests basic keyboard operations (Tab, Enter, Backspace). Verifies unified type action is called and keyboard input results show "Successfully processed keyboard input".
 
 #### TestBrowserE2EKeyboardModifiers
 **Prompt:** "Open {url} and press Shift+Enter to create a new line"
 
-Tests modifier key combinations (Shift+Enter). Verifies keyboard tool handles modifier combinations correctly.
+Tests modifier key combinations (Shift+Enter). Verifies unified type action handles modifier combinations correctly using {key} syntax.
 
 ---
 

@@ -185,7 +185,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionKey, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
+				"enum":        []string{ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
 			},
 			"description": map[string]any{
 				"type":        "string",
@@ -216,7 +216,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			},
 			"text": map[string]any{
 				"type":        "string",
-				"description": "Text to type (for type action)",
+				"description": "Text to type (for type action). Supports {key} syntax for special keys. Examples: 'hello{Enter}', 'search query{Tab}', '{cmd+a}{Delete}', '{Backspace}{Backspace}'. Use {{}} to escape literal braces.",
 			},
 			"direction": map[string]any{
 				"type":        "string",
@@ -246,7 +246,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			},
 			"tabId": map[string]any{
 				"type":        "string",
-				"description": "Tab ID to operate on. Required for all tab-specific actions (open, screenshot, read_page, click, type, scroll, upload, get_text, find, form_input, go_back, go_forward, key, scroll_to, sequence, wait, tab_switch, tab_close). Not required for tab_create, tab_list, or close actions.",
+				"description": "Tab ID to operate on. Required for all tab-specific actions (open, screenshot, read_page, click, type, scroll, upload, get_text, find, form_input, go_back, go_forward, scroll_to, sequence, wait, tab_switch, tab_close). Not required for tab_create, tab_list, or close actions.",
 			},
 			"tab_id": map[string]any{
 				"type":        "string",
@@ -279,10 +279,6 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"toY": map[string]any{
 				"type":        "number",
 				"description": "Y coordinate to drag to (for drag action in coordinate mode)",
-			},
-			"key": map[string]any{
-				"type":        "string",
-				"description": "Keyboard key(s) to press (for key action). Space-separated sequence. Examples: 'Enter', 'cmd+a', 'Backspace Backspace'",
 			},
 			"actions": map[string]any{
 				"type":        "array",
@@ -318,7 +314,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType,
 		ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionRightClick,
 		ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput,
-		ActionGoBack, ActionGoForward, ActionKey, ActionScrollTo, ActionSequence, ActionWait,
+		ActionGoBack, ActionGoForward, ActionScrollTo, ActionSequence, ActionWait,
 		ActionTabSwitch, ActionTabClose, ActionAnalyzeScreenshot,
 	}
 	if slices.Contains(requiresTabID, params.Action) && params.TabID == "" {
@@ -379,8 +375,6 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return b.handleTabSwitch(ctx, params, sessionID), nil
 	case ActionTabClose:
 		return b.handleTabClose(ctx, params, sessionID), nil
-	case ActionKey:
-		return b.handleKey(ctx, params, sessionID), nil
 	case ActionScrollTo:
 		return b.handleScrollTo(ctx, params, sessionID), nil
 	case ActionSequence:

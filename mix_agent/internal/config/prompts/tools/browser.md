@@ -2,11 +2,11 @@
 
 Control a web browser for automated interactions. Provides session-isolated browser contexts with navigation, element interaction, and content extraction capabilities.
 
-## IMPORTANT: Action Batching
+## IMPORTANT: Action Sequences
 
-The Browser tool supports executing multiple actions in a single call using the `action` action type with an `actions` array. This is more efficient than making separate tool calls.
+The Browser tool supports executing multiple operations in a single call using the `sequence` action with an `actions` array. This is more efficient than making separate tool calls.
 
-## Action Types
+## Operations
 
 ### 1. navigate (action="open" | "go_back" | "go_forward")
 
@@ -17,7 +17,7 @@ CRITICAL WARNINGS - DATA LOSS:
 - You should NEVER use this tool for scrolling to the top of the page
 - Navigate WILL RESET DATA ON THE PAGE - any form data, JavaScript state, or loaded content will be lost
 - Navigating WILL ALSO CLEAR THE DOM OF WHATEVER PAGE YOU WERE PREVIOUSLY ON
-- Workaround: If you need to preserve data that's been loaded on the page, use `scroll` within the action tool instead
+- Workaround: If you need to preserve data that's been loaded on the page, use `scroll` within a sequence instead
 - Before navigating: If you need to preserve data, write it to files first
 
 go_back / go_forward Behavior:
@@ -100,11 +100,11 @@ Example:
 {"action": "upload", "index": 5, "filePath": "document.pdf", "tabId": "tab-1"}
 ```
 
-### 4. action (action="action")
+### 4. sequence (action="sequence")
 
-Execute a sequence of browser actions one by one.
+Execute a sequence of browser operations one by one.
 
-Each action in the `actions` array can be one of the following:
+Each operation in the `actions` array can be one of the following:
 
 Click Actions (use `coordinate` [x, y] or `ref` parameter):
 
@@ -115,13 +115,15 @@ Click Actions (use `coordinate` [x, y] or `ref` parameter):
 
 Keyboard Actions:
 
-- `type`: Type text using keyboard. Requires `text` (string). Optional `index` parameter targets specific element. If index omitted, types into currently focused element. Best for simple text input where you need to simulate actual typing.
+- `type`: Type text and press keys. Requires `text` (string). Use `{key}` syntax for special keys: `"text{Enter}"`, `"{cmd+a}"`, `"{Backspace}{Delete}"`. Escape literal braces with `{{` or `}}`.
+
+  Supported keys: Navigation (Enter, Tab, Escape, Space, Arrows), Editing (Backspace, Delete, Insert), Navigation (Home, End, PageUp, PageDown), Function (F1-F12), Modifiers (cmd+a, ctrl+c, shift+Tab, alt+F4).
 
   Usage modes:
-  • With index: Clicks element at index, then types (use when element not focused)
-  • Without index: Types into focused element (use after clicking the element)
+  • With index: Clicks element at index, then processes keyboard input (use when element not focused)
+  • Without index: Processes keyboard input into currently focused element (use after clicking the element)
 
-- `key`: Press keyboard key(s). Requires `key` with space-separated keys (e.g., "Enter", "Backspace Backspace", "cmd+a"). Use for navigation (Tab, Enter), shortcuts (Cmd+A, Ctrl+C), special keys (Escape, Backspace).
+  Examples: `"user@example.com{Tab}password{Enter}"` (login form), `"{cmd+a}{Delete}new text"` (replace all), `"code: {{example}}"` (literal braces).
 
 Form Actions:
 
@@ -135,7 +137,7 @@ Scroll Actions:
 Scroll Action Tips:
 
 - Useful for lazy-loading pages where content loads as you scroll
-- Use standalone analyze_screenshot action after scrolling to verify loaded content
+- Use standalone analyze_screenshot after scrolling to verify loaded content
 
 Other Actions:
 
@@ -144,48 +146,45 @@ Other Actions:
 
 Parameters:
 
-- `action`: "action"
-- `actions`: Array of sub-action objects
+- `action`: "sequence"
+- `actions`: Array of operations
 - `tabId`: Tab ID to operate on (required)
 
 Usage Guidelines:
 
-- IMPORTANT: Verify actions were executed correctly before performing irreversible actions (e.g. check form fields before submitting, review email content before sending).
-- It's okay to chain multiple actions together if they are safe, there will automatically be a short delay between them while executing.
-- To check page state mid-workflow, use standalone analyze_screenshot action between action sequences.
+- IMPORTANT: Verify operations were executed correctly before performing irreversible actions (e.g. check form fields before submitting, review email content before sending).
+- It's okay to chain multiple operations together if they are safe, there will automatically be a short delay between them while executing.
+- To check page state mid-workflow, use standalone analyze_screenshot between sequences.
 
 Example:
 
 ```json
 {
-  "action": "action",
+  "action": "sequence",
   "tabId": "tab-1",
   "actions": [
-    {"type": "left_click", "coordinate": [450, 300]},
-    {"type": "wait", "duration": 500},
-    {"type": "type", "text": "search query"},
-    {"type": "key", "key": "Enter"}
+    {"action": "left_click", "coordinate": [450, 300]},
+    {"action": "wait", "duration": 500},
+    {"action": "type", "text": "search query{Enter}"}
   ]
 }
 ```
 
-### Standalone Action Usage
+### Standalone Usage
 
-All sub-actions documented above can also be called as individual actions instead of within an action sequence. When calling standalone:
+All operations documented above can be called **standalone** OR **sequenced**:
+- Standalone: `{"action": "left_click", "coordinate": [x, y], "tabId": "tab-1"}`
+- Sequenced: `{"action": "sequence", "actions": [{"action": "left_click", "coordinate": [x, y]}], "tabId": "tab-1"}`
 
-- Actions requiring element targeting (`form_input`, `scroll_to`) need `tabId` + targeting parameter
+When calling standalone:
+
+- Operations requiring element targeting (`form_input`, `scroll_to`) need `tabId` + targeting parameter
 - `type` needs `tabId` + optional `index` (omit index to type into focused element)
-- Actions with `coordinate` or `ref` parameters (`left_click`, `right_click`, etc.) need `tabId`
-- Actions like `scroll`, `key`, `wait` need `tabId`
+- Operations with `coordinate` or `ref` parameters (`left_click`, `right_click`, etc.) need `tabId`
+- Operations like `scroll`, `wait` need `tabId`
 - `tab_create`, `tab_list`, and `close` do NOT require `tabId`
 
-Example standalone call:
-
-```json
-{"action": "left_click", "coordinate": [450, 300], "tabId": "tab-1"}
-```
-
-Prefer action sequences for multiple operations.
+Prefer sequences for multiple operations.
 
 ### 5. find (action="find")
 
@@ -226,7 +225,7 @@ Extract all text content from the page in one call.
 
 When to use: This tool is ideal for immediately grabbing all textual content on a page without needing to scroll and take multiple screenshots. Great for articles, blog posts, documentation, or any text-heavy page where you need to read the full content quickly.
 
-Limitations: This tool only extracts content currently loaded in the DOM. For pages with lazy-loading or infinite scroll, content at the bottom may not be loaded yet. In those cases, you'll need to use action sequences with scroll + screenshot to load and view additional content.
+Limitations: This tool only extracts content currently loaded in the DOM. For pages with lazy-loading or infinite scroll, content at the bottom may not be loaded yet. In those cases, you'll need to sequence scroll + screenshot operations to load and view additional content.
 
 Returns plain text without HTML formatting, prioritizing main content areas (article, main, content sections).
 
@@ -365,18 +364,16 @@ Bounding Box Mode (read_page style):
 3. Use `read_page` to discover elements: `{"action": "read_page", "interactiveOnly": true, "tabId": "tab-1"}`
 4. Interact with elements using coordinates or refs from `read_page`
 
-### Form Filling with Action Sequences
+### Form Filling with Sequences
 
 ```json
 {
-  "action": "action",
+  "action": "sequence",
   "tabId": "tab-1",
   "actions": [
-    {"type": "left_click", "coordinate": [380, 250]},
-    {"type": "type", "text": "user@example.com"},
-    {"type": "left_click", "coordinate": [380, 310]},
-    {"type": "type", "text": "password123"},
-    {"type": "key", "key": "Enter"}
+    {"action": "left_click", "coordinate": [380, 250]},
+    {"action": "type", "text": "user@example.com{Tab}"},
+    {"action": "type", "text": "password123{Enter}"}
   ]
 }
 ```
@@ -527,19 +524,19 @@ Understanding DOM Limitations:
 
 Strategy:
 
-- Use action sequences with scroll, then analyze_screenshot separately to verify loaded content
+- Use scroll sequences, then analyze_screenshot separately to verify loaded content
 - For infinite scroll: scroll in increments, use analyze_screenshot to check for new content each time
 
 ### Form Handling Best Practices
 
 Checkboxes:
 
-- Use `form_input` with boolean value: `{"type": "form_input", "index": 5, "value": true}`
+- Use `form_input` with boolean value: `{"action": "form_input", "index": 5, "value": true}`
 - Don't use click for toggling (unreliable state)
 
 Dropdowns/Selects:
 
-- Use `form_input` with option text or value: `{"type": "form_input", "index": 3, "value": "Option 2"}`
+- Use `form_input` with option text or value: `{"action": "form_input", "index": 3, "value": "Option 2"}`
 - More reliable than clicking to open dropdown
 
 Text Inputs:
@@ -551,11 +548,11 @@ Text Inputs:
 
 ### Efficiency & Performance
 
-Batch Operations:
+Sequences:
 
-- Use action sequences to combine multiple operations in one call
+- Use sequence action to combine multiple operations in one call
 - Reduces total number of tool calls and round-trip time
-- Example: `[click, wait, type, key]` instead of 4 separate calls
+- Example: `[click, wait, type]` instead of 3 separate calls
 
 Use analyze_screenshot Strategically:
 
@@ -567,7 +564,7 @@ Minimize Round Trips:
 
 - Use `get_page_text` instead of scrolling + multiple screenshots for text extraction
 - Use `find` to search entire loaded DOM instead of repeated read_page calls
-- Batch multiple independent actions together
+- Sequence multiple independent operations together
 
 ### State Management
 

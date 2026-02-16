@@ -53,6 +53,11 @@ func (b *browserTool) handleScrollTo(ctx context.Context, params BrowserParams, 
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
+	// Validate index parameter (required for scroll_to action)
+	if params.Index == nil {
+		return interfaces.NewTextErrorResponse("missing index parameter for scroll_to action")
+	}
+
 	// browser-service mode: refresh element cache to avoid stale element errors
 	if adapter, ok := client.(*ServiceClientAdapter); ok {
 		_, readErr := adapter.ReadPage(ctx, true, params.TabID)
@@ -62,7 +67,7 @@ func (b *browserTool) handleScrollTo(ctx context.Context, params BrowserParams, 
 	}
 
 	// Get BackendID from cache or read_page
-	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, *params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
 	}
@@ -73,5 +78,5 @@ func (b *browserTool) handleScrollTo(ctx context.Context, params BrowserParams, 
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Scroll to element failed: %v", err))
 	}
 
-	return interfaces.NewTextResponse(fmt.Sprintf("Successfully scrolled element %d into view", params.Index))
+	return interfaces.NewTextResponse(fmt.Sprintf("Successfully scrolled element %d into view", *params.Index))
 }

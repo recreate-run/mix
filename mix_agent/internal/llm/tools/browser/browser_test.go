@@ -151,7 +151,7 @@ func TestBrowserParamsJSONSerialization(t *testing.T) {
 			name: "click action",
 			params: BrowserParams{
 				Action: ActionLeftClick,
-				Index:  5,
+				Index:  intPtr(5),
 			},
 			expected: `{"action":"click","index":5}`,
 		},
@@ -159,7 +159,7 @@ func TestBrowserParamsJSONSerialization(t *testing.T) {
 			name: "type action",
 			params: BrowserParams{
 				Action: ActionType,
-				Index:  3,
+				Index:  intPtr(3),
 				Text:   "hello world",
 			},
 			expected: `{"action":"type","index":3,"text":"hello world"}`,
@@ -628,9 +628,8 @@ func TestDefaultScrollAmount(t *testing.T) {
 
 // Test new action constants
 func TestNewActionConstants(t *testing.T) {
-	assert.Equal(t, "key", ActionKey)
 	assert.Equal(t, "scroll_to", ActionScrollTo)
-	assert.Equal(t, "action", ActionSequence)
+	assert.Equal(t, "sequence", ActionSequence)
 }
 
 // Test key action validation
@@ -736,7 +735,7 @@ func TestBrowserToolActionSequenceEmptyArray(t *testing.T) {
 	call := interfaces.ToolCall{
 		ID:    "call-1",
 		Name:  BrowserToolName,
-		Input: `{"action": "action", "actions": []}`,
+		Input: `{"action": "sequence", "actions": []}`,
 	}
 
 	response, err := tool.Run(ctx, call)
@@ -753,7 +752,7 @@ func TestBrowserToolActionSequenceValidActions(t *testing.T) {
 	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	input := `{
-		"action": "action",
+		"action": "sequence",
 		"actions": [
 			{"type": "left_click", "index": 1},
 			{"type": "key", "key": "Enter"},
@@ -786,39 +785,39 @@ func TestBrowserParamsNewFieldsSerialization(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "key action",
+			name: "type action with key syntax",
 			params: BrowserParams{
-				Action: ActionKey,
-				Key:    "Enter",
+				Action: ActionType,
+				Text:   "search query{Enter}",
 			},
-			expected: `{"action":"key","key":"Enter"}`,
+			expected: `{"action":"type","text":"search query{Enter}"}`,
 		},
 		{
-			name: "key action with combination",
+			name: "type action with modifier keys",
 			params: BrowserParams{
-				Action: ActionKey,
-				Key:    "cmd+a",
+				Action: ActionType,
+				Text:   "{cmd+a}{Delete}",
 			},
-			expected: `{"action":"key","key":"cmd+a"}`,
+			expected: `{"action":"type","text":"{cmd+a}{Delete}"}`,
 		},
 		{
 			name: "scroll_to action",
 			params: BrowserParams{
 				Action: ActionScrollTo,
-				Index:  10,
+				Index:  intPtr(10),
 			},
 			expected: `{"action":"scroll_to","index":10}`,
 		},
 		{
-			name: "action sequence",
+			name: "action sequence with type and keys",
 			params: BrowserParams{
 				Action: ActionSequence,
 				Actions: []SubAction{
 					{Type: "left_click", Index: intPtr(1)},
-					{Type: "key", Key: "Enter"},
+					{Type: "type", Text: "hello{Enter}"},
 				},
 			},
-			expected: `{"action":"action","actions":[{"type":"left_click","index":1},{"type":"key","key":"Enter"}]}`,
+			expected: `{"action":"sequence","actions":[{"type":"left_click","index":1},{"type":"type","text":"hello{Enter}"}]}`,
 		},
 	}
 
@@ -834,8 +833,8 @@ func TestBrowserParamsNewFieldsSerialization(t *testing.T) {
 			err = json.Unmarshal(jsonData, &params)
 			require.NoError(t, err)
 			assert.Equal(t, tt.params.Action, params.Action)
-			if tt.params.Key != "" {
-				assert.Equal(t, tt.params.Key, params.Key)
+			if tt.params.Text != "" {
+				assert.Equal(t, tt.params.Text, params.Text)
 			}
 			if len(tt.params.Actions) > 0 {
 				assert.Len(t, params.Actions, len(tt.params.Actions))
@@ -852,12 +851,12 @@ func TestSubActionSerialization(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "key action",
+			name: "type action with key syntax",
 			action: SubAction{
-				Type: "key",
-				Key:  "Enter",
+				Type: "type",
+				Text: "text{Enter}",
 			},
-			expected: `{"type":"key","key":"Enter"}`,
+			expected: `{"type":"type","text":"text{Enter}"}`,
 		},
 		{
 			name: "scroll_to action",
@@ -876,7 +875,7 @@ func TestSubActionSerialization(t *testing.T) {
 			expected: `{"type":"left_click","index":1}`,
 		},
 		{
-			name: "type action",
+			name: "type action with index",
 			action: SubAction{
 				Type:  "type",
 				Index: intPtr(2),
@@ -923,14 +922,16 @@ func TestBrowserToolInfoIncludesNewActions(t *testing.T) {
 	assert.True(t, ok)
 	enum, ok := actionParam["enum"].([]string)
 	assert.True(t, ok)
-	assert.Contains(t, enum, ActionKey)
 	assert.Contains(t, enum, ActionScrollTo)
 	assert.Contains(t, enum, ActionSequence)
 
-	// Test key parameter exists
-	keyParam, ok := info.Parameters["key"].(map[string]any)
+	// Test text parameter description mentions key syntax
+	textParam, ok := info.Parameters["text"].(map[string]any)
 	assert.True(t, ok)
-	assert.Equal(t, "string", keyParam["type"])
+	assert.Equal(t, "string", textParam["type"])
+	desc, ok := textParam["description"].(string)
+	assert.True(t, ok)
+	assert.Contains(t, desc, "{key}")
 
 	// Test actions parameter exists
 	actionsParam, ok := info.Parameters["actions"].(map[string]any)

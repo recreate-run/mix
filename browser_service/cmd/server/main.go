@@ -43,6 +43,8 @@ func main() {
 		_ = godotenv.Load("../.env")
 	}
 
+	log.SetFlags(0)
+
 	// Get BROWSER_SERVICE_URL from environment variable (required, no default)
 	browserServiceURL := os.Getenv("BROWSER_SERVICE_URL")
 
