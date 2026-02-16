@@ -66,6 +66,11 @@ func (b *browserTool) handleUpload(ctx context.Context, params BrowserParams, se
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
+	// Validate index parameter (required for upload action)
+	if params.Index == nil {
+		return interfaces.NewTextErrorResponse("missing index parameter for upload action")
+	}
+
 	// browser-service mode: refresh element cache to avoid stale element errors
 	if adapter, ok := client.(*ServiceClientAdapter); ok {
 		_, readErr := adapter.ReadPage(ctx, true, params.TabID)
@@ -75,7 +80,7 @@ func (b *browserTool) handleUpload(ctx context.Context, params BrowserParams, se
 	}
 
 	// Upload file (tabID is always required and validated)
-	result, err := client.UploadFile(ctx, params.Index, []string{absolutePath}, params.TabID)
+	result, err := client.UploadFile(ctx, *params.Index, []string{absolutePath}, params.TabID)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Upload failed: %v", err))
 	}

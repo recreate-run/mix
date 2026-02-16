@@ -14,6 +14,9 @@ import (
 )
 
 func main() {
+
+	log.SetFlags(0)
+
 	port := flag.String("port", constants.DefaultPort, "WebSocket server port")
 	headless := flag.Bool("headless", false, "Run browser in headless mode")
 	stealth := flag.Bool("stealth", false, "Enable stealth mode (disable automation detection)")

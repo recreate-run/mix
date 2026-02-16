@@ -134,8 +134,6 @@ func (b *browserTool) executeSubAction(ctx context.Context, client BrowserClient
 		return "", b.executeTripleClick(ctx, client, action, sessionID, tabID)
 	case SubActionType:
 		return "", b.executeType(ctx, client, action, sessionID, tabID)
-	case SubActionKey:
-		return "", client.PressKey(ctx, action.Key, tabID)
 	case SubActionScroll:
 		amount := action.ScrollAmount
 		if amount == 0 {

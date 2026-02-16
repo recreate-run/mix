@@ -115,13 +115,15 @@ Click Actions (use `coordinate` [x, y] or `ref` parameter):
 
 Keyboard Actions:
 
-- `type`: Type text using keyboard. Requires `text` (string). Optional `index` parameter targets specific element. If index omitted, types into currently focused element. Best for simple text input where you need to simulate actual typing.
+- `type`: Type text and press keys. Requires `text` (string). Use `{key}` syntax for special keys: `"text{Enter}"`, `"{cmd+a}"`, `"{Backspace}{Delete}"`. Escape literal braces with `{{` or `}}`.
+
+  Supported keys: Navigation (Enter, Tab, Escape, Space, Arrows), Editing (Backspace, Delete, Insert), Navigation (Home, End, PageUp, PageDown), Function (F1-F12), Modifiers (cmd+a, ctrl+c, shift+Tab, alt+F4).
 
   Usage modes:
-  • With index: Clicks element at index, then types (use when element not focused)
-  • Without index: Types into focused element (use after clicking the element)
+  • With index: Clicks element at index, then processes keyboard input (use when element not focused)
+  • Without index: Processes keyboard input into currently focused element (use after clicking the element)
 
-- `key`: Press keyboard key(s). Requires `key` with space-separated keys (e.g., "Enter", "Backspace Backspace", "cmd+a"). Use for navigation (Tab, Enter), shortcuts (Cmd+A, Ctrl+C), special keys (Escape, Backspace).
+  Examples: `"user@example.com{Tab}password{Enter}"` (login form), `"{cmd+a}{Delete}new text"` (replace all), `"code: {{example}}"` (literal braces).
 
 Form Actions:
 
@@ -163,8 +165,7 @@ Example:
   "actions": [
     {"type": "left_click", "coordinate": [450, 300]},
     {"type": "wait", "duration": 500},
-    {"type": "type", "text": "search query"},
-    {"type": "key", "key": "Enter"}
+    {"type": "type", "text": "search query{Enter}"}
   ]
 }
 ```
@@ -176,7 +177,7 @@ All sub-actions documented above can also be called as individual actions instea
 - Actions requiring element targeting (`form_input`, `scroll_to`) need `tabId` + targeting parameter
 - `type` needs `tabId` + optional `index` (omit index to type into focused element)
 - Actions with `coordinate` or `ref` parameters (`left_click`, `right_click`, etc.) need `tabId`
-- Actions like `scroll`, `key`, `wait` need `tabId`
+- Actions like `scroll`, `wait` need `tabId`
 - `tab_create`, `tab_list`, and `close` do NOT require `tabId`
 
 Example standalone call:
@@ -373,10 +374,8 @@ Bounding Box Mode (read_page style):
   "tabId": "tab-1",
   "actions": [
     {"type": "left_click", "coordinate": [380, 250]},
-    {"type": "type", "text": "user@example.com"},
-    {"type": "left_click", "coordinate": [380, 310]},
-    {"type": "type", "text": "password123"},
-    {"type": "key", "key": "Enter"}
+    {"type": "type", "text": "user@example.com{Tab}"},
+    {"type": "type", "text": "password123{Enter}"}
   ]
 }
 ```

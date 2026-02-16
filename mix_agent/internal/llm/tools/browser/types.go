@@ -29,7 +29,6 @@ const (
 	ActionTabSwitch         = "tab_switch"
 	ActionTabClose          = "tab_close"
 	ActionWait              = "wait"
-	ActionKey               = "key"
 	ActionScrollTo          = "scroll_to"
 	ActionSequence          = "action"
 	ActionAnalyzeScreenshot = "analyze_screenshot"
@@ -43,7 +42,6 @@ const (
 	SubActionTripleClick   = "triple_click"
 	SubActionLeftClickDrag = "left_click_drag"
 	SubActionType          = "type"
-	SubActionKey           = "key"
 	SubActionScroll        = "scroll"
 	SubActionScrollTo      = "scroll_to"
 	SubActionFormInput     = "form_input"
@@ -114,9 +112,8 @@ type SubAction struct {
 	FromY        *float64    `json:"fromY,omitempty"`         // Drag start Y coordinate (coordinate mode)
 	ToX          *float64    `json:"toX,omitempty"`           // Drag end X coordinate (coordinate mode)
 	ToY          *float64    `json:"toY,omitempty"`           // Drag end Y coordinate (coordinate mode)
-	Text         string      `json:"text,omitempty"`          // For type action
+	Text         string      `json:"text,omitempty"`          // For type action (supports {key} syntax)
 	Value        interface{} `json:"value,omitempty"`         // For form_input (string, number, or boolean)
-	Key          string      `json:"key,omitempty"`           // For key action
 	Direction    string      `json:"direction,omitempty"`     // For scroll
 	ScrollAmount int         `json:"scroll_amount,omitempty"` // For scroll
 	Duration     int         `json:"duration,omitempty"`      // For wait or click-and-hold
@@ -139,10 +136,10 @@ type BrowserParams struct {
 	Description     string      `json:"description,omitempty"`     // For action batching
 	URL             string      `json:"url,omitempty"`             // For open action
 	InteractiveOnly *bool       `json:"interactiveOnly,omitempty"` // For read_page action (default: false)
-	Index           int         `json:"index,omitempty"`           // For left_click/type/upload/right_click/double_click/triple_click/form_input actions
+	Index           *int        `json:"index,omitempty"`           // For left_click/type/upload/right_click/double_click/triple_click/form_input actions (nil = use focused element for type)
 	Ref             string      `json:"ref,omitempty"`             // Element reference (e.g. f0_ref_1)
 	Coordinate      *Coordinate `json:"coordinate,omitempty"`      // Click coordinate
-	Text            string      `json:"text,omitempty"`            // For type action
+	Text            string      `json:"text,omitempty"`            // For type action (supports {key} syntax)
 	Direction       string      `json:"direction,omitempty"`       // For scroll action (up/down/left/right)
 	ScrollAmount    int         `json:"scroll_amount,omitempty"`   // For scroll action (pixels)
 	FilePath        string      `json:"filePath,omitempty"`        // For upload action (absolute or session-relative)
@@ -158,9 +155,6 @@ type BrowserParams struct {
 	FromY           *float64    `json:"fromY,omitempty"`           // For drag action (coordinate-based mode)
 	ToX             *float64    `json:"toX,omitempty"`             // For drag action (coordinate-based mode)
 	ToY             *float64    `json:"toY,omitempty"`             // For drag action (coordinate-based mode)
-
-	// NEW: For key action
-	Key string `json:"key,omitempty"` // Keyboard key(s) to press
 
 	// NEW: For action batching
 	Actions []SubAction `json:"actions,omitempty"` // Array of actions to execute

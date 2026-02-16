@@ -88,6 +88,11 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		return interfaces.NewTextErrorResponse("Coordinate-based clicking not supported for this client type")
 	}
 
+	// Validate index parameter (required if no ref or coordinate provided)
+	if params.Index == nil {
+		return interfaces.NewTextErrorResponse("missing index, ref, or coordinate parameter for left_click action")
+	}
+
 	// browser-service mode: use Click(index) directly to avoid cache synchronization issues
 	// browser-service's ReadPage doesn't populate the backendID click cache, so we use the index-based Click API instead
 	if adapter, ok := client.(*ServiceClientAdapter); ok {
@@ -98,14 +103,14 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		}
 
 		// Use index-based Click directly
-		if err := adapter.Click(ctx, params.Index, params.TabID); err != nil {
+		if err := adapter.Click(ctx, *params.Index, params.TabID); err != nil {
 			return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
 		}
-		return interfaces.NewTextResponse(fmt.Sprintf("Successfully clicked element %d", params.Index))
+		return interfaces.NewTextResponse(fmt.Sprintf("Successfully clicked element %d", *params.Index))
 	}
 
 	// Other modes (RemoteCDP): use backendID-based clicking
-	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, *params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
 	}
@@ -114,7 +119,7 @@ func (b *browserTool) handleClick(ctx context.Context, params BrowserParams, ses
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Click failed: %v", err))
 	}
 
-	return interfaces.NewTextResponse(fmt.Sprintf("Successfully clicked element %d", params.Index))
+	return interfaces.NewTextResponse(fmt.Sprintf("Successfully clicked element %d", *params.Index))
 }
 
 // handleRightClick right-clicks an element
@@ -168,8 +173,13 @@ func (b *browserTool) handleRightClick(ctx context.Context, params BrowserParams
 		return interfaces.NewTextErrorResponse("Coordinate-based right-clicking not supported for this client type")
 	}
 
+	// Validate index parameter (required if no ref or coordinate provided)
+	if params.Index == nil {
+		return interfaces.NewTextErrorResponse("missing index, ref, or coordinate parameter for right_click action")
+	}
+
 	// Service mode: support index-based clicking
-	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, *params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
 	}
@@ -178,7 +188,7 @@ func (b *browserTool) handleRightClick(ctx context.Context, params BrowserParams
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Right-click failed: %v", err))
 	}
 
-	return interfaces.NewTextResponse(fmt.Sprintf("Successfully right-clicked element %d", params.Index))
+	return interfaces.NewTextResponse(fmt.Sprintf("Successfully right-clicked element %d", *params.Index))
 }
 
 // handleDoubleClick double-clicks an element
@@ -233,8 +243,13 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse("Coordinate-based double-clicking not supported for this client type")
 	}
 
+	// Validate index parameter (required if no ref or coordinate provided)
+	if params.Index == nil {
+		return interfaces.NewTextErrorResponse("missing index, ref, or coordinate parameter for double_click action")
+	}
+
 	// Service mode: support index-based clicking
-	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, *params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
 	}
@@ -243,7 +258,7 @@ func (b *browserTool) handleDoubleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Double-click failed: %v", err))
 	}
 
-	return interfaces.NewTextResponse(fmt.Sprintf("Successfully double-clicked element %d", params.Index))
+	return interfaces.NewTextResponse(fmt.Sprintf("Successfully double-clicked element %d", *params.Index))
 }
 
 // handleTripleClick triple-clicks an element
@@ -298,8 +313,13 @@ func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse("Coordinate-based triple-clicking not supported for this client type")
 	}
 
+	// Validate index parameter (required if no ref or coordinate provided)
+	if params.Index == nil {
+		return interfaces.NewTextErrorResponse("missing index, ref, or coordinate parameter for triple_click action")
+	}
+
 	// Service mode: support index-based clicking
-	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, params.Index)
+	backendID, err := b.backendIDFromIndex(ctx, sessionID, params.TabID, *params.Index)
 	if err != nil {
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Element not found: %v", err))
 	}
@@ -308,7 +328,7 @@ func (b *browserTool) handleTripleClick(ctx context.Context, params BrowserParam
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Triple-click failed: %v", err))
 	}
 
-	return interfaces.NewTextResponse(fmt.Sprintf("Successfully triple-clicked element %d", params.Index))
+	return interfaces.NewTextResponse(fmt.Sprintf("Successfully triple-clicked element %d", *params.Index))
 }
 
 // executeClick executes a click sub-action

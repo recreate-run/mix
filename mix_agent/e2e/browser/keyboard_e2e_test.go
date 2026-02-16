@@ -103,7 +103,7 @@ func TestBrowserE2EKeyboardModifiers(t *testing.T) {
 	t.Log("=== E2E Test Completed Successfully ===")
 }
 
-// verifyKeyboardToolUsed checks if the Browser tool was called with key action
+// verifyKeyboardToolUsed checks if the Browser tool was called with type action containing keyboard input
 func verifyKeyboardToolUsed(t *testing.T, sessionID string) bool {
 	t.Helper()
 
@@ -125,15 +125,15 @@ func verifyKeyboardToolUsed(t *testing.T, sessionID string) bool {
 		return false
 	}
 
-	// Look for Browser tool calls with key press results
+	// Look for Browser tool calls with keyboard input results
 	for _, msg := range messages {
 		if toolCalls, ok := msg["toolCalls"].([]interface{}); ok {
 			for _, tc := range toolCalls {
 				if toolCall, ok := tc.(map[string]interface{}); ok {
 					if name, ok := toolCall["name"].(string); ok && name == "Browser" {
-						// Check the result for successful key press
+						// Check the result for successful keyboard input (unified type action)
 						if result, ok := toolCall["result"].(string); ok {
-							if strings.Contains(result, "Successfully pressed key") {
+							if strings.Contains(result, "Successfully processed keyboard input") {
 								t.Logf("✓ Found keyboard operation in tool result: %s", result)
 								return true
 							}
