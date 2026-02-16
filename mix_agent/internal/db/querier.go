@@ -6,7 +6,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 )
 
 type Querier interface {
@@ -17,7 +16,6 @@ type Querier interface {
 	// Store a new OAuth credential for a provider
 	CreateOAuthCredential(ctx context.Context, arg CreateOAuthCredentialParams) (OauthCredential, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (CreateSessionRow, error)
-	CreateUserPreferences(ctx context.Context, arg CreateUserPreferencesParams) (UserPreference, error)
 	// Delete API credential for a provider
 	DeleteAPICredential(ctx context.Context, provider string) error
 	// Delete all API credentials for the user
@@ -37,7 +35,6 @@ type Querier interface {
 	// Get OAuth credential for a specific provider
 	GetOAuthCredential(ctx context.Context, provider string) (OauthCredential, error)
 	GetSessionByID(ctx context.Context, id string) (GetSessionByIDRow, error)
-	GetUserPreferences(ctx context.Context) (UserPreference, error)
 	// Check if user has API credential for a provider
 	HasAPICredential(ctx context.Context, provider string) (int64, error)
 	// Check if user has OAuth credential for a provider
@@ -58,18 +55,13 @@ type Querier interface {
 	ListSessionsMetadata(ctx context.Context) ([]ListSessionsMetadataRow, error)
 	ListSessionsWithContent(ctx context.Context) ([]ListSessionsWithContentRow, error)
 	ListUserMessageHistory(ctx context.Context, arg ListUserMessageHistoryParams) ([]Message, error)
-	ResetUserPreferencesToDefaults(ctx context.Context) (UserPreference, error)
 	// Update existing API credential for a provider
 	UpdateAPICredential(ctx context.Context, arg UpdateAPICredentialParams) (ApiCredential, error)
 	UpdateFile(ctx context.Context, arg UpdateFileParams) (File, error)
-	UpdateMainAgentModel(ctx context.Context, arg UpdateMainAgentModelParams) (UserPreference, error)
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) error
 	// Update existing OAuth credential for a provider
 	UpdateOAuthCredential(ctx context.Context, arg UpdateOAuthCredentialParams) (OauthCredential, error)
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (UpdateSessionRow, error)
-	UpdateSubAgentModel(ctx context.Context, arg UpdateSubAgentModelParams) (UserPreference, error)
-	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (UserPreference, error)
-	UpdateUserPreferredProvider(ctx context.Context, preferredProvider sql.NullString) (UserPreference, error)
 	// Insert or update API credential for a provider
 	UpsertAPICredential(ctx context.Context, arg UpsertAPICredentialParams) (ApiCredential, error)
 	// Insert or update OAuth credential for a provider

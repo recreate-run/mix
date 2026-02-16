@@ -268,7 +268,7 @@ func (h *MessageHandler) checkAuthentication(w http.ResponseWriter, ctx context.
 	}
 
 	if !authenticated {
-		helpfulMsg := getAuthenticationErrorMessage(ctx)
+		helpfulMsg := getAuthenticationErrorMessage()
 		registry.BroadcastEvent(sessionID, "error", ErrorEvent{Error: helpfulMsg})
 		sendErrorResponse(w, ErrorTypeUnauthorized, helpfulMsg)
 		return false

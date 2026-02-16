@@ -108,7 +108,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	sessionHandler := NewSessionHandler(testApp)
 	messageHandler := NewMessageHandler(testApp)
 	systemHandler := NewSystemHandler(testApp)
-	preferencesHandler := NewPreferencesHandler(testApp)
 
 	// Create file management handlers
 	fileHandler := NewFileHandler(testApp)
@@ -136,12 +135,6 @@ func setupIntegrationTestServer(t *testing.T) *TestServerResult {
 	mux.HandleFunc("POST /api/auth/apikey", systemHandler.HandleSetAPIKey)
 	mux.HandleFunc("POST /api/permissions/{id}/grant", systemHandler.HandleGrantPermission)
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
-
-	// User preferences endpoints
-	mux.HandleFunc("GET /api/preferences", preferencesHandler.HandleGetPreferences)
-	mux.HandleFunc("POST /api/preferences", preferencesHandler.HandleUpdatePreferences)
-	mux.HandleFunc("GET /api/preferences/providers", preferencesHandler.HandleGetAvailableProviders)
-	mux.HandleFunc("POST /api/preferences/reset", preferencesHandler.HandleResetPreferences)
 
 	// File management endpoints
 	mux.HandleFunc("POST /api/sessions/{id}/files/upload", fileHandler.HandleUploadFile)

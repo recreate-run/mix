@@ -24,12 +24,10 @@ import { useFileReference } from "@/hooks/useFileReference";
 import { useMessageHistoryNavigation } from "@/hooks/useMessageHistoryNavigation";
 // import { useAppList } from '@/hooks/useOpenApps';
 import { usePersistentSSE } from "@/hooks/usePersistentSSE";
-import { formatCurrentModel, usePreferences } from "@/hooks/usePreferences";
 import { useRewindSession } from "@/hooks/useRewindSession";
 import { useActiveSession, useCreateSession } from "@/hooks/useSession";
 import { useSessionExport } from "@/hooks/useSessionExport";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
-import { CACHE_KEYS } from "@/lib/cache-keys";
 import { DEFAULT_THINKING_LEVEL } from "@/lib/data";
 import { useBoundStore } from "@/stores";
 // import type { ToolCall } from '@/types/common';
@@ -111,7 +109,6 @@ export function ChatApp({
 	const exportSessionMutation = useSessionExport();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const { data: preferences } = usePreferences();
 
 	// Submit initial message from playground (if provided)
 	useEffect(() => {
@@ -157,11 +154,8 @@ export function ChatApp({
 				interruptedMessageAddedRef.current = false;
 			}
 			previousSessionIdRef.current = session.id;
-
-			// Invalidate preferences to fetch fresh data for the new session
-			queryClient.invalidateQueries({ queryKey: CACHE_KEYS.preferences });
 		}
-	}, [session?.id, clearAttachments, queryClient, isPlayground]);
+	}, [session?.id, clearAttachments, isPlayground]);
 
 	// Handle navigation to newly created sessions (skip in playground mode)
 	useEffect(() => {
@@ -727,7 +721,7 @@ export function ChatApp({
 
 									{/* Current Model Display */}
 									<div className="absolute right-14 bottom-1 hidden text-muted-foreground text-xs md:block">
-										{formatCurrentModel(preferences)}
+										Anthropic: claude-sonnet-4-5
 									</div>
 								</AIInputTools>
 								<AIInputSubmit

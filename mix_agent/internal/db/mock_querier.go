@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -207,38 +206,3 @@ func (m *MockQuerier) ListSessionsWithContent(ctx context.Context) ([]ListSessio
 	return args.Get(0).([]ListSessionsWithContentRow), args.Error(1)
 }
 
-// User Preferences methods
-func (m *MockQuerier) CreateUserPreferences(ctx context.Context, arg CreateUserPreferencesParams) (UserPreference, error) {
-	args := m.Called(ctx, arg)
-	return args.Get(0).(UserPreference), args.Error(1)
-}
-
-func (m *MockQuerier) GetUserPreferences(ctx context.Context) (UserPreference, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(UserPreference), args.Error(1)
-}
-
-func (m *MockQuerier) UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (UserPreference, error) {
-	args := m.Called(ctx, arg)
-	return args.Get(0).(UserPreference), args.Error(1)
-}
-
-func (m *MockQuerier) UpdateMainAgentModel(ctx context.Context, arg UpdateMainAgentModelParams) (UserPreference, error) {
-	args := m.Called(ctx, arg)
-	return args.Get(0).(UserPreference), args.Error(1)
-}
-
-func (m *MockQuerier) UpdateSubAgentModel(ctx context.Context, arg UpdateSubAgentModelParams) (UserPreference, error) {
-	args := m.Called(ctx, arg)
-	return args.Get(0).(UserPreference), args.Error(1)
-}
-
-func (m *MockQuerier) UpdateUserPreferredProvider(ctx context.Context, preferredProvider sql.NullString) (UserPreference, error) {
-	args := m.Called(ctx, preferredProvider)
-	return args.Get(0).(UserPreference), args.Error(1)
-}
-
-func (m *MockQuerier) ResetUserPreferencesToDefaults(ctx context.Context) (UserPreference, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(UserPreference), args.Error(1)
-}

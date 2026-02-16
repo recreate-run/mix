@@ -1,11 +1,10 @@
 package http
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"mix/internal/config"
+	"mix/internal/constants"
 )
 
 const (
@@ -13,26 +12,16 @@ const (
 )
 
 // getAuthenticationErrorMessage returns a provider-specific authentication error message
-func getAuthenticationErrorMessage(ctx context.Context) string {
-	// Get user preferences to determine their preferred provider
-	userPrefs := config.GetUserPreferences()
-	if userPrefs == nil {
-		return "⚠️ Authentication required. Please go to settings and authenticate"
-	}
-
-	preferredProvider, err := userPrefs.GetPreferredProvider(ctx)
-	if err != nil || preferredProvider == "" {
-		return "⚠️ Authentication required. Please go to settings and authenticate"
-	}
+func getAuthenticationErrorMessage() string {
+	// Use hardcoded default provider
+	preferredProvider := constants.DefaultProvider
 
 	// Get a user-friendly name for the provider
 	providerName := getProviderDisplayName(string(preferredProvider))
 
 	// Create provider-specific message with helpful instructions
-	return fmt.Sprintf("⚠️ Not authenticated with %s (your preferred provider)\n\n"+
-		"Choose one option:\n"+
-		"•Authentication to connect your %s account\n"+
-		"•change your preferred provider",
+	return fmt.Sprintf("⚠️ Not authenticated with %s (the default provider)\n\n"+
+		"Please authenticate to connect your %s account",
 		providerName, providerName)
 }
 

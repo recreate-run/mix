@@ -30,7 +30,6 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	sessionHandler := NewSessionHandler(a)
 	messageHandler := NewMessageHandler(a)
 	systemHandler := NewSystemHandler(a)
-	preferencesHandler := NewPreferencesHandler(a)
 	authHandler := NewAuthHandler(a)
 	toolsHandler := NewToolsHandler(a)
 	systemInfoHandler := NewSystemInfoHandler(a)
@@ -205,12 +204,6 @@ func StartServer(ctx context.Context, a *app.App, host string, port int) error {
 	mux.HandleFunc("POST /api/permissions/{id}/deny", systemHandler.HandleDenyPermission)
 	mux.HandleFunc("POST /api/notifications/{id}/respond", systemHandler.HandleNotificationRespond)
 	mux.HandleFunc("GET /api/system/info", systemInfoHandler.HandleGetSystemInfo)
-
-	// User preferences endpoints
-	mux.HandleFunc("GET /api/preferences", preferencesHandler.HandleGetPreferences)
-	mux.HandleFunc("POST /api/preferences", preferencesHandler.HandleUpdatePreferences)
-	mux.HandleFunc("GET /api/preferences/providers", preferencesHandler.HandleGetAvailableProviders)
-	mux.HandleFunc("POST /api/preferences/reset", preferencesHandler.HandleResetPreferences)
 
 	// Authentication management endpoints
 	mux.HandleFunc("POST /api/auth/api-key", authHandler.HandleStoreAPIKey)

@@ -16,7 +16,6 @@ import {
 	SelectItem,
 	SelectValue,
 } from "@/components/ui/select";
-import { formatCurrentModel, usePreferences } from "@/hooks/usePreferences";
 import { useSessionMessages } from "@/hooks/useSessionMessages";
 import { DEFAULT_THINKING_LEVEL, EXAMPLE_PROMPTS } from "@/lib/data";
 import { useBoundStore } from "@/stores";
@@ -48,8 +47,6 @@ export function PlaygroundWelcome({
 	const syncWithText = useBoundStore((state) => state.syncWithText);
 
 	// Preferences for model display
-	const { data: preferences } = usePreferences();
-
 	const handleSuggestionClick = (prompt: string) => {
 		setInputValue(prompt);
 	};
@@ -203,7 +200,7 @@ export function PlaygroundWelcome({
 
 									{/* Current Model Display */}
 									<div className="absolute right-14 bottom-1 hidden text-muted-foreground text-xs md:block">
-										{formatCurrentModel(preferences)}
+										Anthropic: claude-sonnet-4-5
 									</div>
 								</AIInputTools>
 								<AIInputSubmit disabled={!inputValue.trim()} status="ready" />

@@ -1,18 +1,13 @@
 package config
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"mix/internal/llm/models"
-	"mix/internal/preferences"
 )
 
 // loadEnvFile loads environment variables from .env file for testing
@@ -40,7 +35,6 @@ func setupTempConfig(t *testing.T) (tempDir string, cleanup func()) {
 	// Reset global config for clean test state
 	cfgMutex.Lock()
 	cfg = nil
-	userPreferencesService = nil
 	apiCredentialsService = nil
 	cfgMutex.Unlock()
 
@@ -48,7 +42,6 @@ func setupTempConfig(t *testing.T) (tempDir string, cleanup func()) {
 	cleanup = func() {
 		cfgMutex.Lock()
 		cfg = nil
-		userPreferencesService = nil
 		apiCredentialsService = nil
 		cfgMutex.Unlock()
 		_ = os.RemoveAll(tempDir)
@@ -136,88 +129,12 @@ func TestInitAPICredentials(t *testing.T) {
 	t.Skip("Skipping InitAPICredentials test - requires actual database connection")
 }
 
-// Test GetUserPreferences before initialization
-func TestGetUserPreferencesNotInitialized(t *testing.T) {
-	_, cleanup := setupTempConfig(t)
-	defer cleanup()
-
-	assert.Nil(t, GetUserPreferences())
-}
-
 // Test GetAPICredentials before initialization
 func TestGetAPICredentialsNotInitialized(t *testing.T) {
 	_, cleanup := setupTempConfig(t)
 	defer cleanup()
 
 	assert.Nil(t, GetAPICredentials())
-}
-
-// Test GetAgentFromDatabase with mock service
-func TestGetAgentFromDatabase(t *testing.T) {
-	_, cleanup := setupTempConfig(t)
-	defer cleanup()
-
-	// Create mock preferences service
-	mockService := &preferences.MockService{}
-	userPreferencesService = mockService
-
-	expectedAgent := preferences.Agent{
-		Model:           models.ModelID("claude-sonnet-4-5"),
-		MaxTokens:       4096,
-		ReasoningEffort: "medium",
-	}
-
-	mockService.On("GetAgentConfig", mock.Anything, preferences.AgentMain).
-		Return(expectedAgent, nil)
-
-	agent, err := GetAgentFromDatabase(context.Background(), AgentMain)
-
-	require.NoError(t, err)
-	assert.Equal(t, Agent{
-		Model:           expectedAgent.Model,
-		MaxTokens:       expectedAgent.MaxTokens,
-		ReasoningEffort: expectedAgent.ReasoningEffort,
-	}, agent)
-
-	mockService.AssertExpectations(t)
-}
-
-// Test GetAgentFromDatabase with uninitialized service
-func TestGetAgentFromDatabaseNotInitialized(t *testing.T) {
-	_, cleanup := setupTempConfig(t)
-	defer cleanup()
-
-	_, err := GetAgentFromDatabase(context.Background(), AgentMain)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "user preferences service not initialized")
-}
-
-// Test GetAgentFromDatabase with unknown agent
-func TestGetAgentFromDatabaseUnknownAgent(t *testing.T) {
-	_, cleanup := setupTempConfig(t)
-	defer cleanup()
-
-	_, err := GetAgentFromDatabase(context.Background(), AgentName("unknown"))
-
-	require.Error(t, err)
-	// Will fail at service initialization check before agent name validation
-	assert.Contains(t, err.Error(), "user preferences service not initialized")
-}
-
-// Test GetAgentFromDatabase with unknown agent name but initialized service
-func TestGetAgentFromDatabaseUnknownAgentWithService(t *testing.T) {
-	_, cleanup := setupTempConfig(t)
-	defer cleanup()
-
-	// Create mock preferences service
-	mockService := &preferences.MockService{}
-	userPreferencesService = mockService
-
-	_, err := GetAgentFromDatabase(context.Background(), AgentName("unknown"))
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown agent name")
 }
 
 // Test GetEmbeddedPrompts

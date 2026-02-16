@@ -686,27 +686,16 @@ func IsAuthenticated(ctx context.Context, provider models.ModelProvider) (isAuth
 		return false, "none", nil
 	}
 
-	// If provider is empty, try to get the user's preferred provider
+	// If provider is empty, use default or check available API keys
 	if provider == "" {
-		// Try to get user preferences service
-		userPrefs := config.GetUserPreferences()
-		if userPrefs != nil {
-			// Get preferred provider
-			if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
-				provider = pref
-			}
-		}
-
-		// If still empty, check if there are any API keys available
-		if provider == "" {
-			providers, err := credentialsService.ListCredentials(ctx)
-			if err == nil && len(providers) > 0 {
-				// Use the first available provider as a fallback
-				provider = providers[0]
-			} else {
-				// Default to Anthropic if no providers found
-				provider = models.ProviderAnthropic
-			}
+		// Check if there are any API keys available
+		providers, err := credentialsService.ListCredentials(ctx)
+		if err == nil && len(providers) > 0 {
+			// Use the first available provider as a fallback
+			provider = providers[0]
+		} else {
+			// Use hardcoded default provider
+			provider = constants.DefaultProvider
 		}
 	}
 

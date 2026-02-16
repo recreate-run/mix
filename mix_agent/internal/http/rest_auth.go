@@ -320,16 +320,9 @@ func (h *AuthHandler) HandleValidatePreferredProvider(w http.ResponseWriter, r *
 
 	ctx := r.Context()
 
-	// Get user preferences
-	userPrefs := config.GetUserPreferences()
-	if userPrefs == nil {
-		WriteErrorResponse(w, http.StatusInternalServerError, "User preferences not available", "PREFERENCES_UNAVAILABLE")
-		return
-	}
-
-	// Get preferred provider
-	preferredProvider, err := userPrefs.GetPreferredProvider(ctx)
-	if err != nil || preferredProvider == "" {
+	// Use hardcoded default provider
+	preferredProvider := constants.DefaultProvider
+	if preferredProvider == "" {
 		// Return 400 Bad Request - user needs to set a preferred provider first
 		WriteErrorResponse(w, http.StatusBadRequest, "No preferred provider set. Please set a preferred provider first", "NO_PREFERRED_PROVIDER")
 		return
@@ -521,15 +514,9 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 
 	// Get services
 	credentialsService := config.GetAPICredentials()
-	userPrefs := config.GetUserPreferences()
 
-	// Get user's preferred provider if available
-	var preferredProvider models.ModelProvider
-	if userPrefs != nil {
-		if pref, err := userPrefs.GetPreferredProvider(ctx); err == nil && pref != "" {
-			preferredProvider = pref
-		}
-	}
+	// Use hardcoded default provider
+	preferredProvider := constants.DefaultProvider
 
 	// Check each supported provider (database-only authentication)
 	providers := []struct {
@@ -564,7 +551,14 @@ func (h *AuthHandler) checkAllAuthenticationStatus(ctx context.Context) AuthStat
 
 		// Determine authentication status
 		authenticated = hasOAuth || hasAPIKey
-		authMethod = models.AuthMethod(getAuthMethod(hasAPIKey, hasOAuth))
+		switch {
+		case hasOAuth:
+			authMethod = models.AuthMethodOAuth
+		case hasAPIKey:
+			authMethod = models.AuthMethodAPIKey
+		default:
+			authMethod = models.AuthMethodNone
+		}
 
 		// Mark as preferred if this matches user's preference
 		displayName := p.displayName

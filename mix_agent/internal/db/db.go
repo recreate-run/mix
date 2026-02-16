@@ -39,9 +39,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createSessionStmt, err = db.PrepareContext(ctx, createSession); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateSession: %w", err)
 	}
-	if q.createUserPreferencesStmt, err = db.PrepareContext(ctx, createUserPreferences); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateUserPreferences: %w", err)
-	}
 	if q.deleteAPICredentialStmt, err = db.PrepareContext(ctx, deleteAPICredential); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteAPICredential: %w", err)
 	}
@@ -80,9 +77,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getSessionByIDStmt, err = db.PrepareContext(ctx, getSessionByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetSessionByID: %w", err)
-	}
-	if q.getUserPreferencesStmt, err = db.PrepareContext(ctx, getUserPreferences); err != nil {
-		return nil, fmt.Errorf("error preparing query GetUserPreferences: %w", err)
 	}
 	if q.hasAPICredentialStmt, err = db.PrepareContext(ctx, hasAPICredential); err != nil {
 		return nil, fmt.Errorf("error preparing query HasAPICredential: %w", err)
@@ -123,17 +117,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listUserMessageHistoryStmt, err = db.PrepareContext(ctx, listUserMessageHistory); err != nil {
 		return nil, fmt.Errorf("error preparing query ListUserMessageHistory: %w", err)
 	}
-	if q.resetUserPreferencesToDefaultsStmt, err = db.PrepareContext(ctx, resetUserPreferencesToDefaults); err != nil {
-		return nil, fmt.Errorf("error preparing query ResetUserPreferencesToDefaults: %w", err)
-	}
 	if q.updateAPICredentialStmt, err = db.PrepareContext(ctx, updateAPICredential); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAPICredential: %w", err)
 	}
 	if q.updateFileStmt, err = db.PrepareContext(ctx, updateFile); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateFile: %w", err)
-	}
-	if q.updateMainAgentModelStmt, err = db.PrepareContext(ctx, updateMainAgentModel); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateMainAgentModel: %w", err)
 	}
 	if q.updateMessageStmt, err = db.PrepareContext(ctx, updateMessage); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateMessage: %w", err)
@@ -143,15 +131,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.updateSessionStmt, err = db.PrepareContext(ctx, updateSession); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateSession: %w", err)
-	}
-	if q.updateSubAgentModelStmt, err = db.PrepareContext(ctx, updateSubAgentModel); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateSubAgentModel: %w", err)
-	}
-	if q.updateUserPreferencesStmt, err = db.PrepareContext(ctx, updateUserPreferences); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateUserPreferences: %w", err)
-	}
-	if q.updateUserPreferredProviderStmt, err = db.PrepareContext(ctx, updateUserPreferredProvider); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateUserPreferredProvider: %w", err)
 	}
 	if q.upsertAPICredentialStmt, err = db.PrepareContext(ctx, upsertAPICredential); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertAPICredential: %w", err)
@@ -187,11 +166,6 @@ func (q *Queries) Close() error {
 	if q.createSessionStmt != nil {
 		if cerr := q.createSessionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createSessionStmt: %w", cerr)
-		}
-	}
-	if q.createUserPreferencesStmt != nil {
-		if cerr := q.createUserPreferencesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createUserPreferencesStmt: %w", cerr)
 		}
 	}
 	if q.deleteAPICredentialStmt != nil {
@@ -259,11 +233,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getSessionByIDStmt: %w", cerr)
 		}
 	}
-	if q.getUserPreferencesStmt != nil {
-		if cerr := q.getUserPreferencesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getUserPreferencesStmt: %w", cerr)
-		}
-	}
 	if q.hasAPICredentialStmt != nil {
 		if cerr := q.hasAPICredentialStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing hasAPICredentialStmt: %w", cerr)
@@ -329,11 +298,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listUserMessageHistoryStmt: %w", cerr)
 		}
 	}
-	if q.resetUserPreferencesToDefaultsStmt != nil {
-		if cerr := q.resetUserPreferencesToDefaultsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing resetUserPreferencesToDefaultsStmt: %w", cerr)
-		}
-	}
 	if q.updateAPICredentialStmt != nil {
 		if cerr := q.updateAPICredentialStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateAPICredentialStmt: %w", cerr)
@@ -342,11 +306,6 @@ func (q *Queries) Close() error {
 	if q.updateFileStmt != nil {
 		if cerr := q.updateFileStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateFileStmt: %w", cerr)
-		}
-	}
-	if q.updateMainAgentModelStmt != nil {
-		if cerr := q.updateMainAgentModelStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateMainAgentModelStmt: %w", cerr)
 		}
 	}
 	if q.updateMessageStmt != nil {
@@ -362,21 +321,6 @@ func (q *Queries) Close() error {
 	if q.updateSessionStmt != nil {
 		if cerr := q.updateSessionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateSessionStmt: %w", cerr)
-		}
-	}
-	if q.updateSubAgentModelStmt != nil {
-		if cerr := q.updateSubAgentModelStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateSubAgentModelStmt: %w", cerr)
-		}
-	}
-	if q.updateUserPreferencesStmt != nil {
-		if cerr := q.updateUserPreferencesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateUserPreferencesStmt: %w", cerr)
-		}
-	}
-	if q.updateUserPreferredProviderStmt != nil {
-		if cerr := q.updateUserPreferredProviderStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateUserPreferredProviderStmt: %w", cerr)
 		}
 	}
 	if q.upsertAPICredentialStmt != nil {
@@ -426,103 +370,89 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                                 DBTX
-	tx                                 *sql.Tx
-	createAPICredentialStmt            *sql.Stmt
-	createFileStmt                     *sql.Stmt
-	createMessageStmt                  *sql.Stmt
-	createOAuthCredentialStmt          *sql.Stmt
-	createSessionStmt                  *sql.Stmt
-	createUserPreferencesStmt          *sql.Stmt
-	deleteAPICredentialStmt            *sql.Stmt
-	deleteAllAPICredentialsStmt        *sql.Stmt
-	deleteAllOAuthCredentialsStmt      *sql.Stmt
-	deleteFileStmt                     *sql.Stmt
-	deleteMessageStmt                  *sql.Stmt
-	deleteOAuthCredentialStmt          *sql.Stmt
-	deleteSessionStmt                  *sql.Stmt
-	getAPICredentialStmt               *sql.Stmt
-	getFileStmt                        *sql.Stmt
-	getFileByPathAndSessionStmt        *sql.Stmt
-	getMessageStmt                     *sql.Stmt
-	getOAuthCredentialStmt             *sql.Stmt
-	getSessionByIDStmt                 *sql.Stmt
-	getUserPreferencesStmt             *sql.Stmt
-	hasAPICredentialStmt               *sql.Stmt
-	hasOAuthCredentialStmt             *sql.Stmt
-	incrementSessionCostStmt           *sql.Stmt
-	listAPICredentialsStmt             *sql.Stmt
-	listExpiredOAuthCredentialsStmt    *sql.Stmt
-	listFilesByPathStmt                *sql.Stmt
-	listFilesBySessionStmt             *sql.Stmt
-	listLatestSessionFilesStmt         *sql.Stmt
-	listMessagesBySessionStmt          *sql.Stmt
-	listOAuthCredentialsStmt           *sql.Stmt
-	listSessionsMetadataStmt           *sql.Stmt
-	listSessionsWithContentStmt        *sql.Stmt
-	listUserMessageHistoryStmt         *sql.Stmt
-	resetUserPreferencesToDefaultsStmt *sql.Stmt
-	updateAPICredentialStmt            *sql.Stmt
-	updateFileStmt                     *sql.Stmt
-	updateMainAgentModelStmt           *sql.Stmt
-	updateMessageStmt                  *sql.Stmt
-	updateOAuthCredentialStmt          *sql.Stmt
-	updateSessionStmt                  *sql.Stmt
-	updateSubAgentModelStmt            *sql.Stmt
-	updateUserPreferencesStmt          *sql.Stmt
-	updateUserPreferredProviderStmt    *sql.Stmt
-	upsertAPICredentialStmt            *sql.Stmt
-	upsertOAuthCredentialStmt          *sql.Stmt
+	db                              DBTX
+	tx                              *sql.Tx
+	createAPICredentialStmt         *sql.Stmt
+	createFileStmt                  *sql.Stmt
+	createMessageStmt               *sql.Stmt
+	createOAuthCredentialStmt       *sql.Stmt
+	createSessionStmt               *sql.Stmt
+	deleteAPICredentialStmt         *sql.Stmt
+	deleteAllAPICredentialsStmt     *sql.Stmt
+	deleteAllOAuthCredentialsStmt   *sql.Stmt
+	deleteFileStmt                  *sql.Stmt
+	deleteMessageStmt               *sql.Stmt
+	deleteOAuthCredentialStmt       *sql.Stmt
+	deleteSessionStmt               *sql.Stmt
+	getAPICredentialStmt            *sql.Stmt
+	getFileStmt                     *sql.Stmt
+	getFileByPathAndSessionStmt     *sql.Stmt
+	getMessageStmt                  *sql.Stmt
+	getOAuthCredentialStmt          *sql.Stmt
+	getSessionByIDStmt              *sql.Stmt
+	hasAPICredentialStmt            *sql.Stmt
+	hasOAuthCredentialStmt          *sql.Stmt
+	incrementSessionCostStmt        *sql.Stmt
+	listAPICredentialsStmt          *sql.Stmt
+	listExpiredOAuthCredentialsStmt *sql.Stmt
+	listFilesByPathStmt             *sql.Stmt
+	listFilesBySessionStmt          *sql.Stmt
+	listLatestSessionFilesStmt      *sql.Stmt
+	listMessagesBySessionStmt       *sql.Stmt
+	listOAuthCredentialsStmt        *sql.Stmt
+	listSessionsMetadataStmt        *sql.Stmt
+	listSessionsWithContentStmt     *sql.Stmt
+	listUserMessageHistoryStmt      *sql.Stmt
+	updateAPICredentialStmt         *sql.Stmt
+	updateFileStmt                  *sql.Stmt
+	updateMessageStmt               *sql.Stmt
+	updateOAuthCredentialStmt       *sql.Stmt
+	updateSessionStmt               *sql.Stmt
+	upsertAPICredentialStmt         *sql.Stmt
+	upsertOAuthCredentialStmt       *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                                 tx,
-		tx:                                 tx,
-		createAPICredentialStmt:            q.createAPICredentialStmt,
-		createFileStmt:                     q.createFileStmt,
-		createMessageStmt:                  q.createMessageStmt,
-		createOAuthCredentialStmt:          q.createOAuthCredentialStmt,
-		createSessionStmt:                  q.createSessionStmt,
-		createUserPreferencesStmt:          q.createUserPreferencesStmt,
-		deleteAPICredentialStmt:            q.deleteAPICredentialStmt,
-		deleteAllAPICredentialsStmt:        q.deleteAllAPICredentialsStmt,
-		deleteAllOAuthCredentialsStmt:      q.deleteAllOAuthCredentialsStmt,
-		deleteFileStmt:                     q.deleteFileStmt,
-		deleteMessageStmt:                  q.deleteMessageStmt,
-		deleteOAuthCredentialStmt:          q.deleteOAuthCredentialStmt,
-		deleteSessionStmt:                  q.deleteSessionStmt,
-		getAPICredentialStmt:               q.getAPICredentialStmt,
-		getFileStmt:                        q.getFileStmt,
-		getFileByPathAndSessionStmt:        q.getFileByPathAndSessionStmt,
-		getMessageStmt:                     q.getMessageStmt,
-		getOAuthCredentialStmt:             q.getOAuthCredentialStmt,
-		getSessionByIDStmt:                 q.getSessionByIDStmt,
-		getUserPreferencesStmt:             q.getUserPreferencesStmt,
-		hasAPICredentialStmt:               q.hasAPICredentialStmt,
-		hasOAuthCredentialStmt:             q.hasOAuthCredentialStmt,
-		incrementSessionCostStmt:           q.incrementSessionCostStmt,
-		listAPICredentialsStmt:             q.listAPICredentialsStmt,
-		listExpiredOAuthCredentialsStmt:    q.listExpiredOAuthCredentialsStmt,
-		listFilesByPathStmt:                q.listFilesByPathStmt,
-		listFilesBySessionStmt:             q.listFilesBySessionStmt,
-		listLatestSessionFilesStmt:         q.listLatestSessionFilesStmt,
-		listMessagesBySessionStmt:          q.listMessagesBySessionStmt,
-		listOAuthCredentialsStmt:           q.listOAuthCredentialsStmt,
-		listSessionsMetadataStmt:           q.listSessionsMetadataStmt,
-		listSessionsWithContentStmt:        q.listSessionsWithContentStmt,
-		listUserMessageHistoryStmt:         q.listUserMessageHistoryStmt,
-		resetUserPreferencesToDefaultsStmt: q.resetUserPreferencesToDefaultsStmt,
-		updateAPICredentialStmt:            q.updateAPICredentialStmt,
-		updateFileStmt:                     q.updateFileStmt,
-		updateMainAgentModelStmt:           q.updateMainAgentModelStmt,
-		updateMessageStmt:                  q.updateMessageStmt,
-		updateOAuthCredentialStmt:          q.updateOAuthCredentialStmt,
-		updateSessionStmt:                  q.updateSessionStmt,
-		updateSubAgentModelStmt:            q.updateSubAgentModelStmt,
-		updateUserPreferencesStmt:          q.updateUserPreferencesStmt,
-		updateUserPreferredProviderStmt:    q.updateUserPreferredProviderStmt,
-		upsertAPICredentialStmt:            q.upsertAPICredentialStmt,
-		upsertOAuthCredentialStmt:          q.upsertOAuthCredentialStmt,
+		db:                              tx,
+		tx:                              tx,
+		createAPICredentialStmt:         q.createAPICredentialStmt,
+		createFileStmt:                  q.createFileStmt,
+		createMessageStmt:               q.createMessageStmt,
+		createOAuthCredentialStmt:       q.createOAuthCredentialStmt,
+		createSessionStmt:               q.createSessionStmt,
+		deleteAPICredentialStmt:         q.deleteAPICredentialStmt,
+		deleteAllAPICredentialsStmt:     q.deleteAllAPICredentialsStmt,
+		deleteAllOAuthCredentialsStmt:   q.deleteAllOAuthCredentialsStmt,
+		deleteFileStmt:                  q.deleteFileStmt,
+		deleteMessageStmt:               q.deleteMessageStmt,
+		deleteOAuthCredentialStmt:       q.deleteOAuthCredentialStmt,
+		deleteSessionStmt:               q.deleteSessionStmt,
+		getAPICredentialStmt:            q.getAPICredentialStmt,
+		getFileStmt:                     q.getFileStmt,
+		getFileByPathAndSessionStmt:     q.getFileByPathAndSessionStmt,
+		getMessageStmt:                  q.getMessageStmt,
+		getOAuthCredentialStmt:          q.getOAuthCredentialStmt,
+		getSessionByIDStmt:              q.getSessionByIDStmt,
+		hasAPICredentialStmt:            q.hasAPICredentialStmt,
+		hasOAuthCredentialStmt:          q.hasOAuthCredentialStmt,
+		incrementSessionCostStmt:        q.incrementSessionCostStmt,
+		listAPICredentialsStmt:          q.listAPICredentialsStmt,
+		listExpiredOAuthCredentialsStmt: q.listExpiredOAuthCredentialsStmt,
+		listFilesByPathStmt:             q.listFilesByPathStmt,
+		listFilesBySessionStmt:          q.listFilesBySessionStmt,
+		listLatestSessionFilesStmt:      q.listLatestSessionFilesStmt,
+		listMessagesBySessionStmt:       q.listMessagesBySessionStmt,
+		listOAuthCredentialsStmt:        q.listOAuthCredentialsStmt,
+		listSessionsMetadataStmt:        q.listSessionsMetadataStmt,
+		listSessionsWithContentStmt:     q.listSessionsWithContentStmt,
+		listUserMessageHistoryStmt:      q.listUserMessageHistoryStmt,
+		updateAPICredentialStmt:         q.updateAPICredentialStmt,
+		updateFileStmt:                  q.updateFileStmt,
+		updateMessageStmt:               q.updateMessageStmt,
+		updateOAuthCredentialStmt:       q.updateOAuthCredentialStmt,
+		updateSessionStmt:               q.updateSessionStmt,
+		upsertAPICredentialStmt:         q.upsertAPICredentialStmt,
+		upsertOAuthCredentialStmt:       q.upsertOAuthCredentialStmt,
 	}
 }

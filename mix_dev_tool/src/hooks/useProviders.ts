@@ -1,84 +1,71 @@
 import { useQuery } from "@tanstack/react-query";
-import { CACHE_KEYS } from "@/lib/cache-keys";
-import { mix } from "@/lib/mix-sdk";
-import type { LoginProviderInfo } from "@/types/message";
 
-interface ProviderData {
-	displayName?: string;
+function getApiKeyFormat(providerId: string): string {
+	const formats: Record<string, string> = {
+		anthropic: "sk-ant-...",
+		openai: "sk-...",
+		openrouter: "sk-or-...",
+	};
+	return formats[providerId] || "API Key";
 }
 
-// Authentication method constants
-const AUTH_METHODS: Record<string, ("api_key" | "oauth")[]> = {
-	anthropic: ["api_key", "oauth"],
-	openai: ["api_key"],
-	openrouter: ["api_key"],
-	gemini: ["api_key"],
-};
+export interface Provider {
+	id: string;
+	displayName: string;
+	authenticated: boolean;
+	authMethods: ("api_key" | "oauth")[];
+	authMethod: string;
+	isPreferred?: boolean;
+	apiKeyFormat?: string;
+}
 
-const API_KEY_FORMATS: Record<string, string> = {
-	anthropic: "sk-ant-...",
-	openai: "sk-...",
-	openrouter: "sk-...",
-	gemini: "AI...",
-};
+async function getProviders(): Promise<Provider[]> {
+	const baseUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8081";
+	const response = await fetch(`${baseUrl}/api/auth/status`);
 
-async function fetchProviders(): Promise<LoginProviderInfo[]> {
-	// Get authentication status and available providers
-	const [authStatus, preferencesResponse] = await Promise.all([
-		mix.authentication.getAuthStatus(),
-		mix.preferences.get(),
-	]);
-
-	if (!preferencesResponse.availableProviders) {
-		throw new Error("Failed to fetch available providers");
+	if (!response.ok) {
+		throw new Error("Failed to fetch auth status");
 	}
 
-	const preferredProvider = preferencesResponse.preferences?.preferredProvider;
-	const providers: LoginProviderInfo[] = [];
+	const data = await response.json();
 
-	// Process all available providers
-	Object.entries(preferencesResponse.availableProviders).forEach(
-		([providerId, data]: [string, unknown]) => {
-			const authProvider = authStatus.providers?.[providerId];
-			const isAuthenticated = authProvider?.authenticated;
+	if (!data.providers) {
+		return [];
+	}
 
-			// Extract clean display name
-			const providerData = data as ProviderData;
-			const name =
-				providerData.displayName || authProvider?.displayName || providerId;
-			const cleanName = name.replace(" ⭐", "");
-			const isPreferred =
-				name.includes("⭐") || providerId === preferredProvider;
+	// Transform the auth status response into provider list
+	return Object.entries(data.providers).map(
+		([id, status]: [string, unknown]) => {
+			const providerStatus = status as {
+				display_name?: string;
+				authenticated?: boolean;
+				auth_method?: string;
+			};
+			// Determine available auth methods based on provider
+			const authMethods: ("api_key" | "oauth")[] = [];
+			if (id === "anthropic") {
+				authMethods.push("oauth", "api_key");
+			} else {
+				authMethods.push("api_key");
+			}
 
-			providers.push({
-				id: providerId,
-				displayName: cleanName,
-				authMethods: AUTH_METHODS[providerId] || ["api_key"],
-				authenticated: isAuthenticated ?? false,
-				apiKeyFormat: API_KEY_FORMATS[providerId] || "API key",
-				isPreferred,
-			});
+			return {
+				id,
+				displayName: providerStatus.display_name || id,
+				authenticated: providerStatus.authenticated || false,
+				authMethods,
+				authMethod: providerStatus.auth_method || "none",
+				isPreferred: id === "anthropic", // Hardcoded default provider
+				apiKeyFormat: getApiKeyFormat(id),
+			};
 		},
 	);
-
-	// Sort providers - authenticated and preferred first, then unauthenticated
-	providers.sort((a, b) => {
-		if (a.authenticated !== b.authenticated) {
-			return a.authenticated ? -1 : 1;
-		}
-		if (a.isPreferred !== b.isPreferred) {
-			return a.isPreferred ? -1 : 1;
-		}
-		return a.displayName.localeCompare(b.displayName);
-	});
-
-	return providers;
 }
 
 export function useProviders() {
 	return useQuery({
-		queryKey: [...CACHE_KEYS.preferences, "providers"],
-		queryFn: fetchProviders,
+		queryKey: ["auth", "providers"],
+		queryFn: getProviders,
 		retry: 2,
 	});
 }

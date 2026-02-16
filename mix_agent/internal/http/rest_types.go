@@ -51,11 +51,6 @@ type PermissionResponse struct {
 	Message string `json:"message"`
 }
 
-// PreferencesWithProviders wraps preferences with available provider metadata
-type PreferencesWithProviders struct {
-	Preferences        *UserPreferencesResponse `json:"preferences"`
-	AvailableProviders map[string]ProviderInfo  `json:"available_providers"`
-}
 
 // ProviderInfo represents metadata about an LLM provider
 type ProviderInfo struct {

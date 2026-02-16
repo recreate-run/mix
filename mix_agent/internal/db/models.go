@@ -76,16 +76,3 @@ type Session struct {
 	BrowserMode        string         `json:"browser_mode"`
 	CdpUrl             sql.NullString `json:"cdp_url"`
 }
-
-type UserPreference struct {
-	ID                       string         `json:"id"`
-	PreferredProvider        sql.NullString `json:"preferred_provider"`
-	MainAgentModel           sql.NullString `json:"main_agent_model"`
-	MainAgentMaxTokens       sql.NullInt64  `json:"main_agent_max_tokens"`
-	MainAgentReasoningEffort sql.NullString `json:"main_agent_reasoning_effort"`
-	SubAgentModel            sql.NullString `json:"sub_agent_model"`
-	SubAgentMaxTokens        sql.NullInt64  `json:"sub_agent_max_tokens"`
-	SubAgentReasoningEffort  sql.NullString `json:"sub_agent_reasoning_effort"`
-	CreatedAt                int64          `json:"created_at"`
-	UpdatedAt                int64          `json:"updated_at"`
-}

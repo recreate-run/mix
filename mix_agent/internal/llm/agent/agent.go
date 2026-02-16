@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"mix/internal/config"
+	"mix/internal/constants"
 	"mix/internal/llm/callbacks"
 	"mix/internal/llm/interfaces"
 	"mix/internal/llm/models"
@@ -15,7 +16,6 @@ import (
 	"mix/internal/logging"
 	"mix/internal/message"
 	"mix/internal/permission"
-	"mix/internal/preferences"
 	"mix/internal/pubsub"
 	"mix/internal/session"
 	"os"
@@ -1156,56 +1156,8 @@ func (a *agent) TrackUsage(ctx context.Context, sessionID string, model models.M
 func (a *agent) Update(agentName config.AgentName, modelID models.ModelID) (models.Model, error) {
 	// Allow model changes at any time since operations are no longer globally synchronized
 
-	// Update agent model in database instead of config file
-	userPrefs := config.GetUserPreferences()
-	if userPrefs == nil {
-		return models.Model{}, fmt.Errorf("user preferences service not available")
-	}
-
-	model, ok := models.SupportedModels[modelID]
-	if !ok {
-		return models.Model{}, fmt.Errorf("model %s not supported", modelID)
-	}
-
-	ctx := context.Background()
-	var err error
-
-	switch agentName {
-	case config.AgentMain:
-		err = userPrefs.UpdateMainAgentPreferences(ctx, modelID, model.DefaultMaxTokens, "")
-	case config.AgentSub:
-		err = userPrefs.UpdateSubAgentPreferences(ctx, modelID, model.DefaultMaxTokens, "")
-	default:
-		return models.Model{}, fmt.Errorf("unknown agent name: %s", agentName)
-	}
-
-	if err != nil {
-		return models.Model{}, fmt.Errorf("failed to update agent preferences in database: %w", err)
-	}
-
-	modelProvider, err := createAgentProvider(agentName)
-	if err != nil {
-		return models.Model{}, fmt.Errorf("failed to create provider for model %s: %w", modelID, err)
-	}
-
-	a.provider = modelProvider
-
-	// Update title provider if this is the main agent
-	// Since title provider always uses AgentMain config, we need to update it
-	// whenever AgentMain model changes
-	if agentName == config.AgentMain {
-		// Update title provider if it exists
-		if a.titleProvider != nil {
-			titleProvider, err := createAgentProvider(config.AgentMain)
-			if err != nil {
-				logging.Warn("Failed to update title provider", "error", err)
-			} else {
-				a.titleProvider = titleProvider
-			}
-		}
-	}
-
-	return a.provider.Model(), nil
+	// Model changes are not supported - models are hardcoded in constants
+	return models.Model{}, fmt.Errorf("model changes are not supported")
 }
 
 // setIfEmpty sets target to source if target is empty and source is not
@@ -1296,26 +1248,24 @@ func getAPIKeyWithFallback(ctx context.Context, providerName models.ModelProvide
 	return ""
 }
 func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error) {
-	// Try to get agent config from database first
 	ctx := context.Background()
-	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
-	if err != nil {
-		// Fall back to default agent config
-		logging.Warn("Failed to get agent config from database, using default", "error", err, "agent", agentName)
-		// Use Claude as default model if database not available
+
+	// Use hardcoded defaults based on agent name
+	var agentConfig config.Agent
+	if agentName == config.AgentMain {
 		agentConfig = config.Agent{
-			Model:     "claude-sonnet-4-5",
-			MaxTokens: 4096,
+			Model:           constants.DefaultMainModel,
+			MaxTokens:       constants.DefaultMainMaxTokens,
+			ReasoningEffort: string(constants.DefaultMainReasoningEffort),
+		}
+	} else {
+		agentConfig = config.Agent{
+			Model:           constants.DefaultSubAgentModel,
+			MaxTokens:       constants.DefaultSubAgentMaxTokens,
+			ReasoningEffort: string(constants.DefaultSubAgentReasoningEffort),
 		}
 	}
 
-	// Check user's preferred provider if available
-	userPrefs := config.GetUserPreferences()
-	if userPrefs != nil {
-		// Note: We validate the user's preferred provider exists, but currently
-		// we always use the model's default provider regardless of user preference
-		_, _ = userPrefs.GetPreferredProvider(ctx)
-	}
 	model, ok := models.SupportedModels[agentConfig.Model]
 	if !ok {
 		return nil, fmt.Errorf("model %s not supported", agentConfig.Model)
@@ -1364,15 +1314,19 @@ func createAgentProvider(agentName config.AgentName) (interfaces.Provider, error
 }
 
 func createSessionProvider(ctx context.Context, agentName config.AgentName, sess *session.Session, storageConfig session.Config, thinkingBudget *int) (interfaces.Provider, error) {
-	// Try to get agent config from database first
-	agentConfig, err := config.GetAgentFromDatabase(ctx, agentName)
-	if err != nil {
-		// Fall back to default agent config
-		logging.Warn("Failed to get agent config from database for session, using default", "error", err, "agent", agentName)
-		// Use Claude as default model if database not available
+	// Use hardcoded defaults based on agent name
+	var agentConfig config.Agent
+	if agentName == config.AgentMain {
 		agentConfig = config.Agent{
-			Model:     "claude-sonnet-4-5",
-			MaxTokens: 4096,
+			Model:           constants.DefaultMainModel,
+			MaxTokens:       constants.DefaultMainMaxTokens,
+			ReasoningEffort: string(constants.DefaultMainReasoningEffort),
+		}
+	} else {
+		agentConfig = config.Agent{
+			Model:           constants.DefaultSubAgentModel,
+			MaxTokens:       constants.DefaultSubAgentMaxTokens,
+			ReasoningEffort: string(constants.DefaultSubAgentReasoningEffort),
 		}
 	}
 
@@ -1469,22 +1423,6 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 		return sessionProvider, nil
 	}
 
-	// Get user preferences to log current settings
-	userPrefs := config.GetUserPreferences()
-	var preferredProvider models.ModelProvider
-	var mainAgentModel models.ModelID
-	if userPrefs != nil {
-		pref, err := userPrefs.GetPreferredProvider(ctx)
-		if err == nil {
-			preferredProvider = pref
-		}
-		agentCfg, err := userPrefs.GetAgentConfig(ctx, preferences.AgentMain)
-		if err == nil {
-			mainAgentModel = agentCfg.Model
-		}
-	}
-	// Current user preferences logged
-
 	// Check if we already have a cached provider
 	cached, exists := a.sessionProviders.Load(sessionID)
 	if exists {
@@ -1492,24 +1430,21 @@ func (a *agent) getOrCreateSessionProvider(ctx context.Context, sessionID string
 		currentModel := cachedProvider.Model()
 		// Found cached provider
 
-		// Important: Check if the cached provider matches current preferences
+		// Check if the cached provider matches hardcoded defaults
 		isMatch := true
 
-		// Only check for preferred provider if it's actually set
-		if preferredProvider != "" && currentModel.Provider != preferredProvider {
-			// Cached provider does not match current preferred provider
+		// Check provider matches default
+		if currentModel.Provider != constants.DefaultProvider {
 			isMatch = false
 		}
 
-		// Only check for model match if using main agent (sub agents might use different models)
-		if a.agentName == config.AgentMain && mainAgentModel != "" && currentModel.ID != mainAgentModel {
-			// Cached model does not match current preferred model
+		// Check model matches default for main agent
+		if a.agentName == config.AgentMain && currentModel.ID != constants.DefaultMainModel {
 			isMatch = false
 		}
 
-		// If cache doesn't match current preferences, don't use it
+		// If cache doesn't match defaults, don't use it
 		if !isMatch {
-			// Discarding outdated cached provider due to preference mismatch
 			// Remove the outdated provider from cache
 			a.sessionProviders.Delete(sessionID)
 		} else {

@@ -2,7 +2,6 @@
 package config
 
 import (
-	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 	"mix/internal/database"
 	"mix/internal/llm/models"
 	"mix/internal/logging"
-	"mix/internal/preferences"
 )
 
 //go:embed all:prompts
@@ -104,9 +102,6 @@ var cfg *Config
 
 // Mutex to protect concurrent access to cfg
 var cfgMutex sync.RWMutex
-
-// Global user preferences service
-var userPreferencesService preferences.Service
 
 // Global API credentials service
 var apiCredentialsService *credentials.APICredentialsService
@@ -320,22 +315,6 @@ func ResetForTesting() {
 	cfg = nil
 }
 
-// InitUserPreferences initializes the user preferences service with database connection
-// This should be called after database connection is established
-func InitUserPreferences(dbConn *sql.DB) error {
-	cfgMutex.Lock()
-	defer cfgMutex.Unlock()
-
-	userPreferencesService = preferences.NewUserPreferencesService(dbConn)
-	return nil
-}
-
-// GetUserPreferences returns the user preferences service
-func GetUserPreferences() preferences.Service {
-	cfgMutex.RLock()
-	defer cfgMutex.RUnlock()
-	return userPreferencesService
-}
 
 // InitAPICredentials initializes the API credentials service with database connection
 // This should be called after database connection is established
@@ -360,35 +339,6 @@ func GetAPICredentials() *credentials.APICredentialsService {
 	return apiCredentialsService
 }
 
-// GetAgentFromDatabase returns agent configuration from database
-func GetAgentFromDatabase(ctx context.Context, agentName AgentName) (Agent, error) {
-	if userPreferencesService == nil {
-		return Agent{}, fmt.Errorf("user preferences service not initialized")
-	}
-
-	// Convert config agent name to preferences agent name
-	var prefAgentName preferences.AgentName
-	switch agentName {
-	case AgentMain:
-		prefAgentName = preferences.AgentMain
-	case AgentSub:
-		prefAgentName = preferences.AgentSub
-	default:
-		return Agent{}, fmt.Errorf("unknown agent name: %s", agentName)
-	}
-
-	prefAgent, err := userPreferencesService.GetAgentConfig(ctx, prefAgentName)
-	if err != nil {
-		return Agent{}, err
-	}
-
-	// Convert preferences agent to config agent
-	return Agent{
-		Model:           prefAgent.Model,
-		MaxTokens:       prefAgent.MaxTokens,
-		ReasoningEffort: prefAgent.ReasoningEffort,
-	}, nil
-}
 
 // GetEmbeddedPrompts returns the embedded prompts filesystem
 func GetEmbeddedPrompts() embed.FS {
