@@ -37,9 +37,17 @@ echo "🔍 Running Go tests..."
 # Navigate to the Go backend directory
 cd "$(dirname "$0")/../../mix_agent"
 
+# Load environment variables
+source ../scripts/load_env.sh 2>/dev/null || true
+
+# Validate VITE_BACKEND_URL is set
+if [ -z "$VITE_BACKEND_URL" ]; then
+    echo "Error: VITE_BACKEND_URL environment variable is required"
+    exit 1
+fi
+
 # Set environment variables for tests
 export TEST_MODE=true
-export VITE_BACKEND_URL=http://localhost:8088
 
 # Determine test command based on options
 if [ "$UNIT_ONLY" = true ]; then

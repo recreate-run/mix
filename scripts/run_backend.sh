@@ -7,8 +7,25 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Backend port
-BACKEND_PORT=8088
+# Load environment variables first to get VITE_BACKEND_URL
+source ./scripts/load_env.sh || {
+    echo -e "${RED}Error: Failed to load environment variables.${NC}"
+    echo -e "${YELLOW}Make sure scripts/load_env.sh exists and is executable${NC}"
+    exit 1
+}
+
+# Validate VITE_BACKEND_URL is set
+if [ -z "$VITE_BACKEND_URL" ]; then
+    echo -e "${RED}Error: VITE_BACKEND_URL environment variable is required${NC}"
+    exit 1
+fi
+
+# Extract port from VITE_BACKEND_URL
+BACKEND_PORT=$(echo "$VITE_BACKEND_URL" | sed -E 's|.*:([0-9]+).*|\1|')
+if [ -z "$BACKEND_PORT" ]; then
+    echo -e "${RED}Error: Could not extract port from VITE_BACKEND_URL: $VITE_BACKEND_URL${NC}"
+    exit 1
+fi
 
 # Check if port is already in use
 if lsof -i :$BACKEND_PORT -sTCP:LISTEN > /dev/null 2>&1; then
@@ -25,14 +42,6 @@ fi
 mkdir -p ./mix_agent/build/debug || {
     echo -e "${RED}Error: Failed to create build directory.${NC}"
     echo -e "${YELLOW}Make sure you have write permissions to ./mix_agent/build/debug${NC}"
-    exit 1
-}
-
-# Load environment variables
-echo -e "${BOLD}Loading environment variables...${NC}"
-source ./scripts/load_env.sh || {
-    echo -e "${RED}Error: Failed to load environment variables.${NC}"
-    echo -e "${YELLOW}Make sure scripts/load_env.sh exists and is executable${NC}"
     exit 1
 }
 

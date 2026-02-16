@@ -139,7 +139,7 @@ and content creation workflows.`,
 			}
 
 			// Set up signal handling for graceful shutdown during hot reload
-			// This ensures the HTTP server releases port 8088 before the new process starts
+			// This ensures the HTTP server releases the port before the new process starts
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 

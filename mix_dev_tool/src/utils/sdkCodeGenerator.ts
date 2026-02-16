@@ -19,7 +19,7 @@ export function generateTypeScriptCode({
 	sessionId,
 	message,
 	attachments = [],
-	serverUrl = "http://localhost:8088",
+	serverUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:YOUR_PORT",
 }: CodeGeneratorParams): string {
 	const hasAttachments = attachments.length > 0;
 
@@ -88,7 +88,7 @@ export function generatePythonCode({
 	sessionId,
 	message,
 	attachments = [],
-	serverUrl = "http://localhost:8088",
+	serverUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:YOUR_PORT",
 }: CodeGeneratorParams): string {
 	const hasAttachments = attachments.length > 0;
 

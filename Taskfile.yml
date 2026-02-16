@@ -5,7 +5,15 @@ vars:
   BUILD_DIR: mix_agent/build
   MAIN_PATH: ./mix_agent/main.go
   SDK_OUTPUT_DIR: ../mix-typescript-sdk
-  OPENAPI_ENDPOINT: http://localhost:8088/doc
+  OPENAPI_ENDPOINT:
+    sh: |
+      if [ -f .env ]; then
+        backend_url=$(grep '^VITE_BACKEND_URL=' .env | cut -d'=' -f2)
+        echo "${backend_url}/doc"
+      else
+        echo "ERROR: .env file not found"
+        exit 1
+      fi
   VERSION:
     sh: git tag --sort=committerdate | grep -E '[0-9]' | tail -1 2>/dev/null || echo "dev"
   BUILD_TIME:

@@ -79,7 +79,7 @@ if [ -f "mix_dev_tool/.env" ]; then
   echo -e "${GREEN}✓ Frontend .env file exists${NC}"
 else
   echo -e "${GREEN}ℹ No frontend .env file found${NC}"
-  echo -e "   The frontend will use the default backend URL: http://localhost:8088"
+  echo -e "   The frontend will use VITE_BACKEND_URL from root .env file"
   echo -e "   This is the expected behavior for fresh installations."
 fi
 

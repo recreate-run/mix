@@ -9,10 +9,19 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Default backend URL
-DEFAULT_BACKEND_URL="http://localhost:8088"
-# Backend port
-BACKEND_PORT=8088
+# Load environment to get VITE_BACKEND_URL
+source ./scripts/load_env.sh 2>/dev/null || true
+
+# Validate VITE_BACKEND_URL is set
+if [ -z "$VITE_BACKEND_URL" ]; then
+    echo -e "${RED}Error: VITE_BACKEND_URL environment variable is required${NC}"
+    exit 1
+fi
+
+# Use VITE_BACKEND_URL from environment
+DEFAULT_BACKEND_URL="$VITE_BACKEND_URL"
+# Extract port from VITE_BACKEND_URL
+BACKEND_PORT=$(echo "$VITE_BACKEND_URL" | sed -E 's|.*:([0-9]+).*|\1|')
 # Frontend port
 FRONTEND_PORT=1420
 # Maximum retry attempts

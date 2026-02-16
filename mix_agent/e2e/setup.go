@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	DefaultServerURL = "http://localhost:8088"
-	DefaultTimeout   = 60 * time.Second
+	DefaultTimeout = 60 * time.Second
 )
 
 // Setup performs common E2E test setup and skips tests if requirements aren't met
@@ -44,10 +43,15 @@ func Setup(t *testing.T) {
 	t.Logf("✓ E2E setup complete - server running at %s", serverURL)
 }
 
-// GetServerURL returns the E2E server URL from environment or default
+// GetServerURL returns the E2E server URL from environment
+// Checks E2E_SERVER_URL first, then falls back to VITE_BACKEND_URL
+// Panics if neither is set
 func GetServerURL() string {
 	if url := os.Getenv("E2E_SERVER_URL"); url != "" {
 		return url
 	}
-	return DefaultServerURL
+	if url := os.Getenv("VITE_BACKEND_URL"); url != "" {
+		return url
+	}
+	panic("E2E_SERVER_URL or VITE_BACKEND_URL environment variable is required")
 }

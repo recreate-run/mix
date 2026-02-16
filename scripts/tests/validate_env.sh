@@ -78,7 +78,7 @@ ENV_ERRORS=0
 ENV_WARNINGS=0
 
 echo "Checking frontend environment variables..."
-check_variable "VITE_BACKEND_URL" "warning" "Backend URL for frontend API requests" "http://localhost:8088"
+check_variable "VITE_BACKEND_URL" "error" "Backend URL for frontend API requests (REQUIRED)"
 
 echo -e "\nSummary:"
 echo -e "--------"
