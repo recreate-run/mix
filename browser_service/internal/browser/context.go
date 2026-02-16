@@ -506,6 +506,15 @@ func (c *Context) ReadPage(ctx context.Context, interactiveOnly bool, tabID *str
 	// Batch extract attributes in parallel
 	attributesMap := tab.batchExtractAttributes(candidateBackendIDs)
 
+	// DEBUG: Log attribute extraction results
+	successCount := 0
+	for _, attrs := range attributesMap {
+		if attrs != nil && len(attrs) > 0 {
+			successCount++
+		}
+	}
+	fmt.Printf("[DEBUG ReadPage] Extracted attributes for %d/%d elements\n", successCount, len(candidateBackendIDs))
+
 	// Second pass: build final elements with attributes
 	frameIDStr := string(tab.page.FrameID)
 	elements := make([]protocol.RawAccessibilityNode, 0, len(candidates))
@@ -513,6 +522,11 @@ func (c *Context) ReadPage(ctx context.Context, interactiveOnly bool, tabID *str
 	for i, candidate := range candidates {
 		backendID := candidateBackendIDs[i]
 		attrs := attributesMap[backendID] // nil if extraction failed
+
+		// DEBUG: Log specific elements with href
+		if attrs != nil && attrs["href"] != "" {
+			fmt.Printf("[DEBUG ReadPage] Element %d (role=%s) has href=%s\n", backendID, candidate.role, attrs["href"])
+		}
 
 		elem := protocol.RawAccessibilityNode{
 			Role:       candidate.role,
@@ -557,26 +571,26 @@ func (t *tabContext) extractElementAttributes(backendID int64) (map[string]strin
 
 	// Step 2: Execute JavaScript to extract common attributes
 	// Priority: href, id, type, placeholder, name, aria-label
-	jsExtract := `(function() {
-		const elem = this;
+	// IMPORTANT: Must be a function declaration (NOT IIFE) for RuntimeCallFunctionOn
+	jsExtract := `function() {
 		const attrs = {};
 
 		// Extract priority attributes via getAttribute (works for all)
 		const priorityAttrs = ['href', 'id', 'type', 'placeholder', 'name', 'aria-label'];
 		priorityAttrs.forEach(attr => {
-			const val = elem.getAttribute(attr);
+			const val = this.getAttribute(attr);
 			if (val !== null && val !== '') {
 				attrs[attr] = val;
 			}
 		});
 
 		// Special cases: properties that aren't attributes
-		if (elem.value !== undefined && elem.value !== '') {
-			attrs['value'] = elem.value;
+		if (this.value !== undefined && this.value !== '') {
+			attrs['value'] = this.value;
 		}
 
 		return attrs;
-	})()`
+	}`
 
 	// Step 3: Call JavaScript on the element
 	result, err := proto.RuntimeCallFunctionOn{
@@ -586,6 +600,11 @@ func (t *tabContext) extractElementAttributes(backendID int64) (map[string]strin
 	}.Call(t.page)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check for JavaScript exceptions
+	if result.ExceptionDetails != nil {
+		return nil, fmt.Errorf("JS exception: %s", result.ExceptionDetails.Text)
 	}
 
 	// Step 4: Parse JSON result
@@ -1607,13 +1626,14 @@ func (c *Context) UploadFile(ctx context.Context, index int, filePaths []string,
 	}
 
 	// Verify it's a file input using JavaScript
-	jsCheck := fmt.Sprintf(`(function() {
-		const elem = arguments[0];
+	// IMPORTANT: Must be a function declaration (NOT IIFE) for RuntimeCallFunctionOn
+	// The element is bound to 'this', not 'arguments[0]'
+	jsCheck := `function() {
 		return {
-			tagName: elem.tagName.toLowerCase(),
-			type: elem.type || ''
+			tagName: this.tagName.toLowerCase(),
+			type: this.type || ''
 		};
-	})`)
+	}`
 
 	checkResult, err := proto.RuntimeCallFunctionOn{
 		ObjectID:  nodeResult.Object.ObjectID,

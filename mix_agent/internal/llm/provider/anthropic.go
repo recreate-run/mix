@@ -303,7 +303,6 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		// Check for explicit budget override FIRST
 		if a.options.explicitThinkingBudget != nil {
 			tokenBudget = *a.options.explicitThinkingBudget
-			logging.Debug("Using explicit thinking budget", "tokenBudget", tokenBudget)
 		} else if messageContent != "" {
 			// Fall back to keyword detection
 			tokenBudget = a.options.thinkingBudget(messageContent)
@@ -329,17 +328,13 @@ func (a *anthropicClient) preparedMessages(messages []anthropic.MessageParam, to
 		case tokenBudget > 0:
 			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(int64(tokenBudget))
 			temperature = anthropic.Float(1)
-			logging.Debug("Thinking enabled for Anthropic API", "tokenBudget", tokenBudget)
 		case hasThinkingInHistory:
 			// Enable with minimal budget for API compatibility
 			thinkingParam = anthropic.ThinkingConfigParamOfEnabled(1024)
 			temperature = anthropic.Float(1)
-			logging.Debug("Thinking enabled for API compatibility", "tokenBudget", 1024)
 		default:
 			// No thinking enabled
 		}
-	} else {
-		logging.Debug("No thinking budget function - thinking disabled")
 	}
 
 	// Determine system message based on authentication method

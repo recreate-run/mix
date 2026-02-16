@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon.in : laptops</title>
+    <style>
+        body {
+            font-family: "Amazon Ember", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f3f3;
+        }
+        .header {
+            background-color: #131921;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff9900;
+        }
+        .search-bar {
+            flex: 1;
+            display: flex;
+            max-width: 800px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px 0 0 4px;
+        }
+        .search-bar button {
+            background-color: #febd69;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .results-header {
+            background-color: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .results-count {
+            font-size: 14px;
+            color: #565959;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .product-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            transition: box-shadow 0.2s;
+        }
+        .product-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .product-image {
+            width: 100%;
+            height: 200px;
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .product-link {
+            text-decoration: none;
+            color: #007185;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .product-link:hover {
+            color: #C7511F;
+            text-decoration: underline;
+        }
+        .product-title {
+            font-size: 16px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .product-rating {
+            color: #FFA41C;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .product-price {
+            font-size: 24px;
+            color: #B12704;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        .product-price-currency {
+            font-size: 14px;
+            color: #565959;
+        }
+        .prime-badge {
+            background-color: #00a8e1;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">amazon.in</div>
+        <div class="search-bar">
+            <input type="text" value="laptops" placeholder="Search Amazon.in">
+            <button>🔍</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="results-header">
+            <div class="results-count">
+                1-16 of over 20,000 results for <strong>"laptops"</strong>
+            </div>
+        </div>
+
+        <div class="product-grid">
+            <!-- Product 1 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0CX23V18H" class="product-link">
+                    <div class="product-title">HP Laptop 15s, 12th Gen Intel Core i3-1215U, 15.6-inch (39.6 cm), FHD, 8GB DDR4, 512GB SSD, Intel UHD Graphics, Thin & Light, Dual Speakers (Win 11, MSO 2021, Silver, 1.69 kg), eq2144AU</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.2 (4,523)</div>
+                <div class="product-price">₹35,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹51,335</s></div>
+                <div class="prime-badge">Prime</div>
+            </div>
+
+            <!-- Product 2 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0D4JMLQR9" class="product-link">
+                    <div class="product-title">Dell 15 Laptop, Intel Core i3-1215U Processor/8GB/512GB SSD/Intel UHD Graphics/15.6" (39.62cm) FHD/Windows 11 + MSO'21/15 Month McAfee/Spill-Resistant Keyboard/Silver/1.48kg</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.3 (8,912)</div>
+                <div class="product-price">₹32,490</div>
+                <div class="product-price-currency">M.R.P.: <s>₹48,566</s></div>
+                <div class="prime-badge">Prime</div>
+            </div>
+
+            <!-- Product 3 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0CSVXJ7KL" class="product-link">
+                    <div class="product-title">Lenovo IdeaPad Slim 3 Intel Core i5-12450H 15.6" (39.62cm) FHD IPS 300 Nits Thin & Light Laptop (16GB/512GB SSD/Windows 11/MSO 21/1Yr ADP Free/3 Mon Game Pass/Arctic Grey/1.62Kg), 83EM008GIN</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.1 (2,341)</div>
+                <div class="product-price">₹44,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹68,590</s></div>
+                <div class="prime-badge">Prime</div>
+            </div>
+
+            <!-- Product 4 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0DGJ1HWYG" class="product-link">
+                    <div class="product-title">ASUS Vivobook 16, Intel Core i5-12500H 12th Gen, 16" (40.64 cm) FHD+, Thin and Light Laptop (16GB RAM/512GB SSD/Iris Xe Graphics/Windows 11/Office 2021/Backlit KB/Silver/1.88 kg), X1605VAB-MB541WS</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.0 (1,234)</div>
+                <div class="product-price">₹51,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹71,990</s></div>
+            </div>
+
+            <!-- Product 5 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0D91KWLC8" class="product-link">
+                    <div class="product-title">Acer Aspire Lite 12th Gen Intel Core i5-1235U Premium Metal Laptop (Windows 11 Home/16GB RAM/512GB SSD/Intel Iris Xe Graphics) AL15-52, 39.62cm (15.6") Full HD Display, Metal Body, Steel Gray, 1.59 KG</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.2 (5,678)</div>
+                <div class="product-price">₹39,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹59,999</s></div>
+                <div class="prime-badge">Prime</div>
+            </div>
+
+            <!-- Product 6 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/gp/product/B0CQ55W4PJ" class="product-link">
+                    <div class="product-title">MSI Modern 14, Intel 12th Gen. i5-1235U, 35.5cm FHD 60Hz Laptop(16GB/512GB NVMe SSD/Windows 11 Home/Intel Iris Xe Graphics/Classic Black/1.4Kg), C12M-427IN</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.4 (892)</div>
+                <div class="product-price">₹46,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹67,990</s></div>
+            </div>
+
+            <!-- Product 7 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0DCZDV1BB" class="product-link">
+                    <div class="product-title">HP Victus Gaming Laptop, AMD Ryzen 5 5600H, 15.6-inch (39.6 cm), FHD, IPS, 144Hz, 8GB DDR4, 512GB SSD, NVIDIA GeForce GTX 1650 4GB Graphics, Backlit KB, B&O (Win 11, Blue, 2.37 kg), fa0666AX</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.3 (3,421)</div>
+                <div class="product-price">₹54,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹83,626</s></div>
+                <div class="prime-badge">Prime</div>
+            </div>
+
+            <!-- Product 8 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0CYZN9MR7" class="product-link">
+                    <div class="product-title">HONOR MagicBook X16 (2024), 12th Gen Intel Core i5-12450H, 16-inch (40.64 cm) FHD IPS Anti-Glare Thin and Light Laptop (16GB/512GB PCIe SSD/Windows 11/Fingerprint Login/Metal Body/1.68Kg), Gray</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.1 (678)</div>
+                <div class="product-price">₹42,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹62,990</s></div>
+            </div>
+
+            <!-- Product 9 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0DFD8MFQ3" class="product-link">
+                    <div class="product-title">Dell G15 5530 Gaming Laptop, Intel Core i5-13450HX Processor, 16GB, 1TB SSD, NVIDIA GeForce RTX 3050, 15.6" (39.62cm) FHD 120Hz, Backlit KB + G-Key, Win 11 + MSO'21, 15 Mo McAfee, Dark Grey, 2.65kg</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.5 (1,890)</div>
+                <div class="product-price">₹69,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹1,03,872</s></div>
+                <div class="prime-badge">Prime</div>
+            </div>
+
+            <!-- Product 10 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/gp/product/B0D6G7TM1P" class="product-link">
+                    <div class="product-title">Lenovo LOQ 12th Gen Intel Core i5-12450HX 15.6" (39.62cm) FHD IPS 300Nits 144Hz Gaming Laptop (16GB/512GB SSD/Win 11/NVIDIA RTX 2050 4GB/Alexa Built-in/3 Mon Game Pass/Storm Grey/2.4Kg), 83GS006BIN</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.2 (4,567)</div>
+                <div class="product-price">₹59,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹96,890</s></div>
+            </div>
+
+            <!-- Product 11 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0DGTTXS8F" class="product-link">
+                    <div class="product-title">ASUS TUF Gaming F15, 12th Gen Intel Core i5-12500H, 15.6" (39.62 cm) FHD 144Hz, Gaming Laptop (16GB RAM/512GB SSD/4GB NVIDIA GeForce RTX 2050/Windows 11/RGB Backlit/Black/2.2 kg), FX507ZC4-HN129WS</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.4 (2,123)</div>
+                <div class="product-price">₹61,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹92,990</s></div>
+                <div class="prime-badge">Prime</div>
+            </div>
+
+            <!-- Product 12 -->
+            <div class="product-card">
+                <div class="product-image">📷 Laptop Image</div>
+                <a href="/dp/B0CW1SDXWK" class="product-link">
+                    <div class="product-title">Acer ALG 12th Gen Intel Core i5-12450H with RTX 2050 Graphics 4 GB VRAM Premium Gaming Laptop (Windows 11 Home/16 GB RAM/512 GB SSD) ALG, 40cm (15.6") FHD Display, WiFi 6, 2.1 Kg</div>
+                </a>
+                <div class="product-rating">★★★★☆ 4.0 (987)</div>
+                <div class="product-price">₹56,990</div>
+                <div class="product-price-currency">M.R.P.: <s>₹84,999</s></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

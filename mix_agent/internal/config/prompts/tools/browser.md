@@ -71,6 +71,10 @@ Elements are referenced by their ref ID (e.g., f0_ref_1, f1_ref_2). The 'f' pref
 - f0_ref_* = main frame
 - f1_ref_*, f2_ref_* = iframes (numbered by depth-first traversal order)
 
+Attributes:
+
+Elements include HTML attributes when available: href (link URLs), id, type, placeholder, name, aria-label. Example: `- link "Product" [ref=f0_ref_25] (x=400,y=200) href="/dp/B08ABC123"` shows a link with its URL in the href attribute.
+
 Parameters:
 
 - `action`: "read_page"
