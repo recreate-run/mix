@@ -3,6 +3,8 @@ package browser
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,11 +19,40 @@ type ConnectionManager struct {
 }
 
 // NewConnectionManager creates a new connection manager
+// Converts HTTP URL to WebSocket URL (http:// -> ws://, https:// -> wss://)
+// Appends /ws path if no path is present
 func NewConnectionManager(endpoint string) *ConnectionManager {
+	// Convert HTTP URL to WebSocket URL
+	wsEndpoint := convertToWebSocketURL(endpoint)
+
 	return &ConnectionManager{
 		connections: make(map[string]BrowserClient),
-		endpoint:    endpoint,
+		endpoint:    wsEndpoint,
 	}
+}
+
+// convertToWebSocketURL converts HTTP URL to WebSocket URL
+// http://localhost:8091 -> ws://localhost:8091/ws
+// https://example.com -> wss://example.com/ws
+func convertToWebSocketURL(httpURL string) string {
+	// Replace http:// with ws:// and https:// with wss://
+	wsURL := strings.Replace(httpURL, "http://", "ws://", 1)
+	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
+
+	// Parse URL to check if path exists
+	parsedURL, err := url.Parse(wsURL)
+	if err != nil {
+		// If parsing fails, just return the converted URL as-is
+		return wsURL
+	}
+
+	// Append /ws if no path or path is just /
+	if parsedURL.Path == "" || parsedURL.Path == "/" {
+		parsedURL.Path = "/ws"
+		return parsedURL.String()
+	}
+
+	return wsURL
 }
 
 // GetOrCreate returns an existing connection or creates a new one for the session

@@ -3,18 +3,56 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
+	"github.com/joho/godotenv"
 	"github.com/sarathmenon/browser-service/internal/constants"
 	"github.com/sarathmenon/browser-service/internal/server"
 )
 
+// extractPortFromURL extracts the port from a URL string
+// Returns error if URL is invalid or has no port
+func extractPortFromURL(urlStr string) (string, error) {
+	if urlStr == "" {
+		return "", fmt.Errorf("URL is empty")
+	}
+
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	port := parsedURL.Port()
+	if port == "" {
+		return "", fmt.Errorf("URL has no port: %s", urlStr)
+	}
+
+	return port, nil
+}
+
 func main() {
-	port := flag.String("port", constants.DefaultPort, "WebSocket server port")
+	// Load .env file from project root (ignore error if file doesn't exist)
+	// Try current directory first, then parent directory
+	if err := godotenv.Load(); err != nil {
+		_ = godotenv.Load("../.env")
+	}
+
+	// Get BROWSER_SERVICE_URL from environment variable (required, no default)
+	browserServiceURL := os.Getenv("BROWSER_SERVICE_URL")
+
+	// Extract port from URL
+	portFromEnv, err := extractPortFromURL(browserServiceURL)
+	if err != nil {
+		log.Fatalf("Invalid BROWSER_SERVICE_URL: %v", err)
+	}
+
+	port := flag.String("port", portFromEnv, "WebSocket server port")
 	headless := flag.Bool("headless", false, "Run browser in headless mode")
 	stealth := flag.Bool("stealth", false, "Enable stealth mode (disable automation detection)")
 	windowWidth := flag.Int("window-width", 1280, "Browser window width")

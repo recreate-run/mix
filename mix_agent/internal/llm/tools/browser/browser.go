@@ -116,6 +116,9 @@ func (b *browserTool) getClient(ctx context.Context, sessionID string) (BrowserC
 	// Route to appropriate client based on browser mode
 	switch browserMode {
 	case browserpkg.ModeLocalBrowserService:
+		if b.connectionManager == nil {
+			return nil, fmt.Errorf("BROWSER_SERVICE_URL environment variable is required for local-browser-service mode (format: http://localhost:PORT)")
+		}
 		return b.connectionManager.GetOrCreate(ctx, sessionID)
 
 	case browserpkg.ModeRemoteCDP:

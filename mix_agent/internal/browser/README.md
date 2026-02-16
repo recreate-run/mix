@@ -45,7 +45,8 @@ Direct CDP connection to cloud browser providers. Requires `CDPURL` env var. Not
 
 ```bash
 # Browser service URL (required for local-browser-service mode)
-export BROWSER_SERVICE_URL="ws://localhost:9222"
+# Use HTTP URL - automatically converted to WebSocket URL internally
+export BROWSER_SERVICE_URL="http://localhost:8091"
 ```
 
 Sessions specify their browser mode when created via API or CLI `--browser-mode` flag (defaults to `local-browser-service`).
