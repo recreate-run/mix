@@ -34,10 +34,8 @@ type App struct {
 	StorageProvider storage.Provider
 	BaseURL         string // Base URL for constructing file URLs
 
-	CoderAgent        agent.Service
-	TunnelRegistry    interface{} // *http.TunnelRegistry (avoid circular import)
-	BrowserMode       string      // "electron-embedded-browser", "local-browser-service", or "remote-cdp-websocket"
-	BrowserServiceURL string      // URL for browser-service
+	CoderAgent     agent.Service
+	TunnelRegistry interface{} // *http.TunnelRegistry (avoid circular import)
 }
 
 func New(ctx context.Context, conn *sql.DB) (*App, error) {
@@ -94,30 +92,19 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 	// Wrap message service with tracking
 	messages := message.NewTrackingService(baseMessageService, analyticsService)
 
-	// Get browser mode from environment variable
-	browserMode := os.Getenv("BROWSER_MODE")
-	if browserMode == "" {
-		browserMode = browserpkg.ModeLocalBrowserService // Default to local-browser-service mode
-	}
-
-	// Get browser service URL from environment
+	// Get browser service URL from environment (required for local-browser-service mode)
 	browserServiceURL := os.Getenv("BROWSER_SERVICE_URL")
-	if browserServiceURL == "" && browserMode == browserpkg.ModeLocalBrowserService {
-		return nil, fmt.Errorf("BROWSER_SERVICE_URL environment variable is required for local-browser-service mode")
-	}
 
 	app := &App{
-		Sessions:          sessions,
-		Messages:          messages,
-		History:           files,
-		Permissions:       permission.NewPermissionService(sessions, storageConfig),
-		Notifications:     notification.NewService(sessions),
-		Analytics:         analyticsService,
-		StorageConfig:     storageConfig,
-		StorageProvider:   storageProvider,
-		BaseURL:           cfg.BaseURL,
-		BrowserMode:       browserMode,
-		BrowserServiceURL: browserServiceURL,
+		Sessions:        sessions,
+		Messages:        messages,
+		History:         files,
+		Permissions:     permission.NewPermissionService(sessions, storageConfig),
+		Notifications:   notification.NewService(sessions),
+		Analytics:       analyticsService,
+		StorageConfig:   storageConfig,
+		StorageProvider: storageProvider,
+		BaseURL:         cfg.BaseURL,
 	}
 
 	// Create MCP manager for this agent
@@ -125,14 +112,12 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 
 	// Create browser connection manager (for local-browser-service mode)
 	var browserConnectionManager interface{}
-	if browserMode == browserpkg.ModeLocalBrowserService {
-		// Import will be needed for this - we'll add it below
-		// For now, create it as interface{} to avoid circular import
+	if browserServiceURL != "" {
 		browserConnectionManager = createBrowserConnectionManager(browserServiceURL)
 	}
 
 	// Create browser client factory with connection manager
-	browserClientFactory := app.createBrowserClientFactory(browserConnectionManager)
+	browserClientFactory := app.createBrowserClientFactory(browserConnectionManager, browserServiceURL)
 
 	app.CoderAgent, err = agent.NewAgent(
 		config.AgentMain,
@@ -145,8 +130,8 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 			app.Messages,
 			app.History,
 			mcpManager,
-			app.BrowserMode,
-			app.BrowserServiceURL,
+			browserpkg.ModeLocalBrowserService, // Default fallback for legacy sessions without browser mode
+			browserServiceURL,
 			browserClientFactory,
 			browserConnectionManager,
 			func() interface{} { return app.TunnelRegistry }, // Closure that looks up current value
@@ -164,11 +149,12 @@ func New(ctx context.Context, conn *sql.DB) (*App, error) {
 }
 
 // createBrowserClientFactory creates a factory function for browser clients
-func (app *App) createBrowserClientFactory(connectionManager interface{}) func(sessionID string) (browserpkg.Client, error) {
+func (app *App) createBrowserClientFactory(connectionManager interface{}, browserServiceURL string) func(sessionID string) (browserpkg.Client, error) {
 	return func(sessionID string) (browserpkg.Client, error) {
+		// Session's browser mode is used by NewClient - no need to pass default here
 		factoryConfig := browserpkg.FactoryConfig{
-			Mode:              app.BrowserMode,
-			BrowserServiceURL: app.BrowserServiceURL,
+			Mode:              "", // Will be set from session by NewClient
+			BrowserServiceURL: browserServiceURL,
 			TunnelRegistry:    app.TunnelRegistry,
 			ConnectionManager: connectionManager,
 		}
@@ -185,7 +171,7 @@ func createBrowserConnectionManager(serviceURL string) interface{} {
 // Removed theme initialization for embedded binary
 
 // RunNonInteractive handles the execution flow when a prompt is provided via CLI flag.
-func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string, quiet bool) error {
+func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat, browserMode, cdpURL string, quiet bool) error {
 	// Processing message for non-interactive mode
 	if !quiet {
 		fmt.Println("Processing...")
@@ -194,13 +180,7 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string
 	titlePrefix := "Non-interactive: "
 	title := session.TruncateTitle(titlePrefix + prompt)
 
-	// Only pass cdpUrl if using remote-cdp-websocket mode
-	cdpUrl := ""
-	if a.BrowserMode == browserpkg.ModeRemoteCDP {
-		cdpUrl = a.BrowserServiceURL
-	}
-
-	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "", a.BrowserMode, cdpUrl)
+	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "", browserMode, cdpURL)
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}

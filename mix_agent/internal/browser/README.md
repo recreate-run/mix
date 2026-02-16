@@ -1,6 +1,6 @@
 # Browser Providers
 
-Mix supports three browser provider modes. Set via `BROWSER_MODE` env var or per-session override.
+Mix supports three browser provider modes. Each session specifies its browser mode when created.
 
 ## 1. Electron Embedded Browser
 
@@ -44,11 +44,8 @@ Direct CDP connection to cloud browser providers. Requires `CDPURL` env var. Not
 ## Configuration
 
 ```bash
-# Global default
-export BROWSER_MODE="local-browser-service"
-
-# Local service requires URL
+# Browser service URL (required for local-browser-service mode)
 export BROWSER_SERVICE_URL="ws://localhost:9222"
 ```
 
-Per-session override available via `Session.BrowserMode` field.
+Sessions specify their browser mode when created via API or CLI `--browser-mode` flag (defaults to `local-browser-service`).

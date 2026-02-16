@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"mix/internal/app"
+	"mix/internal/browser"
 	"mix/internal/config"
 	"mix/internal/constants"
 	"mix/internal/database"
@@ -66,6 +67,8 @@ and content creation workflows.`,
 		httpPort, _ := cmd.Flags().GetInt("http-port")
 		httpHost, _ := cmd.Flags().GetString("http-host")
 		skipPermissions, _ := cmd.Flags().GetBool("dangerously-skip-permissions")
+		browserMode, _ := cmd.Flags().GetString("browser-mode")
+		cdpURL, _ := cmd.Flags().GetString("cdp-url")
 
 		// Load .env file if it exists (ignore error if file doesn't exist)
 		_ = godotenv.Load()
@@ -163,7 +166,7 @@ and content creation workflows.`,
 
 		// CLI-only mode (when prompt provided)
 		if prompt != "" {
-			return appInstance.RunNonInteractive(ctx, prompt, outputFormat, quiet)
+			return appInstance.RunNonInteractive(ctx, prompt, outputFormat, browserMode, cdpURL, quiet)
 		}
 
 		// Default: Show help when no mode is specified
@@ -239,6 +242,10 @@ func init() {
 	rootCmd.Flags().StringP("output-format", "f", format.Text.String(),
 		"Output format for CLI-only mode (text, json)")
 	rootCmd.Flags().BoolP("quiet", "q", false, "Hide spinner in CLI-only mode")
+	rootCmd.Flags().String("browser-mode", browser.DefaultMode,
+		"Browser mode for CLI-only mode (electron-embedded-browser, local-browser-service, remote-cdp-websocket)")
+	rootCmd.Flags().String("cdp-url", "",
+		"CDP WebSocket URL (required when browser-mode is remote-cdp-websocket)")
 
 	// Data query flags
 	rootCmd.Flags().String("query", "", "Query structured data: sessions, tools, mcp, commands")

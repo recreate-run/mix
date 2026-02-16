@@ -51,6 +51,26 @@ Look at my portfolio in the data in @{file_info.url} and find the top winners an
 
 <https://github.com/user-attachments/assets/fcc37dc1-1c89-4b3c-97b9-abdf64be4c24>
 
+## Quickstart with CLI
+
+Run Mix directly from the command line without DevTools. Requires API keys in `.env` file.
+
+```bash
+# Build the binary
+make build
+
+# Run a prompt
+./mix_agent/build/mix -p "what is 2 + 2"
+
+# JSON output
+./mix_agent/build/mix -p "list 3 fruits" -f json
+
+# Quiet mode (hide spinner)
+./mix_agent/build/mix -q -p "hello world"
+```
+
+See `mix --help` for all CLI options.
+
 ## Quickstart with SDK
 
 Build AI workflows with the Python SDK. Uses [uv](https://docs.astral.sh/uv/) for fast package management.
