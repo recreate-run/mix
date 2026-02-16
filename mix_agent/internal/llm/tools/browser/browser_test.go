@@ -629,7 +629,7 @@ func TestDefaultScrollAmount(t *testing.T) {
 // Test new action constants
 func TestNewActionConstants(t *testing.T) {
 	assert.Equal(t, "scroll_to", ActionScrollTo)
-	assert.Equal(t, "action", ActionSequence)
+	assert.Equal(t, "sequence", ActionSequence)
 }
 
 // Test key action validation
@@ -735,7 +735,7 @@ func TestBrowserToolActionSequenceEmptyArray(t *testing.T) {
 	call := interfaces.ToolCall{
 		ID:    "call-1",
 		Name:  BrowserToolName,
-		Input: `{"action": "action", "actions": []}`,
+		Input: `{"action": "sequence", "actions": []}`,
 	}
 
 	response, err := tool.Run(ctx, call)
@@ -752,7 +752,7 @@ func TestBrowserToolActionSequenceValidActions(t *testing.T) {
 	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, "ws://localhost:8080", sessionConfig, "", mockClientFactory, nil, nil, "")
 
 	input := `{
-		"action": "action",
+		"action": "sequence",
 		"actions": [
 			{"type": "left_click", "index": 1},
 			{"type": "key", "key": "Enter"},
@@ -817,7 +817,7 @@ func TestBrowserParamsNewFieldsSerialization(t *testing.T) {
 					{Type: "type", Text: "hello{Enter}"},
 				},
 			},
-			expected: `{"action":"action","actions":[{"type":"left_click","index":1},{"type":"type","text":"hello{Enter}"}]}`,
+			expected: `{"action":"sequence","actions":[{"type":"left_click","index":1},{"type":"type","text":"hello{Enter}"}]}`,
 		},
 	}
 

@@ -30,7 +30,7 @@ const (
 	ActionTabClose          = "tab_close"
 	ActionWait              = "wait"
 	ActionScrollTo          = "scroll_to"
-	ActionSequence          = "action"
+	ActionSequence          = "sequence"
 	ActionAnalyzeScreenshot = "analyze_screenshot"
 )
 

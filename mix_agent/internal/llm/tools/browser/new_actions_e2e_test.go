@@ -103,7 +103,7 @@ func TestNewActionsE2E(t *testing.T) {
 			ID:   "sequence-1",
 			Name: BrowserToolName,
 			Input: `{
-				"action": "action",
+				"action": "sequence",
 				"actions": [
 					{"type": "left_click", "index": 0},
 					{"type": "type", "index": 0, "text": "test search"},
@@ -170,7 +170,7 @@ func TestActionBatchingValidation(t *testing.T) {
 		call := interfaces.ToolCall{
 			ID:    "call-1",
 			Name:  BrowserToolName,
-			Input: `{"action": "action", "actions": []}`,
+			Input: `{"action": "sequence", "actions": []}`,
 		}
 
 		response, err := tool.Run(ctx, call)
@@ -183,7 +183,7 @@ func TestActionBatchingValidation(t *testing.T) {
 		call := interfaces.ToolCall{
 			ID:    "call-2",
 			Name:  BrowserToolName,
-			Input: `{"action": "action", "actions": [{"index": 0}]}`,
+			Input: `{"action": "sequence", "actions": [{"index": 0}]}`,
 		}
 
 		response, err := tool.Run(ctx, call)
@@ -196,7 +196,7 @@ func TestActionBatchingValidation(t *testing.T) {
 		call := interfaces.ToolCall{
 			ID:    "call-3",
 			Name:  BrowserToolName,
-			Input: `{"action": "action", "actions": [{"type": "invalid_action"}]}`,
+			Input: `{"action": "sequence", "actions": [{"type": "invalid_action"}]}`,
 		}
 
 		response, err := tool.Run(ctx, call)
