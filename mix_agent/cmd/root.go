@@ -18,6 +18,7 @@ import (
 	"mix/internal/logging"
 	"mix/internal/version"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -65,6 +66,9 @@ and content creation workflows.`,
 		httpPort, _ := cmd.Flags().GetInt("http-port")
 		httpHost, _ := cmd.Flags().GetString("http-host")
 		skipPermissions, _ := cmd.Flags().GetBool("dangerously-skip-permissions")
+
+		// Load .env file if it exists (ignore error if file doesn't exist)
+		_ = godotenv.Load()
 
 		// Validate format option
 		if !format.IsValid(outputFormat) {

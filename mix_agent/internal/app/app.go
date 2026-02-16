@@ -194,7 +194,13 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string
 	titlePrefix := "Non-interactive: "
 	title := session.TruncateTitle(titlePrefix + prompt)
 
-	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "", browserpkg.ModeLocalBrowserService, "")
+	// Only pass cdpUrl if using remote-cdp-websocket mode
+	cdpUrl := ""
+	if a.BrowserMode == browserpkg.ModeRemoteCDP {
+		cdpUrl = a.BrowserServiceURL
+	}
+
+	sess, err := a.Sessions.Create(ctx, title, "", "default", session.SessionTypeMain, "", "", "", a.BrowserMode, cdpUrl)
 	if err != nil {
 		return fmt.Errorf("failed to create session for non-interactive mode: %w", err)
 	}
@@ -204,21 +210,37 @@ func (a *App) RunNonInteractive(ctx context.Context, prompt, outputFormat string
 		return fmt.Errorf("failed to start agent processing stream: %w", err)
 	}
 
-	result := <-done
-	if result.Error != nil {
-		if errors.Is(result.Error, context.Canceled) || errors.Is(result.Error, agent.ErrRequestCancelled) {
+	// Consume all events from the channel (like HTTP handler does)
+	var lastEvent agent.AgentEvent
+	for event := range done {
+		lastEvent = event
+		// Print streaming content in text mode (quiet flag only hides "Processing..." spinner)
+		if event.Content != "" && outputFormat == format.Text.String() {
+			fmt.Print(event.Content)
+		}
+	}
+
+	// Check for errors after all events are processed
+	if lastEvent.Error != nil {
+		if errors.Is(lastEvent.Error, context.Canceled) || errors.Is(lastEvent.Error, agent.ErrRequestCancelled) {
 			return nil
 		}
-		return fmt.Errorf("agent processing failed: %w", result.Error)
+		return fmt.Errorf("agent processing failed: %w", lastEvent.Error)
 	}
 
-	// Get the text content from the response
-	content := "No content available"
-	if result.Message.Content().String() != "" {
-		content = result.Message.Content().String()
+	// Print final newline after streaming content in text mode
+	if outputFormat == format.Text.String() {
+		fmt.Println()
 	}
 
-	fmt.Println(format.FormatOutput(content, outputFormat))
+	// For JSON output format, print the final message
+	if outputFormat != format.Text.String() {
+		content := "No content available"
+		if lastEvent.Message.Content().String() != "" {
+			content = lastEvent.Message.Content().String()
+		}
+		fmt.Println(format.FormatOutput(content, outputFormat))
+	}
 
 	return nil
 }
