@@ -177,6 +177,16 @@ func (w *CrashWatchdog) monitoringLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			// Keepalive: prevent Chrome from closing the idle CDP WebSocket connection
+			if _, err := w.browser.Version(); err != nil {
+				log.Printf("Health check: keepalive failed, connection lost: %v", err)
+				w.eventBus.Publish(ctx, events.BrowserErrorEvent{
+					ErrorType: "ConnectionLost",
+					Details:   map[string]any{"error": err.Error()},
+				})
+				log.Printf("Health check: ConnectionLost event published, recovery triggered")
+				continue
+			}
 			w.checkNetworkTimeouts(ctx)
 			w.checkBrowserHealth(ctx)
 		}
@@ -212,6 +222,10 @@ func (w *CrashWatchdog) checkBrowserHealth(ctx context.Context) {
 	pages, err := w.browser.Pages()
 	if err != nil {
 		log.Printf("Health check: failed to get pages: %v", err)
+		w.eventBus.Publish(ctx, events.BrowserErrorEvent{
+			ErrorType: "ConnectionLost",
+			Details:   map[string]any{"error": err.Error()},
+		})
 		return
 	}
 

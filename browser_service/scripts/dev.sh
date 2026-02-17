@@ -21,9 +21,7 @@ echo "$(date +"%H:%M:%S") BROWSER-SERVICE DEV SERVER STARTED" >> dev.log
 echo "=================================================================" >> dev.log
 
 echo "🔥 Starting browser-service with hot reload..."
-echo "   WebSocket server on ws://localhost:8081"
 echo "   Press Ctrl+C to stop"
-echo "   Logs: dev.log (use 'task tail-dev-log' to view)"
 echo ""
 
 # Logging function that adds timestamps and writes to both stdout and dev.log

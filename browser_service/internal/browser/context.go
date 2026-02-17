@@ -506,6 +506,20 @@ func (c *Context) ReadPage(ctx context.Context, interactiveOnly bool, tabID *str
 	// Batch extract attributes in parallel
 	attributesMap := tab.batchExtractAttributes(candidateBackendIDs)
 
+	// DEBUG: Log attribute extraction results
+	successCount := 0
+	hrefCount := 0
+	for id, attrs := range attributesMap {
+		if attrs != nil && len(attrs) > 0 {
+			successCount++
+			if attrs["href"] != "" {
+				hrefCount++
+				fmt.Printf("[DEBUG ReadPage] Element %d has href=%s\n", id, attrs["href"])
+			}
+		}
+	}
+	fmt.Printf("[DEBUG ReadPage] Extracted attributes for %d/%d elements, %d with href\n", successCount, len(candidateBackendIDs), hrefCount)
+
 	// Second pass: build final elements with attributes
 	frameIDStr := string(tab.page.FrameID)
 	elements := make([]protocol.RawAccessibilityNode, 0, len(candidates))
@@ -585,6 +599,7 @@ func (t *tabContext) extractElementAttributes(backendID int64) (map[string]strin
 		ReturnByValue:       true, // CRITICAL: Get actual JSON value, not object reference
 	}.Call(t.page)
 	if err != nil {
+		fmt.Printf("[DEBUG extractElementAttributes] JS execution failed for element %d: %v\n", backendID, err)
 		return nil, err
 	}
 
@@ -592,7 +607,15 @@ func (t *tabContext) extractElementAttributes(backendID int64) (map[string]strin
 	var attrs map[string]string
 	resultBytes, _ := json.Marshal(result.Result.Value)
 	if err := json.Unmarshal(resultBytes, &attrs); err != nil {
+		fmt.Printf("[DEBUG extractElementAttributes] Failed to parse result for element %d: %v\n", backendID, err)
 		return nil, err
+	}
+
+	// DEBUG: Log what we extracted
+	if href, ok := attrs["href"]; ok && href != "" {
+		fmt.Printf("[DEBUG extractElementAttributes] ✓ Element %d extracted href=%s (total attrs: %d)\n", backendID, href, len(attrs))
+	} else if len(attrs) > 0 {
+		fmt.Printf("[DEBUG extractElementAttributes] Element %d extracted %d attrs but no href\n", backendID, len(attrs))
 	}
 
 	return attrs, nil
