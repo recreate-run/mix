@@ -240,10 +240,7 @@ func NewAgentWithBroker(
 	var titleProvider interfaces.Provider
 	// Only generate titles for the main agent
 	if agentName == config.AgentMain {
-		titleProvider, err = createAgentProvider(config.AgentMain)
-		if err != nil {
-			return nil, err
-		}
+		titleProvider = agentProvider
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

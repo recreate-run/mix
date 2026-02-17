@@ -59,6 +59,8 @@ func retrieveAPIKey(options *providerClientOptions, providerName models.ModelPro
 	// Try environment variable fallback for providers that support it
 	var envVar string
 	switch providerName {
+	case models.ProviderAnthropic:
+		envVar = "ANTHROPIC_API_KEY"
 	case models.ProviderGemini:
 		envVar = "GEMINI_API_KEY"
 	case models.ProviderOpenRouter:
