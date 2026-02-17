@@ -185,7 +185,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			"action": map[string]any{
 				"type":        "string",
 				"description": "The action to perform",
-				"enum":        []string{ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
+				"enum":        []string{ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType, ActionScroll, ActionUpload, ActionFind, ActionClose, ActionRightClick, ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput, ActionGoBack, ActionGoForward, ActionTabCreate, ActionTabList, ActionTabSwitch, ActionTabClose, ActionWait, ActionScrollTo, ActionSequence, ActionAnalyzeScreenshot},
 			},
 			"description": map[string]any{
 				"type":        "string",
@@ -195,9 +195,10 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 				"type":        "string",
 				"description": "URL to navigate to (for open action or optional for tab_create). Supports http://, https://, and file:// schemes. For file:// URLs, path must be within session storage directory.",
 			},
-			"interactiveOnly": map[string]any{
-				"type":        "boolean",
-				"description": "Filter to interactive elements only (for read_page action, default: false)",
+			"filter": map[string]any{
+				"type":        "string",
+				"description": "Element filter for read_page action (default: all elements)",
+				"enum":        []string{FilterInteractive, FilterLinks, FilterButtons, FilterText, FilterHeadings},
 			},
 			"index": map[string]any{
 				"type":        "integer",
@@ -231,11 +232,6 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 				"type":        "string",
 				"description": "File path to upload (for upload action) - can be absolute or session-relative",
 			},
-			"strategy": map[string]any{
-				"type":        "string",
-				"description": "Text extraction strategy (for get_text action): auto, article, main, body",
-				"enum":        []string{"auto", "article", "main", "body"},
-			},
 			"query": map[string]any{
 				"type":        "string",
 				"description": "Keyword query to find elements (for find action)",
@@ -246,7 +242,7 @@ func (b *browserTool) Info() interfaces.ToolInfo {
 			},
 			"tabId": map[string]any{
 				"type":        "string",
-				"description": "Tab ID to operate on. Required for all tab-specific actions (open, screenshot, read_page, click, type, scroll, upload, get_text, find, form_input, go_back, go_forward, scroll_to, sequence, wait, tab_switch, tab_close). Not required for tab_create, tab_list, or close actions.",
+				"description": "Tab ID to operate on. Required for all tab-specific actions (open, screenshot, read_page, click, type, scroll, upload, find, form_input, go_back, go_forward, scroll_to, sequence, wait, tab_switch, tab_close). Not required for tab_create, tab_list, or close actions.",
 			},
 			"tab_id": map[string]any{
 				"type":        "string",
@@ -312,7 +308,7 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 	// Validate tabId requirement for tab-interaction actions
 	requiresTabID := []string{
 		ActionOpen /* ActionScreenshot, */, ActionReadPage, ActionLeftClick, ActionType,
-		ActionScroll, ActionUpload, ActionGetText, ActionFind, ActionRightClick,
+		ActionScroll, ActionUpload, ActionFind, ActionRightClick,
 		ActionDoubleClick, ActionTripleClick, ActionLeftClickDrag, ActionFormInput,
 		ActionGoBack, ActionGoForward, ActionScrollTo, ActionSequence, ActionWait,
 		ActionTabSwitch, ActionTabClose, ActionAnalyzeScreenshot,
@@ -345,8 +341,6 @@ func (b *browserTool) Run(ctx context.Context, call interfaces.ToolCall) (interf
 		return b.handleScroll(ctx, params, sessionID), nil
 	case ActionUpload:
 		return b.handleUpload(ctx, params, sessionID, sessionStorageDir), nil
-	case ActionGetText:
-		return b.handleGetText(ctx, params, sessionID), nil
 	case ActionFind:
 		return b.handleFind(ctx, params, sessionID), nil
 	case ActionClose:

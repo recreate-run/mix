@@ -1035,67 +1035,6 @@ func TestBrowserToolIntegrationFileUpload(t *testing.T) {
 	})
 }
 
-// Test text extraction feature with different strategies
-func TestBrowserToolIntegrationTextExtraction(t *testing.T) {
-	skipIfIntegrationTestsDisabled(t)
-
-	mockServer := startMockBrowserServer(t)
-	defer mockServer.Close()
-
-	mockPermissionService := &MockPermissionService{}
-	sessionConfig := session.DefaultConfig()
-	tool := NewBrowserTool(mockPermissionService, &MockSessionService{}, mockServer.wsURL, sessionConfig, "", mockClientFactory, nil, nil, "")
-
-	tempDir := t.TempDir()
-	ctx := createBrowserTestContext("test-session", "test-message", tempDir)
-
-	mockPermissionService.On("Request", mock.Anything).Return(true)
-
-	// Open page first
-	openCall := interfaces.ToolCall{
-		ID:    "call-open",
-		Name:  BrowserToolName,
-		Input: `{"action": "open", "url": "https://example.com"}`,
-	}
-	_, err := tool.Run(ctx, openCall)
-	require.NoError(t, err)
-
-	// Test different extraction strategies
-	strategies := []string{"auto", "article", "main", "body"}
-
-	for _, strategy := range strategies {
-		t.Run(strategy, func(t *testing.T) {
-			getTextCall := interfaces.ToolCall{
-				ID:    fmt.Sprintf("call-gettext-%s", strategy),
-				Name:  BrowserToolName,
-				Input: fmt.Sprintf(`{"action": "get_text", "strategy": %q}`, strategy),
-			}
-
-			response, err := tool.Run(ctx, getTextCall)
-			require.NoError(t, err)
-			assert.False(t, response.IsError)
-			assert.Contains(t, response.Content, "Extracted")
-			assert.Contains(t, response.Content, "characters from page")
-			assert.Contains(t, response.Content, "=== Page Text ===")
-			assert.Contains(t, response.Content, "This is extracted text")
-		})
-	}
-
-	// Test default strategy (should default to auto)
-	t.Run("default strategy", func(t *testing.T) {
-		getTextCall := interfaces.ToolCall{
-			ID:    "call-gettext-default",
-			Name:  BrowserToolName,
-			Input: `{"action": "get_text"}`,
-		}
-
-		response, err := tool.Run(ctx, getTextCall)
-		require.NoError(t, err)
-		assert.False(t, response.IsError)
-		assert.Contains(t, response.Content, "Extracted")
-	})
-}
-
 // Test DOM search feature
 func TestBrowserToolIntegrationDOMSearch(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
@@ -1332,7 +1271,7 @@ func TestReadPageAttributeFormatting(t *testing.T) {
 	call := interfaces.ToolCall{
 		ID:    "call-readpage",
 		Name:  BrowserToolName,
-		Input: `{"action": "read_page", "interactiveOnly": true}`,
+		Input: `{"action": "read_page", "filter": "interactive"}`,
 	}
 
 	response, err := tool.Run(ctx, call)

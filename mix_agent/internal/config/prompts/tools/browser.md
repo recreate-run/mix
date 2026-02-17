@@ -53,10 +53,14 @@ Use Cases:
 - Discover what elements are available for interaction
 - Get element references (refs) for precise targeting
 
-Two Modes:
+Filter Options (optional):
 
-- Without filter: Shows all visible elements in view - use this to understand current page content and structure
-- With 'interactive' filter: Shows only buttons, links, and inputs with their coordinates - use this to find what you can click or interact with
+- No filter: All visible elements in the viewport — use to understand full page structure
+- `"interactive"`: Buttons, links, and inputs with coordinates — use to find clickable elements
+- `"links"`: Only anchor/link elements — use for link extraction tasks
+- `"buttons"`: Only button elements — use to find actions on a page
+- `"text"`: Only text-content elements (paragraphs, headings, labels) — use for full-page text extraction
+- `"headings"`: Only heading elements (h1–h6) — use for page structure overview
 
 IMPORTANT Limitations:
 
@@ -78,13 +82,16 @@ Elements include HTML attributes when available: href (link URLs), id, type, pla
 Parameters:
 
 - `action`: "read_page"
-- `interactiveOnly`: (optional) boolean, default false
+- `filter`: (optional) "interactive" | "links" | "buttons" | "text" | "headings" — default: all elements
 - `tabId`: Tab ID to operate on (required)
 
-Example:
+Examples:
 
 ```json
-{"action": "read_page", "interactiveOnly": true, "tabId": "tab-1"}
+{"action": "read_page", "tabId": "tab-1"}
+{"action": "read_page", "filter": "interactive", "tabId": "tab-1"}
+{"action": "read_page", "filter": "links", "tabId": "tab-1"}
+{"action": "read_page", "filter": "text", "tabId": "tab-1"}
 ```
 
 ### 3. file_upload (action="upload")
@@ -223,29 +230,7 @@ Example:
 {"action": "find", "query": "button Submit", "tabId": "tab-1"}
 ```
 
-### 6. get_page_text (action="get_text")
-
-Extract all text content from the page in one call.
-
-When to use: This tool is ideal for immediately grabbing all textual content on a page without needing to scroll and take multiple screenshots. Great for articles, blog posts, documentation, or any text-heavy page where you need to read the full content quickly.
-
-Limitations: This tool only extracts content currently loaded in the DOM. For pages with lazy-loading or infinite scroll, content at the bottom may not be loaded yet. In those cases, you'll need to sequence scroll + screenshot operations to load and view additional content.
-
-Returns plain text without HTML formatting, prioritizing main content areas (article, main, content sections).
-
-Parameters:
-
-- `action`: "get_text"
-- `strategy`: (optional) "auto" | "article" | "main" | "body", default "auto"
-- `tabId`: Tab ID to operate on (required)
-
-Example:
-
-```json
-{"action": "get_text", "strategy": "auto", "tabId": "tab-1"}
-```
-
-### 7. create_tab (action="tab_create")
+### 6. create_tab (action="tab_create")
 
 Create a new browser tab and optionally navigate to a URL.
 
@@ -274,7 +259,7 @@ Example:
 {"action": "tab_create", "url": "https://example.com"}
 ```
 
-### 8. list_tabs (action="tab_list")
+### 7. list_tabs (action="tab_list")
 
 List all open browser tabs with their URLs and titles.
 
@@ -300,7 +285,7 @@ Example:
 {"action": "tab_list"}
 ```
 
-### 9. analyze_screenshot (action="analyze_screenshot")
+### 8. analyze_screenshot (action="analyze_screenshot")
 
 Captures the current page state and performs image analysis or element location detection.
 
@@ -365,7 +350,7 @@ Bounding Box Mode (read_page style):
 
 1. Create a tab: `{"action": "tab_create", "url": "..."}` → Returns `{"id": "tab-1", ...}`
 2. Open a URL: `{"action": "open", "url": "...", "tabId": "tab-1"}`
-3. Use `read_page` to discover elements: `{"action": "read_page", "interactiveOnly": true, "tabId": "tab-1"}`
+3. Use `read_page` to discover elements: `{"action": "read_page", "filter": "interactive", "tabId": "tab-1"}`
 4. Interact with elements using coordinates or refs from `read_page`
 
 ### Form Filling with Sequences
@@ -399,7 +384,7 @@ When you have multiple ways to accomplish the same task, use these guidelines to
 Preference Hierarchy:
 
 1. analyze_screenshot (PRIMARY) - Use bounding box prompt to get element centers in read_page format, directly usable
-2. read_page coordinates (FIRST FALLBACK) - Get element centers via interactiveOnly: true, use directly without adjustment
+2. read_page coordinates (FIRST FALLBACK) - Get element centers via filter: "interactive", use directly without adjustment
 3. Element refs (SECOND FALLBACK) - Use when both coordinate approaches fail or element has persistent ref
 
 Decision Flow:
@@ -450,14 +435,14 @@ When to use `scroll_to`:
 - Jumping directly to specific content
 - Requires element index from read_page
 
-### Content Extraction: get_page_text vs Multiple Screenshots
+### Content Extraction: read_page filter="text" vs Multiple Screenshots
 
-When to use `get_page_text`:
+When to use `read_page` with `filter: "text"`:
 
 - Articles, blog posts, documentation
-- Text-heavy pages where you need full content
-- Quick extraction without scrolling
+- Text-heavy pages where you need full content quickly
 - When text formatting doesn't matter
+- Extracting all headings, paragraphs, and labels in viewport
 
 When to use multiple screenshots:
 
@@ -522,7 +507,7 @@ When to Clear Cache:
 
 Understanding DOM Limitations:
 
-- `read_page`, `find`, and `get_page_text` only see currently loaded DOM
+- `read_page` and `find` only see currently loaded DOM
 - Content below the fold may not be loaded yet
 - Scrolling triggers lazy loading, expanding the DOM
 
@@ -566,7 +551,7 @@ Use analyze_screenshot Strategically:
 
 Minimize Round Trips:
 
-- Use `get_page_text` instead of scrolling + multiple screenshots for text extraction
+- Use `read_page` with `filter: "text"` instead of scrolling + multiple screenshots for text extraction
 - Use `find` to search entire loaded DOM instead of repeated read_page calls
 - Sequence multiple independent operations together
 
@@ -618,7 +603,7 @@ Recovery Strategies:
 
 Before Navigation:
 
-- Extract any data you need from current page (use get_page_text, read_page, or screenshots)
+- Extract any data you need from current page (use read_page with filter, or screenshots)
 - Write important data to files
 - Remember: navigate/go_back/go_forward WILL CLEAR DOM AND DATA
 

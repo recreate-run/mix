@@ -114,7 +114,7 @@ func TestFormatReadPageResponse(t *testing.T) {
 		X: 0, Y: 0, Width: 1280, Height: 720,
 	}
 
-	result := formatReadPageResponse(elements, viewport, true)
+	result := formatReadPageResponse(elements, viewport, FilterInteractive)
 
 	// Verify format
 	assert.Contains(t, result, `- link "Test Link" [ref=f0_ref_1005] (x=50,y=100)`)
@@ -160,7 +160,7 @@ func TestFormatReadPageResponseMultipleFrames(t *testing.T) {
 		X: 0, Y: 0, Width: 1280, Height: 720,
 	}
 
-	result := formatReadPageResponse(elements, viewport, false)
+	result := formatReadPageResponse(elements, viewport, "")
 
 	// Verify frame numbering is consistent
 	assert.Contains(t, result, "[ref=f0_ref_1005]") // main-frame gets f0

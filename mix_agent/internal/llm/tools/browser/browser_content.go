@@ -22,11 +22,8 @@ func (b *browserTool) handleReadPage(ctx context.Context, params BrowserParams, 
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
 	}
 
-	// Default to false if not specified
-	interactiveOnly := false
-	if params.InteractiveOnly != nil {
-		interactiveOnly = *params.InteractiveOnly
-	}
+	// Use interactiveOnly optimization only for "interactive" filter
+	interactiveOnly := params.Filter == FilterInteractive
 
 	// Call browser service (tabID is always required and validated)
 	result, err := client.ReadPage(ctx, interactiveOnly, params.TabID)
@@ -34,9 +31,60 @@ func (b *browserTool) handleReadPage(ctx context.Context, params BrowserParams, 
 		return interfaces.NewTextErrorResponse(fmt.Sprintf("Read page failed: %v", err))
 	}
 
-	// Format response
-	response := formatReadPageResponse(result.Elements, result.Viewport, interactiveOnly)
+	// Apply additional element filtering
+	elements := applyElementFilter(result.Elements, params.Filter)
+
+	response := formatReadPageResponse(elements, result.Viewport, params.Filter)
 	return interfaces.NewTextResponse(response)
+}
+
+// applyElementFilter filters accessibility nodes by the requested filter type
+func applyElementFilter(elements []browserprotocol.RawAccessibilityNode, filter string) []browserprotocol.RawAccessibilityNode {
+	switch filter {
+	case FilterInteractive, "":
+		return elements // interactive already filtered by client; empty means all
+	case FilterLinks:
+		return filterByRole(elements, "link")
+	case FilterButtons:
+		return filterByRole(elements, "button")
+	case FilterHeadings:
+		return filterByRole(elements, "heading")
+	case FilterText:
+		return filterTextElements(elements)
+	default:
+		return elements
+	}
+}
+
+// filterByRole returns only elements matching the given role (case-insensitive)
+func filterByRole(elements []browserprotocol.RawAccessibilityNode, role string) []browserprotocol.RawAccessibilityNode {
+	filtered := make([]browserprotocol.RawAccessibilityNode, 0)
+	for _, elem := range elements {
+		if strings.EqualFold(elem.Role, role) {
+			filtered = append(filtered, elem)
+		}
+	}
+	return filtered
+}
+
+var textRoles = map[string]bool{
+	"statictext": true,
+	"paragraph":  true,
+	"heading":    true,
+	"label":      true,
+	"caption":    true,
+	"figure":     true,
+}
+
+// filterTextElements returns only text-content elements
+func filterTextElements(elements []browserprotocol.RawAccessibilityNode) []browserprotocol.RawAccessibilityNode {
+	filtered := make([]browserprotocol.RawAccessibilityNode, 0)
+	for _, elem := range elements {
+		if textRoles[strings.ToLower(elem.Role)] {
+			filtered = append(filtered, elem)
+		}
+	}
+	return filtered
 }
 
 // buildFrameNumberMap creates consistent frame number mapping
@@ -93,15 +141,15 @@ func formatAttributes(attrs map[string]string) string {
 }
 
 // formatReadPageResponse formats the read_page response for the LLM
-func formatReadPageResponse(elements []browserprotocol.RawAccessibilityNode, viewport browserprotocol.BoundingBox, interactiveOnly bool) string {
+func formatReadPageResponse(elements []browserprotocol.RawAccessibilityNode, viewport browserprotocol.BoundingBox, filter string) string {
 	var sb strings.Builder
 
-	filter := "all"
-	if interactiveOnly {
-		filter = "interactive"
+	filterLabel := "all"
+	if filter != "" {
+		filterLabel = filter
 	}
 
-	fmt.Fprintf(&sb, "Accessibility tree (%s elements in viewport)\n", filter)
+	fmt.Fprintf(&sb, "Accessibility tree (%s elements in viewport)\n", filterLabel)
 	fmt.Fprintf(&sb, "Viewport: %.0fx%.0f at scroll position (%.0f, %.0f)\n\n",
 		viewport.Width, viewport.Height, viewport.X, viewport.Y)
 	fmt.Fprintf(&sb, "Found %d element(s):\n\n", len(elements))
@@ -143,38 +191,6 @@ func formatReadPageResponse(elements []browserprotocol.RawAccessibilityNode, vie
 	}
 
 	return sb.String()
-}
-
-// handleGetText extracts text content from the page
-func (b *browserTool) handleGetText(ctx context.Context, params BrowserParams, sessionID string) interfaces.ToolResponse {
-	// Default strategy to auto
-	strategy := params.Strategy
-	if strategy == "" {
-		strategy = defaultTextStrategy
-	}
-
-	// Get browser connection
-	client, err := b.getClient(ctx, sessionID)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Failed to get browser client: %v", err))
-	}
-
-	// Extract text (tabID is always required and validated)
-	result, err := client.GetText(ctx, strategy, params.TabID)
-	if err != nil {
-		return interfaces.NewTextErrorResponse(fmt.Sprintf("Text extraction failed: %v", err))
-	}
-
-	// Format response
-	var response strings.Builder
-	fmt.Fprintf(&response, "Extracted %d characters from page (%s section)\n\n", result.Length, result.Source)
-	if result.Truncated {
-		response.WriteString("⚠️  Text was truncated to 1MB limit\n\n")
-	}
-	response.WriteString("=== Page Text ===\n")
-	response.WriteString(result.Text)
-
-	return interfaces.NewTextResponse(response.String())
 }
 
 // handleFind searches for elements matching a query

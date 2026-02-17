@@ -31,7 +31,7 @@ func TestBrowserE2EProductURLExtraction(t *testing.T) {
 	testURL := testServerURL + "/amazon_products.html"
 
 	msgResp := sendMessage(t, sessionID, fmt.Sprintf(
-		"Navigate to %s. Once the page loads, use read_page to get the list of all links on the page. "+
+		"Navigate to %s. Once the page loads, use read_page with filter=\"links\" to get only the links on the page. "+
 			"Count how many product links contain '/dp/' or '/gp/product/' in their href attribute. "+
 			"Report the total count and list at least 3 example product URLs.",
 		testURL,
@@ -147,8 +147,8 @@ func verifyProductURLExtraction(t *testing.T, messages []map[string]interface{})
 							inputLower := strings.ToLower(input)
 							if strings.Contains(inputLower, "read_page") ||
 								strings.Contains(inputLower, "readpage") ||
-								strings.Contains(inputLower, "interactiveonly") {
-								t.Log("✓ Found read_page action in browser tool input")
+								strings.Contains(inputLower, "links") {
+								t.Log("✓ Found read_page with filter=links in browser tool input")
 							}
 						}
 
